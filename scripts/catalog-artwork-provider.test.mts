@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { isRecord } from "./runtime-values.mts";
 import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -291,4 +292,270 @@ void test("wrong editions and invalid declarations never reach image acquisition
     ["identity-mismatch", "identity-declaration-invalid"],
   );
   assert.equal(requiredFixture(result.records[0]).reason, "generated-fallback");
+});
+
+void test("game media uses dedicated relationships and fit PNG assets through the shared private client", async () => {
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-game-media-provider-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(
+    privateFile,
+    JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
+  );
+  const calls: { url: string; options: RequestInit }[] = [];
+  let decoded = 0;
+  const provider = createIgdbInspector(
+    privateFile,
+    () => {
+      decoded++;
+      return { format: "png", width: 400, height: 200, validator: "portcove-core" };
+    },
+    async (url, options) => {
+      calls.push({ url, options });
+      if (url.includes("oauth2")) return new Response('{"access_token":"fixture-token"}');
+      if (url.includes("/image/upload/"))
+        return new Response("decoder-fixture", { headers: { "content-type": "image/png" } });
+      return new Response("[]");
+    },
+  );
+  await provider.inspectGameMedia(7, "logo");
+  await provider.inspectGameMedia(7, "key_art");
+  await provider.inspectImageTypes();
+  await provider.inspectMediaImage("logofixture", "logo");
+  await provider.inspectMediaImage("artfixture", "key_art");
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    [
+      "https://id.twitch.tv/oauth2/token",
+      "https://api.igdb.com/v4/logos",
+      "https://api.igdb.com/v4/artworks",
+      "https://api.igdb.com/v4/image_types",
+      "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/logofixture.png",
+      "https://images.igdb.com/igdb/image/upload/t_720p/artfixture.png",
+    ],
+  );
+  assert.ok(text(requiredFixture(calls[1]).options.body).includes("where game = 7;"));
+  assert.ok(text(requiredFixture(calls[2]).options.body).includes("image_type.name"));
+  assert.equal(
+    text(requiredFixture(calls[3]).options.body),
+    "fields id,name; sort id asc; limit 501;",
+  );
+  assert.ok(calls.every((call) => call.options.redirect === "error"));
+  assert.equal(decoded, 2);
+  assert.equal(provider.providerMetrics.authentication_requests, 1);
+  assert.equal(provider.providerMetrics.game_requests, 3);
+  assert.equal(provider.providerMetrics.image_requests, 2);
+  await assert.rejects(provider.inspectGameMedia(0, "logo"), /Invalid game media identity/);
+  assert.equal(calls.length, 6);
+});
+
+void test("hero preparation validates identity without requiring a cover and rejects generic or foreign artwork", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const inspected: string[] = [];
+  const result = await prepareCatalogGameMedia(
+    {
+      ports: [
+        {
+          id: "sample",
+          name: "Sample",
+          project_url: "https://example.org/sample",
+          presentation: { media: [] },
+        },
+      ],
+    },
+    {
+      inspector: {
+        inspectGame: async () => [
+          {
+            id: 7,
+            name: "Sample",
+            slug: "sample",
+            websites: [{ url: "https://example.org/sample" }],
+          },
+        ],
+        inspectGameMedia: async (_id, kind) =>
+          kind === "logo"
+            ? [{ id: 9, game: 7, image_id: "logo" }]
+            : [
+                {
+                  id: 1,
+                  game: 7,
+                  image_id: "concept",
+                  image_type: { id: 991, name: "Concept art" },
+                },
+                {
+                  id: 2,
+                  game: 8,
+                  image_id: "foreign",
+                  image_type: { id: 992, name: "Key art with logo" },
+                },
+                {
+                  id: 3,
+                  game: 7,
+                  image_id: "without",
+                  image_type: { id: 993, name: "Key art without logo" },
+                },
+                {
+                  id: 4,
+                  game: 7,
+                  image_id: "with",
+                  image_type: { id: 992, name: "Key art with logo" },
+                },
+              ],
+        inspectMediaImage: async (id) => {
+          inspected.push(id);
+          if (id === "with") throw new Error("Fixture image unavailable");
+          return {
+            sha256: "a".repeat(64),
+            bytes: 100,
+            width: 400,
+            height: 200,
+            format: "png",
+            validator: "portcove-core",
+          };
+        },
+      },
+    },
+  );
+  assert.deepEqual(inspected, ["with", "without", "logo"]);
+  const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
+  assert.ok(Array.isArray(media));
+  assert.deepEqual(
+    (media as unknown[]).map((asset) => {
+      assert.ok(isRecord(asset) && isRecord(asset.igdb));
+      return [asset.role, asset.igdb.image_id];
+    }),
+    [
+      ["key_art", "without"],
+      ["logo", "logo"],
+    ],
+  );
+  const first: unknown = media[0];
+  assert.ok(isRecord(first) && isRecord(first.igdb));
+  assert.equal(first.igdb.image_type, 993);
+  assert.equal(first.igdb.image_type_name, "Key art without logo");
+  assert.deepEqual(
+    result.records.map((record) => record.reason),
+    ["role-selected", "role-selected"],
+  );
+});
+
+void test("incomplete key-art inventory preserves cached media and does not suppress the logo role", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const retained = { id: "retained-header", role: "header" };
+  const result = await prepareCatalogGameMedia(
+    {
+      ports: [
+        {
+          id: "sample",
+          name: "Sample",
+          project_url: "https://example.org/sample",
+          presentation: { media: [retained] },
+        },
+      ],
+    },
+    {
+      inspector: {
+        inspectGame: async () => [
+          {
+            id: 7,
+            name: "Sample",
+            slug: "sample",
+            websites: [{ url: "https://example.org/sample" }],
+          },
+        ],
+        inspectGameMedia: async (_id, kind) =>
+          kind === "key_art"
+            ? Array.from({ length: 21 }, () => ({}))
+            : [{ id: 9, game: 7, image_id: "logo" }],
+        inspectMediaImage: async () => ({
+          sha256: "b".repeat(64),
+          bytes: 100,
+          width: 400,
+          height: 200,
+          format: "png",
+          validator: "portcove-core",
+        }),
+      },
+    },
+  );
+  assert.equal(result.records[0]?.reason, "media-provider-unavailable-or-incomplete");
+  assert.equal(result.records[1]?.reason, "role-selected");
+  const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
+  assert.ok(Array.isArray(media));
+  assert.deepEqual(media[0], retained);
+  const second: unknown = media[1];
+  assert.ok(isRecord(second));
+  assert.equal(second.role, "logo");
+});
+
+void test("an observed Gone image sweeps earlier and unselected references and cannot be reselected in the batch", async () => {
+  const { createIgdbInspector, prepareCatalogGameMedia } =
+    await import("./inspect-igdb-artwork.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-game-media-gone-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(
+    privateFile,
+    JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
+  );
+  let imageCalls = 0;
+  const inspector = createIgdbInspector(
+    privateFile,
+    () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
+    async (url) => {
+      if (url.includes("oauth2")) return new Response('{"access_token":"fixture-token"}');
+      if (url.endsWith("/games"))
+        return new Response(
+          JSON.stringify([
+            {
+              id: 7,
+              name: "Sample",
+              slug: "sample",
+              websites: [{ url: "https://example.org/sample" }],
+            },
+          ]),
+        );
+      if (url.endsWith("/artworks")) return new Response("[]");
+      if (url.endsWith("/logos"))
+        return new Response(JSON.stringify([{ id: 9, game: 7, image_id: "sharedlogo" }]));
+      imageCalls++;
+      return imageCalls === 1
+        ? new Response("decoder-fixture", { headers: { "content-type": "image/png" } })
+        : new Response(null, { status: 410 });
+    },
+  );
+  const result = await prepareCatalogGameMedia(
+    {
+      ports: ["one", "two", "three", "unselected"].map((id) => ({
+        id,
+        name: "Sample",
+        project_url: "https://example.org/sample",
+        presentation: {
+          media: [
+            { id: "retained-header", role: "header", subject: { kind: "port", port_id: id } },
+            {
+              id: "withdrawn-logo",
+              role: "logo",
+              subject: { kind: "port", port_id: id },
+              igdb: { image_id: "sharedlogo" },
+            },
+          ],
+        },
+      })),
+    },
+    { inspector, selectedPortIds: ["one", "two", "three"] },
+  );
+  assert.equal(imageCalls, 2);
+  assert.deepEqual(result.gone_image_ids, ["sharedlogo"]);
+  for (const port of result.catalog.ports) {
+    const media = port.presentation?.media;
+    assert.ok(Array.isArray(media));
+    assert.deepEqual(media, [
+      { id: "retained-header", role: "header", subject: { kind: "port", port_id: port.id } },
+    ]);
+  }
+  assert.equal(
+    result.records.find((record) => record.port_id === "one" && record.role === "logo")?.reason,
+    "selected-image-gone-later-in-batch",
+  );
 });

@@ -96,7 +96,7 @@ function directory(media: CatalogMediaAsset[]) {
 
 it("reserves no gallery for absent media", async () => {
   const read = vi.spyOn(desktopApi, "catalogMediaThumbnail");
-  await render(<CatalogMediaGallery portId="sample" />);
+  await render(<CatalogMediaGallery port={portDefinition()} />);
   await expect
     .element(page.getByRole("region", { name: "Screenshots", exact: true }))
     .not.toBeInTheDocument();
@@ -116,7 +116,12 @@ it("shows source and edition attribution, navigates previews and returns focus t
   }));
   await render(
     <ArtworkProvider generation={7} listings={directory([first, second])}>
-      <CatalogMediaGallery portId="sample" media={[first, second]} />
+      <CatalogMediaGallery
+        port={{
+          ...portDefinition(),
+          presentation: { ...portDefinition().presentation!, media: [first, second] },
+        }}
+      />
     </ArtworkProvider>,
   );
   const origin = page.getByRole("button", {
@@ -147,7 +152,12 @@ it("keeps unavailable screenshot feedback compact and offers an explicit retry",
     .mockRejectedValue(new Error("Image unavailable"));
   await render(
     <ArtworkProvider generation={7} listings={directory([first])}>
-      <CatalogMediaGallery portId="sample" media={[first]} />
+      <CatalogMediaGallery
+        port={{
+          ...portDefinition(),
+          presentation: { ...portDefinition().presentation!, media: [first] },
+        }}
+      />
     </ArtworkProvider>,
   );
   const retry = page.getByRole("button", { name: "Retry screenshot 1", exact: true });
@@ -194,7 +204,7 @@ it("does not replace an unavailable selected local header with catalog imagery",
   );
   await vi.waitFor(() => expect(desktopApi.artwork).toHaveBeenCalledWith("sample", "detail", 7));
   expect(read).not.toHaveBeenCalled();
-  expect(document.querySelector(".detail-header-artwork")).toBeNull();
+  expect(document.querySelector(".game-hero-background")).toBeNull();
 });
 
 it("prefers the admitted header over automatic artwork and credits only the image actually displayed", async () => {
@@ -221,11 +231,14 @@ it("prefers the admitted header over automatic artwork and credits only the imag
   await renderDetail(header);
   const automaticUrl = `data:image/png;base64,${png}`;
   const headerUrl = `data:image/png;base64,${headerPng}`;
+  await expect.poll(() => document.querySelector(".game-hero-background img")).toBeNull();
   await expect
-    .poll(() => document.querySelector<HTMLImageElement>(".detail-header-artwork img")?.src)
-    .toBe(automaticUrl);
-  await expect
-    .poll(() => document.querySelector<HTMLImageElement>(".detail-cover img")?.src)
+    .poll(
+      () =>
+        document.querySelector<HTMLImageElement>(
+          '.game-hero[data-hero-identity="cover"] .game-hero-image',
+        )?.src,
+    )
     .toBe(automaticUrl);
   expect(document.querySelector(".media-credit")).toBeNull();
   await vi.waitFor(() =>
@@ -237,22 +250,29 @@ it("prefers the admitted header over automatic artwork and credits only the imag
     finish({ asset_sha256: header.sha256, choice_revision: 0, png_base64: headerPng }),
   );
   await expect
-    .poll(() => document.querySelector<HTMLImageElement>(".detail-header-artwork img")?.src)
+    .poll(() => document.querySelector<HTMLImageElement>(".game-hero-background img")?.src)
     .toBe(headerUrl);
-  expect(document.querySelector<HTMLImageElement>(".detail-cover img")?.src).toBe(automaticUrl);
+  expect(
+    document.querySelector<HTMLImageElement>(
+      '.game-hero[data-hero-identity="cover"] .game-hero-image',
+    )?.src,
+  ).toBe(automaticUrl);
   expect(document.querySelector(".media-credit")?.textContent).toContain(header.attribution);
+  await page.getByText("Image credits", { exact: true }).click();
   await expect
     .element(page.getByRole("link", { name: "Source", exact: true }))
     .toHaveAttribute("href", header.source_url);
-  const banner = document.querySelector<HTMLImageElement>(".detail-header-artwork img");
+  const banner = document.querySelector<HTMLImageElement>(".game-hero-background img");
   if (!banner) throw new Error("Declared banner was not rendered");
   await act(async () => {
     banner.dispatchEvent(new Event("error"));
   });
-  await expect
-    .poll(() => document.querySelector<HTMLImageElement>(".detail-header-artwork img")?.src)
-    .toBe(automaticUrl);
-  expect(document.querySelector<HTMLImageElement>(".detail-cover img")?.src).toBe(automaticUrl);
+  await expect.poll(() => document.querySelector(".game-hero-background img")).toBeNull();
+  expect(
+    document.querySelector<HTMLImageElement>(
+      '.game-hero[data-hero-identity="cover"] .game-hero-image',
+    )?.src,
+  ).toBe(automaticUrl);
   expect(document.querySelector(".media-credit")).toBeNull();
 });
 
@@ -271,10 +291,15 @@ it("keeps a selected local header ahead of an admitted remote header and the aut
     }));
   await renderDetail(header);
   await expect
-    .poll(() => document.querySelector<HTMLImageElement>(".detail-header-artwork img")?.src)
+    .poll(() => document.querySelector<HTMLImageElement>(".game-hero-background img")?.src)
     .toBe(`data:image/png;base64,${headerPng}`);
   await expect
-    .poll(() => document.querySelector<HTMLImageElement>(".detail-cover img")?.src)
+    .poll(
+      () =>
+        document.querySelector<HTMLImageElement>(
+          '.game-hero[data-hero-identity="cover"] .game-hero-image',
+        )?.src,
+    )
     .toBe(`data:image/png;base64,${png}`);
   expect(thumbnail).toHaveBeenCalledWith("sample", "detail", 3, 7);
   expect(read).not.toHaveBeenCalled();

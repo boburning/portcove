@@ -8,14 +8,16 @@ use crate::{
     ArtworkThumbnail, Library, OriginalGameIdentity, PortcoveError, PortcoveService, Result,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CatalogMediaRole {
     Header,
     Screenshot,
+    Logo,
+    KeyArt,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CatalogMediaSubject {
     Port {
@@ -25,6 +27,31 @@ pub enum CatalogMediaSubject {
         game_id: String,
         source_edition_id: String,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum IgdbGameImageKind {
+    Logo,
+    Artwork,
+}
+
+/// A reviewed mapping from IGDB's game-logo or artwork endpoint. These are
+/// public descriptive IDs, never API credentials or installation authority.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IgdbGameImage {
+    pub game_id: u64,
+    pub record_id: u64,
+    pub kind: IgdbGameImageKind,
+    pub image_id: String,
+    pub game_slug: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alpha_channel: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_type: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_type_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -42,6 +69,12 @@ pub struct CatalogMediaAsset {
     pub source_url: String,
     pub license: String,
     pub rights_url: String,
+    /// Reviewed applicability across offered original editions, for any media role.
+    /// Absence never implies that an offered edition is the selected edition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edition_neutral: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub igdb: Option<IgdbGameImage>,
 }
 
 pub fn validate_catalog_media(
@@ -50,12 +83,17 @@ pub fn validate_catalog_media(
     media: &[CatalogMediaAsset],
 ) -> Result<()> {
     let mut ids = HashSet::new();
-    if media.len() > 9
+    if media.len() > 14
         || media
             .iter()
             .filter(|asset| asset.role == CatalogMediaRole::Header)
             .count()
-            > 1
+            > 2
+        || media
+            .iter()
+            .filter(|asset| asset.role == CatalogMediaRole::Logo)
+            .count()
+            > 2
         || media
             .iter()
             .filter(|asset| asset.role == CatalogMediaRole::Screenshot)
@@ -63,10 +101,28 @@ pub fn validate_catalog_media(
             > 8
     {
         return Err(PortcoveError::usage(
-            "catalog media permits one header and eight screenshots",
+            "catalog media permits two headers, two key-art images, two game logos and eight screenshots",
+        ));
+    }
+    let mut candidates = HashSet::new();
+    if media
+        .iter()
+        .filter(|asset| asset.role == CatalogMediaRole::KeyArt)
+        .count()
+        > 2
+    {
+        return Err(PortcoveError::usage(
+            "catalog media permits two key-art candidates",
         ));
     }
     for asset in media {
+        if asset.role != CatalogMediaRole::Screenshot
+            && !candidates.insert((asset.role, asset.subject.clone()))
+        {
+            return Err(PortcoveError::usage(
+                "catalog media permits one candidate per subject and identity role",
+            ));
+        }
         if !valid_id(&asset.id) || !ids.insert(&asset.id) {
             return Err(PortcoveError::usage(
                 "catalog media needs unique stable image IDs",
@@ -82,7 +138,7 @@ pub fn validate_catalog_media(
             || !valid_text(&asset.attribution, 1024)
             || !evidence_url(&asset.source_url)
             || !evidence_url(&asset.rights_url)
-            || !matches!(
+            || !(matches!(
                 asset.license.as_str(),
                 "CC0-1.0"
                     | "CC-BY-3.0"
@@ -98,13 +154,20 @@ pub fn validate_catalog_media(
                     | "GPL-3.0-only"
                     | "GPL-3.0-or-later"
                     | "LicenseRef-Permission"
-            )
+            ) || (asset.license == "LicenseRef-IGDB-Terms"
+                && matches!(
+                    asset.role,
+                    CatalogMediaRole::Logo | CatalogMediaRole::KeyArt
+                )
+                && asset.igdb.is_some()
+                && asset.rights_url == "https://www.twitch.tv/p/en/legal/developer-agreement/"))
         {
             return Err(PortcoveError::usage(
                 "catalog media needs bounded dimensions, descriptive credit and reviewed rights evidence",
             ));
         }
         fetch_url(&asset.url)?;
+        validate_igdb_media(asset)?;
         let matches = match &asset.subject {
             CatalogMediaSubject::Port {
                 port_id: image_port,
@@ -125,6 +188,82 @@ pub fn validate_catalog_media(
                 "catalog media must name this exact port or an explicitly offered original-game edition",
             ));
         }
+    }
+    Ok(())
+}
+
+fn is_key_art_type_name(name: &str) -> bool {
+    if !valid_text(name, 128) {
+        return false;
+    }
+    let normalized: String = name
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .flat_map(char::to_lowercase)
+        .collect();
+    matches!(
+        normalized.as_str(),
+        "keyart" | "keyartwithlogo" | "keyartwithoutlogo"
+    )
+}
+
+fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
+    let Some(image) = &asset.igdb else {
+        return if matches!(
+            asset.role,
+            CatalogMediaRole::Header | CatalogMediaRole::Screenshot
+        ) {
+            Ok(())
+        } else {
+            Err(PortcoveError::usage(
+                "foreground game images require a reviewed IGDB mapping",
+            ))
+        };
+    };
+    let variant = match (asset.role, image.kind) {
+        (CatalogMediaRole::Logo, IgdbGameImageKind::Logo) => "logo_med_2x",
+        (CatalogMediaRole::KeyArt, IgdbGameImageKind::Artwork)
+            if image.image_type.is_some()
+                && image
+                    .image_type_name
+                    .as_deref()
+                    .is_some_and(is_key_art_type_name) =>
+        {
+            "720p"
+        }
+        _ => {
+            return Err(PortcoveError::usage(
+                "IGDB image kind does not establish the requested media role",
+            ));
+        }
+    };
+    let (max_width, max_height) = if asset.role == CatalogMediaRole::Logo {
+        (568, 320)
+    } else {
+        (1280, 720)
+    };
+    if image.game_id == 0
+        || image.record_id == 0
+        || image.image_type.is_some_and(|id| id == 0)
+        || !valid_id(&image.game_slug)
+        || image.image_id.is_empty()
+        || image.image_id.len() > 128
+        || !image
+            .image_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+        || asset.width > max_width
+        || asset.height > max_height
+        || asset.url
+            != format!(
+                "https://images.igdb.com/igdb/image/upload/t_{variant}/{}.png",
+                image.image_id
+            )
+        || asset.source_url != format!("https://www.igdb.com/games/{}", image.game_slug)
+    {
+        return Err(PortcoveError::usage(
+            "foreground game images require an exact reviewed IGDB mapping and bounded fit image",
+        ));
     }
     Ok(())
 }
@@ -246,7 +385,13 @@ fn thumbnail_with_fetch(
             "catalog image differs from its admitted content identity",
         ));
     }
-    let decoded = crate::artwork_image::decode(&original)?;
+    let (width, height) = match asset.role {
+        CatalogMediaRole::Logo => (568, 320),
+        CatalogMediaRole::KeyArt => (960, 640),
+        CatalogMediaRole::Header => (1280, 720),
+        CatalogMediaRole::Screenshot => (960, 540),
+    };
+    let decoded = crate::artwork_image::decode_with_thumbnail_bounds(&original, width, height)?;
     if decoded.width != asset.width || decoded.height != asset.height {
         return Err(PortcoveError::verification(
             "catalog image dimensions differ from its admitted metadata",
@@ -334,7 +479,113 @@ mod tests {
             source_url: "https://github.com/owner/project".into(),
             license: "CC0-1.0".into(),
             rights_url: "https://github.com/owner/project/blob/main/LICENSE".into(),
+            edition_neutral: None,
+            igdb: None,
         }
+    }
+
+    fn logo() -> CatalogMediaAsset {
+        CatalogMediaAsset {
+            id: "example-game-logo".into(),
+            role: CatalogMediaRole::Logo,
+            url: "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/logo_fixture.png".into(),
+            source_url: "https://www.igdb.com/games/example-game".into(),
+            igdb: Some(IgdbGameImage {
+                game_id: 1,
+                record_id: 2,
+                kind: IgdbGameImageKind::Logo,
+                image_id: "logo_fixture".into(),
+                game_slug: "example-game".into(),
+                alpha_channel: Some(true),
+                image_type: None,
+                image_type_name: None,
+            }),
+            ..asset()
+        }
+    }
+
+    #[test]
+    fn key_art_is_not_inferred_from_generic_artwork() {
+        let mut image = logo();
+        image.role = CatalogMediaRole::KeyArt;
+        image.url = image.url.replace("logo_med_2x", "720p");
+        let metadata = image.igdb.as_mut().unwrap();
+        metadata.kind = IgdbGameImageKind::Artwork;
+        metadata.image_type = Some(3);
+        metadata.image_type_name = Some("Concept art".into());
+        assert!(validate_catalog_media("example", None, std::slice::from_ref(&image)).is_err());
+        for name in ["Key art with logo", "Key art without logo"] {
+            image.igdb.as_mut().unwrap().image_type_name = Some(name.into());
+            assert!(validate_catalog_media("example", None, std::slice::from_ref(&image)).is_ok());
+        }
+        image.igdb.as_mut().unwrap().image_type_name = None;
+        assert!(validate_catalog_media("example", None, &[image]).is_err());
+    }
+
+    #[test]
+    fn key_art_candidates_are_bounded_across_distinct_valid_subjects() {
+        let mut image = logo();
+        image.role = CatalogMediaRole::KeyArt;
+        image.url = image.url.replace("logo_med_2x", "720p");
+        let metadata = image.igdb.as_mut().unwrap();
+        metadata.kind = IgdbGameImageKind::Artwork;
+        metadata.image_type = Some(7);
+        metadata.image_type_name = Some("Key art".into());
+        let game = OriginalGameIdentity {
+            format_version: 1,
+            id: "original-game".into(),
+            evidence_urls: vec!["https://example.com".into()],
+            source_editions: ["usa", "europe"]
+                .into_iter()
+                .map(|id| crate::SourceEdition {
+                    id: id.into(),
+                    title: id.into(),
+                    system: None,
+                    evidence_urls: vec!["https://example.com".into()],
+                })
+                .collect(),
+        };
+        let mut images = vec![image.clone()];
+        for edition in &game.source_editions {
+            let mut original = image.clone();
+            original.id = format!("key-art-{}", edition.id);
+            original.subject = CatalogMediaSubject::Original {
+                game_id: game.id.clone(),
+                source_edition_id: edition.id.clone(),
+            };
+            images.push(original);
+        }
+        assert!(validate_catalog_media("example", Some(&game), &images[..2]).is_ok());
+        assert!(validate_catalog_media("example", Some(&game), &images).is_err());
+    }
+
+    #[test]
+    fn legacy_media_omits_new_metadata_and_keeps_its_serialized_identity() {
+        let value = serde_json::to_value(asset()).unwrap();
+        assert!(value.get("igdb").is_none());
+        let decoded: CatalogMediaAsset = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(serde_json::to_value(decoded).unwrap(), value);
+    }
+
+    #[test]
+    fn logos_require_a_game_logo_mapping_and_bounded_fit_variant() {
+        let image = logo();
+        assert!(validate_catalog_media("example", None, std::slice::from_ref(&image)).is_ok());
+        let mut invalid = image.clone();
+        invalid.igdb = None;
+        assert!(validate_catalog_media("example", None, &[invalid]).is_err());
+        let mut invalid = image.clone();
+        invalid.url = invalid.url.replace("logo_med_2x", "original");
+        assert!(validate_catalog_media("example", None, &[invalid]).is_err());
+        let mut invalid = image.clone();
+        invalid.source_url = "https://www.igdb.com/game-engines/example-game".into();
+        assert!(validate_catalog_media("example", None, &[invalid]).is_err());
+        let mut invalid = image.clone();
+        invalid.width = 569;
+        assert!(validate_catalog_media("example", None, &[invalid]).is_err());
+        let mut duplicate = image.clone();
+        duplicate.id = "second-logo-same-subject".into();
+        assert!(validate_catalog_media("example", None, &[image, duplicate]).is_err());
     }
 
     #[test]

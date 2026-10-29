@@ -591,6 +591,17 @@ disclosure to this generated fallback without changing the durable local choice.
 Catalog-mapped covers keep imagery clear of provider labels. The existing details
 source disclosure shows IGDB attribution and the reviewed source link.
 
+Game details and Continue share a foreground identity composition: suitable verified
+IGDB key art, game logo, existing Cover choice, then a real text heading. Each role
+prefers the exact port and only then an applicable original/edition; project identity
+remains visible. Atmospheric landscape art and screenshots resolve independently.
+Keep full natural proportions, reserve space while loading, constrain logo dimensions
+and preserve headings/actions across failures. A cover fallback is a deliberate
+portrait element, never a manufactured landscape or cropped logo. Read decoded
+logo suitability rather than trusting a non-null URL or alpha hint; use a deliberate
+contrasting stage when necessary without recoloring brand pixels. Expose image
+provenance and rights through the shared credits disclosure.
+
 Provide **Change artwork**, **Choose local image**, **Browse SteamGridDB** when
 configured, **Reset to default**, and source/author information. Reset affects
 only the selected slot's explicit choice; unavailable preferred art retains its

@@ -372,22 +372,36 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
         }
       : {}),
   }));
-  const format_version = listings.some(
+  const extendedMedia = listings.some(
     (listing) =>
-      listing.upstream_observation !== undefined ||
-      listing.availability_override_reason !== undefined ||
-      "release_maintenance" in listing,
-  )
-    ? 4
+      Array.isArray(listing.media) &&
+      (listing.media.some(
+        (asset) =>
+          isRecord(asset) &&
+          (["key_art", "logo"].includes(String(asset.role)) ||
+            asset.edition_neutral != null ||
+            asset.igdb != null),
+      ) ||
+        listing.media.filter((asset) => isRecord(asset) && asset.role === "header").length > 1),
+  );
+  const format_version = extendedMedia
+    ? 5
     : listings.some(
           (listing) =>
-            listing.original_game !== undefined ||
-            (Array.isArray(listing.media) && listing.media.length > 0),
+            listing.upstream_observation !== undefined ||
+            listing.availability_override_reason !== undefined ||
+            "release_maintenance" in listing,
         )
-      ? 3
-      : listings.some((listing) => listing.download_block_reason !== undefined)
-        ? 2
-        : 1;
+      ? 4
+      : listings.some(
+            (listing) =>
+              listing.original_game !== undefined ||
+              (Array.isArray(listing.media) && listing.media.length > 0),
+          )
+        ? 3
+        : listings.some((listing) => listing.download_block_reason !== undefined)
+          ? 2
+          : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

@@ -14,9 +14,8 @@ import {
   gameTitle,
   type PortIdentity,
 } from "../port-identity";
-import { ArtworkImage } from "./Artwork";
-import { useHeaderArtwork, useArtworkVisibility } from "../artwork";
-import { CatalogMediaGallery, MediaCredit } from "./CatalogMedia";
+import { GameHero } from "./GameHero";
+import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
 import { platformLabel, releaseChannelPresentation } from "../view-model";
@@ -87,9 +86,6 @@ export function DetailLayout({
   if (selection.identity !== identity) setSelection({ identity, section: initialSection });
   const selected = selection.identity === identity ? selection.section : initialSection;
   const root = useRef<HTMLElement>(null);
-  const { element: hero, visible: heroVisible } = useArtworkVisibility();
-  const { display: heroArtwork, catalogMedia } = useHeaderArtwork(port, heroVisible);
-  const heroImage = heroArtwork.image;
   const [pending, setPending] = useState<{
     section: DetailSection;
     targetId?: string | undefined;
@@ -174,19 +170,7 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} /> {backLabel ?? "Back"}
       </Button>
-      <div className="detail-hero" ref={hero}>
-        {heroImage && (
-          <div className="detail-header-artwork" aria-hidden="true">
-            <img
-              src={heroImage}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              onError={heroArtwork.onImageError}
-            />
-          </div>
-        )}
-        <ArtworkImage port={port} quietFallback className="detail-cover" />
+      <GameHero port={port} variant="detail" className="detail-hero">
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
@@ -207,12 +191,18 @@ export function DetailLayout({
             role="group"
             aria-label="Game and port identity"
           >
-            {sourceSystems.map((system) => (
-              <Chip key={`system:${system}`} style={identityStyle(system)} title="Original system">
-                <IdentityIcon name={system} />
-                {identityLabel(system)}
-              </Chip>
-            ))}
+            {sourceSystems
+              .filter((system) => system !== "not-specified")
+              .map((system) => (
+                <Chip
+                  key={`system:${system}`}
+                  style={identityStyle(system)}
+                  title="Original system"
+                >
+                  <IdentityIcon name={system} />
+                  {identityLabel(system)}
+                </Chip>
+              ))}
             {port.platforms?.map((platform) => {
               const system = platform.split("-")[0]!;
               return (
@@ -300,12 +290,7 @@ export function DetailLayout({
             </span>
           </div>
         </div>
-      </div>
-      {catalogMedia && (
-        <div className="mt-2">
-          <MediaCredit media={catalogMedia} />
-        </div>
-      )}
+      </GameHero>
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
       <Tabs.Root
         value={selected}
@@ -353,7 +338,7 @@ export function DetailLayout({
               <div className="detail-overview">
                 <div className="detail-overview-main min-w-0">
                   {panels.overview}
-                  <CatalogMediaGallery portId={port.id} media={port.presentation?.media} />
+                  <CatalogMediaGallery port={port} />
                   {overviewActions?.(reveal)}
                 </div>
                 <aside className="detail-overview-support min-w-0">

@@ -1,9 +1,11 @@
+import { heroMediaCandidates, type HeroMediaContext, type HeroMediaPort } from "./hero-media";
 import type { PortIdentity } from "./port-identity";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -119,15 +121,78 @@ export function useCatalogMedia(
   return { display, retry };
 }
 
-/** Shared hero selection preserves local artwork precedence and catalog media attribution. */
-export function useHeaderArtwork(port: PortIdentity & { id: string }, visible: boolean) {
+/** A bounded per-surface fallback chain. Rejections are ephemeral, not asset choices. */
+function useCatalogMediaChain(
+  portId: string,
+  candidates: readonly CatalogMediaAsset[],
+  visible: boolean,
+) {
+  const cache = useContext(ArtworkContext);
+  const key = JSON.stringify([
+    portId,
+    candidates.map((asset) => [asset.id, asset.sha256, asset.role]),
+  ]);
+  const active = useRef({ cache, key });
+  useLayoutEffect(() => {
+    active.current = { cache, key };
+  }, [cache, key]);
+  const [choice, setChoice] = useState<{ cache: typeof cache; key: string; rejected: string[] }>({
+    cache,
+    key,
+    rejected: [],
+  });
+  const rejected = choice.cache === cache && choice.key === key ? choice.rejected : [];
+  const candidate = candidates.find((asset) => !rejected.includes(`${asset.id}:${asset.sha256}`));
+  const { display } = useCatalogMedia(portId, candidate, visible);
+  const reject = useCallback(() => {
+    if (!candidate || active.current.cache !== cache || active.current.key !== key) return;
+    const id = `${candidate.id}:${candidate.sha256}`;
+    setChoice((previous) => {
+      const current = previous.cache === cache && previous.key === key ? previous.rejected : [];
+      return current.includes(id) ? previous : { cache, key, rejected: [...current, id] };
+    });
+  }, [cache, key, candidate]);
+  useEffect(() => {
+    if (visible && display.error) reject();
+  }, [visible, display.error, reject]);
+  return { candidate, display, reject, exhausted: !candidate };
+}
+
+/** Shared hero selection preserves local Detail choices and independent background media. */
+export function useHeaderArtwork(
+  port: PortIdentity & { id: string },
+  visible: boolean,
+  context: HeroMediaContext = {},
+) {
   const { display: local } = useArtwork(port.id, "detail", visible);
-  const header = port.presentation?.media?.find((asset) => asset.role === "header");
   const allowCatalog = Boolean(local.state && !local.state.choice.asset_sha256);
-  const { display: catalog } = useCatalogMedia(port.id, header, visible && allowCatalog);
-  const usingCatalog = Boolean(allowCatalog && catalog.image);
+  const candidates = heroMediaCandidates(port, context).backgrounds;
+  const catalog = useCatalogMediaChain(port.id, candidates, visible && allowCatalog);
+  const usingCatalog = Boolean(allowCatalog && catalog.display.image);
   return {
-    display: usingCatalog ? catalog : local,
-    catalogMedia: usingCatalog ? catalog.media : undefined,
+    // The automatic cover is a portrait identity, never a manufactured banner.
+    display: usingCatalog
+      ? catalog.display
+      : local.state?.resolved_source.kind === "igdb_cover"
+        ? unavailable
+        : local,
+    catalogMedia: usingCatalog ? catalog.candidate : undefined,
+  };
+}
+
+/** One ordering for details and Continue; a foreground failure never gates other roles. */
+export function useGameHeroArtwork(
+  port: HeroMediaPort,
+  visible: boolean,
+  context: HeroMediaContext = {},
+) {
+  const candidates = heroMediaCandidates(port, context);
+  const foreground = useCatalogMediaChain(port.id, candidates.foreground, visible);
+  const { display: cover } = useArtwork(port.id, "cover", visible);
+  const background = useHeaderArtwork(port, visible, context);
+  return {
+    foreground: { ...foreground, initialRole: candidates.foreground[0]?.role },
+    cover,
+    background,
   };
 }

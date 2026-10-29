@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   prepareCatalogArtwork,
+  prepareCatalogGameMedia,
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
@@ -387,6 +388,7 @@ async function prepareArtworkProposal(fullProposal = false) {
       "--refresh-artwork",
       "--credentials-file",
       "--artwork-ids",
+      "--hero-media",
     ]);
     const seen = new Set();
     const args = process.argv.slice(2);
@@ -466,14 +468,26 @@ async function prepareArtworkProposal(fullProposal = false) {
       : () => {
           throw new Error("Core image validation requires a selected compatible CLI.");
         };
+  const heroMedia = option("--hero-media");
+  if (heroMedia !== undefined && heroMedia !== "igdb")
+    throw new Error("--hero-media requires igdb.");
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
-  const result = await prepareCatalogArtwork(input, {
+  const covers = await prepareCatalogArtwork(input, {
     ...inspector,
     acceptedCatalog: acceptedArtwork,
     identities,
     refreshPortIds,
     ...(selectedPortIds ? { selectedPortIds } : {}),
   });
+  const gameMedia =
+    heroMedia === "igdb"
+      ? await prepareCatalogGameMedia(covers.catalog, {
+          inspector,
+          identities,
+          ...(selectedPortIds ? { selectedPortIds } : {}),
+        })
+      : undefined;
+  const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
   const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
@@ -513,8 +527,12 @@ async function prepareArtworkProposal(fullProposal = false) {
     records: result.records,
     metrics: result.metrics,
     provider_metrics: inspector.providerMetrics,
-    scope:
-      "Maintainer cover proposal; no admission, signature, publication, runtime or user-choice mutation.",
+    ...(gameMedia
+      ? { game_media: { records: gameMedia.records, gone_image_ids: gameMedia.gone_image_ids } }
+      : {}),
+    scope: gameMedia
+      ? "Maintainer cover and remote game-media proposal; no admission, signature, publication, image-payload redistribution, runtime or user-choice mutation."
+      : "Maintainer cover proposal; no admission, signature, publication, runtime or user-choice mutation.",
   };
   writeFileSync(join(outputRoot, "catalog-proposal.json"), proposalBytes, { flag: "wx" });
   writeFileSync(

@@ -1,0 +1,174 @@
+@layer components {
+  .game-hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    min-inline-size: 0;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+  }
+  .game-hero-body {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    min-block-size: 18rem;
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+  }
+  .game-hero-content {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+  }
+  .game-hero-foreground {
+    display: grid;
+    place-items: center;
+    flex: 0 0 clamp(7rem, 14vw, 10rem);
+    min-inline-size: 0;
+    block-size: 13rem;
+  }
+  .game-hero-image {
+    display: block;
+    max-inline-size: 100%;
+    max-block-size: 100%;
+    inline-size: auto;
+    block-size: auto;
+    object-fit: contain;
+  }
+  .game-hero[data-hero-identity="cover"] .game-hero-image {
+    inline-size: 100%;
+    block-size: 100%;
+    border-radius: var(--radius-md);
+  }
+  .game-hero:is([data-hero-layout="key_art"], [data-hero-layout="logo"]) .game-hero-foreground {
+    flex-basis: clamp(11rem, 25vw, 25rem);
+  }
+  .game-hero[data-hero-identity="logo"] .game-hero-image {
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+  }
+  .game-hero[data-hero-identity="logo"] .game-hero-image[data-plate] {
+    background: var(--hero-image-backplate, var(--color-bg-elevated));
+  }
+  :root:not([data-theme="light"]) .game-hero-image[data-logo-tone="dark"] {
+    background: var(--n64-gray-100);
+  }
+  :root[data-theme="light"] .game-hero-image[data-logo-tone="light"] {
+    background: var(--n64-gray-900);
+  }
+  .game-hero-credits-slot {
+    position: relative;
+    z-index: 1;
+    min-block-size: 1.75rem;
+  }
+  .game-hero-background {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    pointer-events: none;
+  }
+  .game-hero-background img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    object-position: center 35%;
+  }
+  .game-hero-background::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background:
+      linear-gradient(
+        90deg,
+        var(--color-bg-elevated) 5%,
+        color-mix(in srgb, var(--color-bg-elevated) 90%, transparent) 37%,
+        color-mix(in srgb, var(--color-bg-elevated) 32%, transparent)
+      ),
+      linear-gradient(
+        0deg,
+        color-mix(in srgb, var(--color-bg-elevated) 90%, transparent),
+        transparent 65%
+      );
+  }
+  .game-hero-credits {
+    position: relative;
+    z-index: 1;
+    padding: 0 var(--space-6) var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+  .game-hero-credits > summary {
+    inline-size: fit-content;
+    cursor: pointer;
+  }
+  .game-hero-continue .game-hero-body {
+    min-block-size: 10rem;
+    padding: var(--space-5) var(--space-6);
+  }
+  .game-hero-continue .game-hero-foreground {
+    flex-basis: 5rem;
+    block-size: 7.5rem;
+  }
+  .game-hero-continue:is([data-hero-layout="key_art"], [data-hero-layout="logo"])
+    .game-hero-foreground {
+    flex-basis: clamp(8rem, 18vw, 16rem);
+  }
+  .continue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .game-hero-continue .game-hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-5);
+  }
+  @container detail (max-width: 42rem) {
+    .game-hero-body {
+      gap: var(--space-5);
+      padding: var(--space-5);
+    }
+    .game-hero:is([data-hero-layout="key_art"], [data-hero-layout="logo"]) .game-hero-foreground {
+      flex-basis: 32%;
+    }
+  }
+  @container library-query (max-width: 40rem) {
+    .game-hero-continue .game-hero-content {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+  }
+  @media (forced-colors: active) {
+    .game-hero-background {
+      display: none;
+    }
+  }
+  @media (max-width: 480px) {
+    .game-hero-body {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: var(--space-4);
+      min-block-size: 0;
+    }
+    .game-hero-foreground {
+      flex-basis: auto;
+      inline-size: 100%;
+      block-size: 9rem;
+      justify-content: start;
+    }
+    .game-hero[data-hero-identity="cover"] .game-hero-foreground {
+      inline-size: 6rem;
+    }
+    .game-hero:is([data-hero-layout="key_art"], [data-hero-layout="logo"]) .game-hero-foreground {
+      flex-basis: auto;
+      inline-size: 100%;
+    }
+    .game-hero-content {
+      inline-size: 100%;
+    }
+  }
+}

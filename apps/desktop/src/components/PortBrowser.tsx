@@ -1,4 +1,4 @@
-import { MediaCredit } from "./CatalogMedia";
+import { GameHero } from "./GameHero";
 import {
   browsePortPresentation,
   browseStatusSummary,
@@ -68,7 +68,7 @@ import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
 import { ArtworkFrame, artworkDisplayNotice } from "./Artwork";
-import { useArtwork, useArtworkVisibility, useHeaderArtwork } from "../artwork";
+import { useArtwork, useArtworkVisibility } from "../artwork";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
 import { Menu } from "@base-ui/react/menu";
@@ -754,25 +754,18 @@ function ContinueCard({
   details: (portId: string, originKey?: string) => void;
 }) {
   const { port, status } = recent;
-  const { element, visible } = useArtworkVisibility();
-  const { display: artwork, catalogMedia } = useHeaderArtwork(port, visible);
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const launchable = continueLaunchable(port, status, action.readiness.blocked);
   const trial = hasUnconfirmedLaunchInput(status, port);
   const previouslyPlayed = status.successful_launches > 0;
   return (
-    <section
-      ref={element}
-      className="continue-card mb-4 grid min-w-0 items-center rounded-pc-lg border border-pc-border bg-pc-surface"
-      data-focus-group
-      data-successful-launches={status.successful_launches}
-      aria-label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
+    <GameHero
+      port={port}
+      variant="continue"
+      className="continue-card mb-4"
+      successfulLaunches={status.successful_launches}
+      label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
     >
-      {artwork.image && (
-        <div className="continue-art" aria-hidden="true">
-          <img src={artwork.image} alt="" onError={artwork.onImageError} />
-        </div>
-      )}
       <div className="continue-identity min-w-0 wrap-anywhere">
         <p className="mb-1 text-xs text-pc-muted-foreground">
           {previouslyPlayed ? "Continue playing" : "Play"}
@@ -784,7 +777,6 @@ function ContinueCard({
         {trial && (
           <p className="m-0 mt-1 text-xs text-pc-warning-foreground">Compatibility unconfirmed</p>
         )}
-        {catalogMedia && <MediaCredit media={catalogMedia} />}
       </div>
       <div className="continue-actions min-w-0">
         <Button
@@ -812,16 +804,16 @@ function ContinueCard({
           <Icon glyph={Gamepad2} />
           {launchable
             ? status.readiness?.pending_setup
-              ? "Start setup"
+              ? "Launch to finish setup"
               : trial
                 ? "Try launch"
                 : previouslyPlayed
-                  ? "Play again"
+                  ? "Continue playing"
                   : "Play"
             : "Review launch"}
         </Button>
       </div>
-    </section>
+    </GameHero>
   );
 }
 
@@ -1081,7 +1073,7 @@ function PortCardStatus({
           <Button
             data-focusable
             variant="outline"
-            size="sm"
+            size="xs"
             className="library-card-action"
             data-detail-origin={`${detailOrigin}:task`}
             onClick={() =>
@@ -1097,7 +1089,7 @@ function PortCardStatus({
           <Button
             data-focusable
             variant="outline"
-            size="sm"
+            size="xs"
             className="library-card-action"
             aria-label={`${reviewLabel}: ${gameIdentityLabel(port)}`}
             aria-describedby={inputDescriptionId}
@@ -1115,7 +1107,7 @@ function PortCardStatus({
           <Button
             data-focusable
             variant="outline"
-            size="sm"
+            size="xs"
             className="library-card-action"
             disabled={Boolean(action.busy)}
             focusableWhenDisabled={Boolean(action.busy)}
