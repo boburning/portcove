@@ -1,5 +1,6 @@
 import {
   updaterWorkflow,
+  updaterWorkflowVariants,
   observeUpdaterCaller,
   observeLinuxDriver,
   observeHistoricalScope,
@@ -461,6 +462,31 @@ void test("manual rehearsal retains the complete matrix without production crede
       (error: unknown) => error instanceof assert.AssertionError && error.message.includes(refusal),
     );
   }
+  for (const [role, field, value, refusal] of [
+    ["rehearsal", "if", false, "UPDATER_REHEARSAL_REACHABILITY"],
+    ["historicalScope", "if", false, "UPDATER_HISTORICAL_SCOPE_REACHABILITY"],
+    ["verification", "if", false, "UPDATER_VERIFICATION_REACHABILITY"],
+    ["rehearsal", "continue-on-error", true, "UPDATER_REHEARSAL_FAILURE_PROPAGATION"],
+    ["upload", "if", "success()", "UPDATER_FAILURE_EVIDENCE"],
+  ] as const) {
+    const disabled = structuredClone(contract.workflow);
+    const step = object(array(object(object(disabled.jobs)[ownerKey]).steps)[contract[role].index]);
+    step[field] = value;
+    assert.throws(
+      () => updaterWorkflow(JSON.stringify(disabled), releaseLabels(policy)),
+      (error: unknown) => error instanceof assert.AssertionError && error.message.includes(refusal),
+    );
+  }
+  const missingArtifacts = structuredClone(contract.workflow);
+  const missingUploader = object(
+    array(object(object(missingArtifacts.jobs)[ownerKey]).steps)[contract.upload.index],
+  );
+  delete object(missingUploader.with).path;
+  assert.throws(
+    () => updaterWorkflow(JSON.stringify(missingArtifacts), releaseLabels(policy)),
+    (error: unknown) =>
+      error instanceof assert.AssertionError && error.message.includes("UPDATER_EVIDENCE_INPUTS"),
+  );
   const retainedPaths = contract.retainedPaths;
   const retained = (file: string) =>
     retainedPaths.some((pattern) => path.posix.matchesGlob(file, pattern));
@@ -946,106 +972,104 @@ void test("manual rehearsal retains the complete matrix without production crede
 });
 
 void test("updater workflow caller binds every platform and transition while preserving historical scope", async () => {
-  const contract = updaterWorkflow(
-    await readWorkflow(
-      new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
-    ),
-    releaseLabels(policy),
+  const source = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
   );
-  const profiles = ["legacy-adjacent", "legacy-skipped", "preview-final"];
-  const scopes = [];
-  for (const requested of ["all", ...releaseLabels(policy)])
-    for (const profile of profiles)
-      for (const historical of [false, true])
-        scopes.push({
-          requested,
-          profile,
-          historical,
-          bindings: {
-            "inputs.platform": requested,
-            "inputs.transition_profile": profile,
-            "inputs.historical_linux_bootstrap": String(historical),
-          },
-        });
-  const decisions = observeHistoricalScope(contract.historicalScope.step, scopes);
-  for (const [index, entry] of scopes.entries())
-    assert.equal(
-      decisions[index]?.admitted,
-      !entry.historical ||
-        (entry.requested === "linux-x86_64" && entry.profile !== "preview-final"),
-      "UPDATER_HISTORICAL_SCOPE",
+  for (const contract of updaterWorkflowVariants(source, releaseLabels(policy))) {
+    const profiles = ["legacy-adjacent", "legacy-skipped", "preview-final"];
+    const scopes = [];
+    for (const requested of ["all", ...releaseLabels(policy)])
+      for (const profile of profiles)
+        for (const historical of [false, true])
+          scopes.push({
+            requested,
+            profile,
+            historical,
+            bindings: {
+              "inputs.platform": requested,
+              "inputs.transition_profile": profile,
+              "inputs.historical_linux_bootstrap": String(historical),
+            },
+          });
+    const decisions = observeHistoricalScope(contract.historicalScope.step, scopes);
+    for (const [index, entry] of scopes.entries())
+      assert.equal(
+        decisions[index]?.admitted,
+        !entry.historical ||
+          (entry.requested === "linux-x86_64" && entry.profile !== "preview-final"),
+        "UPDATER_HISTORICAL_SCOPE",
+      );
+    const offered = [];
+    for (const label of releaseLabels(policy))
+      for (const profile of profiles)
+        for (const historical of [false, true]) {
+          if (historical && (label !== "linux-x86_64" || profile === "preview-final")) continue;
+          offered.push({
+            label,
+            profile,
+            historical,
+            bindings: {
+              ["matrix." + contract.axis]: label,
+              "inputs.transition_profile": profile,
+              "inputs.historical_linux_bootstrap": String(historical),
+            },
+          });
+        }
+    const observations = observeUpdaterCaller(
+      contract.rehearsal.step,
+      "rehearse-updater-artifacts.ps1",
+      offered,
     );
-  const offered = [];
-  for (const label of releaseLabels(policy))
-    for (const profile of profiles)
-      for (const historical of [false, true]) {
-        if (historical && (label !== "linux-x86_64" || profile === "preview-final")) continue;
-        offered.push({
-          label,
-          profile,
-          historical,
-          bindings: {
-            ["matrix." + contract.axis]: label,
-            "inputs.transition_profile": profile,
-            "inputs.historical_linux_bootstrap": String(historical),
-          },
-        });
-      }
-  const observations = observeUpdaterCaller(
-    contract.rehearsal.step,
-    "rehearse-updater-artifacts.ps1",
-    offered,
-  );
-  assert.deepEqual(
-    observations,
-    offered.map(({ label, profile, historical }) => ({ platform: label, profile, historical })),
-    "UPDATER_REHEARSAL_ARGUMENT_BINDING",
-  );
+    assert.deepEqual(
+      observations,
+      offered.map(({ label, profile, historical }) => ({ platform: label, profile, historical })),
+      "UPDATER_REHEARSAL_ARGUMENT_BINDING",
+    );
+  }
 });
 
 void test("updater workflow native driver calls consume the repository pins and public bootstrap flags", async () => {
-  const contract = updaterWorkflow(
-    await readWorkflow(
-      new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
-    ),
-    releaseLabels(policy),
+  const source = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
   );
-  assert.deepEqual(
-    prerequisiteInvocation(String(contract.linuxPrerequisite.step.run)).toSorted(),
-    ["--include-rpm", "--include-appimage-runtime", "--include-webdriver"].toSorted(),
-    "UPDATER_LINUX_DEPENDENCIES",
-  );
-  const bootstrap = await readFile(
-    new URL("../.config/tool-bootstrap.json", import.meta.url),
-    "utf8",
-  );
-  const version = text(object(object(JSON.parse(bootstrap)).desktop).tauri_driver);
-  const arguments_ = observeLinuxDriver(contract.linuxDriver.step, bootstrap);
-  assert.deepEqual(arguments_.slice(0, 2), ["install", "tauri-driver"]);
-  const options = arguments_.slice(2);
-  assert.equal(options.length, 3);
-  assert.equal(options.filter((value) => value === "--locked").length, 1);
-  const at = options.indexOf("--version");
-  assert.ok(at >= 0);
-  assert.equal(options[at + 1], version, "UPDATER_PINNED_DRIVER_VERSION");
-  const alternate = object(JSON.parse(bootstrap));
-  object(alternate.desktop).tauri_driver = version === "0.0.1" ? "0.0.2" : "0.0.1";
-  const alternativeArguments = observeLinuxDriver(
-    contract.linuxDriver.step,
-    JSON.stringify(alternate),
-  );
-  assert.equal(
-    alternativeArguments[alternativeArguments.indexOf("--version") + 1],
-    object(alternate.desktop).tauri_driver,
-    "UPDATER_PIN_INPUT_CONSUMED",
-  );
-  assert.deepEqual(
-    observeUpdaterCaller(contract.windowsDriver.step, "bootstrap-quality-tools.ps1", [
-      { bindings: {} },
-    ]),
-    [{ desktop: true }],
-    "UPDATER_WINDOWS_DESKTOP_BOOTSTRAP",
-  );
+  for (const contract of updaterWorkflowVariants(source, releaseLabels(policy))) {
+    assert.deepEqual(
+      prerequisiteInvocation(String(contract.linuxPrerequisite.step.run)).toSorted(),
+      ["--include-rpm", "--include-appimage-runtime", "--include-webdriver"].toSorted(),
+      "UPDATER_LINUX_DEPENDENCIES",
+    );
+    const bootstrap = await readFile(
+      new URL("../.config/tool-bootstrap.json", import.meta.url),
+      "utf8",
+    );
+    const version = text(object(object(JSON.parse(bootstrap)).desktop).tauri_driver);
+    const arguments_ = observeLinuxDriver(contract.linuxDriver.step, bootstrap);
+    assert.deepEqual(arguments_.slice(0, 2), ["install", "tauri-driver"]);
+    const options = arguments_.slice(2);
+    assert.equal(options.length, 3);
+    assert.equal(options.filter((value) => value === "--locked").length, 1);
+    const at = options.indexOf("--version");
+    assert.ok(at >= 0);
+    assert.equal(options[at + 1], version, "UPDATER_PINNED_DRIVER_VERSION");
+    const alternate = object(JSON.parse(bootstrap));
+    object(alternate.desktop).tauri_driver = version === "0.0.1" ? "0.0.2" : "0.0.1";
+    const alternativeArguments = observeLinuxDriver(
+      contract.linuxDriver.step,
+      JSON.stringify(alternate),
+    );
+    assert.equal(
+      alternativeArguments[alternativeArguments.indexOf("--version") + 1],
+      object(alternate.desktop).tauri_driver,
+      "UPDATER_PIN_INPUT_CONSUMED",
+    );
+    assert.deepEqual(
+      observeUpdaterCaller(contract.windowsDriver.step, "bootstrap-quality-tools.ps1", [
+        { bindings: {} },
+      ]),
+      [{ desktop: true }],
+      "UPDATER_WINDOWS_DESKTOP_BOOTSTRAP",
+    );
+  }
 });
 
 void test("packaged transition and evidence contracts execute exact profile semantics", () => {
@@ -1326,9 +1350,6 @@ function array(value: unknown): unknown[] {
 function text(value: unknown): string {
   assert.ok(typeof value === "string");
   return value;
-}
-function strings(value: unknown): string[] {
-  return array(value).map(text);
 }
 function first<T>(values: readonly T[]): T {
   const value = values[0];

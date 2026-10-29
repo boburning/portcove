@@ -110,7 +110,7 @@ export function updaterWorkflow(source: string, offeredLabels: readonly string[]
   assert.equal(platform.default, "all", "UPDATER_COMPLETE_DEFAULT");
   assert.ok(Array.isArray(platform.options));
   assert.deepEqual(
-    platform.options.toSorted(),
+    platform.options.map((value) => text(value, "UPDATER_PLATFORM_LABEL")).toSorted(),
     ["all", ...offeredLabels].toSorted(),
     "UPDATER_OFFERED_PLATFORMS",
   );
@@ -118,7 +118,9 @@ export function updaterWorkflow(source: string, offeredLabels: readonly string[]
   assert.equal(profile.type, "choice");
   assert.equal(profile.default, "legacy-skipped", "UPDATER_PROFILE_DEFAULT");
   assert.deepEqual(
-    Array.isArray(profile.options) ? profile.options.toSorted() : profile.options,
+    Array.isArray(profile.options)
+      ? profile.options.map((value) => text(value, "UPDATER_PROFILE_LABEL")).toSorted()
+      : profile.options,
     ["legacy-adjacent", "legacy-skipped", "preview-final"].toSorted(),
     "UPDATER_PROFILE_OPTIONS",
   );
@@ -170,7 +172,11 @@ export function updaterWorkflow(source: string, offeredLabels: readonly string[]
     "UPDATER_MATRIX_IDENTITIES",
   );
   assert.ok(Array.isArray(cases.all));
-  assert.deepEqual(cases.all.toSorted(), offeredLabels.toSorted(), "UPDATER_MATRIX_COMPLETE_UNION");
+  assert.deepEqual(
+    cases.all.map((value) => text(value, "UPDATER_MATRIX_LABEL")).toSorted(),
+    offeredLabels.toSorted(),
+    "UPDATER_MATRIX_COMPLETE_UNION",
+  );
   for (const label of offeredLabels)
     assert.deepEqual(cases[label], [label], "UPDATER_MATRIX_SINGLE_PLATFORM");
   const select = (role: string, predicate: (step: Fields) => boolean) => {
@@ -343,6 +349,57 @@ export function updaterWorkflow(source: string, offeredLabels: readonly string[]
     runtime,
     verification,
   };
+}
+
+/** Exercise the same observers after private workflow bindings and mapping order change. */
+export function updaterWorkflowVariants(source: string, offeredLabels: readonly string[]) {
+  const original = updaterWorkflow(source, offeredLabels);
+  const variant = structuredClone(original.workflow);
+  const originalJobs = record(original.workflow.jobs, "UPDATER_JOBS");
+  const ownerKey = Object.keys(originalJobs).find((key) => originalJobs[key] === original.job);
+  assert.ok(ownerKey, "UPDATER_VARIANT_OWNER");
+  const jobs = record(variant.jobs, "UPDATER_JOBS");
+  const job = record(jobs[ownerKey], "UPDATER_JOB");
+  const renamedOwner = "fixture-" + ownerKey;
+  assert.ok(!Object.hasOwn(jobs, renamedOwner), "UPDATER_VARIANT_OWNER_COLLISION");
+  delete jobs[ownerKey];
+  jobs[renamedOwner] = job;
+  const matrix = record(record(job.strategy, "UPDATER_STRATEGY").matrix, "UPDATER_MATRIX");
+  const renamedAxis =
+    original.axis === "selectedPlatform" ? "selectedPlatformFixture" : "selectedPlatform";
+  matrix[renamedAxis] = matrix[original.axis];
+  delete matrix[original.axis];
+  assert.ok(Array.isArray(job.steps), "UPDATER_STEPS");
+  const steps = job.steps.map((step) => record(step, "UPDATER_STEP"));
+  for (const [index, step] of steps.entries())
+    if (step.name !== undefined) step.name = "Description " + String(index);
+  for (const role of [original.historicalScope, original.rehearsal]) {
+    const step = steps[role.index]!;
+    const environment = record(step.env, "UPDATER_CALLER_ENVIRONMENT");
+    let run = text(step.run, "UPDATER_CALLER_RUN");
+    for (const key of Object.keys(environment)) {
+      const renamed = "OBSERVED_" + key;
+      assert.ok(!Object.hasOwn(environment, renamed), "UPDATER_VARIANT_ENVIRONMENT_COLLISION");
+      environment[renamed] = environment[key];
+      delete environment[key];
+      run = run.replaceAll("$env:" + key, "$env:" + renamed);
+    }
+    step.run = run;
+  }
+  function rewrite(value: unknown): unknown {
+    if (typeof value === "string")
+      return value.replaceAll("matrix." + original.axis, "matrix." + renamedAxis);
+    if (Array.isArray(value)) return value.map(rewrite);
+    if (isRecord(value))
+      // Mapping declaration order is harmless; executable step order is preserved.
+      return Object.fromEntries(
+        Object.entries(value)
+          .reverse()
+          .map(([key, child]) => [key, rewrite(child)]),
+      );
+    return value;
+  }
+  return [original, updaterWorkflow(JSON.stringify(rewrite(variant)), offeredLabels)];
 }
 
 export interface WorkflowCallerCase {
