@@ -1263,6 +1263,7 @@ for (const [file, tests] of [
       "scripts/ui-test-selection.test.mts",
       "scripts/updater-historical-inputs.test.mts",
       "scripts/installed-game-data-fixture.test.mts",
+      "scripts/windows-installed-game-data.test.mts",
       "scripts/windows-historical-bootstrap.test.mts",
     ],
   ],
@@ -1506,6 +1507,7 @@ for (const [file, tests] of [
   [
     "scripts/test-windows-installer.ps1",
     [
+      "scripts/windows-installed-game-data.test.mts",
       "scripts/repository-skills.test.mts",
       "scripts/native-qualification-account-adapter.test.mts",
       "scripts/desktop-scenarios.test.mts",

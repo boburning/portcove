@@ -64,6 +64,8 @@ param(
     [switch]$RendererUpdate,
     [switch]$VerifyStableWaiting,
     [string]$HistoricalBootstrapManifestPath,
+    [string]$InstalledGameDataConfigurationPath,
+    [string]$InstalledGameDataConfigurationSha256,
     [ValidateSet('official', 'embedded')]
     [Parameter(Position = 26)]
     [string]$RendererTransport = 'official',
@@ -92,6 +94,9 @@ Lifecycle options:
   -UpgradeFromInstallerPath FILE  Retained predecessor installer for replacement checks.
   -HistoricalBootstrapManifestPath FILE  Optional exact published updater-less package identity;
                                  isolated non-elevated fixture chain only, before manual bootstrap.
+  -InstalledGameDataConfigurationPath FILE  Optional private real-game dataset fixture (renderer upgrade only).
+  -InstalledGameDataConfigurationSha256 HEX  Exact configuration bytes; no production or credential authority.
+
   -ExpectedExecutablePath FILE  Expected candidate desktop bytes.
   -ExpectedVersion VERSION  Expected installed version.
   -InstallMode Silent|Passive  Installer interaction mode (default: Silent).
@@ -142,6 +147,38 @@ if ($HistoricalBootstrapManifestPath -and ($ordinaryPublicMode -or $NativeAccoun
         -not $UpgradeFromInstallerPath -or -not $InstalledUpdateTrustedRootPath -or -not $RequireSigningAuthorityAbsent -or -not $EvidencePath)) {
     throw 'Historical bootstrap requires the disposable installed renderer chain; public/account/ordinary-package routes remain separate'
 }
+if ($InstalledGameDataConfigurationPath -or $InstalledGameDataConfigurationSha256) {
+    if (-not $InstalledGameDataConfigurationPath -or
+        $InstalledGameDataConfigurationSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        -not $RendererUpdate -or -not $UpgradeFromInstallerPath -or
+        $ordinaryPublicMode -or $NativeAccountBindingPath -or $NativeAccountBindingSha256 -or
+        $NativeParentOwnsFinish -or $NormalPackageManifestPath -or $NormalPackageAdmissionPath -or
+        $QualifyPackageRollback -or $HistoricalBootstrapManifestPath -or -not $EvidencePath -or
+        -not $InstalledUpdateTrustedRootPath -or -not $RequireSigningAuthorityAbsent) {
+        throw 'Game-data fixture requires a hash-bound private configuration and the disposable installed renderer upgrade; other routes remain separate'
+    }
+}
+function Invoke-InstalledGameDataPhase([string]$Phase) {
+    if (-not $InstalledGameDataConfigurationPath) { return }
+    $gameOutput = (& node (Join-Path $PSScriptRoot 'windows-installed-game-data.mts') --phase $Phase --configuration $InstalledGameDataConfigurationPath --sha256 $InstalledGameDataConfigurationSha256 --library $libraryRoot | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Installed game-data fixture phase $Phase failed" }
+    if (-not $gameOutput) { throw 'Game-data consumer returned no positive observation' }
+    $gameResult = $gameOutput | ConvertFrom-Json -NoEnumerate
+    if ($gameResult -isnot [System.Management.Automation.PSCustomObject] -or $gameResult.phase -cne $Phase -or
+        ($Phase -eq 'admit' -and $gameResult.configuration_sha256 -cne $InstalledGameDataConfigurationSha256) -or
+        ($Phase -ne 'admit' -and $gameResult.result -cne 'complete')) {
+        throw 'Game-data consumer returned an incomplete or mismatched observation'
+    }
+    Write-Output $gameOutput
+    if ($evidence) {
+        if (-not $evidence.installed_game_data) {
+            $evidence.installed_game_data = [ordered]@{configuration=$InstalledGameDataConfigurationPath;configuration_sha256=$InstalledGameDataConfigurationSha256;phases=@()}
+        }
+        $evidence.installed_game_data.phases += $Phase
+        Write-InstallerEvidence "installed_game_data_$Phase"
+    }
+}
+
 if ($VerifyStableWaiting -and ($ordinaryPublicMode -or $NativeAccountBindingPath -or $NativeAccountBindingSha256 -or $NativeParentOwnsFinish -or $NormalPackageManifestPath -or $NormalPackageAdmissionPath)) {
     throw 'Stable waiting fixture verification cannot widen public, dedicated-account or ordinary-package routes'
 }
@@ -830,6 +867,8 @@ if ($RequireSigningAuthorityAbsent) {
     Write-InstallerEvidence "initialized"
 }
 
+Invoke-InstalledGameDataPhase 'admit'
+
 function Stop-JournaledProcess($Run, $Process, [string]$Status, [string]$Reason) {
     $Run.status = $Status
     $journalFailure = $null
@@ -1303,6 +1342,7 @@ try {
             if ($evidence) { $evidence.driver_preflight_baseline = "passed"; Write-InstallerEvidence "driver_preflight_baseline_passed" }
         }
     }
+    Invoke-InstalledGameDataPhase 'seed'
     # This is a qualification marker, not a fabricated game save. A historical
     # chain creates it before its first installer and must never reseed it.
     if (-not $historicalBootstrap) {
@@ -1913,6 +1953,7 @@ try {
         ($afterUninstallManifest | ConvertTo-Json -Depth 6 -Compress)) {
         throw "Uninstall changed the recursive isolated-library manifest"
     }
+    Invoke-InstalledGameDataPhase 'after-uninstall'
 
     if ($RendererUpdate) {
         if (-not $evidence) { throw "Renderer update qualification requires an external EvidencePath" }

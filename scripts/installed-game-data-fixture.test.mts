@@ -7,6 +7,7 @@ import test from "node:test";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import {
   readInstalledGameFixture,
+  assertSavedInstalledGameLibraryChoice,
   readInstalledGameCliReceipt,
   observeInstalledGameData,
   seedInstalledGameData,
@@ -121,4 +122,15 @@ void test("retained CLI receipt joins source and exact inert binary before nativ
   await assert.rejects(
     readInstalledGameCliReceipt(input.ownedRoot, filename, input.cliSourceCommit),
   );
+});
+
+void test("saved library preference requires positive Core status, saved source and exact canonical root", () => {
+  const root = path.resolve(os.tmpdir(), "owned-library");
+  assertSavedInstalledGameLibraryChoice({ ok: true, data: { root, source: "saved" } }, root);
+  for (const value of [
+    { ok: false, data: { root, source: "saved" } },
+    { ok: true, data: { root, source: "environment" } },
+    { ok: true, data: { root: path.resolve(os.tmpdir(), "other-library"), source: "saved" } },
+  ])
+    assert.throws(() => assertSavedInstalledGameLibraryChoice(value, root));
 });

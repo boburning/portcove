@@ -4409,6 +4409,13 @@
         ["catalog-full-2", 1000124],
         ["development-tools", 5400]
       ]
+    },
+    {
+      "file": "scripts/windows-installed-game-data.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2652],
+        ["release-check", 752]
+      ]
     }
   ]
 }
