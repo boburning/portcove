@@ -1,3 +1,6 @@
+import { RotateCcw } from "lucide-react";
+import { Icon } from "./components/ui";
+import { Tooltip } from "./components/ui/tooltip";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import {
@@ -96,26 +99,36 @@ export function InterfaceSizeSettings() {
 function InterfaceSizeControl({ owner }: { owner: InterfaceSizeController }) {
   const state = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getSnapshot);
   return (
-    <SettingsRow data-focus-group>
-      <h2>Interface size</h2>
-      <p>Enlarge text, artwork and controls together.</p>
-      <div className="flex flex-wrap items-end gap-2">
+    <SettingsRow className="settings-field-row" data-focus-group>
+      <div className="settings-field-copy">
+        <h3>Interface size</h3>
+        <p>Enlarge text, artwork and controls together.</p>
+        <p>
+          {commandShortcut("+")} / {commandShortcut("−")} enlarge or reduce; {commandShortcut("0")}{" "}
+          resets.
+        </p>
+        {state.sessionOnly && <p>Applied for this session. The preference could not be saved.</p>}
+      </div>
+      <div className="settings-field-control settings-size-controls">
         <ChoiceSelect
           inline
+          showInlineLabel={false}
           label="Interface size"
           value={String(state.requested)}
           onChange={(value) => owner.request(Number(value))}
           options={INTERFACE_SIZES.map((size) => ({ value: String(size), label: `${size}%` }))}
         />
-        <Button variant="outline" onClick={() => owner.request(100)}>
-          Reset to 100%
-        </Button>
+        <Tooltip label={`Reset to 100% · ${commandShortcut("0")}`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Reset to 100%"
+            onClick={() => owner.request(100)}
+          >
+            <Icon glyph={RotateCcw} />
+          </Button>
+        </Tooltip>
       </div>
-      <p>
-        {commandShortcut("+")} / {commandShortcut("−")} enlarge or reduce; {commandShortcut("0")}{" "}
-        resets.
-      </p>
-      {state.sessionOnly && <p>Applied for this session. The preference could not be saved.</p>}
     </SettingsRow>
   );
 }

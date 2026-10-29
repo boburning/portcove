@@ -20,7 +20,7 @@ export function MediaCredit({ media, port }: { media: CatalogMediaAsset; port?: 
     <div className="media-credit flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
       <span>
         {media.subject.kind === "original"
-          ? `Original release${edition ? ` · ${edition}` : ""}`
+          ? `Original release · ${edition ?? media.subject.source_edition_id}`
           : "Port image"}{" "}
         · {media.attribution}
       </span>

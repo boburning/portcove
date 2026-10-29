@@ -387,12 +387,12 @@ function PortBrowserView({
         )}
       >
         <BrowserQuickViews model={model} favorites={favorites} filterButton={filterButton} />
-        {model.organization && (
+        {model.view === "catalog" && model.organization && (
           <OrganizationControls
             organization={model.organization}
             selected={model.organizationView}
             onSelect={model.setOrganizationView}
-            discover={model.view === "catalog"}
+            discover
           >
             {renderSteamBatch()}
           </OrganizationControls>
@@ -767,9 +767,6 @@ function ContinueCard({
       label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
     >
       <div className="continue-identity min-w-0 wrap-anywhere">
-        <p className="mb-1 text-xs text-pc-muted-foreground">
-          {previouslyPlayed ? "Continue playing" : "Play"}
-        </p>
         <h2 className="m-0 text-base">{gameTitle(port)}</h2>
         {gameProjectLabel(port) && (
           <p className="m-0 mt-1 text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</p>
@@ -1517,6 +1514,16 @@ function BrowserCollectionTools({
   );
   const after = (
     <>
+      {model.view === "library" && model.organization && (
+        <OrganizationControls
+          organization={model.organization}
+          selected={model.organizationView}
+          onSelect={model.setOrganizationView}
+          discover={false}
+        >
+          {renderSteamBatch()}
+        </OrganizationControls>
+      )}
       {renderSort()}
       {setCollectionLayout && (
         <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">

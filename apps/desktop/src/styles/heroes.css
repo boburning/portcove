@@ -41,6 +41,10 @@
     block-size: 100%;
     border-radius: var(--radius-md);
   }
+  .game-hero-continue .game-hero-foreground {
+    flex-basis: 5rem;
+    block-size: 7.5rem;
+  }
   .game-hero:is([data-hero-layout="key_art"], [data-hero-layout="logo"]) .game-hero-foreground {
     flex-basis: clamp(11rem, 25vw, 25rem);
   }
@@ -52,10 +56,10 @@
     background: var(--hero-image-backplate, var(--color-bg-elevated));
   }
   :root:not([data-theme="light"]) .game-hero-image[data-logo-tone="dark"] {
-    background: var(--n64-gray-100);
+    background: var(--color-logo-stage-light);
   }
   :root[data-theme="light"] .game-hero-image[data-logo-tone="light"] {
-    background: var(--n64-gray-900);
+    background: var(--color-logo-stage-dark);
   }
   .game-hero-credits-slot {
     position: relative;
@@ -73,23 +77,7 @@
     block-size: 100%;
     object-fit: cover;
     object-position: center 35%;
-  }
-  .game-hero-background::after {
-    position: absolute;
-    inset: 0;
-    content: "";
-    background:
-      linear-gradient(
-        90deg,
-        var(--color-bg-elevated) 5%,
-        color-mix(in srgb, var(--color-bg-elevated) 90%, transparent) 37%,
-        color-mix(in srgb, var(--color-bg-elevated) 32%, transparent)
-      ),
-      linear-gradient(
-        0deg,
-        color-mix(in srgb, var(--color-bg-elevated) 90%, transparent),
-        transparent 65%
-      );
+    mask: url("../assets/header-artwork-mask.svg") center / 100% 100% no-repeat;
   }
   .game-hero-credits {
     position: relative;
@@ -106,13 +94,20 @@
     min-block-size: 10rem;
     padding: var(--space-5) var(--space-6);
   }
-  .game-hero-continue .game-hero-foreground {
-    flex-basis: 5rem;
-    block-size: 7.5rem;
-  }
   .game-hero-continue:is([data-hero-layout="key_art"], [data-hero-layout="logo"])
     .game-hero-foreground {
     flex-basis: clamp(8rem, 18vw, 16rem);
+  }
+  .continue-identity {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+  .continue-identity :is(h2, p:not(:first-child)) {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
   .continue-actions {
     display: flex;
@@ -142,28 +137,47 @@
       gap: var(--space-3);
     }
   }
+  @container library-query (max-width: 25rem) {
+    .game-hero-continue .game-hero-body {
+      flex-direction: row;
+      gap: var(--space-3);
+      padding: var(--space-4);
+      min-block-size: 0;
+    }
+    .game-hero-continue .game-hero-foreground {
+      flex: 0 0 3rem;
+      inline-size: 3rem;
+      block-size: 4.5rem;
+    }
+    .game-hero-continue:is([data-hero-layout="key_art"], [data-hero-layout="logo"])
+      .game-hero-foreground {
+      flex-basis: 5rem;
+      inline-size: 5rem;
+    }
+  }
   @media (forced-colors: active) {
     .game-hero-background {
       display: none;
     }
   }
   @media (max-width: 480px) {
-    .game-hero-body {
+    .game-hero-detail .game-hero-body {
       align-items: flex-start;
       flex-direction: column;
       gap: var(--space-4);
       min-block-size: 0;
     }
-    .game-hero-foreground {
+    .game-hero-detail .game-hero-foreground {
       flex-basis: auto;
       inline-size: 100%;
       block-size: 9rem;
       justify-content: start;
     }
-    .game-hero[data-hero-identity="cover"] .game-hero-foreground {
+    .game-hero-detail[data-hero-identity="cover"] .game-hero-foreground {
       inline-size: 6rem;
     }
-    .game-hero:is([data-hero-layout="key_art"], [data-hero-layout="logo"]) .game-hero-foreground {
+    .game-hero-detail:is([data-hero-layout="key_art"], [data-hero-layout="logo"])
+      .game-hero-foreground {
       flex-basis: auto;
       inline-size: 100%;
     }

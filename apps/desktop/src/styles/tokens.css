@@ -107,6 +107,12 @@
     --n64-white: #f5f3ee;
     --n64-controller-blue: #4958a7;
 
+    --color-logo-stage-light: var(--n64-gray-100);
+    --color-logo-stage-dark: var(--n64-gray-900);
+    --color-theme-preview-cover-blue: var(--n64-blue-300);
+    --color-theme-preview-cover-green: var(--n64-green-300);
+    --color-theme-preview-cover-red: var(--n64-red-300);
+
     --color-theme-preview-dark-bg: var(--n64-gray-950);
     --color-theme-preview-dark-nav: var(--n64-gray-900);
     --color-theme-preview-dark-block: var(--n64-gray-800);
@@ -218,8 +224,8 @@
 
     /* Signature and destructive action: red */
     --color-primary: var(--n64-red-500);
-    --color-primary-surface: var(--n64-red-700);
-    --color-primary-hover: var(--n64-red-600);
+    --color-primary-surface: var(--n64-red-600);
+    --color-primary-hover: var(--n64-red-700);
     --color-primary-active: var(--n64-red-800);
     --color-primary-text: var(--n64-red-300);
     --color-primary-subtle: var(--n64-red-950);
@@ -312,8 +318,8 @@
     --color-focus: var(--n64-yellow-800);
 
     --color-primary: var(--n64-red-500);
-    --color-primary-surface: var(--n64-red-700);
-    --color-primary-hover: var(--n64-red-800);
+    --color-primary-surface: var(--n64-red-600);
+    --color-primary-hover: var(--n64-red-700);
     --color-primary-active: var(--n64-red-900);
     --color-primary-text: var(--n64-red-700);
     --color-primary-subtle: var(--n64-red-100);

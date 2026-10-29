@@ -118,11 +118,13 @@ it.each(["dark", "light"])(
     const continuation = page.getByRole("region", { name: /^Continue / });
     await expect.element(continuation).toBeVisible();
     await expect
-      .element(continuation.getByRole("button", { name: "Play again", exact: true }))
+      .element(continuation.getByRole("button", { name: "Continue playing", exact: true }))
       .toBeEnabled();
     await expect
       .poll(() => {
-        const image = continuation.element().querySelector<HTMLImageElement>(".continue-art img");
+        const image = continuation
+          .element()
+          .querySelector<HTMLImageElement>(".game-hero-foreground img");
         return Boolean(image?.complete && image.naturalWidth > 0);
       })
       .toBe(true);
@@ -162,7 +164,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
-  await page.getByText("Collections · All games", { exact: true }).click();
+  await page.getByRole("button", { name: "Collections", exact: true }).click();
   const commands = page
     .getByText("Collection commands", { exact: true })
     .element()
@@ -170,6 +172,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
   expect(commands.textContent).toContain("hidden by filters");
+  await userEvent.keyboard("{Escape}");
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
   const more = page.getByRole("button", { name: /^More actions for/ }).first();
@@ -311,7 +314,9 @@ it("opens Continue playing details and restores its exact trigger after Back", a
   snapshot.statuses[0]!.successful_launches = 1;
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount();
-  await expect.element(page.getByText("Continue playing", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Continue playing", exact: true }))
+    .toBeVisible();
   const origin = '[data-detail-origin="library:continue-details:collection-0"]';
   await page.getByRole("button", { name: "View details", exact: true }).click();
   await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
@@ -373,7 +378,7 @@ it.each([
     await expect.element(page.getByText(project, { exact: true })).toBeVisible();
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
     await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
-    const play = continuation.getByRole("button", { name: "Play again", exact: true });
+    const play = continuation.getByRole("button", { name: "Continue playing", exact: true });
     await expect.element(play).toBeEnabled();
     play.element().scrollIntoView({ block: "nearest" });
     const bounds = play.element().getBoundingClientRect();

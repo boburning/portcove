@@ -6,6 +6,7 @@ import { desktopApi, type DesktopArtworkThumbnail } from "../api";
 import type { ArtworkSlot, ArtworkState, CatalogMediaAsset, PortListing } from "../types";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { artworkState, portDefinition } from "../test-fixtures";
+import { GameHero } from "./GameHero";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { DetailLayout } from "./DetailLayout";
 import "../styles/index.css";
@@ -117,9 +118,25 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await render(
     <ArtworkProvider generation={7} listings={directory([first, second])}>
       <CatalogMediaGallery
+        context={{ originalEditionId: "usa-v1" }}
         port={{
           ...portDefinition(),
-          presentation: { ...portDefinition().presentation!, media: [first, second] },
+          presentation: {
+            ...portDefinition().presentation!,
+            media: [first, second],
+            original_game: {
+              format_version: 1,
+              id: "original",
+              evidence_urls: ["https://example.com/original"],
+              source_editions: [
+                {
+                  id: "usa-v1",
+                  title: "US release",
+                  evidence_urls: ["https://example.com/original/us"],
+                },
+              ],
+            },
+          },
         }}
       />
     </ArtworkProvider>,
@@ -137,7 +154,9 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("heading", { name: "Owned second scene", exact: true }))
     .toBeVisible();
-  await expect.element(page.getByRole("dialog").getByText(/Edition: usa-v1/)).toBeVisible();
+  await expect
+    .element(page.getByRole("dialog").getByText(/Original release · usa-v1/))
+    .toBeVisible();
   await expect
     .element(page.getByRole("dialog").getByRole("link", { name: "CC0-1.0", exact: true }))
     .toHaveAttribute("href", second.rights_url);
@@ -304,4 +323,101 @@ it("keeps a selected local header ahead of an admitted remote header and the aut
   expect(thumbnail).toHaveBeenCalledWith("sample", "detail", 3, 7);
   expect(read).not.toHaveBeenCalled();
   expect(document.querySelector(".media-credit")).toBeNull();
+});
+
+it("keeps game identity and focused actions through bounded key-art, logo and cover failures", async () => {
+  const keyArt: CatalogMediaAsset = {
+    ...image("controlled-key-art"),
+    role: "key_art",
+    sha256: "c".repeat(64),
+    width: 400,
+    height: 225,
+  };
+  const logo: CatalogMediaAsset = {
+    ...image("controlled-logo"),
+    role: "logo",
+    sha256: "d".repeat(64),
+    width: 400,
+    height: 100,
+  };
+  for (const asset of [keyArt, logo]) {
+    const imageId = asset.role === "logo" ? "fixturelogo" : "fixturekeyart";
+    asset.url = `https://images.igdb.com/igdb/image/upload/t_${asset.role === "logo" ? "logo_med_2x" : "720p"}/${imageId}.png`;
+    asset.source_url = "https://www.igdb.com/games/controlled-fixture";
+    asset.igdb = {
+      game_id: 7,
+      record_id: asset.role === "logo" ? 1 : 2,
+      kind: asset.role === "logo" ? "logo" : "artwork",
+      image_id: imageId,
+      game_slug: "controlled-fixture",
+      ...(asset.role === "key_art"
+        ? { image_type: 991, image_type_name: "Key art with logo" }
+        : {}),
+    };
+  }
+  const port = {
+    ...portDefinition(),
+    presentation: { ...portDefinition().presentation!, media: [keyArt, logo] },
+  };
+  const canvas = document.createElement("canvas");
+  canvas.width = 400;
+  canvas.height = 100;
+  const drawing = canvas.getContext("2d");
+  if (!drawing) throw new Error("Fixture canvas unavailable");
+  drawing.fillStyle = "white";
+  drawing.font = "bold 64px sans-serif";
+  drawing.fillText("TEST LOGO", 5, 75);
+  const logoBytes = canvas.toDataURL("image/png").split(",")[1]!;
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+    automaticArtwork(id, slot),
+  );
+  vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+    asset_sha256: "b".repeat(64),
+    choice_revision: 0,
+    png_base64: png,
+  });
+  const media = vi
+    .spyOn(desktopApi, "catalogMediaThumbnail")
+    .mockImplementation(async (_id, mediaId, hash) => {
+      if (mediaId === keyArt.id) throw new Error("Controlled unavailable cached key art");
+      return { asset_sha256: hash, choice_revision: 0, png_base64: logoBytes };
+    });
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <GameHero port={port} variant="detail">
+        <h1>Sample</h1>
+        <button>Play controlled game</button>
+      </GameHero>
+    </ArtworkProvider>,
+  );
+  await expect
+    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("logo");
+  const play = page.getByRole("button", { name: "Play controlled game", exact: true });
+  await play.click();
+  const action = document.activeElement;
+  const logoElement = document.querySelector<HTMLImageElement>(".game-hero-image");
+  if (!logoElement) throw new Error("Logo did not render");
+  await act(async () => {
+    logoElement.dispatchEvent(new Event("error"));
+  });
+  await expect
+    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("cover");
+  expect(document.activeElement).toBe(action);
+  const cover = document.querySelector<HTMLImageElement>(".game-hero-image");
+  if (!cover) throw new Error("Cover fallback did not render");
+  await page.getByText("Image credits", { exact: true }).click();
+  await expect.element(page.getByText("Image credits", { exact: true })).toHaveFocus();
+  await act(async () => {
+    cover.dispatchEvent(new Event("error"));
+  });
+  await expect
+    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("text");
+  await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
+  expect(document.activeElement).toBe(action);
+  expect(media.mock.calls.map((call) => call[1])).toEqual([keyArt.id, logo.id]);
+  expect(document.querySelector(".game-hero-background")).toBeNull();
 });

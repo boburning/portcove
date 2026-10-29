@@ -135,7 +135,11 @@ export function Sidebar({
     shortcut: string;
   }>;
   const renderNavigation = (sheet = false) => (
-    <nav ref={sheet ? sheetNavigation : desktopNavigation} aria-label="Primary navigation">
+    <nav
+      ref={sheet ? sheetNavigation : desktopNavigation}
+      className="flex min-h-0 flex-1 flex-col gap-2"
+      aria-label="Primary navigation"
+    >
       {items.map((item) => (
         <Tooltip
           key={item.view}
@@ -150,6 +154,7 @@ export function Sidebar({
             className={cn(
               "group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 border-transparent p-[var(--space-2)_var(--space-3)] text-start font-normal whitespace-normal after:hidden",
               view !== item.view && "text-pc-muted-foreground",
+              item.view === "settings" && !sheet && "mt-auto",
             )}
             onClick={() => {
               setView(item.view);
@@ -205,8 +210,12 @@ export function Sidebar({
         <div className="brand flex items-center gap-3 p-[0_var(--space-2)_var(--space-7)]">
           <BrandAvatar />
           <div>
-            <strong className="block text-[length:var(--text-lg)] tracking-[-0.02em]">
-              Portcove
+            <span className="sr-only">Portcove</span>
+            <strong
+              aria-hidden="true"
+              className="block text-[length:var(--text-lg)] tracking-[-0.05em]"
+            >
+              portcove<span className="text-[var(--color-primary)]">.</span>
             </strong>
           </div>
         </div>
@@ -1418,7 +1427,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
       : `Always ${resolvedLabel}`;
   return (
     <SettingsRow className="appearance-card" data-focus-group>
-      <h2>Color theme</h2>
+      <h3>Color theme</h3>
       <p>{status}.</p>
       <RadioGroup
         value={preference}
@@ -1554,7 +1563,7 @@ function ThemeOption({ option }: { option: ThemePreference }) {
         <Radio.Indicator>
           <Icon glyph={Check} size="sm" />
         </Radio.Indicator>
-        {option.charAt(0).toUpperCase() + option.slice(1)}
+        {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
       </span>
     </Radio.Root>
   );

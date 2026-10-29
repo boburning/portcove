@@ -1,5 +1,14 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { useArtworkVisibility, useGameHeroArtwork } from "../artwork";
+import { inspectHeroLogo, type HeroLogoSurface } from "../game-logo-surface";
 import { gameTitle } from "../port-identity";
 import type { HeroMediaPort } from "../hero-media";
 import { ArtworkSource } from "./Artwork";
@@ -24,97 +33,50 @@ export function GameHero({
 }) {
   const { element, visible } = useArtworkVisibility();
   const { foreground, cover, background } = useGameHeroArtwork(port, visible);
-  const [surface, setSurface] = useState<{
-    image: string;
-    plate: boolean;
-    backing: string;
-    tone: "dark" | "light" | "mixed" | "opaque";
-  }>();
+  const [surface, setSurface] = useState<HeroLogoSurface & { image: string }>();
+  const imageElement = useRef<HTMLImageElement>(null);
   const media = foreground.display.image ? foreground.display : cover;
   const image = media.image;
   const kind = foreground.display.image ? foreground.candidate?.role : image ? "cover" : "text";
   const identity = `${port.id}:${image ?? "text"}`;
   const layout = foreground.initialRole ?? "cover";
-  const inspect = (element: HTMLImageElement) => {
-    if (!element.naturalWidth || !element.naturalHeight) {
-      if (foreground.display.image) foreground.reject();
-      else cover.onImageError?.();
-      return;
-    }
-    if (kind !== "logo") return;
-    // Inspect decoded pixels, not the provider's alpha hint. No brand pixels are changed.
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 24;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) return;
-    context.drawImage(element, 0, 0, 24, 24);
-    let pixels: Uint8ClampedArray;
-    try {
-      pixels = context.getImageData(0, 0, 24, 24).data;
-    } catch {
-      foreground.reject();
-      return;
-    }
-    let opaque = true;
-    for (let index = 3; index < pixels.length; index += 4) {
-      if (pixels[index]! < 245) {
-        opaque = false;
-        break;
+  const foregroundImage = foreground.display.image;
+  const rejectForeground = foreground.reject;
+  const rejectCover = cover.onImageError;
+  const inspect = useCallback(
+    (element: HTMLImageElement) => {
+      if (!element.naturalWidth || !element.naturalHeight) {
+        if (foregroundImage) rejectForeground();
+        else rejectCover?.();
+        return;
       }
-    }
-    let red = 0,
-      green = 0,
-      blue = 0,
-      samples = 0;
-    for (let y = 0; y < 24; y++)
-      for (let x = 0; x < 24; x++) {
-        if (x !== 0 && y !== 0 && x !== 23 && y !== 23) continue;
-        const index = (y * 24 + x) * 4;
-        red += pixels[index]!;
-        green += pixels[index + 1]!;
-        blue += pixels[index + 2]!;
-        samples++;
+      if (kind !== "logo") return;
+      const next = inspectHeroLogo(element);
+      if (!next) {
+        rejectForeground();
+        return;
       }
-    let backing = `rgb(${Math.round(red / samples)} ${Math.round(green / samples)} ${Math.round(blue / samples)})`;
-    let alpha = 0,
-      light = 0,
-      firstY = 24,
-      lastY = -1;
-    const luminance = (r: number, g: number, b: number) =>
-      [r, g, b]
-        .map((value) => {
-          const channel = value / 255;
-          return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-        })
-        .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index]!, 0);
-    for (let index = 0; index < pixels.length; index += 4) {
-      const weight = pixels[index + 3]! / 255;
-      if (weight < 0.2) continue;
-      alpha += weight;
-      light += luminance(pixels[index]!, pixels[index + 1]!, pixels[index + 2]!) * weight;
-      firstY = Math.min(firstY, Math.floor(index / 4 / 24));
-      lastY = Math.max(lastY, Math.floor(index / 4 / 24));
-    }
-    const bounds = element.getBoundingClientRect();
-    const computed = getComputedStyle(element);
-    const height =
-      bounds.height - parseFloat(computed.paddingTop) - parseFloat(computed.paddingBottom);
-    const width =
-      bounds.width - parseFloat(computed.paddingLeft) - parseFloat(computed.paddingRight);
-    if (!alpha || (height * (lastY - firstY + 1)) / 24 < 18 || width < 36) {
-      foreground.reject();
-      return;
-    }
-    const imageLight = light / alpha;
-    const tone = opaque
-      ? "opaque"
-      : imageLight < 0.2
-        ? "dark"
-        : imageLight > 0.28
-          ? "light"
-          : "mixed";
-    setSurface({ image: identity, plate: opaque, backing, tone });
-  };
+      setSurface((previous) =>
+        previous?.image === identity &&
+        previous.plate === next.plate &&
+        previous.tone === next.tone &&
+        previous.backing === next.backing
+          ? previous
+          : { ...next, image: identity },
+      );
+    },
+    [kind, identity, foregroundImage, rejectForeground, rejectCover],
+  );
+  useEffect(() => {
+    const image = imageElement.current;
+    if (kind !== "logo" || !image || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (image.complete && image.naturalWidth) inspect(image);
+    });
+    observer.observe(image);
+    return () => observer.disconnect();
+  }, [identity, kind, inspect]);
+
   return (
     <section
       ref={element}
@@ -133,7 +95,10 @@ export function GameHero({
             src={background.display.image}
             alt=""
             decoding="async"
-            onError={background.display.onImageError}
+            onError={(event) => {
+              event.currentTarget.style.visibility = "hidden";
+              background.display.onImageError?.();
+            }}
           />
         </div>
       )}
@@ -147,6 +112,7 @@ export function GameHero({
             {image && (
               <img
                 key={identity}
+                ref={imageElement}
                 className="game-hero-image"
                 src={image}
                 alt=""
@@ -162,7 +128,7 @@ export function GameHero({
                 data-logo-tone={surface?.image === identity ? surface.tone : undefined}
                 onLoad={(event) => inspect(event.currentTarget)}
                 onError={(event) => {
-                  event.currentTarget.hidden = true;
+                  event.currentTarget.style.visibility = "hidden";
                   if (foreground.display.image) {
                     foreground.display.onImageError?.();
                     foreground.reject();
@@ -174,25 +140,70 @@ export function GameHero({
         )}
         <div className="game-hero-content">{children}</div>
       </div>
-      <div className="game-hero-credits-slot">
-        {((foreground.candidate && foreground.display.image) ||
-          background.catalogMedia ||
-          (image && cover.state)) && (
-          <details className="game-hero-credits">
-            <summary data-focusable>Image credits</summary>
-            {foreground.candidate && foreground.display.image && (
-              <MediaCredit media={foreground.candidate} port={port} />
-            )}
-            {background.catalogMedia && <MediaCredit media={background.catalogMedia} port={port} />}
-            {kind === "cover" && image && cover.state && (
-              <ArtworkSource
-                state={cover.state}
-                renderedSource={cover.state.resolved_source.kind}
-              />
-            )}
-          </details>
-        )}
-      </div>
+      <HeroCredits
+        port={port}
+        artwork={{ foreground, cover, background }}
+        coverVisible={kind === "cover" && Boolean(image)}
+      />
     </section>
+  );
+}
+
+function HeroCredits({
+  port,
+  artwork,
+  coverVisible,
+}: {
+  port: HeroMediaPort;
+  artwork: Pick<ReturnType<typeof useGameHeroArtwork>, "foreground" | "cover" | "background">;
+  coverVisible: boolean;
+}) {
+  const slot = useRef<HTMLDivElement>(null);
+  const focusedCredit = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const previous = focusedCredit.current;
+    if (previous && !previous.isConnected && document.activeElement === document.body) {
+      const content = slot.current?.closest("section")?.querySelector(".game-hero-content");
+      const target = content?.querySelector<HTMLElement>("button:not([disabled]), [tabindex='-1']");
+      target?.focus();
+      focusedCredit.current = null;
+    }
+  });
+  const { foreground, cover, background } = artwork;
+  const foregroundMedia = foreground.display.image ? foreground.candidate : undefined;
+  const coverState = coverVisible ? cover.state : undefined;
+  const backgroundState =
+    background.display.image && !background.catalogMedia && background.display.image !== cover.image
+      ? background.display.state
+      : undefined;
+  const visible = foregroundMedia || background.catalogMedia || coverState || backgroundState;
+  return (
+    <div
+      ref={slot}
+      className="game-hero-credits-slot"
+      onFocusCapture={(event) => {
+        if (event.target instanceof HTMLElement) focusedCredit.current = event.target;
+      }}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) focusedCredit.current = null;
+      }}
+    >
+      {visible && (
+        <details className="game-hero-credits">
+          <summary data-focusable>Image credits</summary>
+          {foregroundMedia && <MediaCredit media={foregroundMedia} port={port} />}
+          {background.catalogMedia && <MediaCredit media={background.catalogMedia} port={port} />}
+          {coverState && (
+            <ArtworkSource state={coverState} renderedSource={coverState.resolved_source.kind} />
+          )}
+          {backgroundState && (
+            <ArtworkSource
+              state={backgroundState}
+              renderedSource={backgroundState.resolved_source.kind}
+            />
+          )}
+        </details>
+      )}
+    </div>
   );
 }

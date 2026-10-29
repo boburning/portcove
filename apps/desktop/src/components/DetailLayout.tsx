@@ -191,18 +191,12 @@ export function DetailLayout({
             role="group"
             aria-label="Game and port identity"
           >
-            {sourceSystems
-              .filter((system) => system !== "not-specified")
-              .map((system) => (
-                <Chip
-                  key={`system:${system}`}
-                  style={identityStyle(system)}
-                  title="Original system"
-                >
-                  <IdentityIcon name={system} />
-                  {identityLabel(system)}
-                </Chip>
-              ))}
+            {sourceSystems.map((system) => (
+              <Chip key={`system:${system}`} style={identityStyle(system)} title="Original system">
+                <IdentityIcon name={system} />
+                {identityLabel(system)}
+              </Chip>
+            ))}
             {port.platforms?.map((platform) => {
               const system = platform.split("-")[0]!;
               return (
