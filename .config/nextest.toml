@@ -717,9 +717,12 @@ success-output = "immediate"
 # those Windows identities finite60s diagnostic room; do not infer the cause.
 # Preserve the full command sequence, each intermediate ownership observation,
 # assertions, worker slots, cleanup and zero retries.
+# CI40793603321/a1 job123186674413 also reached observation16 at29.730s
+# in verified_resume_abort before its30.055s cutoff. Include that exact case
+# in the same finite60s allowance; this records progress, not a causal repair.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/))'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
