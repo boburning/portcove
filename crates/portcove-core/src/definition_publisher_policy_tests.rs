@@ -815,6 +815,22 @@ async fn managed_fixture_for_policy(
     Catalog,
     crate::DefinitionAcquisitionScope,
 ) {
+    managed_fixture_before_admission(authored, launch_checks, |_| {}).await
+}
+
+async fn managed_fixture_before_admission(
+    authored: Catalog,
+    launch_checks: bool,
+    before_admission: impl FnOnce(&Library),
+) -> (
+    RepositoryFixture,
+    Key,
+    Vec<u8>,
+    TempDir,
+    Library,
+    Catalog,
+    crate::DefinitionAcquisitionScope,
+) {
     let fixture = RepositoryFixture::new();
     let key = Key::new(fixture._directory.path());
     let mut targets = repository_targets_for(&authored, ID);
@@ -840,6 +856,7 @@ async fn managed_fixture_for_policy(
     let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
     let (directory, library) = library();
     policy::install_authority_for_test(&library, &root).unwrap();
+    before_admission(&library);
     library
         .apply_definition_publisher_policy(&admission, Some(&candidate))
         .unwrap();
@@ -4625,7 +4642,20 @@ async fn managed_ordinary_lifecycle(
     phase("catalog:complete");
     phase("managed-fixture:start");
     let (fixture, key, root, _directory, library, catalog, mut scope) =
-        managed_fixture_for(authored).await;
+        managed_fixture_before_admission(authored, false, |library| {
+            assert!(library.load_catalog().unwrap().0.port(ID).is_err());
+            assert!(
+                library
+                    .definition_selection_status()
+                    .unwrap()
+                    .selected
+                    .is_none()
+            );
+            assert_eq!(count(library, "definition_publisher_admission"), 0);
+            assert_eq!(count(library, "definition_publisher_policy"), 0);
+            observe_managed_stage(&mut observer, library, "before-admission");
+        })
+        .await;
     phase("managed-fixture:complete");
     phase("ordinary-load:start");
     assert!(

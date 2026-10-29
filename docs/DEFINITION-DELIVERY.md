@@ -1166,8 +1166,14 @@ client implementation boundary.
 
 The existing compiled adapter-conformance route consumes the signed managed
 ordinary-release fixture. It builds and hashes the fixture-capable CLI and Desktop
-once before publication, then starts those same binaries in fresh sessions after
-the new definition, both owned artifact acquisitions and compatible corrections.
+once before the journey. After fixture authority installation and before policy
+admission or definition selection, the same CLI must refuse both `catalog show`
+and `installation plan` for the absent independent ID with `not_found`, without
+provider requests, activities, installs or catalog/selection changes. It then
+starts those same binaries in fresh sessions after the new definition, both owned
+artifact acquisitions and compatible corrections. Each owned consumer has a finite
+60-second test-harness wait, followed by kill and positive reap on failure before
+output cleanup; product deadlines and the lifecycle assertions remain unchanged.
 The CLI uses canonical reviewed first-install authority for v1 and reviewed update
 authority for v2. Its hidden qualification-only update commands forward Core's
 existing plan fingerprint, explicit confirmation, activation and one-use authorization
