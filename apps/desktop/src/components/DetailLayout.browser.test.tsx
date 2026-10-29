@@ -244,7 +244,7 @@ it("keeps unknown original systems explicit and shows every offered release chan
   await expect
     .element(page.getByRole("tab", { name: "Manage", exact: true }))
     .not.toBeInTheDocument();
-  expect(document.querySelector(".detail-header-artwork")).toBeNull();
+  expect(document.querySelector(".game-hero-background")).toBeNull();
 });
 
 it("composes About beside authored requirements and support without reserving absent media", async () => {
@@ -284,5 +284,5 @@ it("composes About beside authored requirements and support without reserving ab
   await expect.element(page.getByRole("link", { name: "Open upstream project" })).toBeVisible();
   await expect.element(page.getByRole("button", { name: "Create support report" })).toBeVisible();
   expect(document.querySelector(".media-gallery")).toBeNull();
-  expect(document.querySelector(".detail-header-artwork")).toBeNull();
+  expect(document.querySelector(".game-hero-background")).toBeNull();
 });

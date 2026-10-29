@@ -46,14 +46,19 @@ for (const theme of ["dark", "light"]) {
     expect(libraryRange.getClientRects()).toHaveLength(1);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.viewport(240, 160);
-    for (const name of ["System", "Dark", "Light"]) {
+    for (const name of ["Follow system", "Dark", "Light"]) {
       const button = page
         .getByRole("radiogroup", { name: "Color theme", exact: true })
         .getByRole("radio", { name, exact: true });
       const text = document.createTreeWalker(button.element(), NodeFilter.SHOW_TEXT).nextNode()!;
-      const range = document.createRange();
-      range.selectNodeContents(text);
-      expect(range.getClientRects()).toHaveLength(1);
+      const value = text.textContent ?? "";
+      for (const word of value.matchAll(/\S+/gu)) {
+        const range = document.createRange();
+        range.setStart(text, word.index);
+        range.setEnd(text, word.index + word[0].length);
+        expect(range.getClientRects()).toHaveLength(1);
+      }
+      expect(button.element().scrollWidth).toBeLessThanOrEqual(button.element().clientWidth + 1);
     }
   });
   it(`restores a ${theme} detail origin and reading position in document flow`, async () => {

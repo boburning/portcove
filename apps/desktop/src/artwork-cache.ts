@@ -150,7 +150,7 @@ export class ArtworkCache {
   }
 
   private mediaKey(portId: string, media: CatalogMediaAsset) {
-    return JSON.stringify([portId, "catalog-media", media.id, media.sha256]);
+    return JSON.stringify([portId, "catalog-media-v2", media.role, media.id, media.sha256]);
   }
 
   readMedia(portId: string, media: CatalogMediaAsset): ArtworkDisplay {

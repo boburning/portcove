@@ -43,19 +43,19 @@ export function IdentityChips({
       {originalSystems(port)
         .filter((system) => includeUnknown || system !== "not-specified")
         .map((system) => (
-          <Chip key={system} style={identityStyle(system)}>
+          <Chip key={system} style={identityStyle(system)} title="Original system">
             <IdentityIcon name={system} />
             {identityLabel(system)}
           </Chip>
         ))}
       {port.platforms.map((platform) => (
-        <Chip key={platform} style={identityStyle(platform.split("-")[0]!)}>
+        <Chip key={platform} style={identityStyle(platform.split("-")[0]!)} title="Runs on">
           <IdentityIcon name={platform.split("-")[0]!} />
           {platformLabel(platform)}
         </Chip>
       ))}
       {port.channels?.map((channel) => (
-        <Chip key={channel} style={identityStyle(channel, true)}>
+        <Chip key={channel} style={identityStyle(channel, true)} title="Release channel">
           <IdentityIcon name={channel} channel />
           {releaseChannelPresentation(channel).label}
         </Chip>
@@ -177,8 +177,9 @@ export function GroupedDiscover({
                 installation, files and saved data.
               </DialogDescription>
               <p className="text-sm text-pc-muted-foreground">
-                These are catalog declarations and current library observations. Gameplay
-                comparisons have not been established for every project.
+                Shared feature details are not available for every project. Compare the recorded
+                evidence and project instructions. Switching projects does not establish save or mod
+                compatibility.
               </p>
               <GameComparisonControls comparison={evidence} />
               <div className="port-comparison-grid">
@@ -192,7 +193,7 @@ export function GroupedDiscover({
                   return (
                     <article
                       key={port.id}
-                      className="port-comparison-project min-w-0 rounded-pc-md border border-pc-border p-4 wrap-anywhere"
+                      className="port-comparison-project min-w-0 wrap-anywhere"
                       aria-label={`${gameIdentityLabel(port)}. ${observation.state.label}.`}
                       aria-describedby={describedBy}
                       data-source-drop-port-id={dropEligible ? port.id : undefined}
@@ -201,17 +202,22 @@ export function GroupedDiscover({
                       <header>
                         <h3>{gameProjectLabel(port) || port.name}</h3>
                         <p>{port.summary}</p>
+                        <IdentityChips port={port} includeUnknown />
+                        {!port.platforms.length && <p>No platform is listed.</p>}
+                        {!port.channels?.length && <p>No release channel is listed.</p>}
                         {!matching.some((candidate) => candidate.id === port.id) && (
                           <p className="text-sm text-pc-muted-foreground">
                             Outside the current filters.
                           </p>
                         )}
                       </header>
-                      <GameComparisonEvidence
-                        comparison={evidence}
-                        portId={port.id}
-                        organization={organization}
-                      />
+                      <div className="min-w-0">
+                        <GameComparisonEvidence
+                          comparison={evidence}
+                          portId={port.id}
+                          organization={organization}
+                        />
+                      </div>
                       <div>
                         <h4>Setup route</h4>
                         <p>{installationMethodLabel(port)}</p>
@@ -226,43 +232,10 @@ export function GroupedDiscover({
                           </ul>
                         ) : (
                           <p>
-                            File requirements have not been described here. Check this project’s
-                            setup instructions.
+                            Requirements are not listed here. Check the project’s setup
+                            instructions.
                           </p>
                         )}
-                      </div>
-                      <div>
-                        <h4>Original system</h4>
-                        <div className="flex flex-wrap gap-1.5">
-                          {originalSystems(port).map((system) => (
-                            <Chip key={system} style={identityStyle(system)}>
-                              <IdentityIcon name={system} />
-                              {identityLabel(system)}
-                            </Chip>
-                          ))}
-                        </div>
-                        <h4>Runtime targets</h4>
-                        <div className="flex flex-wrap gap-1.5">
-                          {port.platforms.length
-                            ? port.platforms.map((platform) => (
-                                <Chip key={platform} style={identityStyle(platform.split("-")[0]!)}>
-                                  <IdentityIcon name={platform.split("-")[0]!} />
-                                  {platformLabel(platform)}
-                                </Chip>
-                              ))
-                            : "Runtime targets not specified"}
-                        </div>
-                        <h4>Release channel</h4>
-                        <div className="flex flex-wrap gap-1.5">
-                          {port.channels?.length
-                            ? port.channels.map((channel) => (
-                                <Chip key={channel} style={identityStyle(channel, true)}>
-                                  <IdentityIcon name={channel} channel />
-                                  {releaseChannelPresentation(channel).label}
-                                </Chip>
-                              ))
-                            : "Release channel not specified"}
-                        </div>
                       </div>
                       <div>
                         <h4>Ownership</h4>
@@ -278,13 +251,7 @@ export function GroupedDiscover({
                           noticeChoice={organization?.snapshot?.update_notices[port.id]}
                         />
                       </div>
-                      <div>
-                        <h4>Project features</h4>
-                        <p>
-                          Feature comparison not yet available. Consult the project instructions
-                          below; shared feature metadata has not been established.
-                        </p>
-                      </div>
+
                       <div className="mt-3 flex flex-wrap gap-3">
                         {favorite(port)}
                         <Button
@@ -318,16 +285,13 @@ export function GroupedDiscover({
 function renderComparisonOwnership(status: PortStatus | undefined) {
   return (
     <p>
-      {status?.active ? "Portcove manages the installed runtime and its reviewed updates. " : ""}
-      {status?.external_runtime
-        ? "You or the upstream launcher manage the registered external runtime. "
-        : ""}
+      {status?.active ? "Managed installation. Portcove handles reviewed updates." : ""}
+      {status?.external_runtime ? "External installation. You or its launcher handle updates." : ""}
       {!status
-        ? "Installation and update ownership status is unavailable. Follow the project instructions. "
+        ? "Installation ownership is unavailable. Check the project instructions."
         : !status.active && !status.external_runtime
-          ? "No current installation is observed. Follow this project’s setup instructions for preparation and update ownership. "
+          ? "Not installed. Follow this project’s setup instructions."
           : ""}
-      Switching projects does not establish save or mod compatibility.
     </p>
   );
 }

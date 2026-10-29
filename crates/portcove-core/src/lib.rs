@@ -139,7 +139,8 @@ pub use cancellation::{CancellationPhase, CancellationState};
 pub use cartridge_build::CartridgeBuildRecipe;
 pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_media::{
-    CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, validate_catalog_media,
+    CatalogMediaAsset, CatalogMediaRole, CatalogMediaSubject, IgdbGameImage, IgdbGameImageKind,
+    validate_catalog_media,
 };
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
@@ -327,7 +328,8 @@ pub use types::*;
 // Public81 adds separately reviewed external-to-managed copy transitions.
 // Existing response meanings and operation-event schema3 remain unchanged.
 // Public82 adds source-only preparation format3 with no setup executable.
-pub const API_SCHEMA_VERSION: u32 = 83;
+// Public84 adds reviewed game key art/logos and edition applicability; listing format5 fences strict older readers.
+pub const API_SCHEMA_VERSION: u32 = 84;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

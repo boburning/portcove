@@ -4,6 +4,8 @@ import { isRecord, errorCode } from "./runtime-values.mts";
 import type {
   IgdbArtwork,
   IgdbArtworkMatch,
+  CatalogMediaAsset,
+  CatalogMediaSubject,
 } from "../apps/desktop/src/transport-types.generated.d.ts";
 import {
   readFileSync,
@@ -653,7 +655,7 @@ async function selectCover(
 function applyGoneImageFallbacks(
   catalog: ArtworkCatalog,
   records: ArtworkRecord[],
-  context: ArtworkContext,
+  context: Pick<ArtworkContext, "goneImages" | "metrics">,
 ) {
   const byId = new Map(records.map((record) => [record.port_id, record]));
   const invalidated: string[] = [];
@@ -717,12 +719,7 @@ export async function prepareCatalogArtwork(
   ) {
     throw new Error("Artwork catalogs require at most10000 unique stable port ids.");
   }
-  if (
-    options.knownGoneImageIds &&
-    (Buffer.byteLength(JSON.stringify(options.knownGoneImageIds)) > 8 * 1024 * 1024 ||
-      options.knownGoneImageIds.some((id) => !matchesString(imagePattern, id)))
-  )
-    throw new Error("Invalid bounded exact-image Gone observations.");
+  validateKnownGoneImages(options.knownGoneImageIds);
   const result = structuredClone(catalog);
   const accepted = new Map((options.acceptedCatalog?.ports ?? []).map((port) => [port.id, port]));
   const selectedIds = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
@@ -852,17 +849,47 @@ export async function prepareCatalogArtwork(
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
   const invalidatedPortIds = applyGoneImageFallbacks(result, records, context);
+  removeWithdrawnCatalogMedia(result, [], context.goneImages);
   assertPreparedArtwork(result);
   return {
     catalog: result,
     records,
     metrics: context.metrics,
+    gone_image_ids: [...context.goneImages].sort(),
     workset: {
       catalog_ports: catalog.ports.length,
       selected_port_ids: [...workset],
       invalidated_port_ids: invalidatedPortIds,
     },
   };
+}
+
+function validateKnownGoneImages(imageIds: readonly string[] | undefined) {
+  if (
+    imageIds &&
+    (Buffer.byteLength(JSON.stringify(imageIds)) > 8 * 1024 * 1024 ||
+      imageIds.some((id) => !matchesString(imagePattern, id)))
+  )
+    throw new Error("Invalid bounded exact-image Gone observations.");
+}
+
+/** Reconcile later role observations into the existing cover proposal and its
+ * evidence. No provider requests or authority are introduced by reconciliation. */
+export function reconcileCatalogArtworkWithdrawals(
+  prepared: Awaited<ReturnType<typeof prepareCatalogArtwork>>,
+  imageIds: readonly string[],
+) {
+  validateKnownGoneImages(imageIds);
+  const goneImages = new Set([...prepared.gone_image_ids, ...imageIds]);
+  const invalidated = applyGoneImageFallbacks(prepared.catalog, prepared.records, {
+    goneImages,
+    metrics: prepared.metrics,
+  });
+  removeWithdrawnCatalogMedia(prepared.catalog, [], goneImages);
+  prepared.gone_image_ids = [...goneImages].sort();
+  prepared.workset.invalidated_port_ids = [
+    ...new Set([...prepared.workset.invalidated_port_ids, ...invalidated]),
+  ].sort();
 }
 
 function cancelBody(body: Pick<ArtworkReader, "cancel"> | null | undefined) {
@@ -1074,6 +1101,112 @@ export function createIgdbInspector(
       })();
     return tokenPromise;
   }
+  // One authenticated, paced and bounded metadata transport for game identities and
+  // their image relationships. The retained game_requests metric counts these calls.
+  async function inspectMetadata(
+    endpoint: "games" | "logos" | "artworks" | "image_types",
+    body: string,
+  ): Promise<unknown> {
+    const auth = await token();
+    if (used("game_requests") >= 800 || used("metadata_bytes") >= 32 * 1024 * 1024)
+      throw new ArtworkBatchExhausted("Artwork metadata budget reached.");
+    await waitForMetadata();
+    // Another caller can consume the shared budget while this request waits.
+    if (used("game_requests") >= 800 || used("metadata_bytes") >= 32 * 1024 * 1024)
+      throw new ArtworkBatchExhausted("Artwork metadata budget reached.");
+    const requestSignal = signal();
+    lastGameRequest = Date.now();
+    metrics.game_requests++;
+    const response = await fetchImpl(`https://api.igdb.com/v4/${endpoint}`, {
+      method: "POST",
+      redirect: "error",
+      signal: requestSignal,
+      headers: {
+        "Client-ID": auth.clientId,
+        Authorization: `Bearer ${auth.token}`,
+        "Content-Type": "text/plain",
+      },
+      body,
+    });
+    try {
+      if (response.status === 429 || response.status === 503)
+        gameRetryAt = Math.max(
+          gameRetryAt,
+          metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15),
+        );
+      if (!response.ok)
+        throw new Error(
+          endpoint === "games"
+            ? "IGDB identity request unavailable."
+            : "IGDB media request unavailable.",
+        );
+      return JSON.parse(
+        (
+          await readBounded(
+            response,
+            1024 * 1024,
+            (bytes) => {
+              metrics.metadata_bytes += bytes;
+            },
+            32 * 1024 * 1024 - used("metadata_bytes"),
+          )
+        ).toString("utf8"),
+      );
+    } finally {
+      cancelBody(response.body);
+    }
+  }
+  async function inspectRemoteImage(
+    imageId: string,
+    variant: "cover_big" | "logo_med_2x" | "720p",
+    remainingBytes: number,
+  ): Promise<Record<string, unknown> & { sha256: string; bytes: number }> {
+    if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
+    if (used("image_requests") >= 400 || used("image_bytes") >= maximumBatchBytes)
+      throw new ArtworkBatchExhausted("Artwork image budget reached.");
+    await waitForImages();
+    if (used("image_requests") >= 400 || used("image_bytes") >= maximumBatchBytes)
+      throw new ArtworkBatchExhausted("Artwork image budget reached.");
+    const requestSignal = signal();
+    metrics.image_requests++;
+    const response = await fetchImpl(
+      `https://images.igdb.com/igdb/image/upload/t_${variant}/${imageId}.${variant === "cover_big" ? "jpg" : "png"}`,
+      { redirect: "error", signal: requestSignal },
+    );
+    try {
+      if (
+        (response.status === 429 || response.status === 503) &&
+        response.headers.get("retry-after") !== null
+      )
+        imageRetryAt = metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15);
+      if (response.status === 410) {
+        const error = new Error("IGDB image is gone.");
+        goneImageObservations.set(error, imageId);
+        throw error;
+      }
+      if (
+        !response.ok ||
+        !response.headers
+          .get("content-type")
+          ?.startsWith(variant === "cover_big" ? "image/jpeg" : "image/png")
+      )
+        throw new Error("IGDB image unavailable.");
+      const bytes = await readBounded(
+        response,
+        maximumImageBytes,
+        (length) => {
+          metrics.image_bytes += length;
+        },
+        Math.min(remainingBytes, maximumBatchBytes - used("image_bytes")),
+      );
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      const validated = await validateImage(bytes);
+      if (!isRecord(validated)) throw new Error("Image did not pass the core content contract.");
+      return { ...validated, sha256, bytes: bytes.length };
+    } finally {
+      cancelBody(response.body);
+    }
+  }
   return {
     providerMetrics: metrics,
     ...(control.signal ? { signal: control.signal } : {}),
@@ -1100,26 +1233,9 @@ export function createIgdbInspector(
     },
     async inspectGame(identity: unknown): Promise<unknown> {
       const verified = declaredIdentity(identity);
-      const auth = await token();
-      if (used("game_requests") >= 800 || used("metadata_bytes") >= 32 * 1024 * 1024)
-        throw new ArtworkBatchExhausted("Artwork metadata budget reached.");
-      await waitForMetadata();
-      // Another caller can consume the shared budget while this request waits.
-      if (used("game_requests") >= 800 || used("metadata_bytes") >= 32 * 1024 * 1024)
-        throw new ArtworkBatchExhausted("Artwork metadata budget reached.");
-      const requestSignal = signal();
-      lastGameRequest = Date.now();
-      metrics.game_requests++;
-      const response = await fetchImpl("https://api.igdb.com/v4/games", {
-        method: "POST",
-        redirect: "error",
-        signal: requestSignal,
-        headers: {
-          "Client-ID": auth.clientId,
-          Authorization: `Bearer ${auth.token}`,
-          "Content-Type": "text/plain",
-        },
-        body: `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id; where ${
+      return inspectMetadata(
+        "games",
+        `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id; where ${
           verified.game_id != null
             ? `id = ${verified.game_id}`
             : verified.names
@@ -1129,71 +1245,396 @@ export function createIgdbInspector(
                 )
                 .join(" | ")
         }; limit 21;`,
-      });
-      try {
-        if (response.status === 429 || response.status === 503)
-          gameRetryAt = Math.max(
-            gameRetryAt,
-            metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15),
-          );
-        if (!response.ok) throw new Error("IGDB identity request unavailable.");
-        return JSON.parse(
-          (
-            await readBounded(
-              response,
-              1024 * 1024,
-              (bytes) => {
-                metrics.metadata_bytes += bytes;
-              },
-              32 * 1024 * 1024 - used("metadata_bytes"),
-            )
-          ).toString("utf8"),
-        );
-      } finally {
-        cancelBody(response.body);
-      }
+      );
+    },
+    async inspectGameMedia(gameId: number, kind: "logo" | "key_art"): Promise<unknown> {
+      if (!positiveId(gameId)) throw new Error("Invalid game media identity.");
+      return inspectMetadata(
+        kind === "logo" ? "logos" : "artworks",
+        `fields id,game,image_id,width,height,alpha_channel,animated,image_type.id,image_type.name; where game = ${gameId}; sort id asc; limit 21;`,
+      );
+    },
+    async inspectImageTypes(): Promise<unknown> {
+      return inspectMetadata("image_types", "fields id,name; sort id asc; limit 501;");
     },
     async inspectImage(imageId: string, remainingBytes = maximumBatchBytes) {
-      if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
-      if (used("image_requests") >= 400 || used("image_bytes") >= maximumBatchBytes)
-        throw new ArtworkBatchExhausted("Artwork image budget reached.");
-      await waitForImages();
-      const requestSignal = signal();
-      metrics.image_requests++;
-      const response = await fetchImpl(
-        `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`,
-        { redirect: "error", signal: requestSignal },
+      return observedContent(await inspectRemoteImage(imageId, "cover_big", remainingBytes));
+    },
+    async inspectMediaImage(
+      imageId: string,
+      kind: "logo" | "key_art",
+      remainingBytes = maximumBatchBytes,
+    ) {
+      const result = await inspectRemoteImage(
+        imageId,
+        kind === "logo" ? "logo_med_2x" : "720p",
+        remainingBytes,
       );
-      try {
-        if (
-          (response.status === 429 || response.status === 503) &&
-          response.headers.get("retry-after") !== null
-        )
-          imageRetryAt = metadataRetryAt(response.headers.get("retry-after"), Date.now(), 8.64e15);
-        if (response.status === 410) {
-          const error = new Error("IGDB image is gone.");
-          goneImageObservations.set(error, imageId);
-          throw error;
-        }
-        if (!response.ok || !response.headers.get("content-type")?.startsWith("image/jpeg"))
-          throw new Error("IGDB image unavailable.");
-        const bytes = await readBounded(
-          response,
-          maximumImageBytes,
-          (length) => {
-            metrics.image_bytes += length;
-          },
-          Math.min(remainingBytes, maximumBatchBytes - used("image_bytes")),
-        );
-        const sha256 = createHash("sha256").update(bytes).digest("hex");
-        const validated = await validateImage(bytes);
-        if (!isRecord(validated)) throw new Error("Image did not pass the core content contract.");
-        return observedContent({ ...validated, sha256, bytes: bytes.length });
-      } finally {
-        cancelBody(response.body);
-      }
+      if (
+        result.format !== "png" ||
+        result.validator !== "portcove-core" ||
+        !positiveId(result.width) ||
+        !positiveId(result.height) ||
+        result.width > (kind === "logo" ? 568 : 1280) ||
+        result.height > (kind === "logo" ? 320 : 720)
+      )
+        throw new Error("Game media did not pass its core content and fit-variant contract.");
+      return {
+        sha256: result.sha256,
+        bytes: result.bytes,
+        width: result.width,
+        height: result.height,
+        format: "png" as const,
+        validator: "portcove-core" as const,
+      };
     },
   };
+}
+
+type HeroRole = "key_art" | "logo";
+type HeroIdentity = {
+  declaration: unknown;
+  subject: CatalogMediaSubject;
+  neutral: boolean | undefined;
+};
+type HeroImageCandidate = Record<string, unknown> & { id: number; game: number; image_id: string };
+type HeroMediaRecord = {
+  port_id: string;
+  role: HeroRole;
+  subject: CatalogMediaSubject;
+  reason: string;
+  image_id?: string;
+};
+type HeroPreparationContext = {
+  inspector: Parameters<typeof prepareCatalogGameMedia>[1]["inspector"];
+  signal: AbortSignal | undefined;
+  games: Map<string, Promise<unknown>>;
+  goneImages: Set<string>;
+};
+
+function declaredHeroMediaIdentities(port: ArtworkPort, input: unknown): HeroIdentity[] {
+  const value = isRecord(input) ? input[port.id] : undefined;
+  const supplied: Record<string, unknown> = isRecord(value) ? value : {};
+  const original = port.presentation?.original_game;
+  const underlying = supplied.underlying_game ?? port.underlying_game;
+  const identities: HeroIdentity[] = [
+    {
+      declaration: supplied.port ?? {
+        names: [port.name],
+        project_url: port.project_url,
+        evidence_url: port.project_url,
+      },
+      subject: { kind: "port", port_id: port.id },
+      neutral: undefined,
+    },
+  ];
+  // An offered edition is never a selected edition. Require an explicit binding;
+  // the renderer additionally requires actual applicability or reviewed neutrality.
+  if (
+    isRecord(original) &&
+    typeof original.id === "string" &&
+    isRecord(underlying) &&
+    typeof underlying.source_edition_id === "string" &&
+    Array.isArray(original.source_editions) &&
+    original.source_editions.some(
+      (edition) => isRecord(edition) && edition.id === underlying.source_edition_id,
+    )
+  ) {
+    identities.push({
+      declaration: underlying,
+      subject: {
+        kind: "original",
+        game_id: original.id,
+        source_edition_id: underlying.source_edition_id,
+      },
+      neutral:
+        typeof underlying.hero_media_edition_neutral === "boolean"
+          ? underlying.hero_media_edition_neutral
+          : undefined,
+    });
+  }
+  return identities;
+}
+
+async function inspectHeroIdentity(identity: HeroIdentity, context: HeroPreparationContext) {
+  try {
+    const declared = declaredIdentity(
+      identity.declaration,
+      identity.subject.kind === "port" ? "port" : "underlying-game",
+    );
+    const key = JSON.stringify(declared);
+    if (!context.games.has(key))
+      context.games.set(key, Promise.resolve(context.inspector.inspectGame(declared)));
+    const identified = identifiedGame(await context.games.get(key), declared);
+    return { game: identified.game, reason: identified.reason ?? "identity-mismatch" };
+  } catch (error) {
+    context.signal?.throwIfAborted();
+    return {
+      game: undefined,
+      reason:
+        error instanceof ArtworkBatchExhausted
+          ? "batch-provider-budget-exhausted"
+          : "identity-provider-unavailable",
+    };
+  }
+}
+
+function eligibleHeroImage(
+  value: unknown,
+  game: ObservedGame,
+  role: HeroRole,
+  gone: Set<string>,
+): value is HeroImageCandidate {
+  if (
+    !isRecord(value) ||
+    !positiveId(value.id) ||
+    value.game !== game.id ||
+    !matchesString(imagePattern, value.image_id) ||
+    gone.has(value.image_id) ||
+    value.animated === true
+  )
+    return false;
+  if (role === "logo") return true;
+  const type = value.image_type;
+  return isRecord(type) && positiveId(type.id) && isIgdbKeyArtTypeName(type.name);
+}
+function heroImageHasLogo(record: HeroImageCandidate) {
+  return (
+    isRecord(record.image_type) &&
+    typeof record.image_type.name === "string" &&
+    record.image_type.name.toLowerCase().replace(/[^a-z]/g, "") === "keyartwithlogo"
+  );
+}
+function heroImageCandidates(
+  observed: unknown,
+  game: ObservedGame,
+  role: HeroRole,
+  gone: Set<string>,
+) {
+  if (!Array.isArray(observed) || observed.length >= 21)
+    throw new Error("Game image inventory is invalid or incomplete.");
+  return observed
+    .filter((value): value is HeroImageCandidate => eligibleHeroImage(value, game, role, gone))
+    .sort((a, b) => Number(heroImageHasLogo(b)) - Number(heroImageHasLogo(a)) || a.id - b.id);
+}
+
+function heroAssetProposal(
+  candidate: HeroImageCandidate,
+  game: ObservedGame,
+  role: HeroRole,
+  identity: HeroIdentity,
+  image: Awaited<ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>,
+): CatalogMediaAsset {
+  const type = isRecord(candidate.image_type) ? candidate.image_type : undefined;
+  return {
+    id: `igdb-${role.replaceAll("_", "-")}-${identity.subject.kind}-${candidate.id}`,
+    role,
+    subject: identity.subject,
+    ...(identity.neutral === undefined ? {} : { edition_neutral: identity.neutral }),
+    caption: role === "logo" ? "Game logo" : "Game key art",
+    url: `https://images.igdb.com/igdb/image/upload/t_${role === "logo" ? "logo_med_2x" : "720p"}/${candidate.image_id}.png`,
+    sha256: image.sha256,
+    width: image.width,
+    height: image.height,
+    attribution: "Game artwork via IGDB; copyright remains with its rights holders.",
+    source_url: `https://www.igdb.com/games/${game.slug}`,
+    license: "LicenseRef-IGDB-Terms",
+    rights_url: "https://www.twitch.tv/p/en/legal/developer-agreement/",
+    igdb: {
+      game_id: game.id,
+      record_id: candidate.id,
+      kind: role === "logo" ? "logo" : "artwork",
+      image_id: candidate.image_id,
+      game_slug: game.slug,
+      ...(typeof candidate.alpha_channel === "boolean"
+        ? { alpha_channel: candidate.alpha_channel }
+        : {}),
+      ...(type && positiveId(type.id) && typeof type.name === "string"
+        ? { image_type: type.id, image_type_name: type.name }
+        : {}),
+    },
+  };
+}
+
+function observeWithdrawnHeroImage(
+  error: unknown,
+  media: unknown[],
+  context: HeroPreparationContext,
+) {
+  const gone =
+    typeof error === "object" && error !== null ? goneImageObservations.get(error) : undefined;
+  if (!gone) return;
+  context.goneImages.add(gone);
+  for (let index = media.length - 1; index >= 0; index--) {
+    const asset = media[index];
+    if (isRecord(asset) && isRecord(asset.igdb) && asset.igdb.image_id === gone)
+      media.splice(index, 1);
+  }
+}
+async function inspectHeroRole(
+  game: ObservedGame,
+  role: HeroRole,
+  identity: HeroIdentity,
+  media: unknown[],
+  context: HeroPreparationContext,
+) {
+  const observed = await context.inspector.inspectGameMedia(game.id, role);
+  const candidates = heroImageCandidates(observed, game, role, context.goneImages);
+  let reason = candidates.length ? "images-unavailable-or-unsuitable" : "no-suitable-role-observed";
+  // Finite candidate chain; one bad file does not erase another media role.
+  for (const candidate of candidates.slice(0, 4)) {
+    context.signal?.throwIfAborted();
+    if (context.goneImages.has(candidate.image_id)) continue;
+    try {
+      const image = await context.inspector.inspectMediaImage(candidate.image_id, role);
+      return {
+        asset: heroAssetProposal(candidate, game, role, identity, image),
+        reason: "role-selected",
+      };
+    } catch (error) {
+      context.signal?.throwIfAborted();
+      observeWithdrawnHeroImage(error, media, context);
+      if (error instanceof ArtworkBatchExhausted) {
+        reason = "batch-provider-budget-exhausted";
+        break;
+      }
+    }
+  }
+  return { asset: undefined, reason };
+}
+
+function upsertHeroMedia(media: unknown[], asset: CatalogMediaAsset) {
+  const index = media.findIndex(
+    (value) =>
+      isRecord(value) &&
+      value.role === asset.role &&
+      sameMediaSubject(value.subject, asset.subject),
+  );
+  if (index >= 0) media[index] = asset;
+  else media.push(asset);
+}
+async function prepareHeroIdentity(
+  portId: string,
+  identity: HeroIdentity,
+  media: unknown[],
+  records: HeroMediaRecord[],
+  context: HeroPreparationContext,
+) {
+  const identified = await inspectHeroIdentity(identity, context);
+  for (const role of ["key_art", "logo"] as const) {
+    if (!identified.game) {
+      records.push({ port_id: portId, role, subject: identity.subject, reason: identified.reason });
+      continue;
+    }
+    try {
+      const selected = await inspectHeroRole(identified.game, role, identity, media, context);
+      if (selected.asset) upsertHeroMedia(media, selected.asset);
+      records.push({
+        port_id: portId,
+        role,
+        subject: identity.subject,
+        reason: selected.reason,
+        ...(selected.asset?.igdb ? { image_id: selected.asset.igdb.image_id } : {}),
+      });
+    } catch (error) {
+      context.signal?.throwIfAborted();
+      records.push({
+        port_id: portId,
+        role,
+        subject: identity.subject,
+        reason:
+          error instanceof ArtworkBatchExhausted
+            ? "batch-provider-budget-exhausted"
+            : "media-provider-unavailable-or-incomplete",
+      });
+    }
+  }
+}
+function removeWithdrawnCatalogMedia(
+  catalog: ArtworkCatalog,
+  records: HeroMediaRecord[],
+  gone: Set<string>,
+) {
+  // A withdrawal invalidates every candidate reference, including unselected ports
+  // and records completed earlier in this batch.
+  for (const port of catalog.ports) {
+    const artwork = port.presentation?.artwork;
+    if (validArtworkMapping(artwork) && gone.has(artwork.image_id) && port.presentation)
+      delete port.presentation.artwork;
+    const media = port.presentation?.media;
+    if (Array.isArray(media))
+      port.presentation = {
+        ...port.presentation,
+        media: media.filter(
+          (asset) =>
+            !isRecord(asset) || !isRecord(asset.igdb) || !gone.has(String(asset.igdb.image_id)),
+        ),
+      };
+  }
+  for (const record of records)
+    if (record.image_id && gone.has(record.image_id))
+      record.reason = "selected-image-gone-later-in-batch";
+}
+
+/** Propose descriptive foreground assets through the existing identity/provider
+ * authority. This grants no publication or image-payload export rights. */
+export async function prepareCatalogGameMedia(
+  catalog: ArtworkCatalog,
+  options: {
+    identities?: unknown;
+    selectedPortIds?: readonly string[];
+    knownGoneImageIds?: readonly string[];
+    inspector: Pick<
+      ReturnType<typeof createIgdbInspector>,
+      "inspectGame" | "inspectGameMedia" | "inspectMediaImage"
+    >;
+    signal?: AbortSignal;
+  },
+) {
+  validateKnownGoneImages(options.knownGoneImageIds);
+  const selected = options.selectedPortIds ?? catalog.ports.map((port) => port.id);
+  if (
+    selected.length > 400 ||
+    new Set(selected).size !== selected.length ||
+    selected.some((id) => !catalog.ports.some((port) => port.id === id))
+  )
+    throw new Error("Game media worksets require at most400 unique catalog port ids.");
+  const result = structuredClone(catalog);
+  const records: HeroMediaRecord[] = [];
+  const context: HeroPreparationContext = {
+    inspector: options.inspector,
+    signal: options.signal,
+    games: new Map(),
+    goneImages: new Set(options.knownGoneImageIds ?? []),
+  };
+  for (const port of result.ports) {
+    if (!selected.includes(port.id)) continue;
+    options.signal?.throwIfAborted();
+    const current = port.presentation?.media;
+    const media: unknown[] = Array.isArray(current) ? structuredClone(current as unknown[]) : [];
+    for (const identity of declaredHeroMediaIdentities(port, options.identities))
+      await prepareHeroIdentity(port.id, identity, media, records, context);
+    if (media.length || Array.isArray(current)) port.presentation = { ...port.presentation, media };
+  }
+  removeWithdrawnCatalogMedia(result, records, context.goneImages);
+  return { catalog: result, records, gone_image_ids: [...context.goneImages].sort() };
+}
+
+function sameMediaSubject(value: unknown, subject: CatalogMediaSubject) {
+  if (!isRecord(value) || value.kind !== subject.kind) return false;
+  return subject.kind === "port"
+    ? value.port_id === subject.port_id
+    : value.game_id === subject.game_id && value.source_edition_id === subject.source_edition_id;
+}
+
+function isIgdbKeyArtTypeName(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= 128 &&
+    ["keyart", "keyartwithlogo", "keyartwithoutlogo"].includes(
+      value.toLowerCase().replace(/[^a-z0-9]/g, ""),
+    )
+  );
 }
 
 // Reuse the actual core decoder through its existing CLI import into a fresh

@@ -7,10 +7,7 @@ export function SettingsRow({ className, ...props }: ComponentProps<"article">) 
   return (
     <article
       data-slot="settings-row"
-      className={cn(
-        "settings-row @container/row grid min-w-0 content-start gap-3 border-t border-pc-border p-4 first:border-t-0 sm:p-6 [&>h2]:text-base [&>h2]:leading-normal [&>p]:max-w-prose [&>p]:text-sm [&>p]:leading-relaxed",
-        className,
-      )}
+      className={cn("settings-row @container/row", className)}
       {...props}
     />
   );

@@ -17660,14 +17660,11 @@ fn main() {
     fn forwarded_interrupt_still_finishes_supervision_and_clears_the_session() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        register_launch_probe(&library, "v1", true);
+        let install = register_launch_probe(&library, "v1", true);
         let service = PortcoveService::new(library.clone()).unwrap();
+        let started = temporary.path().join("interrupt-started");
         let arguments = vec![
-            temporary
-                .path()
-                .join("interrupt-started")
-                .display()
-                .to_string(),
+            started.display().to_string(),
             "10000".into(),
             "should-not-be-written".into(),
             "0".into(),
@@ -17684,10 +17681,51 @@ fn main() {
         });
         let child_pid = receiver.recv_timeout(Duration::from_secs(10)).unwrap();
 
-        crate::forward_launch_signal(child_pid, crate::LaunchSignal::Interrupt).unwrap();
-        let outcome = handle.join().unwrap().unwrap();
+        // The callback commits child identity; it does not witness the controlled
+        // child's main entry. Observe its existing marker before sending the signal.
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let readiness = loop {
+            let observed = fs::read(&started);
+            if handle.is_finished() {
+                break Err("launch supervision finished before interruption".to_string());
+            }
+            if observed
+                .as_ref()
+                .is_ok_and(|bytes| bytes.as_slice() == b"started")
+            {
+                break Ok(());
+            }
+            if std::time::Instant::now() >= deadline {
+                break Err(format!(
+                    "launch probe did not reach its entry marker: {observed:?}"
+                ));
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        let forwarded = if readiness.is_ok() && !handle.is_finished() {
+            Some(crate::forward_launch_signal(
+                child_pid,
+                crate::LaunchSignal::Interrupt,
+            ))
+        } else {
+            None
+        };
+        // Settle owned supervision even when readiness or forwarding failed.
+        // The existing outer test runner contains a supervisor that cannot join.
+        let completed = handle.join();
+        assert!(readiness.is_ok(), "{readiness:?}; signal: {forwarded:?}");
+        forwarded
+            .expect("launch supervision finished before the signal")
+            .unwrap();
+        let outcome = completed.unwrap().unwrap();
 
         assert!(!outcome.successful);
+        for root in [install.path, library.user_dir("zelda64-recomp")] {
+            match fs::read(root.join("general.json")) {
+                Ok(bytes) => assert_ne!(bytes.as_slice(), b"should-not-be-written"),
+                Err(error) => assert_eq!(error.kind(), std::io::ErrorKind::NotFound, "{error}"),
+            }
+        }
         assert!(library.launch_sessions().unwrap().is_empty());
         assert_eq!(
             library.activities(1).unwrap()[0].status,
