@@ -1793,6 +1793,7 @@ to each record. These checks add no runtime inheritance or shared policy registr
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
+node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
 ```
 
 The command accepts a canonical Portcove issue number/URL, a direct public
@@ -1806,6 +1807,19 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+`--listing-observations` consumes a retained source handoff from the existing
+catalog observer. It prepares complete canonical records through the same
+projection, compatibility, Core-inspection and immutable-checkpoint path, without
+provider requests or artwork refresh. Only `listing.upstream_observation` changes;
+authored setup, acquisition restrictions, integration contracts, artwork and pin
+maintenance remain with their existing owners. The handoff must match the current
+declaration and, after any observation has been accepted, its exact observation
+preimage. An older proposal cannot erase a later accepted snapshot. Legacy
+handoffs without preimages work only before the first accepted observation.
+Prepared records remain unsigned proposals for normal catalog review and existing
+protected delivery. The receipt preserves the handoff and its semantic digest;
+Core inspection is reported as pending when no compatible validator is supplied.
 
 When a record names a canonical issue, `canonical_preparation` points to its exact
 retained specification in `files.upstream`, with the observed timestamp and UTF-8

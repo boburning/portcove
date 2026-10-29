@@ -384,7 +384,17 @@ void test("operational coordinator isolates handoff files, preserves failure not
   await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
   await writeFile(
     path.join(root, "crates/portcove-core/catalog/listings.json"),
-    JSON.stringify({ format_version: 1, listings: [] }),
+    JSON.stringify({
+      format_version: 1,
+      listings: [
+        {
+          id: "stable-port",
+          name: "Stable listing",
+          summary: "Reviewed description",
+          project_url: "https://github.com/owner/shared",
+        },
+      ],
+    }),
   );
   const cli = path.join(root, "inspector");
   await writeFile(cli, "fixture inspector identity; native execution is mocked");
@@ -431,6 +441,15 @@ void test("operational coordinator isolates handoff files, preserves failure not
   const source = Object.values(first.checkpoint.sources).find(
     (source) => source.repository === "owner/shared",
   )!;
+  const initialHandoff = JSON.parse(
+    await readFile(
+      path.join(first.handoff_directory, `${observationHash(source.current_config)}.json`),
+      "utf8",
+    ),
+  ) as Record<string, unknown>;
+  assert.deepEqual(initialHandoff.descriptive_listing_preimages, {
+    "stable-port": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+  });
   const previousConfig = source.current_config!;
   const priorFile = path.join(
     root,
