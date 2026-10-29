@@ -664,6 +664,10 @@ for (const [file, tests] of [
     ["scripts/release-catalog-site-controller.test.mts"],
   ],
   [
+    "scripts/fixtures/release-executor-recovery-fixture.mts",
+    ["scripts/release-catalog-site-controller.test.mts"],
+  ],
+  [
     "scripts/release-catalog-publication-contract.mts",
     ["scripts/release-capacity-operation.test.mts"],
   ],
