@@ -335,16 +335,34 @@ Describe individual installation routes and limitations at their own controls;
 the product description does not promise every port automatic installation,
 updates, or backups.
 
-Use **game files** for user-supplied original input; name a ROM, disc image,
-or BIOS when its format matters. A **saved location** is a remembered
-external reference, the **Portcove library** holds managed content, and an
-**install folder** is future placement for installed versions. Use **saved data**
-for the port's managed saves, settings, and other persistent files, with that
-scope explained. A **Steam shortcut** is the integration object. **File details**,
-**Technical details**, and **Test results** name different supporting information.
-Use “port” for an implementation, catalog entry, or channel and “game” for
-playing or managing saved data. Apply these terms to the affected copy rather
-than replacing words globally.
+The [glossary](../GLOSSARY.md) defines concepts and preferred player wording;
+[content design](CONTENT-DESIGN.md) owns shared communication and evidence rules.
+This section records actual interface labels and compositions rather than a
+second glossary. Use **game** for play-oriented tasks, **port / port project**
+for implementations and **installation** for a particular local copy, including
+an existing registered runtime. Counts follow the actual result unit.
+
+| Surface / next action                | Interface wording                                                     | Condition                                                                                                                                                          |
+| ------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Main navigation                      | Library / Discover / Activity / Settings                              | Activity contains Tasks / Game updates / History.                                                                                                                  |
+| Game-detail navigation               | Overview / Game files / Saves & backups / Versions & updates / Manage | Preserve the destination's actual contents and existing focus/navigation owner.                                                                                    |
+| Return from details                  | Back to Library / Back to Discover / Back to Add games                | Use the captured destination; unknown destinations use Back.                                                                                                       |
+| Original-input location              | Saved file location                                                   | A remembered path is not Files connected or a fresh check.                                                                                                         |
+| Required setup                       | Needs game files / Setup needed / the supplied precise setup state    | Never override assessments or hard-code a port's permanent status.                                                                                                 |
+| Launch into first-run configuration  | Launch to finish setup                                                | This action invokes launch; actual preparation execution can retain Start setup.                                                                                   |
+| Installed-file check                 | Check installed files                                                 | Keep the actual full-immutable or launch-critical result scope.                                                                                                    |
+| Immediate eligible saved-data backup | Back up now                                                           | The existing create assessment enables it; unknown/empty coverage does not.                                                                                        |
+| Declared saved-data folder           | Open saved data folder                                                | The current scope can include saves, settings, bindings and applicable mods.                                                                                       |
+| Activate a retained checked update   | Apply update · {version}                                              | Calls the existing activation owner; no new review step.                                                                                                           |
+| Retained checked game update         | Update saved for later                                                | A checked staged record is present; it can reuse local bytes without a new download. Partial download/recovery and failed-check states remain distinct.            |
+| Update notices                       | Pause update notices / Resume update notices / Skip this version      | Current scope is the selected Library and port; skip binds the exact version and artifact digest. It changes notices, not installed/staged files or update policy. |
+| Library filtered empty state         | No matching library entries                                           | A Library result counts entries, including separate implementations of one game. Discover can use No matching games for its grouped results.                       |
+
+**Saves and settings** names that data scope; **Saved data** covers broader declared
+files. **Saves & backups** is the destination. **Steam shortcut** is the integration
+object. **File details**, **Technical details** and **Test results** are distinct
+supporting information, as defined by content design. Use ordinary “and” in prose
+and retain approved compound destination labels.
 
 Name a concrete action and object; say “Review” when review is actually next.
 Place consequences before implementation detail and keep essential warnings

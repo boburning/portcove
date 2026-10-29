@@ -853,7 +853,7 @@ function UpdatesGroup({
   return (
     <DetailGroup title="Updates">
       {status?.staged && (
-        <section aria-label="Use update saved for later">
+        <section aria-label="Apply saved update">
           <p>
             Update saved for later: <strong>{status.staged.version}</strong>. Using this checked
             local copy does not download it again, and keeps the current version for rollback.
@@ -1729,7 +1729,7 @@ function PrimaryActions({
           onClick={() => void actions.verify()}
         >
           <Icon glyph={ShieldCheck} />
-          Verify installation
+          Check installed files
         </Button>
         <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
       </div>
@@ -1741,7 +1741,7 @@ function PrimaryActions({
           <p>Review the game update below to install the required component.</p>
         ) : (
           <p>
-            Check for updates. If none is available, verify the installation for diagnostic details.
+            Check for updates. If none is available, check installed files for diagnostic details.
           </p>
         )}
         {stagedVersion && (
@@ -1789,8 +1789,8 @@ function PrimaryActions({
         >
           <Icon glyph={FileSearch} />
           {missingProfile.id === sources.port.bios_source_profile
-            ? "Locate required BIOS"
-            : "Locate game files"}
+            ? "Select BIOS file"
+            : "Select game files"}
         </Button>
       </div>
     );
@@ -1849,7 +1849,9 @@ function InstalledPlayActions({
           launchReady
             ? trial
               ? "Try launching; compatibility is unconfirmed"
-              : "Launch this port"
+              : pendingSetup
+                ? "Launch this port to finish its first-time setup"
+                : "Launch this port"
             : "Review the current launch requirements"
         }
         disabled={!launchReady || Boolean(busy)}
@@ -1863,7 +1865,7 @@ function InstalledPlayActions({
         {!launchReady
           ? "Play unavailable"
           : pendingSetup
-            ? "Start setup"
+            ? "Launch to finish setup"
             : trial
               ? "Try launch"
               : "Play"}
@@ -1894,7 +1896,7 @@ function StagedActivation({
         void activate();
       }}
     >
-      Use update · {version}
+      Apply update · {version}
     </Button>
   );
 }
@@ -2208,11 +2210,9 @@ function PlannedInstallButton({
   let label =
     plan.action === "download"
       ? `Install · ${formatBytes(plan.download_bytes)}`
-      : plan.action === "reuse_retained"
-        ? "Use previous release"
-        : plan.action === "already_active"
-          ? "Use installed release"
-          : "Use ready release";
+      : plan.action === "already_active"
+        ? "Use current version"
+        : (installPlanActionLabel(plan.action) ?? "Review installation");
   if (blocked) label = "Verify or replace the local copy before installing";
   else if (insufficientSpace) label = "Free space required";
   else if (busy === "install") label = "Installing…";
@@ -2296,8 +2296,8 @@ function MaintenanceActions({
     <>
       {!verificationPrimary && (
         <ManagementRow
-          title="File verification"
-          description="Check for missing or changed port files without changing saved data."
+          title="Installed file checks"
+          description="Checks the full recorded installation manifest without changing saved data."
         >
           <Button
             data-focusable
@@ -2306,17 +2306,17 @@ function MaintenanceActions({
             onClick={() => void actions.verify()}
           >
             <Icon glyph={ShieldCheck} />
-            Verify installation
+            Check installed files
           </Button>
         </ManagementRow>
       )}
       {verificationPrimary && (
         <ManagementRow
-          title="File verification"
+          title="Installed file checks"
           description="The recorded installation needs repair. Review its current requirements in Game files."
         >
           <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
-            Review verification
+            View file checks
           </Button>
         </ManagementRow>
       )}
@@ -2363,7 +2363,7 @@ function DataActions({
         }}
       >
         <Icon glyph={Save} />
-        Back up data
+        Back up now
       </Button>
       <Button
         data-focusable
@@ -2374,7 +2374,7 @@ function DataActions({
         }}
       >
         <Icon glyph={FolderOpen} />
-        Open data folder
+        Open saved data folder
       </Button>
     </div>
   );
@@ -2449,7 +2449,7 @@ function detailState({
     return {
       title: "Installation needs repair",
       description:
-        "Portcove couldn't verify the installed files. Choose Verify installation to check them.",
+        "Portcove couldn't verify the installed files. Choose Check installed files to check them.",
       tone: "setup",
       icon: AlertTriangle,
     };
@@ -2472,7 +2472,7 @@ function detailState({
     biosHealth !== "unregistered"
   )
     return {
-      title: "First-time setup required",
+      title: "First-time setup needed",
       description: "Complete the port's setup before playing.",
       tone: "setup",
       icon: Wrench,
@@ -2488,7 +2488,7 @@ function detailState({
   if (selectedRequirement) return selectedRequirementState(selectedRequirement);
   if (pendingSetup)
     return {
-      title: "First-time setup required",
+      title: "First-time setup needed",
       description: "Complete the port's setup before playing.",
       tone: "setup",
       icon: Wrench,
@@ -2554,7 +2554,7 @@ function availableInstallState(
           ? "Choose the required BIOS file"
           : "Choose the required game files";
     return {
-      title: `${requirement} needed`,
+      title: requirement === "Game files" ? "Needs game files" : `${requirement} needed`,
       description: externalRuntime
         ? `${nextStep} before registering your prepared runtime. Portcove checks selected files and the external folder.`
         : `${nextStep} before reviewing installation. Portcove checks selected files before activation.`,
@@ -2601,7 +2601,7 @@ function runtimeRequirementState(updateAvailable: boolean): DetailState {
     : {
         title: "Required component unavailable",
         description:
-          "Check for updates. If none is available, verify the installation for diagnostic details.",
+          "Check for updates. If none is available, check installed files for diagnostic details.",
         tone: "setup",
         icon: Wrench,
       };
@@ -2832,7 +2832,7 @@ function backupCreateExplanation(
     missing_data:
       "No saves or settings managed by Portcove were found to back up. Other locations are not checked here.",
     recovery_required: "Restart Portcove to retry recovery, then check your backups again.",
-    unsafe_data: "The saved-data location needs path and ownership review.",
+    unsafe_data: "The saved-data location needs a safety check before this action.",
     assessment_incomplete: "The saved-data check did not finish. Your data is preserved.",
     unreadable_data: "Your saved data could not be read. Check its location, then retry.",
   };
@@ -3361,7 +3361,7 @@ function DetailManageSection({
           !model.status
             ? "Installation status unavailable"
             : model.status.active || model.status.external_runtime
-              ? "Installation ownership"
+              ? "Installation management"
               : "No active installation"
         }
       >

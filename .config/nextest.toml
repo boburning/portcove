@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI40805540238/a1 job123227795670 exhausted30.206s in the complete
+# unavailable-artwork install/update/launch fixture, which compiles both native
+# launch probes before exercising every lifecycle/assertion. Retain the failure,
+# add phase diagnostics and use the existing exact60s lifecycle safeguard.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Current full40788787086/a1 still exhausted these exact native harness
 # safeguards after the HTTP-fixture repair: Linux recovery/retained launch30s,
 # Intel publisher lifecycle45/60s, sequence/query/relocation30s and CLI30s.

@@ -151,7 +151,7 @@ export function ListingDetailPanel({
                   ? "Downloaded · finish setup"
                   : listing
                     ? listingAvailabilityLabel(listing)
-                    : "Setup required"}
+                    : "Setup needed"}
             </span>
           }
           installation={
@@ -221,7 +221,7 @@ export function ListingDetailPanel({
                     <SetupStatement portId={entry.id} status={status} organization={organization} />
                   )}
                 </div>
-                <aside className="detail-setup-context" aria-label="Installation ownership">
+                <aside className="detail-setup-context" aria-label="Installation management">
                   <h3 className="mb-3 text-base">Installation and files</h3>
                   {registered && <p className="[overflow-wrap:anywhere]">{registered.path}</p>}
                   <p className="text-sm text-pc-muted-foreground">
@@ -274,7 +274,7 @@ export function ListingDetailPanel({
             ),
             manage: (
               <>
-                <section aria-label="Installation ownership" className="mb-6">
+                <section aria-label="Installation management" className="mb-6">
                   <h3 className="mb-3 text-base">Installation</h3>
                   {registered ? (
                     <>

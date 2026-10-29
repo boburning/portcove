@@ -62,7 +62,7 @@ export function BrowsePortObservations({
         (status?.channel && status.active && status.channel !== status.active.channel)) && (
         <details>
           <summary data-focusable>Update details</summary>
-          {status?.staged && <p>Update prepared</p>}
+          {status?.staged && <p>Update saved for later</p>}
           {status?.acquisition && <p>{gameUpdateAcquisitionLabel(status.acquisition.phase)}</p>}
           {updateAvailable && <p>Update available at last check</p>}
           {status?.active && status.channel !== status.active.channel && (

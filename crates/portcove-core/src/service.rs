@@ -10955,10 +10955,17 @@ mod tests {
 
     #[tokio::test]
     async fn unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch() {
+        let trace_started = std::time::Instant::now();
+        let trace_phase = |phase: &str| {
+            eprintln!("unavailable artwork {phase}: {:?}", trace_started.elapsed());
+        };
+        trace_phase("fixture started");
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("library");
         let library = Library::open(&root).unwrap();
+        trace_phase("first fixture compile begins");
         let first = register_launch_probe(&library, "v1", false);
+        trace_phase("first fixture compiled");
         let service = PortcoveService::with_provider(
             library.clone(),
             Arc::new(RepublishedReleaseProvider {
@@ -11028,6 +11035,7 @@ mod tests {
             .apply_game_install("zelda64-recomp", &grant.token, |_| {})
             .await
             .unwrap();
+        trace_phase("reviewed install applied");
         assert_eq!(installed.id, first.id);
         assert_eq!(
             service.status("zelda64-recomp").unwrap().active.unwrap().id,
@@ -11042,7 +11050,9 @@ mod tests {
         );
         drop(service);
 
+        trace_phase("second fixture compile begins");
         let second = register_launch_probe(&library, "v2", false);
+        trace_phase("second fixture compiled");
         let service = PortcoveService::with_provider(
             library.clone(),
             Arc::new(RepublishedReleaseProvider {
@@ -11068,6 +11078,7 @@ mod tests {
             .apply_game_update("zelda64-recomp", true, &grant.token, |_| {})
             .await
             .unwrap();
+        trace_phase("reviewed update applied");
         let status = service.status("zelda64-recomp").unwrap();
         assert_eq!(status.active.unwrap().id, second.id);
         assert_eq!(status.previous.unwrap().id, first.id);
@@ -11094,6 +11105,7 @@ mod tests {
                 |_| {},
             )
             .unwrap();
+        trace_phase("supervised launch completed");
         assert!(outcome.successful);
         assert_eq!(outcome.exit_code, Some(0));
         assert!(started.is_file());
@@ -11130,6 +11142,7 @@ mod tests {
                 .id,
             second.id
         );
+        trace_phase("library reopened");
         let retained = reopened
             .artwork("zelda64-recomp", crate::ArtworkSlot::Cover)
             .unwrap();
@@ -11150,6 +11163,7 @@ mod tests {
         assert_eq!(detail_after.selection, detail_before.selection);
         assert!(png.is_file());
         assert!(detail_png.is_file());
+        trace_phase("retained slots verified");
     }
 
     fn register_launch_probe(library: &Library, version: &str, active: bool) -> InstallRecord {
