@@ -1709,6 +1709,18 @@ their original scope. Ordinary contract shrinking, populated additions and
 unproven scope expansion remain refused. Runtime rollback still carries current
 data and does not rewind saves.
 
+Sonic 3K's historical v0.5.3-to-newer reader transition (#154) has an additional
+compatibility hold: common declared player data must also be absent in the retained
+runtime, canonical data and actual target. Only separately verified regular original
+bytes are exempt; an empty set of added sidecars proves no save compatibility.
+A fresh newer route cannot initialize unknown canonical player data through collection,
+restore, backup restoration, activation or recovery. The exact legacy reader keeps
+its creating contract. An established target's exact retained contract and matching
+installation/manifest data-restore receipt preserve its administrative restore
+behavior; that receipt does not establish state ABI or authorize legacy adoption.
+A separate empty library remains the fresh creation case. Other ports retain the
+generic common-data preservation rule above.
+
 Explicit rollback between two authenticated retained ready-archive copies may use
 that same empty-path proof in either direction when one persistence scope strictly
 contains the other. Both copies keep their original manifests and receipt scope; ordinary restore
