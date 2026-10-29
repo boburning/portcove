@@ -1036,8 +1036,9 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     );
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
-    entry["required_capabilities"][0]["minimum_version"] = json!(7);
-    entry["required_capabilities"][0]["maximum_version"] = json!(7);
+    // Native7 is now implemented; retain refusal for an unimplemented future reader.
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    entry["required_capabilities"][0]["maximum_version"] = json!(8);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 
