@@ -33,6 +33,14 @@ fn result(root: &Path, arguments: &[&str], expected_command: &str) -> Value {
 
 #[test]
 fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference() {
+    let started = std::time::Instant::now();
+    let phase = |label: &str| {
+        eprintln!(
+            "retained reference phase={label} elapsed={:?}",
+            started.elapsed()
+        );
+    };
+    phase("fixture begin");
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path();
     let original = root.join("owned-installation");
@@ -43,6 +51,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
     // Reuse the existing prepared native helper as owned fixture content. This
     // test never runs a game or setup tool and adds no executable build route.
     let executable = compile_native_fixture(root);
+    phase("native fixture compiled");
     for relative in [
         &port.executable_hints[&platform][0],
         &port.setup_executable_hints[&platform][0],
@@ -66,6 +75,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
         "adopt",
     );
     let install_id = installed["id"].as_str().unwrap();
+    phase("original adopted");
     let install_path = std::path::PathBuf::from(installed["path"].as_str().unwrap());
     let list = result(
         root,
@@ -77,6 +87,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
     assert_eq!(list["builds"][0]["availability"], "verified");
     assert_eq!(list["builds"][0]["install"], installed);
     assert_eq!(list["references"], serde_json::json!([]));
+    phase("retained baseline observed");
 
     let plan_args = [
         "--json",
@@ -134,6 +145,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
             serde_json::json!([])
         );
     }
+    phase("binding refusal controls complete");
     let bound = result(
         root,
         &[
@@ -161,6 +173,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
     assert_eq!(resolved["reference"], bound);
     assert_eq!(resolved["availability"], "verified");
     assert_eq!(resolved["install"], installed);
+    phase("bound reference resolved");
     let listed = result(
         root,
         &["--jsonl", "installation", "retained", PORT],
@@ -182,6 +195,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
     assert_eq!(missing["availability"], "missing");
     assert_eq!(missing["gap"]["code"], "not_found");
     fs::rename(&moved, &install_path).unwrap();
+    phase("missing reference preserved and installation restored");
 
     let removal = result(
         root,
@@ -227,6 +241,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
             bound
         );
     }
+    phase("removal refusal controls complete");
     let removed = result(
         root,
         &[
@@ -259,6 +274,7 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
         fs::read(original.join("owned-sentinel")).unwrap(),
         b"preserve original bytes"
     );
+    phase("all reference and original-byte assertions complete");
 }
 
 #[test]

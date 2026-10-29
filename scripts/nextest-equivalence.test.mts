@@ -432,6 +432,25 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   ];
   // Admit only these exact platform/filter identities. Comparing the complete
   // inventory also rejects duplicates without a separately maintained count.
+  const intelFullControlBudgets = [
+    {
+      filter:
+        "package(portcove-core) & (test(/^artwork_tests::local_artwork_writers_share_the_same_library_lock$/) | test(/^catalog_update::tests::rollback_keeps_the_replay_floor$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_install_prepared_withdrawal_preserves_owned_payload$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^output_relocation::tests::external_cleanup_preserves_unowned_sibling_after_authority_commit$/) | test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/))",
+      periods: 12,
+    },
+    {
+      filter:
+        "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_activation_recovery_withdrawal_permits_local_commit$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))",
+      periods: 24,
+    },
+    {
+      filter:
+        "package(portcove-cli) & binary(machine_contract) & (test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/) | test(/^retained_build_contract::retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference$/))",
+      periods: 12,
+    },
+  ];
+  const windowsTrackedCancellationFilter =
+    "package(portcove-core) & test(/^game_file_query::tests::tracked_refresh_settles_cancellation_only_after_worker_exit$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
     JSON.stringify([value.platform ?? null, value.filter]);
   const intelRecoveryFilter =
@@ -442,6 +461,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
+      { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
+      ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       ...publicationFilters,
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
@@ -463,6 +484,26 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       .map(outputIdentity)
       .sort(),
   );
+  assert.deepEqual(overrideFor(windowsTrackedCancellationFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsTrackedCancellationFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  for (const { filter, periods } of intelFullControlBudgets) {
+    const observed = overrideFor(filter, "x86_64-apple-darwin");
+    assert.deepEqual(observed, {
+      platform: "x86_64-apple-darwin",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+    assert.ok(
+      overrides.indexOf(observed) < 3,
+      "New exact Intel cases precede older overlapping budgets",
+    );
+    assert.equal(overrides.filter((entry) => entry.filter === filter).length, 1);
+  }
   for (const filter of [curatedInstalledWithdrawalFilter, windowsWholeMatrixFilter])
     assert.deepEqual(overrideFor(filter, "x86_64-pc-windows-msvc"), {
       platform: "x86_64-pc-windows-msvc",
