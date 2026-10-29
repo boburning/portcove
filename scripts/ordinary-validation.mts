@@ -236,6 +236,7 @@ const rustWorkflowContractTests = [
 ];
 const workflowFeatureTests = [
   "scripts/ci-frontend-workflow.test.mts",
+  "scripts/ci-windows-helpers.test.mts",
   "scripts/ci-native-workflow.test.mts",
   "scripts/ci-release-workflow.test.mts",
   ...rustWorkflowContractTests,
@@ -261,6 +262,22 @@ const platformSkipConsumers = [
 ];
 const explicitNodeTests = new Map<string, readonly string[]>();
 for (const [file, tests] of [
+  ...[
+    "scripts/lock-maintenance-policy.mts",
+    "scripts/lock-maintenance-registry.mts",
+    "scripts/cargo-lock-inventory.py",
+  ].map((file): [string, readonly string[]] => [
+    file,
+    ["scripts/lock-maintenance-policy.test.mts"],
+  ]),
+  [
+    "scripts/dependency-security.mts",
+    ["scripts/dependency-security.test.mts", "scripts/lock-maintenance-policy.test.mts"],
+  ],
+  [
+    "scripts/pnpm-lock-inventory.mts",
+    ["scripts/pnpm-lock-inventory.test.mts", "scripts/lock-maintenance-policy.test.mts"],
+  ],
   [
     "scripts/local-validation.mts",
     [...selectionContractTests, "scripts/repository-settings.test.mts"],
@@ -1834,6 +1851,7 @@ explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",
   "scripts/desktop-staged-layout.test.mts",
+  "scripts/ci-windows-helpers.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",

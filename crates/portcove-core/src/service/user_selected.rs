@@ -782,31 +782,23 @@ mod tests {
     fn assert_prepared_player_route(id: &str) {
         let (_temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
-        // Preserve the previous strict creating contract after a managed offer
-        // replaces these nine declarations. All other cases bind current data.
-        let retained_reflection = matches!(
-            id,
-            "keen-dreams-reflectionhle"
-                | "catacomb-3-d-the-descent-reflectionhle"
-                | "the-catacomb-abyss-reflectionhle"
-                | "the-catacomb-armageddon-reflectionhle"
-                | "the-catacomb-apocalypse-reflectionhle"
-                | "wolfenstein-3d-reflectionhle"
-                | "spear-of-destiny-reflectionhle"
-                | "super-3-d-noah-s-ark-dos-reflectionhle"
-                | "bio-menace-reflectionhle"
-        );
-        if retained_reflection {
+        // A new managed offer does not rewrite an existing registration's
+        // creating contract. Unreplaced cases continue to bind current data.
+        let retained_fixture = [
+            include_str!("../testdata/reflectionhle-retained-selected-2026-10-28.json"),
+            include_str!("../testdata/crispy-retained-selected-2026-10-29.json"),
+        ]
+        .into_iter()
+        .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());
+        if let Some(fixture) = retained_fixture {
             assert_eq!(
                 service.catalog.port(id).unwrap().adapter,
                 crate::AdapterKind::NativePortable
             );
-            service.catalog = Catalog::from_json(include_str!(
-                "../testdata/reflectionhle-retained-selected-2026-10-28.json"
-            ))
-            .unwrap()
-            .with_embedded_listings()
-            .unwrap();
+            service.catalog = Catalog::from_json(fixture)
+                .unwrap()
+                .with_embedded_listings()
+                .unwrap();
         }
         let declared = service.catalog.port(id).unwrap();
         assert_eq!(declared.release.provider, ReleaseSource::UserPrepared);
@@ -896,27 +888,24 @@ mod tests {
         let root = service.library.root().to_path_buf();
         drop(service);
         let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
-        if retained_reflection {
+        if retained_fixture.is_some() {
             assert_eq!(
                 service.catalog.port(id).unwrap().adapter,
                 crate::AdapterKind::NativePortable
             );
-            #[cfg(windows)]
-            {
-                let (_, retained) = service
-                    .library
-                    .external_runtime_with_port(id)
-                    .unwrap()
-                    .unwrap();
-                let expected = Catalog::from_json(include_str!(
-                    "../testdata/reflectionhle-retained-selected-2026-10-28.json"
-                ))
+        }
+        #[cfg(windows)]
+        if let Some(fixture) = retained_fixture {
+            let (_, retained) = service
+                .library
+                .external_runtime_with_port(id)
+                .unwrap()
                 .unwrap();
-                assert_eq!(
-                    serde_json::to_value(retained.port(id).unwrap()).unwrap(),
-                    serde_json::to_value(expected.port(id).unwrap()).unwrap()
-                );
-            }
+            let expected = Catalog::from_json(fixture).unwrap();
+            assert_eq!(
+                serde_json::to_value(retained.port(id).unwrap()).unwrap(),
+                serde_json::to_value(expected.port(id).unwrap()).unwrap()
+            );
         }
         let status = service.listing_status(id).unwrap();
         assert!(

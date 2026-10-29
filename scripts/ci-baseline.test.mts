@@ -206,6 +206,19 @@ void test("shared diagnostics inputs keep hosted frontend and quality plans runn
   }
 });
 
+void test("selected actual transport schema contracts provision their Desktop AJV dependency", () => {
+  const consumer = "scripts/transport-values.test.mts";
+  const plan = make([consumer]);
+  assert.ok(baselineContractTests(plan).includes(consumer));
+  assert.equal(plan.mode, "fast");
+  assert.equal(plan.qualification_required, false);
+  assert.equal(baselineRequiresDesktopDependencies(plan), true);
+  assert.equal(
+    baselineRequiresDesktopDependencies(make(["scripts/repository-settings.test.mts"])),
+    false,
+  );
+});
+
 void test("native source declarations start their cheap hosted consumer without release qualification", () => {
   const contract = "scripts/release-native-source-contract.test.mts";
   for (const source of nativeCompatibilitySourcePaths) {
@@ -558,6 +571,42 @@ void test("Python is provisioned for the effective TOML positive contracts, not 
   assert.equal(baselineRequiresPython(make(["scripts/nextest-equivalence.mts"])), true);
   assert.equal(baselineRequiresPython(make(["scripts/ci-workflow.test.mts"])), true);
   assert.equal(baselineRequiresPython(make(["docs/QUALITY.md"])), false);
+});
+
+void test("maintenance helper and parser changes select their real Python consumer", () => {
+  const consumer = "scripts/lock-maintenance-policy.test.mts";
+  for (const file of [
+    consumer,
+    "scripts/lock-maintenance-policy.mts",
+    "scripts/lock-maintenance-registry.mts",
+    "scripts/cargo-lock-inventory.py",
+    "scripts/dependency-security.mts",
+    "scripts/pnpm-lock-inventory.mts",
+  ]) {
+    const plan = make([file]);
+    const options = { fileExists: () => false };
+    assert.equal(plan.mode, "fast", file);
+    assert.ok(baselineContractTests(plan, options).includes(consumer), file);
+    assert.equal(baselineRequiresPython(plan, options), true, file);
+  }
+  const renamed = buildValidationPlan({
+    changes: [
+      {
+        status: "R100",
+        oldPath: consumer,
+        newPath: "scripts/relocated-maintenance.test.mts",
+        oldMode: "100644",
+        newMode: "100644",
+      },
+    ],
+    eventName: "pull_request",
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  });
+  assert.ok(baselineRequiresPython(renamed, { fileExists: () => false }));
+  assert.equal(baselineRequiresPython(make(["docs/README.md"])), false);
 });
 
 void test("desktop runner selects the same complete contract union in local and hosted production plans", () => {
