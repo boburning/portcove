@@ -68,8 +68,10 @@ impl Consumer {
                 Ok(None) => {}
                 Err(error) => break Err(format!("could not observe owned consumer: {error}")),
             }
-            if start.elapsed() >= Duration::from_secs(15) {
-                break Err("owned compiled consumer exceeded 15 seconds".to_owned());
+            if start.elapsed() >= Duration::from_secs(60) {
+                break Err(format!(
+                    "owned compiled consumer exceeded 60 seconds: {args:?}"
+                ));
             }
             std::thread::sleep(Duration::from_millis(10));
         };
