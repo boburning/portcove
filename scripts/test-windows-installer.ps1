@@ -1560,9 +1560,69 @@ try {
             )
             $rendererArguments += @('--transport', $RendererTransport)
             if ($VerifyStableWaiting) { $rendererArguments += '--verify-stable-waiting' }
-            & node @rendererArguments
-            if ($LASTEXITCODE -ne 0) { throw "Installed Windows renderer update qualification failed" }
+            $feedOutage = $null
+            $feedOutageHelper = Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-installed-feed-outage.mts'
+            if ($InstalledGameDataConfigurationPath) {
+                $feedOutageControl = Join-Path $runRoot 'feed-outage-control'
+                $feedOutageText = (& node $feedOutageHelper --phase prepare --metadata $InstalledUpdateMetadataPath --control $feedOutageControl | Out-String)
+                $feedOutageExit = $LASTEXITCODE
+                [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-preparation-stdout.txt'), $feedOutageText)
+                $evidence.installed_feed_outage = [ordered]@{ preparation_stdout=$feedOutageText; preparation_exit_code=$feedOutageExit; scope='owned local file-feed outage only; no OS-offline, HTTP or production claim' }
+                Write-InstallerEvidence 'installed_feed_outage_preparation_returned'
+                if ($feedOutageExit -ne 0) { throw 'Installed feed-outage preparation failed before driver dispatch' }
+                $feedOutage = $feedOutageText | ConvertFrom-Json -NoEnumerate
+                $feedOutageConfiguration = Join-Path $feedOutageControl 'configuration.json'
+                if ($feedOutage -isnot [System.Management.Automation.PSCustomObject] -or $feedOutage.phase -cne 'prepare' -or
+                    $feedOutage.configuration -cne $feedOutageConfiguration -or
+                    $feedOutage.sha256 -cne (Get-FileHash -LiteralPath $feedOutageConfiguration -Algorithm SHA256).Hash.ToLowerInvariant()) {
+                    throw 'Installed feed-outage preparation did not return its exact positive control identity'
+                }
+                $evidence.installed_feed_outage.preparation = $feedOutage
+                $evidence.installed_feed_outage.configuration = Get-Content -LiteralPath $feedOutageConfiguration -Raw | ConvertFrom-Json
+                Write-InstallerEvidence 'installed_feed_outage_prepared'
+                $rendererArguments += @('--feed-outage-configuration', $feedOutage.configuration, '--feed-outage-sha', $feedOutage.sha256)
+            }
+            $rendererExit = $null
+            $rendererFailure = $null
+            try {
+                & node @rendererArguments
+                $rendererExit = $LASTEXITCODE
+                if ($rendererExit -ne 0) { $rendererFailure = [InvalidOperationException]::new("Installed renderer exited $rendererExit; raw renderer report/log retained") }
+            } catch {
+                $rendererFailure = $_.Exception
+                throw
+            } finally {
+                if ($feedOutage) {
+                    try {
+                        # The helper's existing identity-bound writer lease refuses a live/unknown
+                        # mutator and seals future fault writers before restoring the original inode.
+                        $feedRestoreText = (& node $feedOutageHelper --phase restore --configuration $feedOutage.configuration --sha256 $feedOutage.sha256 | Out-String)
+                        $feedRestoreExit = $LASTEXITCODE
+                        [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-restoration-stdout.txt'), $feedRestoreText)
+                        $evidence.installed_feed_outage.restoration_stdout = $feedRestoreText
+                        $evidence.installed_feed_outage.restoration_exit_code = $feedRestoreExit
+                        Write-InstallerEvidence 'installed_feed_outage_restoration_returned'
+                        if ($feedRestoreExit -ne 0) { throw "Installed feed-outage restoration failed; renderer exit $rendererExit; exact preimage/control retained" }
+                        $feedRestore = $feedRestoreText | ConvertFrom-Json -NoEnumerate
+                        if ($feedRestore -isnot [System.Management.Automation.PSCustomObject] -or $feedRestore.phase -cne 'restored' -or $feedRestore.new_faults_sealed -isnot [bool] -or -not $feedRestore.new_faults_sealed -or
+                            $feedRestore.timestamp_sha256 -cne $evidence.installed_feed_outage.configuration.sha256) {
+                            throw 'Installed feed-outage restoration did not return its exact positive timestamp identity'
+                        }
+                        $evidence.installed_feed_outage.restoration = $feedRestore
+                        Write-InstallerEvidence 'installed_feed_outage_restored'
+                    } catch {
+                        if ($rendererFailure) {
+                            throw [AggregateException]::new('Installed renderer and owned-feed restoration both failed; original reports and controls retained', [Exception[]]@($rendererFailure, $_.Exception))
+                        }
+                        throw
+                    }
+                }
+            }
+            if ($rendererExit -ne 0) { throw "Installed Windows renderer update qualification failed" }
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererEvidence "renderer-update-evidence.json") -Raw | ConvertFrom-Json
+            if ($feedOutage -and $rendererReport.feed_outage.configuration_sha256 -cne $feedOutage.sha256) {
+                throw 'Installed renderer omitted or changed its configured file-feed outage observation'
+            }
             if ($rendererReport.phase -ne "complete" -or $rendererReport.staged.sha256 -ne $installerHash -or
                 $rendererReport.restart.installed_executable_sha256 -ne $candidateExecutableHash -or
                 (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {

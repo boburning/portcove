@@ -435,6 +435,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const intelFullControlBudgets = [
     {
       filter:
+        "package(portcove-core) & (test(/^catalog_update::tests::catalog_status_verifies_each_cached_candidate_once_per_snapshot$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_published_refuses_unsupported_grant$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_install_prepared_revocation_preserves_owned_payload$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_withdrawal_preserves_payload$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_revocation_preserves_private_payload$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_withdrawal_preserves_private_payload$/) | test(/^library_move::sequence_tests::copying_resume_abort$/) | test(/^library_move::sequence_tests::published_abort_resume$/))",
+      periods: 12,
+    },
+    {
+      filter:
         "package(portcove-core) & (test(/^artwork_tests::local_artwork_writers_share_the_same_library_lock$/) | test(/^catalog_update::tests::rollback_keeps_the_replay_floor$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_install_prepared_withdrawal_preserves_owned_payload$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^output_relocation::tests::external_cleanup_preserves_unowned_sibling_after_authority_commit$/) | test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/))",
       periods: 12,
     },
@@ -449,6 +454,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       periods: 12,
     },
   ];
+  const windowsPublishedMoveFilter =
+    "package(portcove-core) & test(/^library_move::sequence_tests::published_abort_resume$/)";
   const windowsTrackedCancellationFilter =
     "package(portcove-core) & test(/^game_file_query::tests::tracked_refresh_settles_cancellation_only_after_worker_exit$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
@@ -462,6 +469,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       ...publicationFilters,
       { filter: sourcePreparationFilter },
@@ -484,6 +492,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       .map(outputIdentity)
       .sort(),
   );
+  assert.deepEqual(overrideFor(windowsPublishedMoveFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsPublishedMoveFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   assert.deepEqual(overrideFor(windowsTrackedCancellationFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsTrackedCancellationFilter,
@@ -499,7 +513,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       "success-output": "immediate",
     });
     assert.ok(
-      overrides.indexOf(observed) < 3,
+      overrides.indexOf(observed) < intelFullControlBudgets.length,
       "New exact Intel cases precede older overlapping budgets",
     );
     assert.equal(overrides.filter((entry) => entry.filter === filter).length, 1);

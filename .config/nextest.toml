@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Genuine scheduled qualification 40866403279/a1 Intel2 retained eight
+# additional 30-second cutoffs during complete cached-catalog, publisher-policy
+# and move-sequence fixtures. Exact identities passed in both prior full runs;
+# retain their failures and finite 60s harness room without speedup claims.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & (test(/^catalog_update::tests::catalog_status_verifies_each_cached_candidate_once_per_snapshot$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_adoption_published_refuses_unsupported_grant$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_install_prepared_revocation_preserves_owned_payload$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_withdrawal_preserves_payload$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_revocation_preserves_private_payload$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_withdrawal_preserves_private_payload$/) | test(/^library_move::sequence_tests::copying_resume_abort$/) | test(/^library_move::sequence_tests::published_abort_resume$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Full qualification 40858923751/a1 Intel hash:1/2 retained eight 30-second
 # and two 60-second case cutoffs during sequential fixture progress. All ten
 # identities passed in 11.67–42.87s on source 24201e66; their eight test-source
@@ -28,6 +38,16 @@ success-output = "immediate"
 [[profile.default.overrides]]
 platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-cli) & binary(machine_contract) & (test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/) | test(/^retained_build_contract::retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_reference$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI40879228847/a1 Windows2 reached observation16 at29.690s before
+# the 30.108s watchdog. The identical test file passed14.404s in
+# CI40876858821/a1 Windows8. Preserve every sequence assertion and resource
+# exclusion with exact60s outer harness room and existing phase diagnostics.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::sequence_tests::published_abort_resume$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 

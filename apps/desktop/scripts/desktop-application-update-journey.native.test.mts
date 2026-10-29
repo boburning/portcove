@@ -44,6 +44,7 @@ async function importControlledJourney(
       "openInstalledUpdateSettings",
       "driveInstalledUpdateToRestart",
       "driveInstalledStableWaiting",
+      "driveInstalledFeedOutage",
       "driveInstalledUpdateRecovery",
       "driveInstalledForwardRepairToRestart",
     ])
@@ -62,6 +63,7 @@ const {
   openInstalledUpdateSettings,
   driveInstalledUpdateToRestart,
   driveInstalledStableWaiting,
+  driveInstalledFeedOutage,
   driveInstalledUpdateRecovery,
   driveInstalledForwardRepairToRestart,
 } = drivers;
@@ -473,6 +475,7 @@ void test("installed Stable waiting requires fresh UI result without advancing a
         };
       },
       findElement: (locator: { value: string }) => ({
+        isEnabled: async () => true,
         click: async () => {
           calls.push(locator.value);
         },
@@ -486,7 +489,13 @@ void test("installed Stable waiting requires fresh UI result without advancing a
           return [{}];
         return [];
       },
-      executeAsyncScript: async () => JSON.stringify({ ok: true, value: responses.shift() }),
+      executeAsyncScript: async (query: unknown) =>
+        JSON.stringify({
+          ok: true,
+          value: String(query).includes("get_application_update_preferences")
+            ? { revision: 1, choice: { channel: "stable", mode: "manual" } }
+            : responses.shift(),
+        }),
     } as unknown as WebDriver;
     const actions: string[] = [];
     if (change) {
@@ -501,4 +510,381 @@ void test("installed Stable waiting requires fresh UI result without advancing a
       assert.equal(actions.at(-1), "stable-waiting-without-staging-or-current-claim");
     }
   }
+});
+
+void test("owned feed outage restores exact bytes after observation failure and supports outer retry", async (t) => {
+  const { prepareInstalledFeedOutage, withInstalledFeedOutage, restoreInstalledFeedOutage } =
+    await import("./desktop-installed-feed-outage.mts");
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-outage-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = path.join(root, "metadata");
+  await mkdir(metadata);
+  const timestamp = path.join(metadata, "timestamp.json"),
+    bytes = Buffer.from('{"signed":{"version":3},"signatures":[]}\n');
+  await writeFile(timestamp, bytes);
+  const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+  const failure = new Error("real driver failed after the timestamp became unavailable");
+  await assert.rejects(
+    withInstalledFeedOutage(control.configuration, control.sha256, async () => {
+      const { access } = await import("node:fs/promises");
+      await assert.rejects(access(timestamp), { code: "ENOENT" });
+      throw failure;
+    }),
+    (error: unknown) => error === failure,
+  );
+  const { readFile, lstat } = await import("node:fs/promises");
+  assert.deepEqual(await readFile(timestamp), bytes);
+  assert.equal((await lstat(timestamp)).nlink, 1);
+  assert.equal(
+    (await restoreInstalledFeedOutage(control.configuration, control.sha256)).phase,
+    "restored",
+  );
+});
+
+void test("outer feed restoration survives abrupt driver exit without executing its finally", async (t) => {
+  const { prepareInstalledFeedOutage, restoreInstalledFeedOutage } =
+    await import("./desktop-installed-feed-outage.mts");
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-killed-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = path.join(root, "metadata");
+  await mkdir(metadata);
+  const timestamp = path.join(metadata, "timestamp.json"),
+    bytes = Buffer.from('{"signed":{"version":4}}\n');
+  await writeFile(timestamp, bytes);
+  const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+  const { spawnSync } = await import("node:child_process");
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `const {withInstalledFeedOutage}=await import(${JSON.stringify(new URL("./desktop-installed-feed-outage.mts", import.meta.url).href)});await withInstalledFeedOutage(${JSON.stringify(control.configuration)},${JSON.stringify(control.sha256)},async()=>process.exit(86));`,
+    ],
+    { timeout: 15_000, encoding: "utf8" },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 86, result.stderr);
+  const { access, readFile } = await import("node:fs/promises");
+  await assert.rejects(access(timestamp), { code: "ENOENT" });
+  await restoreInstalledFeedOutage(control.configuration, control.sha256);
+  assert.deepEqual(await readFile(timestamp), bytes);
+});
+
+void test("feed recovery refuses a foreign destination and retains both original failures", async (t) => {
+  const { prepareInstalledFeedOutage, withInstalledFeedOutage } =
+    await import("./desktop-installed-feed-outage.mts");
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-foreign-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = path.join(root, "metadata");
+  await mkdir(metadata);
+  const timestamp = path.join(metadata, "timestamp.json"),
+    bytes = Buffer.from('{"signed":{"version":5}}\n');
+  await writeFile(timestamp, bytes);
+  const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+  const originalFailure = new Error("original UI check failed");
+  await assert.rejects(
+    withInstalledFeedOutage(control.configuration, control.sha256, async () => {
+      await writeFile(timestamp, "foreign writer", { flag: "wx" });
+      throw originalFailure;
+    }),
+    (error: unknown) =>
+      error instanceof AggregateError &&
+      error.errors[0] === originalFailure &&
+      /foreign timestamp/u.test(String(error.errors[1])),
+  );
+  const { readFile } = await import("node:fs/promises");
+  assert.equal(await readFile(timestamp, "utf8"), "foreign writer");
+  assert.deepEqual(await readFile(path.join(root, "control", "timestamp-preimage.json")), bytes);
+});
+
+void test("feed outage rejects changed retained bytes and replaced directory identities before mutation", async (t) => {
+  const { prepareInstalledFeedOutage, withInstalledFeedOutage } =
+    await import("./desktop-installed-feed-outage.mts");
+  const { readFile, rename } = await import("node:fs/promises");
+  for (const fault of ["preimage", "metadata-directory", "withheld-directory"]) {
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-identity-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const metadata = path.join(root, "metadata");
+    await mkdir(metadata);
+    const timestamp = path.join(metadata, "timestamp.json"),
+      bytes = Buffer.from('{"signed":{"version":6}}\n');
+    await writeFile(timestamp, bytes);
+    const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+    const config = JSON.parse(await readFile(control.configuration, "utf8")) as {
+      withheld: string;
+    };
+    if (fault === "preimage")
+      await writeFile(
+        path.join(root, "control", "timestamp-preimage.json"),
+        "altered retained input",
+      );
+    else if (fault === "metadata-directory") {
+      await rename(metadata, path.join(root, "original-metadata"));
+      await mkdir(metadata);
+      await writeFile(timestamp, bytes);
+    } else {
+      await rename(config.withheld, config.withheld + "-retained");
+      await mkdir(config.withheld);
+    }
+    let observed = false;
+    await assert.rejects(
+      withInstalledFeedOutage(control.configuration, control.sha256, async () => {
+        observed = true;
+      }),
+      /Timestamp|directory identity/u,
+    );
+    assert.equal(observed, false);
+    assert.deepEqual(await readFile(timestamp), bytes);
+  }
+});
+
+void test("outer restoration completes an interrupted no-replace publication of the original inode", async (t) => {
+  const { prepareInstalledFeedOutage, restoreInstalledFeedOutage } =
+    await import("./desktop-installed-feed-outage.mts");
+  const { readFile, lstat } = await import("node:fs/promises");
+  const { spawnSync } = await import("node:child_process");
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-published-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = path.join(root, "metadata");
+  await mkdir(metadata);
+  const timestamp = path.join(metadata, "timestamp.json"),
+    bytes = Buffer.from('{"signed":{"version":7}}\n');
+  await writeFile(timestamp, bytes);
+  const original = await lstat(timestamp, { bigint: true });
+  const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `import{link,readFile}from'node:fs/promises';import path from'node:path';const{withInstalledFeedOutage}=await import(${JSON.stringify(new URL("./desktop-installed-feed-outage.mts", import.meta.url).href)});const config=JSON.parse(await readFile(${JSON.stringify(control.configuration)},'utf8'));await withInstalledFeedOutage(${JSON.stringify(control.configuration)},${JSON.stringify(control.sha256)},async()=>{await link(path.join(config.withheld,'timestamp.json'),path.join(config.metadata,'timestamp.json'));process.exit(87)});`,
+    ],
+    { timeout: 15_000, encoding: "utf8" },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 87, result.stderr);
+  assert.equal((await lstat(timestamp)).nlink, 2);
+  await restoreInstalledFeedOutage(control.configuration, control.sha256);
+  const restored = await lstat(timestamp, { bigint: true });
+  assert.equal(restored.nlink, 1n);
+  assert.equal(restored.ino, original.ino);
+  assert.equal(restored.uid, original.uid);
+  assert.equal(restored.mode, original.mode);
+  assert.equal(restored.mtimeNs, original.mtimeNs);
+  assert.deepEqual(await readFile(timestamp), bytes);
+});
+
+void test("feed ownership refuses adjacent uint64 inode identities even when Number would collide", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-uint64-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = path.join(root, "metadata");
+  await mkdir(metadata);
+  const timestamp = path.join(metadata, "timestamp.json"),
+    bytes = Buffer.from('{"signed":{"version":8}}\n');
+  await writeFile(timestamp, bytes);
+  const moduleUrl = new URL(
+    "./desktop-installed-feed-outage.mts?native-contract=uint64-inodes",
+    import.meta.url,
+  );
+  const hooks = registerHooks({
+    resolve(name, context, next) {
+      if (name === "node:fs/promises" && context.parentURL === moduleUrl.href)
+        return {
+          url:
+            "data:text/javascript," +
+            encodeURIComponent(
+              `export * from 'node:fs/promises';import{lstat as original}from'node:fs/promises';const ids=new Map();export async function lstat(path,options){if(options?.bigint!==true)throw new Error('physical identities require bigint stats');const value=await original(path,options);const key=value.dev+':'+value.ino;if(!ids.has(key))ids.set(key,2n**60n+BigInt(ids.size));value.ino=ids.get(key);return value;}`,
+            ),
+          shortCircuit: true,
+        };
+      return next(name, context);
+    },
+  });
+  try {
+    const { prepareInstalledFeedOutage, withInstalledFeedOutage } = (await import(
+      moduleUrl.href
+    )) as typeof import("./desktop-installed-feed-outage.mts");
+    const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+    await assert.rejects(
+      withInstalledFeedOutage(control.configuration, control.sha256, async () => {
+        await writeFile(timestamp, bytes, { flag: "wx" });
+      }),
+      (error: unknown) => {
+        assert.ok(isRecord(error) && isRecord(error.actual) && isRecord(error.expected));
+        assert.notEqual(error.actual.ino, error.expected.ino);
+        assert.equal(Number(error.actual.ino), Number(error.expected.ino));
+        return /foreign timestamp/u.test(String(error.message));
+      },
+    );
+  } finally {
+    hooks.deregister();
+  }
+});
+
+void test("installed outage uses ordinary check, truthful failure, unchanged choices and exact restored-feed retry", async (t) => {
+  const { prepareInstalledFeedOutage } = await import("./desktop-installed-feed-outage.mts");
+  const { access, readFile } = await import("node:fs/promises");
+  for (const change of [
+    null,
+    "already-saved",
+    "disabled-wrong-preferences",
+    "staged",
+    "preferences",
+    "current",
+    "wrong-alert",
+  ] as const) {
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-journey-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const metadata = path.join(root, "metadata");
+    await mkdir(metadata);
+    const timestamp = path.join(metadata, "timestamp.json"),
+      bytes = Buffer.from('{"signed":{"version":9}}\n');
+    await writeFile(timestamp, bytes);
+    const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+    let unavailable = false;
+    const checks: boolean[] = [],
+      actions: string[] = [];
+    const choices = { revision: 3, choice: { channel: "stable", mode: "manual" } };
+    const status = { ...fixture().before, schedule: { consecutive_failures: 0 } };
+    const message = "The online request could not be completed.";
+    const browser = {
+      manage: () => ({ setTimeouts: async () => {} }),
+      wait: async (condition: { value?: string } | (() => Promise<unknown>)) => {
+        if (typeof condition === "function") {
+          assert.equal(await condition(), true);
+          return {};
+        }
+        const alert = condition.value?.includes('role="alert"');
+        if (alert)
+          assert.equal(
+            unavailable,
+            true,
+            "Failure UI must be observed while the real fixture file is absent",
+          );
+        return {
+          click: async () => {},
+          getText: async () =>
+            alert
+              ? change === "wrong-alert"
+                ? "Portcove is current"
+                : message
+              : "No eligible release is published for the selected channel.",
+        };
+      },
+      findElement: (locator: { value: string }) => ({
+        isEnabled: async () =>
+          !["already-saved", "disabled-wrong-preferences"].includes(change ?? ""),
+        click: async () => {
+          if (
+            locator.value.includes("Save application update settings") &&
+            ["already-saved", "disabled-wrong-preferences"].includes(change ?? "")
+          )
+            throw new Error("ElementNotInteractableError: unchanged Save is disabled");
+          if (locator.value.includes('normalize-space(.)="Check for updates"')) {
+            unavailable = await access(timestamp).then(
+              () => false,
+              () => true,
+            );
+            checks.push(!unavailable);
+          }
+        },
+      }),
+      findElements: async (locator: { value: string }) =>
+        change === "current" && unavailable && locator.value.includes("Portcove is current")
+          ? [{}]
+          : [],
+      executeAsyncScript: async (query: unknown) => {
+        const preferences = String(query).includes("get_application_update_preferences");
+        assert.ok(preferences || String(query).includes("get_application_update_status"));
+        return JSON.stringify({
+          ok: true,
+          value: preferences
+            ? change === "disabled-wrong-preferences"
+              ? { ...choices, choice: { channel: "preview", mode: "manual" } }
+              : unavailable && change === "preferences"
+                ? { ...choices, revision: 4 }
+                : choices
+            : {
+                ...status,
+                schedule: { consecutive_failures: unavailable ? 1 : 0 },
+                ...(unavailable && change === "staged" ? { staged: { version: "0.3.0" } } : {}),
+              },
+        });
+      },
+    } as unknown as WebDriver;
+    if (change && change !== "already-saved")
+      await assert.rejects(
+        driveInstalledFeedOutage(browser, actions, control.configuration, control.sha256),
+      );
+    else {
+      const result = await driveInstalledFeedOutage(
+        browser,
+        actions,
+        control.configuration,
+        control.sha256,
+      );
+      assert.deepEqual(checks, [true, false, true]);
+      if (change === "already-saved")
+        assert.ok(actions.includes("stable-manual-settings-already-saved"));
+      assert.equal(result.failed.message, message);
+      assert.equal(result.failed.status.staged, null);
+      assert.equal(
+        result.failed.status.schedule && isRecord(result.failed.status.schedule)
+          ? result.failed.status.schedule.consecutive_failures
+          : null,
+        1,
+      );
+      assert.equal(actions.at(-1), "owned-file-feed-explicit-retry-completed");
+    }
+    assert.deepEqual(
+      await readFile(timestamp),
+      bytes,
+      "Every failed oracle still restores the original feed",
+    );
+  }
+});
+
+void test("feed restoration refuses a live faulting driver before restoring its source", async (t) => {
+  const { prepareInstalledFeedOutage, withInstalledFeedOutage, restoreInstalledFeedOutage } =
+    await import("./desktop-installed-feed-outage.mts");
+  const { access, readFile } = await import("node:fs/promises");
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-live-writer-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = path.join(root, "metadata");
+  await mkdir(metadata);
+  const timestamp = path.join(metadata, "timestamp.json"),
+    bytes = Buffer.from('{"signed":{"version":10}}\n');
+  await writeFile(timestamp, bytes);
+  const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+  await withInstalledFeedOutage(control.configuration, control.sha256, async () => {
+    await assert.rejects(restoreInstalledFeedOutage(control.configuration, control.sha256), {
+      code: "PORTCOVE_RESOURCE_BUSY",
+    });
+    await assert.rejects(access(timestamp), { code: "ENOENT" });
+  });
+  assert.deepEqual(await readFile(timestamp), bytes);
+});
+
+void test("parent feed recovery seals out a late driver that has not started its fault window", async (t) => {
+  const { prepareInstalledFeedOutage, withInstalledFeedOutage, restoreInstalledFeedOutage } =
+    await import("./desktop-installed-feed-outage.mts");
+  const { readFile } = await import("node:fs/promises");
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-installed-feed-late-writer-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const metadata = path.join(root, "metadata");
+  await mkdir(metadata);
+  const timestamp = path.join(metadata, "timestamp.json"),
+    bytes = Buffer.from('{"signed":{"version":11}}\n');
+  await writeFile(timestamp, bytes);
+  const control = await prepareInstalledFeedOutage(metadata, path.join(root, "control"));
+  await restoreInstalledFeedOutage(control.configuration, control.sha256);
+  let observed = false;
+  await assert.rejects(
+    withInstalledFeedOutage(control.configuration, control.sha256, async () => {
+      observed = true;
+    }),
+    /closed to new fault writers/u,
+  );
+  assert.equal(observed, false);
+  assert.deepEqual(await readFile(timestamp), bytes);
 });

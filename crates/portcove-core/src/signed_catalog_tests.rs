@@ -733,15 +733,28 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
 
 #[tokio::test]
 async fn catalog_status_verifies_each_cached_candidate_once_per_snapshot() {
+    let observed_at = std::time::Instant::now();
+    let phase = |label: &str| {
+        eprintln!(
+            "cached candidate snapshot phase={label} elapsed={:?}",
+            observed_at.elapsed()
+        );
+    };
+    phase("fixture begin");
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path().join("library")).unwrap();
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
+    phase("fixture complete; first publication begin");
     publish(&service, &write_candidate(root.path(), 1)).await;
+    phase("first publication complete; second publication begin");
     publish(&service, &write_candidate(root.path(), 2)).await;
+    phase("second publication complete");
 
     signed_catalog::reset_verify_invocations();
+    phase("active snapshot begin");
     let current = library.catalog_status().unwrap();
+    phase("active snapshot complete");
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(current.provenance.origin, CatalogOrigin::SignedActive);
     assert_eq!(current.provenance.sequence, Some(2));
@@ -757,7 +770,9 @@ async fn catalog_status_verifies_each_cached_candidate_once_per_snapshot() {
         )
         .unwrap();
     signed_catalog::reset_verify_invocations();
+    phase("replay-floor snapshot begin");
     let replay_bounded = library.catalog_status().unwrap();
+    phase("replay-floor snapshot complete");
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(
         replay_bounded.provenance.origin,
@@ -768,6 +783,7 @@ async fn catalog_status_verifies_each_cached_candidate_once_per_snapshot() {
         replay_bounded.provenance.fallback_reasons,
         vec!["cached catalog exceeds the recorded replay floor"]
     );
+    phase("assertions complete");
 }
 
 #[test]

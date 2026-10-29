@@ -43,6 +43,28 @@ export async function readInstalledUpdateStatus(
   return { ...status, recovery_required: status.recovery_required };
 }
 
+/** Observe saved updater choices through the existing fixed shipping query. */
+export async function readInstalledUpdatePreferences(browser: WebDriver) {
+  const raw = await browser.executeAsyncScript<string>((done: (value: string) => void) => {
+    const bridge = (
+      window as Window & { __TAURI_INTERNALS__?: { invoke(command: string): Promise<unknown> } }
+    ).__TAURI_INTERNALS__;
+    if (!bridge) return done('{"ok":false}');
+    void bridge.invoke("get_application_update_preferences").then(
+      (value) => {
+        const result = JSON.stringify({ ok: true, value });
+        done(result.length <= 16384 ? result : '{"ok":false}');
+      },
+      () => done('{"ok":false}'),
+    );
+  });
+  assert.ok(typeof raw === "string" && Buffer.byteLength(raw) <= 65536);
+  const result: unknown = JSON.parse(raw);
+  assert.ok(isRecord(result) && result.ok === true && isRecord(result.value));
+  assert.ok(Number.isSafeInteger(result.value.revision) && isRecord(result.value.choice));
+  return result.value;
+}
+
 export async function hashFile(file: string) {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(file)) {
