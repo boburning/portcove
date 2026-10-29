@@ -13,6 +13,7 @@ import type { EventEmitter } from "node:events";
 import { performance } from "node:perf_hooks";
 import type { RustRunDependencies } from "./run-rust-tests.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
+import { readWindowsNativeProcessFiletime } from "./release-native-runtime-custody.mts";
 import { NativeAccountClient } from "./native-qualification-account-client.mts";
 import { hostedWindowsOwnerDeadline } from "./release-hosted-native-windows-worker-contract.mts";
 
@@ -255,7 +256,7 @@ export async function establishWindowsOwnerAccount(
       value.bridge_root === path.join(state.root, "bridge"),
   );
   const pid = Number(value.owner_pid);
-  assert.equal(windowsOwnerFiletime(readProcessIdentity(pid), pid), value.owner_created_filetime);
+  assert.equal(readWindowsNativeProcessFiletime(pid, state.deadline), value.owner_created_filetime);
   assert.ok(state.supervisor && state.supervisor.pid);
   const supervisorIdentity = readProcessIdentity(state.supervisor.pid);
   assert.ok(supervisorIdentity);
@@ -455,7 +456,7 @@ export async function startWindowsOwnerStageMechanism(
     request_sha256: stage.workerRequestSha,
     binding_sha256: stage.bindingSha,
   });
-  assert.equal(windowsOwnerFiletime(readProcessIdentity(pid), pid), created);
+  assert.equal(readWindowsNativeProcessFiletime(pid, state.deadline), created);
   stage.worker = { pid, created };
   await options.remember([launched.file, ...ready.files]);
   await options.inspectAccount(true);
@@ -479,9 +480,9 @@ export async function settleWindowsOwnerStageMechanism(
   assert.equal(result.value.authority, "none");
   while (true) {
     options.active();
-    const identity = readProcessIdentity(stage.worker.pid);
+    const identity = readWindowsNativeProcessFiletime(stage.worker.pid, state.deadline);
     if (identity === null) break;
-    assert.equal(windowsOwnerFiletime(identity, stage.worker.pid), stage.worker.created);
+    assert.equal(identity, stage.worker.created);
     await delay(25);
   }
   await options.remember(result.files);

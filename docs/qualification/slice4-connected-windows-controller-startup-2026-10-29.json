@@ -10,7 +10,7 @@
   "failure_observed": "Original controller startup/source preflight failed or expired; launcher line89, within~3seconds; original deadline not reached",
   "cause": "Unknown; no child exit/failure projection retained by this source",
   "ready_and_settlement": "absent; upload emitted explicit no-files warning",
-  "effects": "Source-observed C creation followed by early exit; no ready/ACK admits freshTools/account/station. No independent post-VM OS inventory or private/connected acceptance.",
+  "effects": "Source-observed CreateProcess reached and startup/ready-ACK acceptance failed; original C lifetime/cause Unknown. No ready/ACK admits freshTools/account/station. No independent post-VM OS inventory or private/connected acceptance.",
   "runtime": {
     "source": "855187d23b54150391b17ab8853acfd8b63be738",
     "run_id": "40786468754",
@@ -178,5 +178,58 @@
   "retention": "/home/boburning/code/portcove/work/qualification-534/windows-connected-native-855187d2-40786468754-1/retention-manifest-v2.json",
   "remote_ref": "conditionally retired after terminal and independent complete readback; local source retained; PR3937closed/unmerged",
   "owning_receipt": "https://github.com/boburning/portcove/issues/534#issuecomment-6484749175",
-  "scope": "Actual ordinary package/runtime/machine-counter evidence plus retained original-controller startup failure; no private qualification, protected production, S1, signing/publication,315managed or246unchanged-client acceptance"
+  "scope": "Actual ordinary package/runtime/machine-counter evidence plus retained original-controller startup failure; no private qualification, protected production, S1, signing/publication,315managed or246unchanged-client acceptance",
+  "successor_startup_control": {
+    "source": "fe3e4fc0de48752df0bc608c0f8bb2a3f09e4e4a",
+    "ci_run": 40799828291,
+    "attempt": 1,
+    "windows_job": 123205796757,
+    "actual_account_controls": {
+      "passed": 13,
+      "failed": 1,
+      "failed_boundary": "first original-C ready assertion",
+      "failed_duration_ms": 3470.7865
+    },
+    "complete_log": {
+      "bytes": 373659,
+      "sha256": "020caf451878444e6027ec376eab62c69c1275bc2d983cb076d66346635a88f2"
+    },
+    "local_precision_observation": {
+      "pid": 21384,
+      "native_created_filetime": "134377123349904143",
+      "cim_created_filetime": "134377123349904140",
+      "difference_100ns_units": 3,
+      "ready_sha256": "e1c4b344da1fcd7d7dc3372f24a4b81f5a68b673632ae04d56060988cc194429",
+      "aligned_positive_created_filetime": "134377123327368270",
+      "original_alive_before_cleanup": true,
+      "ack_attempted": false,
+      "settled_exit_code": 2,
+      "scope": "Owned inert local C fixture only; not a historical855 cause or connected-candidate acceptance"
+    },
+    "repair_scope": "One native observer across C/original-owner/worker/lineage/recovery; exact equality; generic lock/supervisor and CIM broker contracts unchanged",
+    "corrected_native_seven_variant_control": {
+      "status": "PASS",
+      "scope": "one local inert original-C case, all seven variants; no connected private-candidate acceptance",
+      "base_source": "fe3e4fc0de48752df0bc608c0f8bb2a3f09e4e4a",
+      "working_source_manifest_sha256": "ceefb8cbfc3f8f689fb7e0d444259a53501a314d2b756f7c1e81662cbf4e8ac0",
+      "public_output_bytes": 11073,
+      "public_output_sha256": "9e17a35f61dfe4a069d4c1db6b17e8164469d3b395ee027e841b995b78c2c78d",
+      "queue_ms": 218680,
+      "total_ms": 239390.8996,
+      "positive_pid": 24100,
+      "positive_exact_created_filetime": "134377139303505763",
+      "positive_nonmicrosecond_aligned": true,
+      "positive_ready_sha256": "679259a3c0d71f476f0787706d422e48e30b4b85c2cdd2b51646fbc504970e19",
+      "variants": [
+        "ready",
+        "wrong-source",
+        "wrong-pid",
+        "wrong-birth",
+        "refused-input",
+        "exit-259",
+        "unavailable-retention"
+      ],
+      "fresh_hosted_qualification": "pending fourteen Windows controls and five exact-head contexts"
+    }
+  }
 }

@@ -140,8 +140,7 @@ void test("actual final settlement refuses late role or custody changes after in
         return { deadline: 1000 };
       },
       requireActualHostedNativeParentSource: async (value: object) => assert.ok(parents.has(value)),
-      readProcessIdentity: () => (scenario === "live-owner" ? "original-owner" : null),
-      filetime: () => "1",
+      readWindowsNativeProcessFiletime: () => (scenario === "live-owner" ? "1" : null),
       recheck: async () => assert.ok(!state.stopped && state.status === undefined),
       writeRequest: () => {
         state.status = 0;
@@ -762,7 +761,7 @@ void test("shared original owner handshake retains lineage, helper bytes and ind
       path,
       performance,
       readProcessIdentity: (pid: number) => `generation:${pid}`,
-      windowsOwnerFiletime: () => (scenario === "owner-generation" ? "101" : "100"),
+      readWindowsNativeProcessFiletime: () => (scenario === "owner-generation" ? "101" : "100"),
       hostedWindowsOwnerDeadline: () => "9000000",
       readControllerToolFile: async (filename: string) =>
         Buffer.from(
@@ -1201,8 +1200,8 @@ void test("shared original A/B stage mechanics reject altered worker generations
         isRecord,
         errorCode: (error: unknown) => (isRecord(error) ? error.code : undefined),
         delay: async () => {},
-        readProcessIdentity: () => null,
-        windowsOwnerFiletime: () => "200",
+        readWindowsNativeProcessFiletime: () => (stage.worker ? null : "200"),
+        originalControllerCreated: "200",
         readControllerToolFile: async (file: string) =>
           file.endsWith("bridge-state.json")
             ? Buffer.from(
@@ -1554,7 +1553,9 @@ void test("unavailable controller startup telemetry preserves the original refus
       process: context,
       hostedWindowsConnectedDiagnosticExecutionAuthorized: true,
       requireOriginalHostedWindowsDiagnosticContext: () => {},
-      windowsOwnerFiletime: () => "123",
+      readWindowsNativeProcessFiletime: () => "123",
+      originalControllerCreated: null,
+      performance,
       readProcessIdentity: () => ({}),
       controlRoot: () => {
         if (failure === "root-evaluation") throw new Error("unavailable original root");
@@ -1582,4 +1583,136 @@ void test("unavailable controller startup telemetry preserves the original refus
     assert.deepEqual(output, []);
     assert.equal(writes, failure === "write-rejection" ? 1 : 0);
   }
+});
+
+void test("native original owner creation remains exact and a live nonaligned owner blocks both recovery routes", async () => {
+  const native = "134377123349904143",
+    cim = "134377123349904140";
+  for (const [filename, begin, end] of [
+    [
+      "release-hosted-native-windows-diagnostic.mts",
+      "async function recover(state:",
+      "export function projectHostedWindowsDiagnosticSettlementRecord",
+    ],
+    [
+      "release-hosted-native-windows-session.mts",
+      "async function recoverState(state:",
+      "export async function refuseActualHostedWindowsSession",
+    ],
+  ] as const) {
+    const implementation = readFileSync(new URL("./" + filename, import.meta.url), "utf8");
+    const start = implementation.indexOf(begin),
+      next = implementation.indexOf(end, start);
+    assert.ok(start > 0 && next > start);
+    const code = stripTypeScriptTypes(implementation.slice(start, next));
+    const state = {
+      recoveryAttempted: false,
+      stopped: false,
+      signal: { emit: () => {} },
+      running: Promise.resolve(0),
+      owner: { pid: 42, created: native },
+      deadline: performance.now() + 1000,
+    };
+    let directories = 0,
+      legacyReads = 0,
+      nativeReads = 0;
+    const run: unknown = runInNewContext(
+      code + "\n" + (filename.includes("diagnostic") ? "recover" : "recoverState"),
+      {
+        assert,
+        readWindowsNativeProcessFiletime: (pid: number, deadline: number) => {
+          nativeReads++;
+          assert.equal(pid, 42);
+          assert.equal(deadline, state.deadline);
+          return native;
+        },
+        readProcessIdentity: () => {
+          legacyReads++;
+          return "win32:42:" + (BigInt(cim) + 504911232000000000n);
+        },
+        mkdir: () => {
+          directories++;
+        },
+        performance,
+      },
+    );
+    assert.equal(typeof run, "function");
+    await assert.rejects(
+      (run as (state: unknown) => Promise<unknown>)(state),
+      /original owner.*live|Original owner.*live/u,
+    );
+    assert.equal(nativeReads, 1);
+    assert.equal(legacyReads, 0);
+    assert.equal(directories, 0);
+    assert.equal(state.recoveryAttempted, true);
+  }
+});
+
+void test("native FILETIME observer preserves nonaligned precision and distinguishes verified absence from query failure", () => {
+  const implementation = readFileSync(
+    new URL("./release-native-runtime-custody.mts", import.meta.url),
+    "utf8",
+  );
+  const code = body(
+    "export function readWindowsNativeProcessFiletime(",
+    "// Fixed OS reader",
+    implementation,
+  );
+  const system = "C:\\Windows",
+    native = "134377123349904143";
+  let calls = 0;
+  const observe = (
+    reply: string,
+    pid = 42,
+    deadline = 2000,
+    fails = false,
+    tracking = "original-provider-tracking",
+  ): unknown =>
+    runInNewContext(code + "\nreadWindowsNativeProcessFiletime(pid,deadline)", {
+      assert,
+      process: {
+        platform: "win32",
+        env: {
+          SystemRoot: system,
+          TEMP: "C:\\owned",
+          TMP: "C:\\owned",
+          RUNNER_TRACKING_ID: tracking,
+        },
+      },
+      performance: { now: () => 1000 },
+      path,
+      pid,
+      deadline,
+      windowsSourceSystemExecutables: { powershell: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" },
+      execFileSync: (
+        exe: string,
+        args: string[],
+        options: { timeout: number; maxBuffer: number; env: Record<string, string> },
+      ) => {
+        calls++;
+        assert.match(exe, /pwsh[.]exe$/u);
+        assert.ok(args.at(-1)?.includes("StartTime.ToUniversalTime().ToFileTimeUtc()"));
+        assert.equal(args.at(-1)?.includes("Get-CimInstance"), false);
+        assert.equal(options.timeout, 1000);
+        assert.equal(options.maxBuffer, 1024);
+        assert.equal(options.env.RUNNER_TRACKING_ID, tracking);
+        assert.equal(
+          Object.keys(options.env).some((k) => k.startsWith("GITHUB") || k.includes("TOKEN")),
+          false,
+        );
+        if (fails) throw new Error("query unavailable");
+        return reply;
+      },
+    });
+  assert.equal(observe(native), native);
+  assert.equal(observe("absent"), null);
+  for (const value of ["", "0", "-1", "1e17", "134377123349904143 extra"])
+    assert.throws(() => observe(value));
+  assert.throws(() => observe(native, 42, 2000, true), /query unavailable/u);
+  const before = calls;
+  assert.throws(() => observe(native, 0));
+  assert.throws(() => observe(native, 42, 999));
+  assert.throws(() => observe(native, 42, 2000, false, "x".repeat(32769)));
+  assert.throws(() => observe(native, 42, 2000, false, "invalid\0tracking"));
+  assert.equal(calls, before);
 });

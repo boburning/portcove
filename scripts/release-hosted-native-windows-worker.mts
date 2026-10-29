@@ -22,10 +22,10 @@ import {
   inspectHostedWindowsWorkerAcknowledgment,
   hostedWindowsWorkerAbi,
 } from "./release-hosted-native-windows-worker-contract.mts";
-import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   windowsSourceSystemExecutables,
+  readWindowsNativeProcessFiletime,
   inspectWindowsSourceSystemCustody,
   recheckWindowsSourceSystemCustody,
 } from "./release-native-runtime-custody.mts";
@@ -237,11 +237,12 @@ async function runWindowsWorkerStageMechanism(file: string, expected: string) {
       "-ExpectedPredecessorVersion",
       request.predecessor.version,
     );
-  const identity = readProcessIdentity(process.pid);
-  const match =
-    typeof identity === "string" && /^win32:([1-9][0-9]*):([1-9][0-9]*)$/u.exec(identity);
-  assert.ok(match && Number(match[1]) === process.pid && process.ppid === binding.broker_pid);
-  const created = (BigInt(match[2]!) - 504911232000000000n).toString();
+  const until = started + request.remaining_milliseconds;
+  const created = readWindowsNativeProcessFiletime(process.pid, until);
+  assert.ok(
+    created && process.ppid === binding.broker_pid,
+    "Original native worker generation/parent required",
+  );
   const ready = Buffer.from(
     JSON.stringify({
       schema_version: 1,
@@ -269,7 +270,6 @@ async function runWindowsWorkerStageMechanism(file: string, expected: string) {
   };
   publish("worker-ready.json", ready);
   publish("worker-ready.complete", Buffer.from(digest(ready)));
-  const until = started + request.remaining_milliseconds;
   while (true) {
     assert.ok(performance.now() < until, "Original worker acknowledgment deadline exhausted");
     try {
@@ -293,7 +293,7 @@ async function runWindowsWorkerStageMechanism(file: string, expected: string) {
           after.mtimeNs === before.mtimeNs &&
           after.ctimeNs === before.ctimeNs,
       );
-      assert.equal(readProcessIdentity(process.pid), identity);
+      assert.equal(readWindowsNativeProcessFiletime(process.pid, until), created);
       break;
     } catch (error) {
       if (!isRecord(error) || !["ENOENT", "EBUSY", "EACCES"].includes(String(error.code)))

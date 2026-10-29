@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 
 export type NativeRuntimeCustody = ReadonlyMap<string, string>;
@@ -11,6 +12,62 @@ export const windowsSourceSystemExecutables = Object.freeze({
   git: "C:\\Program Files\\Git\\cmd\\git.exe",
   powershell: "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
 });
+
+/** Exact native FILETIME data only. Existing callers retain PID/generation,
+ * lineage, admission and original deadline ownership; global lock/CIM formats stay unchanged. */
+export function readWindowsNativeProcessFiletime(pid: number, deadline: number): string | null {
+  assert.equal(process.platform, "win32");
+  assert.ok(
+    Number.isSafeInteger(pid) && pid > 0 && pid <= 2147483647,
+    "Exact native PID required; zero/unknown is not absence",
+  );
+  const remaining = Math.floor(deadline - performance.now());
+  assert.ok(
+    Number.isFinite(deadline) && remaining > 0,
+    "Original native identity window exhausted",
+  );
+  const system = process.env.SystemRoot;
+  assert.ok(system && /^[A-Za-z]:\\/u.test(system));
+  const tracking = process.env.RUNNER_TRACKING_ID;
+  assert.ok(
+    tracking === undefined ||
+      (tracking.length > 0 && tracking.length <= 32768 && !tracking.includes("\0")),
+    "Original provider tracking differs",
+  );
+  const value = execFileSync(
+    windowsSourceSystemExecutables.powershell,
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `$ErrorActionPreference='Stop';try{$p=[Diagnostics.Process]::GetProcessById(${pid})}catch [ArgumentException]{[Console]::Out.Write('absent');exit 0};try{if($p.Id -ne ${pid}){throw 'Original PID differs'};[Console]::Out.Write($p.StartTime.ToUniversalTime().ToFileTimeUtc().ToString([Globalization.CultureInfo]::InvariantCulture))}finally{$p.Dispose()}`,
+    ],
+    {
+      encoding: "utf8",
+      timeout: Math.min(5000, remaining),
+      maxBuffer: 1024,
+      windowsHide: true,
+      env: {
+        SystemRoot: system,
+        WINDIR: system,
+        PATH: path.win32.join(system, "System32"),
+        PATHEXT: ".EXE",
+        TEMP: process.env.TEMP,
+        TMP: process.env.TMP,
+        ...(tracking === undefined ? {} : { RUNNER_TRACKING_ID: tracking }),
+      },
+    },
+  ).trim();
+  assert.ok(performance.now() < deadline, "Native identity observation exceeded original window");
+  if (value === "absent") return null;
+  assert.match(
+    value,
+    /^[1-9][0-9]{0,18}$/u,
+    "Exact native FILETIME required; malformed/query failures are not absence",
+  );
+  return value;
+}
 
 // Fixed OS reader, not a caller-supplied script or candidate process. All path
 // input is inert UTF-8 JSON on stdin. This command never changes an ACL or owner.

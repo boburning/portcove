@@ -901,6 +901,11 @@ void test(
       // This owned copy can never publish ACK or cross into tools/account/station effects.
       launcher = once(
         launcher,
+        "$clock.ElapsedMilliseconds -ge 330000",
+        "$clock.ElapsedMilliseconds -ge 20000",
+      );
+      launcher = once(
+        launcher,
         "$ack=[ordered]@{schema_version=1;",
         "throw 'Owned startup control stops before ACK';\n    $ack=[ordered]@{schema_version=1;",
       );
@@ -954,11 +959,7 @@ void test(
       if (variant === "wrong-pid")
         readiness = once(readiness, "pid: process.pid,", "pid: process.pid+1,");
       if (variant === "wrong-birth")
-        readiness = once(
-          readiness,
-          "created_filetime: windowsOwnerFiletime(readProcessIdentity(process.pid), process.pid),",
-          'created_filetime:"1",',
-        );
+        readiness = once(readiness, "created_filetime: created,", 'created_filetime:"1",');
       controller = controller.slice(0, start) + readiness + controller.slice(end);
       if (variant === "exit-259")
         controller = once(controller, "function held() {", "process.exit(259);\nfunction held() {");
@@ -1050,8 +1051,54 @@ void test(
       const control = path.join(temporary, "portcove-hosted-windows-connected-diagnostic"),
         reportBytes = readFileSync(path.join(control, "controller-startup-public.json"));
       assert.ok(reportBytes.length <= 65536);
+      t.diagnostic(
+        "bounded-public-startup-observation " + variant + " " + reportBytes.toString("utf8"),
+      );
       const report: unknown = JSON.parse(reportBytes.toString("utf8"));
       assert.ok(isRecord(report));
+      const observedReadyPath = path.join(control, "controller-ready.json");
+      if (existsSync(observedReadyPath)) {
+        const observedReady = readFileSync(observedReadyPath);
+        assert.ok(observedReady.length <= 16384);
+        const ready: unknown = JSON.parse(observedReady.toString("utf8"));
+        assert.ok(isRecord(ready));
+        assert.match(String(ready.source), /^[a-f0-9]{40}$/u);
+        assert.match(String(ready.tree), /^[a-f0-9]{40}$/u);
+        assert.match(String(ready.run_id), /^[1-9][0-9]{0,15}$/u);
+        assert.equal(ready.attempt, 1);
+        assert.equal(ready.schema_version, 1);
+        assert.equal(typeof ready.pid, "number");
+        assert.ok(
+          typeof ready.pid === "number" &&
+            Number.isSafeInteger(ready.pid) &&
+            ready.pid > 0 &&
+            ready.pid <= 2147483647,
+        );
+        assert.match(String(ready.created_filetime), /^[1-9][0-9]{0,18}$/u);
+        assert.equal(ready.authority, "none");
+        assert.equal(
+          ready.workflow,
+          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+        );
+        const readySha = createHash("sha256").update(observedReady).digest("hex");
+        assert.equal(readySha, report.ready_sha256);
+        t.diagnostic(
+          "bounded-public-original-ready " +
+            JSON.stringify({
+              variant,
+              schema_version: ready.schema_version,
+              source: ready.source,
+              tree: ready.tree,
+              run_id: ready.run_id,
+              attempt: ready.attempt,
+              workflow: ready.workflow,
+              pid: ready.pid,
+              created_filetime: ready.created_filetime,
+              authority: ready.authority,
+              ready_sha256: readySha,
+            }),
+        );
+      }
       assert.ok(isRecord(report.controller));
       const originalController = report.controller;
       assert.ok(isRecord(originalController.original_observation));
@@ -1074,7 +1121,11 @@ void test(
       );
       assert.equal(typeof originalController.created_filetime, "string");
       assert.match(String(originalController.created_filetime), /^[1-9][0-9]{0,18}$/u);
-      assert.equal(report.ready_verified, variant === "ready");
+      assert.equal(
+        report.ready_verified,
+        variant === "ready",
+        "bounded-public-startup-observation " + variant + " " + reportBytes.toString("utf8"),
+      );
       if (
         variant !== "refused-input" &&
         variant !== "unavailable-retention" &&
