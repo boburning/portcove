@@ -243,11 +243,14 @@ export function BootstrapRecovery({
   const importRoot = transferRecoveryRoot(error, "import_destination");
   const pending = recoveryPending || transferPending;
   return (
-    <main className="bootstrap-state bootstrap-error m-[0_auto] flex h-dvh w-[min(42rem,_calc(100%_-_2_*_var(--space-4)))] min-w-0 flex-col [justify-content:safe_center] gap-4 overflow-y-auto py-6 wrap-anywhere">
-      <h1>Portcove couldn’t start</h1>
-      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
-        {errorText(error)}
-      </p>
+    <main className="bootstrap-state bootstrap-error startup-recovery">
+      <header className="startup-recovery-heading">
+        <p className="eyebrow">Startup recovery</p>
+        <h1>Portcove couldn’t start</h1>
+        <p className="text-pc-muted-foreground" role="alert">
+          {errorText(error)}
+        </p>
+      </header>
       {error.presentation ? (
         <FailureDetails
           presentation={error.presentation}
@@ -257,20 +260,24 @@ export function BootstrapRecovery({
       ) : (
         <StartupTechnicalDetails error={error} />
       )}
-      {recoveryRoot && (
-        <LibraryMoveRecovery
-          source={recoveryRoot}
-          canKeepOriginal={canKeepOriginal}
-          disabled={pending}
-          onBusyChange={setTransferPending}
-        />
-      )}
-      {importRoot && (
-        <LibraryImportRecovery
-          destination={importRoot}
-          disabled={pending}
-          onBusyChange={setTransferPending}
-        />
+      {(recoveryRoot || importRoot) && (
+        <section className="startup-recovery-resolution" aria-label="Unfinished library change">
+          {recoveryRoot && (
+            <LibraryMoveRecovery
+              source={recoveryRoot}
+              canKeepOriginal={canKeepOriginal}
+              disabled={pending}
+              onBusyChange={setTransferPending}
+            />
+          )}
+          {importRoot && (
+            <LibraryImportRecovery
+              destination={importRoot}
+              disabled={pending}
+              onBusyChange={setTransferPending}
+            />
+          )}
+        </section>
       )}
       <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
         {recoveryRoot || importRoot

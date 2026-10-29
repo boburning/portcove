@@ -357,6 +357,25 @@ void test("descriptive media projects to format 3 and explicit empty strict medi
   assert.equal(projected.directory.format_version, 3);
   assert.deepEqual(projected.directory.listings[0]?.media, media);
   assert.equal(projected.catalog.ports.length, 0);
+  // New optional fields survive the JS writer verbatim, including explicit null.
+  // Their presence therefore requires format5 even when the semantic value is unknown.
+  for (const optional of [
+    { edition_neutral: null },
+    { edition_neutral: false },
+    { edition_neutral: true },
+    { igdb: null },
+  ]) {
+    const extended = checkedAuthoredPort({
+      ...record,
+      listing: { ...record.listing, media: [{ ...media[0], ...optional }] },
+    });
+    const emitted = fixtureJson(
+      JSON.stringify(assembleCatalogRecords(shared, [extended]).directory),
+    );
+    assert.equal(emitted.format_version, 5);
+    const emittedListing = requiredFixture(fixtureRecords(emitted.listings)[0]);
+    assert.deepEqual(fixtureRecords(emittedListing.media)[0], { ...media[0], ...optional });
+  }
   const integrated = source.records.find((value) => value.integration)!;
   const removal = checkedAuthoredPort({
     ...integrated,

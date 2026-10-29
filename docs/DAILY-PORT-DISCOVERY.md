@@ -66,6 +66,17 @@ refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify before the
 receipt says `complete`. A logical batch over ten retains its final full doctor.
 Scoped receipts retain `global_health: not_evaluated`.
+Routine hosted intake uses an explicit capability of the maintained inventory:
+complete repository issue bodies and two complete archive-inclusive Project
+membership traversals must agree on exact item/content identities and archive
+state. Unrelated planning fields and dependencies remain Unknown, so ordinary
+field/view edits elsewhere on the board do not invalidate that membership proof.
+Existing recovery targets receive fresh complete direct field reads; missing
+field coverage cannot be interpreted as an unset value. The normal collector
+and inventory-backed doctors still require full coverage. A large batch obtains
+a fresh full inventory for its global doctor; the intake projection cannot
+satisfy that check. Repository revision, membership, provider and budget guards
+continue to hold incomplete intake.
 The shared inventory reader permits one admitted complete replacement for known
 Project revision/count drift per execution batch. It discards the changed view;
 another drift or any provider/integrity failure holds intake within the same budget.

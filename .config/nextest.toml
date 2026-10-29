@@ -275,6 +275,17 @@ filter = 'package(portcove-core) & test(/^service::tests::authenticated_admissio
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# Qualification40895809838/a1 Linux native retained seven of eight publication
+# recovery phases before the30.012s watchdog; final Adopt/CleanupPending began
+# at25.964s. Preserve every conflict/refusal/retry assertion and finite60s
+# harness room for this exact Linux case, with no product or resource change.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+
 # CI40797975365/a1 job123202480906 completed seven of eight relocation
 # recovery scenarios at51.885s before the60.279s cutoff. Give only this
 # identity finite90s room, before the broader60s family override below.

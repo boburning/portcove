@@ -894,7 +894,7 @@ async function verifySettingsRows() {
     await browser
       .findElement(
         By.xpath(
-          '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="System"]',
+          '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="Follow system"]',
         ),
       )
       .click();
@@ -949,12 +949,13 @@ async function verifyLongTitleCatalogDetail(theme: string) {
   await browser.wait(
     () =>
       executeBrowserScript(browser, () => {
-        const cover = document.querySelector(".detail-cover.artwork-image");
-        const image = cover?.querySelector("img");
-        const initials = cover?.querySelector(":scope > span")?.textContent;
+        const hero = document.querySelector<HTMLElement>(".game-hero-detail");
+        const image = hero?.querySelector(".game-hero-image");
         return Boolean(
           (image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0) ||
-          (initials && initials !== "PC"),
+          (hero?.dataset.heroIdentity === "text" &&
+            !hero.querySelector('[data-loading="true"]') &&
+            hero.querySelector("#port-detail-title")?.textContent?.trim()),
         );
       }),
     15_000,
@@ -3812,15 +3813,18 @@ try {
           ?.scrollIntoView({ block: "start", behavior: "instant" });
         const title = document.querySelector("#port-detail-title");
         const action = document.querySelector(".detail-header-actions button");
-        const cover = document.querySelector(".detail-cover");
+        const hero = document.querySelector<HTMLElement>(".game-hero-detail");
+        const cover = hero?.querySelector<HTMLElement>(".game-hero-foreground");
+        const image = cover?.querySelector("img");
         if (
           !(title instanceof HTMLElement) ||
           !(action instanceof HTMLElement) ||
-          !(cover instanceof HTMLElement)
+          !(hero instanceof HTMLElement)
         )
           throw new Error("Detail header is incomplete");
         const bounds = action.getBoundingClientRect();
-        const frame = cover.getBoundingClientRect();
+        const frame = cover?.getBoundingClientRect();
+        const heroBounds = hero.getBoundingClientRect();
         return {
           state: document.querySelector("[data-detail-readiness]")?.textContent?.trim(),
           reason: document.querySelector("[data-detail-reason]")?.textContent?.trim(),
@@ -3834,13 +3838,25 @@ try {
           titleFits: title.scrollWidth <= title.clientWidth + 1,
           actionFits: bounds.left >= 0 && bounds.right <= innerWidth,
           actionVisible: bounds.top >= 0 && bounds.bottom <= innerHeight,
-          artwork: { width: frame.width, height: frame.height },
+          identity: hero.dataset.heroIdentity,
+          hero: { width: heroBounds.width, height: heroBounds.height },
+          artwork:
+            frame && image
+              ? {
+                  width: frame.width,
+                  height: frame.height,
+                  naturalWidth: image.naturalWidth,
+                  naturalHeight: image.naturalHeight,
+                  fit: getComputedStyle(image).objectFit,
+                }
+              : null,
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 1,
           futureChoices: Array.from(
             document.querySelectorAll(".future-setup-disclosure"),
             (choice) => ({
               title: choice.querySelector("summary")?.textContent?.trim(),
               open: choice.hasAttribute("open"),
+              visible: choice.getBoundingClientRect().height > 0,
             }),
           ),
         };
@@ -3854,7 +3870,7 @@ try {
       assert.deepEqual(hierarchy.tabs, [
         "Overview",
         "Game files",
-        "Saves",
+        "Saves & backups",
         "Versions & updates",
         "Manage",
       ]);
@@ -3865,10 +3881,18 @@ try {
       assert.equal(hierarchy.actionFits, true);
       assert.equal(hierarchy.actionVisible, true);
       assert.equal(hierarchy.horizontalOverflow, false);
-      assert.ok([0, 96, 128, 148].includes(hierarchy.artwork.width));
-      assert.equal(hierarchy.artwork.height, hierarchy.artwork.width * 1.5);
+      assert.ok(["key_art", "logo", "cover", "text"].includes(required(hierarchy.identity)));
+      if (hierarchy.artwork) {
+        assert.ok(hierarchy.artwork.width > 0 && hierarchy.artwork.width <= hierarchy.hero.width);
+        assert.ok(
+          hierarchy.artwork.height > 0 && hierarchy.artwork.height <= hierarchy.hero.height,
+        );
+        assert.ok(hierarchy.artwork.naturalWidth > 0 && hierarchy.artwork.naturalHeight > 0);
+        assert.equal(hierarchy.artwork.fit, "contain");
+        assert.notEqual(hierarchy.identity, "text");
+      } else assert.equal(hierarchy.identity, "text");
       assert.deepEqual(hierarchy.futureChoices, [
-        { title: "Folder for a future install", open: false },
+        { title: "Folder for a future install", open: false, visible: false },
       ]);
     };
     await verifyDetailActionHierarchy();
@@ -3877,6 +3901,9 @@ try {
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
     await revealDetailSection(browser, "Manage");
+    await browser
+      .findElement(By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'))
+      .click();
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();

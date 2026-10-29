@@ -69,40 +69,200 @@ export function readWindowsNativeProcessFiletime(pid: number, deadline: number):
   return value;
 }
 
+const custodyReasons = ["runtime", "input", "regular-path", "owner", "writer", "os-read"];
+const custodyPhases = ["entry", "input", "item", "acl", "owner", "rules", "complete"];
+const custodyPrincipals = [
+  "unknown",
+  "everyone",
+  "authenticated-users",
+  "builtin-users",
+  "interactive",
+  "logon-session",
+  "creator-owner",
+  "other",
+];
+const custodySpawnCodes = ["unknown", "ETIMEDOUT", "ENOENT", "EACCES", "EPERM", "ENOBUFS"];
+type WindowsCustodyReaderFailure = {
+  schema_version: 1;
+  reason: string;
+  phase: string;
+  ordinal: number | null;
+  kind: string;
+  principal_class: string;
+  rights: number;
+};
+type WindowsCustodyFailure = {
+  schema_version: 1;
+  child_status: number | null;
+  child_signal: string | null;
+  spawn_code: string;
+  reader: WindowsCustodyReaderFailure | null;
+};
+function closedCustodyReaderFailure(raw: unknown): WindowsCustodyReaderFailure | null {
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !==
+      "kind,ordinal,phase,principal_class,reason,rights,schema_version" ||
+    raw.schema_version !== 1 ||
+    !custodyReasons.includes(String(raw.reason)) ||
+    !custodyPhases.includes(String(raw.phase)) ||
+    !["unknown", "file", "directory"].includes(String(raw.kind)) ||
+    !custodyPrincipals.includes(String(raw.principal_class)) ||
+    !(
+      raw.ordinal === null ||
+      (Number.isSafeInteger(raw.ordinal) && Number(raw.ordinal) >= 0 && Number(raw.ordinal) < 4096)
+    ) ||
+    !Number.isSafeInteger(raw.rights) ||
+    Number(raw.rights) < 0 ||
+    Number(raw.rights) > 31
+  )
+    return null;
+  return {
+    schema_version: 1,
+    reason: String(raw.reason),
+    phase: String(raw.phase),
+    ordinal: raw.ordinal as number | null,
+    kind: String(raw.kind),
+    principal_class: String(raw.principal_class),
+    rights: Number(raw.rights),
+  };
+}
+function readWindowsCustodyFailure(error: unknown): WindowsCustodyFailure {
+  const result: WindowsCustodyFailure = {
+    schema_version: 1,
+    child_status: null,
+    child_signal: null,
+    spawn_code: "unknown",
+    reader: null,
+  };
+  try {
+    if (!isRecord(error)) return result;
+    if (
+      Number.isSafeInteger(error.status) &&
+      Number(error.status) >= 0 &&
+      Number(error.status) <= 0xffff_ffff
+    )
+      result.child_status = Number(error.status);
+    if (["SIGTERM", "SIGKILL"].includes(String(error.signal)))
+      result.child_signal = String(error.signal);
+    if (typeof error.code === "string" && custodySpawnCodes.includes(error.code))
+      result.spawn_code = error.code;
+    if (typeof error.stderr === "string" && Buffer.byteLength(error.stderr) <= 16384) {
+      const prefix = "portcove-native-custody-failure:",
+        rows = error.stderr.split(/\r?\n/u).filter((row) => row.startsWith(prefix));
+      if (rows.length === 1 && Buffer.byteLength(rows[0]!) <= 2048)
+        result.reader = closedCustodyReaderFailure(JSON.parse(rows[0]!.slice(prefix.length)));
+    }
+  } catch {
+    /* Unavailable diagnostics never replace the original custody refusal. */
+  }
+  return result;
+}
+/** Closed, unbranded diagnostic data only; never executable custody or authority. */
+export function projectWindowsCustodyFailure(error: unknown): WindowsCustodyFailure | null {
+  try {
+    if (!(error instanceof Error)) return null;
+    const raw: unknown = Object.getOwnPropertyDescriptor(error, "windows_custody")?.value;
+    if (
+      !isRecord(raw) ||
+      Object.keys(raw).sort().join(",") !==
+        "child_signal,child_status,reader,schema_version,spawn_code" ||
+      raw.schema_version !== 1 ||
+      !(
+        raw.child_status === null ||
+        (Number.isSafeInteger(raw.child_status) &&
+          Number(raw.child_status) >= 0 &&
+          Number(raw.child_status) <= 0xffff_ffff)
+      ) ||
+      !(
+        raw.child_signal === null ||
+        (typeof raw.child_signal === "string" && ["SIGTERM", "SIGKILL"].includes(raw.child_signal))
+      ) ||
+      typeof raw.spawn_code !== "string" ||
+      !custodySpawnCodes.includes(raw.spawn_code)
+    )
+      return null;
+    const reader = raw.reader === null ? null : closedCustodyReaderFailure(raw.reader);
+    if (raw.reader !== null && reader === null) return null;
+    return {
+      schema_version: 1,
+      child_status: raw.child_status as number | null,
+      child_signal: raw.child_signal,
+      spawn_code: raw.spawn_code,
+      reader,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Fixed OS reader, not a caller-supplied script or candidate process. All path
 // input is inert UTF-8 JSON on stdin. This command never changes an ACL or owner.
 const windowsCustodyReader = String.raw`
 $ErrorActionPreference='Stop'
-[Console]::Error.WriteLine('portcove-native-custody: started')
-if($PSVersionTable.PSVersion.Major -ne 7){throw 'Fixed native PowerShell7 runtime required'}
-[Console]::InputEncoding=[Text.UTF8Encoding]::new($false,$true)
-[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false,$true)
-$inputPaths=ConvertFrom-Json -InputObject ([Console]::In.ReadToEnd())
-if($inputPaths -isnot [Array] -or $inputPaths.Count -lt 1 -or $inputPaths.Count -gt 4096){throw 'Windows custody path inventory exceeds bound'}
-[Console]::Error.WriteLine('portcove-native-custody: input-read')
-$broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$trusted=@($broker,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
-$rows=@(foreach($entry in $inputPaths){
- if((($entry.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'file,path'){throw 'Windows custody path schema differs'}
- if($entry.path -isnot [string] -or $entry.file -isnot [bool]){throw 'Windows custody input differs'}
- $item=Get-Item -LiteralPath $entry.path -Force
- if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.PSIsContainer -eq $entry.file){throw 'Windows custody requires regular paths without reparse points'}
- $acl=Get-Acl -LiteralPath $entry.path
- $owner=$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
- if($owner -notin $trusted){throw 'Windows custody owner is outside the fixed broker/system boundary'}
- $replace=[Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
- if($entry.file){$replace=$replace -bor [Security.AccessControl.FileSystemRights]'Write'}
- foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
-  if(($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
-     $rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $replace) -ne 0 -and
-     $rule.IdentityReference.Value -notin $trusted){throw 'Windows custody permits a foreign writer or replacement'}
+$phase='entry';$reason='os-read';$ordinal=-1;$kind='unknown';$principal='unknown';$rights=0
+function Get-CustodyPrincipalClass([string]$Sid){
+ switch -Regex ($Sid){
+  '^S-1-1-0$'{return 'everyone'}
+  '^S-1-5-11$'{return 'authenticated-users'}
+  '^S-1-5-32-545$'{return 'builtin-users'}
+  '^S-1-5-4$'{return 'interactive'}
+  '^S-1-5-5-[0-9]+-[0-9]+$'{return 'logon-session'}
+  '^S-1-3-0$'{return 'creator-owner'}
+  default{return 'other'}
  }
- [ordered]@{path=$entry.path;owner=$owner;sddl=$acl.Sddl}
-})
-[Console]::Error.WriteLine('portcove-native-custody: custody-read')
-ConvertTo-Json -InputObject ([ordered]@{schema_version=1;broker_sid=$broker;rows=$rows}) -Depth 4 -Compress
+}
+function Refuse-Custody([string]$Reason){$script:reason=$Reason;throw 'Fixed Windows custody refused'}
+try{
+ if($PSVersionTable.PSVersion.Major -ne 7){Refuse-Custody 'runtime'}
+ [Console]::InputEncoding=[Text.UTF8Encoding]::new($false,$true)
+ [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false,$true)
+ $phase='input'
+ $inputPaths=ConvertFrom-Json -InputObject ([Console]::In.ReadToEnd())
+ if($inputPaths -isnot [Array] -or $inputPaths.Count -lt 1 -or $inputPaths.Count -gt 4096){Refuse-Custody 'input'}
+ $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+ $trusted=@($broker,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
+ $rows=@(foreach($entry in $inputPaths){
+  $ordinal++;$phase='item';$kind='unknown';$principal='unknown';$rights=0
+  if((($entry.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'file,path'){Refuse-Custody 'input'}
+  if($entry.path -isnot [string] -or $entry.file -isnot [bool]){Refuse-Custody 'input'}
+  $kind=$(if($entry.file){'file'}else{'directory'})
+  $item=Get-Item -LiteralPath $entry.path -Force
+  if(($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.PSIsContainer -eq $entry.file){Refuse-Custody 'regular-path'}
+  $phase='acl';$acl=Get-Acl -LiteralPath $entry.path
+  $phase='owner';$owner=$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+  if($owner -notin $trusted){$principal=Get-CustodyPrincipalClass $owner;Refuse-Custody 'owner'}
+  $replace=[Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
+  if($entry.file){$replace=$replace -bor [Security.AccessControl.FileSystemRights]'Write'}
+  $phase='rules'
+  foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
+   if(($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
+      $rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $replace) -ne 0 -and
+      $rule.IdentityReference.Value -notin $trusted){
+    $principal=Get-CustodyPrincipalClass $rule.IdentityReference.Value
+    if(($rule.FileSystemRights -band [Security.AccessControl.FileSystemRights]::Delete) -ne 0){$rights=$rights -bor 1}
+    if(($rule.FileSystemRights -band [Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles) -ne 0){$rights=$rights -bor 2}
+    if(($rule.FileSystemRights -band [Security.AccessControl.FileSystemRights]::ChangePermissions) -ne 0){$rights=$rights -bor 4}
+    if(($rule.FileSystemRights -band [Security.AccessControl.FileSystemRights]::TakeOwnership) -ne 0){$rights=$rights -bor 8}
+    if($entry.file -and ($rule.FileSystemRights -band [Security.AccessControl.FileSystemRights]::Write) -ne 0){$rights=$rights -bor 16}
+    Refuse-Custody 'writer'
+   }
+  }
+  [ordered]@{path=$entry.path;owner=$owner;sddl=$acl.Sddl}
+ })
+ $phase='complete'
+ ConvertTo-Json -InputObject ([ordered]@{schema_version=1;broker_sid=$broker;rows=$rows}) -Depth 4 -Compress
+}catch{
+ # Closed diagnostics only: no input path, SID, SDDL, exception text or stack.
+ $record=[ordered]@{schema_version=1;reason=$reason;phase=$phase;ordinal=$(if($ordinal -ge 0){$ordinal}else{$null});kind=$kind;principal_class=$principal;rights=$rights}
+ [Console]::Error.WriteLine('portcove-native-custody-failure:'+($record|ConvertTo-Json -Compress))
+ exit 1
+}
 `;
-
+/** Fixed policy bytes for the credential-free pre-Node Windows adapter. */
+export function windowsCustodyReaderSource() {
+  return windowsCustodyReader;
+}
 function inspectWindowsCustody(
   files: readonly string[],
   sourceSystemImages = false,
@@ -191,10 +351,10 @@ function inspectWindowsCustody(
       },
     );
   } catch (error) {
-    const stderr = isRecord(error) && typeof error.stderr === "string" ? error.stderr : "";
-    const code = isRecord(error) && typeof error.code === "string" ? error.code : "child-refusal";
-    throw new Error(`Windows custody OS read refused (${code}): ${stderr.slice(0, 4096)}`, {
-      cause: error,
+    const detail = readWindowsCustodyFailure(error);
+    throw Object.assign(new Error("Windows custody OS read refused", { cause: error }), {
+      code: "ERR_WINDOWS_CUSTODY_REFUSED",
+      windows_custody: detail,
     });
   }
   const result: unknown = JSON.parse(bytes.replace(/^\uFEFF/u, ""));

@@ -353,9 +353,10 @@ it.each([
     await render(<NavigableCards view={view} onSelect={onSelect} />);
     await document.fonts.ready;
     const controls = [...document.querySelectorAll<HTMLElement>(".port-grid button")];
-    // Library exposes three controls per port; Catalog adds the independent comparison control.
-    // Favorites remains in Library More actions. Every displayed control stays in the navigation graph.
-    expect(controls).toHaveLength(view === "catalog" ? 16 : 12);
+    // Library exposes details, More, Favorite and its primary action; Catalog
+    // exposes details, Favorite, primary action and comparison in this fixture.
+    // Every displayed control stays in the navigation graph, including overlays.
+    expect(controls).toHaveLength(16);
     window.scrollTo(0, 0);
     await frame();
     const initialControlBottom = Math.max(
@@ -525,9 +526,12 @@ async function assertPortraitLayout(
   control.remove();
   for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^="Favorite "]')) {
     const card = favorite.closest("article") ?? favorite.parentElement!;
-    expect(favorite.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-      card.querySelector(".collection-art")!.getBoundingClientRect().bottom,
-    );
+    const art = card.querySelector(".collection-art")!.getBoundingClientRect();
+    const favoriteBounds = favorite.getBoundingClientRect();
+    expect(favoriteBounds.top).toBeGreaterThanOrEqual(art.top);
+    expect(favoriteBounds.bottom).toBeLessThanOrEqual(art.bottom);
+    expect(favoriteBounds.right).toBeLessThanOrEqual(art.right);
+    expect(favoriteBounds.left).toBeGreaterThanOrEqual(art.left);
     expect(favorite.closest("button button")).toBeNull();
     for (const action of card.querySelectorAll<HTMLElement>(
       ".collection-actions button, .discover-game > div button",

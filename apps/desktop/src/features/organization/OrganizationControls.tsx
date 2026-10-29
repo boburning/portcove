@@ -1,4 +1,5 @@
 import { useId, useState, useRef, type ReactNode } from "react";
+import { Popover } from "@base-ui/react/popover";
 import { Menu } from "@base-ui/react/menu";
 import { Bookmark, EyeOff, Eye, Check } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -192,12 +193,24 @@ export function OrganizationControls({
         ? (snapshot?.collections[selected.slice(11)]?.name ?? "Unavailable collection")
         : "All games";
   return (
-    <details className="collection-menu max-w-full">
-      <summary className="cursor-pointer rounded-pc-md border border-pc-border px-3 py-2 text-sm">
-        Collections · {current}
-      </summary>
-      <div className="mt-2 rounded-pc-md border border-pc-border bg-pc-surface p-3">{controls}</div>
-    </details>
+    <Popover.Root>
+      <Popover.Trigger
+        render={<Button variant={selected === "all" ? "outline" : "selected"} size="sm" />}
+      >
+        {selected === "all" ? "Collections" : `Collections · ${current}`}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner sideOffset={8} align="start" className="z-(--layer-floating)">
+          <Popover.Popup
+            data-portcove-focus-scope
+            className="shadow-floating max-h-(--available-height) w-[min(30rem,var(--available-width))] overflow-auto rounded-pc-lg border border-pc-border bg-pc-surface p-4 text-sm text-pc-foreground outline-none"
+          >
+            <Popover.Title className="mb-3 text-base font-semibold">Collections</Popover.Title>
+            {controls}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -205,9 +218,11 @@ export function SaveGameButton({
   port,
   organization,
   groupPorts = [port],
+  card = false,
 }: {
   port: CatalogEntry;
   groupPorts?: readonly CatalogEntry[];
+  card?: boolean;
   organization?: Organization | undefined;
 }) {
   if (!organization) return null;
@@ -215,7 +230,9 @@ export function SaveGameButton({
   const saved = groupPorts.some((entry) => savedForPort(organization, entry));
   return (
     <Button
-      size="sm"
+      size={card ? "icon-sm" : "sm"}
+      className={card ? "collection-art-action collection-save" : undefined}
+      title={saved ? "Remove saved game" : "Save for later"}
       variant={saved ? "selected" : "ghost"}
       data-focusable
       aria-pressed={saved}
@@ -243,7 +260,7 @@ export function SaveGameButton({
       }}
     >
       <Bookmark aria-hidden="true" />
-      {saved ? "Saved" : "Save"}
+      {!card && (saved ? "Saved" : "Save")}
     </Button>
   );
 }

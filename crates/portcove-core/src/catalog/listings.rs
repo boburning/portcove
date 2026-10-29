@@ -40,13 +40,25 @@ impl From<&PortDefinition> for PortListing {
     }
 }
 
+fn has_extended_media(listing: &PortListing) -> bool {
+    listing.media.iter().any(|asset| {
+        matches!(
+            asset.role,
+            crate::CatalogMediaRole::Logo | crate::CatalogMediaRole::KeyArt
+        ) || asset.edition_neutral.is_some()
+            || asset.igdb.is_some()
+    }) || listing
+        .media
+        .iter()
+        .filter(|asset| asset.role == crate::CatalogMediaRole::Header)
+        .count()
+        > 1
+}
+
 impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
-        // Projection can combine validated format-2 delivery/retained entries
-        // with a format-1 directory. Preserve their semantics without accepting
-        // a raw format-1 document that falsely advertises those fields.
         if self.format_version == 1
             && self
                 .listings
@@ -65,6 +77,9 @@ impl CatalogListingDocument {
         }
         if self.format_version < 4 && self.has_observation_fields() {
             self.format_version = 4;
+        }
+        if self.format_version < 5 && self.listings.iter().any(has_extended_media) {
+            self.format_version = 5;
         }
     }
 
@@ -97,7 +112,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=4) {
+        if !matches!(self.format_version, 1..=5) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -123,15 +138,14 @@ impl CatalogListingDocument {
                 "original game identity and media require listing format 3",
             ));
         }
-        if self.format_version < 4
-            && self.listings.iter().any(|listing| {
-                listing.upstream_observation.is_some()
-                    || listing.availability_override_reason.is_some()
-                    || listing.release_maintenance.is_some()
-            })
-        {
+        if self.format_version < 4 && self.has_observation_fields() {
             return Err(PortcoveError::unsupported(
                 "listing observations, overrides and maintenance require format 4",
+            ));
+        }
+        if self.format_version < 5 && self.listings.iter().any(has_extended_media) {
+            return Err(PortcoveError::unsupported(
+                "game identity media and edition applicability require listing format 5",
             ));
         }
         if self.listings.len() > 10_000 {
@@ -604,7 +618,9 @@ impl Catalog {
         listing.validate()?;
         let mut catalog =
             Self::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#)?;
-        if listing.original_game.is_some() || !listing.media.is_empty() {
+        if has_extended_media(&listing) {
+            Arc::make_mut(&mut catalog.listings).format_version = 5;
+        } else if listing.original_game.is_some() || !listing.media.is_empty() {
             Arc::make_mut(&mut catalog.listings).format_version = 3;
         } else if listing.download_block_reason.is_some() {
             Arc::make_mut(&mut catalog.listings).format_version = 2;
@@ -897,7 +913,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":5,"listings":[]}),
+            json!({"format_version":6,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -971,6 +987,50 @@ mod tests {
         assert_eq!(listing.summary, "Accepted presentation correction.");
         assert!(listing.artwork.is_none());
         assert!(catalog.listings().len() >= catalog.ports().len());
+    }
+
+    #[test]
+    fn extended_media_fences_strict_older_listing_readers() {
+        let mut value = listing();
+        value["media"] = json!([{
+            "id":"reviewed-header", "role":"header",
+            "subject":{"kind":"port","port_id":value["id"]},
+            "caption":"Reviewed landscape", "url":format!("https://raw.githubusercontent.com/owner/project/{}/header.png", "a".repeat(40)),
+            "sha256":"a".repeat(64),"width":400,"height":200,
+            "attribution":"Fixture author","source_url":"https://example.com/source",
+            "license":"CC0-1.0","rights_url":"https://example.com/rights",
+            "edition_neutral":false
+        }]);
+        assert!(
+            CatalogListingDocument::from_json(
+                &json!({"format_version":3,"listings":[value.clone()]}).to_string()
+            )
+            .is_err()
+        );
+        assert!(
+            CatalogListingDocument::from_json(
+                &json!({"format_version":5,"listings":[value.clone()]}).to_string()
+            )
+            .is_ok()
+        );
+        value["media"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("edition_neutral");
+        assert!(
+            CatalogListingDocument::from_json(
+                &json!({"format_version":3,"listings":[value]}).to_string()
+            )
+            .is_ok()
+        );
+        for version in 1..=5 {
+            assert!(
+                CatalogListingDocument::from_json(
+                    &json!({"format_version":version,"listings":[]}).to_string()
+                )
+                .is_ok()
+            );
+        }
     }
 
     #[test]

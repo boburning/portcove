@@ -320,7 +320,8 @@ export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forc
  * This grants neither executable trust nor mod/save compatibility.
  */
 export type ModPackagePolicy = "versioned-packages-v1";
-export type CatalogMediaRole = "header" | "screenshot";
+export type IgdbGameImageKind = "logo" | "artwork";
+export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
   | {
       kind: "port";
@@ -1722,8 +1723,14 @@ export interface PortPresentation {
 export interface CatalogMediaAsset {
   attribution: string;
   caption: string;
+  /**
+   * Reviewed applicability across offered original editions, for any media role.
+   * Absence never implies that an offered edition is the selected edition.
+   */
+  edition_neutral?: boolean | null;
   height: number;
   id: string;
+  igdb?: IgdbGameImage | null;
   license: string;
   rights_url: string;
   role: CatalogMediaRole;
@@ -1732,6 +1739,20 @@ export interface CatalogMediaAsset {
   subject: CatalogMediaSubject;
   url: string;
   width: number;
+}
+/**
+ * A reviewed mapping from IGDB's game-logo or artwork endpoint. These are
+ * public descriptive IDs, never API credentials or installation authority.
+ */
+export interface IgdbGameImage {
+  alpha_channel?: boolean | null;
+  game_id: number;
+  game_slug: string;
+  image_id: string;
+  image_type?: number | null;
+  image_type_name?: string | null;
+  kind: IgdbGameImageKind;
+  record_id: number;
 }
 /**
  * Reviewed descriptive identity only; port, installation and source authority remain separate.

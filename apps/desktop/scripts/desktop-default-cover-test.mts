@@ -500,7 +500,9 @@ async function inspectCoverPass({
     if (detailIds.has(id)) {
       await selectCatalogPort(browser, id);
       await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
-      detailImage = await image(".detail-cover");
+      detailImage = await image(
+        '.game-hero-detail[data-hero-identity="cover"] .game-hero-foreground',
+      );
       await captureSettled(`default-cover-${id}-${pass}-details`, "[data-detail-workspace]");
     }
     observations.push({

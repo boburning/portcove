@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
+import { parse as parseYaml } from "yaml";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
-import { spawnSync } from "node:child_process";
-import { readFileSync, copyFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import {
+  readFileSync,
+  copyFileSync,
+  mkdirSync,
+  existsSync,
+  writeFileSync,
+  renameSync,
+  symlinkSync,
+} from "node:fs";
+import { writeFile as writeFileAsync } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
@@ -10,8 +20,14 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import path from "node:path";
 import { homedir } from "node:os";
-import { disposableDirectory } from "./fixtures/disposable-directory.mts";
-import { windowsSourceSystemExecutables } from "./release-native-runtime-custody.mts";
+import {
+  disposableDirectory,
+  registerDisposableDirectory,
+} from "./fixtures/disposable-directory.mts";
+import {
+  windowsSourceSystemExecutables,
+  windowsCustodyReaderSource,
+} from "./release-native-runtime-custody.mts";
 
 function actualDiagnosticOwnerEnvironment(directory: string): NodeJS.ProcessEnv {
   const controller = readFileSync(
@@ -814,7 +830,7 @@ void test(
       "utf8",
     );
     const start = source.indexOf("$nodeCommand="),
-      end = source.indexOf("$setupBytes=Read-LaunchBytes");
+      end = source.indexOf("    return $node", start);
     assert.ok(
       start > 0 && end > start && end < source.indexOf("[Portcove.HostedNative.Setup]::Directory"),
     );
@@ -884,6 +900,43 @@ void test(
       );
       return value.replace(before, after);
     };
+    const preparationOriginal = readFileSync(
+        new URL("./release-hosted-native-windows-diagnostic-preparation.mts", import.meta.url),
+        "utf8",
+      ),
+      completionStart = preparationOriginal.lastIndexOf("  const report = {"),
+      completionEnding = preparationOriginal.slice(completionStart).trimEnd();
+    assert.ok(completionStart > 0 && completionEnding.endsWith("}"));
+    const completionProgram = stripTypeScriptTypes(
+      "(async () => {\n" + completionEnding.slice(0, -1) + "\n})()",
+      { mode: "transform" },
+    );
+    const continuity = parseYaml(
+      readFileSync(
+        new URL("../.github/workflows/hosted-native-continuity.yml", import.meta.url),
+        "utf8",
+      ),
+    ) as { jobs: Record<string, { steps: { id?: string; run?: string }[] }> };
+    const workflowEntry = continuity.jobs["installed-prerequisite"]!.steps.find(
+      (step) => step.id === "diagnostic_start",
+    )?.run;
+    assert.ok(typeof workflowEntry === "string");
+    const unsafeNodeDirectory = path.join(root, "unsafe original node"),
+      poisonMarker = path.join(root, "original-node-executed.txt"),
+      workspaceMarker = path.join(root, "workspace-launcher-executed.txt");
+    mkdirSync(unsafeNodeDirectory);
+    const poisonSource = path.join(root, "UnsafeOriginalNode.cs"),
+      unsafeNode = path.join(unsafeNodeDirectory, "node.exe");
+    writeFileSync(
+      poisonSource,
+      'public static class UnsafeOriginalNode { public static int Main(string[] a) { System.IO.File.WriteAllText(System.Environment.GetEnvironmentVariable("PORTCOVE_OWNED_POISON_NODE"),"unexpected original runtime");System.Console.WriteLine("v24.22.1");return 0; } }',
+    );
+    const poisonCompile = spawnSync(
+      "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
+      ["/nologo", "/target:exe", `/out:${unsafeNode}`, poisonSource],
+      { encoding: "utf8", timeout: 30000, windowsHide: true },
+    );
+    assert.equal(poisonCompile.status, 0, poisonCompile.stderr);
     for (const variant of [
       "ready",
       "wrong-source",
@@ -893,8 +946,9 @@ void test(
       "exit-259",
       "unavailable-retention",
     ] as const) {
-      const source = path.join(root, variant, "source with spaces"),
-        temporary = path.join(root, variant, "temporary");
+      let source = path.join(root, variant, "source with spaces");
+      const temporary = path.join(root, variant, "temporary"),
+        publicWorkspace = source;
       mkdirSync(path.join(source, "scripts"), { recursive: true });
       mkdirSync(temporary);
       let launcher = once(
@@ -905,8 +959,8 @@ void test(
       // This owned copy can never publish ACK or cross into tools/account/station effects.
       launcher = once(
         launcher,
-        "$clock.ElapsedMilliseconds -ge 330000",
-        "$clock.ElapsedMilliseconds -ge 20000",
+        "$originalStartupMaximumMilliseconds=330000",
+        "$originalStartupMaximumMilliseconds=20000",
       );
       launcher = once(
         launcher,
@@ -980,7 +1034,7 @@ void test(
         path.join(source, "scripts/release-hosted-native-windows-setup.cs.txt"),
       );
       const git = (args: string[]) => {
-        const result = spawnSync(
+        const result: SpawnSyncReturns<string> = spawnSync(
           "git",
           [
             "-c",
@@ -1016,51 +1070,334 @@ void test(
       ]);
       const sha = git(["rev-parse", "HEAD"]),
         tree = git(["rev-parse", "HEAD^{tree}"]);
-      const result = spawnSync(
+      // The same fixed staged location/receipt guards run for these inert C
+      // variants; only input/provider/private-effect boundaries are controlled.
+      const namespace = path.join(homedir(), `.pct-connected-123-${sha.slice(0, 12)}`);
+      mkdirSync(namespace);
+      registerDisposableDirectory(t, namespace);
+      mkdirSync(path.join(namespace, "windows-source"));
+      const preparedSource = path.join(namespace, "windows-source", "source");
+      renameSync(source, preparedSource);
+      source = preparedSource;
+      mkdirSync(path.join(publicWorkspace, "scripts"), { recursive: true });
+      mkdirSync(path.join(publicWorkspace, "work/hosted-continuity-evidence"), { recursive: true });
+      writeFileSync(
+        path.join(publicWorkspace, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        "[IO.File]::WriteAllText($env:PORTCOVE_OWNED_POISON_WORKSPACE,'unexpected workspace launcher');throw 'Untrusted workspace entry executed'",
+      );
+      writeFileSync(
+        path.join(publicWorkspace, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        "invalid original workspace setup must never compile",
+      );
+      mkdirSync(path.join(namespace, "tools", "bin"), { recursive: true });
+      const preparedNode = path.join(namespace, "tools", "bin", "node.exe");
+      writeFileSync(preparedNode, readFileSync(process.execPath), { flag: "wx" });
+      mkdirSync(path.join(namespace, "tools", "scripts"));
+      writeFileSync(
+        path.join(namespace, "tools/scripts/release-native-runtime-custody-reader.ps1"),
+        windowsCustodyReaderSource(),
+        { flag: "wx" },
+      );
+      // A controlled within-root logical dependency link exercises generation
+      // and resolution fencing; this fixture makes no package/preparation claim.
+      mkdirSync(path.join(source, "node_modules"));
+      const ownedLink = path.join(source, "node_modules", "yaml");
+      symlinkSync(path.join(source, "scripts"), ownedLink, "junction");
+      const linkIdentity = spawnSync(
         "pwsh",
         [
           "-NoProfile",
           "-NonInteractive",
-          "-File",
-          path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+          "-Command",
+          "$ErrorActionPreference='Stop';Add-Type -TypeDefinition ([IO.File]::ReadAllText($env:PORTCOVE_OWNED_SETUP));[Console]::Out.Write([Portcove.HostedNative.Setup]::LinkIdentity($env:PORTCOVE_OWNED_LINK))",
         ],
+        {
+          env: {
+            ...process.env,
+            PORTCOVE_OWNED_SETUP: path.join(
+              source,
+              "scripts/release-hosted-native-windows-setup.cs.txt",
+            ),
+            PORTCOVE_OWNED_LINK: ownedLink,
+          },
+          encoding: "utf8",
+          windowsHide: true,
+          maxBuffer: 4096,
+          timeout: 15000,
+        },
+      );
+      assert.equal(linkIdentity.error, undefined);
+      assert.equal(linkIdentity.status, 0, linkIdentity.stderr);
+      assert.match(linkIdentity.stdout, /^[a-f0-9]{8}(?::[a-f0-9]{8}){4}$/u);
+      mkdirSync(path.join(namespace, "temp"));
+      mkdirSync(path.join(source, "work", "hosted-continuity-evidence"), { recursive: true });
+      // Execute the actual product producer ending; the launcher below must
+      // consume its files instead of a separately synthesized receipt writer.
+      await (runInNewContext(completionProgram, {
+        assert,
+        Buffer,
+        JSON,
+        path,
+        root: namespace,
+        project: publicWorkspace,
+        source,
+        context: {
+          source: sha,
+          run_id: "123",
+          workflow:
+            "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+        },
+        tree,
+        runtimeFiles: [preparedNode],
+        nodeBytes: readFileSync(preparedNode),
+        controllerBytes: readFileSync(
+          path.join(source, "scripts/release-hosted-native-windows-diagnostic.mts"),
+        ),
+        launcherBytes: readFileSync(
+          path.join(source, "scripts/release-hosted-native-windows-diagnostic-launch.ps1"),
+        ),
+        preparedSetupBytes: readFileSync(
+          path.join(source, "scripts/release-hosted-native-windows-setup.cs.txt"),
+        ),
+        process: { env: { RUNNER_TEMP: temporary } },
+        digest: (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex"),
+        scopedPaths: { sharedRoot: path.join(namespace, "cache") },
+        provider: { job_id: 42, job_started_at: "owned fixture" },
+        diagnosticPreparationMaximumMilliseconds: 480000,
+        treeBytes: Buffer.from("owned tree"),
+        graph: { sha256: "a".repeat(64), entries: 1, bytes: 1 },
+        copies: [],
+        imports: [
+          "scripts/release-hosted-native-windows-diagnostic.mts",
+          "scripts/release-hosted-native-windows-setup.cs.txt",
+        ].map((name) => {
+          const bytes = readFileSync(path.join(source, name));
+          return {
+            path: name,
+            bytes: bytes.length,
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+          };
+        }),
+        yamlLink: {
+          path: path.join("node_modules", "yaml"),
+          kind: "link",
+          identity: "owned-fixture",
+          target: path.join(source, "scripts"),
+          resolved: "scripts",
+        },
+        yamlLinkNativeIdentity: linkIdentity.stdout,
+        driverCopies: [],
+        recheck: () => {},
+        recheckImports: () => {},
+        active: () => {},
+        inspectNativeRuntimeCustody: () => new Map(),
+        recheckNativeRuntimeCustody: () => {},
+        writeFile: writeFileAsync,
+        readControllerToolFile: async (filename: string, maximum: number) => {
+          const bytes = readFileSync(filename);
+          assert.ok(bytes.length > 0 && bytes.length <= maximum);
+          return bytes;
+        },
+      }) as Promise<unknown>);
+      const produced: unknown = JSON.parse(
+        readFileSync(path.join(namespace, "preparation.json")).toString("utf8"),
+      );
+      assert.ok(isRecord(produced));
+      const fixtureEnvironment = {
+        ...process.env,
+        PATH: unsafeNodeDirectory + path.delimiter + process.env.PATH,
+        PORTCOVE_OWNED_POISON_NODE: poisonMarker,
+        PORTCOVE_OWNED_POISON_WORKSPACE: workspaceMarker,
+        DIAGNOSTIC_OPERATION: "Start",
+        DIAGNOSTIC_LAUNCHER_SHA: String(produced.launcher_sha256),
+        DIAGNOSTIC_SETUP_SHA: String(produced.setup_sha256),
+        DIAGNOSTIC_NODE_SHA: String(produced.node_sha256),
+        GITHUB_WORKSPACE: publicWorkspace,
+        GITHUB_ACTIONS: "true",
+        RUNNER_ENVIRONMENT: "github-hosted",
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_JOB: "installed-prerequisite",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_RUN_ID: "123",
+        GITHUB_SHA: sha,
+        GITHUB_WORKFLOW_REF:
+          "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
+        RUNNER_TEMP: temporary,
+        RUNNER_TRACKING_ID: process.env.RUNNER_TRACKING_ID ?? "owned-startup-fixture",
+        PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
+        PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
+        PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
+      };
+      if (variant === "ready") {
+        const locator = path.join(
+            publicWorkspace,
+            "work/hosted-continuity-evidence/windows-diagnostic-preparation.json",
+          ),
+          validBytes = readFileSync(locator),
+          original: unknown = JSON.parse(validBytes.toString("utf8"));
+        assert.ok(isRecord(original));
+        for (const [field, wrong] of [
+          ["source", "0".repeat(40)],
+          ["root", path.join(namespace, "other")],
+          [
+            "workflow",
+            "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-other",
+          ],
+        ]) {
+          assert.notEqual(original[field!], wrong);
+          const changed: Record<string, unknown> = { ...original, [field!]: wrong };
+          writeFileSync(locator, JSON.stringify(changed));
+          assert.deepEqual(JSON.parse(readFileSync(locator).toString("utf8")), changed);
+          const refused: SpawnSyncReturns<string> = spawnSync(
+            "pwsh",
+            ["-NoProfile", "-NonInteractive", "-Command", workflowEntry],
+            {
+              cwd: source,
+              env: { ...fixtureEnvironment, DIAGNOSTIC_OPERATION: "Publish" },
+              encoding: "utf8",
+              timeout: 15000,
+              maxBuffer: 16384,
+              windowsHide: true,
+            },
+          );
+          assert.equal(refused.error, undefined);
+          assert.equal(refused.status, 1);
+          assert.match(refused.stderr, /Original prepared diagnostic closure identity differs/u);
+          assert.equal(
+            existsSync(path.join(namespace, "temp/portcove-hosted-windows-connected-diagnostic")),
+            false,
+          );
+          t.diagnostic("bounded-public-preparation-refusal " + field);
+        }
+        writeFileSync(locator, validBytes);
+        // A scalar locator cannot authorize changed executable bytes.
+        writeFileSync(preparedNode, "changed owned inert runtime bytes");
+        const changedRuntime: SpawnSyncReturns<string> = spawnSync(
+          "pwsh",
+          ["-NoProfile", "-NonInteractive", "-Command", workflowEntry],
+          {
+            cwd: source,
+            env: { ...fixtureEnvironment, DIAGNOSTIC_OPERATION: "Publish" },
+            encoding: "utf8",
+            timeout: 15000,
+            maxBuffer: 16384,
+            windowsHide: true,
+          },
+        );
+        assert.equal(changedRuntime.error, undefined);
+        assert.equal(changedRuntime.status, 1);
+        assert.match(
+          changedRuntime.stderr,
+          /Original prepared diagnostic runtime\/source bytes changed/u,
+        );
+        assert.equal(
+          existsSync(path.join(namespace, "temp/portcove-hosted-windows-connected-diagnostic")),
+          false,
+        );
+        writeFileSync(preparedNode, readFileSync(process.execPath));
+        assert.equal(
+          createHash("sha256").update(readFileSync(preparedNode)).digest("hex"),
+          original.node_sha256,
+        );
+        t.diagnostic("bounded-public-preparation-refusal changed-runtime");
+      }
+      const result: SpawnSyncReturns<string> = spawnSync(
+        "pwsh",
+        ["-NoProfile", "-NonInteractive", "-Command", workflowEntry],
         {
           encoding: "utf8",
           timeout: 35000,
           windowsHide: true,
           maxBuffer: 65536,
-          cwd: source,
-          env: {
-            ...process.env,
-            GITHUB_ACTIONS: "true",
-            RUNNER_ENVIRONMENT: "github-hosted",
-            GITHUB_REPOSITORY: "boburning/portcove",
-            GITHUB_JOB: "installed-prerequisite",
-            GITHUB_EVENT_NAME: "workflow_dispatch",
-            GITHUB_RUN_ATTEMPT: "1",
-            GITHUB_RUN_ID: "123",
-            GITHUB_SHA: sha,
-            GITHUB_WORKFLOW_REF:
-              "boburning/portcove/.github/workflows/hosted-native-continuity.yml@refs/heads/feature/534-owned-startup-fixture",
-            RUNNER_TEMP: temporary,
-            RUNNER_TRACKING_ID: process.env.RUNNER_TRACKING_ID ?? "owned-startup-fixture",
-            PORTCOVE_HOSTED_PLATFORM: "windows-x86_64",
-            PORTCOVE_HOSTED_OBSERVATION_ONLY: "false",
-            PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC: "true",
-          },
+          cwd: publicWorkspace,
+          env: fixtureEnvironment,
         },
       );
       assert.equal(result.error, undefined, result.error?.message);
       assert.equal(result.status, 1, result.stderr);
-      const control = path.join(temporary, "portcove-hosted-windows-connected-diagnostic"),
-        reportBytes = readFileSync(path.join(control, "controller-startup-public.json"));
+      assert.equal(
+        existsSync(poisonMarker),
+        false,
+        "Later operations must never probe the unsafe original Node",
+      );
+      assert.equal(
+        existsSync(workspaceMarker),
+        false,
+        "The trusted workflow bootstrap must never enter workspace launcher code",
+      );
+      const control = path.join(temporary, "portcove-hosted-windows-connected-diagnostic");
+      const reportPath = path.join(control, "controller-startup-public.json");
+      if (!existsSync(reportPath)) {
+        // Shell output is not a public record: retain only bounded metadata and
+        // the already closed producer projection, never raw stderr or stacks.
+        const stderrBytes = Buffer.from(result.stderr);
+        t.diagnostic(
+          "bounded-public-sink-unavailable " +
+            JSON.stringify({
+              variant,
+              stderr_bytes: stderrBytes.length,
+              stderr_sha256: createHash("sha256").update(stderrBytes).digest("hex"),
+              copy_refused: result.stderr.includes(
+                "Bounded public diagnostic sink copy unavailable",
+              ),
+            }),
+        );
+        const preimportPath = path.join(control, "controller-preimport-public.json");
+        if (existsSync(preimportPath)) {
+          const bytes = readFileSync(preimportPath);
+          assert.ok(bytes.length > 0 && bytes.length <= 16384);
+          const value: unknown = JSON.parse(bytes.toString("utf8"));
+          assert.ok(isRecord(value));
+          assert.equal(value.source, sha);
+          assert.equal(value.tree, tree);
+          assert.equal(value.authority, "none");
+          t.diagnostic("bounded-preimport-observation " + variant + " " + bytes.toString("utf8"));
+        }
+        const protectedReport = path.join(
+          namespace,
+          "temp",
+          "portcove-hosted-windows-connected-diagnostic",
+          "controller-startup-public.json",
+        );
+        if (existsSync(protectedReport)) {
+          const retained = readFileSync(protectedReport);
+          assert.ok(retained.length > 0 && retained.length <= 65536);
+          const value: unknown = JSON.parse(retained.toString("utf8"));
+          assert.ok(isRecord(value));
+          assert.equal(value.source, sha);
+          assert.equal(value.tree, tree);
+          assert.equal(value.run_id, "123");
+          assert.equal(value.authority, "none");
+          t.diagnostic(
+            "bounded-protected-startup-observation " + variant + " " + retained.toString("utf8"),
+          );
+        }
+      }
+      assert.ok(
+        existsSync(reportPath),
+        "The bounded startup projection must reach the original public sink",
+      );
+      const reportBytes = readFileSync(reportPath);
       assert.ok(reportBytes.length <= 65536);
       t.diagnostic(
         "bounded-public-startup-observation " + variant + " " + reportBytes.toString("utf8"),
       );
       const report: unknown = JSON.parse(reportBytes.toString("utf8"));
       assert.ok(isRecord(report));
-      const observedReadyPath = path.join(control, "controller-ready.json");
+      const protectedControl = path.join(
+        namespace,
+        "temp",
+        "portcove-hosted-windows-connected-diagnostic",
+      );
+      // The forged source is retained privately for the causal negative, but
+      // must never be accepted into the original public ready sink.
+      if (variant === "wrong-source")
+        assert.equal(existsSync(path.join(control, "controller-ready.json")), false);
+      const observedReadyPath = path.join(
+        variant === "wrong-source" ? protectedControl : control,
+        "controller-ready.json",
+      );
       if (existsSync(observedReadyPath)) {
         const observedReady = readFileSync(observedReadyPath);
         assert.ok(observedReady.length <= 16384);
@@ -1135,7 +1472,7 @@ void test(
         variant !== "unavailable-retention" &&
         variant !== "exit-259"
       ) {
-        const readyBytes = readFileSync(path.join(control, "controller-ready.json"));
+        const readyBytes = readFileSync(observedReadyPath);
         const ready: unknown = JSON.parse(readyBytes.toString("utf8"));
         assert.ok(isRecord(ready));
         assert.equal(

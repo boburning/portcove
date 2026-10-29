@@ -8,6 +8,7 @@ import { GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
 import {
   collectRoadmapInventory,
   collectRoadmapInventoryWithRecollection,
+  requireRoadmapInventory,
 } from "./roadmap-inventory.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
@@ -193,6 +194,7 @@ export function assertHostedRecovery(
   inventory: RoadmapInventory,
   number: number,
 ) {
+  requireRoadmapInventory(inventory, client.config.repository, client, { planningIssue: number });
   const issue = client.repositoryIssue(number);
   const assignees = object(issue).assignees;
   const rows = [...inventory.items, ...inventory.archivedItems].filter(
@@ -275,6 +277,7 @@ function receiptBody(r: Receipt) {
   return body;
 }
 export class HostedIntakeBridge {
+  planningIssues = new Set<number>();
   inventoryRecollections = 0;
   readonly client: RoadmapClient;
   readonly head: string;
@@ -407,13 +410,23 @@ export class HostedIntakeBridge {
       primary: identity,
     };
   }
-  inventory(cache?: RoadmapInventory) {
+  inventory(cache?: RoadmapInventory, full = false) {
     this.client._completeProjectContext = undefined;
     this.client._projectContext = undefined;
     let first: ReturnType<typeof sanitizeOperationError> | undefined;
     return collectRoadmapInventoryWithRecollection(
       this.client,
-      () => collectRoadmapInventory(this.client, cache),
+      () =>
+        collectRoadmapInventory(
+          this.client,
+          cache,
+          full
+            ? undefined
+            : {
+                scope: "intake",
+                planningIssues: [...this.planningIssues],
+              },
+        ),
       this,
       {
         before: (error) => {
@@ -485,6 +498,9 @@ export class HostedIntakeBridge {
       if (receipt.status === "complete") return receipt;
     }
     const plan = proposal.candidates.map((c) => this.primary(c, request.id));
+    this.planningIssues = new Set(
+      receipt?.delivery.flatMap((d) => (d.created_issue ? [d.created_issue] : [])) ?? [],
+    );
     let inventory = this.inventory();
     if (!receipt) {
       for (const p of plan) this.duplicates(inventory, p);
@@ -525,17 +541,32 @@ export class HostedIntakeBridge {
     try {
       const writeProof = await probeHostedProjectWrite(this.client, 177);
       this.save(`write-proof-${request.id}`, writeProof);
-      inventory = this.inventory(inventory);
+      // The same-option owner proof and receipt comments do not change this
+      // projection. Refresh at the next actual mutation, not after no-op proof.
+      let invalidated = false;
       for (const [index, p] of plan.entries()) {
         const d = receipt.delivery[index];
         if (!d) throw new Error("Retained delivery coverage differs");
+        if (
+          d.created_issue &&
+          (invalidated || Date.now() - Date.parse(inventory.observed_at) >= 90000)
+        ) {
+          inventory = this.inventory(inventory);
+          invalidated = false;
+        }
         this.fresh(request);
         const marker = `<!-- portcove-discovery-intake:hosted-${request.id}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
         if (d.created_issue && recovered[0]?.number !== d.created_issue)
           throw new Error("Created issue identity is unavailable");
-        if (!d.created_issue && recovered.length) d.created_issue = Number(recovered[0]!.number);
+        if (!d.created_issue && recovered.length) {
+          d.created_issue = Number(recovered[0]!.number);
+          this.planningIssues.add(d.created_issue);
+          persist();
+          inventory = this.inventory(inventory);
+          invalidated = false;
+        }
         if (!d.created_issue && d.status === "create-attempted")
           throw new Error("Ambiguous issue POST without a confirmed marker; do not recapture");
         this.duplicates(inventory, p, d.created_issue);
@@ -543,19 +574,36 @@ export class HostedIntakeBridge {
           const issue = assertHostedRecovery(this.client, inventory, d.created_issue);
           if (issue.body !== p.body || issue.title !== `[Port] ${p.candidate.title}`)
             throw new Error("Created issue was revised; preserve owner changes and reconcile");
-          const normalized = this.client.normalizePortIssue({
-            number: d.created_issue,
-            catalog: qualificationCatalogObservation(
-              JSON.parse(
-                readFileSync(
-                  new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
-                  "utf8",
+          const member = inventory.items.find((item) => item.content?.id === issue.node_id);
+          const ready =
+            member &&
+            Object.entries(portFieldInitialization(null)).every(
+              ([field, value]) => fieldValue(member, field) === value,
+            ) &&
+            !fieldValue(member, "Release commitment");
+          if (!ready) {
+            // A real normalization consumes a fresh target preimage, even when
+            // the earlier routing observation looked repairable.
+            inventory = this.inventory(inventory);
+            invalidated = false;
+            const latest = assertHostedRecovery(this.client, inventory, d.created_issue);
+            if (latest.body !== p.body || latest.title !== `[Port] ${p.candidate.title}`)
+              throw new Error("Created issue was revised; preserve owner changes and reconcile");
+            const normalized = this.client.normalizePortIssue({
+              number: d.created_issue,
+              catalog: qualificationCatalogObservation(
+                JSON.parse(
+                  readFileSync(
+                    new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+                    "utf8",
+                  ),
                 ),
               ),
-            ),
-            inventory,
-          });
-          d.item_id = normalized.itemId;
+              inventory,
+            });
+            invalidated = true;
+            d.item_id = normalized.itemId;
+          }
         } else {
           // Persist the attempt before recollection: publishing it advances
           // #177's revision, so the negative inventory must come afterwards.
@@ -563,6 +611,7 @@ export class HostedIntakeBridge {
           persist();
           try {
             inventory = this.inventory(inventory);
+            invalidated = false;
             this.fresh(request);
             this.duplicates(inventory, p);
           } catch (error) {
@@ -581,12 +630,14 @@ export class HostedIntakeBridge {
                 inventory,
                 onIssueCreated: (issue) => {
                   d.created_issue = issue.number;
+                  this.planningIssues.add(issue.number);
                   d.status = "created";
                   persist();
                 },
               }),
             () => this.save(`receipt-${request.id}`, receipt),
           );
+          invalidated = true;
         }
         const issue = this.client.repositoryIssue(d.created_issue!);
         const item = this.client.executionIssue(d.created_issue!).item;
@@ -607,7 +658,8 @@ export class HostedIntakeBridge {
         d.doctor = compactDoctor(doctor);
         d.status = "delivered";
         persist();
-        if (index < plan.length - 1 || plan.length > 10) inventory = this.inventory(inventory);
+        if (index === plan.length - 1 && plan.length > 10)
+          inventory = this.inventory(inventory, true);
       }
       if (plan.length > 10) {
         const global = await runDoctor(this.client.config, this.client, {

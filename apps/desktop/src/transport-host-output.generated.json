@@ -5778,6 +5778,13 @@
           "caption": {
             "type": "string"
           },
+          "edition_neutral": {
+            "description": "Reviewed applicability across offered original editions, for any media role.\nAbsence never implies that an offered edition is the selected edition.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "height": {
             "format": "uint32",
             "minimum": 0,
@@ -5785,6 +5792,16 @@
           },
           "id": {
             "type": "string"
+          },
+          "igdb": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbGameImage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "license": {
             "type": "string"
@@ -5832,7 +5849,9 @@
       "CatalogMediaRole": {
         "enum": [
           "header",
-          "screenshot"
+          "screenshot",
+          "logo",
+          "key_art"
         ],
         "type": "string"
       },
@@ -5919,6 +5938,66 @@
         "enum": [
           "port",
           "underlying-game"
+        ],
+        "type": "string"
+      },
+      "IgdbGameImage": {
+        "additionalProperties": false,
+        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "properties": {
+          "alpha_channel": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_type": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "image_type_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/IgdbGameImageKind"
+          },
+          "record_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "game_id",
+          "record_id",
+          "kind",
+          "image_id",
+          "game_slug"
+        ],
+        "type": "object"
+      },
+      "IgdbGameImageKind": {
+        "enum": [
+          "logo",
+          "artwork"
         ],
         "type": "string"
       },
@@ -10800,6 +10879,13 @@
           "caption": {
             "type": "string"
           },
+          "edition_neutral": {
+            "description": "Reviewed applicability across offered original editions, for any media role.\nAbsence never implies that an offered edition is the selected edition.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "height": {
             "format": "uint32",
             "minimum": 0,
@@ -10807,6 +10893,16 @@
           },
           "id": {
             "type": "string"
+          },
+          "igdb": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbGameImage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "license": {
             "type": "string"
@@ -10854,7 +10950,9 @@
       "CatalogMediaRole": {
         "enum": [
           "header",
-          "screenshot"
+          "screenshot",
+          "logo",
+          "key_art"
         ],
         "type": "string"
       },
@@ -11586,6 +11684,66 @@
         "enum": [
           "port",
           "underlying-game"
+        ],
+        "type": "string"
+      },
+      "IgdbGameImage": {
+        "additionalProperties": false,
+        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "properties": {
+          "alpha_channel": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_type": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "image_type_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/IgdbGameImageKind"
+          },
+          "record_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "game_id",
+          "record_id",
+          "kind",
+          "image_id",
+          "game_slug"
+        ],
+        "type": "object"
+      },
+      "IgdbGameImageKind": {
+        "enum": [
+          "logo",
+          "artwork"
         ],
         "type": "string"
       },

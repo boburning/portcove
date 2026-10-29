@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -294,8 +295,25 @@ export function requireOriginalHostedWindowsDiagnosticContext() {
   );
   return { source: source!, workflow: workflow!, run_id: run_id! };
 }
+/** Fixed namespace only; a locator cannot appoint an arbitrary execution root. */
+export function hostedWindowsDiagnosticPreparationRoot(home: string, source: string, run: string) {
+  assert.ok(path.isAbsolute(home));
+  assert.match(source, /^[a-f0-9]{40}$/u);
+  assert.match(run, /^[1-9][0-9]{0,15}$/u);
+  return path.join(home, `.pct-connected-${run}-${source.slice(0, 12)}`);
+}
+
 export async function readOriginalHostedWindowsDiagnosticInputs() {
   const { source, workflow, run_id } = requireOriginalHostedWindowsDiagnosticContext();
+  assert.equal(
+    path.resolve(project),
+    path.join(
+      hostedWindowsDiagnosticPreparationRoot(os.homedir(), source, run_id),
+      "windows-source",
+      "source",
+    ),
+    "Only the protected prepared diagnostic source can admit connected inputs",
+  );
   const routeNames = [
     "GITHUB_SHA",
     "GITHUB_WORKFLOW_REF",
@@ -599,6 +617,7 @@ export async function readOrdinaryHostedWindowsDiagnosticDeadline(
     job_started_at: job.started_at,
     provider_observed_at: new Date(serverDate).toISOString(),
     provider_response_bytes: raw.length,
+    provider_remaining_deadline: performance.now() + remaining,
     maximum_owner_milliseconds: hostedWindowsDiagnosticOwnerMilliseconds,
     cleanup_reserve_milliseconds: hostedWindowsDiagnosticCleanupMilliseconds,
     provider_finalizer_margin_milliseconds: 60000,

@@ -122,6 +122,9 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+// Whole-suite5c retained the completed axe observation before the15s outer limit.
+// Give this full keyboard/disclosure/follow+axe journey finite45s headroom;
+// inner assertions, product waits, zero retries and cleanup remain unchanged.
 it("shows the shared facts, accepts keyboard requirements and keeps following explicitly opt-in", async (context) => {
   await render(<Fixture />);
   const trigger = page.getByRole("button", { name: "Compare projects", exact: true });
@@ -149,6 +152,7 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
     "recommendation-evidence-expanded-browser-fixture",
     context,
   );
+  await userEvent.click(page.getByText("Comparison settings", { exact: true }));
   const required = page.getByRole("checkbox", { name: "Multiplayer", exact: true });
   required.element().focus();
   await userEvent.keyboard(" ");
@@ -176,7 +180,7 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   await userEvent.keyboard("{Escape}");
   await expect.element(dialog).not.toBeInTheDocument();
   await expect.element(trigger).toHaveFocus();
-});
+}, 45_000);
 
 it("uses the production controller handler to activate controls and dismiss only the comparison", async () => {
   await render(<Fixture />);
@@ -200,7 +204,8 @@ it("uses the production controller handler to activate controls and dismiss only
 it("selects a displayed source edition and target platform without changing library preferences", async () => {
   await render(<Fixture />);
   await userEvent.click(page.getByRole("button", { name: "Compare projects", exact: true }));
-  const edition = page.getByRole("combobox", { name: /Source edition/ });
+  await userEvent.click(page.getByText("Comparison settings", { exact: true }));
+  const edition = page.getByRole("combobox", { name: /Game edition/ });
   await expect.element(edition).toBeVisible();
   await userEvent.click(edition);
   await userEvent.click(page.getByRole("option", { name: "Fixture original", exact: true }));

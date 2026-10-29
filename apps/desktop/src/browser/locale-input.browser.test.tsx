@@ -79,7 +79,10 @@ it("keeps long RTL engineering labels operable in a narrow settings state", asyn
         <header className="page-header mb-5">
           <h1>Language settings fixture</h1>
         </header>
-        <LanguageSettings />
+        <section aria-labelledby="locale-appearance-heading">
+          <h2 id="locale-appearance-heading">Appearance</h2>
+          <LanguageSettings />
+        </section>
       </main>
     </LocalizationProvider>,
   );

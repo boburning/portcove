@@ -15,6 +15,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   prepareCatalogArtwork,
+  prepareCatalogGameMedia,
+  reconcileCatalogArtworkWithdrawals,
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
@@ -373,32 +375,70 @@ function option(name: string, required = false): string | null {
   return value ?? null;
 }
 
-async function prepareArtworkProposal(fullProposal = false) {
+function validateArtworkProposalArguments(fullProposal: boolean) {
   if (process.argv.includes("--check") || process.argv.includes("--compare-historical"))
     throw new Error("Proposal preparation cannot also check or compare historical data.");
   if (fullProposal && process.argv.includes("--prepare-artwork"))
     throw new Error("Cannot combine proposal preparation modes.");
-  if (fullProposal) {
-    const allowed = new Set([
-      "--prepare-proposal",
-      "--validator-cli",
-      "--output-dir",
-      "--identities",
-      "--refresh-artwork",
-      "--credentials-file",
-      "--artwork-ids",
-    ]);
-    const seen = new Set();
-    const args = process.argv.slice(2);
-    for (let index = 0; index < args.length; index += 2) {
-      const name = args[index];
-      if (!name || !allowed.has(name) || seen.has(name))
-        throw new Error("Unknown or repeated proposal option.");
-      seen.add(name);
-      if (!args[index + 1] || args[index + 1]?.startsWith("--"))
-        throw new Error(`${name} requires a value.`);
-    }
+  if (!fullProposal) return;
+  const allowed = new Set([
+    "--prepare-proposal",
+    "--validator-cli",
+    "--output-dir",
+    "--identities",
+    "--refresh-artwork",
+    "--credentials-file",
+    "--artwork-ids",
+    "--hero-media",
+  ]);
+  const seen = new Set();
+  const args = process.argv.slice(2);
+  for (let index = 0; index < args.length; index += 2) {
+    const name = args[index];
+    if (!name || !allowed.has(name) || seen.has(name))
+      throw new Error("Unknown or repeated proposal option.");
+    seen.add(name);
+    if (!args[index + 1] || args[index + 1]?.startsWith("--"))
+      throw new Error(`${name} requires a value.`);
   }
+}
+
+function proposalImageValidator(
+  inspectProposal: ReturnType<typeof coreProposalInspector> | undefined,
+  cli: string | null,
+  outputRoot: string,
+): ImageValidator {
+  let imageValidator: ImageValidator | undefined;
+  let imageInitializationError: Error | undefined;
+  const capturedInspector = inspectProposal;
+  return capturedInspector
+    ? (bytes: Buffer) => {
+        if (imageInitializationError) throw imageInitializationError;
+        if (!imageValidator) {
+          try {
+            imageValidator = createCoreImageValidator(
+              capturedInspector.artifact,
+              join(outputRoot, "scratch"),
+            );
+          } catch (error) {
+            imageInitializationError =
+              error instanceof Error
+                ? error
+                : new Error("Core image initialization failed.", { cause: error });
+            throw error;
+          }
+        }
+        return imageValidator(bytes);
+      }
+    : cli
+      ? createCoreImageValidator(cli, join(outputRoot, "scratch"))
+      : () => {
+          throw new Error("Core image validation requires a selected compatible CLI.");
+        };
+}
+
+async function prepareArtworkProposal(fullProposal = false) {
+  validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
     option(fullProposal ? "--prepare-proposal" : "--prepare-artwork", true),
     fullProposal ? 4 * 1024 * 1024 : 8 * 1024 * 1024,
@@ -439,41 +479,28 @@ async function prepareArtworkProposal(fullProposal = false) {
       input: inputCheck,
     };
   }
-  let imageValidator: ImageValidator | undefined;
-  let imageInitializationError: Error | undefined;
-  const capturedInspector = inspectProposal;
-  const validateImage = capturedInspector
-    ? (bytes: Buffer) => {
-        if (imageInitializationError) throw imageInitializationError;
-        if (!imageValidator) {
-          try {
-            imageValidator = createCoreImageValidator(
-              capturedInspector.artifact,
-              join(outputRoot, "scratch"),
-            );
-          } catch (error) {
-            imageInitializationError =
-              error instanceof Error
-                ? error
-                : new Error("Core image initialization failed.", { cause: error });
-            throw error;
-          }
-        }
-        return imageValidator(bytes);
-      }
-    : cli
-      ? createCoreImageValidator(cli, join(outputRoot, "scratch"))
-      : () => {
-          throw new Error("Core image validation requires a selected compatible CLI.");
-        };
+  const validateImage = proposalImageValidator(inspectProposal, cli, outputRoot);
+  const heroMedia = option("--hero-media");
+  if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
-  const result = await prepareCatalogArtwork(input, {
+  const covers = await prepareCatalogArtwork(input, {
     ...inspector,
     acceptedCatalog: acceptedArtwork,
     identities,
     refreshPortIds,
     ...(selectedPortIds ? { selectedPortIds } : {}),
   });
+  const gameMedia =
+    heroMedia === "igdb"
+      ? await prepareCatalogGameMedia(covers.catalog, {
+          inspector,
+          identities,
+          knownGoneImageIds: covers.gone_image_ids,
+          ...(selectedPortIds ? { selectedPortIds } : {}),
+        })
+      : undefined;
+  if (gameMedia) reconcileCatalogArtworkWithdrawals(covers, gameMedia.gone_image_ids);
+  const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
   finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
   const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
@@ -512,9 +539,14 @@ async function prepareArtworkProposal(fullProposal = false) {
     differences: differences(input, result.catalog),
     records: result.records,
     metrics: result.metrics,
+    gone_image_ids: result.gone_image_ids,
     provider_metrics: inspector.providerMetrics,
-    scope:
-      "Maintainer cover proposal; no admission, signature, publication, runtime or user-choice mutation.",
+    ...(gameMedia
+      ? { game_media: { records: gameMedia.records, gone_image_ids: gameMedia.gone_image_ids } }
+      : {}),
+    scope: gameMedia
+      ? "Maintainer cover and remote game-media proposal; no admission, signature, publication, image-payload redistribution, runtime or user-choice mutation."
+      : "Maintainer cover proposal; no admission, signature, publication, runtime or user-choice mutation.",
   };
   writeFileSync(join(outputRoot, "catalog-proposal.json"), proposalBytes, { flag: "wx" });
   writeFileSync(

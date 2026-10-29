@@ -38,7 +38,9 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
       root.render(<RecoveryReview {...freshDiagnostics} repair={repair} ports={[port]} />),
     );
     expect(host.textContent).toContain("1 recorded item needs review.");
-    expect(host.querySelector(".recovery-review")?.className).toContain("rounded-pc-lg border");
+    expect(
+      host.querySelector(".recovery-review")?.classList.contains("recovery-review-quiet"),
+    ).toBe(false);
     expect(host.querySelector("summary")?.textContent).toContain(port.name);
     const details = host.querySelector("details")!;
     expect(details.open).toBe(false);

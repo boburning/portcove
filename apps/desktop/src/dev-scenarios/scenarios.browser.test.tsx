@@ -79,7 +79,11 @@ describe("static development scenarios", () => {
     expect(libraryReference).toContain(">Play</button>");
     expect(libraryReference).not.toContain('class="detail-panel ');
     const libraryAttention = renderScenario("library-reference-attention-narrow");
-    expect(libraryAttention).toContain(">View details</button>");
+    const detailAction = libraryAttention
+      .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
+      ?.find((button) => button.includes('aria-label="View details:'));
+    expect(detailAction).toBeDefined();
+    expect(detailAction).toMatch(/>View details(?:<!-- -->)?<svg/u);
     expect(libraryAttention).toContain("Update saved for later");
     expect(libraryAttention).toContain(">Play</button>");
     const gameDetails = renderScenario("game-details-reference-narrow");
