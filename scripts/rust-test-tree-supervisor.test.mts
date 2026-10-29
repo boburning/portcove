@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import type { ChildProcess } from "node:child_process";
+import { runLinuxFixtureWithCleanup } from "./fixtures/linux-containment-fixture.mts";
 import { runInNewContext } from "node:vm";
 import { errorCode, errorMessage } from "./runtime-values.mts";
 import { spawn, spawnSync } from "node:child_process";
@@ -719,17 +720,20 @@ void test(
 // keeps deliberate old-topology/reaper-loss fixtures from orphaning test children
 // to the host's PID1. The envelope's real receipt and every captured disappearance
 // are checked after the scenario exits; neither is inferred from an exit status.
-async function linuxInnerCase({
-  mode,
-  directory,
-  reaper,
-  supervisor,
-}: {
-  mode: LinuxMode;
-  directory: string;
-  reaper: string;
-  supervisor: string;
-}) {
+async function linuxInnerCase(
+  {
+    mode,
+    directory,
+    reaper,
+    supervisor,
+  }: {
+    mode: LinuxMode;
+    directory: string;
+    reaper: string;
+    supervisor: string;
+  },
+  runCleanup: typeof runLinuxFixtureWithCleanup,
+) {
   const assert: typeof import("node:assert/strict") = (await import("node:assert/strict")).default;
   const { spawn } = await import("node:child_process");
   const { existsSync, readFileSync, writeFileSync } = await import("node:fs");
@@ -837,7 +841,6 @@ async function linuxInnerCase({
   let sibling: ChildProcess | undefined;
   let siblingIdentity: LinuxCapture | undefined;
   let siblingCompletion: Promise<ProcessExit> | undefined;
-  let primaryFailure: { error: unknown } | undefined;
   async function closeOwnedFixtures() {
     if (sibling && siblingIdentity) {
       assert.equal(identity(siblingIdentity.pid).identity, siblingIdentity.identity);
@@ -876,7 +879,7 @@ async function linuxInnerCase({
       );
     }
   }
-  try {
+  await runCleanup(async () => {
     if (mode === "ignored-sigchld") {
       sibling = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { stdio: "ignore" });
       siblingCompletion = closed(sibling);
@@ -1060,23 +1063,14 @@ async function linuxInnerCase({
         }
       }
     }
-  } catch (error) {
-    primaryFailure = { error };
-  }
-  let cleanupFailure: { error: unknown } | undefined;
-  try {
-    await closeOwnedFixtures();
-  } catch (error) {
-    cleanupFailure = { error };
-  }
-  if (primaryFailure && cleanupFailure) {
-    throw new AggregateError(
-      [primaryFailure.error, cleanupFailure.error],
-      "scenario and owned fixture cleanup failed",
-    );
-  }
-  if (primaryFailure) throw primaryFailure.error;
-  if (cleanupFailure) throw cleanupFailure.error;
+  }, closeOwnedFixtures);
+}
+
+function linuxFixtureProgram(
+  options: Parameters<typeof linuxInnerCase>[0],
+  cleanup: typeof runLinuxFixtureWithCleanup = runLinuxFixtureWithCleanup,
+) {
+  return `(${linuxInnerCase.toString()})(${JSON.stringify(options)}, (${cleanup.toString()})).catch(error=>{console.error(error);process.exitCode=1})`;
 }
 
 let linuxEvidenceHeld = false;
@@ -1130,7 +1124,7 @@ for (const mode of [
       const status = path.join(directory, "outer.status");
       const receipt = path.join(directory, "outer.receipt");
       const registration = path.join(directory, "outer.registration");
-      const scenario = `(${linuxInnerCase.toString()})(${JSON.stringify({ mode, directory, reaper, supervisor })}).catch(error=>{console.error(error);process.exitCode=1})`;
+      const scenario = linuxFixtureProgram({ mode, directory, reaper, supervisor });
       const parentIdentity = readProcessIdentity(process.pid);
       assert.ok(parentIdentity, "Parent process identity required before envelope launch");
       const outer = spawn(
@@ -1227,57 +1221,184 @@ for (const mode of [
   );
 }
 
-void test("serialized Linux containment fixture is executable native Node JavaScript", () => {
+void test("serialized Linux containment fixture is executable native Node JavaScript", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-linux-fixture-binding-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const options = {
+    mode: "natural" as const,
+    directory: root,
+    reaper: "forbidden-reaper",
+    supervisor: "forbidden-supervisor",
+  };
   const result = spawnSync(process.execPath, ["--input-type=module", "--check"], {
-    input: `(${linuxInnerCase.toString()})`,
+    input: linuxFixtureProgram(options),
     encoding: "utf8",
     timeout: 5000,
     windowsHide: true,
   });
   assert.equal(result.status, 0, result.stderr);
+  const probe = linuxFixtureProgram(
+    options,
+    async function observeCleanupBinding(operation, cleanup) {
+      assert.equal(typeof operation, "function");
+      assert.equal(typeof cleanup, "function");
+      console.log("LINUX_FIXTURE_IMPORTED_CLEANUP_BOUND");
+      throw new Error("LINUX_FIXTURE_BINDING_PROBE_STOP");
+    },
+  );
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
+  const observed = spawnSync(
+    process.execPath,
+    [
+      "--experimental-test-module-mocks",
+      "--input-type=module",
+      "-e",
+      `
+import assert from 'node:assert/strict';
+import {mock} from 'node:test';
+import * as fs from 'node:fs';
+import path from 'node:path';
+const root=${JSON.stringify(root)};
+const forbidden=()=>{throw Error('LINUX_FIXTURE_NATIVE_EFFECT_FORBIDDEN')};
+process.kill=forbidden;
+mock.module('node:child_process',{namedExports:{spawn:forbidden}});
+mock.module('node:fs',{namedExports:{
+ existsSync:name=>{assert.equal(path.dirname(name),root);return fs.existsSync(name)},
+ readFileSync:name=>{
+  if(name==='/proc/sys/kernel/random/boot_id')return 'fixture-boot-id';
+  if(name===\`/proc/\${process.pid}/stat\`)return \`\${process.pid} (fixture) \${['S',String(process.pid),String(process.pid),...Array(16).fill('0'),'123'].join(' ')}\`;
+  return forbidden();
+ },
+ writeFileSync:(name,value)=>{assert.equal(name,path.join(root,'captured.json'));assert.equal(value,'[]');fs.writeFileSync(name,value)}
+}});
+${probe}
+`,
+    ],
+    { env: environment, encoding: "utf8", timeout: 5000, windowsHide: true },
+  );
+  assert.ifError(observed.error);
+  assert.equal(observed.status, 1, observed.stderr);
+  assert.equal(
+    observed.stdout.trim(),
+    "LINUX_FIXTURE_IMPORTED_CLEANUP_BOUND",
+    "LINUX_FIXTURE_IMPORTED_CALLER_BINDING",
+  );
+  assert.match(observed.stderr, /LINUX_FIXTURE_BINDING_PROBE_STOP/u);
+  assert.doesNotMatch(observed.stderr, /LINUX_FIXTURE_NATIVE_EFFECT_FORBIDDEN/u);
+  assert.equal(await readFile(path.join(root, "captured.json"), "utf8"), "[]");
 });
 
 void test("Linux fixture failure tail preserves primary and cleanup rejection identities", async () => {
-  const source = linuxInnerCase.toString();
-  const from = source.indexOf("} catch (error) {\n    primaryFailure =");
-  assert.ok(from >= 0);
-  const tail = source.slice(from);
   const failures = [undefined, null, false, 0, "", new Error("owned fixture error")];
-  for (const primaryPresent of [false, true])
-    for (const cleanupPresent of [false, true]) {
-      for (const primary of failures)
-        for (const cleanup of failures) {
-          let cleanupCalls = 0;
-          const result: unknown = runInNewContext(
-            `(async function() { let primaryFailure; try { await operation(); ${tail})()`,
-            {
-              AggregateError,
-              operation: () => (primaryPresent ? Promise.reject(primary) : Promise.resolve()),
-              closeOwnedFixtures: () => {
+  async function verifyMatrix(run: typeof runLinuxFixtureWithCleanup) {
+    for (const primaryPresent of [false, true])
+      for (const cleanupPresent of [false, true])
+        for (const primary of failures)
+          for (const cleanup of failures) {
+            let cleanupCalls = 0;
+            const result = run(
+              () => (primaryPresent ? Promise.reject(primary) : Promise.resolve()),
+              () => {
                 cleanupCalls += 1;
                 return cleanupPresent ? Promise.reject(cleanup) : Promise.resolve();
               },
-            },
-          );
-          if (primaryPresent || cleanupPresent)
-            await assert.rejects(
-              async () => {
-                await result;
-              },
-              (error: unknown) => {
-                if (primaryPresent && cleanupPresent)
-                  return (
-                    error instanceof AggregateError &&
-                    Object.is(error.errors[0], primary) &&
-                    Object.is(error.errors[1], cleanup)
-                  );
-                return Object.is(error, primaryPresent ? primary : cleanup);
-              },
             );
-          else await result;
-          assert.equal(cleanupCalls, 1);
-        }
+            if (primaryPresent || cleanupPresent)
+              await assert.rejects(
+                async () => {
+                  await result;
+                },
+                (error: unknown) => {
+                  if (primaryPresent && cleanupPresent)
+                    return (
+                      error instanceof AggregateError &&
+                      Object.is(error.errors[0], primary) &&
+                      Object.is(error.errors[1], cleanup) &&
+                      error.message === "scenario and owned fixture cleanup failed"
+                    );
+                  return Object.is(error, primaryPresent ? primary : cleanup);
+                },
+                "LINUX_FIXTURE_FAILURE_IDENTITY",
+              );
+            else await result;
+            assert.equal(cleanupCalls, 1, "LINUX_FIXTURE_CLEANUP_COUNT");
+          }
+  }
+  async function verifyDrain(run: typeof runLinuxFixtureWithCleanup) {
+    let release!: () => void;
+    const cleanup = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let settled = false;
+    const result = run(
+      async () => {},
+      () => cleanup,
+    ).then(() => {
+      settled = true;
+    });
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(settled, false, "LINUX_FIXTURE_CLEANUP_DRAIN");
+    } finally {
+      release();
+      await cleanup;
+      await result;
     }
+  }
+  await verifyMatrix(runLinuxFixtureWithCleanup);
+  await verifyDrain(runLinuxFixtureWithCleanup);
+  const named = (marker: string) => (error: unknown) =>
+    error instanceof assert.AssertionError && error.message.includes(marker);
+  await assert.rejects(
+    verifyMatrix(async (operation) => {
+      await operation();
+    }),
+    named("LINUX_FIXTURE_CLEANUP_COUNT"),
+  );
+  await assert.rejects(
+    verifyDrain(async (operation, cleanup) => {
+      await operation();
+      void cleanup().catch(() => {});
+    }),
+    named("LINUX_FIXTURE_CLEANUP_DRAIN"),
+  );
+  await assert.rejects(
+    verifyMatrix(async (operation, cleanup) => {
+      let failure: unknown;
+      try {
+        await operation();
+      } catch (error) {
+        failure = error;
+      }
+      await cleanup();
+      if (failure) throw failure;
+    }),
+    named("LINUX_FIXTURE_FAILURE_IDENTITY"),
+  );
+  await assert.rejects(
+    verifyMatrix(async (operation, cleanup) => {
+      let primary: { error: unknown } | undefined, secondary: { error: unknown } | undefined;
+      try {
+        await operation();
+      } catch (error) {
+        primary = { error };
+      }
+      try {
+        await cleanup();
+      } catch (error) {
+        secondary = { error };
+      }
+      if (primary && secondary)
+        throw new AggregateError(
+          [secondary.error, primary.error],
+          "scenario and owned fixture cleanup failed",
+        );
+      if (primary) throw primary.error;
+      if (secondary) throw secondary.error;
+    }),
+    named("LINUX_FIXTURE_FAILURE_IDENTITY"),
+  );
 });
 
 void test("captured disappearance checks reject a matching live identity at the captured PID", () => {
