@@ -227,7 +227,7 @@ describe("Library empty browsing context", () => {
     const resultStatus = host.querySelector('[role="status"]');
     expect(resultStatus?.textContent).toBe("0 library entries");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
-    expect(host.textContent).toContain("No matching games");
+    expect(host.textContent).toContain("No matching library entries");
     expect(host.textContent).toContain(
       "No library entries match “unmatched title” with the current view.",
     );
@@ -240,7 +240,7 @@ describe("Library empty browsing context", () => {
     expect(clearFilters).toHaveBeenCalledOnce();
 
     await render("ready", "");
-    expect(host.textContent).toContain("No matching games");
+    expect(host.textContent).toContain("No matching library entries");
 
     await render("all", "   ");
     expect(host.querySelector('[role="status"]')).toBe(resultStatus);

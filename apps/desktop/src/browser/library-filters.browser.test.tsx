@@ -420,7 +420,9 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await userEvent.click(await filterChoice("Not in my library (0)"));
   await closeFilters();
   await expectReadinessOption("Ready (0)");
-  await expect.element(page.getByText("No matching games", { exact: true })).toBeInTheDocument();
+  await expect
+    .element(page.getByText("No matching library entries", { exact: true }))
+    .toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await userEvent.click(await filterChoice("In my library (3)"));
   await closeFilters();
@@ -449,7 +451,9 @@ it("retains specific attention with independent Library readiness, zero counts a
   await expectReadinessOption("Ready (0)");
   await expectReadinessOption("Needs attention (1)");
   await chooseReadiness("Ready (0)");
-  await expect.element(page.getByText("No matching games", { exact: true })).toBeInTheDocument();
+  await expect
+    .element(page.getByText("No matching library entries", { exact: true }))
+    .toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await expect
     .element(await filterChoice("Missing game files (0)"))
@@ -488,7 +492,9 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(await filterChoice("Missing game files (0)"));
   await closeFilters();
   await expectReadinessLabel("Readiness Ready (0)");
-  await expect.element(page.getByText("No matching games", { exact: true })).toBeInTheDocument();
+  await expect
+    .element(page.getByText("No matching library entries", { exact: true }))
+    .toBeInTheDocument();
   await userEvent.click(button("Remove Missing game files filter"));
   await expectReadinessLabel("Readiness Ready (2)");
   await userEvent.click(button("Toggle snapshot"));

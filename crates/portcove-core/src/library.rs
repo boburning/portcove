@@ -1063,6 +1063,7 @@ impl Library {
         import_receipt_sha256: Option<&str>,
     ) -> Result<ActivityRecord> {
         let activity = ActivityRecord {
+            liveness: None,
             id: id.to_string(),
             operation,
             target_kind,
@@ -1188,9 +1189,44 @@ impl Library {
     pub fn activity_feed(&self, terminal_history_limit: usize) -> Result<crate::ActivityFeed> {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
-        let feed = Self::activity_feed_from(&transaction, terminal_history_limit)?;
+        let mut feed = Self::activity_feed_from(&transaction, terminal_history_limit)?;
         transaction.commit()?;
+        self.observe_activity_liveness(&mut feed.records);
         Ok(feed)
+    }
+
+    /// Probe the existing exact activity lock without creating or rewriting it.
+    /// Only cancellable activities declare continuous ownership of this lock.
+    pub(crate) fn observe_activity_liveness(&self, records: &mut [ActivityRecord]) {
+        for record in records {
+            record.liveness = None;
+            if record.status != ActivityStatus::Running {
+                continue;
+            }
+            record.liveness = Some(if record.cancellation.is_none() {
+                crate::ActivityLiveness::Unknown
+            } else {
+                self.probe_activity_owner(&record.id)
+                    .unwrap_or(crate::ActivityLiveness::Unknown)
+            });
+        }
+    }
+
+    fn probe_activity_owner(&self, id: &str) -> Result<crate::ActivityLiveness> {
+        let key = format!("activity-{}", hex::encode(Sha256::digest(id.as_bytes())));
+        let path = self.locks_dir().join(format!("{key}.lock"));
+        crate::path::refuse_symlink_ancestors(&path)?;
+        let file = OpenOptions::new().read(true).write(true).open(&path)?;
+        match file.try_lock_exclusive() {
+            Ok(()) => {
+                FileExt::unlock(&file)?;
+                Ok(crate::ActivityLiveness::Interrupted)
+            }
+            Err(error) if error.kind() == fs2::lock_contended_error().kind() => {
+                Ok(crate::ActivityLiveness::Active)
+            }
+            Err(error) => Err(error.into()),
+        }
     }
 
     pub(crate) fn activity_feed_from(
@@ -1284,6 +1320,7 @@ impl Library {
                 recovery_required_activity_ids.push(id.clone());
             }
             records.push(ActivityRecord {
+                liveness: None,
                 id,
                 operation: operation.parse()?,
                 target_kind: target_kind.parse()?,
@@ -1356,6 +1393,7 @@ impl Library {
                 })
             });
             Ok(ActivityRecord {
+                liveness: None,
                 id,
                 operation: operation.parse()?,
                 target_kind: target_kind.parse()?,

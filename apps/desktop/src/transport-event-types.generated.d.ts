@@ -49,8 +49,16 @@ export type EventPortcoveOperation1 =
   | {
       completed: number;
       phase: string;
+      /**
+       * Stable producer identity, independent of translated display wording.
+       */
+      phase_id?: string | null;
       total: number | null;
       type: "progress";
+      /**
+       * Absent on older producers; clients must not infer it from phase text.
+       */
+      unit?: ProgressUnit | null;
       [k: string]: unknown;
     }
   | {
@@ -64,6 +72,7 @@ export type EventPortcoveOperation1 =
       type: "finished";
       [k: string]: unknown;
     };
+export type ProgressUnit = "bytes" | "items" | "ports" | "indeterminate";
 export type OperationResult = "succeeded" | "failed" | "cancelled";
 
 export interface DesktopEventPayloads {

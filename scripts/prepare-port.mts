@@ -201,7 +201,13 @@ function packageHintFeedback(
           ? values.filter(
               (value) =>
                 typeof value === "string" &&
-                versions.some((version) => value.toLowerCase().includes(version)),
+                (versions.some((version) => value.toLowerCase().includes(version)) ||
+                  // A delimited dotted release token remains suspicious even when
+                  // the currently observed tag has moved on. ABI/CPU/generation
+                  // integers (SDL2, x86_64, d3d11) are deliberately excluded.
+                  /(?:^|[^a-z0-9])v?\d+\.\d+(?:\.\d+)*(?:[-+](?:alpha|beta|preview|rc)\.?\d*)?(?=$|[^a-z0-9])/iu.test(
+                    value,
+                  )),
             )
           : [];
         return restricted.length ? [{ platform, hints: restricted }] : [];

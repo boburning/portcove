@@ -254,6 +254,10 @@ version, description, repository and license without opening a library.
 Repeated operational commands do not print banners or artwork.
 
 Human operation progress goes to standard error. An interactive terminal receives an updating inline byte counter. When standard error is redirected, Portcove emits a bounded line for each phase start and its final observed byte count instead of carriage-return updates for every chunk. A partial final count does not imply success; read the command result or retained activity for the authoritative outcome. Machine clients should use `--jsonl` for the full versioned event stream.
+Schema-3 progress events can additionally supply stable `phase_id` and explicit
+`unit` (`bytes`, `items`, `ports`, `indeterminate`). Both human adapters use these
+producer facts. Older events without units display generic counts; display text
+never establishes a unit or terminal success.
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
@@ -1003,7 +1007,17 @@ application updater.
 
 #### Game updates and review
 
-`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` downloads it without switching versions, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target.
+Human task wording follows the [glossary](../GLOSSARY.md) and
+[content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
+compares the full recorded installation manifest; its report names that scope
+and the actual checked-file count. Launch-critical checks are separate.
+**Update saved for later** names a retained staged version, and `activate` applies
+that version. A **saved-data backup** covers its declared player files, which can
+include more than progress saves; it is separate from original game files,
+installed versions and a metadata export. These labels change neither command
+names nor the versioned JSON/JSONL fields.
+
+`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` prepares or keeps the eligible version for later without switching versions, downloading only when needed, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target.
 
 Destructive or copying operations require `--yes` under `--non-interactive`; after confirmation, core issues a five-minute, one-use authorization bound to the action, target, and reviewed state and consumes it only under the operation lock. Adoption prints a content-hashed copy plan and every skipped symlink or special entry before confirmation.
 

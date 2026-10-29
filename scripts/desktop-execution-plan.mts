@@ -54,7 +54,10 @@ export function planDesktopExecution(
   const librarySwitchRecoverySession = selection.selected_scenarios.includes(
     "native-library-switch-recovery",
   );
-  const historySession = selection.selected_scenarios.includes("native-qualification-history");
+  const historySession =
+    selection.selected_scenarios.includes("native-qualification-history") ||
+    (platform === "linux" &&
+      selection.selected_scenarios.includes("native-default-cover-cache-conditions"));
   const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
   const hostInterruptionSession = selection.selected_scenarios.includes(
     "native-host-interrupted-preparation",
@@ -252,7 +255,7 @@ export function planDesktopExecution(
     inputs.push(receiptSource(new URL(name, harnessUrl)));
   inputs.push(receiptSource(new URL("desktop-reload-test.mts", harnessUrl)));
   inputs.push(receiptSource(new URL("desktop-workspace-refresh-test.mts", harnessUrl)));
-  if (selection.selected_scenarios.includes("native-qualification-history"))
+  if (historySession)
     inputs.push(receiptSource(new URL("desktop-qualification-history-test.mts", harnessUrl)));
   if (selection.selected_scenarios.includes("native-rejected-listener-registration"))
     for (const source of ["pnpm-workspace.yaml", "patches/@tauri-apps__api@2.12.4.patch"])
@@ -443,6 +446,7 @@ export function parseDesktopHarnessOptions(args = process.argv.slice(2)) {
       output: { type: "string" },
       profile: { type: "string" },
       scenario: { type: "string", multiple: true, default: [] },
+      "cover-port-id": { type: "string", multiple: true, default: [] },
       port: { type: "string", default: "4444" },
       "preparation-cli": { type: "string" },
       "preparation-tool": { type: "string" },
@@ -483,10 +487,18 @@ export function resolveDesktopHarnessSelection(
       : values["adoption-only"]
         ? "native-reviewed-existing-install-copy"
         : null;
-  return resolveDesktopSelection({
+  const selection = resolveDesktopSelection({
     profile: values.profile,
     scenarios: legacyScenario ? [legacyScenario] : values.scenario,
     reloadCycles,
     defaultProfile: values["preparation-cli"] ? "full" : "smoke",
   });
+  if (
+    values["cover-port-id"].length &&
+    !selection.selected_scenarios.some((id) =>
+      ["native-default-cover-display", "native-default-cover-cache-conditions"].includes(id),
+    )
+  )
+    throw new Error("--cover-port-id requires a default-cover observation scenario");
+  return selection;
 }

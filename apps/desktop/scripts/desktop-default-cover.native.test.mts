@@ -8,7 +8,83 @@ import path from "node:path";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 
-import { createImageRefusal, restoreCacheAfterObservation } from "./desktop-cover-observations.mts";
+import {
+  createImageRefusal,
+  restoreCacheAfterObservation,
+  selectDefaultCoverIds,
+  assertDefaultCoverPresentation,
+  assertCachedCoverTraffic,
+} from "./desktop-cover-observations.mts";
+import {
+  parseDesktopHarnessOptions,
+  resolveDesktopHarnessSelection,
+} from "../../../scripts/desktop-execution-plan.mts";
+
+void test("cached cover traffic preserves full-scope refusal and reports bounded host baselines", () => {
+  assert.equal(assertCachedCoverTraffic(["other-origin"], false), 0);
+  assert.throws(
+    () => assertCachedCoverTraffic(["images.igdb.com"], false),
+    /without an IGDB request/,
+  );
+  assert.equal(assertCachedCoverTraffic(["images.igdb.com", "other-origin"], true), 1);
+  assert.equal(assertCachedCoverTraffic([], true), 0);
+});
+
+void test("real cover presentation keeps neutral identity surfaces and rejects generated mattes", () => {
+  const image = {
+    background: "rgba(25, 26, 29, 0.04)",
+    identitySurface: true,
+    surfaceBackground: "rgba(25, 26, 29, 0.04)",
+    objectFit: "contain",
+    fallbackPalette: false,
+  };
+  assertDefaultCoverPresentation(image);
+  assertDefaultCoverPresentation({
+    ...image,
+    background: "rgba(0, 0, 0, 0)",
+    identitySurface: false,
+  });
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, background: "red" }));
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, fallbackPalette: true }));
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, objectFit: "cover" }));
+  assert.throws(() => assertDefaultCoverPresentation({ ...image, surfaceBackground: "" }));
+});
+
+void test("focused cover observations bind an exact mapped set and preserve the full default", () => {
+  const ports = [
+    { id: "dkr-r", presentation: { artwork: { image_id: "owned-control" } } },
+    { id: "original-game", presentation: { artwork: { image_id: "owned-original" } } },
+    { id: "fallback" },
+  ];
+  assert.deepEqual(selectDefaultCoverIds(ports), ["dkr-r", "original-game"]);
+  const requested = ["original-game", "dkr-r"];
+  const selected = selectDefaultCoverIds(ports, requested, true);
+  requested.reverse();
+  assert.deepEqual(selected, ["original-game", "dkr-r"]);
+  assert.deepEqual(selectDefaultCoverIds(ports, ["original-game"]), ["original-game"]);
+  for (const ids of [
+    ["unknown"],
+    ["fallback"],
+    ["dkr-r", "dkr-r"],
+    Array.from({ length: 17 }, () => "dkr-r"),
+  ])
+    assert.throws(() => selectDefaultCoverIds(ports, ids));
+  assert.throws(() => selectDefaultCoverIds(ports, ["original-game"], true), /dkr-r/);
+  assert.throws(() => selectDefaultCoverIds([]), /accepted cover/);
+});
+
+void test("cover selection is accepted only with an explicit cover observation scenario", () => {
+  const parse = (...args: string[]) =>
+    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(args).values);
+  assert.throws(
+    () => parse("--scenario", "empty-library", "--cover-port-id", "dkr-r"),
+    /default-cover/,
+  );
+  for (const scenario of ["native-default-cover-display", "native-default-cover-cache-conditions"])
+    assert.deepEqual(parse("--scenario", scenario, "--cover-port-id", "dkr-r").selected_scenarios, [
+      scenario,
+    ]);
+});
 
 void test("default cover restoration preserves primary failures and still closes the refusal proxy", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-cover-restore-"));

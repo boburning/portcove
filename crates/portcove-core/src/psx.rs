@@ -445,12 +445,22 @@ where
         completed += chunk.len() as u64;
         validate_download_progress(completed, artifact.size)?;
         if completed == artifact.size || completed.saturating_sub(reported) >= 1024 * 1024 {
-            emit(operation.progress("psx-toolchain-download", completed, Some(artifact.size)));
+            emit(operation.progress_with_unit(
+                "psx-toolchain-download",
+                crate::ProgressUnit::Bytes,
+                completed,
+                Some(artifact.size),
+            ));
             reported = completed;
         }
     }
     if completed != reported {
-        emit(operation.progress("psx-toolchain-download", completed, Some(artifact.size)));
+        emit(operation.progress_with_unit(
+            "psx-toolchain-download",
+            crate::ProgressUnit::Bytes,
+            completed,
+            Some(artifact.size),
+        ));
     }
     file.flush().await?;
     drop(file);

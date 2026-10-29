@@ -1298,9 +1298,20 @@ impl FromStr for ActivityStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityLiveness {
+    Active,
+    Interrupted,
+    Unknown,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ActivityRecord {
     pub id: String,
+    /// Best-effort ownership observation, not a replacement for terminal results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub liveness: Option<ActivityLiveness>,
     pub operation: ActivityOperation,
     pub target_kind: ActivityTargetKind,
     pub target_id: Option<String>,
@@ -1806,6 +1817,15 @@ pub struct OperationEvent {
     pub event: OperationEventKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgressUnit {
+    Bytes,
+    Items,
+    Ports,
+    Indeterminate,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OperationEventKind {
@@ -1820,6 +1840,12 @@ pub enum OperationEventKind {
     },
     Progress {
         phase: String,
+        /// Stable producer identity, independent of translated display wording.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase_id: Option<String>,
+        /// Absent on older producers; clients must not infer it from phase text.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        unit: Option<ProgressUnit>,
         completed: u64,
         total: Option<u64>,
     },

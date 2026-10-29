@@ -271,7 +271,7 @@ describe("source intake dialog", () => {
           {ready ? (
             <button id="current-game-action">Play</button>
           ) : (
-            <button onClick={() => setOpen(true)}>Locate game files</button>
+            <button onClick={() => setOpen(true)}>Select game files</button>
           )}
           {open && (
             <SourceIntakeDialog
@@ -285,10 +285,10 @@ describe("source intake dialog", () => {
       );
     }
     await root.rerender(<RepairFixture />);
-    await page.getByRole("button", { name: "Locate game files" }).click();
+    await page.getByRole("button", { name: "Select game files" }).click();
     await act(async () => button("Copy into Portcove")!.click());
     await act(async () => button("Copy into Portcove")!.click());
-    expect(button("Locate game files")).toBeUndefined();
+    expect(button("Select game files")).toBeUndefined();
     await page.getByRole("button", { name: "Return to game" }).click();
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(document.getElementById("current-game-action")),

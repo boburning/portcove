@@ -281,6 +281,22 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/))";
   const windowsDiagnosticsFilter =
     "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)";
+  const windowsRelocationRecoveryFilter =
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)";
+  const windowsRecoveryFamilyFilter =
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)";
+  const relocationRecovery = overrideFor(windowsRelocationRecoveryFilter, "x86_64-pc-windows-msvc");
+  assert.deepEqual(relocationRecovery, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsRelocationRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(relocationRecovery) <
+      overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
+    "The exact90s identity must precede its60s family",
+  );
   const intelCuratedRepinFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)";
   assert.deepEqual(overrideFor(intelCuratedRepinFilter, "x86_64-apple-darwin"), {
@@ -296,6 +312,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::tests::backups::historical_byte_only_backup_keeps_its_existing_integrity_contract$/)";
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase$/)",
+    "package(portcove-core) & test(/^service::tests::unpublished_install_cleanup_retains_conflicting_family_intent$/)",
     historicalByteOnlyBackupFilter,
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)",
     "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
@@ -360,6 +377,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: psxProgressionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparationAndDriftFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsDiagnosticsFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsRelocationRecoveryFilter },
     ]
       .map(outputIdentity)
       .sort(),

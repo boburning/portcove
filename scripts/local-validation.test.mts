@@ -751,6 +751,7 @@ void test("historical desktop oracle edits retain the decoder and unchanged plan
     for (const contract of [
       "scripts/desktop-execution-baseline.test.mts",
       "scripts/desktop-execution-plan.test.mts",
+      "scripts/native-qualification-inventory.test.mts",
     ])
       assert.ok(selection.nodeTests.has(contract), `${file}: ${contract}`);
   }

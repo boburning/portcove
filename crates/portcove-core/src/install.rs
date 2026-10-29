@@ -1569,12 +1569,22 @@ impl Installer {
             if total.is_some_and(|total| completed == total)
                 || completed.saturating_sub(reported) >= 1024 * 1024
             {
-                emit(operation.progress("download", completed, total));
+                emit(operation.progress_with_unit(
+                    "download",
+                    crate::ProgressUnit::Bytes,
+                    completed,
+                    total,
+                ));
                 reported = completed;
             }
         }
         if completed != reported {
-            emit(operation.progress("download", completed, total));
+            emit(operation.progress_with_unit(
+                "download",
+                crate::ProgressUnit::Bytes,
+                completed,
+                total,
+            ));
         }
         file.flush().await?;
         validate_download_size(completed, asset.size)?;
