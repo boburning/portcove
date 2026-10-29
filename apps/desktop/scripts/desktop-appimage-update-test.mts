@@ -6,6 +6,7 @@ import { constants } from "node:fs";
 import { writeFile, mkdir, copyFile, chmod, lstat, readlink, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { fileURLToPath } from "node:url";
 import { By } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import type { InstalledUpdateFailure } from "./desktop-installed-update-harness.mts";
@@ -249,9 +250,7 @@ if (values["historical-bootstrap-manifest"])
   applicationEnvironment.PATH = applicationEnvironment.PATH?.split(path.delimiter)
     .filter((entry) => !/(?:^|\/)\.(?:cargo|rustup)(?:\/|$)/u.test(entry))
     .join(path.delimiter);
-const projectRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-  encoding: "utf8",
-}).trim();
+const projectRoot = fileURLToPath(new URL("../../../", import.meta.url));
 async function historicalSnapshot(phase: string) {
   const historical = report.historical_bootstrap;
   assert.ok(historical);
