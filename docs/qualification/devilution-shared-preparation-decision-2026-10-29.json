@@ -20,12 +20,14 @@
     "repository": "diasurgical/DevilutionX",
     "tag": "1.5.5",
     "commit": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
-    "tree": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+    "tree": "15acc6b2d8b0407f1ec282301af2310fa67f5040",
     "tree_truncated": false,
     "individually_git_blob_verified_files": 458,
     "selected_bytes": 4157157,
     "selected_capture_receipt_sha256": "d9b87b4b45258ee1ce7b2b2465086972d08fdc978119d8e7a3321fd1f273c418",
-    "scope": "Selected application code/header and documentation capture, not all external dependencies or binary/source build equivalence. This packet is a consequential boundary review, not complete runtime qualification."
+    "scope": "Selected application code/header and documentation capture, not all external dependencies or binary/source build equivalence. This packet is a consequential boundary review, not complete runtime qualification.",
+    "tree_request_ref": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+    "capture_tree_field_limit": "The unchanged capture receipt tree_sha records the commit request ref, not the resolved Git tree; actual tree is separately verified through the Git commit API."
   },
   "official_package": {
     "asset_id": 310816827,
