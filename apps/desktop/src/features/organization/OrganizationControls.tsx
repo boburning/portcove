@@ -218,9 +218,11 @@ export function SaveGameButton({
   port,
   organization,
   groupPorts = [port],
+  card = false,
 }: {
   port: CatalogEntry;
   groupPorts?: readonly CatalogEntry[];
+  card?: boolean;
   organization?: Organization | undefined;
 }) {
   if (!organization) return null;
@@ -228,7 +230,9 @@ export function SaveGameButton({
   const saved = groupPorts.some((entry) => savedForPort(organization, entry));
   return (
     <Button
-      size="sm"
+      size={card ? "icon-sm" : "sm"}
+      className={card ? "collection-art-action collection-save" : undefined}
+      title={saved ? "Remove saved game" : "Save for later"}
       variant={saved ? "selected" : "ghost"}
       data-focusable
       aria-pressed={saved}
@@ -256,7 +260,7 @@ export function SaveGameButton({
       }}
     >
       <Bookmark aria-hidden="true" />
-      {saved ? "Saved" : "Save"}
+      {!card && (saved ? "Saved" : "Save")}
     </Button>
   );
 }

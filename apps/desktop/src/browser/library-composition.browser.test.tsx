@@ -252,26 +252,33 @@ it("names exact port choices from their visible identity and readiness inside gr
   );
 });
 
-it("keeps Favorites in the entry menu and restores filter focus when its last result disappears", async () => {
+it("keeps artwork favorites separate from details and restores filter focus when its last result disappears", async () => {
   await page.viewport(1366, 768);
   await mount();
   const favorite = vi.spyOn(desktopApi, "setPortFavorite");
-  const more = page.getByRole("button", {
-    name: "More actions for Super Mario 64 · sm64-port",
+  const toggle = page.getByRole("button", {
+    name: "Favorite Super Mario 64 · sm64-port",
     exact: true,
   });
-  await more.click();
-  await userEvent.keyboard("Add");
-  await expect
-    .element(page.getByRole("menuitem", { name: "Add to favorites", exact: true }))
-    .toHaveFocus();
+  const button = toggle.element();
+  expect(button.closest(".collection-identity")).toBeNull();
+  const cover = button
+    .closest("article")!
+    .querySelector(".collection-art")!
+    .getBoundingClientRect();
+  const bounds = button.getBoundingClientRect();
+  expect(bounds.right).toBeLessThanOrEqual(cover.right);
+  expect(bounds.top).toBeGreaterThanOrEqual(cover.top);
+  expect(bounds.width).toBeGreaterThanOrEqual(32);
+  button.focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => favorite.mock.calls[0]).toEqual(["collection-0", true, 1]);
   const filter = page.getByRole("button", { name: "Favorites (1)", exact: true });
   await filter.click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
-  await more.click();
-  await page.getByRole("menuitem", { name: "Remove from favorites", exact: true }).click();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  toggle.element().focus();
+  await userEvent.keyboard("{Enter}");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
   await expect
     .element(page.getByRole("button", { name: "Favorites (0)", exact: true }))

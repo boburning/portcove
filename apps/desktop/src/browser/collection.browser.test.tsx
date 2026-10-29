@@ -266,7 +266,7 @@ for (const theme of ["dark", "light"]) {
         ".collection-actions button[data-detail-origin$=':review']",
       )) {
         const visibleAction = action.textContent.trim();
-        expect(visibleAction).toBe("Review setup");
+        expect(visibleAction).toBe("Set up");
         expect(action.getAttribute("aria-label")).toContain(visibleAction);
       }
     }
@@ -287,7 +287,7 @@ for (const theme of ["dark", "light"]) {
     expect(entryFor(3).textContent).toContain("Update saved for later");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
-    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Set up");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
     expect(entryFor(0).querySelector(".collection-state")?.textContent).toContain(
@@ -311,7 +311,7 @@ for (const theme of ["dark", "light"]) {
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
-    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Set up");
     await page
       .getByRole("textbox", { name: "Search your library", exact: true })
       .fill("Super Mario 64");
