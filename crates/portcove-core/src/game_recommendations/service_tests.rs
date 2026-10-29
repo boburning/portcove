@@ -1,5 +1,5 @@
 //! Actual Core query with an owned synthetic release provider and library.
-//! Real catalog calibration below only establishes identity/fallback, never gameplay.
+//! Real catalog calibration below establishes artifact-authority/fallback boundaries, never gameplay.
 use super::*;
 use crate::{
     Catalog, RecommendationEvidenceKind as Kind, ReleaseAsset, ReleaseProvider, ResolvedRelease,
@@ -180,7 +180,11 @@ async fn shared_query_selects_from_scoped_facts_and_reuses_unchanged_provider_in
     let statuses = serde_json::to_value(f.service.statuses().unwrap()).unwrap();
     let first = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(first.ports.len(), 2);
@@ -197,7 +201,11 @@ async fn shared_query_selects_from_scoped_facts_and_reuses_unchanged_provider_in
     f.request.refresh = false;
     let again = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -218,14 +226,22 @@ async fn shared_query_selects_from_scoped_facts_and_reuses_unchanged_provider_in
 async fn a_new_artifact_does_not_inherit_gameplay_and_failed_collection_keeps_truthful_freshness() {
     let mut f = fixture();
     f.service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     f.provider.release.lock().unwrap().asset.sha256 = "b".repeat(64);
     f.request.evaluated_at = Some(110);
     let changed = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert!(changed.assessment.as_ref().unwrap().recommended.is_none());
@@ -249,7 +265,11 @@ async fn a_new_artifact_does_not_inherit_gameplay_and_failed_collection_keeps_tr
     f.request.evaluated_at = Some(120);
     let failed = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -285,7 +305,11 @@ async fn accepted_failures_survive_omission_and_only_an_exact_observed_correctio
     });
     let failed = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -308,7 +332,11 @@ async fn accepted_failures_survive_omission_and_only_an_exact_observed_correctio
     f.request.evaluated_at = Some(120);
     let omitted = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -336,7 +364,11 @@ async fn accepted_failures_survive_omission_and_only_an_exact_observed_correctio
     f.request.refresh = false;
     let future = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert!(
@@ -347,7 +379,11 @@ async fn accepted_failures_survive_omission_and_only_an_exact_observed_correctio
     f.request.evaluated_at = Some(130);
     let corrected = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert!(
@@ -373,7 +409,11 @@ async fn malformed_optional_metadata_and_unknown_requirements_preserve_ordinary_
     f.request.required_capabilities.insert("multiplayer".into());
     let comparison = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -402,7 +442,11 @@ async fn malformed_optional_metadata_and_unknown_requirements_preserve_ordinary_
 async fn changed_update_observation_refreshes_only_its_affected_implementation() {
     let mut f = fixture();
     f.service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     f.service
@@ -421,12 +465,20 @@ async fn changed_update_observation_refreshes_only_its_affected_implementation()
     f.request.refresh = false;
     f.request.evaluated_at = Some(140);
     f.service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 3);
     f.service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 3);
@@ -437,7 +489,11 @@ async fn followed_updates_are_explicit_deduplicated_and_do_not_change_installs_o
     let mut f = fixture();
     let first = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert!(
@@ -468,7 +524,11 @@ async fn followed_updates_are_explicit_deduplicated_and_do_not_change_installs_o
     f.request.refresh = false;
     assert!(
         f.service
-            .compare_game_ports(&f.request, &f.preferences)
+            .compare_game_ports_at(
+                &f.request,
+                &f.preferences,
+                evaluation_time(&f.request).unwrap()
+            )
             .await
             .unwrap()
             .ports[0]
@@ -480,7 +540,11 @@ async fn followed_updates_are_explicit_deduplicated_and_do_not_change_installs_o
     f.request.evaluated_at = Some(120);
     let changed = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     let notice = changed.ports[0].update_notice.as_ref().unwrap();
@@ -498,7 +562,11 @@ async fn followed_updates_are_explicit_deduplicated_and_do_not_change_installs_o
     f.request.refresh = false;
     let seen = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert!(seen.ports[0].update_notice.is_none());
@@ -511,17 +579,41 @@ async fn followed_updates_are_explicit_deduplicated_and_do_not_change_installs_o
 
 #[tokio::test]
 async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabricated_quality() {
+    let evidence: serde_json::Value = serde_json::from_str(include_str!(
+        "../../tests/fixtures/recommendation-sm64-upstream-identities-20261029.json"
+    ))
+    .unwrap();
+    let asset = &evidence["cases"][1]["asset"];
+    // Independently collected package identity is available to this provider, but
+    // these accepted routes register user-selected runtimes. An upstream package
+    // must not silently become their offered/qualified replacement.
+    let provider = Arc::new(Provider {
+        calls: AtomicUsize::new(0),
+        failure: AtomicBool::new(false),
+        release: Mutex::new(ResolvedRelease {
+            version: "v1.5.1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: asset["name"].as_str().unwrap().into(),
+                url: asset["url"].as_str().unwrap().into(),
+                size: asset["bytes"].as_u64().unwrap(),
+                sha256: asset["downloaded_sha256"].as_str().unwrap().into(),
+            },
+        }),
+    });
     let temporary = tempfile::tempdir().unwrap();
     let preferences = HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
-    let service = PortcoveService::new_read_only(
+    let service = PortcoveService::with_provider_read_only(
         crate::Library::open(temporary.path().join("library")).unwrap(),
+        provider.clone(),
     )
     .unwrap();
     let request =
-        serde_json::from_value(serde_json::json!({"port_id":"render96ex", "evaluated_at":100}))
+        serde_json::from_value(serde_json::json!({"port_id":"render96ex", "evaluated_at":100, "platform":"windows-x86-64", "refresh":true, "required_capabilities":["multiplayer"]}))
             .unwrap();
     let result = service
-        .compare_game_ports(&request, &preferences)
+        .compare_game_ports_at(&request, &preferences, evaluation_time(&request).unwrap())
         .await
         .unwrap();
     assert_eq!(result.game_id.as_deref(), Some("super-mario-64"));
@@ -558,6 +650,24 @@ async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabr
             .all(|port| port.metadata == RecommendationMetadataState::Missing)
     );
     assert!(result.ports.iter().all(|port| !port.installed));
+    for id in ["render96ex", "super-mario-64-sm64-co-op-dx"] {
+        let row = result.ports.iter().find(|port| port.port_id == id).unwrap();
+        assert!(row.offered_release.is_none());
+        assert!(!row.launch_ready);
+    }
+    assert_eq!(provider.calls.load(Ordering::SeqCst), 0);
+    // A source revision is deliberately not represented as a runtime checksum.
+    assert!(evidence["cases"][0]["artifact_identity"].is_null());
+    assert_eq!(
+        asset["downloaded_sha256"],
+        "2a98c40acb2a46d30cde89f3072c039b641dbdf977985f9e82a040615f1b2381"
+    );
+    assert!(result.assessment.as_ref().is_none_or(|assessment| {
+        assessment
+            .candidates
+            .iter()
+            .all(|candidate| !candidate.recommendation_eligible)
+    }));
 }
 
 #[tokio::test]
@@ -590,7 +700,11 @@ async fn explicit_observed_requirement_changes_suitability_without_changing_qual
     });
     let ordinary = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -608,7 +722,11 @@ async fn explicit_observed_requirement_changes_suitability_without_changing_qual
     f.request.refresh = false;
     let required = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -642,7 +760,11 @@ async fn seen_release_identity_stays_deduplicated_after_a_different_release_is_a
     let mut f = fixture();
     let first = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     let library = f.service.library().identity().unwrap();
@@ -661,7 +783,11 @@ async fn seen_release_identity_stays_deduplicated_after_a_different_release_is_a
     f.request.evaluated_at = Some(110);
     let next = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     f.preferences
@@ -683,7 +809,11 @@ async fn seen_release_identity_stays_deduplicated_after_a_different_release_is_a
     f.request.evaluated_at = Some(120);
     let back = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert!(back.ports[0].update_notice.is_none());
@@ -762,7 +892,11 @@ async fn comparison_and_changed_metadata_preserve_a_real_registered_install_mani
     let records = serde_json::to_value(library.all_installs().unwrap()).unwrap();
     let sources = serde_json::to_value(library.sources().unwrap()).unwrap();
     f.service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     edit(&mut f, |document| {
@@ -776,7 +910,11 @@ async fn comparison_and_changed_metadata_preserve_a_real_registered_install_mani
     f.request.evaluated_at = Some(120);
     let refreshed = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert!(refreshed.ports[0].installed);
@@ -804,7 +942,11 @@ async fn accepted_definition_changes_refresh_only_affected_inputs_without_manual
     let mut f = fixture();
     let first = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 2);
@@ -817,7 +959,11 @@ async fn accepted_definition_changes_refresh_only_affected_inputs_without_manual
     f.request.evaluated_at = Some(110);
     let changed = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 3);
@@ -853,7 +999,11 @@ async fn accepted_definition_changes_refresh_only_affected_inputs_without_manual
     );
     let repeated = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 3);
@@ -872,7 +1022,11 @@ async fn failed_changed_definition_retains_last_good_binding_without_a_query_ret
     let mut f = fixture();
     let first = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     f.provider.failure.store(true, Ordering::SeqCst);
@@ -883,7 +1037,11 @@ async fn failed_changed_definition_retains_last_good_binding_without_a_query_ret
     f.request.evaluated_at = Some(110);
     let failed = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 3);
@@ -904,7 +1062,11 @@ async fn failed_changed_definition_retains_last_good_binding_without_a_query_ret
     f.request.evaluated_at = Some(120);
     let repeated = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 3);
@@ -913,7 +1075,11 @@ async fn failed_changed_definition_retains_last_good_binding_without_a_query_ret
     f.request.refresh = true;
     let recovered = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -935,7 +1101,11 @@ async fn accepted_quality_changes_recompute_without_refetching_unchanged_artifac
     let mut f = fixture();
     let first = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     let release = f.provider.release.lock().unwrap().clone();
@@ -950,7 +1120,11 @@ async fn accepted_quality_changes_recompute_without_refetching_unchanged_artifac
     f.request.refresh = false;
     let comparable = f
         .service
-        .compare_game_ports(&f.request, &f.preferences)
+        .compare_game_ports_at(
+            &f.request,
+            &f.preferences,
+            evaluation_time(&f.request).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(f.provider.calls.load(Ordering::SeqCst), 2);
@@ -960,4 +1134,68 @@ async fn accepted_quality_changes_recompute_without_refetching_unchanged_artifac
         crate::PortRecommendationStatus::ComparableAlternatives
     );
     assert!(comparable.assessment.unwrap().recommended.is_none());
+}
+
+#[tokio::test]
+async fn future_replay_cannot_poison_collection_and_normal_refresh_recovers() {
+    let mut f = fixture();
+    f.request.evaluated_at = Some(u64::MAX);
+    assert!(
+        f.service
+            .compare_game_ports(&f.request, &f.preferences)
+            .await
+            .is_err()
+    );
+    assert_eq!(f.provider.calls.load(Ordering::SeqCst), 0);
+    let library_id = f.service.library().identity().unwrap();
+    assert!(
+        f.preferences
+            .recommendation_history(&library_id)
+            .unwrap()
+            .releases
+            .is_empty()
+    );
+    f.request.evaluated_at = None;
+    let normal = f
+        .service
+        .compare_game_ports(&f.request, &f.preferences)
+        .await
+        .unwrap();
+    assert!(normal.ports[0].offered_release.is_some());
+    assert_eq!(
+        normal.ports[0].freshness.last_attempt_at,
+        Some(normal.evaluated_at)
+    );
+    assert_eq!(f.provider.calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn historical_assessment_does_not_backdate_new_provider_facts() {
+    let mut f = fixture();
+    f.request.evaluated_at = Some(100);
+    let historical = f
+        .service
+        .compare_game_ports_at(&f.request, &f.preferences, 200)
+        .await
+        .unwrap();
+    assert!(historical.ports[0].offered_release.is_none());
+    let history = f
+        .preferences
+        .recommendation_history(&f.service.library().identity().unwrap())
+        .unwrap();
+    assert!(
+        history
+            .releases
+            .values()
+            .all(|record| record.last_attempt_at == 200)
+    );
+    f.request.refresh = false;
+    f.request.evaluated_at = None;
+    let current = f
+        .service
+        .compare_game_ports_at(&f.request, &f.preferences, 200)
+        .await
+        .unwrap();
+    assert!(current.ports[0].offered_release.is_some());
+    assert_eq!(f.provider.calls.load(Ordering::SeqCst), 2);
 }

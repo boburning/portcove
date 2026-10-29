@@ -68,6 +68,7 @@ fn failure(input: &PortRecommendationInput, observed_at: u64) -> RecommendationR
     RecommendationRegression {
         id: "save-regression".into(),
         affected_scope: input.candidates[0].scope.clone(),
+        dimension: Some(RecommendationDimension::Gameplay),
         observed_at,
         source: "fixture://failure".into(),
         explanation: "Synthetic accepted failure, not an actual game observation.".into(),
@@ -121,6 +122,7 @@ fn future_duplicate_ids_do_not_retroactively_invalidate_an_accepted_correction()
     input.retained_regressions.push(original.clone());
     let correction = RecommendationVerifiedCorrection {
         regression_id: original.id.clone(),
+        dimension: Some(RecommendationDimension::Gameplay),
         scope: original.affected_scope.clone(),
         observed_at: 30,
         source: "fixture://verified-correction".into(),
@@ -152,6 +154,7 @@ fn a_future_correction_does_not_clear_a_present_failure_during_historical_replay
     input.retained_regressions.push(original.clone());
     let correction = RecommendationVerifiedCorrection {
         regression_id: original.id.clone(),
+        dimension: Some(RecommendationDimension::Gameplay),
         scope: original.affected_scope,
         observed_at: 101,
         source: "fixture://verified-correction".into(),

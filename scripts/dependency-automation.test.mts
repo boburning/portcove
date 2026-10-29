@@ -9,9 +9,14 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseDocument } from "yaml";
+import { parseDocument, parseAllDocuments } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  nativePnpmVersion,
+  nativePnpmArchive,
+  nativeWindowsPnpmArchive,
+} from "./release-pnpm-runtime.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
 
@@ -34,6 +39,31 @@ void test("root lock maintenance retains provider-owned pnpm platform integrity"
   assert.ok(result.artifacts > 1);
 });
 const read = (name: string) => readFile(path.join(root, name), "utf8");
+
+void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
+  assert.equal(rootPackage.packageManager, `pnpm@${nativePnpmVersion}`);
+  const environment = record(parseAllDocuments(await read("pnpm-lock.yaml"))[0]?.toJS());
+  const packages = record(environment.packages);
+  for (const [platform, archive] of [
+    ["linux-x64", nativePnpmArchive],
+    ["win32-x64", nativeWindowsPnpmArchive],
+  ] as const) {
+    assert.equal(
+      archive.url,
+      `https://registry.npmjs.org/@pnpm/exe.${platform}/-/exe.${platform}-${nativePnpmVersion}.tgz`,
+    );
+    assert.equal(
+      record(record(packages[`@pnpm/exe.${platform}@${nativePnpmVersion}`]).resolution).integrity,
+      archive.integrity,
+    );
+  }
+  const linux = await read("scripts/prepare-hosted-native-linux-installation.py");
+  assert.equal(
+    linux.match(/metadata.get\("packageManager"\) == "pnpm@([^"\n]+)"/u)?.[1],
+    nativePnpmVersion,
+  );
+  assert.equal(linux.match(/environment=environment\) == "([^"\n]+)"/u)?.[1], nativePnpmVersion);
+});
 
 void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {
   const quality = qualityManifest;

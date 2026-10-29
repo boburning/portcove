@@ -104,7 +104,8 @@ for (const width of [320, 576]) {
         .getByRole("button", { name: "Discover", exact: true });
       await expect.element(desktopDestination).toBeVisible();
       await expect.element(desktopDestination).toHaveFocus();
-    }, 45_000);
+      // This modal audit phase showed a gap above 100s under host load; retain finite headroom.
+    }, 180_000);
   }
 }
 

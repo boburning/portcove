@@ -297,6 +297,7 @@ pub(crate) fn normalize(port: &crate::PortDefinition, evaluated_at: u64) -> Norm
             result.regressions.push(RecommendationRegression {
                 id: observation.id.clone(),
                 affected_scope: observation.scope.clone(),
+                dimension: Some(dimension),
                 observed_at: observation.observed_at,
                 source: observation.source.clone(),
                 explanation: observation.explanation.clone(),
@@ -373,6 +374,7 @@ pub(crate) fn normalize(port: &crate::PortDefinition, evaluated_at: u64) -> Norm
         for id in &observation.fixes {
             result.corrections.push(RecommendationVerifiedCorrection {
                 regression_id: id.clone(),
+                dimension: Some(dimension),
                 scope: scope.clone(),
                 observed_at: observation.observed_at,
                 source: observation.source.clone(),

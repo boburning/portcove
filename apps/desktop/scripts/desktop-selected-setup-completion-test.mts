@@ -1126,7 +1126,7 @@ export async function selectedSetupCompletionScenario({
       assert.equal(report.observations.result_focus.text, "Next step");
       await screenshot("selected-setup-prepared");
       await enlargedStage("prepared-completion");
-      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await click(By.css("[data-detail-back]"));
       await browser.wait(until.elementLocated(continuation), 5_000);
       report.observations.return_focus = await browser.wait(
         () => executeBrowserScript(browser, observeCompletionReturnFocus, setupOrigin),
@@ -1188,7 +1188,7 @@ export async function selectedSetupCompletionScenario({
         afterCompletion,
         "Alternative review dismissal preserves installations",
       );
-      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await click(By.css("[data-detail-back]"));
       await browser.wait(until.elementLocated(queue), 5_000);
       assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
       await screenshot("selected-setup-queue-return");
@@ -1372,7 +1372,7 @@ export async function selectedSetupCompletionScenario({
         5_000,
       );
       assert.deepEqual(await read("get_statuses"), statusesBeforeBiosPlan);
-      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await click(By.css("[data-detail-back]"));
       await browser.wait(until.elementLocated(queue), 5_000);
       assert.match(await browser.findElement(queue).getText(), /3 of 16 ports selected/);
       report.observations.bios_return_focus = await browser.wait(

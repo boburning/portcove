@@ -360,15 +360,15 @@ it.each(["catalog", "library"] as const)(
         />,
       );
     const html = renderCard();
-    expect(html).toContain("Setup required");
+    expect(html).toContain("Setup needed");
     const action = view === "catalog" ? discoverAction(html, port.id) : html;
-    expect(action).toContain(view === "library" ? "Finish setup" : "View installation");
+    expect(action).toContain(view === "library" ? "Review setup" : "View installation");
     expect(html).not.toContain("Launch needs review");
     status.port_actions = [
       { action: "launch", availability: "held", reason: "definition_ineligible", definition: null },
     ];
     expect(renderCard()).toContain("Launch needs review");
-    expect(renderCard()).not.toContain("Finish setup");
+    expect(renderCard()).not.toContain("Review setup");
   },
 );
 

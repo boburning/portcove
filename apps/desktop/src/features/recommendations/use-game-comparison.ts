@@ -88,6 +88,7 @@ export function useGameComparison({
   }, [load]);
   const current = state.key === key;
   return {
+    scopeBinding: binding,
     context,
     setContext,
     report: current ? state.report : undefined,

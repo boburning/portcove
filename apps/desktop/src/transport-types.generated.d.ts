@@ -25,6 +25,7 @@ export type FailureRecoveryTarget = {
   [k: string]: unknown;
 };
 export type FailureTone = "neutral" | "error";
+export type ActivityLiveness = "active" | "interrupted" | "unknown";
 export type ActivityOperation =
   | "download_package"
   | "prepare"
@@ -234,6 +235,22 @@ export type LaunchBlocker =
  * This family currently exposes the catalog's reviewed defaults only.
  */
 export type PreparationMode = "default" | "ghostship200_legacy" | "source_only";
+/**
+ * User-facing installation behavior supplied by the catalog. Adapters remain an
+ * implementation detail and must not be translated into product copy by clients.
+ */
+export type InstallationMethod =
+  | "portable-package"
+  | "portable-recompilation"
+  | "staged-game-files"
+  | "referenced-disc"
+  | "generated-game-data"
+  | "upstream-setup"
+  | "managed-recompilation"
+  | "user-prepared-runtime";
+export type SavesAndSettingsBehavior = "portcove-managed" | "external-user-owned";
+export type PortSourceRole = "game" | "bios";
+export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ArtworkImageFormat = "png" | "jpeg";
 export type OutputArtworkAssets = LocalArtworkAsset[];
@@ -303,19 +320,6 @@ export type ManagedInitialization = "tfe-dark-forces-v1.22.420" | "tfe-dark-forc
  * This grants neither executable trust nor mod/save compatibility.
  */
 export type ModPackagePolicy = "versioned-packages-v1";
-/**
- * User-facing installation behavior supplied by the catalog. Adapters remain an
- * implementation detail and must not be translated into product copy by clients.
- */
-export type InstallationMethod =
-  | "portable-package"
-  | "portable-recompilation"
-  | "staged-game-files"
-  | "referenced-disc"
-  | "generated-game-data"
-  | "upstream-setup"
-  | "managed-recompilation"
-  | "user-prepared-runtime";
 export type CatalogMediaRole = "header" | "screenshot";
 export type CatalogMediaSubject =
   | {
@@ -327,9 +331,6 @@ export type CatalogMediaSubject =
       kind: "original";
       source_edition_id: string;
     };
-export type SavesAndSettingsBehavior = "portcove-managed" | "external-user-owned";
-export type PortSourceRole = "game" | "bios";
-export type SourceVerificationMethod = "catalog-identity" | "upstream-validator" | "catalog-rules";
 export type CartridgeBuildRecipe =
   | "yoshis-cookie-nes-cycle-v1.1.0"
   | "dr-mario-nes-cycle-v1.3.0-usa"
@@ -446,6 +447,7 @@ export type DigestScope =
   | "file-set-member"
   | "disc-set-member";
 export type CompoundSourceFormat = "stfs-live";
+export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
   | {
@@ -642,8 +644,16 @@ export type OutputOperationEvent1 =
   | {
       completed: number;
       phase: string;
+      /**
+       * Stable producer identity, independent of translated display wording.
+       */
+      phase_id?: string | null;
       total: number | null;
       type: "progress";
+      /**
+       * Absent on older producers; clients must not infer it from phase text.
+       */
+      unit?: ProgressUnit | null;
       [k: string]: unknown;
     }
   | {
@@ -657,6 +667,7 @@ export type OutputOperationEvent1 =
       type: "finished";
       [k: string]: unknown;
     };
+export type ProgressUnit = "bytes" | "items" | "ports" | "indeterminate";
 export type OperationResult = "succeeded" | "failed" | "cancelled";
 export type OutputDestinationAvailability = "available" | "full" | "unavailable";
 export type OutputDestinationOwnership =
@@ -1010,6 +1021,10 @@ export interface ActivityRecord {
   failure: FailureReport | null;
   finished_at: number | null;
   id: string;
+  /**
+   * Best-effort ownership observation, not a replacement for terminal results.
+   */
+  liveness?: ActivityLiveness | null;
   message: string | null;
   operation: ActivityOperation;
   started_at: number;
@@ -1321,6 +1336,10 @@ export interface LaunchReadiness {
    * definition when an external runtime is registered.
    */
   required_source_extension?: string | null;
+  /**
+   * Mechanical explanation from the effective (possibly retained) contract.
+   */
+  setup_contract?: SetupExplanation | null;
   source?: SourceHealth | null;
   /**
    * Descriptive input evidence for this retained installed release. Missing
@@ -1383,6 +1402,43 @@ export interface SourceEvidenceScope {
         state: "exact";
         [k: string]: unknown;
       };
+  [k: string]: unknown;
+}
+export interface SetupExplanation {
+  definition_sha256: string;
+  installation_method: InstallationMethod | null;
+  manual_preparation: string | null;
+  manual_setup: ManualSetupGuide | null;
+  persistent_file_patterns: PersistentFilePattern[];
+  persistent_paths: string[];
+  platforms: Platform[];
+  retained: boolean;
+  saves_and_settings: SavesAndSettingsBehavior | null;
+  source_requirements: SourceRequirementPresentation[];
+  [k: string]: unknown;
+}
+/**
+ * Authored instructions only; these steps grant no operation or file authority.
+ */
+export interface ManualSetupGuide {
+  help_url?: string | null;
+  steps: ManualSetupStep[];
+  warnings: string[];
+}
+export interface ManualSetupStep {
+  instruction: string;
+  title: string;
+}
+export interface PersistentFilePattern {
+  prefix: string;
+  suffix: string;
+  [k: string]: unknown;
+}
+export interface SourceRequirementPresentation {
+  label: string;
+  profile_id: string;
+  role: PortSourceRole;
+  verification: SourceVerificationMethod;
   [k: string]: unknown;
 }
 /**
@@ -1627,11 +1683,6 @@ export interface BundledRuntime {
   target_directory: string;
   [k: string]: unknown;
 }
-export interface PersistentFilePattern {
-  prefix: string;
-  suffix: string;
-  [k: string]: unknown;
-}
 /**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
  * documents may omit this object; current embedded definitions provide it.
@@ -1662,18 +1713,6 @@ export interface PortPresentation {
   source_requirements: SourceRequirementPresentation[];
   variant_label?: string | null;
   [k: string]: unknown;
-}
-/**
- * Authored instructions only; these steps grant no operation or file authority.
- */
-export interface ManualSetupGuide {
-  help_url?: string | null;
-  steps: ManualSetupStep[];
-  warnings: string[];
-}
-export interface ManualSetupStep {
-  instruction: string;
-  title: string;
 }
 export interface CatalogMediaAsset {
   attribution: string;
@@ -1709,13 +1748,6 @@ export interface SourceEdition {
    */
   system?: string | null;
   title: string;
-}
-export interface SourceRequirementPresentation {
-  label: string;
-  profile_id: string;
-  role: PortSourceRole;
-  verification: SourceVerificationMethod;
-  [k: string]: unknown;
 }
 export interface ReleaseSpec {
   asset_hints: {
@@ -2049,7 +2081,8 @@ export interface CatalogDownloadRequest {
 }
 /**
  * Independently versioned directory projection. Format 2 can restrict fresh
- * downloads; format 3 adds descriptive game/edition identity. No format grants operations.
+ * downloads; format 3 adds game/edition identity; format 4 adds inert observations
+ * and reason-bearing display overrides/maintenance. No format grants operations.
  */
 export interface CatalogListingDocument {
   format_version: number;
@@ -2065,6 +2098,10 @@ export interface PortListing {
    * A dated discovery fact, not a managed support or artifact admission decision.
    */
   availability: "unknown" | "packages" | "source-only" | "unavailable";
+  /**
+   * Authored exception takes precedence over observations only with this reason.
+   */
+  availability_override_reason?: string | null;
   /**
    * Advisory literal filename hints for an upstream-owned download. They do
    * not authenticate a package or grant installation/execution ownership.
@@ -2096,10 +2133,63 @@ export interface PortListing {
    * Initial self-service release choice only; never the installed update policy.
    */
   recommended_download_channel?: ReleaseChannel | null;
+  release_maintenance?: ListingReleaseMaintenance | null;
   release_url?: string | null;
   setup_url?: string | null;
   summary: string;
+  /**
+   * Accepted descriptive observation, never a package or execution grant.
+   */
+  upstream_observation?: ListingUpstreamObservation | null;
   variant_label?: string | null;
+}
+export interface ListingReleaseMaintenance {
+  /**
+   * Derived from accepted direct contracts, not independently maintained versions.
+   */
+  pinned_releases: ListingPinnedRelease[];
+  reason: string;
+  reconsider_when: string;
+}
+export interface ListingPinnedRelease {
+  platform: Platform;
+  published_at: string | null;
+  version: string;
+}
+export interface ListingUpstreamObservation {
+  attempted_at: string;
+  facts_sha256: string | null;
+  fresh_until: string | null;
+  observed_at: string | null;
+  provider: string;
+  release_limit: number;
+  releases: ListingObservedRelease[];
+  repository: string;
+  repository_id: number | null;
+  status: ListingObservationStatus;
+}
+export interface ListingObservedRelease {
+  assets: ListingObservedAsset[];
+  assets_complete: boolean;
+  id: number;
+  provider_prerelease: boolean;
+  published_at: string;
+  release_url: string;
+  version: string;
+}
+export interface ListingObservedAsset {
+  id: number;
+  name: string;
+  /**
+   * Descriptive authored filename hints, never execution capabilities.
+   */
+  platform_hints: Platform[];
+  /**
+   * Provider-reported claim; this does not verify downloaded bytes.
+   */
+  sha256: string | null;
+  size: number;
+  url: string;
 }
 export interface CatalogProvenance {
   catalog_sha256: string;

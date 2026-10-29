@@ -1,3 +1,4 @@
+import { platforms, channels, installationMethods } from "../../catalog-values.generated";
 import { canonicalIdentityId } from "../identity/identity-style";
 import type {
   PortDefinition,
@@ -11,21 +12,12 @@ import type { GameFileFilterContext } from "./game-file-query-context";
 import type { CatalogEntry } from "./catalog-entry";
 
 // These identifiers describe declared port facts, not installation eligibility.
-const catalogQueryOptions = {
-  platforms: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64", "this-device"],
-  channels: ["stable", "beta", "rolling"],
+export const catalogQueryOptions = {
+  platforms: [...platforms, "this-device"],
+  channels,
   originalSystems: [] as readonly string[],
   portOptions: ["single", "multiple"],
-  installationMethods: [
-    "portable-package",
-    "portable-recompilation",
-    "staged-game-files",
-    "referenced-disc",
-    "generated-game-data",
-    "upstream-setup",
-    "managed-recompilation",
-    "user-prepared-runtime",
-  ],
+  installationMethods,
   membership: ["in-library", "not-in-library"],
   attention: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
   updates: ["available", "staged"],
@@ -73,6 +65,42 @@ export function sourceSystemOptions(ports: readonly CatalogEntry[], query?: unkn
   const restored = supportedQuery(query) ? (query.originalSystems ?? []) : [];
   return [...new Set(["not-specified", ...ports.flatMap(originalSystems), ...restored])].sort();
 }
+export function filterOptionsFor(
+  group: Group,
+  ports: readonly CatalogEntry[],
+  query: unknown,
+  context?: CatalogQueryContext,
+): readonly string[] {
+  if (group === "originalSystems") return sourceSystemOptions(ports, query);
+  const supported: readonly string[] = catalogQueryOptions[group];
+  if (!["platforms", "channels", "installationMethods"].includes(group)) return supported;
+  // Incomplete retained coverage cannot prove an offered filter inapplicable.
+  if (context?.library && !context.browsing?.retained_metadata_complete) return supported;
+  const selected = supportedQuery(query) ? (query[group] ?? []) : [];
+  const observed = new Set<string>(
+    ports.flatMap<string>((port) => {
+      if (group === "platforms") return port.platforms;
+      if (group === "channels") return port.channels ?? [];
+      const method = port.presentation?.installation_method;
+      return method ? [method] : [];
+    }),
+  );
+  const ids = new Set(ports.map((port) => port.id));
+  for (const fact of context?.browsing?.contexts ?? []) {
+    if (!ids.has(fact.port_id)) continue;
+    const value =
+      group === "platforms"
+        ? fact.platform
+        : group === "channels"
+          ? fact.channel
+          : fact.installation_method;
+    if (value) observed.add(value);
+  }
+  return supported.filter(
+    (value) => value === "this-device" || observed.has(value) || selected.includes(value),
+  );
+}
+
 function optionsFor(
   group: Group,
   ports: readonly CatalogEntry[],

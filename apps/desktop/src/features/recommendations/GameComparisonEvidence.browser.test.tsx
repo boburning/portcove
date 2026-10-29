@@ -16,13 +16,13 @@ import "../../styles/index.css";
 
 let pressed: number[] = [];
 const back = vi.fn();
-function Fixture() {
+function Fixture({ generation = 1 }: { generation?: number }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const organization = useOrganization(1);
+  const organization = useOrganization(generation);
   const comparison = useGameComparison({
     portId: open ? "sample" : undefined,
-    generation: 1,
+    generation,
     observationKey: String(organization.snapshot?.revision),
   });
   useGamepadNavigation(back);
@@ -212,4 +212,20 @@ it("selects a displayed source edition and target platform without changing libr
   expect(vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].edition_id).toBe(
     "fixture-edition",
   );
+});
+
+it("resets an expanded explanation when the library scope changes", async () => {
+  const screen = await render(<Fixture />);
+  await userEvent.click(page.getByRole("button", { name: "Compare projects", exact: true }));
+  const why = page.getByText("Why this port? — Fixture project", { exact: true });
+  await userEvent.click(why);
+  const explanation = page.getByText(
+    "Synthetic assertion for presentation tests, not real gameplay.",
+  );
+  await expect.element(explanation).toBeVisible();
+  await screen.rerender(<Fixture generation={2} />);
+  await expect.element(why).toBeVisible();
+  await expect.element(explanation).not.toBeVisible();
+  await userEvent.click(why);
+  await expect.element(explanation).toBeVisible();
 });

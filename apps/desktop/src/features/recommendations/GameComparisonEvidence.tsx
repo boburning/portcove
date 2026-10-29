@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { platforms } from "../../catalog-values.generated";
+import { platformLabel } from "../../view-model";
 import { ChoiceSelect } from "../../components/ChoiceSelect";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
@@ -14,9 +17,9 @@ const reasons: Record<Reason, string> = {
   "different-game-or-edition":
     "This is a different source edition, not an interchangeable alternative.",
   "different-platform-or-environment": "The selected device context differs from this observation.",
-  "source-not-selected": "The required original-file profile is not selected.",
+  "source-not-selected": "The required original game files are not selected.",
   "operation-unknown": "Existing operation readiness or optional evidence is not established.",
-  "operation-held": "An existing Core operation hold applies; a score cannot override it.",
+  "operation-held": "An existing operation hold applies; a score cannot override it.",
   "requirement-unknown": "A required capability has not been established for this exact build.",
   "requirement-unsupported": "A required capability is not supported in the assessed scope.",
   "invalid-evidence": "Some current evidence is invalid or has ambiguous identities.",
@@ -113,10 +116,10 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
               value={context.platform || "current"}
               options={[
                 { value: "current", label: "Current device" },
-                { value: "windows-x86-64", label: "Windows x64" },
-                { value: "linux-x86-64", label: "Linux x64" },
-                { value: "macos-x86-64", label: "macOS Intel" },
-                { value: "macos-aarch64", label: "macOS Apple silicon" },
+                ...platforms.map((platform) => ({
+                  value: platform,
+                  label: platformLabel(platform),
+                })),
               ]}
               onChange={(platform) =>
                 setContext((current) => ({
@@ -207,6 +210,8 @@ export function GameComparisonEvidence({
   portId: string;
   organization: Organization | undefined;
 }) {
+  const disclosureScope = JSON.stringify([comparison.scopeBinding, portId]);
+  const [disclosure, setDisclosure] = useState({ scope: disclosureScope, open: false });
   const report = comparison.report;
   const port = report?.ports.find((row) => row.port_id === portId);
   if (!port) return null;
@@ -251,15 +256,20 @@ export function GameComparisonEvidence({
       <p className="text-xs">
         Current library: {port.installed ? "installed or registered" : "not installed"};{" "}
         {port.launch_ready
-          ? "launch-ready under existing Core checks"
+          ? "launch-ready under existing library checks"
           : "launch readiness not established"}
         . This does not qualify the selected evidence environment.
       </p>
       <p className="text-xs">
-        Original-file status: {port.source_health ?? "not assessed"}. Source profiles:{" "}
+        Original-file status: {port.source_health ?? "not assessed"}. Required game files:{" "}
         {port.source_profile_ids.join(", ") || "none declared"}.
       </p>
-      <details>
+      <details
+        open={disclosure.scope === disclosureScope && disclosure.open}
+        onToggle={(event) =>
+          setDisclosure({ scope: disclosureScope, open: event.currentTarget.open })
+        }
+      >
         <summary data-focusable className={`cursor-pointer text-sm font-medium ${controlFocus}`}>
           Why this port? — {port.name}
         </summary>

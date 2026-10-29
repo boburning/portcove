@@ -1259,6 +1259,7 @@ for (const [file, tests] of [
       "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
       "scripts/ui-test-selection.test.mts",
+      "scripts/windows-historical-bootstrap.test.mts",
     ],
   ],
   [
@@ -1474,6 +1475,7 @@ for (const [file, tests] of [
     [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
   ],
   ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
+  ["scripts/listing-upstream-observation.mts", upstreamHealthContractTests],
   ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
@@ -2226,8 +2228,10 @@ function addNodeTest(selection: ValidationSelection, file: string) {
   // now that each suite has its own explicit execution entry point.
   if (normalized === "scripts/desktop-scenarios.test.mts")
     selection.nodeTests.add("scripts/native-compatibility.test.mts");
-  if (normalized === "scripts/desktop-execution-plan.test.mts")
+  if (normalized === "scripts/desktop-execution-plan.test.mts") {
     selection.nodeTests.add("scripts/desktop-execution-baseline.test.mts");
+    selection.nodeTests.add("scripts/native-qualification-inventory.test.mts");
+  }
   if (normalized === "scripts/release-workflow.test.mts")
     selection.nodeTests.add("scripts/sign-catalog.test.mts");
 }

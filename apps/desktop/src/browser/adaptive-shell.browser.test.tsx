@@ -78,7 +78,7 @@ for (const theme of ["dark", "light"]) {
     const top = document.scrollingElement!.scrollTop;
     expect(top).toBeGreaterThan(0);
     await origin.click();
-    const back = page.getByRole("button", { name: "Back to previous workspace", exact: true });
+    const back = page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true });
     await expect
       .element(page.getByRole("heading", { name: "Orchard Quest", level: 1 }))
       .toHaveFocus();

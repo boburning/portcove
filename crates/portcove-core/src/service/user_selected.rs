@@ -247,6 +247,7 @@ impl PortcoveService {
             }
         }
         status.readiness = Some(LaunchReadiness {
+            setup_contract: None,
             launchable: blockers.is_empty(),
             blockers,
             pending_setup: false,
@@ -781,6 +782,32 @@ mod tests {
     fn assert_prepared_player_route(id: &str) {
         let (_temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
+        // Preserve the previous strict creating contract after a managed offer
+        // replaces these nine declarations. All other cases bind current data.
+        let retained_reflection = matches!(
+            id,
+            "keen-dreams-reflectionhle"
+                | "catacomb-3-d-the-descent-reflectionhle"
+                | "the-catacomb-abyss-reflectionhle"
+                | "the-catacomb-armageddon-reflectionhle"
+                | "the-catacomb-apocalypse-reflectionhle"
+                | "wolfenstein-3d-reflectionhle"
+                | "spear-of-destiny-reflectionhle"
+                | "super-3-d-noah-s-ark-dos-reflectionhle"
+                | "bio-menace-reflectionhle"
+        );
+        if retained_reflection {
+            assert_eq!(
+                service.catalog.port(id).unwrap().adapter,
+                crate::AdapterKind::NativePortable
+            );
+            service.catalog = Catalog::from_json(include_str!(
+                "../testdata/reflectionhle-retained-selected-2026-10-28.json"
+            ))
+            .unwrap()
+            .with_embedded_listings()
+            .unwrap();
+        }
         let declared = service.catalog.port(id).unwrap();
         assert_eq!(declared.release.provider, ReleaseSource::UserPrepared);
         assert_eq!(
@@ -869,6 +896,28 @@ mod tests {
         let root = service.library.root().to_path_buf();
         drop(service);
         let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        if retained_reflection {
+            assert_eq!(
+                service.catalog.port(id).unwrap().adapter,
+                crate::AdapterKind::NativePortable
+            );
+            #[cfg(windows)]
+            {
+                let (_, retained) = service
+                    .library
+                    .external_runtime_with_port(id)
+                    .unwrap()
+                    .unwrap();
+                let expected = Catalog::from_json(include_str!(
+                    "../testdata/reflectionhle-retained-selected-2026-10-28.json"
+                ))
+                .unwrap();
+                assert_eq!(
+                    serde_json::to_value(retained.port(id).unwrap()).unwrap(),
+                    serde_json::to_value(expected.port(id).unwrap()).unwrap()
+                );
+            }
+        }
         let status = service.listing_status(id).unwrap();
         assert!(
             status
@@ -1059,6 +1108,35 @@ mod tests {
         );
     }
 
+    // Preserve all nine prior route case identities across the managed offer.
+    prepared_player_case!(desktop_prepared_route_2683, "keen-dreams-reflectionhle");
+    prepared_player_case!(
+        desktop_prepared_route_2684,
+        "catacomb-3-d-the-descent-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2685,
+        "the-catacomb-abyss-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2686,
+        "the-catacomb-armageddon-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2687,
+        "the-catacomb-apocalypse-reflectionhle"
+    );
+    prepared_player_case!(desktop_prepared_route_2688, "wolfenstein-3d-reflectionhle");
+    prepared_player_case!(
+        desktop_prepared_route_2689,
+        "spear-of-destiny-reflectionhle"
+    );
+    prepared_player_case!(
+        desktop_prepared_route_2690,
+        "super-3-d-noah-s-ark-dos-reflectionhle"
+    );
+    prepared_player_case!(desktop_prepared_route_2692, "bio-menace-reflectionhle");
+
     prepared_player_case!(
         desktop_prepared_route_2555,
         "blake-stone-aliens-of-gold-bstone"
@@ -1109,33 +1187,6 @@ mod tests {
         desktop_prepared_route_2568,
         "doom-3-resurrection-of-evil-classic-dhewm3"
     );
-    prepared_player_case!(desktop_prepared_route_2683, "keen-dreams-reflectionhle");
-    prepared_player_case!(
-        desktop_prepared_route_2684,
-        "catacomb-3-d-the-descent-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2685,
-        "the-catacomb-abyss-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2686,
-        "the-catacomb-armageddon-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2687,
-        "the-catacomb-apocalypse-reflectionhle"
-    );
-    prepared_player_case!(desktop_prepared_route_2688, "wolfenstein-3d-reflectionhle");
-    prepared_player_case!(
-        desktop_prepared_route_2689,
-        "spear-of-destiny-reflectionhle"
-    );
-    prepared_player_case!(
-        desktop_prepared_route_2690,
-        "super-3-d-noah-s-ark-dos-reflectionhle"
-    );
-    prepared_player_case!(desktop_prepared_route_2692, "bio-menace-reflectionhle");
     prepared_player_case!(
         desktop_prepared_route_2654,
         "doom-the-ultimate-doom-crispy-doom-family"

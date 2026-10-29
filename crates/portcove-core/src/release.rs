@@ -28,6 +28,7 @@ mod catalog_download;
 mod forbidden_memories_qualification;
 mod observation;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
+pub(crate) use observation::encoded_segment_matches as observed_url_segment_matches;
 pub use observation::{
     ChannelObservation as UpstreamChannelObservation, ObservationEvidence, ObservedReleaseIdentity,
     ObservedResolution, UpstreamObservationReport, inspect_upstream_observation,

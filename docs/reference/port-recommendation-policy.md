@@ -38,7 +38,10 @@ Existing authored-catalog review and delivery remain the acceptance boundary:
 a typed `gameplay-observed` assertion alone is not proof that gameplay occurred.
 Provider text cannot authorize new observations, restrictions or corrections.
 
-Assessment time is an explicit replay input. Unsupported policy versions refuse
+Assessment time is an explicit replay input, bounded by the actual collection clock.
+Provider attempts and retained release facts use the actual collection clock; a
+replay cannot future-date history. Historical assessments do not borrow later
+collection results. Unsupported policy versions refuse
 pure assessment; the integrated optional query falls back without changing ordinary
 operation eligibility. API schema 83 exposes the comparison and context contracts;
 old catalog readers can ignore the additive inert presentation field.
@@ -214,3 +217,16 @@ installation/save fixtures check that metadata and recommendation refreshes cann
 rewrite player state. Browser fixtures exercise keyboard/focus and the production
 virtual-controller path; they are not physical-controller or gameplay observations.
 Actual execution, independent review and delivery receipts belong on the PR.
+
+The pinned SM64 upstream-identity fixture records a downloaded and hashed coopdx
+v1.5.1 Windows package and Render96's pinned source revision, whose complete
+GitHub releases response was empty. Its production-query control establishes
+independent alternatives, unknown quality and continued user-selected runtime
+ownership even when the provider knows a real package. This is artifact/source
+identity and refusal calibration; no game was executed and no gameplay,
+stability, performance, original-file or managed-replacement claim follows.
+
+Critical failures and accepted corrections retain their assessed dimension.
+A successful stability observation cannot clear a gameplay failure, or vice versa.
+Legacy retained failures without a dimension remain unresolved rather than being
+cleared by a correction whose criterion cannot be checked.

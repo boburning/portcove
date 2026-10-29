@@ -1,3 +1,4 @@
+import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import {
   listingActionAssessment,
@@ -22,6 +23,7 @@ export function ListingDetailPanel({
   perform,
   onChanged,
   close,
+  backLabel,
   opening,
   openSupport,
   organization,
@@ -33,6 +35,7 @@ export function ListingDetailPanel({
   perform: Perform;
   onChanged: () => void;
   close: () => void;
+  backLabel?: string | undefined;
   opening?: DetailOpening | undefined;
   openSupport?: (() => void) | undefined;
   organization?: DetailOrganization | undefined;
@@ -62,6 +65,7 @@ export function ListingDetailPanel({
       onChanged={onChanged}
       render={({ play, setup }) => (
         <DetailLayout
+          backLabel={backLabel}
           port={entry}
           projectUrl={listing?.project_url}
           openSupport={openSupport}
@@ -94,7 +98,53 @@ export function ListingDetailPanel({
               <div>
                 <dt>Recorded availability</dt>
                 <dd>{listing ? listingAvailabilityLabel(listing) : "No listing observation"}</dd>
+                {listing?.availability_override_reason && (
+                  <dd>{listing.availability_override_reason}</dd>
+                )}
+                {listing?.upstream_observation && (
+                  <dd>
+                    Checked {new Date(listing.upstream_observation.attempted_at).toLocaleString()};
+                    facts observed{" "}
+                    {listing.upstream_observation.observed_at
+                      ? new Date(listing.upstream_observation.observed_at).toLocaleString()
+                      : "unavailable"}
+                    . Release asset names and provider hashes are observations, not compatibility or
+                    byte verification.
+                  </dd>
+                )}
               </div>
+              {listing?.upstream_observation &&
+                listing.upstream_observation.releases.length > 0 && (
+                  <div>
+                    <dt>Observed release assets</dt>
+                    <dd>
+                      <details>
+                        <summary>Release window and package candidates</summary>
+                        {listing.upstream_observation.releases.map((release) => (
+                          <div key={release.id}>
+                            <ExternalLink href={release.release_url}>
+                              {release.version}
+                            </ExternalLink>
+                            <ul>
+                              {release.assets.map((asset) => (
+                                <li key={asset.id}>
+                                  {asset.name} —{" "}
+                                  {asset.platform_hints.length
+                                    ? `${asset.platform_hints.map(platformLabel).join(" · ")} filename hints`
+                                    : "Platform not identified"}
+                                </li>
+                              ))}
+                            </ul>
+                            {!release.assets_complete && (
+                              <p>This release’s assets were not completely observed.</p>
+                            )}
+                          </div>
+                        ))}
+                      </details>
+                    </dd>
+                  </div>
+                )}
+              <ListingMaintenanceFacts listing={listing} />
             </dl>
           }
           overviewActions={(reveal) => (
@@ -148,7 +198,7 @@ export function ListingDetailPanel({
                   ? "Downloaded · finish setup"
                   : listing
                     ? listingAvailabilityLabel(listing)
-                    : "Setup required"}
+                    : "Setup needed"}
             </span>
           }
           installation={
@@ -218,7 +268,7 @@ export function ListingDetailPanel({
                     <SetupStatement portId={entry.id} status={status} organization={organization} />
                   )}
                 </div>
-                <aside className="detail-setup-context" aria-label="Installation ownership">
+                <aside className="detail-setup-context" aria-label="Installation management">
                   <h3 className="mb-3 text-base">Installation and files</h3>
                   {registered && <p className="[overflow-wrap:anywhere]">{registered.path}</p>}
                   <p className="text-sm text-pc-muted-foreground">
@@ -271,7 +321,7 @@ export function ListingDetailPanel({
             ),
             manage: (
               <>
-                <section aria-label="Installation ownership" className="mb-6">
+                <section aria-label="Installation management" className="mb-6">
                   <h3 className="mb-3 text-base">Installation</h3>
                   {registered ? (
                     <>

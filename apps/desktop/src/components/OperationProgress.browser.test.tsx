@@ -4,7 +4,12 @@ import type { OperationEvent } from "../types";
 import { StatusLayer } from "./Chrome";
 
 let container: HTMLDivElement, root: RenderResult;
-const event = (completed: number, total: number | null, phase = "download"): OperationEvent => ({
+const event = (
+  completed: number,
+  total: number | null,
+  phase = "download",
+  unit: "bytes" | "ports" | "items" = "bytes",
+): OperationEvent => ({
   schema_version: 2,
   operation_id: "owned-download",
   parent_operation_id: null,
@@ -14,6 +19,8 @@ const event = (completed: number, total: number | null, phase = "download"): Ope
   operation: "install",
   type: "progress",
   phase,
+  phase_id: phase,
+  unit,
   completed,
   total,
 });
@@ -118,6 +125,7 @@ describe("accessible operation progress", () => {
   it.each([
     {
       phase: "download",
+      unit: "bytes" as const,
       completed: 25 * 1024 * 1024,
       total: 80 * 1024 * 1024,
       label: "Downloading release",
@@ -125,6 +133,7 @@ describe("accessible operation progress", () => {
     },
     {
       phase: "psx-toolchain-download",
+      unit: "bytes" as const,
       completed: 1024,
       total: 2048,
       label: "Downloading preparation tools",
@@ -132,6 +141,7 @@ describe("accessible operation progress", () => {
     },
     {
       phase: "copy",
+      unit: "bytes" as const,
       completed: 1024,
       total: 2048,
       label: "Copying game files",
@@ -139,6 +149,7 @@ describe("accessible operation progress", () => {
     },
     {
       phase: "Checking installed ports",
+      unit: "ports" as const,
       completed: 3,
       total: 12,
       label: "Checking installed ports",
@@ -146,6 +157,7 @@ describe("accessible operation progress", () => {
     },
     {
       phase: "Applying update policies",
+      unit: "ports" as const,
       completed: 1,
       total: 1,
       label: "Applying update settings",
@@ -153,8 +165,8 @@ describe("accessible operation progress", () => {
     },
   ])(
     "labels $phase progress with truthful units",
-    async ({ phase, completed, total, label, detail }) => {
-      await render(event(completed, total, phase));
+    async ({ phase, completed, total, label, detail, unit }) => {
+      await render(event(completed, total, phase, unit));
       expect(container.querySelector('[role="status"]')?.textContent).toBe(label);
       expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuetext")).toBe(
         detail,
@@ -164,10 +176,14 @@ describe("accessible operation progress", () => {
   );
 
   it.each([
-    { phase: "download", detail: "Total size not yet known." },
-    { phase: "Checking installed ports", detail: "Port total not yet known." },
-  ])("uses a task-specific indeterminate detail for $phase", async ({ phase, detail }) => {
-    await render(event(3, null, phase));
+    { phase: "download", unit: "bytes" as const, detail: "Total size not yet known." },
+    {
+      phase: "Checking installed ports",
+      unit: "ports" as const,
+      detail: "Port total not yet known.",
+    },
+  ])("uses a task-specific indeterminate detail for $phase", async ({ phase, detail, unit }) => {
+    await render(event(3, null, phase, unit));
     expect(container.textContent).toContain(detail);
     expect(container.querySelector('[role="progressbar"]')?.hasAttribute("aria-valuenow")).toBe(
       false,
@@ -189,13 +205,13 @@ describe("accessible operation progress", () => {
       type: "started",
     });
     expect(container.querySelector('[role="status"]')?.textContent).toBe(label);
-    expect(container.textContent).toContain("Port total not yet known.");
+    expect(container.textContent).toContain("Progress total not yet known.");
   });
 
   it("uses port-count copy before the busy-only update check starts", async () => {
     await render(undefined, "check installed");
     expect(container.querySelector('[role="status"]')?.textContent).toBe("Checking for updates");
-    expect(container.textContent).toContain("Port total not yet known.");
+    expect(container.textContent).toContain("Progress total not yet known.");
   });
 
   it.each(["future_internal_operation_code", "constructor", "__proto__", "toString"])(
@@ -207,4 +223,14 @@ describe("accessible operation progress", () => {
       expect(container.textContent).not.toContain("complete");
     },
   );
+});
+
+it("renders legacy events as generic counts even when phase text names a download", async () => {
+  const legacy = event(1, 2);
+  if (legacy.type !== "progress") throw new Error("progress fixture required");
+  delete legacy.unit;
+  delete legacy.phase_id;
+  await render(legacy);
+  expect(container.textContent).toContain("1 of 2");
+  expect(container.textContent).not.toContain("1 B");
 });

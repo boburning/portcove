@@ -240,3 +240,121 @@ fn native_library_import_refuses_long_destination_before_copy_or_publication() {
     );
     assert_eq!(library.all_installs().unwrap().len(), 1);
 }
+
+// Same official player and ordinary launcher for all nine original-game identities.
+// These are inert manifest/persistence fixtures, never upstream execution.
+fn reflectionhle_declared_coordinates(id: &str) {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    assert_eq!(port.adapter, crate::AdapterKind::NativePortable);
+    assert_eq!(port.launch_arguments, ["-datadir", ".", "-cfgdir", "."]);
+    assert!(port.runtime_subdirectory.is_none());
+    assert_eq!(port.persistent_paths.len(), 110);
+    assert!(port.source_profile.is_none());
+    assert!(port.setup_executable_hints.is_empty());
+    assert!(port.automated_tested_platforms.is_empty());
+    assert!(port.manually_validated_platforms.is_empty());
+    // A changed package wrapper must keep data next to the selected player,
+    // without adopting a former AppData profile or another title's install.
+    for wrapper in ["reflectionhle-0.66.0", "synthetic-successor-wrapper"] {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let root = temporary.path().join("payload");
+        let working = root.join(wrapper);
+        fs::create_dir_all(&working).unwrap();
+        for file in ["reflectionhle.exe", "SDL3.dll", "libspeexdsp-1.dll"] {
+            fs::write(working.join(file), b"inert authenticated fixture member").unwrap();
+        }
+        let qualification =
+            InstallQualification::from_catalog(&catalog, id, Platform::WindowsX86_64).unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "synthetic.zip".into(),
+            sha256: "a".repeat(64),
+            size: 1,
+        };
+        let installer = Installer::new(library).unwrap();
+        let (manifest_sha256, selected_executable, runtime) = installer
+            .create_manifest("fixture", id, "synthetic", &artifact, &qualification, &root)
+            .unwrap();
+        let install = InstallRecord {
+            id: "fixture".into(),
+            port_id: id.into(),
+            version: "synthetic".into(),
+            path: root.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 0,
+            verified: true,
+            staged: false,
+            artifact,
+            runtime,
+            manifest_sha256,
+            selected_executable,
+        };
+        assert_eq!(crate::runtime::working_root(port, &install), working);
+        for (relative, bytes) in [
+            ("reflectionhle.cfg", b"private config".as_slice()),
+            ("wl6ap14.txt", b"external original folder reference"),
+            ("wl6ap14/SAVEGAM0.WL6", b"synthetic new private progress"),
+        ] {
+            let path = working.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        assert!(installer.verify(&install).unwrap().valid);
+        // Only declared player-relative paths are mutable. Root aliases and
+        // an executable companion cannot be smuggled into the managed tree.
+        for unexpected in [
+            root.join("reflectionhle.cfg"),
+            working.join("unreviewed.dll"),
+        ] {
+            fs::write(&unexpected, b"unreviewed").unwrap();
+            assert!(!installer.verify(&install).unwrap().valid);
+            fs::remove_file(unexpected).unwrap();
+        }
+        fs::write(working.join("SDL3.dll"), b"changed packaged code").unwrap();
+        assert!(!installer.verify(&install).unwrap().valid);
+        assert_eq!(
+            fs::read(working.join("wl6ap14/SAVEGAM0.WL6")).unwrap(),
+            b"synthetic new private progress"
+        );
+    }
+}
+
+macro_rules! reflectionhle_coordinate_case {
+    ($name:ident, $id:literal) => {
+        #[test]
+        fn $name() {
+            reflectionhle_declared_coordinates($id);
+        }
+    };
+}
+reflectionhle_coordinate_case!(reflectionhle_coordinates_2683, "keen-dreams-reflectionhle");
+reflectionhle_coordinate_case!(
+    reflectionhle_coordinates_2684,
+    "catacomb-3-d-the-descent-reflectionhle"
+);
+reflectionhle_coordinate_case!(
+    reflectionhle_coordinates_2685,
+    "the-catacomb-abyss-reflectionhle"
+);
+reflectionhle_coordinate_case!(
+    reflectionhle_coordinates_2686,
+    "the-catacomb-armageddon-reflectionhle"
+);
+reflectionhle_coordinate_case!(
+    reflectionhle_coordinates_2687,
+    "the-catacomb-apocalypse-reflectionhle"
+);
+reflectionhle_coordinate_case!(
+    reflectionhle_coordinates_2688,
+    "wolfenstein-3d-reflectionhle"
+);
+reflectionhle_coordinate_case!(
+    reflectionhle_coordinates_2689,
+    "spear-of-destiny-reflectionhle"
+);
+reflectionhle_coordinate_case!(
+    reflectionhle_coordinates_2690,
+    "super-3-d-noah-s-ark-dos-reflectionhle"
+);
+reflectionhle_coordinate_case!(reflectionhle_coordinates_2692, "bio-menace-reflectionhle");

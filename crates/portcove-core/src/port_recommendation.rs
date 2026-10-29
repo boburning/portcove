@@ -155,6 +155,9 @@ pub struct RecommendationRegression {
     /// Retain the originally affected artifact as provenance. A new artifact does
     /// not itself resolve this accepted failure for the same route/environment.
     pub affected_scope: RecommendationScope,
+    /// Missing in legacy history: retain the failure, withhold automatic correction.
+    #[serde(default)]
+    pub dimension: Option<RecommendationDimension>,
     pub observed_at: u64,
     pub source: String,
     pub explanation: String,
@@ -164,6 +167,8 @@ pub struct RecommendationRegression {
 #[serde(deny_unknown_fields)]
 pub struct RecommendationVerifiedCorrection {
     pub regression_id: String,
+    #[serde(default)]
+    pub dimension: Option<RecommendationDimension>,
     pub scope: RecommendationScope,
     pub observed_at: u64,
     pub source: String,
@@ -724,6 +729,8 @@ fn regression_resolved(
     unambiguous
         && input.verified_corrections.iter().any(|correction| {
             correction.regression_id == regression.id
+                && regression.dimension.is_some()
+                && correction.dimension == regression.dimension
                 && correction.scope == *scope
                 && correction.kind == RecommendationEvidenceKind::GameplayObserved
                 && correction.observed_at > regression.observed_at

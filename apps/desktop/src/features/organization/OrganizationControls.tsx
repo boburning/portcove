@@ -59,7 +59,7 @@ export function OrganizationControls({
   const allGames = useRef<HTMLButtonElement>(null);
   const inputId = useId();
   const snapshot = organization.snapshot;
-  return (
+  const controls = (
     <div
       className="mb-3 flex basis-full flex-wrap items-center gap-2"
       role="group"
@@ -183,6 +183,21 @@ export function OrganizationControls({
         </p>
       )}
     </div>
+  );
+  if (discover) return controls;
+  const current =
+    selected === "hidden"
+      ? "Hidden"
+      : selected.startsWith("collection:")
+        ? (snapshot?.collections[selected.slice(11)]?.name ?? "Unavailable collection")
+        : "All games";
+  return (
+    <details className="collection-menu max-w-full">
+      <summary className="cursor-pointer rounded-pc-md border border-pc-border px-3 py-2 text-sm">
+        Collections · {current}
+      </summary>
+      <div className="mt-2 rounded-pc-md border border-pc-border bg-pc-surface p-3">{controls}</div>
+    </details>
   );
 }
 

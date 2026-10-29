@@ -38,7 +38,29 @@ impl PortcoveService {
         request: &GameComparisonRequest,
         preferences: &HostPreferenceStore,
     ) -> Result<GameComparison> {
-        let evaluated_at = evaluation_time(request)?;
+        let observed_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|_| PortcoveError::state("clock precedes Unix epoch"))?
+            .as_secs();
+        self.compare_game_ports_at(request, preferences, observed_at)
+            .await
+    }
+
+    // Clock injection is internal; callers can replay assessment time but cannot
+    // timestamp collection or poison retained history with a future observation.
+    async fn compare_game_ports_at(
+        &self,
+        request: &GameComparisonRequest,
+        preferences: &HostPreferenceStore,
+        observed_at: u64,
+    ) -> Result<GameComparison> {
+        let evaluated_at = request.evaluated_at.unwrap_or(observed_at);
+        evaluation_time(request)?;
+        if evaluated_at > observed_at {
+            return Err(PortcoveError::usage(
+                "comparison evaluation time is in the future",
+            ));
+        }
         let platform = request.platform.map_or_else(Platform::current, Ok)?;
         let environment_id = request
             .environment_id
@@ -180,7 +202,7 @@ impl PortcoveService {
                         && prior.is_none_or(|old| old.update_input_id != update_input));
                 pinned = pinned_release(port, channel, platform);
                 if let Some(release) = pinned.as_ref() {
-                    if prior.is_none_or(|old| old.last_attempt_at <= evaluated_at)
+                    if prior.is_none_or(|old| old.last_attempt_at <= observed_at)
                         && prior.is_none_or(|old| {
                             old.definition_id != definition
                                 || old.release.as_ref() != Some(release)
@@ -204,9 +226,9 @@ impl PortcoveService {
                                 update_input_id: update_input.clone(),
                                 release: Some(release.clone()),
                                 last_success_at: None,
-                                last_attempt_at: evaluated_at,
+                                last_attempt_at: observed_at,
                                 changed_at: if changed {
-                                    Some(evaluated_at)
+                                    Some(observed_at)
                                 } else {
                                     prior.and_then(|old| old.changed_at)
                                 },
@@ -242,13 +264,13 @@ impl PortcoveService {
                         update_input_id: None,
                         release: None,
                         last_success_at: None,
-                        last_attempt_at: evaluated_at,
+                        last_attempt_at: observed_at,
                         changed_at: None,
                         failed: false,
                     });
                     // A historical query cannot rewrite later observation memory.
-                    if prior.is_none_or(|old| old.last_attempt_at <= evaluated_at) {
-                        observed.last_attempt_at = evaluated_at;
+                    if prior.is_none_or(|old| old.last_attempt_at <= observed_at) {
+                        observed.last_attempt_at = observed_at;
                         observed.attempted_definition_id = Some(definition.clone());
                         observed.update_input_id = update_input;
                         match release {
@@ -260,10 +282,10 @@ impl PortcoveService {
                                     .transpose()?
                                     != Some(release.identity()?)
                                 {
-                                    observed.changed_at = Some(evaluated_at);
+                                    observed.changed_at = Some(observed_at);
                                 }
                                 observed.release = Some(release);
-                                observed.last_success_at = Some(evaluated_at);
+                                observed.last_success_at = Some(observed_at);
                                 observed.definition_id = definition.clone();
                                 observed.failed = false;
                             }

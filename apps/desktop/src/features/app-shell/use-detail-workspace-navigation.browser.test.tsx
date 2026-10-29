@@ -114,7 +114,11 @@ describe("detail workspace navigation", () => {
     document.body.append(trigger, heading);
 
     await act(async () => navigation.open("port-a", trigger.dataset.detailOrigin, "saves"));
-    expect(navigation.opening).toEqual({ token: 1, destination: "saves" });
+    expect(navigation.opening).toEqual({
+      token: 1,
+      destination: "saves",
+      originKey: trigger.dataset.detailOrigin,
+    });
     expect(document.activeElement).not.toBe(heading);
     await act(async () => navigation.close());
     expect(document.activeElement).toBe(trigger);

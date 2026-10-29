@@ -857,7 +857,12 @@ async fn check_installed(
             });
             emit_operation(
                 &app,
-                operation.progress("Checking installed ports", index as u64 + 1, Some(total)),
+                operation.progress_with_unit(
+                    "check_installed",
+                    portcove_core::ProgressUnit::Ports,
+                    index as u64 + 1,
+                    Some(total),
+                ),
             );
         }
         let success = outcomes.iter().all(|outcome| outcome.ok);

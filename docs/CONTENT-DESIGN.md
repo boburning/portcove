@@ -16,12 +16,24 @@ files**, **Saved file location**, **Saves and settings**, **File details**,
 **Technical details** and **Test results** in their applicable contexts; they
 are not interchangeable labels for one generic source or status.
 
+**Continue playing** means launching the recently played installation. It does
+not promise automatic in-game save resumption. Name the current installation or
+port when that identity matters; the [design system](DESIGN-SYSTEM.md#public-beta-writing-and-terminology)
+owns its composition.
+
 Keep application, game-port, catalog and plugin updates distinct. A game update
 does not update Portcove, and a catalog update changes definitions rather than
 installing every game. Describe launch-only, external-registration and managed
 lifecycle routes by the capabilities actually available. Named launchers or
 projects belong beside scoped instructions and status, not an unqualified
 compatibility claim. [Integration levels](INTEGRATIONS.md) retain their authority.
+
+Count the object the current result actually contains. A game with two ports is
+one original title and two implementations; an external registered runtime is
+still an installation in player language. Do not globally replace port or
+Library-entry counts with games. Use existing count-aware localized messages,
+including zero, one, many and unknown; never infer identity from matching names.
+The [glossary](../GLOSSARY.md#player-collection-and-storage) owns these meanings.
 
 The general description is “Install, update, and play native game ports.”
 Explain an individual route's limitations at its controls. Avoid promotional
@@ -54,14 +66,14 @@ from signature verification. Application signing and updater trust follow
 
 ## Keep state dimensions separate
 
-| Dimension                       | Presentation rule                                                                                                                                                              |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Catalog category / support tier | Describe the declaration using its current label; it is not a fresh readiness or qualification result.                                                                         |
-| Game-port channel               | Display Stable / Preview / Rolling while retaining `stable` / `beta` / `rolling` in compatible machine commands and values.                                                    |
-| Portcove test status            | Distinguish not tested, a scoped passed check and a scoped failed check. Retain artifact/platform/method/date limits.                                                          |
-| Upstream origin or maintenance  | Keep official/community/local attribution and active/archived/retired maintenance facts separate from permission and quality.                                                  |
-| Setup and launch readiness      | Present the supplied Core assessment for the selected route. Explain a mandatory refusal and its supported remedy; an optional unknown observation does not become a new hold. |
-| Running work and recovery       | Distinguish requested, running, settled, partially completed, interrupted and unknown outcomes using authoritative facts.                                                      |
+| Dimension                       | Presentation rule                                                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catalog category / support tier | Describe the declaration using its current label; it is not a fresh readiness or qualification result.                                                                                |
+| Game-port channel               | Use the glossary’s Stable / Preview / Rolling labels. Keep serialized `stable` / `beta` / `rolling`; current human CLI input prefers `preview`, with `beta` as a compatibility alias. |
+| Portcove test status            | Distinguish not tested, a scoped passed check and a scoped failed check. Retain artifact/platform/method/date limits.                                                                 |
+| Upstream origin or maintenance  | Keep official/community/local attribution and active/archived/retired maintenance facts separate from permission and quality.                                                         |
+| Setup and launch readiness      | Present the supplied Core assessment for the selected route. Explain a mandatory refusal and its supported remedy; an optional unknown observation does not become a new hold.        |
+| Running work and recovery       | Distinguish requested, running, settled, partially completed, interrupted and unknown outcomes using authoritative facts.                                                             |
 
 An empty list, an unavailable read and a successful check with no result are
 different states. Do not turn a stale observation into a current check. Bulk
@@ -69,12 +81,48 @@ work reports each item's outcome and true totals; completion of the batch does
 not mean every item succeeded. A successful mutation and failed subsequent
 readback remain separate facts.
 
+## Choose wording from current facts
+
+Prefer a short summary of the player's object, state and next task. Put scope and
+supporting evidence in the relevant disclosure; keep essential blockers,
+consequences and supported remedies visible. Avoid making ordinary UI longer
+merely to sound cautious. When a shorter label loses a decision-relevant fact,
+keep that fact rather than inventing reassurance.
+
+Use [setup/readiness meanings](../GLOSSARY.md#setup-and-readiness) and the existing
+assessment/presentation owner. Known first-run setup remains visible even when
+launch is permitted; a launch into configuration must name that next task.
+A user statement that setup is complete does not change Core eligibility.
+A saved path, connected input and current file check are different facts.
+“No original game files required” needs positive route evidence: missing
+requirements call for project guidance, not an inference from an empty list.
+
+A completed applicable update check with no eligible release differs from an
+unchecked, failed or unavailable check. Keep the time/scope in a retained result
+such as “No update found at last check.” Use “Update saved for later” for the
+retained checked version. Reserve a download-result claim for an actual transfer; unfinished downloads and applying updates use
+their supplied progress/recovery state. A saved update policy, one-off choice,
+exact-release notice suppression and paused notices remain separate. The
+[glossary](../GLOSSARY.md#games-ports-and-releases) defines their scope.
+
+“No backups yet” requires an available, healthy empty history. An unavailable
+history, uncertain coverage or partial result needs its own summary. Likewise,
+“Not checked” is not a successful empty check and “Cancelled” is not an accepted
+stop request. Do not replace these distinctions with a generic Verified badge.
+
 ## Controls, confirmations and shortcuts
 
 Controls name their immediate action and object. **Review installation** opens
 a review; **Install** applies the reviewed action. **Copy launch command** must
 copy an actual launch command, while a command with unresolved prerequisites
 is a **command template**. A review label must not conceal immediate mutation.
+
+Search and view controls name their actual reset scope. **Clear search** clears
+text; **Clear filters** clears the described filters. **Reset view** explains the
+choices its handler resets and leaves unrelated layout/sort preferences alone.
+**Search all platforms** removes only the platform restriction, preserving text
+and other intentional constraints. Wording must follow the handler; this rule
+introduces no new navigation or reset behavior.
 
 Before a consequential action, show the exact target, what changes, what is
 retained, required permissions/preconditions and the next supported recovery

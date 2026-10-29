@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 
 void test("design assertions execute erased serialized callbacks and refuse missing required controls", async () => {
-  for (const mode of ["ordinary", "embedded", "missing-root", "missing-select"]) {
+  for (const mode of ["ordinary", "arrow", "missing-root", "missing-select"]) {
     let theme = "dark",
       direction = "ltr",
       dialog = false,
@@ -14,6 +14,7 @@ void test("design assertions execute erased serialized callbacks and refuse miss
     let serialized = 0;
     let observingStyle = false;
     const clicks: string[] = [];
+    const activationKeys: string[] = [];
     class HTMLElement {
       isConnected = true;
       readonly id: string;
@@ -120,6 +121,7 @@ void test("design assertions execute erased serialized callbacks and refuse miss
           getAttribute: async (name: string) => root.getAttribute(name),
           sendKeys: async (key: string) => {
             if (locator.selector === "fixture-channel") {
+              activationKeys.push(key);
               // Base UI dismisses an aligned popup when element keys refocus its trigger.
               if (select && document.activeElement !== channel) select = false;
               document.activeElement = channel;
@@ -146,7 +148,7 @@ void test("design assertions execute erased serialized callbacks and refuse miss
       By: { css: (selector: string) => ({ selector }), id: (selector: string) => ({ selector }) },
       Key: { ESCAPE: "ESCAPE", ENTER: "ENTER", ARROW_DOWN: "ARROW_DOWN" },
       until: { elementLocated: (locator: unknown) => locator },
-      embeddedMacKeyboard: mode === "embedded",
+      ...(mode === "arrow" ? { selectActivationKey: "ARROW_DOWN" } : {}),
     };
     if (mode.startsWith("missing-")) {
       await assert.rejects(async () => {
@@ -163,6 +165,7 @@ void test("design assertions execute erased serialized callbacks and refuse miss
         userAgent: "fixture",
       });
       assert.ok(serialized >= 15);
+      assert.deepEqual(activationKeys, [mode === "arrow" ? "ARROW_DOWN" : "ENTER"]);
       assert.equal(select, false);
       assert.equal(dialog, false);
       assert.equal(reduced, true);

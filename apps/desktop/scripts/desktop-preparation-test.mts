@@ -2110,7 +2110,7 @@ export async function preparationScenarios({
           await clickVisible(browser, identity);
           await clickVisible(
             browser,
-            await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')),
+            await browser.findElement(By.css("button[data-detail-back]")),
           );
           await browser.wait(
             () =>
@@ -2691,9 +2691,9 @@ export async function preparationScenarios({
       assert.equal((await browser.findElements(button("Play"))).length, 0);
       assert.equal((await browser.findElements(button("Choose required source"))).length, 0);
       const verify = await browser.findElement(By.css(".primary-actions button"));
-      assert.equal(await verify.getText(), "Verify installation");
+      assert.equal(await verify.getText(), "Check installed files");
       assert.equal(await verify.isEnabled(), true);
-      assert.equal((await browser.findElements(button("Verify installation"))).length, 1);
+      assert.equal((await browser.findElements(button("Check installed files"))).length, 1);
       await clickVisible(browser, verify);
       await browser.wait(
         until.elementLocated(By.css('.error-banner[role="alert"]')),
@@ -3220,7 +3220,7 @@ export async function preparationScenarios({
         // remains running. Perform a real unrelated native UI verification.
         await open(other.port, false);
         await revealDetailSection(browser, "Manage");
-        const verify = await browser.findElement(button("Verify installation"));
+        const verify = await browser.findElement(button("Check installed files"));
         assert.equal(
           await verify.isDisplayed(),
           true,

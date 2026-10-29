@@ -69,7 +69,7 @@ it("counts favorites within actual composed search/channel results and reset pre
   expect(host.querySelector('button[aria-label="Favorite Keep first"]')).not.toBeNull();
   expect(host.querySelector('button[aria-label="Favorite Keep second"]')).toBeNull();
   const reset = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
-    (x) => x.textContent === "Clear search and filters",
+    (x) => x.textContent === "Reset view",
   )!;
   await act(async () => reset.click());
   expect(saved.setOnly).toHaveBeenCalledWith(false);

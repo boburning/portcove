@@ -78,7 +78,7 @@ it("preserves known missing inputs when managed setup has no action assessment",
       actions={actions}
     />,
   );
-  expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe("Game files needed");
+  expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe("Needs game files");
   expect(host.textContent).not.toContain("Available to install");
 });
 

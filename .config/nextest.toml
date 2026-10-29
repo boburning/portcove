@@ -7,6 +7,19 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI40753693620/a1 cut eight of nine full ReflectionHLE progressions at30s
+# (one reached reviewed restore/removal29.98s). The generated-cache matrix
+# uses main's separately delivered exact-case calibration and phase output.
+# CI40803822488/a1 cut cases2685/2688 off at60.318/60.265s after
+# reviewed restore completed59.148/54.937s and preserving removal began.
+# Give this existing progression family finite90s; retain every assertion, phase
+# observations, worker slots and zero retries; no product deadline changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
 # the complete catalog maintenance matrix and indexed retention lifecycle.
 # Keep all246+ definitions, statuses, durable operations and assertions;
@@ -44,9 +57,11 @@ success-output = "immediate"
 # The October 25 source-status regression completed in 24.690s, then hit
 # the 30s harness cutoff under shared-host load. Keep this exact Linux case
 # bounded at 60s; retain assertions, two slots, cleanup and zero retries.
+# The October29 composed authenticated-retention fixture also reached30.014s
+# during its complete retained lifecycle. Include that exact Linux case at60s.
 [[profile.default.overrides]]
 platform = 'x86_64-unknown-linux-gnu'
-filter = 'package(portcove-core) & test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/)'
+filter = 'package(portcove-core) & (test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/) | test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
 # Source-only install/repair fixtures include exact package, source, launch and
@@ -86,10 +101,30 @@ success-output = "immediate"
 # at the Windows30.232s harness cutoff. Keep all durable operations/assertions,
 # phase diagnostics, cleanup, active worker slots and zero retries. Exact60s
 # headroom preserves finite hangs; this is not a product-deadline change or a
-# causal performance repair.
+# causal performance repair. CI40803822488/a1 then reached60.258s after
+# activation56.196s and retained verification57.108s. Extend only this exact
+# progressing harness to90s; preserve refresh/refusal and all assertions.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# CI40797975365/a1 job123202480906 completed seven of eight relocation
+# recovery scenarios at51.885s before the60.279s cutoff. Give only this
+# identity finite90s room, before the broader60s family override below.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# CI40797975365/a1 job123202480764 cut this four-family cleanup fixture
+# off at30.214s without internal phase output. Retain all four families and
+# assertions with exact60s diagnostic room; do not infer a product cause.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::unpublished_install_cleanup_retains_conflicting_family_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
@@ -706,9 +741,12 @@ success-output = "immediate"
 # those Windows identities finite60s diagnostic room; do not infer the cause.
 # Preserve the full command sequence, each intermediate ownership observation,
 # assertions, worker slots, cleanup and zero retries.
+# CI40793603321/a1 job123186674413 also reached observation16 at29.730s
+# in verified_resume_abort before its30.055s cutoff. Include that exact case
+# in the same finite60s allowance; this records progress, not a causal repair.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/))'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
@@ -719,5 +757,16 @@ success-output = "immediate"
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI40751890477/a1 Windows partitions3/4 retained30.075/30.024s cutoffs
+# in complete generated-output and all-port projection matrices. The same
+# cases passed at29.733/28.959s in40748328568/a1. Keep every route/port and
+# assertion, add phase evidence, and allow only these exact cases finite60s
+# diagnostic headroom. No product deadline, worker count or retry changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/) | test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"

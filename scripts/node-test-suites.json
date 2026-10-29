@@ -680,6 +680,14 @@
       ]
     },
     {
+      "file": "scripts/native-qualification-inventory.test.mts",
+      "memberships": [
+        ["windows-storage-4", 301],
+        ["frontend-full-4", 301],
+        ["development-tools", 2101]
+      ]
+    },
+    {
       "file": "scripts/desktop-input-observation.test.mts",
       "memberships": [
         ["catalog-full-2", 4100],
@@ -1315,6 +1323,7 @@
           "prerequisite": "Windows current-token process/job/pipe APIs and PowerShell7 compilation; no separate account logon",
           "reason": "These bounded current-token controls require Windows APIs; the complete Windows owner runs them without account, GUI or protected acceptance.",
           "cases": [
+            "diagnostic controller resolves the PATH-first Node and refuses a wrong first version before effects",
             "hosted candidate launcher and memory bridge refuse before effects under separate source holds",
             "closed credential purpose keeps primary default and separately names public proof without reading credentials",
             "bridge state retains actual root image and startup identity for partial or complete capture",
@@ -3451,6 +3460,13 @@
       ]
     },
     {
+      "file": "scripts/hosted-discovery-intake.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9690],
+        ["roadmap-check", 190]
+      ]
+    },
+    {
       "file": "scripts/roadmap-scoped.test.mts",
       "memberships": [
         ["catalog-full-2", 9700],
@@ -3850,6 +3866,27 @@
             "semantic storage provisioning binds the returned partition object through its complete provider sequence",
             "storage preflight capture preserves teardown and keeps descriptors out of the recovery receipt",
             "suspended storage preflight refuses unknown access and always reverts a verified entry"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "scripts/windows-historical-bootstrap.test.mts",
+      "memberships": [
+        ["windows-helpers-2", 1300],
+        ["windows-storage-2", 300],
+        ["release-check", 16325]
+      ],
+      "platform_skips": [
+        {
+          "platform": "win32",
+          "owner": "windows-helpers-2",
+          "category": "platform",
+          "prerequisite": "Windows argument API and path semantics",
+          "reason": "Execute manifest and browser-profile refusal controls on Windows; inert fixtures never execute an installer or application.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suites windows-helpers-2 and windows-storage-2",
+          "cases": [
+            "historical bootstrap refuses changed identities and shared browser profiles before installation"
           ]
         }
       ]

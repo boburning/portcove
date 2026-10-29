@@ -746,6 +746,14 @@ pub struct CatalogDocument {
 #[serde(deny_unknown_fields)]
 pub struct PortListing {
     pub id: String,
+    /// Accepted descriptive observation, never a package or execution grant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_observation: Option<ListingUpstreamObservation>,
+    /// Authored exception takes precedence over observations only with this reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub availability_override_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_maintenance: Option<ListingReleaseMaintenance>,
     pub name: String,
     pub summary: String,
     pub project_url: String,
@@ -785,6 +793,67 @@ pub struct PortListing {
     pub media: Vec<crate::CatalogMediaAsset>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingReleaseMaintenance {
+    pub reason: String,
+    pub reconsider_when: String,
+    /// Derived from accepted direct contracts, not independently maintained versions.
+    pub pinned_releases: Vec<ListingPinnedRelease>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingPinnedRelease {
+    pub platform: Platform,
+    pub version: String,
+    pub published_at: Option<String>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ListingObservationStatus {
+    Complete,
+    Incomplete,
+    Unavailable,
+    Failed,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingUpstreamObservation {
+    pub provider: String,
+    pub repository: String,
+    pub repository_id: Option<u64>,
+    pub status: ListingObservationStatus,
+    pub attempted_at: String,
+    pub observed_at: Option<String>,
+    pub fresh_until: Option<String>,
+    pub facts_sha256: Option<String>,
+    pub release_limit: usize,
+    pub releases: Vec<ListingObservedRelease>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingObservedRelease {
+    pub id: u64,
+    pub version: String,
+    pub release_url: String,
+    pub published_at: String,
+    pub provider_prerelease: bool,
+    pub assets_complete: bool,
+    pub assets: Vec<ListingObservedAsset>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingObservedAsset {
+    /// Descriptive authored filename hints, never execution capabilities.
+    pub platform_hints: Vec<Platform>,
+    pub id: u64,
+    pub name: String,
+    pub url: String,
+    pub size: u64,
+    /// Provider-reported claim; this does not verify downloaded bytes.
+    pub sha256: Option<String>,
+}
+
 /// A dated discovery fact, not a managed support or artifact admission decision.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
@@ -797,7 +866,8 @@ pub enum ListingAvailability {
 }
 
 /// Independently versioned directory projection. Format 2 can restrict fresh
-/// downloads; format 3 adds descriptive game/edition identity. No format grants operations.
+/// downloads; format 3 adds game/edition identity; format 4 adds inert observations
+/// and reason-bearing display overrides/maintenance. No format grants operations.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogListingDocument {
@@ -1302,9 +1372,20 @@ impl FromStr for ActivityStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityLiveness {
+    Active,
+    Interrupted,
+    Unknown,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ActivityRecord {
     pub id: String,
+    /// Best-effort ownership observation, not a replacement for terminal results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub liveness: Option<ActivityLiveness>,
     pub operation: ActivityOperation,
     pub target_kind: ActivityTargetKind,
     pub target_id: Option<String>,
@@ -1674,7 +1755,24 @@ pub struct PortPaths {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SetupExplanation {
+    pub definition_sha256: String,
+    pub retained: bool,
+    pub platforms: Vec<Platform>,
+    pub installation_method: Option<InstallationMethod>,
+    pub source_requirements: Vec<SourceRequirementPresentation>,
+    pub saves_and_settings: Option<SavesAndSettingsBehavior>,
+    pub persistent_paths: Vec<String>,
+    pub persistent_file_patterns: Vec<PersistentFilePattern>,
+    pub manual_preparation: Option<String>,
+    pub manual_setup: Option<ManualSetupGuide>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct LaunchReadiness {
+    /// Mechanical explanation from the effective (possibly retained) contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup_contract: Option<SetupExplanation>,
     pub launchable: bool,
     pub blockers: Vec<LaunchBlocker>,
     pub pending_setup: bool,
@@ -1810,6 +1908,15 @@ pub struct OperationEvent {
     pub event: OperationEventKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgressUnit {
+    Bytes,
+    Items,
+    Ports,
+    Indeterminate,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OperationEventKind {
@@ -1824,6 +1931,12 @@ pub enum OperationEventKind {
     },
     Progress {
         phase: String,
+        /// Stable producer identity, independent of translated display wording.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase_id: Option<String>,
+        /// Absent on older producers; clients must not infer it from phase text.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        unit: Option<ProgressUnit>,
         completed: u64,
         total: Option<u64>,
     },

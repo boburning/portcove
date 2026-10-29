@@ -31,15 +31,23 @@ import { browsePortPresentation } from "../port-actions/browse-presentation";
 import { BrowsePortObservations } from "../port-actions/BrowsePortObservations";
 import { groupCatalog, originalSystems, type GameGroup } from "./original-game";
 
-export function IdentityChips({ port }: { port: CatalogEntry }) {
+export function IdentityChips({
+  port,
+  includeUnknown = false,
+}: {
+  port: CatalogEntry;
+  includeUnknown?: boolean;
+}) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {originalSystems(port).map((system) => (
-        <Chip key={system} style={identityStyle(system)}>
-          <IdentityIcon name={system} />
-          {identityLabel(system)}
-        </Chip>
-      ))}
+      {originalSystems(port)
+        .filter((system) => includeUnknown || system !== "not-specified")
+        .map((system) => (
+          <Chip key={system} style={identityStyle(system)}>
+            <IdentityIcon name={system} />
+            {identityLabel(system)}
+          </Chip>
+        ))}
       {port.platforms.map((platform) => (
         <Chip key={platform} style={identityStyle(platform.split("-")[0]!)}>
           <IdentityIcon name={platform.split("-")[0]!} />
@@ -224,14 +232,53 @@ export function GroupedDiscover({
                         )}
                       </div>
                       <div>
-                        <h4>Platform targets</h4>
-                        <IdentityChips port={port} />
+                        <h4>Original system</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {originalSystems(port).map((system) => (
+                            <Chip key={system} style={identityStyle(system)}>
+                              <IdentityIcon name={system} />
+                              {identityLabel(system)}
+                            </Chip>
+                          ))}
+                        </div>
+                        <h4>Runtime targets</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {port.platforms.length
+                            ? port.platforms.map((platform) => (
+                                <Chip key={platform} style={identityStyle(platform.split("-")[0]!)}>
+                                  <IdentityIcon name={platform.split("-")[0]!} />
+                                  {platformLabel(platform)}
+                                </Chip>
+                              ))
+                            : "Runtime targets not specified"}
+                        </div>
+                        <h4>Release channel</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {port.channels?.length
+                            ? port.channels.map((channel) => (
+                                <Chip key={channel} style={identityStyle(channel, true)}>
+                                  <IdentityIcon name={channel} channel />
+                                  {releaseChannelPresentation(channel).label}
+                                </Chip>
+                              ))
+                            : "Release channel not specified"}
+                        </div>
                       </div>
                       <div>
                         <h4>Ownership</h4>
                         <p>
-                          Separate installation, files and saved data. This project’s setup
-                          instructions describe who prepares and updates its runtime.
+                          {status?.active
+                            ? "Portcove manages the installed runtime and its reviewed updates. "
+                            : ""}
+                          {status?.external_runtime
+                            ? "You or the upstream launcher manage the registered external runtime. "
+                            : ""}
+                          {!status
+                            ? "Installation and update ownership status is unavailable. Follow the project instructions. "
+                            : !status.active && !status.external_runtime
+                              ? "No current installation is observed. Follow this project’s setup instructions for preparation and update ownership. "
+                              : ""}
+                          Switching projects does not establish save or mod compatibility.
                         </p>
                       </div>
                       <div>
@@ -243,6 +290,13 @@ export function GroupedDiscover({
                           descriptionId={descriptionId}
                           noticeChoice={organization?.snapshot?.update_notices[port.id]}
                         />
+                      </div>
+                      <div>
+                        <h4>Project features</h4>
+                        <p>
+                          Feature comparison not yet available. Consult the project instructions
+                          below; shared feature metadata has not been established.
+                        </p>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-3">
                         {favorite(port)}

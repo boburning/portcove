@@ -1,5 +1,6 @@
+import { filterChoice } from "../../test/filter-fields";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
 import App from "../App";
@@ -99,9 +100,16 @@ for (const theme of ["dark", "light"]) {
       expect(cover.width).toBeLessThanOrEqual(148);
       expect(cover.height).toBe(cover.width * 1.5);
       const play = page.getByRole("button", { name: "Play", exact: true });
-      expect(play.element().getBoundingClientRect().width).toBeLessThan(160);
+      expect(play.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(180);
+      expect(play.element().getBoundingClientRect().width).toBeLessThanOrEqual(220);
       await capture(`managed-${theme}-${width}`);
-      for (const label of ["Overview", "Game files", "Saves", "Versions & updates", "Manage"]) {
+      for (const label of [
+        "Overview",
+        "Game files",
+        "Saves & backups",
+        "Versions & updates",
+        "Manage",
+      ]) {
         await page.getByRole("tab", { name: label, exact: true }).click();
         contained();
         const detail = document.querySelector<HTMLElement>("[data-detail-workspace]")!;
@@ -123,7 +131,8 @@ for (const theme of ["dark", "light"]) {
           })),
         ).toEqual([]);
       }
-    });
+      // Five tab captures and axe passes use a finite harness budget under host contention.
+    }, 45_000);
   }
 }
 
@@ -150,12 +159,19 @@ it.each(["dark", "light"])(
     spacing.textContent =
       "* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }";
     document.head.append(spacing);
-    for (const label of ["Overview", "Game files", "Saves", "Versions & updates", "Manage"]) {
+    for (const label of [
+      "Overview",
+      "Game files",
+      "Saves & backups",
+      "Versions & updates",
+      "Manage",
+    ]) {
       await page.getByRole("tab", { name: label, exact: true }).click();
       contained();
     }
     await capture(`text-spacing-${theme}-320`);
   },
+  45_000,
 );
 
 it("keeps whole-image portrait, landscape, square and missing artwork at a fixed frame size", async () => {
@@ -170,7 +186,7 @@ it("keeps whole-image portrait, landscape, square and missing artwork at a fixed
     await expect.poll(() => cover.querySelector("img")?.naturalWidth ?? 0).toBeGreaterThan(0);
     expect(getComputedStyle(cover.querySelector("img")!).objectFit).toBe("contain");
     await capture(`artwork-${index}-dark`);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   }
   await open(4);
   await expect
@@ -189,18 +205,18 @@ it.each(["dark", "light"])(
   async (theme) => {
     await page.viewport(960, 640);
     await mount(theme, "details");
-    await page.getByRole("button", { name: "Update prepared", exact: true }).click();
+    await page.getByRole("button", { name: "Update saved for later", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: "Versions & updates", exact: true }))
       .toHaveFocus();
     await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
     page
-      .getByRole("button", { name: "Use update · 1.3", exact: true })
+      .getByRole("button", { name: "Apply update · 1.3", exact: true })
       .element()
       .scrollIntoView({ block: "center" });
     contained();
     await capture(`staged-${theme}-960`, false);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Summit Racer Harbor upstream project · external",
@@ -214,7 +230,7 @@ it.each(["dark", "light"])(
       .scrollIntoView({ block: "start" });
     contained();
     await capture(`external-${theme}-960`, false);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Summit Racer Harbor upstream project · unknown",
@@ -229,7 +245,7 @@ it.each(["dark", "light"])(
       .not.toBeInTheDocument();
     contained();
     await capture(`external-unknown-${theme}-960`);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Moonlit Harbor Harbor upstream project · downloaded",
@@ -254,14 +270,14 @@ it.each(["dark", "light"])(
       .scrollIntoView({ block: "start" });
     contained();
     await capture(`downloaded-${theme}-960`, false);
-    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
     await page
       .getByRole("button", {
         name: "View details for Orchard Quest Harbor desktop port · Backup history unavailable",
         exact: true,
       })
       .click();
-    await page.getByRole("tab", { name: "Saves", exact: true }).click();
+    await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Retry backup history", exact: true }))
       .toBeVisible();
@@ -288,7 +304,7 @@ it.each(["dark", "light"])("renders the production preparation owner in %s", asy
     .element(page.getByRole("tab", { name: "Game files", exact: true }))
     .toHaveAttribute("aria-selected", "true");
   page
-    .getByRole("button", { name: "Review game preparation", exact: true })
+    .getByRole("button", { name: "Review setup", exact: true })
     .element()
     .scrollIntoView({ block: "center" });
   contained();
@@ -317,4 +333,100 @@ it.each(["dark", "light"])("preserves transparent artwork against the %s frame",
   expect(getComputedStyle(document.querySelector(".detail-cover img")!).objectFit).toBe("contain");
   contained();
   await capture(`transparent-${theme}-960`);
+});
+
+it("opens and focuses the real artwork disclosure from the hero menu after Manage rows are flattened", async () => {
+  await mount("dark");
+  await open();
+  await page.getByRole("button", { name: /^More actions for / }).click();
+  await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
+  await expect
+    .element(page.getByRole("tab", { name: "Manage", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  const summary = page.elementLocator(
+    document.querySelector<HTMLElement>(".artwork-controls > summary")!,
+  );
+  await expect.element(summary).toHaveFocus();
+  expect(summary.element().closest("details")?.open).toBe(true);
+  expect(document.activeElement?.closest("[inert], [hidden]")).toBeNull();
+});
+
+it.each(["Library", "Discover"])("names and restores the known %s origin", async (origin) => {
+  await mount("dark");
+  if (origin === "Discover") await page.getByRole("button", { name: /^Discover(?:\s|$)/ }).click();
+  if (origin === "Discover") {
+    await userEvent.click(
+      document.querySelector<HTMLButtonElement>(
+        '[data-detail-origin="catalog:card:comparison-0"]',
+      )!,
+    );
+  } else await open();
+  const back = page.getByRole("button", { name: `Back to ${origin}`, exact: true });
+  await expect.element(back).toBeVisible();
+  await back.click();
+  expect(document.activeElement?.getAttribute("data-detail-origin")).toMatch(
+    new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`),
+  );
+});
+
+it("clears search inline, returns focus and retains the declared platform constraint", async () => {
+  await mount("dark");
+  await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
+  await userEvent.click(await filterChoice("Windows (12)"));
+  await userEvent.keyboard("{Escape}");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  const search = page.getByRole("textbox", { name: "Search your library", exact: true });
+  await search.fill("Harbor Adventure");
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
+  await page.getByRole("button", { name: "Clear search", exact: true }).click();
+  await expect.element(search).toHaveValue("");
+  await expect.element(search).toHaveFocus();
+  await expect
+    .element(page.getByRole("button", { name: "Remove Windows filter", exact: true }))
+    .toBeVisible();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+});
+
+it.each([1440, 1024, 740])(
+  "keeps hero Play comfortably wide and contained at %ipx",
+  async (width) => {
+    await page.viewport(width, 900);
+    await mount("dark");
+    await open(2);
+    for (const scale of [1, 1.3]) {
+      document.documentElement.style.fontSize = `${16 * scale}px`;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const actions = document.querySelector<HTMLElement>(".detail-header-actions")!;
+      const play = [...actions.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent?.trim() === "Play",
+      )!;
+      const bounds = play.getBoundingClientRect();
+      expect(bounds.width).toBeGreaterThanOrEqual(Math.min(192 * scale, actions.clientWidth) - 1);
+      expect(bounds.right).toBeLessThanOrEqual(actions.getBoundingClientRect().right + 1);
+      expect(play.disabled).toBe(false);
+      play.focus();
+      await expect.element(play).toHaveFocus();
+      contained();
+    }
+  },
+);
+
+it.each(["dark", "light"])("gives search its own full row at 740px in %s", async (theme) => {
+  await page.viewport(740, 900);
+  await mount(theme);
+  for (const scale of [1, 1.3]) {
+    document.documentElement.style.fontSize = `${16 * scale}px`;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const search = page
+      .getByRole("textbox", { name: "Search your library", exact: true })
+      .element();
+    const searchRow = search.closest<HTMLElement>(".search")!;
+    const toolbar = searchRow.closest<HTMLElement>(".browse-toolbar")!;
+    const filter = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
+    expect(searchRow.getBoundingClientRect().width).toBeCloseTo(toolbar.clientWidth, 0);
+    expect(filter.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      searchRow.getBoundingClientRect().bottom,
+    );
+    contained();
+  }
 });

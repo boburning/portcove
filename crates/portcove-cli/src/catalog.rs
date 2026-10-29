@@ -46,7 +46,7 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         edition: Option<String>,
         /// Target operating system/architecture, independent of the source console.
-        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        #[arg(long)]
         platform: Option<String>,
         /// Explicit evidence environment ID; omission does not borrow other-device gameplay.
         #[arg(long)]

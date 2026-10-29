@@ -307,7 +307,7 @@ class DependencyGraph(unittest.TestCase):
                 root = Path(temporary)
                 source = root / "native-source"
                 (source / "apps/desktop").mkdir(parents=True)
-                (source / "package.json").write_text('{"packageManager":"pnpm@12.14.0"}')
+                (source / "package.json").write_text('{"packageManager":"pnpm@12.16.1"}')
                 (source / "apps/desktop/package.json").write_text('{}')
                 workspace = b"packages: [apps/desktop]\n"
                 (source / "pnpm-workspace.yaml").write_bytes(workspace)
@@ -343,7 +343,7 @@ class DependencyGraph(unittest.TestCase):
                     check()
                     calls.append((arguments, environment, maximum_file_bytes))
                     if "--version" in arguments:
-                        return "12.14.0"
+                        return "12.16.1"
                     (source / "node_modules").mkdir()
                     (source / "apps/desktop/node_modules").mkdir()
                     if refused:

@@ -56,16 +56,18 @@ describe("desktop components", () => {
           />,
         );
       expect(render(base)).not.toContain("Archive downloaded");
-      expect(render(base)).not.toContain("Update prepared");
+      expect(render(base)).not.toContain("Update saved for later");
       const downloaded = render({ ...base, acquisition });
       expect(downloaded).toContain("Archive downloaded");
-      expect(downloaded).not.toContain("Update prepared");
+      expect(downloaded).not.toContain("Update saved for later");
       expect(downloaded).toContain("Ready to play");
       const prepared = render({
         ...base,
         staged: installRecord({ id: "prepared", staged: true, version: "2" }),
       });
-      expect(prepared).toContain(view === "library" ? "Update prepared" : "Update prepared");
+      expect(prepared).toContain(
+        view === "library" ? "Update saved for later" : "Update saved for later",
+      );
       expect(prepared).not.toContain("Archive downloaded");
     },
   );
@@ -211,7 +213,9 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(view === "library" ? "Update prepared" : "Update prepared</span>");
+    expect(html).toContain(
+      view === "library" ? "Update saved for later" : "Update saved for later</span>",
+    );
     const expectedAvailable =
       difference !== "same target" &&
       difference !== "unspecified asset size" &&
@@ -300,10 +304,10 @@ describe("desktop components", () => {
     expect(cards).not.toContain("Stable channel");
     expect(cards).not.toContain('<span class="badge stable">Stable</span>');
     expect(cards).not.toContain("staged-source-portable");
-    expect(empty).toContain("No ports match these filters");
-    expect(empty).toContain("Try another search or change the filters.");
+    expect(empty).toContain("No matching games");
+    expect(empty).toContain("No games match the current filters and view.");
     expect(empty).not.toContain("The catalog itself has not been changed.");
-    expect(empty).toContain("Clear search and filters");
+    expect(empty).toContain("Reset view");
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
@@ -313,13 +317,13 @@ describe("desktop components", () => {
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
     expect(emptyLibrary).toContain("copy a supported installation");
     expect(emptyLibrary.toLowerCase()).not.toContain("adopt");
-    expect(emptyLibrary).not.toContain("Clear search and filters");
-    expect(filteredEmptyLibrary).toContain(
-      "No ports in your library match your search and filters",
-    );
+    expect(emptyLibrary).not.toContain("Reset view");
+    expect(filteredEmptyLibrary).toContain("No matching library entries");
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
-    expect(filteredEmptyLibrary).toContain("Clear search and filters");
-    expect(filteredEmptyLibrary).toContain("Clear the search or change the readiness filter.");
+    expect(filteredEmptyLibrary).toContain("Reset view");
+    expect(filteredEmptyLibrary).toContain(
+      "Reset filters, quick views and collection selection to browse again.",
+    );
     expect(filteredEmptyLibrary).not.toContain("Your installed ports are still in this library.");
     expect(filteredEmptyLibrary).not.toContain("Your library is empty");
     expect(loading).toContain("/brand/logo/portcove-logo-v2-transparent.png");
@@ -386,7 +390,12 @@ describe("desktop components", () => {
     expect(html).toContain(`aria-label="More actions for ${port.name}"`);
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="link"');
-    expect(html).toContain('data-variant="primary"');
+    const play = html
+      .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
+      ?.find((button) => button.endsWith(">Play</button>"));
+    expect(play).toBeDefined();
+    expect(play).toContain('data-variant="outline"');
+    expect(play).not.toContain('data-variant="primary"');
     expect(html).not.toContain("Release channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
@@ -404,7 +413,7 @@ describe("desktop components", () => {
     )?.[0];
     expect(card).toBeDefined();
     expect(card).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update (available at last check|prepared)/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update available at last check/u,
     );
     expect(card).not.toContain(port.summary);
     expect(card).not.toContain(">Windows</span>");
@@ -441,9 +450,9 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Update prepared");
+    expect(html).toContain("Update saved for later");
     expect(html).toMatch(
-      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update (available at last check|prepared)/u,
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Update saved for later/u,
     );
     expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
@@ -503,10 +512,10 @@ describe("desktop components", () => {
       expect(card).toBeDefined();
       expect(card).toContain("Sample Port");
       expect(card?.includes(`${label}</span>`)).toBe(label !== "Ready to play");
-      expect(card).toContain("Update prepared</span>");
+      expect(card).toContain("Update saved for later</span>");
       expect(card).toContain(`${action}<`);
       expect(card).toContain(`data-detail-origin="catalog:card:${port.id}:details"`);
-      expect(html).toContain("Update prepared</span>");
+      expect(html).toContain("Update saved for later</span>");
     },
   );
 

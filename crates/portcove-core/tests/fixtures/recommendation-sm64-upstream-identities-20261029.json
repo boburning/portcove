@@ -1,0 +1,57 @@
+{
+  "format_version": 1,
+  "collected_at": "2026-10-29T03:41:49.439537+00:00",
+  "catalog_commit": "16b8e84d48118c2ab1dbd3116940f262f2ed5194",
+  "game_id": "super-mario-64",
+  "cases": [
+    {
+      "port_id": "render96ex",
+      "upstream_repository": "Render96/Render96ex",
+      "source_commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "readme_git_blob": "7557871ac4626aec87cac46f8d4922b996f493bb",
+      "readme_sha256": "4dfc6387ad27fabd542713fc3a7729ab5a2364006f1d6fa626193097b0b9e5a5",
+      "readme_url": "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/README.md",
+      "evidence_kind": "upstream-declared",
+      "runtime_qualification": "unknown",
+      "gameplay": "unknown",
+      "stability": "unknown",
+      "performance": "unknown",
+      "expected_comparison": "insufficient-evidence; preserve independent identities and user-selected registration; upstream feature claims do not satisfy observed capability requirements",
+      "release_list_response": [],
+      "artifact_identity": null,
+      "artifact_absence_scope": "No GitHub releases returned by current complete releases listing; source commit is not an executable artifact. No runtime hash invented.",
+      "source_requirement_sha1": "9bef1128717f958171a4afac3ed78ee2bb4e86ce",
+      "source_requirement_url": "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/sm64.us.sha1"
+    },
+    {
+      "port_id": "super-mario-64-sm64-co-op-dx",
+      "upstream_repository": "coop-deluxe/sm64coopdx",
+      "source_commit": "8cd6e5977d9f920d51ca71f2c61801d019ed79c6",
+      "readme_git_blob": "16ae934acf3c2b5628b4339d9adb16d3e589dacf",
+      "readme_sha256": "6cfb9e982762f80e8db31d5043ddc83e96d4042ed686fd04e36a4c29201e97d0",
+      "readme_url": "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/README.md",
+      "evidence_kind": "upstream-declared",
+      "runtime_qualification": "unknown",
+      "gameplay": "unknown",
+      "stability": "unknown",
+      "performance": "unknown",
+      "expected_comparison": "insufficient-evidence; preserve independent identities and user-selected registration; upstream feature claims do not satisfy observed capability requirements",
+      "release": "v1.5.1",
+      "release_id": 332251840,
+      "release_tag_commit_verified": true,
+      "asset": {
+        "id": 434835411,
+        "name": "sm64coopdx_Windows.zip",
+        "bytes": 41801915,
+        "publisher_digest": "sha256:2a98c40acb2a46d30cde89f3072c039b641dbdf977985f9e82a040615f1b2381",
+        "downloaded_sha256": "2a98c40acb2a46d30cde89f3072c039b641dbdf977985f9e82a040615f1b2381",
+        "url": "https://github.com/coop-deluxe/sm64coopdx/releases/download/v1.5.1/sm64coopdx_Windows.zip"
+      },
+      "declared_multiplayer": true,
+      "declared_source_region": "US",
+      "declared_source_md5": "20b854b239203baf6c961b850a4a51a2",
+      "source_requirement_url": "https://github.com/coop-deluxe/sm64coopdx/blob/8cd6e5977d9f920d51ca71f2c61801d019ed79c6/src/pc/rom_checker.cpp"
+    }
+  ],
+  "acceptance_scope": "Primary-source and downloaded-artifact identity calibration only. No artifact executed, no original file read, no gameplay/setup/performance qualification, no managed replacement or trust admission."
+}

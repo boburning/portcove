@@ -81,6 +81,7 @@ fn regression(scope: &RecommendationScope) -> RecommendationRegression {
     RecommendationRegression {
         id: "accepted-save-regression".to_owned(),
         affected_scope: scope.clone(),
+        dimension: Some(RecommendationDimension::Gameplay),
         observed_at: 20,
         source: "fixture://accepted-failure".to_owned(),
         explanation: "Synthetic accepted save failure.".to_owned(),
@@ -518,19 +519,22 @@ fn only_exact_accepted_gameplay_corrections_resolve_critical_failure() {
         .push(regression(&input.candidates[0].scope));
     let correction = RecommendationVerifiedCorrection {
         regression_id: "accepted-save-regression".to_owned(),
+        dimension: Some(RecommendationDimension::Gameplay),
         scope: input.candidates[0].scope.clone(),
         observed_at: 30,
         source: "fixture://verified-gameplay-correction".to_owned(),
         kind: RecommendationEvidenceKind::GameplayObserved,
     };
-    for change in 0..5 {
+    for change in 0..7 {
         let mut invalid = correction.clone();
         match change {
             0 => invalid.kind = RecommendationEvidenceKind::UpstreamDeclared,
             1 => invalid.kind = RecommendationEvidenceKind::LaunchObserved,
             2 => invalid.scope.artifact_id = "another-artifact".to_owned(),
             3 => invalid.observed_at = 101,
-            _ => invalid.observed_at = 20,
+            4 => invalid.observed_at = 20,
+            5 => invalid.dimension = Some(RecommendationDimension::Stability),
+            _ => invalid.dimension = None,
         }
         input.verified_corrections = vec![invalid];
         assert!(!assessment(&input).candidates[0].recommendation_eligible);
@@ -539,6 +543,8 @@ fn only_exact_accepted_gameplay_corrections_resolve_critical_failure() {
     let resolved = assessment(&input);
     assert!(resolved.candidates[0].recommendation_eligible);
     assert_eq!(resolved.retained_regressions.len(), 1);
+    input.retained_regressions[0].dimension = None;
+    assert!(!assessment(&input).candidates[0].recommendation_eligible);
 }
 
 #[test]
@@ -552,6 +558,7 @@ fn conflicting_regression_identity_cannot_be_cleared_by_one_fix() {
         .verified_corrections
         .push(RecommendationVerifiedCorrection {
             regression_id: "accepted-save-regression".to_owned(),
+            dimension: Some(RecommendationDimension::Gameplay),
             scope: input.candidates[0].scope.clone(),
             observed_at: 30,
             source: "fixture://verified-correction".to_owned(),
