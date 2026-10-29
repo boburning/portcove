@@ -111,5 +111,9 @@
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
     }
+  },
+  "release_maintenance": {
+    "reason": "The accepted managed build is retained for build-specific quickstates and its accepted original, launch and persistence contracts. Newer external Preview instructions describe a separately owned route.",
+    "reconsider_when": "Reassess a newly observed Windows package only after exact original/arguments, package companions, SRAM/quickstate preservation, developer options and full process lifetime have a bounded compatible transition."
   }
 }

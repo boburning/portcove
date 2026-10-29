@@ -10,12 +10,14 @@ final-status-level = "slow"
 # CI40753693620/a1 cut eight of nine full ReflectionHLE progressions at30s
 # (one reached reviewed restore/removal29.98s). The generated-cache matrix
 # uses main's separately delivered exact-case calibration and phase output.
-# Exact Windows60s safeguards preserve every lifecycle/data assertion, phase
+# CI40803822488/a1 cut cases2685/2688 off at60.318/60.265s after
+# reviewed restore completed59.148/54.937s and preserving removal began.
+# Give this existing progression family finite90s; retain every assertion, phase
 # observations, worker slots and zero retries; no product deadline changes.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)'
-slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
 # CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
@@ -55,9 +57,11 @@ success-output = "immediate"
 # The October 25 source-status regression completed in 24.690s, then hit
 # the 30s harness cutoff under shared-host load. Keep this exact Linux case
 # bounded at 60s; retain assertions, two slots, cleanup and zero retries.
+# The October29 composed authenticated-retention fixture also reached30.014s
+# during its complete retained lifecycle. Include that exact Linux case at60s.
 [[profile.default.overrides]]
 platform = 'x86_64-unknown-linux-gnu'
-filter = 'package(portcove-core) & test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/)'
+filter = 'package(portcove-core) & (test(/^service::tests::external_source_representation_uses_retained_contract_without_changing_source_health$/) | test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
 # Source-only install/repair fixtures include exact package, source, launch and
@@ -97,11 +101,13 @@ success-output = "immediate"
 # at the Windows30.232s harness cutoff. Keep all durable operations/assertions,
 # phase diagnostics, cleanup, active worker slots and zero retries. Exact60s
 # headroom preserves finite hangs; this is not a product-deadline change or a
-# causal performance repair.
+# causal performance repair. CI40803822488/a1 then reached60.258s after
+# activation56.196s and retained verification57.108s. Extend only this exact
+# progressing harness to90s; preserve refresh/refusal and all assertions.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
-slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
 # CI40797975365/a1 job123202480906 completed seven of eight relocation

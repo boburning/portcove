@@ -2234,3 +2234,36 @@ The exact ReGaiden v0.4.1 Windows prepared-runtime route uses this closed
 shared-preference contract. Its [qualification report](qualification/slice6-regaiden-prepared-windows-2026-10-19.md)
 records original/artifact identity, the preserved ImGui failure, corrected
 consent and operation acceptance, and the separate delivery boundaries.
+
+### Accepted descriptive freshness and retained setup explanations
+
+Listing format 4 adds optional inert `upstream_observation`, reason-bearing
+`availability_override_reason`, and `release_maintenance` metadata. Formats 1–3
+refuse these fields; accepted projection/registration paths promote the effective
+format while preserving older serialized documents. Signed listing delivery
+retains the same publisher, revision, integrity, atomic selection and recovery
+boundary. Unsupported or invalid replacement data does not replace last-good
+cached listings or grant managed operations.
+
+Authored availability remains attributable. An explicit availability override
+requires its reason and takes display precedence. Otherwise accepted observations
+show package candidates or release assets with their provenance, original fact
+clock, expiry and complete/incomplete/unavailable/failed attempt state. An empty
+or incomplete bounded window never means source-only, unsupported or unavailable
+upstream. Provider digest claims remain unverified. The renderer does not query
+providers, update action permissions or rewrite acquisition links.
+
+Authored pin reasons and reconsideration conditions have one source; projected
+pin versions/dates come from existing Direct contracts. Listing observations can
+request compatibility reassessment without changing those immutable artifacts.
+Newer external setup guidance can intentionally describe another route.
+
+Core's optional `LaunchReadiness.setup_contract` explains the effective route:
+installation method, source requirements, saves/settings ownership, declared
+persistence and authored guidance. Installed routes derive these facts from their
+retained catalog; invalid retained metadata supplies no substituted new-catalog
+facts. Older clients lacking that projection may still show the authored guide
+under an explicit current-catalog scope; recorded mechanical facts stay unavailable. Existing activity, artifact records, source assessments and action
+assessments retain their own owners. Mechanical explanation does not authorize
+preparation, updates or backups. Marathon's shared authored guide replaces its
+identical duplicated preparation paragraph; game-specific guidance is retained.

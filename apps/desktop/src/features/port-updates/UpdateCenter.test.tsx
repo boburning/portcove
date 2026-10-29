@@ -567,3 +567,42 @@ it("exposes a complete per-game failure separately from navigation and keeps raw
   expect(html).not.toContain("whether anything changed");
   expect(JSON.stringify(error)).toBe(original);
 });
+
+it("groups interrupted owners as attention while old active owners remain in progress", () => {
+  const record: ActivityRecord = {
+    id: "interrupted",
+    operation: "install",
+    target_kind: "port",
+    target_id: port.id,
+    status: "running",
+    started_at: 1,
+    finished_at: null,
+    message: null,
+    failure: null,
+    cancellation: null,
+    liveness: "interrupted",
+  };
+  const markup = renderToStaticMarkup(
+    <UpdateCenter
+      section="tasks"
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      activities={[record, { ...record, id: "active", liveness: "active" }]}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+  const attention = markup.indexOf("Needs attention");
+  const progress = markup.indexOf("In progress");
+  const interrupted = markup.indexOf("updates:activity:interrupted:target");
+  expect(attention).toBeGreaterThanOrEqual(0);
+  expect(interrupted).toBeGreaterThan(attention);
+  expect(interrupted).toBeLessThan(progress);
+  expect(markup.indexOf("updates:activity:active:target")).toBeGreaterThan(progress);
+});

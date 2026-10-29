@@ -1,3 +1,4 @@
+import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import { gameFilesPresentation } from "../features/port-actions/browse-presentation";
 import { CurrentStateSummary, ManagementRow } from "./ui/patterns";
 import { DetailLayout } from "./DetailLayout";
@@ -75,6 +76,7 @@ import {
   formatBytes,
   hasUnconfirmedLaunchInput,
   installationMethodLabel,
+  installationMethodLabels,
   platformLabel,
   releaseChannelPresentation,
 } from "../view-model";
@@ -747,6 +749,7 @@ const disclosureBodyStyle = "pt-0.5 pb-[22px]";
 function RequirementsGroup({
   port,
   installed,
+  status,
   sources,
   managedPreparation,
   pendingSetup,
@@ -754,18 +757,26 @@ function RequirementsGroup({
 }: {
   port: PortDefinition;
   installed: boolean;
+  status?: PortStatus | undefined;
   sources: SourceControls;
   managedPreparation: boolean;
   pendingSetup: boolean;
   busy?: string | undefined;
 }) {
-  const { needsAttention, authoredSetup, hidden } = requirementsPresentation(
-    port,
-    installed,
-    sources,
-    managedPreparation,
-    pendingSetup,
-  );
+  const setup =
+    status?.active || status?.external_runtime
+      ? (status.readiness?.setup_contract ?? null)
+      : undefined;
+  const {
+    needsAttention,
+    authoredSetup: authoredCurrentSetup,
+    hidden: currentHidden,
+  } = requirementsPresentation(port, installed, sources, managedPreparation, pendingSetup);
+  const authoredSetup =
+    setup == null
+      ? authoredCurrentSetup
+      : Boolean(setup?.manual_setup || setup?.manual_preparation);
+  const hidden = currentHidden && !setup?.source_requirements.length && !authoredSetup;
   const [initiallyOpen] = useState(needsAttention);
   const disclosure = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -789,10 +800,26 @@ function RequirementsGroup({
           <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
         </summary>
         <div className={`requirements-body grid gap-4 ${disclosureBodyStyle}`}>
-          {authoredSetup && <AuthoredPreparationGuidance port={port} ownership="managed" />}
-          {(!authoredSetup || Boolean(port.presentation?.source_requirements.length)) && (
-            <RequirementsSummary port={port} />
+          {authoredSetup && (
+            <>
+              {setup === null && (
+                <p className="text-xs text-pc-muted-foreground">
+                  Current catalog guide; this installation’s recorded setup facts are unavailable.
+                </p>
+              )}
+              <AuthoredPreparationGuidance
+                port={port}
+                ownership="managed"
+                setup={setup === null ? undefined : setup}
+              />
+            </>
           )}
+          {(!authoredSetup ||
+            Boolean(
+              setup === undefined
+                ? port.presentation?.source_requirements.length
+                : setup?.source_requirements.length,
+            )) && <RequirementsSummary port={port} status={status} />}
           <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
         </div>
@@ -1155,8 +1182,18 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
   );
 }
 
-function RequirementsSummary({ port }: { port: PortDefinition }) {
-  if (!port.presentation)
+function RequirementsSummary({
+  port,
+  status,
+}: {
+  port: PortDefinition;
+  status?: PortStatus | undefined;
+}) {
+  const retained = Boolean(status?.active || status?.external_runtime);
+  const requirements = retained
+    ? status?.readiness?.setup_contract?.source_requirements
+    : port.presentation?.source_requirements;
+  if (!requirements)
     return (
       <p>
         Detailed setup requirements are unavailable. Check this port’s instructions before
@@ -1169,7 +1206,7 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
       role="group"
       aria-label="Required game files and verification"
     >
-      {port.presentation.source_requirements.map((requirement) => (
+      {requirements.map((requirement) => (
         <span
           className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
           key={requirement.role}
@@ -1195,27 +1232,33 @@ function SavesAndSettingsSummary({
   status?: PortStatus | undefined;
 }) {
   const retained = Boolean(status?.active || status?.staged);
+  const setup = status?.readiness?.setup_contract;
+  const retainedSetup = retained && setup?.retained ? setup : undefined;
+  const behavior = retained
+    ? retainedSetup?.saves_and_settings
+    : (setup?.saves_and_settings ?? port.presentation?.saves_and_settings);
   const declared = [
-    ...port.persistent_paths,
-    ...(port.persistent_file_patterns ?? []).map(
-      (pattern) => `${pattern.prefix}*${pattern.suffix}`,
-    ),
+    ...(retained ? (retainedSetup?.persistent_paths ?? []) : port.persistent_paths),
+    ...(retained
+      ? (retainedSetup?.persistent_file_patterns ?? [])
+      : (port.persistent_file_patterns ?? [])
+    ).map((pattern) => `${pattern.prefix}*${pattern.suffix}`),
   ];
   return (
     <div className="grid min-w-0 gap-3 text-sm wrap-anywhere">
       <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
-        {retained
+        {retained && !retainedSetup
           ? "Managed by Portcove using this installation’s recorded saved-data rules"
-          : port.presentation?.saves_and_settings === "portcove-managed"
+          : behavior === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
-            : port.presentation?.saves_and_settings === "external-user-owned"
+            : behavior === "external-user-owned"
               ? "External saves and settings are outside Portcove backups; declared local data may still be covered"
               : "Unavailable in this catalog"}
       </span>
       <section aria-label="Saved-data coverage">
         <h3 className="mb-1 text-sm font-semibold">What a backup covers</h3>
-        {retained ? (
+        {retained && !retainedSetup ? (
           <p>
             Backups use Portcove’s managed saves and settings folder. Files collected from the game
             follow the rules recorded for this installation. Exact paths are not available in this
@@ -1224,7 +1267,9 @@ function SavesAndSettingsSummary({
         ) : (
           <>
             <p>
-              Current catalog saved-data declarations
+              {retainedSetup
+                ? "This installation’s recorded saved-data declarations"
+                : "Current catalog saved-data declarations"}
               {declared.length ? ":" : " are unavailable in this catalog."}
             </p>
             {declared.length > 0 && (
@@ -3151,26 +3196,30 @@ function DetailRequirementsFacts({
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
 }) {
-  const source = model.port.presentation?.source_requirements.filter(
-    (requirement) => requirement.role !== "bios",
-  );
-  const bios = model.port.presentation?.source_requirements.find(
-    (requirement) => requirement.role === "bios",
-  );
-  const manual =
-    model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation;
+  const retained = Boolean(model.status?.active || model.status?.external_runtime);
+  const setup = model.status?.readiness?.setup_contract;
+  const requirements = retained
+    ? setup?.source_requirements
+    : model.port.presentation?.source_requirements;
+  const source = requirements?.filter((requirement) => requirement.role !== "bios");
+  const bios = requirements?.find((requirement) => requirement.role === "bios");
+  const manual = retained
+    ? setup?.manual_setup || setup?.manual_preparation
+    : model.port.presentation?.manual_setup || model.port.presentation?.manual_preparation;
   return (
     <dl className="detail-facts">
       <div>
         <dt>Original game files</dt>
         <dd>
-          {source?.length
-            ? source.map((requirement) => requirement.label).join(" · ")
-            : model.port.source_profile
-              ? "Requirements not specified"
-              : manual
-                ? "Follow the upstream first-launch setup"
-                : "No original game files declared"}
+          {retained && !setup
+            ? "Recorded requirements unavailable"
+            : source?.length
+              ? source.map((requirement) => requirement.label).join(" · ")
+              : model.port.source_profile
+                ? "Requirements not specified"
+                : manual
+                  ? "Follow the upstream first-launch setup"
+                  : "No original game files declared"}
         </dd>
       </div>
       {(model.port.bios_source_profile || bios) && (
@@ -3181,12 +3230,21 @@ function DetailRequirementsFacts({
       )}
       <div>
         <dt>Runs on</dt>
-        <dd>{model.port.platforms.map(platformLabel).join(" · ")}</dd>
+        <dd>
+          {(retained ? setup?.platforms : model.port.platforms)?.map(platformLabel).join(" · ") ||
+            "Recorded package targets unavailable"}
+        </dd>
       </div>
       <div>
         <dt>Installation</dt>
         <dd>
-          {external ? "Externally maintained installation" : installationMethodLabel(model.port)}
+          {external
+            ? "Externally maintained installation"
+            : retained
+              ? setup?.installation_method
+                ? installationMethodLabels[setup.installation_method]
+                : "Recorded setup method unavailable"
+              : installationMethodLabel(model.port)}
         </dd>
       </div>
       <div>
@@ -3197,6 +3255,7 @@ function DetailRequirementsFacts({
         <dt>Readiness</dt>
         <dd>{model.state.title}</dd>
       </div>
+      <ListingMaintenanceFacts listing={model.displayPort?.listing} />
     </dl>
   );
 }
@@ -3295,6 +3354,7 @@ function DetailFilesSection({
           key={`requirements:${model.port.id}:${model.libraryGeneration}`}
           port={model.port}
           installed={model.installed}
+          status={model.status}
           sources={model.sources}
           managedPreparation={managedPreparation}
           pendingSetup={model.pendingSetup}

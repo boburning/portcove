@@ -247,6 +247,7 @@ impl PortcoveService {
             }
         }
         status.readiness = Some(LaunchReadiness {
+            setup_contract: None,
             launchable: blockers.is_empty(),
             blockers,
             pending_setup: false,

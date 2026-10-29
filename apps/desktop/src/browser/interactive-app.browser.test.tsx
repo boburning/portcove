@@ -1,5 +1,5 @@
 import { openAdvancedFilters } from "../../test/filter-fields";
-import { afterEach, beforeEach, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import {
   startInteractiveScenarios,
@@ -24,7 +24,7 @@ function mount(journey: string) {
   ).body.innerHTML;
   startInteractiveScenarios();
 }
-async function settleCapture() {
+async function settleCapture(animationTimeout = 10_000) {
   const phase = (name: string) => {
     document.documentElement.dataset.capturePhase = name;
     document.documentElement.dataset.captureVisibility = document.visibilityState;
@@ -40,26 +40,38 @@ async function settleCapture() {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   );
   phase("animations");
-  const animations = document
-    .getAnimations()
-    .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
-  // Retain the unsettled phase/state in failure snapshots without weakening capture readiness.
-  document.documentElement.dataset.captureAnimations = JSON.stringify(
-    animations.map((animation) => ({
-      state: animation.playState,
-      pending: animation.pending,
-      rate: animation.playbackRate,
-      timing: animation.effect?.getComputedTiming(),
-      target:
-        animation.effect instanceof KeyframeEffect && animation.effect.target instanceof Element
-          ? `${animation.effect.target.tagName}.${animation.effect.target.getAttribute("class") ?? ""}`
-          : null,
-    })),
-  );
-  await Promise.all(animations.map((animation) => animation.finished.catch(() => {})));
+  // Capture readiness follows the current rendered effects. A captured CSS
+  // transition's finished promise can remain unresolved after a rerender.
+  await expect
+    .poll(
+      () => {
+        const animations = document
+          .getAnimations()
+          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity);
+        document.documentElement.dataset.captureAnimations = JSON.stringify(
+          animations.map((animation) => ({
+            state: animation.playState,
+            pending: animation.pending,
+            rate: animation.playbackRate,
+            timing: animation.effect?.getComputedTiming(),
+            target:
+              animation.effect instanceof KeyframeEffect &&
+              animation.effect.target instanceof Element
+                ? `${animation.effect.target.tagName}.${animation.effect.target.getAttribute("class") ?? ""}`
+                : null,
+          })),
+        );
+        return animations.every(
+          (animation) => !animation.pending && ["finished", "idle"].includes(animation.playState),
+        );
+      },
+      { timeout: animationTimeout, message: "Current finite capture animations remain active" },
+    )
+    .toBe(true);
   phase("complete");
 }
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const key of ["capturePhase", "captureVisibility", "captureFonts", "captureAnimations"])
     delete document.documentElement.dataset[key];
   stopInteractiveScenarios();
@@ -69,6 +81,47 @@ afterEach(() => {
   document.body.replaceChildren();
   window.history.replaceState(null, "", "/");
 });
+
+it("waits for current effects without awaiting obsolete transition promises", async () => {
+  let finished = false;
+  const obsolete = {
+    playState: "running",
+    pending: false,
+    effect: { getComputedTiming: () => ({ iterations: 1 }) },
+    finished: new Promise<void>(() => {}).then(() => {
+      finished = true;
+    }),
+  } as unknown as Animation;
+  let current = [obsolete];
+  const observed = vi.spyOn(document, "getAnimations").mockImplementation(() => current);
+  let settled = false;
+  const waiting = settleCapture().then(() => {
+    settled = true;
+  });
+  await expect.poll(() => observed.mock.calls.length).toBeGreaterThanOrEqual(2);
+  expect(settled).toBe(false);
+  current = [];
+  await waiting;
+  expect(finished).toBe(false);
+  expect(settled).toBe(true);
+});
+
+it.each(["running", "paused", "pending"])(
+  "refuses capture while a current finite effect is %s",
+  async (state) => {
+    vi.spyOn(document, "getAnimations").mockReturnValue([
+      {
+        playState: state === "pending" ? "idle" : state,
+        pending: state === "pending",
+        effect: { getComputedTiming: () => ({ iterations: 1 }) },
+      } as unknown as Animation,
+    ]);
+    await expect(settleCapture(150)).rejects.toThrow(
+      /Current finite capture animations remain active/,
+    );
+    expect(document.documentElement.dataset.capturePhase).toBe("animations");
+  },
+);
 
 it.each(["dark", "light"])(
   "keeps enlarged %s rows readable and checks the changed controls",
