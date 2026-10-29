@@ -2255,7 +2255,13 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 CacheIntervention::CancelRestore
                     | CacheIntervention::ArtifactRevocationRestore
                     | CacheIntervention::ArtifactWithdrawalRestore
-            );
+            )
+        // ARM CI40952520986/a1 reached this exact restore copy 5.260s after
+        // installer start, beyond its 5s fixture latch. Reuse the finite 15s
+        // setup allowance; preserve the partial-copy barrier and all refusal,
+        // byte-preservation, worker-drain and unchanged outer safeguards.
+        || (cfg!(all(target_os = "macos", target_arch = "aarch64"))
+            && matches!(intervention, CacheIntervention::ArtifactRevocationRestore));
     let latch_timeout = if slow_retention_setup {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
