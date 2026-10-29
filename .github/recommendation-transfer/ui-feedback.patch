@@ -1,0 +1,25 @@
+diff --git a/apps/desktop/src/features/recommendations/GameComparisonEvidence.browser.test.tsx b/apps/desktop/src/features/recommendations/GameComparisonEvidence.browser.test.tsx
+index 3fbe6c3..b79b30c 100644
+--- a/apps/desktop/src/features/recommendations/GameComparisonEvidence.browser.test.tsx
++++ b/apps/desktop/src/features/recommendations/GameComparisonEvidence.browser.test.tsx
+@@ -191,3 +191,20 @@ it("uses the production controller handler to activate controls and dismiss only
+   expect(back).not.toHaveBeenCalled();
+   await expect.element(trigger).toHaveFocus();
+ });
++
++
++it("selects a displayed source edition and target platform without changing library preferences", async () => {
++  await render(<Fixture />);
++  await userEvent.click(page.getByRole("button", { name: "Compare projects", exact: true }));
++  const edition = page.getByRole("combobox", { name: /Source edition/ });
++  await expect.element(edition).toBeVisible();
++  await userEvent.click(edition);
++  await userEvent.click(page.getByRole("option", { name: "Fixture original", exact: true }));
++  await expect.poll(() => vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].edition_id).toBe("fixture-edition");
++  const platform = page.getByRole("combobox", { name: /Target platform/ });
++  await userEvent.click(platform);
++  await userEvent.click(page.getByRole("option", { name: "Linux x64", exact: true }));
++  await expect.poll(() => vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].platform).toBe("linux-x86-64");
++  expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
++  expect(vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].edition_id).toBe("fixture-edition");
++});
