@@ -261,6 +261,22 @@ const platformSkipConsumers = [
 ];
 const explicitNodeTests = new Map<string, readonly string[]>();
 for (const [file, tests] of [
+  ...[
+    "scripts/lock-maintenance-policy.mts",
+    "scripts/lock-maintenance-registry.mts",
+    "scripts/cargo-lock-inventory.py",
+  ].map((file): [string, readonly string[]] => [
+    file,
+    ["scripts/lock-maintenance-policy.test.mts"],
+  ]),
+  [
+    "scripts/dependency-security.mts",
+    ["scripts/dependency-security.test.mts", "scripts/lock-maintenance-policy.test.mts"],
+  ],
+  [
+    "scripts/pnpm-lock-inventory.mts",
+    ["scripts/pnpm-lock-inventory.test.mts", "scripts/lock-maintenance-policy.test.mts"],
+  ],
   [
     "scripts/local-validation.mts",
     [...selectionContractTests, "scripts/repository-settings.test.mts"],

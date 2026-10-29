@@ -257,7 +257,13 @@ async function settleDirectCli() {
     path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)
   ) {
     try {
-      if (process.argv[2] === "--help") {
+      if (process.argv[2] === "maintenance") {
+        const mode = process.argv[3];
+        if (process.argv.length !== 4 || !mode)
+          throw new Error("usage: dependency-security.mts maintenance classify|check");
+        const { runMaintenancePolicy } = await import("./lock-maintenance-policy.mts");
+        await runMaintenancePolicy(mode);
+      } else if (process.argv[2] === "--help") {
         console.log(
           "usage: dependency-security.mts [scan] — development policy by default; scan returns raw scanner status",
         );

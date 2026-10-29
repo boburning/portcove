@@ -44,6 +44,29 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
+void test("maintenance registry and TOML sources retain explicit focused owners", () => {
+  const consumer = "scripts/lock-maintenance-policy.test.mts";
+  for (const file of [
+    "scripts/lock-maintenance-policy.mts",
+    "scripts/lock-maintenance-registry.mts",
+    "scripts/cargo-lock-inventory.py",
+    "scripts/dependency-security.mts",
+    "scripts/pnpm-lock-inventory.mts",
+  ]) {
+    for (const status of ["A", "M", "D"]) {
+      const selected = classifyChanges([{ status, path: file }], { fileExists: () => false });
+      assert.ok(selected.nodeTests.has(consumer), `${status}: ${file}`);
+      assert.ok(!selected.unknown.has(file), `${status}: ${file}`);
+    }
+  }
+  assert.ok(
+    classifyChanges([{ status: "M", path: "scripts/dependency-security.mts" }], {
+      fileExists: () => false,
+    }).nodeTests.has("scripts/dependency-security.test.mts"),
+  );
+  assert.ok(!classifyChanges([{ status: "M", path: "docs/README.md" }]).nodeTests.has(consumer));
+});
+
 const allFilesExist = () => true;
 
 void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {

@@ -1,4 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
+import { createHash } from "node:crypto";
 type PackageIdentity =
   | { name: string; version: string; integrity: string; unsupported?: never; record?: never }
   | { unsupported: string; record: unknown; name?: never; version?: never; integrity?: never };
@@ -110,7 +111,9 @@ export function lockInventory(text: string) {
   for (const [index, document] of documents.entries()) {
     if (document.errors.length)
       throw new Error(
-        `Malformed pnpm lock: ${document.errors[0]?.message ?? "unknown YAML error"}`,
+        `Malformed pnpm lock (diagnostic sha256 ${createHash("sha256")
+          .update(document.errors[0]?.message ?? "unknown YAML error")
+          .digest("hex")})`,
       );
     const lock: unknown = document.toJS();
     if (
@@ -167,6 +170,15 @@ export function lockInventory(text: string) {
       }
     }
   }
+  const artifacts = new Map<string, string>();
+  for (const record of inventory.values()) {
+    if (record.unsupported !== undefined) continue;
+    const identity = `${record.name}@${record.version}`;
+    const previous = artifacts.get(identity);
+    if (previous !== undefined && previous !== record.integrity)
+      throw new Error(`Conflicting pnpm integrity across documents: ${identity}`);
+    artifacts.set(identity, record.integrity);
+  }
   return inventory;
 }
 
@@ -189,4 +201,95 @@ export function introducedPackages(base: string, candidate: string) {
   return [...changes.values()].sort((a, b) =>
     (a.name ?? a.unsupported).localeCompare(b.name ?? b.unsupported),
   );
+}
+
+// Maintenance checks every document's registry closure, including pnpm's toolchain.
+// Alias and peer contexts must resolve to an artifact rather than hiding a URL/source.
+function inspectSnapshotCoverage(text: string) {
+  const inventory = lockInventory(text);
+  const documents = parseAllDocuments(text, { uniqueKeys: true });
+  const unsupported = new Map<string, string>();
+  let snapshots = 0,
+    references = 0;
+  for (const [index, document] of documents.entries()) {
+    if (document.errors.length) throw new Error("Malformed pnpm closure document");
+    const value: unknown = document.toJS();
+    if (!isRecord(value)) throw new Error("Missing pnpm closure");
+    const packages = new Map(entries(value.packages));
+    const covered = new Set<string>();
+    for (const [key, entry] of packages) {
+      if (!isRecord(entry)) throw new Error("Malformed pnpm artifact record");
+      if (inventory.get(`${index}:${key}`)?.unsupported !== undefined)
+        unsupported.set(`${index}:package:${key}`, JSON.stringify(entry));
+    }
+    const requireArtifact = (identity: string, location: string, original: unknown) => {
+      const key = identity.replace(/\(.*$/u, "");
+      if (!packages.has(key)) {
+        if (
+          !/^(?:link:|workspace:|file:|git[+:]|https?:|github:|gitlab:|bitbucket:)/u.test(identity)
+        )
+          throw new Error(
+            `Unaccounted pnpm artifact reference (document ${index}, sha256 ${createHash("sha256").update(identity).digest("hex")})`,
+          );
+        unsupported.set(`${index}:${location}`, JSON.stringify(original));
+        references += 1;
+        return undefined;
+      }
+      if (inventory.get(`${index}:${key}`)?.unsupported !== undefined)
+        unsupported.set(`${index}:${location}`, JSON.stringify(original));
+      references += 1;
+      return key;
+    };
+    const dependency = (name: string, version: unknown, location: string, original: unknown) => {
+      if (typeof version !== "string") throw new Error("Untyped pnpm artifact reference");
+      requireArtifact(/^\d/u.test(version) ? `${name}@${version}` : version, location, original);
+    };
+    for (const [key, snapshot] of entries(value.snapshots)) {
+      const artifact = requireArtifact(key, `snapshot:${key}`, snapshot);
+      if (artifact !== undefined) covered.add(artifact);
+      snapshots += 1;
+      if (!isRecord(snapshot)) throw new Error("Malformed pnpm snapshot");
+      for (const section of ["dependencies", "optionalDependencies"])
+        for (const [name, version] of entries(snapshot[section]))
+          dependency(name, version, `snapshot:${key}:${section}:${name}`, version);
+    }
+    if (covered.size !== packages.size)
+      throw new Error("Incomplete pnpm snapshot artifact coverage");
+    for (const [importerName, importer] of entries(value.importers)) {
+      if (!isRecord(importer)) throw new Error("Malformed pnpm importer");
+      for (const section of [
+        "dependencies",
+        "devDependencies",
+        "optionalDependencies",
+        "packageManagerDependencies",
+      ])
+        for (const [name, entry] of entries(importer[section])) {
+          if (!isRecord(entry)) throw new Error("Malformed pnpm importer dependency");
+          dependency(name, entry.version, `importer:${importerName}:${section}:${name}`, entry);
+        }
+    }
+  }
+  return { documents: documents.length, snapshots, references, unsupported };
+}
+
+export function registrySnapshotCoverage(text: string, baseline?: string) {
+  const observed = inspectSnapshotCoverage(text);
+  const previous =
+    baseline === undefined
+      ? new Map<string, string>()
+      : inspectSnapshotCoverage(baseline).unsupported;
+  for (const [location, identity] of observed.unsupported)
+    if (previous.get(location) !== identity)
+      throw new Error(
+        `New or changed unsupported pnpm source (location sha256 ${createHash("sha256").update(location).digest("hex")})`,
+      );
+  return {
+    documents: observed.documents,
+    snapshots: observed.snapshots,
+    references: observed.references,
+    unchangedUnsupported: [...observed.unsupported].map(([location, identity]) => ({
+      location_sha256: createHash("sha256").update(location).digest("hex"),
+      identity_sha256: createHash("sha256").update(identity).digest("hex"),
+    })),
+  };
 }
