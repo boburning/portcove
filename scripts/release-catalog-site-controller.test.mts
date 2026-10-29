@@ -9,16 +9,7 @@ import path from "node:path";
 import os from "node:os";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
-import {
-  inspectCapacityExecutorIdentity,
-  capacityDigest,
-  inspectCapacityOperation,
-} from "./release-capacity.mts";
-import { inspectPublishedMetadata } from "./release-metadata-contract.mts";
-import {
-  inspectPublishedCatalogMetadata,
-  inspectPublishedSite,
-} from "./release-catalog-metadata-contract.mts";
+import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   runFixedCatalogSiteConfiguration,
@@ -308,250 +299,37 @@ void test(
   },
 );
 
-void test("source-bound shared recovery requires exact terminal publisher/effect and writes only catalog cursor", async () => {
-  // This exercises the maintained internal function with controlled boundary
-  // facts. It cannot create an actual executor session or a provider receipt.
-  const source = await readFile(
-    new URL("./release-capacity-executor.mts", import.meta.url),
-    "utf8",
+async function runExecutorRecoveryFixture(mode: "catalog-recovery" | "journal-controls") {
+  const environment: NodeJS.ProcessEnv = {};
+  for (const name of [
+    "PATH",
+    "Path",
+    "SystemRoot",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "TMP",
+    "TEMP",
+  ])
+    if (process.env[name] !== undefined) environment[name] = process.env[name];
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      "--experimental-test-module-mocks",
+      fileURLToPath(new URL("./fixtures/release-executor-recovery-fixture.mts", import.meta.url)),
+      mode,
+    ],
+    { env: environment, timeout: 25000, maxBuffer: 512 * 1024, windowsHide: true },
   );
-  const start = source.indexOf("async function recoverOwnedPublishedMetadataWithinScope(");
-  assert.ok(start > 0);
-  const original = {
-    role: "site-publication",
-    run_id: "123",
-    job_id: 42,
-    run_attempt: 1,
-    controller_revision: "b".repeat(40),
-    execution_ref: "refs/tags/fixture",
-    check_run_id: "43",
-    actor_id: "44",
-    workflow: ".github/workflows/fixture.yml",
-  };
-  const publication = {
-    evidence_sha256: "a".repeat(64),
-    remote_identity: `github-pages:boburning/portcove:${"b".repeat(64)}`,
-  };
-  const metadata = {
-    schema_version: 1,
-    root_sha256: "1".repeat(64),
-    offline_targets_sha256: "2".repeat(64),
-    index_sha256: "3".repeat(64),
-    repository_sha256: "4".repeat(64),
-    verifier_repository_sha256: "5".repeat(64),
-    timestamp_sha256: "6".repeat(64),
-    snapshot_sha256: "7".repeat(64),
-    immutable_targets_sha256: "8".repeat(64),
-    versions: { targets: "1", definitions: "1", policy: "1", snapshot: "1", timestamp: "1" },
-    expires: Object.fromEntries(
-      ["targets", "definitions", "policy", "snapshot", "timestamp"].map((role) => [
-        role,
-        "2026-12-01T00:00:00Z",
-      ]),
-    ),
-    source_commit: "c".repeat(40),
-    source_tree: "d".repeat(40),
-    operation_id: "e".repeat(64),
-    publication: { ...publication, site_generation_sha256: "b".repeat(64) },
-  };
-  const site = {
-    schema_version: 1,
-    generation_sha256: "b".repeat(64),
-    components: {
-      application: null,
-      catalog: { root_sha256: metadata.root_sha256, repository_sha256: metadata.repository_sha256 },
-    },
-    operation_id: metadata.operation_id,
-    publication,
-  };
-  const op = {
-    id: metadata.operation_id,
-    kind: "upload",
-    destination: "github-pages:boburning/portcove:complete-site",
-    outcome: "recovered",
-    recovery: { resolution: "effect-completed" },
-    completed_effects: [publication],
-    catalog_publication: { authority: "none" },
-    executor_identity: original,
-  };
-  let journalWrites = 0;
-  let jobStatus = "completed",
-    reads = 0,
-    catalogWrites = 0,
-    appWrites = 0,
-    callbackReads = 0;
-  const api = {
-    request(method: string) {
-      if (method !== "GET") {
-        journalWrites++;
-        return { status: 201, body: {} };
-      }
-      reads++;
-      return {
-        status: 200,
-        body: {
-          id: 42,
-          run_id: 123,
-          run_attempt: 1,
-          head_sha: original.controller_revision,
-          status: jobStatus,
-          conclusion: "success",
-          check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/43",
-        },
-      };
-    },
-  };
-  const make = () =>
-    runInNewContext(
-      stripTypeScriptTypes(
-        source.slice(
-          source.indexOf("function ownedCheckpointTransport("),
-          source.indexOf("export async function executeOwnedCapacityEffect("),
-        ),
-      ) +
-        stripTypeScriptTypes(
-          source.slice(
-            source.indexOf("function recoveryJournalApi("),
-            source.indexOf("export async function recoverOwnedCapacityEffect("),
-          ),
-        ) +
-        stripTypeScriptTypes(source.slice(start)) +
-        "\nrecoverOwnedPublishedMetadataWithinScope",
-      {
-        sessions: new Map([["session", { role: "coordinator", directory: "inert" }]]),
-        effectStates: new Map(),
-        inspectSelectedJournalRequirement: () => false,
-        process: { env: {} },
-        capacityRecoveryProviderApi: () => api,
-        createCoordinatorJournalApi: () => api,
-        refreshCapacityExecutor: async () => ({ run_id: "124", job_id: 45 }),
-        publishCoordinatorCheckpoint: async () => ({}),
-        recoverReleaseOpportunity: async () => ({
-          input: { controller: { capacity_attempt: { operation: op } } },
-        }),
-        isRecord,
-        inspectCapacityExecutorIdentity,
-        inspectPublishedCatalogMetadata,
-        inspectPublishedMetadata,
-        inspectPublishedSite,
-        capacityDigest,
-        structuredClone,
-        recordPublishedCatalogMetadata: async (
-          _repo: string,
-          _cp: string,
-          actual: unknown,
-          cursor: unknown,
-          options: {
-            remote: { api: { request: (method: string, route: string, body: unknown) => unknown } };
-          },
-        ) => {
-          options.remote.api.request("POST", "repos/boburning/portcove/git/blobs", {});
-          catalogWrites++;
-          assert.deepEqual(actual, inspectPublishedCatalogMetadata(metadata));
-          assert.deepEqual(cursor, inspectPublishedSite(site));
-          return { checkpoint: "advanced", durable_checkpoint: "advanced" };
-        },
-        recordPublishedApplicationSiteMetadata: async () => {
-          appWrites++;
-          throw new Error("wrong component");
-        },
-      },
-    ) as (
-      session: string,
-      input: object,
-      readback: () => Promise<unknown>,
-      component?: "application" | "catalog",
-      beforeMutation?: () => void,
-    ) => Promise<{ checkpoint: string }>;
-  const raw = { repository: "inert", checkpoint: "old", remote_configuration: {} };
-  const readback = async () => {
-    callbackReads++;
-    return { metadata, site };
-  };
-  assert.equal((await make()("session", raw, readback, "catalog")).checkpoint, "advanced");
-  assert.equal(reads, 2);
-  assert.equal(callbackReads, 1);
-  assert.equal(catalogWrites, 1);
-  assert.equal(appWrites, 0);
-  await assert.rejects(make()("session", raw, readback), /different component/);
-  jobStatus = "in_progress";
-  await assert.rejects(make()("session", raw, readback, "catalog"), /not observed terminal/);
-  assert.equal(callbackReads, 1);
-  assert.equal(catalogWrites, 1);
-  jobStatus = "completed";
-  await assert.rejects(
-    make()(
-      "session",
-      raw,
-      async () => ({ metadata, site: { ...site, generation_sha256: "f".repeat(64) } }),
-      "catalog",
-    ),
-    /cursor differs/,
-  );
-  assert.equal(catalogWrites, 1);
-  let clock = 59000;
-  const beforeMutation = () => {
-    if (clock >= 60000) throw new Error("fresh controls expired before actual journal mutation");
-  };
-  await assert.rejects(
-    make()(
-      "session",
-      raw,
-      async () => {
-        clock = 61000;
-        return { metadata, site };
-      },
-      "catalog",
-      beforeMutation,
-    ),
-    /fresh controls expired/,
-  );
-  assert.equal(journalWrites, 1, "slow readback cannot reach the subsequent journal mutation");
-  assert.equal(catalogWrites, 1);
-});
+  assert.ok(stdout.includes(mode + " PASS; controlled dependencies, no hosted authority"));
+}
 
-void test("actual recovery journal checks REST and GraphQL mutations synchronously after intervening reads", async () => {
-  const source = await readFile(
-      new URL("./release-capacity-executor.mts", import.meta.url),
-      "utf8",
-    ),
-    start = source.indexOf("function recoveryJournalApi("),
-    end = source.indexOf("export async function recoverOwnedCapacityEffect(", start);
-  let writes = 0,
-    reads = 0,
-    stale = false;
-  const journal = {
-    request: (method: string) => {
-      if (method === "GET") reads++;
-      else writes++;
-    },
-    graphql: (query: string) => {
-      if (/^\s*mutation\b/u.test(query)) writes++;
-      else reads++;
-    },
-  };
-  const make = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end)) + "\nrecoveryJournalApi",
-    {
-      createCoordinatorJournalApi: () => journal,
-    },
-  ) as (session: object, guard?: () => unknown) => typeof journal;
-  const api = make({ directory: "controlled" }, () => {
-    if (stale) throw new Error("controls stale");
-  });
-  api.request("POST");
-  api.graphql("mutation { exactCAS }");
-  assert.equal(writes, 2);
-  stale = true;
-  api.request("GET");
-  api.graphql("query { readback }");
-  assert.equal(reads, 2);
-  assert.throws(() => api.request("POST"), /controls stale/);
-  assert.throws(() => api.graphql("mutation { exactCAS }"), /controls stale/);
-  const asynchronous = make({}, () => Promise.resolve());
-  assert.throws(() => asynchronous.request("POST"), /complete synchronously/);
-  assert.equal(writes, 2);
-});
+void test("source-bound shared recovery requires exact terminal publisher/effect and writes only catalog cursor", () =>
+  runExecutorRecoveryFixture("catalog-recovery"));
+
+void test("actual recovery journal checks REST and GraphQL mutations synchronously after intervening reads", () =>
+  runExecutorRecoveryFixture("journal-controls"));
 
 void test("named catalog recovery requires both actual caller guard functions before any journal handoff", async () => {
   const source = await readFile(new URL("./release-site-deployment.mts", import.meta.url), "utf8"),
