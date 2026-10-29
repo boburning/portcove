@@ -29,7 +29,7 @@ selection scope, including filtered-out entries in supported Steam commands.
 Covers use content-driven columns with a preferred minimum of 12.75rem, giving
 five columns at the matched 1440px desktop viewport with the normal interface
 size and full sidebar. Available width and interface size change the count.
-Whole-image 2:3 artwork caps at 16.25rem; below 28em of collection width
+Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
 it caps at 160px. Short windows retain the same density rules. Supporting text
 scales and wraps without growing artwork beyond its CSS bound; native interface
 zoom still enlarges the physical rendering. Titles and project labels use their natural one- or two-line footprint

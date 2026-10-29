@@ -394,7 +394,7 @@ describe("desktop components", () => {
       .match(/<button\b[^>]*>[\s\S]*?<\/button>/gu)
       ?.find((button) => button.endsWith(">Play</button>"));
     expect(play).toBeDefined();
-    expect(play).toContain('data-variant="outline"');
+    expect(play).toContain('data-variant="ghost"');
     expect(play).not.toContain('data-variant="primary"');
     expect(html).not.toContain("Release channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);

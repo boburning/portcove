@@ -157,7 +157,7 @@
     .game-hero-continue .game-hero-body {
       flex-direction: row;
       gap: var(--space-3);
-      padding: var(--space-4);
+      padding: var(--space-3) var(--space-4);
       min-block-size: 0;
     }
     .game-hero-continue .game-hero-foreground {
