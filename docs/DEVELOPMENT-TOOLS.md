@@ -2213,6 +2213,8 @@ Linux cache restarts reuse the existing driver birth-identity and descendant-exi
 observations. Cache fixture changes and replacement startup wait for the complete
 captured process set to exit, so a surviving server cannot supply a session with
 the previous environment. Unknown exit refuses the restart and preserves failure.
+Reconnect readiness polls root presence and loading state as booleans inside the
+webview, retaining the separate 30-second waits without transporting DOM handles.
 Matching-birth Linux zombies count as exited execution and are retained as exact
 `unreaped_terminal` observations with `all_reaped: false`. They cannot serve the
 old session. Reaping remains a separate outer-supervisor cleanup observation;

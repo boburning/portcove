@@ -389,3 +389,73 @@ void test("history exit distinguishes exact terminal identities from reaping, li
     }
   }
 });
+
+void test("connection readiness polls scalar DOM state through rerenders with unchanged roots and budgets", async () => {
+  const connectSource = between(
+    "async function connect() {",
+    "async function requestApplicationShutdown(",
+  );
+  for (const kind of [
+    "ordinary",
+    "bootstrap-first",
+    "preferences-first",
+    "bootstrap-reconnected",
+    "design-fixture",
+  ]) {
+    const expectedRoot = kind.endsWith("-first")
+      ? ".bootstrap-error"
+      : kind === "design-fixture"
+        ? ".design-compatibility-fixture"
+        : 'nav[aria-label="Primary navigation"]';
+    const queries: string[] = [];
+    const budgets: number[] = [];
+    const counts = new Map<string, number>();
+    const browser = {
+      manage: () => ({
+        setTimeouts: async (timeouts: unknown) =>
+          assert.deepEqual(JSON.parse(JSON.stringify(timeouts)), { script: 15000 }),
+      }),
+      findElements: () => {
+        throw new Error("Readiness must not create stale WebElement handles");
+      },
+      wait: async (condition: () => Promise<boolean>, budget: number) => {
+        budgets.push(budget);
+        for (let attempt = 0; attempt < 3; attempt++) if (await condition()) return;
+        throw new Error("Readiness did not converge");
+      },
+    };
+    const context = {
+      connectObservedDriver: async () => {},
+      linuxPackagedInspector: false,
+      driverBrowser: () => browser,
+      bootstrapRecoverySession: kind.startsWith("bootstrap"),
+      preferencesRecoverySession: kind.startsWith("preferences"),
+      connectedLaunches: kind === "bootstrap-reconnected" ? 1 : 0,
+      selection: {
+        prerequisites: kind === "design-fixture" ? ["design-compatibility-fixture"] : [],
+      },
+      executionPlan: { fixtures: { acquisitionJourney: false } },
+      document: {
+        querySelector: (selector: string) => {
+          queries.push(selector);
+          const n = (counts.get(selector) ?? 0) + 1;
+          counts.set(selector, n);
+          if (selector === ".loading-state") return n === 1 ? {} : null;
+          assert.equal(selector, expectedRoot);
+          return n === 1 ? null : {};
+        },
+      },
+      executeBrowserScript: async (_browser: unknown, callback: unknown, ...args: unknown[]) => {
+        assert.ok(typeof callback === "function");
+        const result: unknown = Reflect.apply(callback, undefined, args);
+        assert.equal(typeof result, "boolean", "DOM nodes must stay inside the webview");
+        return result;
+      },
+    };
+    runInNewContext(`${connectSource}\nglobalThis.connect = connect;`, context);
+    await callable(Reflect.get(context, "connect"))();
+    assert.deepEqual(queries, [expectedRoot, expectedRoot, ".loading-state", ".loading-state"]);
+    assert.deepEqual(budgets, [30000, 30000]);
+    assert.equal(context.connectedLaunches, kind === "bootstrap-reconnected" ? 2 : 1);
+  }
+});

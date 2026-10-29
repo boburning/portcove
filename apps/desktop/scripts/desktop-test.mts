@@ -1577,9 +1577,17 @@ async function connect() {
     : selection.prerequisites.includes("design-compatibility-fixture")
       ? ".design-compatibility-fixture"
       : 'nav[aria-label="Primary navigation"]';
-  await browser.wait(until.elementLocated(By.css(readyRoot)), 30_000);
   await browser.wait(
-    async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
+    () =>
+      executeBrowserScript(
+        browser,
+        (selector) => document.querySelector(selector) !== null,
+        readyRoot,
+      ),
+    30_000,
+  );
+  await browser.wait(
+    () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
     30_000,
   );
   if (executionPlan.fixtures.acquisitionJourney) {
