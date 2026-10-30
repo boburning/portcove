@@ -883,14 +883,14 @@ function checkedUpdateMatchesStaged(status: PortStatus | undefined) {
   const staged = status?.staged;
   return Boolean(
     checked &&
-      staged &&
-      checked.port_id === staged.port_id &&
-      checked.release.version === staged.version &&
-      checked.release.channel === staged.channel &&
-      checked.release.asset.sha256 === staged.artifact.sha256 &&
-      checked.release.asset.name === staged.artifact.asset_name &&
-      checked.release.asset.size === staged.artifact.size &&
-      JSON.stringify(checked.required_runtime ?? null) === JSON.stringify(staged.runtime ?? null),
+    staged &&
+    checked.port_id === staged.port_id &&
+    checked.release.version === staged.version &&
+    checked.release.channel === staged.channel &&
+    checked.release.asset.sha256 === staged.artifact.sha256 &&
+    checked.release.asset.name === staged.artifact.asset_name &&
+    checked.release.asset.size === staged.artifact.size &&
+    JSON.stringify(checked.required_runtime ?? null) === JSON.stringify(staged.runtime ?? null),
   );
 }
 

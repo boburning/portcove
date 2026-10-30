@@ -385,6 +385,30 @@
         "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
         "published_at": "2026-10-18T14:30:37Z"
       }
+    },
+    {
+      "port_id": "mega-man-x2-snes-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.1.4",
+        "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
+        "size": 13043789,
+        "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+        "published_at": "2026-10-18T20:43:48Z"
+      }
+    },
+    {
+      "port_id": "sonic-the-hedgehog-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.6.0",
+        "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
+        "size": 3776546,
+        "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+        "published_at": "2026-06-17T05:17:11Z"
+      }
     }
   ]
 }

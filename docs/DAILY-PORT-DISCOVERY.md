@@ -62,6 +62,46 @@ confirmed this policy on October 28, 2026. Software changes retain the repositor
 independent review and CI requirements. Changed request or primary evidence stops
 delivery; prepare a fresh proposal instead of overwriting an in-flight issue.
 
+A partly created batch whose primary evidence changes can use an explicit owner
+reconciliation. After the finite old Actions job terminates, withdraw its owner
+proposal by prepending a dated explanation while retaining the original proposal
+verbatim at the end. Keep the old bot receipt untouched. Submit one new full-batch
+proposal with **identical ordered candidates and body text**, adding this optional
+object alongside `schema_version`, `kind`, `investigator` and `candidates`:
+
+```json
+{
+  "reconcile": {
+    "request_comment": 123,
+    "request_sha256": "64-lowercase-hex-original-proposal-body-hash",
+    "receipt_comment": 456,
+    "receipt_sha256": "64-lowercase-hex-exact-bot-comment-body-hash",
+    "plan_sha256": "64-lowercase-hex-original-plan-hash"
+  }
+}
+```
+
+These example hash placeholders must be replaced with actual SHA-256 digests.
+The executor requires that exact withdrawn owner source, one exact bot receipt,
+its original request/plan/body bindings and at least one confirmed canonical ID.
+It rejects reordered, dropped, added or revised candidate bodies. Reconciliation
+reaffirms the dated candidate facts; material factual corrections still require
+separate guarded canonical issue maintenance. A pending candidate whose facts
+are no longer accurate stays held; this route cannot capture stale prose merely
+to correct it afterwards. A fresh primary plan is bound to
+the new request and receipt. `body_request_comment` retains the original request's
+creation markers; all confirmed IDs and unconfirmed `create-attempted` states
+carry forward unchanged. This is not permission to recapture an uncertain write.
+Only a confirmed matching marker recovers that intent; ambiguous absence remains
+held. A positive retained proof that POST was never dispatched can support an
+explicit operator repair through maintained capture, complete identity readback,
+neutral fields and doctor, but an absent issue alone cannot supply that proof.
+The successor rechecks exact source preimages during delivery, all carried issue
+bodies/owners/fields and every affected doctor. It keeps the entire logical batch
+and any final full-doctor obligation. Old receipts remain historical incomplete
+evidence, never rewritten to claim success. This route adds no automatic evidence
+rebinding, provider retry, scheduler or model reviewer.
+
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
 owner dispatch in `process` mode resumes the same queue. Every creation attempt
@@ -463,6 +503,17 @@ delivery, preserving reset/continuation evidence. Successful responses reporting
 zero quota also retain backoff. Lower-priority API work stops at observed provider
 delivery headroom as well as the local request/byte reserve. No failed request
 is automatically retried and no identity is switched.
+
+Each configured credential retains its own quota observations in the same budget
+ledger; shared admission uses conservative capacity. An observed window expiring
+does not restore the startup request estimate or erase charged usage. Before more
+work, the transport permits one charged, authenticated `GET /rate_limit` per quota
+generation, capped at one request and 16 KiB inside the existing time, byte and
+backoff bounds. All required resource observations must be complete and fresh;
+failed, malformed or stale observations stop without retrying the pending request.
+A previously admitted successful response remains recordable across a quota reset;
+the next operation requires fresh capacity. This does not change ambiguous POST
+recovery, physical envelopes or the requirement to retain confirmed identities.
 
 | `op`           | Additional message fields and completion criterion                                                                                                                                                                                                         |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

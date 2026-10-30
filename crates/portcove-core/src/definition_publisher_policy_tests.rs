@@ -2256,12 +2256,17 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                     | CacheIntervention::ArtifactRevocationRestore
                     | CacheIntervention::ArtifactWithdrawalRestore
             )
-        // ARM CI40952520986/a1 reached this exact restore copy 5.260s after
-        // installer start, beyond its 5s fixture latch. Reuse the finite 15s
-        // setup allowance; preserve the partial-copy barrier and all refusal,
-        // byte-preservation, worker-drain and unchanged outer safeguards.
+        // ARM CI40952520986/a1 reached revocation restore at 5.260s;
+        // scheduled41048131025/a1 reached withdrawal restore at 5.303s.
+        // Both exceeded the 5s setup latch before an actual 64KiB copy.
+        // Reuse the finite 15s allowance for these exact ARM variants;
+        // preserve the incomplete-copy barrier, refusal, drain and outer limit.
         || (cfg!(all(target_os = "macos", target_arch = "aarch64"))
-            && matches!(intervention, CacheIntervention::ArtifactRevocationRestore));
+            && matches!(
+                intervention,
+                CacheIntervention::ArtifactRevocationRestore
+                    | CacheIntervention::ArtifactWithdrawalRestore
+            ));
     let latch_timeout = if slow_retention_setup {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))

@@ -1,6 +1,6 @@
 import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { once } from "node:events";
 import {
   DiscoveryBudget,
@@ -1076,4 +1076,166 @@ void test("holding the final candidate cannot bypass a resumed substantial chang
   next.applyBatch = resumed.applyBatch;
   await assert.rejects(next.apply(), /global validation unavailable/);
   assert.equal(checks, 2);
+});
+
+function quotaRefreshFixture(t: TestContext, mode = "valid") {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const dir = mkdtempSync(path.join(root, "work/quota-refresh-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const clockFile = path.join(dir, "clock");
+  const callsFile = path.join(dir, "calls");
+  const now = Date.parse("2026-10-30T13:40:00Z");
+  writeFileSync(clockFile, String(now));
+  writeFileSync(callsFile, "");
+  const worker = path.join(dir, "worker.mjs");
+  writeFileSync(
+    worker,
+    `import {readFileSync,appendFileSync,writeFileSync} from 'node:fs';
+    let input='';for await(const part of process.stdin)input+=part;
+    const p=JSON.parse(input),clock=${JSON.stringify(clockFile)},calls=${JSON.stringify(callsFile)},mode=${JSON.stringify(mode)},epoch=${now};
+    const at=Number(readFileSync(clock,'utf8'));
+    appendFileSync(calls,JSON.stringify({method:p.method,url:p.url,cap:p.cap,maxRequests:p.maxRequests,token:p.token})+'\\n');
+    let status=200,text='{}',resource=p.url.endsWith('/graphql')?'graphql':'core';
+    let reset=Math.floor((at+3600000)/1000),remaining=p.token==='repo-token'?7:4700;
+    if(p.url.endsWith('/rate_limit')){
+      const row=(n)=>({limit:5000,remaining:n,reset:mode==='stale'?Math.floor(at/1000):reset});
+      text=JSON.stringify({resources:{core:row(mode==='zero'&&p.token==='repo-token'?0:remaining),graphql:row(p.token==='repo-token'?0:4700),search:row(30)}});
+      if(mode==='missing')text='{"resources":{}}';
+      if(mode==='denied')status=403;
+      if(mode==='broken'){process.stdout.write('not-json');process.exit(0);}
+    }else{
+      text='{"number":700}';
+      if(mode==='cross'&&at===epoch){writeFileSync(clock,String(epoch+2000));reset=Math.floor((epoch+1000)/1000);}
+    }
+    process.stdout.write(JSON.stringify({requests:1,bytes:Buffer.byteLength(text),status,headers:{'x-ratelimit-resource':resource,'x-ratelimit-remaining':String(remaining),'x-ratelimit-reset':String(reset)},text}));
+  `,
+  );
+  const budget = new DiscoveryBudget(
+    "cold",
+    () => {},
+    () => Number(readFileSync(clockFile, "utf8")),
+  );
+  budget.usage.requests = 339;
+  budget.usage.bytes = 18743487;
+  const project = createDiscoveryTransport(budget, "project-token", worker);
+  budget.observeProvider({
+    resource: "core",
+    remaining: 4108,
+    resetAt: new Date(now + 1000).toISOString(),
+  });
+  return {
+    budget,
+    project,
+    worker,
+    now,
+    clockFile,
+    calls: () =>
+      readFileSync(callsFile, "utf8")
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map(
+          (line) =>
+            JSON.parse(line) as {
+              method: string;
+              url: string;
+              cap: number;
+              maxRequests: number;
+              token: string;
+            },
+        ),
+  };
+}
+void test("expired quota refresh preserves one budget and precedes a normal POST", (t) => {
+  const f = quotaRefreshFixture(t);
+  writeFileSync(f.clockFile, String(f.now + 2000));
+  const started = f.budget.usage.started_at,
+    bytes = f.budget.usage.bytes;
+  f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
+  assert.deepEqual(
+    f.calls().map((c) => [c.method, c.url]),
+    [
+      ["GET", "https://api.github.com/rate_limit"],
+      ["POST", "https://api.github.com/repos/o/r/issues"],
+    ],
+  );
+  assert.equal(f.calls()[0]!.maxRequests, 1);
+  assert.equal(f.calls()[0]!.cap, 16384);
+  assert.equal(f.budget.usage.requests, 341);
+  assert(f.budget.usage.bytes > bytes);
+  assert.equal(f.budget.usage.started_at, started);
+  assert.equal(f.budget.limits.bytes, 64 * 1024 * 1024);
+  assert.equal(f.budget.limits.milliseconds, 30 * 60000);
+});
+void test("successful admitted POST survives a quota reset during its response", (t) => {
+  const f = quotaRefreshFixture(t, "cross");
+  const first = f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
+  assert.equal((JSON.parse(first.text) as { number: number }).number, 700);
+  assert.equal(f.budget.usage.requests, 340);
+  f.project.request("GET", "https://api.github.com/repos/o/r/issues/700");
+  assert.deepEqual(
+    f.calls().map((c) => c.method),
+    ["POST", "GET", "GET"],
+  );
+  assert.equal(f.calls()[1]!.url, "https://api.github.com/rate_limit");
+});
+void test("separate credentials retain conservative quota and unused GraphQL zero does not certify or block another token", (t) => {
+  const f = quotaRefreshFixture(t);
+  const repo = createDiscoveryTransport(f.budget, "repo-token", f.worker);
+  writeFileSync(f.clockFile, String(f.now + 2000));
+  repo.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
+  assert.deepEqual(
+    f.calls().map((c) => [c.method, c.token]),
+    [
+      ["GET", "project-token"],
+      ["GET", "repo-token"],
+      ["POST", "repo-token"],
+    ],
+  );
+  assert(f.budget.usage.provider_quotas!.core!.remaining <= 7);
+  assert.equal(f.budget.usage.backoff_until, undefined);
+  f.project.request("POST", "https://api.github.com/graphql", "{}");
+  assert.equal(f.calls().length, 4);
+  const g = quotaRefreshFixture(t, "zero");
+  const blocked = createDiscoveryTransport(g.budget, "repo-token", g.worker);
+  writeFileSync(g.clockFile, String(g.now + 2000));
+  assert.throws(
+    () => blocked.request("POST", "https://api.github.com/repos/o/r/issues", "{}"),
+    /backoff|quota/u,
+  );
+  assert(g.calls().every((c) => c.method === "GET"));
+});
+void test("denied malformed stale or unknown quota refresh cannot retry or authorize a POST", async (t) => {
+  for (const mode of ["denied", "missing", "stale", "broken"])
+    await t.test(mode, (t) => {
+      const f = quotaRefreshFixture(t, mode);
+      writeFileSync(f.clockFile, String(f.now + 2000));
+      assert.throws(() =>
+        f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}"),
+      );
+      assert.throws(
+        () => f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}"),
+        /cannot be retried/u,
+      );
+      assert.equal(f.calls().length, 1);
+      assert.equal(f.budget.usage.requests, 340);
+      assert(f.budget.usage.bytes > 18743487);
+    });
+});
+void test("quota refresh cannot spend reserved bytes expired runtime or active provider backoff", (t) => {
+  for (const mode of ["bytes", "time", "backoff"]) {
+    const f = quotaRefreshFixture(t);
+    writeFileSync(f.clockFile, String(f.now + 2000));
+    if (mode === "bytes")
+      f.budget.reserve = {
+        requests: 0,
+        bytes: f.budget.limits.bytes - f.budget.usage.bytes - 8192,
+      };
+    if (mode === "time")
+      writeFileSync(f.clockFile, String(f.now + f.budget.limits.milliseconds + 1));
+    if (mode === "backoff") f.budget.retainBackoff(new Date(f.now + 60000).toISOString());
+    assert.throws(() => f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}"));
+    assert.equal(f.calls().length, 0);
+    assert.equal(f.budget.usage.requests, 339);
+  }
 });

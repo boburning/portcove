@@ -343,6 +343,63 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
   );
 });
 
+// A fixed game release-channel scenario is input data, not publication authority.
+// Exempt only that exact matrix value; executable fields and triggers stay checked.
+function assertNonPublishingNativeWorkflow(configuration: unknown): void {
+  const inspected: unknown = structuredClone(configuration);
+  assert.ok(isRecord(inspected) && isRecord(inspected.jobs));
+  const product = inspected.jobs.product_workflows;
+  if (isRecord(product) && isRecord(product.strategy) && isRecord(product.strategy.matrix)) {
+    const rows = product.strategy.matrix.include;
+    if (Array.isArray(rows)) {
+      for (const row of rows) {
+        if (isRecord(row) && row.selection === "owned-ready" && Array.isArray(row.scenarios)) {
+          row.scenarios = row.scenarios.map((scenario: unknown) =>
+            scenario === "native-release-channel-selection-and-restart"
+              ? "reviewed-game-channel-scenario"
+              : scenario,
+          );
+        }
+      }
+    }
+  }
+  assert.doesNotMatch(JSON.stringify(inspected), /release|publish|deploy|"schedule"\s*:/i);
+}
+
+void test("non-publishing policy permits only the fixed game channel matrix value", () => {
+  const configuration: unknown = parseDocument(nativeDesignCompatibilityWorkflow).toJS();
+  assert.doesNotThrow(() => assertNonPublishingNativeWorkflow(configuration));
+  for (const mutation of [
+    { on: { schedule: [{ cron: "0 0 * * *" }] } },
+    { jobs: { unsafe: { steps: [{ run: "gh release create v1" }] } } },
+    { jobs: { unsafe: { steps: [{ run: "pnpm publish" }] } } },
+    { jobs: { unsafe: { steps: [{ uses: "example/deploy@fixed" }] } } },
+    {
+      jobs: {
+        unsafe: { steps: [{ run: "native-release-channel-selection-and-restart" }] },
+      },
+    },
+    {
+      jobs: {
+        product_workflows: {
+          strategy: {
+            matrix: { include: [{ selection: "owned-ready", scenarios: ["publish"] }] },
+          },
+        },
+      },
+    },
+  ]) {
+    assert.ok(isRecord(configuration) && isRecord(configuration.jobs));
+    assert.throws(() =>
+      assertNonPublishingNativeWorkflow({
+        ...configuration,
+        ...mutation,
+        jobs: { ...configuration.jobs, ...("jobs" in mutation ? mutation.jobs : {}) },
+      }),
+    );
+  }
+});
+
 void test("native design compatibility remains explicit, isolated, and non-publishing", () => {
   assert.match(nativeDesignCompatibilityWorkflow, /^ {2}workflow_dispatch:$/m);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /^ {2}(pull_request|push|schedule):/m);
@@ -423,7 +480,7 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   );
   assert.match(nativeDesignCompatibilityWorkflow, /--features native-compatibility-qualification/);
   assert.match(nativeDesignCompatibilityWorkflow, /tauri\.native-compatibility\.conf\.json/);
-  assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /release|publish|deploy|schedule:/i);
+  assertNonPublishingNativeWorkflow(configuration);
   assert.match(nativeCompatibilityRunner, /createHash\("sha256"\)/);
   assert.match(nativeCompatibilityRunner, /"result\.json"/);
   assert.match(
