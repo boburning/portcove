@@ -799,6 +799,16 @@ mod tests {
         assert_listing_only_player_route("cannonball-dx-outrun", true);
     }
 
+    #[test]
+    fn psx_permitted_player_route_826() {
+        assert_listing_only_player_route("mstan-battle-arena-toshinden-recomp", true);
+    }
+
+    #[test]
+    fn psx_permitted_player_route_827() {
+        assert_listing_only_player_route("novapowers0-bloody-roar-ii-recomp", true);
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently

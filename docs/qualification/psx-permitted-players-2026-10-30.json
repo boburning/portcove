@@ -1,0 +1,304 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-10-30",
+  "owners": [826, 827, 2510, 2926, 1422],
+  "selected_routes": 2,
+  "selected_acceptance_rows": 10,
+  "new_strict_definitions": 0,
+  "new_frozen_identities": 0,
+  "native_game_runs": "not_run",
+  "protected_client_delivery": "not_evaluated",
+  "rows": [
+    {
+      "issue": 826,
+      "repository": "mstan/BattleArenaToshindenRecomp",
+      "repository_id": 1360445705,
+      "selected_source_commit": "cadc96f1b681c8cde5e3b144aa7a67f109ae05d5",
+      "framework_repository": "RetroPortingToolKit/psxrecomp",
+      "framework_commit": "fc8c58135c74460e73697c37ce126139053e7696",
+      "source_trees": [
+        {
+          "entries": 106,
+          "truncated": false
+        },
+        {
+          "entries": 2545,
+          "truncated": false
+        }
+      ],
+      "verified_source_blobs": [
+        {
+          "owner": "title",
+          "path": ".gitmodules",
+          "git_blob": "3368d5b41b84aa9304ba03ffc7aec200efcef4ec",
+          "bytes": 238,
+          "sha256": "33a67899a2882aacb193491c61519edea58ed91f1e888da7e2ed241a60b6424f"
+        },
+        {
+          "owner": "title",
+          "path": "CMakeLists.txt",
+          "git_blob": "9914079307904e747f2aede4b10c2e93de4f6579",
+          "bytes": 3103,
+          "sha256": "49c487151223197f6b2e5e13780d2d73a5c460872efc03a59adfed710adde1e7"
+        },
+        {
+          "owner": "title",
+          "path": "LICENSE",
+          "git_blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "bytes": 3755,
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50"
+        },
+        {
+          "owner": "title",
+          "path": "README.md",
+          "git_blob": "d35e76c1f5f790dc57c27e584f7b2f264cb32788",
+          "bytes": 8029,
+          "sha256": "8bbddc814c23cc1d1e931b5334c59d93bf6d723b92bcccc8f18097de34c2d367"
+        },
+        {
+          "owner": "title",
+          "path": "codegen_setup.c",
+          "git_blob": "3d5083a34e76326badc48d413fb51e6b545de285",
+          "bytes": 1919,
+          "sha256": "49905305cbb319f7c3104518bbbf94e8df1a1ab26450f9691256fd45f76a5ac2"
+        },
+        {
+          "owner": "title",
+          "path": "framework_pins.txt",
+          "git_blob": "147fbfc91462b3ef4de59ef68e06c6aa89e4dcb6",
+          "bytes": 254,
+          "sha256": "c366f5f908b5c7f888cfc00459f45eaa2f02e2f0be3b6efb1b5182efe4da2df4"
+        },
+        {
+          "owner": "title",
+          "path": "game.toml",
+          "git_blob": "4ae357a3599ff71910acc883d9589ee9c4881b2c",
+          "bytes": 1916,
+          "sha256": "50cdff827686e6d6e0122964361aa75c56a960b109f1794a61ccd03391581775"
+        },
+        {
+          "owner": "framework",
+          "path": "LICENSE",
+          "git_blob": "bb43759dce58708f103779981ed41998b0c16075",
+          "bytes": 3892,
+          "sha256": "133629d3a7fa3543e96e27cc8c03c27dd6cd6c395e0a02fc1eda307d1d206cc6"
+        },
+        {
+          "owner": "framework",
+          "path": "README.md",
+          "git_blob": "3c21a953d969b3839c2646ec9277e66cf0692d2a",
+          "bytes": 44063,
+          "sha256": "5832cb26a637cb5feccc410c3074cfbe8acf646b9524bf9b027092e70a5dfb6a"
+        },
+        {
+          "owner": "framework",
+          "path": "host/psxrecomp_codegen_host.c",
+          "git_blob": "acd0d9d1000945f407cc8008b9e63e05096fdbc8",
+          "bytes": 174351,
+          "sha256": "e1511be053fcdf8faaaaa6eb11f8d220d0f6243e059321bd76b2458296b338f6"
+        },
+        {
+          "owner": "framework",
+          "path": "runtime/runtime.cmake",
+          "git_blob": "b9fdb59b50b444d013e81db2b31992f9a3bc1049",
+          "bytes": 143233,
+          "sha256": "f62bdee6928fadf159047a24e56f65b23b6bd14835d981020c62557ad0250491"
+        },
+        {
+          "owner": "framework",
+          "path": "runtime/src/main.cpp",
+          "git_blob": "15afef9196b121e1720be86a210267853dee682f",
+          "bytes": 926492,
+          "sha256": "b06e3e476555595c002913381609af18d4d5d4011872fde8b49201a64b6d7cac"
+        }
+      ],
+      "release_metadata": {
+        "id": 384963535,
+        "tag_name": "v0.1.3",
+        "published_at": "2026-09-08T18:20:56Z",
+        "html_url": "https://github.com/mstan/BattleArenaToshindenRecomp/releases/tag/v0.1.3"
+      },
+      "assets_metadata_only_this_batch": [
+        {
+          "id": 551045964,
+          "name": "BattleArenaToshindenRecomp-0.1.3-windows-x64.zip",
+          "size": 10608825,
+          "digest": "sha256:ca200519541643c67e3296f464f080a513752d80aa86bfcf9bb1eb0e7d84dd37",
+          "browser_download_url": "https://github.com/mstan/BattleArenaToshindenRecomp/releases/download/v0.1.3/BattleArenaToshindenRecomp-0.1.3-windows-x64.zip"
+        },
+        {
+          "id": 551045962,
+          "name": "BattleArenaToshindenRecomp-v0.1.3-linux-x86_64.AppImage",
+          "size": 13187576,
+          "digest": "sha256:43049c5b124ae74a63db8a4ed631892c3fcb1c9a10acf99292bc07d6a4bfba09",
+          "browser_download_url": "https://github.com/mstan/BattleArenaToshindenRecomp/releases/download/v0.1.3/BattleArenaToshindenRecomp-v0.1.3-linux-x86_64.AppImage"
+        },
+        {
+          "id": 551045963,
+          "name": "SHA256SUMS.txt",
+          "size": 239,
+          "digest": "sha256:fe9116e133b946108a85bf2579a7b92580c9a1ae19496eb0c329fcab322dd703",
+          "browser_download_url": "https://github.com/mstan/BattleArenaToshindenRecomp/releases/download/v0.1.3/SHA256SUMS.txt"
+        }
+      ],
+      "rights_scope": "permitted noncommercial current-source/prepared copy with applicable project/framework/component notices; no original or arbitrary old-package grant",
+      "acquisition": "held; no held payload acquired",
+      "operations": [
+        "register-review-consent",
+        "retained-intent",
+        "relink",
+        "selected-process-play",
+        "metadata-only-preserving-removal"
+      ]
+    },
+    {
+      "issue": 827,
+      "repository": "novapowers0/BloodyRoar2Recomp",
+      "repository_id": 1339377249,
+      "selected_source_commit": "a6c88db20cdf234576fd4439dc966f79a7a7ff80",
+      "framework_repository": "novapowers0/psxrecomp",
+      "framework_commit": "219a3627f817c5ad60b852d368c1bebc4f584b71",
+      "source_trees": [
+        {
+          "entries": 76,
+          "truncated": false
+        },
+        {
+          "entries": 1691,
+          "truncated": false
+        }
+      ],
+      "verified_source_blobs": [
+        {
+          "owner": "title",
+          "path": ".gitmodules",
+          "git_blob": "9370d709bea61f437987c091a8c0fddb4c4dd875",
+          "bytes": 219,
+          "sha256": "f7e1bd3a08d42baf487c10511f613a179d81e8700950097e1db3b4f3d5c6ac69"
+        },
+        {
+          "owner": "title",
+          "path": "CMakeLists.txt",
+          "git_blob": "ad695c7166b87c44cedc23ff59c603e9ee3d46dd",
+          "bytes": 12808,
+          "sha256": "11bd2f0fc831a7db4e90de7e8d940e588ef5d1b293c1e4f570af52ff4c356c1a"
+        },
+        {
+          "owner": "title",
+          "path": "LICENSE",
+          "git_blob": "1b6d103f625ad70d8d75a8e1db46c499886b7ecc",
+          "bytes": 1087,
+          "sha256": "18ea90bf076d2386de3a44a4777e579be7156576bbccf875758a8a67614350d2"
+        },
+        {
+          "owner": "title",
+          "path": "README.md",
+          "git_blob": "0f8760c0e3b63bf407d5dabcfaf855996137bfda",
+          "bytes": 14649,
+          "sha256": "ce6ead2a8ad9704148b977122154f47af837c590a07996dcab49df1f508845d8"
+        },
+        {
+          "owner": "title",
+          "path": "RELEASE_NOTES_v0.7.1.md",
+          "git_blob": "ae4ca5ddd9a23d31ad153c7d8873004b4582273c",
+          "bytes": 1028,
+          "sha256": "391996f5e4e60af5a641e3bb0b990214f54808127279feda9b21a11c59ed81ad"
+        },
+        {
+          "owner": "title",
+          "path": "codegen_setup.c",
+          "git_blob": "65c584e9afa8cdc4778ec64cbb95cc316fdc07cd",
+          "bytes": 1991,
+          "sha256": "6145d7db707d0cd4a2a8811b79720eb5c166d0898a090706e55f6cd3f0e6a8d3"
+        },
+        {
+          "owner": "title",
+          "path": "framework_pins.txt",
+          "git_blob": "3e4b19f5b181994822751270ca8fd400b2bbe1b8",
+          "bytes": 212,
+          "sha256": "eb65bac6a958eaafd89ad3a165c8e10d9910cf59184d32350122c4a5e30d8202"
+        },
+        {
+          "owner": "title",
+          "path": "game.toml",
+          "git_blob": "0804293095872677fa496a3f85d09ec05ad90c14",
+          "bytes": 4129,
+          "sha256": "adc203a51cf5851395bf02cced7d330c6234ab1cfcecf00f8a412922562ccf9b"
+        },
+        {
+          "owner": "title",
+          "path": "game_us.toml",
+          "git_blob": "b56c2091e447e74b5eb07d4c1632cf3333e700a9",
+          "bytes": 2742,
+          "sha256": "45a08f28cb009a1d30501c93199eb352eef9128a7dd06bc97fdc99ccb5709319"
+        },
+        {
+          "owner": "framework",
+          "path": "LICENSE",
+          "git_blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+          "bytes": 3852,
+          "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2"
+        },
+        {
+          "owner": "framework",
+          "path": "README.md",
+          "git_blob": "5157cb505147dde96d20c02d9a173fbf2063672a",
+          "bytes": 43123,
+          "sha256": "829f1c8307f0f7ec6211403c84b07b5654f19f5a0ae5611ff3027ade4bb928b9"
+        },
+        {
+          "owner": "framework",
+          "path": "host/psxrecomp_codegen_host.c",
+          "git_blob": "b24d28a868cfe6472efa261f423d05f03fb177df",
+          "bytes": 162469,
+          "sha256": "87b1492fdbb8df4769e2592ebc9e476c422ffa9c765d2e489dc64c5e665eff3a"
+        },
+        {
+          "owner": "framework",
+          "path": "runtime/runtime.cmake",
+          "git_blob": "829e995d9a7381a0dee6ff010cec3e01f2c8c5a2",
+          "bytes": 124318,
+          "sha256": "633a1b2e6b4f8ba430d17b184a4b8ed072244e0fee0e4852d7e03dd44df719f2"
+        },
+        {
+          "owner": "framework",
+          "path": "runtime/src/main.cpp",
+          "git_blob": "06e51f4ffcb1339e84a89e4e6b8107bfe71a8e08",
+          "bytes": 776244,
+          "sha256": "2b7549db24f37cc55d53a738a909a6c7ab5d36072648085c9a26a599eeb07570"
+        }
+      ],
+      "release_metadata": {
+        "id": 397172675,
+        "tag_name": "v0.7.1",
+        "published_at": "2026-09-26T09:39:14Z",
+        "html_url": "https://github.com/novapowers0/BloodyRoar2Recomp/releases/tag/v0.7.1"
+      },
+      "assets_metadata_only_this_batch": [
+        {
+          "id": 590352665,
+          "name": "BloodyRoar2-linux-x64-0.7.1.zip",
+          "size": 19640058,
+          "digest": "sha256:19892a26be947eef2fc21a7ed47bd8e7c239f26f5aa5968da84c66595a72f551",
+          "browser_download_url": "https://github.com/novapowers0/BloodyRoar2Recomp/releases/download/v0.7.1/BloodyRoar2-linux-x64-0.7.1.zip"
+        },
+        {
+          "id": 590352666,
+          "name": "BloodyRoar2-v0.7.1.zip",
+          "size": 20650840,
+          "digest": "sha256:745c2ae512a37b6a02087b418710ba92833c900393b133293fde54269aefd779",
+          "browser_download_url": "https://github.com/novapowers0/BloodyRoar2Recomp/releases/download/v0.7.1/BloodyRoar2-v0.7.1.zip"
+        }
+      ],
+      "rights_scope": "permitted noncommercial current-source/prepared copy with applicable project/framework/component notices; no original or arbitrary old-package grant",
+      "acquisition": "held; no held payload acquired",
+      "operations": [
+        "register-review-consent",
+        "retained-intent",
+        "relink",
+        "selected-process-play",
+        "metadata-only-preserving-removal"
+      ]
+    }
+  ]
+}
