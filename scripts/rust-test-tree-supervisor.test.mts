@@ -547,6 +547,7 @@ interface LinuxCapture {
 type LinuxMode =
   | "legacy-sibling-red"
   | "natural"
+  | "adopted-exit"
   | "gate-refusal"
   | "cancel-pipe"
   | "supervisor-loss"
@@ -791,20 +792,37 @@ async function linuxInnerCase(
   const descendant = path.join(directory, "inner.descendant");
   const helperPid = path.join(directory, "inner.helper");
   const finish = path.join(directory, "inner.finish");
-  const payload = [
+  const adoptedExit = path.join(directory, "adopted.exit");
+  const adoptedPayload = [
     'const {spawn}=require("node:child_process")',
-    'const {writeFileSync,existsSync}=require("node:fs")',
-    `writeFileSync(${JSON.stringify(started)},"started")`,
-    `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-closure"},stdio:"ignore"})`,
+    'const {writeFileSync}=require("node:fs")',
+    `const child=spawn(process.execPath,["-e",${JSON.stringify(`const {existsSync}=require("node:fs");setInterval(()=>{if(existsSync(${JSON.stringify(adoptedExit)}))process.exit(0)},10)`)}],{stdio:"ignore"})`,
     `writeFileSync(${JSON.stringify(descendant)},String(child.pid))`,
-    "child.unref()",
-    ...(mode === "natural" ||
-    mode === "ignored-sigchld" ||
-    mode === "receipt-refusal" ||
-    mode === "root-complete-reaper-loss"
-      ? [`setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`]
-      : ["setInterval(()=>{},1000)"]),
+    "process.exit(0)",
   ].join(";");
+  const payload =
+    mode === "adopted-exit"
+      ? [
+          'const {spawn}=require("node:child_process")',
+          'const {writeFileSync,existsSync}=require("node:fs")',
+          `writeFileSync(${JSON.stringify(started)},"started")`,
+          `spawn(process.execPath,["-e",${JSON.stringify(adoptedPayload)}],{stdio:"ignore"}).unref()`,
+          `setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`,
+        ].join(";")
+      : [
+          'const {spawn}=require("node:child_process")',
+          'const {writeFileSync,existsSync}=require("node:fs")',
+          `writeFileSync(${JSON.stringify(started)},"started")`,
+          `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-closure"},stdio:"ignore"})`,
+          `writeFileSync(${JSON.stringify(descendant)},String(child.pid))`,
+          "child.unref()",
+          ...(mode === "natural" ||
+          mode === "ignored-sigchld" ||
+          mode === "receipt-refusal" ||
+          mode === "root-complete-reaper-loss"
+            ? [`setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`]
+            : ["setInterval(()=>{},1000)"]),
+        ].join(";");
   const args = [
     gate,
     status,
@@ -979,6 +997,28 @@ async function linuxInnerCase(
         const child = capture(Number(readFileSync(descendant, "utf8")), (value) => {
           if (mode === "escaped-closure") escaped = value;
         });
+        if (mode === "adopted-exit") {
+          await wait(() => identity(child.pid).parent === helper);
+          writeFileSync(adoptedExit, "exit\n", { flag: "wx" });
+          await wait(() => !existsSync(`/proc/${child.pid}`));
+          assert.equal(identity(node.pid).identity, node.identity);
+          assert.notEqual(
+            identity(node.pid).state,
+            "Z",
+            "supervisor anchor exited before adopted child settlement",
+          );
+          assert.equal(
+            existsSync(status),
+            false,
+            "payload completed before adopted child settlement",
+          );
+          assert.equal(
+            existsSync(receipt),
+            false,
+            "early reaping manufactured final cleanup proof",
+          );
+          writeFileSync(finish, "finish\n");
+        }
         if (
           mode === "natural" ||
           mode === "ignored-sigchld" ||
@@ -1077,6 +1117,7 @@ let linuxEvidenceHeld = false;
 for (const mode of [
   "legacy-sibling-red",
   "natural",
+  "adopted-exit",
   "gate-refusal",
   "cancel-pipe",
   "supervisor-loss",

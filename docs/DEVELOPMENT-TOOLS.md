@@ -2406,6 +2406,10 @@ Unix stream socket whose peer matches the wrapper PID and supplied birth identit
 Readable EOF closes the group; unexpected bytes fail closed. Wrapper pipe loss
 closes that anchored group; reaper pipe
 loss makes the Node supervisor close its own group without inventing a receipt.
+While the payload runs, the reaper collects exited adopted children with
+nonblocking waits so their original process observers can confirm settlement.
+The direct Node supervisor remains unreaped to pin the original cleanup group;
+early child reaping does not publish a final cleanup receipt.
 The reaper stays outside the killed group, drains direct and adopted children, and
 publishes an atomic positive receipt only after actual group absence and completed
 reaping, within the existing five-second cleanup bound. If procfs omits
