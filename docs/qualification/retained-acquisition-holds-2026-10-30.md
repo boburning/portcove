@@ -1,15 +1,16 @@
-# Enforce two retained acquisition decisions — October 30, 2026
+# Enforce three retained acquisition decisions — October 30, 2026
 
 This bounded correction under [#2926](https://github.com/boburning/portcove/issues/2926)
 consumes the current specifications and newest receipts of
-[#174](https://github.com/boburning/portcove/issues/174) and
-[#128](https://github.com/boburning/portcove/issues/128). Both frozen historical
+[#174](https://github.com/boburning/portcove/issues/174),
+[#128](https://github.com/boburning/portcove/issues/128), and
+[#343](https://github.com/boburning/portcove/issues/343). All three frozen historical
 identities already have an explicit fresh-acquisition hold. Their authored
 listings nevertheless omitted `download_block_reason`, so Core's generic
 catalog download path could proceed to provider discovery/preview instead of
 consuming that decision. This batch adds the existing authored field and truthful
 descriptive summaries. It creates no new hold, deferral, engine or lifecycle
-policy and does not complete either port integration.
+policy and does not complete any of these port integrations.
 
 ## Exact applicability and resume conditions
 
@@ -33,23 +34,34 @@ These are owner-retained operation decisions supported by refreshed identity/
 metadata observations, not new legal advice or a conclusion that every possible
 private copy/use is prohibited. Published digest fields identify advertised
 bytes; no package was downloaded and no computed hash substitutes for accepted
-permission/source identity. The two projects remain distinct from other Pokémon
+permission/source identity. The three projects remain distinct from other Pokémon
 implementations and LADX Updated #1838. No canonical identity, lineage or
 historical qualification moves.
 
-The same pickup inspected SotE #343 and found a current root MIT project grant.
-Its older undeclared-code-license wording was therefore not copied into this
-batch. Current-package stock-texture provenance still requires its own review;
-neither this positive source observation nor the old package finding resolves
-that separate applicability decision.
+SotE's [retained source/package receipt](https://github.com/boburning/portcove/issues/343#issuecomment-5650463220)
+requires both a project grant and a clear package stock-texture permission/provenance
+basis, or an asset-clean publication. Current source
+[`bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141`](https://github.com/GTTeancum/SotE-Recomp/tree/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141)
+now has an MIT root LICENSE: Git blob `c21bd49182ad6f67f10893f06b905e088efda435`,
+decoded SHA-256 `adc16903adcc1158ff1e052f3e1d686e574a3c4d2537652dfac18383f2004081`.
+Decoded bytes were Git-blob verified. Its old undeclared-project-license wording
+is therefore not copied into the new condition. The independent package-content
+condition remains unresolved; the current source grant does not attest to stock
+texture provenance or every component/package. Latest0.9.7 metadata advertises
+`SotE-Recomp-0.9.7.zip`,583,324,761bytes, publisher digest
+`908c60ae51fb2772bfc4f60e6c2bb8419d5ac2a54b1e54d31fe13ddab2c323d7`.
+No package was acquired or presumed identical to0.9.2. Resume acquisition after
+reviewing the exact selected package's content and applicable permission, or an
+asset-clean publication resolves that condition. Unknown applicability remains
+unfinished; this does not declare every possible current copy or use unlawful.
 
 ## Operation and verification boundary
 
 Existing Core owns the enforcement: `download_block_reason` is consumed before
-provider options, download preview or acquisition mutation. The new two-ID case
+provider options, download preview or acquisition mutation. The new three-ID case
 reuses the existing held-listing assertions, including zero provider requests,
 no setup/publication side effects and an unchanged empty destination. The helper
-explicitly checks guide absence for these two listings while preserving every
+explicitly checks guide absence for these three listings while preserving every
 existing prepared-player guide assertion. Existing stale-review invalidation, consent,
 origin/integrity/cancellation and pending-record recovery coverage stays shared;
 none of those implementations changes. Core behavior is reused, not reimplemented
@@ -60,10 +72,10 @@ no runtime is adopted and no new registration/preparation/managed route is
 claimed. The field does not grant or revoke rights over an independently
 permitted existing external copy. Existing registration/file-ownership guards
 and metadata-only removal remain unchanged. All272 strict definitions, source
-contracts, IDs, issue mappings and artwork stay exact; only two authored listings
+contracts, IDs, issue mappings and artwork stay exact; only three authored listings
 and their generated projection change.
 
-Maintained per-record preparation completed for both proposals with unchanged
+Maintained per-record preparation completed for all three proposals with unchanged
 operational projection. Optional proposed artwork withdrawals were rejected;
 accepted mappings were preserved. The maintained generator produces the derived
 listings. Local formatting, generator/whitespace checks and required exact-head
@@ -72,7 +84,7 @@ executed pass. No game, ROM, package, compiler/helper, installer or private save
 was acquired or executed. Native/gameplay/save/installed/protected evidence is
 Not run/Not evaluated.
 
-Both integrations and #2510/#2926/#1422 remain open for their actual acceptance.
-This fixes two missing enforcement inputs; it does not retire a compatibility
+These integrations and #2510/#2926/#1422 remain open for their actual acceptance.
+This fixes three missing enforcement inputs; it does not retire a compatibility
 transition, resolve the source/use work, promote Supported, change Project
 commitment or silently reduce the preserved rollout.

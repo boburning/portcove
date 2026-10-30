@@ -583,7 +583,11 @@ async fn embedded_mmx_source_player_keeps_package_hold_before_network() {
 #[tokio::test]
 async fn embedded_retained_acquisition_holds_refuse_before_network() {
     assert_embedded_listing_download_holds(
-        &["pokemon-yellow-recomp", "zelda-link-s-awakening-dx-hd"],
+        &[
+            "pokemon-yellow-recomp",
+            "zelda-link-s-awakening-dx-hd",
+            "star-wars-shadows-of-the-empire-n64-sote-recomp",
+        ],
         false,
     )
     .await;

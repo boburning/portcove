@@ -35866,7 +35866,7 @@
     {
       "id": "star-wars-shadows-of-the-empire-n64-sote-recomp",
       "name": "Star Wars: Shadows of the Empire — N64 / SotE-Recomp",
-      "summary": "Explore Star Wars: Shadows of the Empire — N64 / SotE-Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Research this distinct N64 Shadows of the Empire implementation; the current MIT project grant does not resolve the retained package texture-provenance condition.",
       "project_url": "https://github.com/GTTeancum/SotE-Recomp",
       "issue_number": 343,
       "platforms": [],
@@ -35879,7 +35879,8 @@
         "image_sha256": "1dd963ff17ff5fb846f44a7215c9ee73662bd9991aad4bd3110b8284920677e9",
         "game_slug": "star-wars-shadows-of-the-empire",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "Current source has an MIT project grant, but the canonical selected-package texture permission/provenance condition remains unresolved. The older reviewed package contained reconstructed stock texture references; a new tag, source license or checksum alone does not establish the current package content basis. Fresh acquisition resumes after exact selected-package content and applicable permission are reviewed, or an asset-clean publication resolves that condition."
     },
     {
       "id": "star-wars-the-clone-wars-pc-gtteancum-star-wars-the-clone-wars-xbox",
