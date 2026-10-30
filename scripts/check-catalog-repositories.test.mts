@@ -611,10 +611,13 @@ function requiredFixture<T>(value: T | null | undefined): T {
             cwd: new URL("..", import.meta.url),
             encoding: "utf8",
             timeout: 10_000,
+            // Complete catalog/lineage reports exceed Node's default 1 MiB.
+            maxBuffer: 4 * 1024 * 1024,
             env: { ...process.env, HEALTH_FIXTURE_FAILURE: failure ? "yes" : "no" },
           },
         );
       const failed = run(["--json"], true);
+      assert.ifError(failed.error);
       assert.equal(failed.status, 1, failed.stderr);
       assert.equal(failed.stderr, "");
       const data: unknown = JSON.parse(failed.stdout);
@@ -643,15 +646,18 @@ function requiredFixture<T>(value: T | null | undefined): T {
       );
       assert.equal(requiredFixture(report.observations.at(-1)).status, "reachable");
       const human = run([], true);
+      assert.ifError(human.error);
       assert.equal(human.status, 1, human.stderr);
       assert.match(human.stdout, /unknown \(transport/);
       assert.match(human.stdout, /Unassessed: upstream-continuity/);
       const good = run(["--json"], false);
+      assert.ifError(good.error);
       assert.equal(good.status, 0, good.stderr);
       const goodReport: unknown = JSON.parse(good.stdout);
       assert.ok(isRecord(goodReport));
       assert.equal(goodReport.outcome, "complete");
       const invalid = run(["--unexpected"], false);
+      assert.ifError(invalid.error);
       assert.equal(invalid.status, 1);
       assert.equal(invalid.stdout, "");
     } finally {
