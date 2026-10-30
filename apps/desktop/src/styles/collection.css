@@ -30,7 +30,7 @@
     flex: 1 1 17rem;
     max-width: none;
   }
-  @container library-query (max-width: 52em) {
+  @container library-query (max-width: 40rem) {
     .browse-toolbar > .search {
       flex-basis: 100%;
     }
