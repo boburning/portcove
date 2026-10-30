@@ -26285,6 +26285,146 @@
       "windows_temp_directory": "temp"
     },
     {
+      "id": "doom-ii-rpg-doomiirpg-re",
+      "name": "Doom II RPG / DoomIIRPG-RE",
+      "summary": "Play Doom II RPG with the upstream Windows player and your original iOS game package.",
+      "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "Erick194/DoomIIRPG-RE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Keep your permitted original Doom 2 RPG.ipa beside DoomIIRPG.exe, using that exact filename. This player reads the iOS package; BREW/J2ME rendering or cheat descriptions do not establish alternate game-data support. Extract the complete Windows ZIP into a separate working folder. Upstream requires OpenAL 1.1 on Windows; use its documented runtime installation if it is missing. Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Doom II RPG",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the original iOS package",
+              "instruction": "Keep your permitted original Doom 2 RPG.ipa beside DoomIIRPG.exe, using that exact filename. This player reads the iOS package; BREW/J2ME rendering or cheat descriptions do not establish alternate game-data support."
+            },
+            {
+              "title": "Complete the Windows prerequisites",
+              "instruction": "Extract the complete Windows ZIP into a separate working folder. Upstream requires OpenAL 1.1 on Windows; use its documented runtime installation if it is missing."
+            },
+            {
+              "title": "Select the player and keep your saves",
+              "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme"
+        },
+        "artwork": {
+          "game_id": 101031,
+          "cover_id": 139770,
+          "image_id": "co2zui",
+          "image_sha256": "cba5f5ca6ebf630c36205d21c20d2d58c4def25c69503ab268ecfb83abdfc107",
+          "game_slug": "doom-ii-rpg",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "doom-rpg-doomrpg-re",
+      "name": "Doom RPG / DoomRPG-RE",
+      "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
+      "project_url": "https://github.com/Erick194/DoomRPG-RE",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "Erick194/DoomRPG-RE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The player requires a prepared DoomRPG.zip beside DoomRPG.exe. Follow upstream’s supported preparation for your permitted original Doom RPG data. The included BarToZip.exe converts compatible BREW data; it is a manual preparation tool, not the game player. Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player. Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Doom RPG",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game data",
+              "instruction": "The player requires a prepared DoomRPG.zip beside DoomRPG.exe. Follow upstream’s supported preparation for your permitted original Doom RPG data. The included BarToZip.exe converts compatible BREW data; it is a manual preparation tool, not the game player."
+            },
+            {
+              "title": "Select the game player",
+              "instruction": "Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player."
+            },
+            {
+              "title": "Keep progress when updating",
+              "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [
+            "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both."
+          ],
+          "help_url": "https://github.com/Erick194/DoomRPG-RE#readme"
+        },
+        "artwork": {
+          "game_id": 101029,
+          "cover_id": 419952,
+          "image_id": "co901c",
+          "image_sha256": "cc08e314298f0cb0e877d0f6483b3d4b830feace20b3b36258c2300b82c068d2",
+          "game_slug": "doom-rpg",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
       "name": "Doom / The Ultimate Doom (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
@@ -29296,6 +29436,71 @@
           "image_id": "co2g7i",
           "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
           "game_slug": "x-com-apocalypse",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openjkdf2-jedi-knight-dark-forces-ii",
+      "name": "OpenJKDF2",
+      "summary": "Use your own Jedi Knight game files with OpenJKDF2’s first-launch setup and upstream updater.",
+      "project_url": "https://github.com/shinyquagsire23/OpenJKDF2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "shinyquagsire23/OpenJKDF2",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater. You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Complete original-game setup in OpenJKDF2",
+              "instruction": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater."
+            },
+            {
+              "title": "Keep updates and data with the working copy",
+              "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md"
+        },
+        "artwork": {
+          "game_id": 150,
+          "cover_id": 101009,
+          "image_id": "co25xt",
+          "image_sha256": "0a4eb3217216c14d88b1ef97a38cab2ad6166c110f11ea081575a580dcd8230c",
+          "game_slug": "star-wars-jedi-knight-dark-forces-ii",
           "match_kind": "underlying-game"
         }
       }
@@ -33887,6 +34092,90 @@
             "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        }
+      }
+    },
+    {
+      "id": "wolfenstein-rpg-wolfensteinrpg-re",
+      "name": "Wolfenstein RPG / WolfensteinRPG-RE",
+      "summary": "Play Wolfenstein RPG with your own matching original iOS game data.",
+      "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "Erick194/WolfensteinRPG-RE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The Windows release ZIP contains the 32-bit WolfensteinRPG.exe, SDL2.dll, zlib.dll and its README. Keep them together in a writable folder; Windows x64 can use the Win32 player. If OpenAL is missing, follow the packaged README’s official OpenAL 1.1 Windows Installer link and install it yourself. Portcove does not run that installer during discovery or registration. Linux has a separate x86-64 AppImage and an upstream CMake build route. Put your own matching original iOS archive, named Wolfenstein RPG.ipa, in the player’s working folder. This player expects Payload/Wolf...RPG.app/Packages/ and its sounds/ subfolder inside the archive. J2ME, BREW and other iOS bundle layouts are not substitutes. Keep your original archive intact and use upstream’s matching-data preparation; this guide supplies no game data or extraction workaround. On Windows, add WolfensteinRPG.exe with the folder containing your IPA as its working directory. For the Linux AppImage or a user-prepared native WolfensteinRPG binary, use a writable working directory containing that same required archive. Read-only discovery never runs the player or a helper; Play is a separate choice. The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file. Register the real Windows player or already working Linux AppImage/native player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Wolfenstein RPG",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep the player and required libraries together",
+              "instruction": "The Windows release ZIP contains the 32-bit WolfensteinRPG.exe, SDL2.dll, zlib.dll and its README. Keep them together in a writable folder; Windows x64 can use the Win32 player. If OpenAL is missing, follow the packaged README’s official OpenAL 1.1 Windows Installer link and install it yourself. Portcove does not run that installer during discovery or registration. Linux has a separate x86-64 AppImage and an upstream CMake build route."
+            },
+            {
+              "title": "Supply your matching original iOS archive",
+              "instruction": "Put your own matching original iOS archive, named Wolfenstein RPG.ipa, in the player’s working folder. This player expects Payload/Wolf...RPG.app/Packages/ and its sounds/ subfolder inside the archive. J2ME, BREW and other iOS bundle layouts are not substitutes. Keep your original archive intact and use upstream’s matching-data preparation; this guide supplies no game data or extraction workaround."
+            },
+            {
+              "title": "Register the player, then choose Play",
+              "instruction": "On Windows, add WolfensteinRPG.exe with the folder containing your IPA as its working directory. For the Linux AppImage or a user-prepared native WolfensteinRPG binary, use a writable working directory containing that same required archive. Read-only discovery never runs the player or a helper; Play is a separate choice."
+            },
+            {
+              "title": "Preserve the writable game folder when updating",
+              "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player or already working Linux AppImage/native player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md"
+        },
+        "artwork": {
+          "game_id": 67744,
+          "cover_id": 199174,
+          "image_id": "co49om",
+          "image_sha256": "31cefd47414a8bafd8da34018c6d5af038ce19cd9b1c898324e9b9276dd4b331",
+          "game_slug": "wolfenstein-rpg",
+          "match_kind": "underlying-game"
         }
       }
     },

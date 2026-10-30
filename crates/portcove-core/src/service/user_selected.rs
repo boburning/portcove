@@ -819,6 +819,19 @@ mod tests {
                 .unwrap()
                 .is_some()
         );
+        #[cfg(not(windows))]
+        if declared
+            .release
+            .user_prepared
+            .contains_key(&Platform::current().unwrap())
+        {
+            assert!(
+                service
+                    .current_user_selected_definition(id)
+                    .unwrap()
+                    .is_some()
+            );
+        }
         let executable_before = fs::read(&executable).unwrap();
         let arguments = vec![
             "--record".into(),
@@ -967,6 +980,14 @@ mod tests {
             }
         };
     }
+
+    prepared_player_case!(historical_pc_route_369, "doom-rpg-doomrpg-re");
+    prepared_player_case!(historical_pc_route_370, "doom-ii-rpg-doomiirpg-re");
+    prepared_player_case!(historical_pc_route_371, "wolfenstein-rpg-wolfensteinrpg-re");
+    prepared_player_case!(
+        historical_pc_route_725,
+        "openjkdf2-jedi-knight-dark-forces-ii"
+    );
 
     prepared_player_case!(historical_route_zelda3, "zelda3");
     prepared_player_case!(historical_route_smw, "super-mario-world-snesrev-smw");
