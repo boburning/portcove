@@ -570,6 +570,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const windowsObservedRecoveryBudgets = [
     {
       filter:
+        "package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults$/)",
+      periods: 24,
+      beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",
+    },
+    {
+      filter:
         "package(portcove-core) & test(/^service::native_portable::tests::ready_archive_profile_times_survive_update_backup_and_runtime_rollback$/)",
       periods: 36,
       beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",

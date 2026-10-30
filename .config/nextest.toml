@@ -555,6 +555,18 @@ filter = 'package(portcove-core) & (test(/^service::tests::backups::current_pers
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41021237692/a1 Windows3 cut this complete pre-Play preservation lifecycle
+# at90.393s without an assertion failure; the preceding run passed at54.155s.
+# Give only this Windows case finite120s diagnostic/execution room, before the
+# broader90s family rule. Keep every install/backup/staging/activation/rollback
+# and unknown-file refusal, both workers, cleanup and zero retries. Phase output
+# identifies the next stalled boundary; product and child deadlines stay unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 # The portable lifecycle fixtures perform several durable installs, activations
 # and recovery reopens. The retained local Windows run hit 30.042s and 30.085s
 # harness cutoffs while another full case completed at 28.979s. Keep every
