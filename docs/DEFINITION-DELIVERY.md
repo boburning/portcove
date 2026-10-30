@@ -14,7 +14,7 @@ component fixtures do not complete either production outcome.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable versions 2–6,
+The public inventory additionally advertises native portable versions 2–7,
 managed PS1 version 2, N64 portable versions 2 and 3 and
 staged-source portable versions 2–5, 8, 10–12 and 15–25. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
@@ -46,6 +46,17 @@ headroom, and does not claim a general long-path fix or external-profile coverag
 New and retained independent entries declaring this policy require minimum4;
 Direct-only version3 and earlier versions retain their separate meanings. This
 capability grants no additional publisher or protected-operation authority.
+
+Native portable version 7 consumes `printable-ascii-max-path` for native archives
+with Windows support and no original-source preparation or setup helpers. It
+refuses known unsuitable output roots, authenticated package members and selected
+launch coordinates using the existing Core path checks. Other declared platforms
+are unaffected. Indexed entries declaring this combination require minimum7;
+readers advertising only versions1 through6 refuse it. Those earlier contracts
+keep their meanings. Retained installations continue to use their creating
+definitions, so a new declaration does not retrofit historical manifests. This
+capability grants neither upstream Unicode support nor external-profile ownership
+or protected publication. See the [runtime path contract](CATALOG.md).
 
 Native portable version 5 consumes `windows_temp_directory`: a dedicated,
 declared Windows entry-data directory used internally for relative `TEMP`/`TMP`.

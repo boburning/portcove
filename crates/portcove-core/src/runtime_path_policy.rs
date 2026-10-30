@@ -6,6 +6,22 @@ use crate::{
 };
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        && port.adapter == AdapterKind::NativePortable
+    {
+        return if port.platforms.contains(&Platform::WindowsX86_64)
+            && port.setup_executable_hints.is_empty()
+            && port.source_profile.is_none()
+            && port.release.user_prepared.is_empty()
+            && port.release.managed_build.is_empty()
+        {
+            Ok(())
+        } else {
+            Err(PortcoveError::usage(
+                "printable ASCII Windows native archives require Windows support without source preparation or setup helpers",
+            ))
+        };
+    }
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
         return if port.adapter == AdapterKind::NativePortable
             && port.platforms == [Platform::WindowsX86_64]
@@ -62,7 +78,12 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
 
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
     if port.adapter == AdapterKind::NativePortable {
-        4
+        if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        {
+            7
+        } else {
+            4
+        }
     } else if port.release.user_prepared.is_empty() {
         11
     } else {
@@ -180,11 +201,14 @@ pub(crate) fn check_package_paths<'a>(
     root: &Path,
     members: impl IntoIterator<Item = &'a str>,
 ) -> Result<()> {
-    if platform == Platform::WindowsX86_64
-        && port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath)
-    {
+    let checks_members = port.windows_runtime_path_policy
+        == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath)
+        || (port.adapter == AdapterKind::NativePortable
+            && port.windows_runtime_path_policy
+                == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath));
+    if platform == Platform::WindowsX86_64 && checks_members {
         for member in members {
-            require_relative_windows_path(&root.join(member))?;
+            check(port, platform, &root.join(member))?;
         }
     }
     Ok(())

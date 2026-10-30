@@ -212,7 +212,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         } else if port.adapter == crate::AdapterKind::NativePortable
             && port.windows_runtime_path_policy.is_some()
         {
-            4
+            crate::runtime_path_policy::minimum_capability(port)
         } else if port.adapter == crate::AdapterKind::NativePortable
             && port.release.provider == crate::ReleaseSource::DirectManifest
         {

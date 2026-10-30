@@ -8,6 +8,8 @@ import {
 const nativeToolInputs = new Set([
   "scripts/fixtures/desktop-module-fixture.mts",
   "scripts/fixtures/native-fetch-probe-fixture.mts",
+  "apps/desktop/scripts/desktop-qualification-history-test.mts",
+  "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
   "apps/desktop/scripts/desktop-artwork-observations.mts",
   "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
   "scripts/rust-test-impact.mts",
