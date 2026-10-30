@@ -1025,7 +1025,7 @@
       },
       {
         "id": "mega-man-x2-snes-recomp-0-2-1-source-contract",
-        "role": "source_contract",
+        "role": "upstream_support",
         "authority": "mstan/MegaManX2Recomp",
         "authority_ref": "68caca6fe6d96ff423fd26266aedae2132ffb680",
         "reviewed_at": "2026-10-30",
