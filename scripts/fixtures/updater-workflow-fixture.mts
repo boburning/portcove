@@ -20,12 +20,14 @@ function text(value: unknown, contract: string) {
 function condition(value: unknown) {
   return compactActionExpression(value).replace(/^\$\{\{([\s\S]*)\}\}$/u, "$1");
 }
-function permissions(value: unknown) {
+function permissions(value: unknown, retainedArtifactRead = false) {
   const fields = record(value, "UPDATER_READ_ONLY_PERMISSIONS");
   assert.equal(fields.contents, "read", "UPDATER_READ_ONLY_CONTENTS");
   for (const [key, right] of Object.entries(fields))
     assert.ok(
-      right === "none" || (key === "contents" && right === "read"),
+      right === "none" ||
+        (key === "contents" && right === "read") ||
+        (retainedArtifactRead && key === "actions" && right === "read"),
       "UPDATER_PERMISSION_EXPANSION",
     );
 }
@@ -92,6 +94,164 @@ function operatingSystem(step: Fields, expected: "Linux" | "Windows", role: stri
   assert.equal(condition(step.if), `runner.os=='${expected}'`, `UPDATER_${role}_PLATFORM`);
   failurePropagates(step, role);
 }
+function retainedRebootJob(value: unknown) {
+  const job = record(value, "UPDATER_REBOOT_JOB");
+  assert.equal(condition(job.if), "inputs.retained_reboot_only", "UPDATER_REBOOT_EXCLUSIVE_MODE");
+  assert.equal(job["runs-on"], "ubuntu-24.04", "UPDATER_REBOOT_SUPPORTED_HOST");
+  assert.equal(job["timeout-minutes"], 180, "UPDATER_REBOOT_FINITE_JOB");
+  assert.equal(job.needs, undefined, "UPDATER_REBOOT_NO_PACKAGE_DEPENDENCY");
+  assert.equal(job.strategy, undefined, "UPDATER_REBOOT_SINGLE_JOB");
+  assert.equal(job.environment, undefined, "UPDATER_REBOOT_NO_PRODUCTION_ENVIRONMENT");
+  assert.deepEqual(
+    job.permissions,
+    { contents: "read", actions: "read" },
+    "UPDATER_REBOOT_ARTIFACT_READ_ONLY",
+  );
+  assert.deepEqual(
+    job.env,
+    {
+      CARGO_BUILD_JOBS: "2",
+      CARGO_NET_RETRY: "0",
+      CARGO_TARGET_DIR: "${{ github.workspace }}/target/updater-reboot-helper",
+    },
+    "UPDATER_REBOOT_HELPER_BUILD_SCOPE",
+  );
+  failurePropagates(job, "REBOOT_JOB");
+  assert.ok(Array.isArray(job.steps), "UPDATER_REBOOT_STEPS");
+  const steps = job.steps.map((step) => record(step, "UPDATER_REBOOT_STEP"));
+  assert.equal(steps.length, 15, "UPDATER_REBOOT_EXPLICIT_STEPS");
+  const normalized = (run: unknown) =>
+    text(run, "UPDATER_REBOOT_COMMAND").trim().replaceAll("\r\n", "\n");
+  const command = (run: string) => {
+    const found = steps
+      .map((step, index) => ({ step, index }))
+      .filter(({ step }) => typeof step.run === "string" && normalized(step.run) === run);
+    assert.equal(found.length, 1, "UPDATER_REBOOT_COMMAND_OWNER");
+    return found[0]!;
+  };
+  const scope = { step: steps[0]!, index: 0 };
+  assert.equal(scope.step.shell, "bash", "UPDATER_REBOOT_SCOPE_SHELL");
+  assert.deepEqual(
+    scope.step.env,
+    {
+      PLATFORM: "${{ inputs.platform }}",
+      PROFILE: "${{ inputs.transition_profile }}",
+      LINUX_RUNNER: "${{ inputs.linux_runner }}",
+      HISTORICAL: "${{ inputs.historical_linux_bootstrap }}",
+    },
+    "UPDATER_REBOOT_SCOPE_INPUTS",
+  );
+  const stage = command("python3 scripts/qualification/linux-reboot/prepare.py stage");
+  assert.deepEqual(
+    stage.step.env,
+    { GH_TOKEN: "${{ github.token }}" },
+    "UPDATER_REBOOT_TOKEN_ONLY_TRANSPORT",
+  );
+  const helper = command("python3 scripts/qualification/linux-reboot/prepare.py helper");
+  assert.equal(helper.step["timeout-minutes"], 25, "UPDATER_REBOOT_HELPER_BUDGET");
+  const runtime = command(
+    "python3 scripts/qualification/linux-reboot/prepare.py runtime\npython3 scripts/qualification/linux-reboot/image.py",
+  );
+  const controls = command(
+    "python3 scripts/qualification/linux-reboot/controls.py\npython3 scripts/qualification/linux-reboot/guest.py controls",
+  );
+  const freeze = command(
+    'python3 scripts/qualification/linux-reboot/prepare.py finalize >> "$GITHUB_OUTPUT"',
+  );
+  assert.equal(freeze.step.id, "guest-inputs", "UPDATER_REBOOT_MANIFEST_OUTPUT");
+  const observe = command(
+    'python3 scripts/qualification/linux-reboot/controller.py "$REBOOT_MANIFEST_SHA"',
+  );
+  assert.equal(observe.step["timeout-minutes"], 95, "UPDATER_REBOOT_GUEST_BUDGET");
+  assert.deepEqual(
+    observe.step.env,
+    { REBOOT_MANIFEST_SHA: "${{ steps.guest-inputs.outputs.manifest_sha256 }}" },
+    "UPDATER_REBOOT_MANIFEST_ARGUMENT",
+  );
+  const retain = command("python3 scripts/qualification/linux-reboot/evidence.py");
+  assert.equal(condition(retain.step.if), "always()", "UPDATER_REBOOT_FAILURE_EVIDENCE");
+  const upload = { step: steps.at(-1)!, index: steps.length - 1 };
+  assert.equal(
+    upload.step.uses,
+    "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+    "UPDATER_REBOOT_UPLOAD_OWNER",
+  );
+  assert.equal(condition(upload.step.if), "always()", "UPDATER_REBOOT_FAILURE_UPLOAD");
+  assert.deepEqual(
+    upload.step.with,
+    {
+      name: "linux-retained-reboot-${{ github.run_id }}-${{ github.run_attempt }}",
+      path: "work/updater-linux-reboot/public-evidence/",
+      "if-no-files-found": "error",
+      "retention-days": 30,
+    },
+    "UPDATER_REBOOT_PUBLIC_EVIDENCE_ONLY",
+  );
+  assert.deepEqual(
+    steps[1]!.with,
+    { ref: "${{ github.sha }}", "persist-credentials": false },
+    "UPDATER_REBOOT_CONTROLLER_CHECKOUT",
+  );
+  assert.deepEqual(
+    steps[3]!.with,
+    {
+      ref: "d29563ea99263e33dbec693ecf0aebd9f3de709c",
+      path: "work/updater-linux-reboot-helper-source",
+      "persist-credentials": false,
+    },
+    "UPDATER_REBOOT_FROZEN_HELPER_CHECKOUT",
+  );
+  assert.equal(steps[1]!.uses, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1");
+  assert.equal(steps[3]!.uses, steps[1]!.uses);
+  assert.equal(steps[4]!.uses, "./.github/actions/setup-rust");
+  assert.equal(steps[5]!.uses, "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0");
+  assert.equal(
+    normalized(steps[6]!.run),
+    "./scripts/install-linux-desktop-prerequisites.sh",
+    "UPDATER_REBOOT_SHARED_PREREQUISITES",
+  );
+  assert.equal(steps[6]!["timeout-minutes"], 15, "UPDATER_REBOOT_SHARED_PREREQUISITE_BUDGET");
+  assert.equal(
+    normalized(steps[7]!.run),
+    "sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install --yes --no-install-recommends qemu-system-x86 qemu-utils seabios ubuntu-keyring python3-jsonschema",
+    "UPDATER_REBOOT_NO_PACKAGE_BUILD",
+  );
+  assert.equal(steps[7]!["timeout-minutes"], 10, "UPDATER_REBOOT_VM_PREREQUISITE_BUDGET");
+  assert.deepEqual(
+    [
+      stage.index,
+      helper.index,
+      runtime.index,
+      controls.index,
+      freeze.index,
+      observe.index,
+      retain.index,
+      upload.index,
+    ],
+    [2, 8, 9, 10, 11, 12, 13, 14],
+    "UPDATER_REBOOT_STAGE_ORDER",
+  );
+  for (const [index, step] of steps.entries()) {
+    failurePropagates(step, "REBOOT_STEP");
+    if (index !== retain.index && index !== upload.index)
+      assert.equal(step.if, undefined, "UPDATER_REBOOT_REQUIRED_STEP");
+    if (![scope.index, stage.index, observe.index].includes(index))
+      assert.equal(step.env, undefined, "UPDATER_REBOOT_NO_HIDDEN_ENVIRONMENT");
+  }
+  return { job, steps, scope, stage, helper, runtime, controls, freeze, observe, retain, upload };
+}
+
+export function observeRetainedRebootScope(step: Fields, environment: Record<string, string>) {
+  const result = spawnSync(prerequisiteBash(), ["-c", text(step.run, "UPDATER_REBOOT_SCOPE_RUN")], {
+    encoding: "utf8",
+    timeout: 5000,
+    maxBuffer: 65536,
+    env: { ...prerequisiteEnvironment(), ...environment },
+  });
+  assert.equal(result.error, undefined, "UPDATER_REBOOT_SCOPE_EXECUTION");
+  return result.status;
+}
+
 export function updaterWorkflow(source: string, offeredLabels: readonly string[]) {
   const document = parseDocument(source, { uniqueKeys: true });
   assert.equal(document.errors.length, 0, "UPDATER_WORKFLOW_YAML");
@@ -124,11 +284,16 @@ export function updaterWorkflow(source: string, offeredLabels: readonly string[]
     ["legacy-adjacent", "legacy-skipped", "preview-final"].toSorted(),
     "UPDATER_PROFILE_OPTIONS",
   );
+  const rebootInput = record(inputs.retained_reboot_only, "UPDATER_REBOOT_INPUT");
+  assert.equal(rebootInput.type, "boolean", "UPDATER_REBOOT_INPUT_TYPE");
+  assert.equal(rebootInput.default, false, "UPDATER_REBOOT_DEFAULT_OFF");
   const jobs = record(workflow.jobs, "UPDATER_JOBS");
+  assert.equal(Object.keys(jobs).length, 2, "UPDATER_REBOOT_JOB_BOUNDARY");
+  const retainedReboot = retainedRebootJob(jobs["linux-retained-reboot"]);
   const owners: { job: Fields; steps: Fields[]; step: Fields; index: number }[] = [];
-  for (const value of Object.values(jobs)) {
+  for (const [name, value] of Object.entries(jobs)) {
     const job = record(value, "UPDATER_JOB");
-    permissions(job.permissions ?? workflow.permissions);
+    permissions(job.permissions ?? workflow.permissions, name === "linux-retained-reboot");
     assert.equal(job.secrets, undefined, "UPDATER_REUSABLE_SECRET_BINDING");
     if (!Array.isArray(job.steps)) continue;
     const steps = job.steps.map((step) => record(step, "UPDATER_STEP"));
@@ -150,7 +315,7 @@ export function updaterWorkflow(source: string, offeredLabels: readonly string[]
   }
   assert.equal(owners.length, 1, "UPDATER_REHEARSAL_OWNER");
   const owner = owners[0]!;
-  assert.equal(owner.job.if, undefined, "UPDATER_JOB_REACHABILITY");
+  assert.equal(condition(owner.job.if), "!inputs.retained_reboot_only", "UPDATER_JOB_REACHABILITY");
   assert.equal(owner.job.defaults, undefined, "UPDATER_JOB_DEFAULTS");
   failurePropagates(owner.job, "JOB");
   assert.equal(owner.step.if, undefined, "UPDATER_REHEARSAL_REACHABILITY");
@@ -334,6 +499,7 @@ export function updaterWorkflow(source: string, offeredLabels: readonly string[]
   };
   return {
     workflow,
+    retainedReboot,
     inputs,
     job: owner.job,
     steps: owner.steps,

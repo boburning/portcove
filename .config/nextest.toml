@@ -74,14 +74,37 @@ filter = 'package(portcove-core) & (test(/^game_file_query::tests::retained_laun
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Required CI40964197761/a1, source67afc206, Windows4 reached
+# observation16 at29.776s before the30.072s cutoff in published_resume_resume.
+# Extend only this Windows fixture to the existing60s harness budget.
+# Keep all assertions, product/child deadlines, worker counts and zero retries.
 # CI40879228847/a1 Windows2 reached observation16 at29.690s before
 # the 30.108s watchdog. The identical test file passed14.404s in
 # CI40876858821/a1 Windows8. Preserve every sequence assertion and resource
 # exclusion with exact60s outer harness room and existing phase diagnostics.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^library_move::sequence_tests::published_abort_resume$/)'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::published_abort_resume$/) | test(/^library_move::sequence_tests::published_resume_resume$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Required source fab49f3f, run 40904363207/attempt 1 Windows partition 3 retained
+# 90.378s portable-profile and 60.174s restore-prepared whole-test cutoffs.
+# Restore reached recovery, rollback and staged activation before its cutoff;
+# the portable multi-install lifecycle now emits bounded phase timings.
+# Give only these two Windows fixtures finite 180/120-second diagnostic room.
+# Preserve assertions, product/child deadlines, cleanup, worker counts and zero
+# retries. Completion under these budgets is not a causal or speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready_archive_profile_times_survive_update_backup_and_runtime_rollback$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_prepared$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
 # The coordinated Windows cancellation fixture retains its held-worker and
@@ -320,13 +343,16 @@ filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_r
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
-
+# Required CI40967672875/a1 Windows2, source5b044348, completed seven
+# quarantine phases and began Adopt/CleanupPending at59.056s before60.410s
+# cutoff. Extend only this exact Windows fixture to the existing90s rule.
+# Preserve assertions, product/child deadlines, worker counts and zero retries.
 # CI40797975365/a1 job123202480906 completed seven of eight relocation
 # recovery scenarios at51.885s before the60.279s cutoff. Give only this
 # identity finite90s room, before the broader60s family override below.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine)_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
@@ -337,16 +363,6 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::unpublished_install_cleanup_retains_conflicting_family_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
-success-output = "immediate"
-
-# CI40996444529/a1 job123872893843 cut quarantine recovery at60.294s.
-# Seven complete phases reached56.821s; final Adopt/CleanupPending was active.
-# Preserve all eight scenarios, refusal/retry assertions and cleanup, with
-# finite90s for only this Windows case. Product deadlines/workers/retries stay.
-[[profile.default.overrides]]
-platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_quarantine_intent$/)'
-slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
 # CI 40165157806/a1 cut off the eight-scenario relocation recovery fixture at

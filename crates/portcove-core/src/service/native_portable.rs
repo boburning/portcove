@@ -1202,6 +1202,7 @@ mod tests {
     #[tokio::test]
     async fn ready_archive_profile_times_survive_update_backup_and_runtime_rollback() {
         const ID: &str = "infinite-undiscovery-doc-haz";
+        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -1212,10 +1213,18 @@ mod tests {
             "InfiniteUndiscoveryRecomp.exe",
         ))));
         let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        eprintln!(
+            "Native portable profile fixture ready: {:?}",
+            started.elapsed()
+        );
         let first = service
             .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
             .await
             .unwrap();
+        eprintln!(
+            "Native portable profile initial install complete: {:?}",
+            started.elapsed()
+        );
         let relative = "USA/assets/disc1/owned-original.bin";
         let original = first.path.join(relative);
         fs::create_dir_all(original.parent().unwrap()).unwrap();
@@ -1244,6 +1253,10 @@ mod tests {
         .unwrap();
         assert!(!first.path.join(LAUNCH_MARKER).exists());
         let backup = service.create_backup(ID).unwrap();
+        eprintln!(
+            "Native portable profile backup complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::metadata(backup.path.join("data").join(relative))
                 .unwrap()
@@ -1255,9 +1268,17 @@ mod tests {
         *provider.0.lock().unwrap() =
             server.release_in_folder("v1.0.0-rc2", 2, "", "InfiniteUndiscoveryRecomp.exe");
         let update = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        eprintln!(
+            "Native portable profile update staged: {:?}",
+            started.elapsed()
+        );
         assert!(update.staged);
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         let second = service.activate_staged(ID).unwrap();
+        eprintln!(
+            "Native portable profile activation complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::read(second.path.join(relative)).unwrap(),
             b"inert owned data, not retail content"
@@ -1276,6 +1297,10 @@ mod tests {
         assert!(!second.path.join("USA/shaders/old-cache").exists());
         fs::write(second.path.join("USA/saves/progress"), b"newest progress").unwrap();
         let previous = service.rollback(ID).unwrap();
+        eprintln!(
+            "Native portable profile rollback complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(previous.id, first.id);
         assert_eq!(
             fs::read(previous.path.join("USA/saves/progress")).unwrap(),
@@ -1310,12 +1335,20 @@ mod tests {
         );
         // No package executable, original media wizard or game is run.
         assert!(!previous.path.join(LAUNCH_MARKER).exists());
+        eprintln!(
+            "Native portable profile interrupted import refused: {:?}",
+            started.elapsed()
+        );
         let fresh_library = Library::open(temporary.path().join("fresh-library")).unwrap();
         let fresh = PortcoveService::with_provider(fresh_library, provider).unwrap();
         let newest = fresh
             .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
             .await
             .unwrap();
+        eprintln!(
+            "Native portable profile fresh install complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(newest.version, "v1.0.0-rc2");
         assert!(!newest.path.join(relative).exists());
         assert!(!newest.path.join(LAUNCH_MARKER).exists());

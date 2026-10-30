@@ -1028,6 +1028,7 @@ for (const [file, tests] of [
     "scripts/fixtures/tuf-worker-fixture.mts",
     ["scripts/release-tuf-signing.test.mts", "scripts/release-connected-fixture.test.mts"],
   ],
+  ["scripts/fixtures/tuf-prekey-fixture.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-tuf-signing.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
   [

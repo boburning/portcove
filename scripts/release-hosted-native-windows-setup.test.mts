@@ -208,9 +208,11 @@ try{if($secret.Length -ne 68 -or -not $secret.IsReadOnly()){throw 'Generated cre
   },
 );
 
+// Retain CI40973981141/a1 helper60s cutoff; this exact inert cleanup case
+// gets90s child/120s outer room without changing production cleanup deadlines.
 void test(
   "hosted account cleanup still disables its exact identity after teardown fails and retains both outcomes",
-  { timeout: 90000 },
+  { timeout: 120000 },
   (t) => {
     const root = mkdtempSync(path.join(homedir(), ".portcove-hosted-cleanup-test-"));
     t.after(() => {
@@ -251,7 +253,7 @@ if($record.disabled -ne (-not $failDisable) -or $record.job_empty -or $record.fa
 }
 'actual cleanup retains failure and independently disables exact account'
 `,
-      60000,
+      90000,
     );
     assert.match(result, /independently disables exact account/u);
   },
@@ -1120,10 +1122,16 @@ foreach($variant in $variants){
   assert.match(result, /teardown passed six controlled/u);
 });
 
-void test("required-root cleanup keeps account disabling independent of job, observer and unreturned-root failures", (t) => {
-  const root = mkdtempSync(path.join(homedir(), ".portcove-required-root-cleanup-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const result = powershell(String.raw`
+// The same retained job cut this eight-outcome AST fixture at the default15s.
+// Override only this child and case; all other PowerShell defaults stay15s.
+void test(
+  "required-root cleanup keeps account disabling independent of job, observer and unreturned-root failures",
+  { timeout: 90000 },
+  (t) => {
+    const root = mkdtempSync(path.join(homedir(), ".portcove-required-root-cleanup-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const result = powershell(
+      String.raw`
 $ErrorActionPreference='Stop';$tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'Required-root setup parse failed'}
@@ -1154,9 +1162,12 @@ foreach($case in @('settled','stop','root','observer','unreturned-settled','unre
  if($case -ceq 'settled' -and (-not $record.root_exited -or -not $record.job_empty -or -not $record.observer_drained)){throw 'Settled required root not positively read back'}
 }
 'actual required-root cleanup passed eight controlled outcomes; no account or GUI effects'
-`);
-  assert.match(result, /cleanup passed eight controlled outcomes/u);
-});
+`,
+      60000,
+    );
+    assert.match(result, /cleanup passed eight controlled outcomes/u);
+  },
+);
 
 void test(
   "hosted-only access audit preserves SACL labels and rejects unrelated or overbound Security records",
