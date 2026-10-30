@@ -359,3 +359,101 @@ fn blocked_bootstrap_returns_unavailable_and_late_preparation_cannot_start_a_wri
     assert_eq!(marker["complete"], false);
     assert_eq!(host.health().flush_state, writer::FlushState::Unavailable);
 }
+
+#[test]
+fn qualification_preparation_requires_the_compile_feature_and_exact_opt_in() {
+    const CHILD: &str = "PORTCOVE_DIAGNOSTICS_POLICY_FIXTURE_CHILD";
+    const FLAG: &str = "PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED";
+    if std::env::var(CHILD).as_deref() == Ok("1") {
+        let root =
+            PathBuf::from(std::env::var_os("PORTCOVE_DIAGNOSTICS_POLICY_FIXTURE_ROOT").unwrap());
+        let (host, mut guard) =
+            HostDiagnostics::start_in(&root.join("diagnostics"), Surface::Cli, false);
+        let mode = host.qualification_prepared();
+        if let Some(guard) = &mut guard {
+            assert_eq!(
+                guard.shutdown(Duration::from_secs(2)).flush_state,
+                writer::FlushState::Complete
+            );
+        }
+        std::fs::write(
+            root.join("mode.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "feature_enabled": cfg!(feature = "qualification-fixtures"),
+                "qualification_prepared": mode,
+                "bootstrap_timed_out": host.bootstrap_timed_out(),
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        return;
+    }
+    for value in [
+        None,
+        Some(""),
+        Some("0"),
+        Some("true"),
+        Some("1 "),
+        Some(" 1"),
+    ] {
+        assert!(!HostDiagnostics::qualification_preparation_requested(value));
+    }
+    assert_eq!(
+        HostDiagnostics::qualification_preparation_requested(Some("1")),
+        cfg!(feature = "qualification-fixtures")
+    );
+    struct OwnedPolicyChild(Option<std::process::Child>);
+    impl Drop for OwnedPolicyChild {
+        fn drop(&mut self) {
+            if let Some(mut child) = self.0.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+    for flag in [None, Some("1"), Some("true")] {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "tests::qualification_preparation_requires_the_compile_feature_and_exact_opt_in",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env("PORTCOVE_DIAGNOSTICS_POLICY_FIXTURE_ROOT", temporary.path())
+            .env_remove(FLAG)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+        if let Some(flag) = flag {
+            command.env(FLAG, flag);
+        }
+        let mut child = OwnedPolicyChild(Some(command.spawn().unwrap()));
+        let started = Instant::now();
+        loop {
+            if child.0.as_mut().unwrap().try_wait().unwrap().is_some() {
+                break;
+            }
+            assert!(
+                started.elapsed() < Duration::from_secs(30),
+                "owned constructor policy child did not exit"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let output = child.0.take().unwrap().wait_with_output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let observed: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(temporary.path().join("mode.json")).unwrap())
+                .unwrap();
+        assert_eq!(
+            observed["feature_enabled"],
+            cfg!(feature = "qualification-fixtures")
+        );
+        assert_eq!(
+            observed["qualification_prepared"],
+            cfg!(feature = "qualification-fixtures") && flag == Some("1")
+        );
+        println!("diagnostic-bootstrap-policy: flag={flag:?} observed={observed}");
+    }
+}
