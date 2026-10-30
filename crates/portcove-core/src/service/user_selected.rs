@@ -810,6 +810,16 @@ mod tests {
     }
 
     #[test]
+    fn verdite_prepared_player_route_1900() {
+        assert_listing_only_player_route("voicedrew11-verdite2", Some(false));
+    }
+
+    #[test]
+    fn verdite_prepared_player_route_1901() {
+        assert_listing_only_player_route("voicedrew11-verdite3", Some(false));
+    }
+
+    #[test]
     fn snes_source_player_route_146() {
         assert_listing_only_player_route("mega-man-x-snes-recomp", Some(true));
     }

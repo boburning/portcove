@@ -1,0 +1,1275 @@
+{
+  "format_version": 1,
+  "kind": "dated two-source-player observation; not live planning or fleet acceptance",
+  "owners": [2926, 2510],
+  "pickup_source_base_commit": "e293281103644a228eec552f9bf288a5a199dad6",
+  "delivery_composition_authority": "Owning PR records final source/base/composition, exact-head CI and guarded readback; pickup snapshot does not replace it.",
+  "observation_date": "2026-10-30",
+  "selected_rows": [
+    {
+      "id": "voicedrew11-verdite2",
+      "canonical_issue": 1900,
+      "game_title": "King's Field (US)",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "5e2005114b0aab78b34698e429cd38bce72d249b62e7bd6bffeb7d12e4371ac5",
+      "context_observed_at": "2026-10-30T20:10:59.964Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "authored_sha256": "c38e1f00ff844a7ce2a78893b21a2515a44b7053e65860e4774030d24e07af72",
+      "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+      "original_serial": "SLUS-00158",
+      "original_representation": "CUE with referenced BIN set, or upstream supported-codec CHD; serial/selected-file checks, no independently authenticated full-disc digest",
+      "completed_entry": "bin/Verdite2.exe",
+      "arguments": [],
+      "initial_working_directory": "complete upstream installation root",
+      "data_profile_default": "%LOCALAPPDATA%/Verdite2",
+      "environment_override": "VERDITE2_DATA; upstream choice, not captured as Core per-entry environment",
+      "update_owner": "upstream/player; user-managed-update",
+      "upstream_update_action": "notification/release browser only; does not replace/relaunch runtime",
+      "offered_operations": [
+        "explicit native executable/directory/empty-arguments intent review and consent",
+        "registration/relink/restart and retained creating listing",
+        "separate explicit selected-process Play",
+        "metadata-only removal preserving all external bytes"
+      ],
+      "managed_fit": "Version-dependent generated runtime code needs appropriate existing preparation integration or non-owning handoff, not plain immutable native-portable. No new engine/framework/provisioning needed for selected route.",
+      "native_game_execution": "not_run",
+      "gameplay_state_installed_protected": "not_evaluated"
+    },
+    {
+      "id": "voicedrew11-verdite3",
+      "canonical_issue": 1901,
+      "game_title": "King's Field II (US)",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "canonical_body_sha256_at_pickup": "56324b23ff6b9fe19c0b872edba3fab42fedc6533690afa79c544d0cf902a8f2",
+      "context_observed_at": "2026-10-30T20:11:01.039Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "authored_sha256": "94290639ee5ef4dd6942e139db975eb5fe75addac5997f58b9d7a6fecea39810",
+      "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+      "original_serial": "SLUS-00255",
+      "original_representation": "CUE with referenced BIN set, or upstream supported-codec CHD; serial/selected-file checks, no independently authenticated full-disc digest",
+      "completed_entry": "bin/Verdite3.exe",
+      "arguments": [],
+      "initial_working_directory": "complete upstream installation root",
+      "data_profile_default": "%LOCALAPPDATA%/Verdite3",
+      "environment_override": "VERDITE3_DATA; upstream choice, not captured as Core per-entry environment",
+      "update_owner": "upstream/player; user-managed-update",
+      "upstream_update_action": "notification/release browser only; does not replace/relaunch runtime",
+      "offered_operations": [
+        "explicit native executable/directory/empty-arguments intent review and consent",
+        "registration/relink/restart and retained creating listing",
+        "separate explicit selected-process Play",
+        "metadata-only removal preserving all external bytes"
+      ],
+      "managed_fit": "Version-dependent generated runtime code needs appropriate existing preparation integration or non-owning handoff, not plain immutable native-portable. No new engine/framework/provisioning needed for selected route.",
+      "native_game_execution": "not_run",
+      "gameplay_state_installed_protected": "not_evaluated"
+    }
+  ],
+  "release_metadata_observations": [
+    {
+      "id": 424582682,
+      "tag_name": "v0.5.2",
+      "release_url": "https://github.com/Voicedrew11/verdite2/releases/tag/v0.5.2",
+      "published_at": "2026-10-26T18:08:20Z",
+      "observed_source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+      "assets_observed": [
+        {
+          "id": 678989856,
+          "name": "Verdite2-0.5.2-win-x64-setup.exe",
+          "bytes": 35629235,
+          "published_digest": "sha256:a93f61414f169d0bab48c18fa1610ca59aa0880fc090c89309a4dc872ac3f35b",
+          "url": "https://github.com/Voicedrew11/verdite2/releases/download/v0.5.2/Verdite2-0.5.2-win-x64-setup.exe"
+        },
+        {
+          "id": 678989849,
+          "name": "Verdite2-0.5.2-win-x64.zip",
+          "bytes": 48692197,
+          "published_digest": "sha256:5dc0b9f30585ec29cd13fe1125586271e6bf8811490bd1cdc22991793ee52298",
+          "url": "https://github.com/Voicedrew11/verdite2/releases/download/v0.5.2/Verdite2-0.5.2-win-x64.zip"
+        },
+        {
+          "id": 678989852,
+          "name": "Verdite2-0.5.2-x86_64.AppImage",
+          "bytes": 43674104,
+          "published_digest": "sha256:d7564738f699bf1f994e193eb712c2ad807def2aca225da3026fb0dc352be0d6",
+          "url": "https://github.com/Voicedrew11/verdite2/releases/download/v0.5.2/Verdite2-0.5.2-x86_64.AppImage"
+        }
+      ]
+    },
+    {
+      "id": 416752903,
+      "tag_name": "v0.2.0",
+      "release_url": "https://github.com/Voicedrew11/verdite3/releases/tag/v0.2.0",
+      "published_at": "2026-10-18T22:42:32Z",
+      "observed_source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+      "assets_observed": [
+        {
+          "id": 654652067,
+          "name": "Verdite3-0.2.0-win-x64-setup.exe",
+          "bytes": 35240466,
+          "published_digest": "sha256:4fe09f7ff75f52b00e43b8b21bb95941e1c28ba712a107e03d83ddaa2017c9a1",
+          "url": "https://github.com/Voicedrew11/verdite3/releases/download/v0.2.0/Verdite3-0.2.0-win-x64-setup.exe"
+        },
+        {
+          "id": 654652066,
+          "name": "Verdite3-0.2.0-win-x64.zip",
+          "bytes": 48080389,
+          "published_digest": "sha256:fa2084b0cfa0d4477ba5d1fbbdde0b164c442d2df320780e66a5905ce8b22315",
+          "url": "https://github.com/Voicedrew11/verdite3/releases/download/v0.2.0/Verdite3-0.2.0-win-x64.zip"
+        },
+        {
+          "id": 654652072,
+          "name": "Verdite3-0.2.0-x86_64.AppImage",
+          "bytes": 43153912,
+          "published_digest": "sha256:00c897e397e70681a359cfc3f05de3ee97e93df011330588cf6436c7d5596c1b",
+          "url": "https://github.com/Voicedrew11/verdite3/releases/download/v0.2.0/Verdite3-0.2.0-x86_64.AppImage"
+        }
+      ]
+    }
+  ],
+  "source_observations": {
+    "complete_pinned_trees": [
+      {
+        "label": "verdite2-current",
+        "repository": "Voicedrew11/verdite2",
+        "repository_node_id": "R_kgDOT5u-sg",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "complete_tree_entries": 799,
+        "tree_response_sha256": "4647aa986aa42ba014b0d104f355960fbac7cbc8372a26265e8e97a13bcc871d",
+        "tree_truncated": false,
+        "submodules": [],
+        "retained_record_name": "verdite2-current-tree.json"
+      },
+      {
+        "label": "verdite2-release",
+        "repository": "Voicedrew11/verdite2",
+        "repository_node_id": "R_kgDOT5u-sg",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "complete_tree_entries": 799,
+        "tree_response_sha256": "4647aa986aa42ba014b0d104f355960fbac7cbc8372a26265e8e97a13bcc871d",
+        "tree_truncated": false,
+        "submodules": [],
+        "retained_record_name": "verdite2-release-tree.json"
+      },
+      {
+        "label": "verdite3-current",
+        "repository": "Voicedrew11/verdite3",
+        "repository_node_id": "R_kgDOUtuLmg",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "complete_tree_entries": 713,
+        "tree_response_sha256": "b462d679531e439b0b68e321d3d9f3aa8917240578d92a7dea7debadaa13c982",
+        "tree_truncated": false,
+        "submodules": [],
+        "retained_record_name": "verdite3-current-tree.json"
+      },
+      {
+        "label": "verdite3-release",
+        "repository": "Voicedrew11/verdite3",
+        "repository_node_id": "R_kgDOUtuLmg",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "complete_tree_entries": 713,
+        "tree_response_sha256": "b462d679531e439b0b68e321d3d9f3aa8917240578d92a7dea7debadaa13c982",
+        "tree_truncated": false,
+        "submodules": [],
+        "retained_record_name": "verdite3-release-tree.json"
+      }
+    ],
+    "verified_source_observations": [
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "KingsField2Recomp.csproj",
+        "git_blob": "5197984007a01be94e18fa9d8d05b4d5aff1aaf6",
+        "sha256": "a91510753ecb1656ba7130bd623145e4b76619be92718eec3b678d280e46a37b",
+        "bytes": 5789,
+        "retained_record_name": "KingsField2Recomp.csproj"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "LICENSE",
+        "git_blob": "04c698c733c503fa16292647c9544fdba6dc2908",
+        "sha256": "7b666296f105bc3645368c0d1a17936128c5ea5fcdb4a1b9bd521f0c147db64f",
+        "bytes": 1068,
+        "retained_record_name": "LICENSE"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "Program.cs",
+        "git_blob": "4d8295588b4c8050b2faa45e93848165661318ed",
+        "sha256": "5eb1d4bb2e520edf9621bb0ca622122d57194296ec34f3aa2bfd9ffaac208e2a",
+        "bytes": 98233,
+        "retained_record_name": "Program.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "README.md",
+        "git_blob": "8b2c2509e0e3421730ca6fc478258a4e11b360a7",
+        "sha256": "f52c1f259ce2052128fbc8aedd0888291c5e9b80ee64635b56e3c2d0e8243e48",
+        "bytes": 1735,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "Verdite2.Launcher/Program.cs",
+        "git_blob": "788c38f0e9cc94be2873d0ebbbff371c7df6b9fd",
+        "sha256": "2f686f21279b99f04c57117aca48655f426cd348db4d45f0451a4e63e9d2576a",
+        "bytes": 1583,
+        "retained_record_name": "Program.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "Verdite2.Launcher/Verdite2.Launcher.csproj",
+        "git_blob": "c16a2da2336ced478d931e883629b80321f67ad7",
+        "sha256": "7d818e0c41dc7639cf235535b49a930537459c28aa6188732267eb3582d3740f",
+        "bytes": 1044,
+        "retained_record_name": "Verdite2.Launcher.csproj"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "disc/README.md",
+        "git_blob": "8903cef5a040bc273ac5a31e97ba9a7d56b66765",
+        "sha256": "6612719381b072cc2307a8841ffcf01029ca72e1ef5de665aa9d4f40ce1451cf",
+        "bytes": 1347,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/LICENSE",
+        "git_blob": "d50a594dcadfff37a76e3872c3f6619708fff622",
+        "sha256": "5fe34e5d43a161f111402b2d04b710966516aac31718d48b70df4a22d087d674",
+        "bytes": 1063,
+        "retained_record_name": "LICENSE"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Bios/Fonts/FONT_LICENSE.md",
+        "git_blob": "fae1e3aa64dfd060e988e382501dbc963eb22773",
+        "sha256": "698738b362b967ccb2a3fce5cc98c76bd19f239f6eddc5cda6f74e71c87f5deb",
+        "bytes": 736,
+        "retained_record_name": "FONT_LICENSE.md"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Config/ConfigManager.cs",
+        "git_blob": "aea1ca716f7fd767718c5732ce919121726a661e",
+        "sha256": "3736e858b624450c981bf0c808f1472107a1ef9e18b579dd26c75f061b25b115",
+        "bytes": 5469,
+        "retained_record_name": "ConfigManager.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Config/GameConfig.cs",
+        "git_blob": "8c3d3c2dcd7e11f0d18dc40cc3873db7be8d60ed",
+        "sha256": "d71035e950aeb5fd14bc3697d15840909628634c4b6ab7f95b79544a0a004ac6",
+        "bytes": 4143,
+        "retained_record_name": "GameConfig.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/RecompOne.Runtime.csproj",
+        "git_blob": "68e0aef3fabafa75147afe315fe8c5392da2f6a5",
+        "sha256": "37db3940318292e62da7d8c9009cf6272ca593ddc6da1d01c1ac6a2eafbb706a",
+        "bytes": 1822,
+        "retained_record_name": "RecompOne.Runtime.csproj"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/LICENSE",
+        "git_blob": "04c698c733c503fa16292647c9544fdba6dc2908",
+        "sha256": "7b666296f105bc3645368c0d1a17936128c5ea5fcdb4a1b9bd521f0c147db64f",
+        "bytes": 1068,
+        "retained_record_name": "LICENSE"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/README.md",
+        "git_blob": "a239684821180f598af72f97a911f910ad5638ec",
+        "sha256": "c3a10c95a3b5ba6d28c103614cc90d5067b792721111b77ce79b39211ea16726",
+        "bytes": 12178,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Build/DiscCheck.cs",
+        "git_blob": "19261d49f8b432f0d3d632b8375fed19c267a5d0",
+        "sha256": "4762ea795c44249497dfa856b957a84a092884ae70a51fb822548c978e1f456f",
+        "bytes": 6064,
+        "retained_record_name": "DiscCheck.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Build/GameCompile.cs",
+        "git_blob": "6c664b731ef9a0f3f733bbbf2519297a9a4314ee",
+        "sha256": "7f1b2eb515a6146ec850473186296ebefe4bce8e04b73660f8779863d84b401c",
+        "bytes": 9374,
+        "retained_record_name": "GameCompile.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Build/Paths.cs",
+        "git_blob": "69726a83ff5851f4cb99d07ad333a211a0057213",
+        "sha256": "0382be96f79d0cd9742362023108b4283ebad2aeee4b9981dc0c8a86fb835753",
+        "bytes": 6306,
+        "retained_record_name": "Paths.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Build/Payload.cs",
+        "git_blob": "16de7b9549f70d7481a037db96b9502f6d85fbc9",
+        "sha256": "1bb8a2625c78fb17bc158ffebdfc55959f2c9f0198372add07136b24b9316092",
+        "bytes": 3826,
+        "retained_record_name": "Payload.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Launcher.cs",
+        "git_blob": "eb48081655d13e212d4401a58cc1fcab33ef78fb",
+        "sha256": "ddbeac5e9096c6d893615e92ebdeeb563e97558a9396fe1ced2f23f4adb9a5c1",
+        "bytes": 12666,
+        "retained_record_name": "Launcher.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/LauncherGame.cs",
+        "git_blob": "7f87ffe788512c5daf76a78cbe46c8c03c8125e1",
+        "sha256": "f8617d797fd2945a067c6360ba863c91b340404cfba2b780a8df26b7822177d7",
+        "bytes": 3223,
+        "retained_record_name": "LauncherGame.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/UpdateBadge.cs",
+        "git_blob": "c784b59bfaca17df2812b2807b37fac7152e61f5",
+        "sha256": "4f62101697f2460d7e867da37cdc3f91726ef0d67ed508e4f30d0d47eb336847",
+        "bytes": 5867,
+        "retained_record_name": "UpdateBadge.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/UpdateCheck.cs",
+        "git_blob": "6af359c4464cf4ea41e97daf85917f81b1619cb4",
+        "sha256": "f1d97fd2dba659748b24df4e5402b135ec1ebf4ad34d903215119f0ff03ef7a1",
+        "bytes": 7638,
+        "retained_record_name": "UpdateCheck.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/src/Settings/SettingsStore.cs",
+        "git_blob": "b9a5f95237c5c72032d30ca296998efd66e4ba9d",
+        "sha256": "debbdc3aef736342b4fa054a8a1b543fdb82e9c63c1f954aacebfd68b655122f",
+        "bytes": 4058,
+        "retained_record_name": "SettingsStore.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "KingsField3Recomp.csproj",
+        "git_blob": "f8c17b3de4f27c2fad4caa78deddce3d6950d4ff",
+        "sha256": "ee5a25dc4e88748cdd8c9a07b2c6b86d26e2fba7596e9868accd37253d7fd940",
+        "bytes": 1918,
+        "retained_record_name": "KingsField3Recomp.csproj"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "LICENSE",
+        "git_blob": "a9f1fcec955615b67fbdc3ba9f904fcbf7587847",
+        "sha256": "611d12e4d2e055644ae45f311599fb002f88ae61f70f30f3cb464993f361f5fc",
+        "bytes": 1063,
+        "retained_record_name": "LICENSE"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "Program.cs",
+        "git_blob": "48bbea40958a9c80cff85bf8bc1f5f33e3423dbc",
+        "sha256": "3c8570f60c8573b1bfa931f96fbf1943145c34890b49086f683f4812b0c15160",
+        "bytes": 25392,
+        "retained_record_name": "Program.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "README.md",
+        "git_blob": "b79e24fc6e12db033987a5e0a8f8e3c8d27446bd",
+        "sha256": "aa51bdce4e68225e1f0f90be757388a13036821da7222999ba5e188761581fc3",
+        "bytes": 1538,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "Verdite3.Launcher/Program.cs",
+        "git_blob": "fc26838c9e2fde0934eae8e90dcebac16a7cb180",
+        "sha256": "619e8ee19caa38617991f05d0bfc842d22a8fa456cdab0a88614fda53cddcbaa",
+        "bytes": 1612,
+        "retained_record_name": "Program.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "Verdite3.Launcher/Verdite3.Launcher.csproj",
+        "git_blob": "3f047e1fa607da96478bdf8208ab33d85ccf8083",
+        "sha256": "ef77a747303f7f760c8a4ae4aab03bd963950e99ef2ef693187761aefb51358d",
+        "bytes": 1043,
+        "retained_record_name": "Verdite3.Launcher.csproj"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "disc/README.md",
+        "git_blob": "c34609daeeceb669dcf4f438ae2c3a1159f3b9c4",
+        "sha256": "6abd777ab648e4c7c1db65dbec2c6aadfa760f237f68b781c9bf5b7921de1942",
+        "bytes": 559,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/LICENSE",
+        "git_blob": "d50a594dcadfff37a76e3872c3f6619708fff622",
+        "sha256": "5fe34e5d43a161f111402b2d04b710966516aac31718d48b70df4a22d087d674",
+        "bytes": 1063,
+        "retained_record_name": "LICENSE"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Bios/Fonts/FONT_LICENSE.md",
+        "git_blob": "fae1e3aa64dfd060e988e382501dbc963eb22773",
+        "sha256": "698738b362b967ccb2a3fce5cc98c76bd19f239f6eddc5cda6f74e71c87f5deb",
+        "bytes": 736,
+        "retained_record_name": "FONT_LICENSE.md"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Config/ConfigManager.cs",
+        "git_blob": "39974f60477f083754ad2e7bf94e753780e0591f",
+        "sha256": "6e030f979095586d4e7e08eef3061e7b1b746cf70e92f2f4c8d0cc95c3b9e933",
+        "bytes": 5218,
+        "retained_record_name": "ConfigManager.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Config/GameConfig.cs",
+        "git_blob": "8c3d3c2dcd7e11f0d18dc40cc3873db7be8d60ed",
+        "sha256": "d71035e950aeb5fd14bc3697d15840909628634c4b6ab7f95b79544a0a004ac6",
+        "bytes": 4143,
+        "retained_record_name": "GameConfig.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/RecompOne.Runtime.csproj",
+        "git_blob": "68e0aef3fabafa75147afe315fe8c5392da2f6a5",
+        "sha256": "37db3940318292e62da7d8c9009cf6272ca593ddc6da1d01c1ac6a2eafbb706a",
+        "bytes": 1822,
+        "retained_record_name": "RecompOne.Runtime.csproj"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/LICENSE",
+        "git_blob": "04c698c733c503fa16292647c9544fdba6dc2908",
+        "sha256": "7b666296f105bc3645368c0d1a17936128c5ea5fcdb4a1b9bd521f0c147db64f",
+        "bytes": 1068,
+        "retained_record_name": "LICENSE"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/README.md",
+        "git_blob": "a239684821180f598af72f97a911f910ad5638ec",
+        "sha256": "c3a10c95a3b5ba6d28c103614cc90d5067b792721111b77ce79b39211ea16726",
+        "bytes": 12178,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Build/DiscCheck.cs",
+        "git_blob": "19261d49f8b432f0d3d632b8375fed19c267a5d0",
+        "sha256": "4762ea795c44249497dfa856b957a84a092884ae70a51fb822548c978e1f456f",
+        "bytes": 6064,
+        "retained_record_name": "DiscCheck.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Build/GameCompile.cs",
+        "git_blob": "6c664b731ef9a0f3f733bbbf2519297a9a4314ee",
+        "sha256": "7f1b2eb515a6146ec850473186296ebefe4bce8e04b73660f8779863d84b401c",
+        "bytes": 9374,
+        "retained_record_name": "GameCompile.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Build/Paths.cs",
+        "git_blob": "69726a83ff5851f4cb99d07ad333a211a0057213",
+        "sha256": "0382be96f79d0cd9742362023108b4283ebad2aeee4b9981dc0c8a86fb835753",
+        "bytes": 6306,
+        "retained_record_name": "Paths.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Build/Payload.cs",
+        "git_blob": "16de7b9549f70d7481a037db96b9502f6d85fbc9",
+        "sha256": "1bb8a2625c78fb17bc158ffebdfc55959f2c9f0198372add07136b24b9316092",
+        "bytes": 3826,
+        "retained_record_name": "Payload.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Launcher.cs",
+        "git_blob": "eb48081655d13e212d4401a58cc1fcab33ef78fb",
+        "sha256": "ddbeac5e9096c6d893615e92ebdeeb563e97558a9396fe1ced2f23f4adb9a5c1",
+        "bytes": 12666,
+        "retained_record_name": "Launcher.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/LauncherGame.cs",
+        "git_blob": "7f87ffe788512c5daf76a78cbe46c8c03c8125e1",
+        "sha256": "f8617d797fd2945a067c6360ba863c91b340404cfba2b780a8df26b7822177d7",
+        "bytes": 3223,
+        "retained_record_name": "LauncherGame.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/UpdateBadge.cs",
+        "git_blob": "c784b59bfaca17df2812b2807b37fac7152e61f5",
+        "sha256": "4f62101697f2460d7e867da37cdc3f91726ef0d67ed508e4f30d0d47eb336847",
+        "bytes": 5867,
+        "retained_record_name": "UpdateBadge.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/UpdateCheck.cs",
+        "git_blob": "6af359c4464cf4ea41e97daf85917f81b1619cb4",
+        "sha256": "f1d97fd2dba659748b24df4e5402b135ec1ebf4ad34d903215119f0ff03ef7a1",
+        "bytes": 7638,
+        "retained_record_name": "UpdateCheck.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/src/Settings/SettingsStore.cs",
+        "git_blob": "b9a5f95237c5c72032d30ca296998efd66e4ba9d",
+        "sha256": "debbdc3aef736342b4fa054a8a1b543fdb82e9c63c1f954aacebfd68b655122f",
+        "bytes": 4058,
+        "retained_record_name": "SettingsStore.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "docs/PACKAGING.md",
+        "git_blob": "01430f81bb243b452455fe2169adac08ad910796",
+        "sha256": "9ff75065ca51106c6fc25a01c4830cdca6cb3f3dcc1af639bfebdd2c5ec60270",
+        "bytes": 38066,
+        "retained_record_name": "PACKAGING.md"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "packaging/shared/README.md",
+        "git_blob": "f0f3e576d84acb8dcd4e0e49cc0c1e527f1a0c16",
+        "sha256": "7d06c0de6d0eecb0136f9bba4feb7f4f1074e38bff5eeb67aae0163c51e2aad9",
+        "bytes": 712,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Launcher.targets",
+        "git_blob": "bbd4c33d717de99f25776cbbb4ab1a9b7ac0ad0f",
+        "sha256": "773e8902e1ef151c3ff4d46d770a9c994af8169500dbc03c4fb7b862ccfcfbeb",
+        "bytes": 14169,
+        "retained_record_name": "Launcher.targets"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/packaging/windows/Stub/Program.cs",
+        "git_blob": "aa20e7423f428683d893ec31f46de05b8d803eb1",
+        "sha256": "0efe1e942afac2632d135ccf159dbfc76aff9397dac37df90cdce457806620da",
+        "bytes": 2697,
+        "retained_record_name": "Program.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/packaging/windows/Stub/Verdite.Stub.csproj",
+        "git_blob": "32da485ff1cf4f150ea16a853f638547ed28e30a",
+        "sha256": "a7f24597037ad40b15368147e90fda153d0d122804cd72c9151869b39b5679d7",
+        "bytes": 1593,
+        "retained_record_name": "Verdite.Stub.csproj"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/packaging/windows/build-windows.ps1",
+        "git_blob": "e030ea269f37ae373f3de245616feea56de001dc",
+        "sha256": "f044d595dcd6d817d5b9d8c63ff6590960455d5e88009cf982055013c1d57923",
+        "bytes": 5771,
+        "retained_record_name": "build-windows.ps1"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Build/BuildKey.cs",
+        "git_blob": "d0cd339c9644ddfac4f7c1dc2ca33dcc5a9dda29",
+        "sha256": "93fcb4cb780408cc5080f3a150c26d824b9ad6faa44871d65bda1d820e565f3a",
+        "bytes": 4074,
+        "retained_record_name": "BuildKey.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Runtime.cs",
+        "git_blob": "1950b0a1589605354ec68f29926def77b3498b27",
+        "sha256": "89de650c03f64bcc43642cfae940c584cfe96d98a4d7787290d067eb00d11177",
+        "bytes": 14618,
+        "retained_record_name": "Runtime.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Modding/ModLoader.cs",
+        "git_blob": "4baee35a742a11b98d9fe90da0cf3bf80189ea55",
+        "sha256": "ea322baee23524251557d4e94038d6e0626ce5e654d9faec7d3f3c8b138bcf1e",
+        "bytes": 21467,
+        "retained_record_name": "ModLoader.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Cdrom/DiscFs.cs",
+        "git_blob": "5ebd7ca0175c7a37b5e39cd2799ec1f7d840553a",
+        "sha256": "d1f5b851768fbb36b314b2b870d78651e17becfd256f6bd61a523d5d280d4163",
+        "bytes": 6803,
+        "retained_record_name": "DiscFs.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Cdrom/Chd/ChdCodecSet.cs",
+        "git_blob": "9fce1299f566b3044789e50f55ba364a0b890a72",
+        "sha256": "859526f4bcfd275102658dbca3e29ec05ac8c9ac554bfbcac61e42ae495d5e3a",
+        "bytes": 4281,
+        "retained_record_name": "ChdCodecSet.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/src/Onboarding/Onboarding.cs",
+        "git_blob": "c9ca70d31a4b10e141f29909a686f90cdfd8dd6e",
+        "sha256": "06a94f8af8449ee1b5c960763b7edc139d40245524c407640aeaff69fdd13d60",
+        "bytes": 27103,
+        "retained_record_name": "Onboarding.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/src/WindowIcon.cs",
+        "git_blob": "0c4f0a75edd1ab0db260578d175b4c02994ab20f",
+        "sha256": "cd22da3b54daf52d3cfa6f03ba273b6e50d73878808dab8c30fe40e79d35324d",
+        "bytes": 5277,
+        "retained_record_name": "WindowIcon.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/src/DesktopEntry.cs",
+        "git_blob": "0b4274ea92fc93a4021de1f8465f5f41594f1dab",
+        "sha256": "c557f5fdbd95c780302960ac107cb8786eb7221728655ce41f92d1071ce9f81a",
+        "bytes": 7555,
+        "retained_record_name": "DesktopEntry.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "docs/PACKAGING.md",
+        "git_blob": "4cad8c3aee32b18eb6a8bcb4cf0e6bc658fca7d1",
+        "sha256": "ab40f55086bd2c2913bb27c67bc3aaac8a4a4b6b95fbdd5e3df5f27d191abe41",
+        "bytes": 15008,
+        "retained_record_name": "PACKAGING.md"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "packaging/shared/README.md",
+        "git_blob": "aeeeabfea5821aaf391bc30f0f878842493d44ab",
+        "sha256": "1e68099820bc5ec3eb349f2801c745769cca04ab786985b77b7f14cd32bc9c2d",
+        "bytes": 648,
+        "retained_record_name": "README.md"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Launcher.targets",
+        "git_blob": "bbd4c33d717de99f25776cbbb4ab1a9b7ac0ad0f",
+        "sha256": "773e8902e1ef151c3ff4d46d770a9c994af8169500dbc03c4fb7b862ccfcfbeb",
+        "bytes": 14169,
+        "retained_record_name": "Launcher.targets"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/packaging/windows/Stub/Program.cs",
+        "git_blob": "aa20e7423f428683d893ec31f46de05b8d803eb1",
+        "sha256": "0efe1e942afac2632d135ccf159dbfc76aff9397dac37df90cdce457806620da",
+        "bytes": 2697,
+        "retained_record_name": "Program.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/packaging/windows/Stub/Verdite.Stub.csproj",
+        "git_blob": "32da485ff1cf4f150ea16a853f638547ed28e30a",
+        "sha256": "a7f24597037ad40b15368147e90fda153d0d122804cd72c9151869b39b5679d7",
+        "bytes": 1593,
+        "retained_record_name": "Verdite.Stub.csproj"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/packaging/windows/build-windows.ps1",
+        "git_blob": "e030ea269f37ae373f3de245616feea56de001dc",
+        "sha256": "f044d595dcd6d817d5b9d8c63ff6590960455d5e88009cf982055013c1d57923",
+        "bytes": 5771,
+        "retained_record_name": "build-windows.ps1"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Build/BuildKey.cs",
+        "git_blob": "d0cd339c9644ddfac4f7c1dc2ca33dcc5a9dda29",
+        "sha256": "93fcb4cb780408cc5080f3a150c26d824b9ad6faa44871d65bda1d820e565f3a",
+        "bytes": 4074,
+        "retained_record_name": "BuildKey.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Runtime.cs",
+        "git_blob": "6f35cb4baab639a1e1d8b049bd8c8d0a0da5c074",
+        "sha256": "a456ecd71db0baf11e3376444bdab05961c18ee4805bc91c6229a12fcac8d2ce",
+        "bytes": 14356,
+        "retained_record_name": "Runtime.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Modding/ModLoader.cs",
+        "git_blob": "4baee35a742a11b98d9fe90da0cf3bf80189ea55",
+        "sha256": "ea322baee23524251557d4e94038d6e0626ce5e654d9faec7d3f3c8b138bcf1e",
+        "bytes": 21467,
+        "retained_record_name": "ModLoader.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Cdrom/DiscFs.cs",
+        "git_blob": "5ebd7ca0175c7a37b5e39cd2799ec1f7d840553a",
+        "sha256": "d1f5b851768fbb36b314b2b870d78651e17becfd256f6bd61a523d5d280d4163",
+        "bytes": 6803,
+        "retained_record_name": "DiscFs.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Cdrom/Chd/ChdCodecSet.cs",
+        "git_blob": "9fce1299f566b3044789e50f55ba364a0b890a72",
+        "sha256": "859526f4bcfd275102658dbca3e29ec05ac8c9ac554bfbcac61e42ae495d5e3a",
+        "bytes": 4281,
+        "retained_record_name": "ChdCodecSet.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/src/Onboarding/Onboarding.cs",
+        "git_blob": "c9ca70d31a4b10e141f29909a686f90cdfd8dd6e",
+        "sha256": "06a94f8af8449ee1b5c960763b7edc139d40245524c407640aeaff69fdd13d60",
+        "bytes": 27103,
+        "retained_record_name": "Onboarding.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/src/WindowIcon.cs",
+        "git_blob": "0c4f0a75edd1ab0db260578d175b4c02994ab20f",
+        "sha256": "cd22da3b54daf52d3cfa6f03ba273b6e50d73878808dab8c30fe40e79d35324d",
+        "bytes": 5277,
+        "retained_record_name": "WindowIcon.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/src/DesktopEntry.cs",
+        "git_blob": "0b4274ea92fc93a4021de1f8465f5f41594f1dab",
+        "sha256": "c557f5fdbd95c780302960ac107cb8786eb7221728655ce41f92d1071ce9f81a",
+        "bytes": 7555,
+        "retained_record_name": "DesktopEntry.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/patches/assets/NotoSans-OFL.txt",
+        "git_blob": "978b1b0aed394915680dc00ba742cf8fb82aaf96",
+        "sha256": "0e3a3431772a7ae196776f4c38f135caa65e5fd9e0d836582999765735f2db5a",
+        "bytes": 4441,
+        "retained_record_name": "NotoSans-OFL.txt"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Diagnostics/CrashReport.cs",
+        "git_blob": "e15f9d74e512477b4e47bc110cedf28a32f0907b",
+        "sha256": "8e5cfcb0df430b2fde94d814e0468e55d28cdc203928b7601f9dd61419b8c761",
+        "bytes": 9488,
+        "retained_record_name": "CrashReport.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Hardware/MemoryCard.cs",
+        "git_blob": "02aeebbbc281fa833b7a6a60b5f03839ad31ca87",
+        "sha256": "e3601bf915668174c2aa8bf9ba81b4dbec75d8a70c9bd57899824cc95f81e78c",
+        "bytes": 9118,
+        "retained_record_name": "MemoryCard.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/src/CrashReports.cs",
+        "git_blob": "3ca65ea1562397c20e2e9a76550116f7584913ef",
+        "sha256": "584b822b3d111717c13f5cdee11f273d90b926d2bfbe1fc558995e5772769313",
+        "bytes": 7305,
+        "retained_record_name": "CrashReports.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "patches/PortSettings.cs",
+        "git_blob": "eb732a48eed4e1ee45e4ca3c3069f39653934705",
+        "sha256": "14b4aa8eebc05b624a4279e5be0b8dec296ab18693232f619928dd67a11efdcb",
+        "bytes": 30715,
+        "retained_record_name": "PortSettings.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Build/ShippedConfig.cs",
+        "git_blob": "ab0ce3036b6fe031eee4e376551aed464a1cb304",
+        "sha256": "ef0e8222b9a7fb82ba53212e24eb35378c3345b1d691f03fa5c99f39ca822ab9",
+        "bytes": 2599,
+        "retained_record_name": "ShippedConfig.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/launcher/Build/Recompile.cs",
+        "git_blob": "99715f03125700a6895b36541f4e748473f1ed1b",
+        "sha256": "93ce251fa1eb6b246f3b2e451c51789e94d6656acc8ee3b3e13ee974469fa788",
+        "bytes": 6327,
+        "retained_record_name": "Recompile.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Host/Window/HostWindow.cs",
+        "git_blob": "a7976e0d7665f72439bbb7d36cccb5ae040395d4",
+        "sha256": "227b067c4df69d8ddc8452b6e74be2204b398d6854d24f804b05f0d90245463f",
+        "bytes": 53250,
+        "retained_record_name": "HostWindow.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/IO/DurableFile.cs",
+        "git_blob": "b35a50ea1de65cf86f0cf90410dedcd72cb57e96",
+        "sha256": "7be954f7bc868ee3ca3dc3ad8fdc1e9b005200a5747e27ed60b60339c4b4120d",
+        "bytes": 3534,
+        "retained_record_name": "DurableFile.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/patches/assets/NotoSans-OFL.txt",
+        "git_blob": "978b1b0aed394915680dc00ba742cf8fb82aaf96",
+        "sha256": "0e3a3431772a7ae196776f4c38f135caa65e5fd9e0d836582999765735f2db5a",
+        "bytes": 4441,
+        "retained_record_name": "NotoSans-OFL.txt"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Diagnostics/CrashReport.cs",
+        "git_blob": "e15f9d74e512477b4e47bc110cedf28a32f0907b",
+        "sha256": "8e5cfcb0df430b2fde94d814e0468e55d28cdc203928b7601f9dd61419b8c761",
+        "bytes": 9488,
+        "retained_record_name": "CrashReport.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Hardware/MemoryCard.cs",
+        "git_blob": "02aeebbbc281fa833b7a6a60b5f03839ad31ca87",
+        "sha256": "e3601bf915668174c2aa8bf9ba81b4dbec75d8a70c9bd57899824cc95f81e78c",
+        "bytes": 9118,
+        "retained_record_name": "MemoryCard.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/src/CrashReports.cs",
+        "git_blob": "3ca65ea1562397c20e2e9a76550116f7584913ef",
+        "sha256": "584b822b3d111717c13f5cdee11f273d90b926d2bfbe1fc558995e5772769313",
+        "bytes": 7305,
+        "retained_record_name": "CrashReports.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "patches/PortSettings.cs",
+        "git_blob": "dd0168ab3246bc301bac07e1ceabec92ddf6ef00",
+        "sha256": "e6325954291d89efa9e39423ff0c5743609264283b905003db1160c3db6f0e61",
+        "bytes": 35377,
+        "retained_record_name": "PortSettings.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Build/ShippedConfig.cs",
+        "git_blob": "ab0ce3036b6fe031eee4e376551aed464a1cb304",
+        "sha256": "ef0e8222b9a7fb82ba53212e24eb35378c3345b1d691f03fa5c99f39ca822ab9",
+        "bytes": 2599,
+        "retained_record_name": "ShippedConfig.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/launcher/Build/Recompile.cs",
+        "git_blob": "99715f03125700a6895b36541f4e748473f1ed1b",
+        "sha256": "93ce251fa1eb6b246f3b2e451c51789e94d6656acc8ee3b3e13ee974469fa788",
+        "bytes": 6327,
+        "retained_record_name": "Recompile.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Host/Window/HostWindow.cs",
+        "git_blob": "70e45c7ec555a9a6a98217b243c65f3156a7db48",
+        "sha256": "c053fff74f932567314304fadae161c08097ba96537637574f982da7793d8bea",
+        "bytes": 53057,
+        "retained_record_name": "HostWindow.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/IO/DurableFile.cs",
+        "git_blob": "b35a50ea1de65cf86f0cf90410dedcd72cb57e96",
+        "sha256": "7be954f7bc868ee3ca3dc3ad8fdc1e9b005200a5747e27ed60b60339c4b4120d",
+        "bytes": 3534,
+        "retained_record_name": "DurableFile.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/src/ShortcutIcon.cs",
+        "git_blob": "0bc485cde827db726d038403f87d4ae613ba3023",
+        "sha256": "666e77a7d6fcaf818d9c61c2522d2c50515477e65d2da32555466fe0834f566a",
+        "bytes": 10981,
+        "retained_record_name": "ShortcutIcon.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "docs/SETTINGS.md",
+        "git_blob": "a4255b436a70927a09119521ea5e6a0c666eef58",
+        "sha256": "e4279b6c9828c359077c5b345de29ce1e20c90f7bc623ebb1bdc86f58cf63b57",
+        "bytes": 37821,
+        "retained_record_name": "SETTINGS.md"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Assets/Textures/TextureDumper.cs",
+        "git_blob": "67dee732073dfeeb6467b4e34f3c0c12bf5f2e33",
+        "sha256": "1ec62d67ca9661db24f93237d5d65ed426a5a7fc227e6c30f8e8cb488f5931c6",
+        "bytes": 11399,
+        "retained_record_name": "TextureDumper.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/RecompOne/RecompOne.Runtime/Assets/AssetPack.cs",
+        "git_blob": "b3ce5e3587119d83dad6c190cc67bec3c6ac87da",
+        "sha256": "cf54144cde6ab3e9d6ca6eb657c64c5cbacad37c66cd384c744ed62fa9dc91b6",
+        "bytes": 5329,
+        "retained_record_name": "AssetPack.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/src/ShortcutIcon.cs",
+        "git_blob": "0bc485cde827db726d038403f87d4ae613ba3023",
+        "sha256": "666e77a7d6fcaf818d9c61c2522d2c50515477e65d2da32555466fe0834f566a",
+        "bytes": 10981,
+        "retained_record_name": "ShortcutIcon.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "docs/SETTINGS.md",
+        "git_blob": "b08813ee22753aaeaacf43955d39797f86b2a79d",
+        "sha256": "726a643b686fbbb5c367125ecab8291356311abebc3fa3eceedd89165d8cda8c",
+        "bytes": 25746,
+        "retained_record_name": "SETTINGS.md"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Assets/Textures/TextureDumper.cs",
+        "git_blob": "67dee732073dfeeb6467b4e34f3c0c12bf5f2e33",
+        "sha256": "1ec62d67ca9661db24f93237d5d65ed426a5a7fc227e6c30f8e8cb488f5931c6",
+        "bytes": 11399,
+        "retained_record_name": "TextureDumper.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/RecompOne/RecompOne.Runtime/Assets/AssetPack.cs",
+        "git_blob": "b3ce5e3587119d83dad6c190cc67bec3c6ac87da",
+        "sha256": "cf54144cde6ab3e9d6ca6eb657c64c5cbacad37c66cd384c744ed62fa9dc91b6",
+        "bytes": 5329,
+        "retained_record_name": "AssetPack.cs"
+      }
+    ],
+    "raw_api_observations": [
+      {
+        "bytes": 32394,
+        "sha256": "1bd182b13cd58fc4361482980b0b057ad282d9e7ee48f580e0cfa48351032ab5",
+        "retained_record_name": "verdite2-current-commit.json"
+      },
+      {
+        "bytes": 202355,
+        "sha256": "4647aa986aa42ba014b0d104f355960fbac7cbc8372a26265e8e97a13bcc871d",
+        "retained_record_name": "verdite2-current-tree.json"
+      },
+      {
+        "bytes": 32394,
+        "sha256": "1bd182b13cd58fc4361482980b0b057ad282d9e7ee48f580e0cfa48351032ab5",
+        "retained_record_name": "verdite2-release-commit.json"
+      },
+      {
+        "bytes": 202355,
+        "sha256": "4647aa986aa42ba014b0d104f355960fbac7cbc8372a26265e8e97a13bcc871d",
+        "retained_record_name": "verdite2-release-tree.json"
+      },
+      {
+        "bytes": 7665,
+        "sha256": "ca83940c5eeb8d3f9e1c63701e850508b42f4c7a3247e0096864e83b60200120",
+        "retained_record_name": "verdite2-release.json"
+      },
+      {
+        "bytes": 5655,
+        "sha256": "4fd2dfb04b30cc1c6b22ba1a4fc6fc268af5f44e448c8380d6df95ec9f4fe95f",
+        "retained_record_name": "verdite2-repo.json"
+      },
+      {
+        "bytes": 381287,
+        "sha256": "4c1f0f929703146a83559fc67e2b445ab1af43870bee21cd5af014c94baa651b",
+        "retained_record_name": "verdite3-current-commit.json"
+      },
+      {
+        "bytes": 181988,
+        "sha256": "b462d679531e439b0b68e321d3d9f3aa8917240578d92a7dea7debadaa13c982",
+        "retained_record_name": "verdite3-current-tree.json"
+      },
+      {
+        "bytes": 381287,
+        "sha256": "4c1f0f929703146a83559fc67e2b445ab1af43870bee21cd5af014c94baa651b",
+        "retained_record_name": "verdite3-release-commit.json"
+      },
+      {
+        "bytes": 181988,
+        "sha256": "b462d679531e439b0b68e321d3d9f3aa8917240578d92a7dea7debadaa13c982",
+        "retained_record_name": "verdite3-release-tree.json"
+      },
+      {
+        "bytes": 7481,
+        "sha256": "996de786628180688093a678af946c51b7a92968162692a548edf11203d28aa2",
+        "retained_record_name": "verdite3-release.json"
+      },
+      {
+        "bytes": 5657,
+        "sha256": "6ce2cb100e6f1d3f7b08059abc674b2f349ab5b283efa66b686ad5b3661aadfc",
+        "retained_record_name": "verdite3-repo.json"
+      }
+    ],
+    "scope": "Textual source/API observations only. No release asset, executable, game data or helper acquired or executed. Current/release tree labels share two exact commits; 100 title-bound textual bindings are not 100 unique blobs. No reproducible artifact or gameplay attestation."
+  },
+  "counts": {
+    "distinct_title_bound_repo_commit_path_blob_bindings": 100,
+    "unique_content_blobs": 63,
+    "tree_reference_roles": 4,
+    "distinct_complete_trees": 2
+  },
+  "source_vs_package_scope": "Current==latest tag for each title. Project and vendored RecompOne/verdite-core MIT grants, BIOS/font notices are source-bound; no exhaustive whole-artifact/component clearance or source-to-binary equivalence inferred.",
+  "boundaries": "No upstream package/ROM/disc/helper/compiler/installer/game acquired or executed. Source/authoring and eventual inert Core tests remain separate from native game, gameplay/save/state compatibility, installed or protected acceptance."
+}
