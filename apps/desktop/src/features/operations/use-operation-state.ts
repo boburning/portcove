@@ -26,6 +26,8 @@ export type PerformOptions = {
   invalidateDiagnostics?: boolean;
   /** Preserve the original task rejection after settlement for a current caller. */
   propagateFailure?: boolean;
+  /** Only named nullable native-consent commands opt in; other null results retain their meaning. */
+  cancelledResult?: (result: unknown) => boolean;
   context?: InvocationContext;
 };
 
@@ -232,6 +234,7 @@ export function useOperationState(configuration: {
             event.type === "started" || event.type === "finished" ? "prompt" : "progress",
           );
         });
+        if (options.cancelledResult?.(result)) outcome = "cancelled";
       } catch (value) {
         taskFailure = { value };
         ({ outcome, failure } = classifyInvocationFailure(value));

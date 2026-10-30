@@ -689,8 +689,12 @@ export const desktopApi = {
     bios: string,
     stage: boolean,
     generation: number,
-  ) =>
-    invoke<InstallRecord>("install_port", {
+    onEvent?: (event: OperationEvent) => void,
+  ) => {
+    const eventChannel = new Channel<OperationEvent>();
+    eventChannel.onmessage = (event) => onEvent?.(event);
+    return invoke<InstallRecord>("install_port", {
+      onEvent: eventChannel,
       generation,
       input: {
         portId,
@@ -699,7 +703,8 @@ export const desktopApi = {
         bios: bios || null,
         stage,
       } satisfies InstallInput,
-    }),
+    });
+  },
   verify: (portId: string, generation: number) => invoke("verify_port", { portId, generation }),
   activate: (
     portId: string,
