@@ -4,6 +4,11 @@ Owner: [#290](https://github.com/boburning/portcove/issues/290). This dated
 receipt distinguishes application success, installed-game preparation and actual
 game/session acceptance. The issue and live Project remain authoritative.
 
+The original tables below retain their October 29 cutoff. The
+[October 30 continuation](#october-30-windows-continuation) adds selected actual
+focus/return and standalone CLI relocation evidence; it does not turn the earlier
+preparation-only rows into historical passes.
+
 ## Windows observations and current readback
 
 The independently reviewed [application receipt](https://github.com/boburning/portcove/issues/290#issuecomment-6501795331)
@@ -139,15 +144,55 @@ RDP, driver/security change or replacement hosted workflow. The
 [hosted acceptance contract](../NATIVE-HOSTED-ACCEPTANCE.md) does not qualify Steam
 through its existing Ubuntu renderer/history observations.
 
-## Windows continuation need
+## October 30 Windows continuation
 
-Desktop control remains explicitly stopped. The exact next interaction need is a
-renewed authorized, uncontended Windows desktop-control session for the stable
-game-entry creation and remaining matrix. Recheck live process and mutable-data
-state before acting. The first acquired-game UI launch retains the Computer Use
-skill's action-time confirmation requirement; do not run it elsewhere to bypass
-that boundary. Neither a scheduled wake nor another input mechanism resumes the
-stopped session.
+The owner authorized a fresh uncontended Windows desktop interval. The selected
+existing game entry was exercised in Desktop and Big Picture with Portcove
+Desktop closed. Earlier normal exit, Stop, offline, supervisor recovery and
+storage observations remain separately credited in the
+[latest prior matrix](https://github.com/boburning/portcove/issues/290#issuecomment-6511650359)
+and [version-capability receipt](https://github.com/boburning/portcove/issues/290#issuecomment-6513087606).
+
+The native source, CLI digest, package, installation and manifest identities in
+the table above were reused. Fresh CLI metadata retained 38,743,040 bytes and
+write time `2026-10-29T15:52:30.5363875Z`; public library identity/status/session
+readback retained the selected library and installation. This is not a rebuild,
+fresh package verification, installed application or minimum-host qualification.
+Steam executable version remained `11.15.70.27`; its current process was PID
+`7348`, created `2026-10-30T14:37:34.4136290Z`, with window owner PID `10412`.
+
+| Operation                                              | Actual observation                                                                                                                                                                                                                                                                                                                                                                        | Scope                                                                                                                              |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Desktop automatic focus/return                         | Steam Play started supervisor `47032` and game `33372`. Read-only foreground sampling observed game HWND `987690`, then Steam HWND `263016` after actual game Quit. Both retained handles exited 0; public request `1916e6f4-bfcb-41b4-8f5a-4159a38a91bb` succeeded.                                                                                                                      | Selected Windows Desktop game route; no explicit game activation after Play or Steam activation after Quit.                        |
+| Missing standalone CLI                                 | After positive process settlement, the task-owned CLI directory was renamed. Play displayed Steam's “Failed to start process for this game” error. The latest Core session remained the prior request.                                                                                                                                                                                    | Actual missing-target negative control; Steam failure before Core launch, not a failed game session.                               |
+| Explicit path repair                                   | Target and Start In were changed through Steam Properties to the relocated `Portcove CLI moved ü 日本語` directory. The quoted library argument, stable port ID and trailing `--` were unchanged.                                                                                                                                                                                         | Manual UI repair, no programmatic Steam-data writer or version-specific game target.                                               |
+| Big Picture repaired launch and automatic focus/return | Steam started relocated supervisor `44904` and the same managed installation's game `40624`. Sampling observed game HWND `2167358`, then Big Picture HWND `2560232` after actual Quit. Both handles exited 0; public request `c341c6aa-8029-4473-88f2-378ee9e8905e` succeeded.                                                                                                            | Selected Windows Big Picture route after actual CLI relocation; no explicit game/Steam activation across the measured transitions. |
+| Data and cleanup                                       | Runtime/canonical `tyrian.cfg` changed through normal use and match each other. Both selected `opentyrian.cfg` and `tyrian.sav` copies remained unchanged. Original CLI directory and Target/Start In were restored; arguments remained unchanged. Final relevant CIM found only the same Steam process. Both foreground observers exited 0 and the native lease was positively released. | Bounded selected-file and retained-process evidence; no gameplay-progress, hard-kill collection or whole-host-idle claim.          |
+
+The receipt is retained in the Windows execution clone under
+`work/foundations-delivery/b5-focus-20261030/receipt.json`, SHA256
+`ebb966c35d200f8e253081ec1332d4f23216c1a21db713e38b402e34af736ffb`,
+binding 61 artifacts: native images/UIA, foreground chronology, exact process
+handles, public Core responses, selected file hashes and explicit limitations.
+Screenshots include account/client context and stay local. Independent non-writing
+review verified all 61 artifact hashes/sizes, inspected seven key screenshots and
+cleared only the selected evidence scope recorded here.
+
+Failed harness observations remain retained: the first Big Picture process
+observer sampled before the child existed and exited 1; after actual game-window
+discovery, a second observer retained both handles from the same launch. There
+was no game retry. Window replacement/closed-window capture errors and the early
+lease/import setup limitations confer no acceptance. Existing client extensions
+were preserved and unused by this manual route; their absence was not tested.
+
+Ordinary Linux Steam is unavailable by the owner's October 30 answer. It still
+needs the independent graphical session and matrix above. Genuine managed-game
+update/rollback remains unobserved: the retained public check offered no update,
+and rollback reported no previous version. Use an ordinary eligible release or
+legitimate retained installation, preserving unchanged shortcut fields across the
+transition. Application relocation/update, spontaneous engine crash and applicable
+remaining physical-media observations are not supplied by these runs. No older
+manifest, version or physical-device result was manufactured.
 
 Protected artwork-only correction remains with #246/#534, independently of these
 manual checks. #292 managed Steam writes, #527 SteamGridDB, Decky and physical
