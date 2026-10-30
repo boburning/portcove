@@ -41,6 +41,20 @@ filter = 'package(portcove-cli) & binary(machine_contract) & (test(/^artwork_con
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI40977187486/a1 Windows8 cut query/published-resume at30.118/30.090s.
+# CI40981851694/a1 Windows4 cut activated-resume/resume at30.162s and
+# published-resume/abort at30.079s, still progressing through observations
+# 12 at29.270s and8 at29.443s. The same child code passed CI40981868944.
+# Retained query verified/refused platforms by27.324s; published/resume/resume
+# completed observation9 at29.802s and began10. Keep the failures, assertions,
+# phase diagnostics, two workers, cleanup and zero retries; allow finite60s
+# harness completion. No application or inner-operation deadline changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::published_resume_resume$/) | test(/^library_move::sequence_tests::activated_resume_resume$/) | test(/^library_move::sequence_tests::published_resume_abort$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40879228847/a1 Windows2 reached observation16 at29.690s before
 # the 30.108s watchdog. The identical test file passed14.404s in
 # CI40876858821/a1 Windows8. Preserve every sequence assertion and resource

@@ -14,9 +14,9 @@ component fixtures do not complete either production outcome.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable versions 2–5,
+The public inventory additionally advertises native portable versions 2–7,
 managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–24. Staged-source creation
+staged-source portable versions 2–5, 8, 10–12 and 15–25. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -149,6 +149,20 @@ activation, recovered activation and rollback refuse a policy change. Data
 restore preflights complete package conflicts across all retained runtimes before
 publishing canonical data. This reuses the PS1 coexistence algorithm and grants
 no new publisher, executable, original-file or external-data authority.
+
+Version 25 supplies the bounded fresh-data isolation required by newer managed
+Sonic 3K, Sonic 1 and Mega Man X2 recipes. New indexed entries for these ready
+staged routes must declare `staged-source-portable` with `minimum_version: 25`
+and an inclusive `maximum_version` of at least 25. An interval starting at 24
+is insufficient: it would let a reader without the hold accept the recipe.
+The normal capability resolver therefore refuses these new entries on a
+version-24 inventory. Authors and publishers must emit that requirement; Core
+rejects underdeclared fresh entries rather than treating a guide as enforcement.
+The exact historical Direct package readers and retained entry projections keep
+their existing versions and bytes. Current Core applies its runtime compatibility
+checks independently of the retained envelope version. This is neither state ABI
+proof nor old flat-catalog, protected publication or #534 unchanged-client
+qualification. It introduces no new recipe field or console-family primitive.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
