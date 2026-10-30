@@ -33,7 +33,7 @@ Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
 it caps at 160px. Compact widths and short desktop windows use a 10rem preferred column minimum; artwork remains capped at 260px even when supporting text grows. Supporting text
 scales and wraps without growing artwork beyond its CSS bound; native interface
 zoom still enlarges the physical rendering. Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a bordered, labeled button; hover and keyboard focus use the signature red. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a quiet bordered, labeled button, including hover and keyboard focus; the selected game's detail and Continue actions retain signature red emphasis. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 

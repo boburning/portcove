@@ -816,7 +816,7 @@ function ContinueCard({
     <GameHero
       port={port}
       variant="continue"
-      className="continue-card mb-4"
+      className="continue-card mb-6"
       successfulLaunches={status.successful_launches}
       label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
     >
@@ -1522,7 +1522,7 @@ function BrowserQuickViews({
         >
           Favorites{" "}
           <span className="browse-count" aria-hidden="true">
-            ({model.favoriteCount ?? "unavailable"})
+            {model.favoriteCount ?? "unavailable"}
           </span>
         </Button>
       )}
