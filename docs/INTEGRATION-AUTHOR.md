@@ -76,6 +76,13 @@ See [the CLI flow](CLI.md#using-the-cli) and
 
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
+New independently delivered fresh Sonic 3K, Sonic 1 and Mega Man X2 managed
+recipes require staged-source capability version 25 for their canonical-data
+isolation. Emit a requirement with minimum 25 and a compatible inclusive upper
+bound; older readers must refuse rather than apply the new recipe to retained
+data. Existing exact old Direct readers and retained projections keep their
+creating contracts. See [the definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation).
+
 ## Discover and bind
 
 Agents use this same public route, with an identified verified CLI and explicit

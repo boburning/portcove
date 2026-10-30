@@ -20,6 +20,9 @@ use portcove_desktop::application_update_staging::ApplicationUpdateStagingStore;
 use serde::Serialize;
 use url::Url;
 
+#[path = "prepare_installed_update/library_activity.rs"]
+mod library_activity;
+
 #[derive(Clone)]
 struct FixedInstalledContext(InstalledApplicationContext);
 
@@ -45,7 +48,7 @@ struct PreparedUpdate {
 }
 
 fn usage() -> &'static str {
-    "usage: prepare_installed_update describe CURRENT_VERSION\n       prepare_installed_update prepare CURRENT_VERSION ROOT METADATA TARGETS CANDIDATE PREFERENCES STAGING LIBRARY\n       prepare_installed_update prepare-staged CURRENT_VERSION PREFERENCES STAGING LIBRARY"
+    "usage: prepare_installed_update describe CURRENT_VERSION\n       prepare_installed_update prepare CURRENT_VERSION ROOT METADATA TARGETS CANDIDATE PREFERENCES STAGING LIBRARY\n       prepare_installed_update prepare-staged CURRENT_VERSION PREFERENCES STAGING LIBRARY\n       prepare_installed_update hold-library-update LIBRARY PORT_ID INSTALLATION_ID NONCE LIBRARY_SCHEMA"
 }
 
 #[cfg(target_os = "linux")]
@@ -271,6 +274,15 @@ async fn main() {
             prepare_staged(rest).await.and_then(|prepared| {
                 serde_json::to_string(&prepared).map_err(|error| error.to_string())
             })
+        }
+        [command, library, port, installation, nonce, schema]
+            if command == "hold-library-update" =>
+        {
+            library_activity::hold(library, port, installation, nonce, schema)
+                .await
+                .and_then(|result| {
+                    serde_json::to_string(&result).map_err(|error| error.to_string())
+                })
         }
         _ => Err(usage().into()),
     };

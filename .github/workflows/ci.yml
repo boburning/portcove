@@ -237,7 +237,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Record workspace cache observation
@@ -307,7 +307,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Windows test archive and manifest
@@ -455,7 +455,7 @@ jobs:
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned Linux diagnostic test runner
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust') && needs.classify.outputs.linux_diagnostics != 'false'
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.linux-diagnostic-test-runner.outputs.spec }}
       - name: Test typed runtime diagnostics and frontend admission on Linux
@@ -590,7 +590,7 @@ jobs:
         if: needs.classify.outputs.native_tools == 'true'
         run: |
           # node-suite: native-tools
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts apps/desktop/scripts/cli-command-shell.native.test.mts apps/desktop/scripts/desktop-appimage-update.native.test.mts apps/desktop/scripts/desktop-application-update-journey.native.test.mts apps/desktop/scripts/desktop-artwork-correction.native.test.mts apps/desktop/scripts/desktop-artwork-observations.native.test.mts apps/desktop/scripts/desktop-artwork.native.test.mts apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts apps/desktop/scripts/desktop-catalog-update.native.test.mts apps/desktop/scripts/desktop-completion-focus.native.test.mts apps/desktop/scripts/desktop-default-cover.native.test.mts apps/desktop/scripts/desktop-design-compatibility.native.test.mts apps/desktop/scripts/desktop-harness.native.test.mts apps/desktop/scripts/desktop-install-fixture.native.test.mts apps/desktop/scripts/desktop-install.native.test.mts apps/desktop/scripts/desktop-linux-native-session.native.test.mts apps/desktop/scripts/desktop-linux-public-update.native.test.mts apps/desktop/scripts/desktop-macos-installed-update.native.test.mts apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts apps/desktop/scripts/desktop-native-observations.native.test.mts apps/desktop/scripts/desktop-public-update-state.native.test.mts apps/desktop/scripts/desktop-qualification-history.native.test.mts apps/desktop/scripts/desktop-readiness.native.test.mts apps/desktop/scripts/desktop-reload.native.test.mts apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts apps/desktop/scripts/desktop-review-controls.native.test.mts apps/desktop/scripts/desktop-scenario-state.native.test.mts apps/desktop/scripts/desktop-staged-layout.native.test.mts apps/desktop/scripts/desktop-webview-boundary.native.test.mts apps/desktop/scripts/desktop-windows-public-update.native.test.mts apps/desktop/scripts/desktop-windows-update.native.test.mts apps/desktop/scripts/desktop-workspace-refresh.native.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts apps/desktop/scripts/cli-command-shell.native.test.mts apps/desktop/scripts/desktop-appimage-update.native.test.mts apps/desktop/scripts/desktop-application-update-journey.native.test.mts apps/desktop/scripts/desktop-artwork-correction.native.test.mts apps/desktop/scripts/desktop-artwork-observations.native.test.mts apps/desktop/scripts/desktop-artwork.native.test.mts apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts apps/desktop/scripts/desktop-catalog-update.native.test.mts apps/desktop/scripts/desktop-completion-focus.native.test.mts apps/desktop/scripts/desktop-default-cover.native.test.mts apps/desktop/scripts/desktop-design-compatibility.native.test.mts apps/desktop/scripts/desktop-harness.native.test.mts apps/desktop/scripts/desktop-install-fixture.native.test.mts apps/desktop/scripts/desktop-install.native.test.mts apps/desktop/scripts/desktop-installed-library-busy.native.test.mts apps/desktop/scripts/desktop-linux-native-session.native.test.mts apps/desktop/scripts/desktop-linux-public-update.native.test.mts apps/desktop/scripts/desktop-macos-installed-update.native.test.mts apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts apps/desktop/scripts/desktop-native-observations.native.test.mts apps/desktop/scripts/desktop-public-update-state.native.test.mts apps/desktop/scripts/desktop-qualification-history.native.test.mts apps/desktop/scripts/desktop-readiness.native.test.mts apps/desktop/scripts/desktop-reload.native.test.mts apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts apps/desktop/scripts/desktop-review-controls.native.test.mts apps/desktop/scripts/desktop-scenario-state.native.test.mts apps/desktop/scripts/desktop-staged-layout.native.test.mts apps/desktop/scripts/desktop-webview-boundary.native.test.mts apps/desktop/scripts/desktop-windows-public-update.native.test.mts apps/desktop/scripts/desktop-windows-update.native.test.mts apps/desktop/scripts/desktop-workspace-refresh.native.test.mts
       - name: Check native helper dependency declarations
         run: node scripts/native-helper-dependencies.mts
       - name: Test discovery state replacement under actual Windows reader sharing
@@ -728,7 +728,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Compile Core and prove all original qualification phase selections
@@ -786,7 +786,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -831,7 +831,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Test workspace-other with original scope and case outcomes
@@ -893,7 +893,7 @@ jobs:
       - name: Test native compiler and shell integrations without frontend dependencies
         run: |
           # node-suite: native-tools
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts apps/desktop/scripts/cli-command-shell.native.test.mts apps/desktop/scripts/desktop-appimage-update.native.test.mts apps/desktop/scripts/desktop-application-update-journey.native.test.mts apps/desktop/scripts/desktop-artwork-correction.native.test.mts apps/desktop/scripts/desktop-artwork-observations.native.test.mts apps/desktop/scripts/desktop-artwork.native.test.mts apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts apps/desktop/scripts/desktop-catalog-update.native.test.mts apps/desktop/scripts/desktop-completion-focus.native.test.mts apps/desktop/scripts/desktop-default-cover.native.test.mts apps/desktop/scripts/desktop-design-compatibility.native.test.mts apps/desktop/scripts/desktop-harness.native.test.mts apps/desktop/scripts/desktop-install-fixture.native.test.mts apps/desktop/scripts/desktop-install.native.test.mts apps/desktop/scripts/desktop-linux-native-session.native.test.mts apps/desktop/scripts/desktop-linux-public-update.native.test.mts apps/desktop/scripts/desktop-macos-installed-update.native.test.mts apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts apps/desktop/scripts/desktop-native-observations.native.test.mts apps/desktop/scripts/desktop-public-update-state.native.test.mts apps/desktop/scripts/desktop-qualification-history.native.test.mts apps/desktop/scripts/desktop-readiness.native.test.mts apps/desktop/scripts/desktop-reload.native.test.mts apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts apps/desktop/scripts/desktop-review-controls.native.test.mts apps/desktop/scripts/desktop-scenario-state.native.test.mts apps/desktop/scripts/desktop-staged-layout.native.test.mts apps/desktop/scripts/desktop-webview-boundary.native.test.mts apps/desktop/scripts/desktop-windows-public-update.native.test.mts apps/desktop/scripts/desktop-windows-update.native.test.mts apps/desktop/scripts/desktop-workspace-refresh.native.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts apps/desktop/scripts/cli-command-shell.native.test.mts apps/desktop/scripts/desktop-appimage-update.native.test.mts apps/desktop/scripts/desktop-application-update-journey.native.test.mts apps/desktop/scripts/desktop-artwork-correction.native.test.mts apps/desktop/scripts/desktop-artwork-observations.native.test.mts apps/desktop/scripts/desktop-artwork.native.test.mts apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts apps/desktop/scripts/desktop-catalog-update.native.test.mts apps/desktop/scripts/desktop-completion-focus.native.test.mts apps/desktop/scripts/desktop-default-cover.native.test.mts apps/desktop/scripts/desktop-design-compatibility.native.test.mts apps/desktop/scripts/desktop-harness.native.test.mts apps/desktop/scripts/desktop-install-fixture.native.test.mts apps/desktop/scripts/desktop-install.native.test.mts apps/desktop/scripts/desktop-installed-library-busy.native.test.mts apps/desktop/scripts/desktop-linux-native-session.native.test.mts apps/desktop/scripts/desktop-linux-public-update.native.test.mts apps/desktop/scripts/desktop-macos-installed-update.native.test.mts apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts apps/desktop/scripts/desktop-native-observations.native.test.mts apps/desktop/scripts/desktop-public-update-state.native.test.mts apps/desktop/scripts/desktop-qualification-history.native.test.mts apps/desktop/scripts/desktop-readiness.native.test.mts apps/desktop/scripts/desktop-reload.native.test.mts apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts apps/desktop/scripts/desktop-review-controls.native.test.mts apps/desktop/scripts/desktop-scenario-state.native.test.mts apps/desktop/scripts/desktop-staged-layout.native.test.mts apps/desktop/scripts/desktop-webview-boundary.native.test.mts apps/desktop/scripts/desktop-windows-public-update.native.test.mts apps/desktop/scripts/desktop-windows-update.native.test.mts apps/desktop/scripts/desktop-workspace-refresh.native.test.mts
       - name: Test development storage on Windows
         run: |
           # node-suite: windows-storage
@@ -971,7 +971,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Use the runner-owned temporary directory
@@ -1014,7 +1014,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Cross-compile the full Intel test workspace
@@ -1054,7 +1054,7 @@ jobs:
           if (-not $version) { throw "Missing cargo-nextest version" }
           "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
       - name: Install pinned test runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
       - name: Download this attempt's Intel test binaries
@@ -1065,7 +1065,12 @@ jobs:
       - name: Use the runner-owned temporary directory
         run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Execute Intel binaries on Intel hardware
-        run: node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"
+        env:
+          LC_ALL: C
+        run: |
+          mkdir -p work/test-results
+          /usr/sbin/sysctl -n hw.logicalcpu hw.physicalcpu machdep.cpu.brand_string > work/test-results/intel-host.txt
+          /usr/bin/time -lp -o work/test-results/intel-resource-usage.txt node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"
       - name: Retain Intel discovery and original case outcomes
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1174,7 +1179,7 @@ jobs:
             ~/.cargo/bin/rscheck
           key: quality-rscheck-binaries-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt Rust quality tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Read pinned aqua version
@@ -1197,7 +1202,7 @@ jobs:
           fi
       - name: Install pinned rscheck
         if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Verify exact Rust quality-tool versions
@@ -1306,7 +1311,7 @@ jobs:
         working-directory: .
         run: echo "just=just@$(node scripts/quality-tools.mts --version just)" >> "$GITHUB_OUTPUT"
       - name: Install pinned recipe runner
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.quality-pins.outputs.just }}
       - name: Verify staged checks and hook installation

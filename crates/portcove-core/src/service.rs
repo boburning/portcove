@@ -44,6 +44,7 @@ use crate::AdapterKind;
 mod catalog_download;
 mod native_portable;
 pub(crate) mod package_selection;
+mod retained_direct_compatibility;
 mod setup_discovery;
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
@@ -3144,6 +3145,9 @@ impl PortcoveService {
         }
         if let Some(active) = &status.active {
             self.require_portable_transition(active, port)?;
+        }
+        if status.active.is_none() && status.staged.is_none() {
+            self.require_direct_fresh_data(port)?;
         }
         crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;

@@ -28,11 +28,11 @@
       "provider": "direct-manifest",
       "direct": {
         "windows-x86-64": {
-          "version": "v0.1.4",
-          "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
-          "size": 13043789,
-          "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
-          "published_at": "2026-10-18T20:43:48Z"
+          "version": "v0.1.5",
+          "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.5/MegaManX2SNESRecomp-windows-x64-v0.1.5.zip",
+          "size": 13128270,
+          "sha256": "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d",
+          "published_at": "2026-10-27T22:32:18Z"
         }
       }
     },
@@ -45,7 +45,7 @@
     "runtime_source_hashes": {
       "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
     },
-    "launch_arguments": ["game.sfc"],
+    "launch_arguments": ["--no-launcher", "game.sfc"],
     "launch_environment": {
       "SNESRECOMP_NO_LAUNCHER": "1"
     },
@@ -81,7 +81,8 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
-    }
+      "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. This fresh managed route uses the checked official Windows v0.1.5 package and starts the game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Keep config.local.ini absent and developer trace, capture, oracle and path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package."
+    },
+    "windows_runtime_path_policy": "printable-ascii-max-path"
   }
 }

@@ -119,10 +119,46 @@ function rootRun(job: Record<string, unknown>, step: Record<string, unknown>) {
     (shell === undefined || shell === "bash" || shell === "pwsh" || shell === "sh")
   );
 }
-function requireConsumer(job: Record<string, unknown>, command: string) {
+function requireConsumer(
+  job: Record<string, unknown>,
+  command: string,
+  alternatives: readonly string[] = [],
+) {
+  // Preserve shell token boundaries. Only unquoted spacing is cosmetic;
+  // quotes, escapes and operators remain literal parts of the maintained recipe.
+  const spacing = (statement: string) => {
+    let quote: string | null = null;
+    let pending = false;
+    let normalized = "";
+    for (const character of statement) {
+      if (quote) {
+        normalized += character;
+        if (character === quote) quote = null;
+      } else if (/[ \t]/u.test(character)) {
+        pending = true;
+      } else {
+        if (pending && normalized) normalized += " ";
+        pending = false;
+        normalized += character;
+        if (character === "'" || character === '"') quote = character;
+      }
+    }
+    return normalized;
+  };
+  const statements = (run: string) =>
+    run
+      .replace(/\\\n/gu, "")
+      .split("\n")
+      .map((line) => line.replace(/^[ \t]+|[ \t]+$/gu, ""))
+      .filter((line) => line && !line.startsWith("#"))
+      .map(spacing);
+  const recipes = [command, ...alternatives].map(statements);
   qualificationAssert(
     activeSteps(job).some(
-      (step) => rootRun(job, step) && typeof step.run === "string" && step.run.trim() === command,
+      (step) =>
+        rootRun(job, step) &&
+        typeof step.run === "string" &&
+        recipes.some((recipe) => isDeepStrictEqual(statements(step.run as string), recipe)),
     ),
     `consumer missing or disabled: ${command}`,
   );
@@ -276,6 +312,11 @@ function validateMatrices(
   requireConsumer(
     jobs.intel_tests ?? {},
     'node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"',
+    [
+      "mkdir -p work/test-results\n" +
+        "/usr/sbin/sysctl -n hw.logicalcpu hw.physicalcpu machdep.cpu.brand_string > work/test-results/intel-host.txt\n" +
+        '/usr/bin/time -lp -o work/test-results/intel-resource-usage.txt node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"',
+    ],
   );
   for (const partition of ["hash:1/2", "hash:2/2"])
     qualificationAssert(
