@@ -237,6 +237,7 @@ include = ["**/crates/portcove-core/src/runtime_path_policy_tests.rs"]
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = [
   "^C:\\\\Games$",
+  "^C:\\\\Games with spaces$",
   "^C:\\\\Games\\\\DKC3$",
   "^C:\\\\Games with spaces\\\\F-Zero$",
   "^\\\\\\\\\\?\\\\C:\\\\Games\\\\F-Zero$",
