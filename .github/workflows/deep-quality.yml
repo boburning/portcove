@@ -123,7 +123,7 @@ jobs:
             ~/.cargo/bin/rscheck
           key: quality-rscheck-binaries-v2-ubuntu-22.04-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/quality-tools.json') }}
       - name: Install pinned prebuilt audit tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.quality-pins.outputs.required_prebuilt }}
       - name: Check cached pinned rscheck version
@@ -137,7 +137,7 @@ jobs:
           fi
       - name: Install pinned rscheck
         if: steps.rscheck-tool.outputs.ready != 'true'
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.quality-pins.outputs.rscheck_spec }}
       - name: Read pinned aqua version
@@ -267,11 +267,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
