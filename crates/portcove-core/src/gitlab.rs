@@ -1187,10 +1187,15 @@ mod tests {
     };
 
     fn short_network_bounds() -> ProviderNetworkBounds {
+        // CI41003906042/a1 Windows1 reached the50ms cutoff before headers
+        // at58.224ms, so it never exercised the intended partial-body phase.
+        // Calibrate only this test's injected bounds; retain every body/idle
+        // assertion, the500ms elapsed ceiling and production provider defaults.
+        let (idle_ms, request_ms) = if cfg!(windows) { (200, 800) } else { (50, 180) };
         ProviderNetworkBounds {
-            connect: Duration::from_millis(50),
-            read_idle: Duration::from_millis(50),
-            request: Duration::from_millis(180),
+            connect: Duration::from_millis(idle_ms),
+            read_idle: Duration::from_millis(idle_ms),
+            request: Duration::from_millis(request_ms),
         }
     }
 

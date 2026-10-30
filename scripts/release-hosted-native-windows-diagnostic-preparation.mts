@@ -12,6 +12,7 @@ import { mkdir, writeFile, readdir, lstat } from "node:fs/promises";
 import { closeSync, openSync } from "node:fs";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import {
   bundleWindowsSourcePreparation,
   controllerBootstrapEnvironment,
@@ -47,6 +48,7 @@ import {
   requireOriginalHostedWindowsDiagnosticContext,
   readOrdinaryHostedWindowsDiagnosticDeadline,
   hostedWindowsDiagnosticOwnerMilliseconds,
+  hostedWindowsDiagnosticProviderMilliseconds,
   hostedWindowsDiagnosticPreparationRoot,
 } from "./release-hosted-native-windows-diagnostic-source.mts";
 import { acquireNativePnpm } from "./release-pnpm-runtime.mts";
@@ -66,14 +68,47 @@ const project = fileURLToPath(new URL("..", import.meta.url));
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export const diagnosticPreparationMaximumMilliseconds = 480000;
 
+/** One original provider reserve check, before queue/compiler/private effects. */
+export function requireHostedWindowsDiagnosticPreparationReserve(remaining: number) {
+  assert.ok(
+    Number.isSafeInteger(remaining) &&
+      remaining >= 0 &&
+      remaining <= hostedWindowsDiagnosticProviderMilliseconds,
+  );
+  try {
+    assert.ok(
+      remaining >=
+        diagnosticPreparationMaximumMilliseconds + hostedWindowsDiagnosticOwnerMilliseconds,
+      "Original provider cannot preserve preparation and owner reserves",
+    );
+  } catch (error) {
+    try {
+      if (error instanceof Error)
+        Object.defineProperty(error, "diagnostic_preparation_reserve", {
+          value: Object.freeze({
+            maximum_provider_milliseconds: hostedWindowsDiagnosticProviderMilliseconds,
+            preparation_milliseconds: diagnosticPreparationMaximumMilliseconds,
+            owner_milliseconds: hostedWindowsDiagnosticOwnerMilliseconds,
+            provider_finalizer_milliseconds: 60000,
+            observed_remaining_milliseconds: remaining,
+            required_remaining_milliseconds:
+              diagnosticPreparationMaximumMilliseconds + hostedWindowsDiagnosticOwnerMilliseconds,
+          }),
+        });
+    } catch {
+      /* Optional public metadata never replaces the original reserve refusal. */
+    }
+    throw error;
+  }
+}
+
 /** Original ordinary resource supervisor owns preparation and all descendants.
  * Its one deadline includes admission/compiler setup, never private-owner time. */
 export async function superviseHostedWindowsDiagnosticPreparation() {
   const context = requireOriginalHostedWindowsDiagnosticContext();
   const provider = await readOrdinaryHostedWindowsDiagnosticDeadline({ ...context, attempt: "1" });
-  assert.ok(
-    provider.provider_remaining_deadline - performance.now() >=
-      diagnosticPreparationMaximumMilliseconds + hostedWindowsDiagnosticOwnerMilliseconds,
+  requireHostedWindowsDiagnosticPreparationReserve(
+    Math.floor(provider.provider_remaining_deadline - performance.now()),
   );
   const until = performance.now() + diagnosticPreparationMaximumMilliseconds;
   const boundedSpawn: CompilerRunner = (command, args, options) => {
@@ -191,7 +226,7 @@ export async function prepareHostedWindowsDiagnosticClosure() {
     );
   };
   active();
-  assert.equal(process.version, "v24.22.1");
+  assert.equal(process.version, `v${controllerNodeVersion}`);
   assert.equal(path.basename(process.execPath), "node.exe");
   await hashNativeCapturedFile(
     path.dirname(process.execPath),

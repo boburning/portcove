@@ -21,9 +21,14 @@ import {
   driveInstalledUpdateToRestart,
   driveInstalledStableWaiting,
   driveInstalledFeedOutage,
+  driveInstalledBusyRestartRefusal,
 } from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
 import {
+  cleanupWindowsUpdateMarkedProcess,
+  installWindowsUpdateRestartHook,
+  windowsUpdateWorkerRelativePath,
+  type WindowsUpdateMarkedCleanup as MarkedCleanup,
   readWindowsUpdateProcessMarker as processMarker,
   readWindowsUpdateProcessObservation as markedObservation,
   type WindowsUpdateProcessMarker as ProcessMarker,
@@ -67,6 +72,11 @@ const updateOptions: NonNullable<ParseArgsConfig["options"]> = {
       "candidate-version",
       "feed-outage-configuration",
       "feed-outage-sha",
+      "game-data-configuration",
+      "game-data-sha",
+      "library-busy-helper",
+      "library-busy-sha",
+      "library-busy-source",
       "transport",
     ].map((name) => [name, { type: "string" }] as const),
   ),
@@ -99,6 +109,21 @@ assert.ok(
 );
 const drivers = embedded ? null : cachedDesktopDrivers();
 assert.ok(embedded || drivers, "Pinned Tauri and WebView2 drivers are unavailable");
+const busyNames = [
+  "library-busy-helper",
+  "library-busy-sha",
+  "library-busy-source",
+  "game-data-configuration",
+  "game-data-sha",
+];
+const qualifyLibraryBusy = busyNames.some((name) => Boolean(values[name]));
+if (qualifyLibraryBusy) {
+  for (const name of busyNames) requiredOption(name);
+  for (const name of ["library-busy-helper", "game-data-configuration"]) absoluteOption(name);
+  for (const name of ["library-busy-sha", "game-data-sha"])
+    assert.match(requiredOption(name), /^[a-f0-9]{64}$/u);
+  assert.match(requiredOption("library-busy-source"), /^[a-f0-9]{40}$/u);
+}
 const feedOutageConfiguration = values["feed-outage-configuration"],
   feedOutageSha = values["feed-outage-sha"];
 assert.equal(
@@ -116,10 +141,6 @@ await mkdir(output, { recursive: false });
 interface MarkedExit {
   capture: MarkedObservation;
   exit: MarkedObservation;
-}
-interface MarkedCleanup {
-  capture: MarkedObservation;
-  stop: MarkedObservation | null;
 }
 type ProcessLabel = "candidate" | "helper";
 interface WindowsUpdateReport extends InstalledUpdateFailure {
@@ -140,6 +161,12 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
     installed_executable_sha256_after: string;
   };
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
+  library_busy_descriptor?: unknown;
+  library_activity?: Record<string, unknown>;
+  library_busy_refusal?: Awaited<ReturnType<typeof driveInstalledBusyRestartRefusal>>;
+  library_busy_release?: unknown;
+  library_busy_cleanup?: unknown;
+  library_busy_processes?: { before: NativeProcessSnapshot; after: NativeProcessSnapshot };
   feed_outage?: Awaited<ReturnType<typeof driveInstalledFeedOutage>> & {
     installed_file_sha256_before: string;
     installed_file_sha256_after: string;
@@ -176,10 +203,6 @@ function object(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
   return value as Record<string, unknown>;
 }
-function positivePid(value: unknown): number {
-  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
-  return value;
-}
 const report: WindowsUpdateReport = {
   schema_version: 1,
   phase: "started",
@@ -196,6 +219,11 @@ const report: WindowsUpdateReport = {
 const evidencePath = path.join(output, "renderer-update-evidence.json");
 const snapshotPath = path.join(output, "native-processes-before-restart.json");
 const driverOnlySnapshotPath = path.join(output, "native-driver-at-failure.json");
+let libraryHolder:
+  | Awaited<
+      ReturnType<typeof import("./desktop-installed-library-busy.mts").startInstalledLibraryBusy>
+    >
+  | undefined;
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 const markedProcess = fileURLToPath(new URL("./native-marked-update-process.ps1", import.meta.url));
 const webviewProfile = path.join(output, "webview2-profile");
@@ -246,47 +274,6 @@ function markedProcessCommand(
     ),
   );
 }
-function workerRelativePath(executable: string) {
-  return path.win32
-    .relative(path.win32.toNamespacedPath(staging), path.win32.toNamespacedPath(executable))
-    .replaceAll("\\", "/");
-}
-async function cleanupMarkedProcess(
-  markerPath: string,
-  label: ProcessLabel,
-): Promise<MarkedCleanup | { status: "marker-absent" }> {
-  const rawMarker = await readJson(markerPath).catch(() => null);
-  if (!rawMarker) return { status: "marker-absent" };
-  const marker = processMarker(rawMarker);
-  const expected = label === "candidate" ? app : marker.executable;
-  if (label === "helper") {
-    const relative = workerRelativePath(expected);
-    assert.match(relative, /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu);
-  }
-  const identityPath = path.join(output, `${label}-process-identity.json`);
-  const capturedEarlier = await readJson(identityPath).catch(() => null);
-  assert.ok(restartStarted, "Restart timestamp required for marked-process capture");
-  const capture: MarkedObservation = capturedEarlier
-    ? { status: "captured", pid: positivePid(object(capturedEarlier).pid) }
-    : markedProcessCommand("Capture", [
-        "-MarkerPath",
-        markerPath,
-        "-IdentityPath",
-        identityPath,
-        "-ExpectedPath",
-        expected,
-        "-EarliestStart",
-        restartStarted,
-        ...(label === "helper" ? ["-Helper"] : []),
-      ]);
-  return {
-    capture,
-    stop:
-      capture.status === "captured"
-        ? markedProcessCommand("Stop", ["-IdentityPath", identityPath])
-        : null,
-  };
-}
 async function awaitMarkedProcessExit(
   markerPath: string,
   label: ProcessLabel,
@@ -315,6 +302,58 @@ async function awaitMarkedProcessExit(
 
 try {
   report.initial_executable_sha256 = (await hashFile(app)).sha256;
+  if (qualifyLibraryBusy) {
+    const { readWindowsInstalledGameDataConfiguration } =
+      await import("../../../scripts/windows-installed-game-data.mts");
+    const { readBoundedPublicBuildInputFile } =
+      await import("../../../scripts/release-public-build-inputs.mts");
+    const admitted = await readWindowsInstalledGameDataConfiguration(
+      absoluteOption("game-data-configuration"),
+      requiredOption("game-data-sha"),
+      process.env.PORTCOVE_LIBRARY ?? "",
+      process.env,
+    );
+    const baseline = object(
+      JSON.parse(
+        (
+          await readBoundedPublicBuildInputFile(
+            admitted.ownedRoot,
+            "game-data-baseline.json",
+            16 * 1024 * 1024,
+          )
+        ).toString(),
+      ),
+    );
+    assert.equal(baseline.configuration_sha256, requiredOption("game-data-sha"));
+    const installed = object(object(object(baseline.prepared).baseline).installed);
+    assert.ok(typeof installed.port_id === "string" && typeof installed.id === "string");
+    const { describeInstalledLibraryBusyHelper, startInstalledLibraryBusy } =
+      await import("./desktop-installed-library-busy.mts");
+    const helperPath = absoluteOption("library-busy-helper");
+    const descriptor = await describeInstalledLibraryBusyHelper({
+      fixtureRoot: admitted.ownedRoot,
+      output: path.join(output, "library-busy-descriptor"),
+      helperRoot: path.dirname(helperPath),
+      helperPath,
+      helperSha256: requiredOption("library-busy-sha"),
+      helperSource: requiredOption("library-busy-source"),
+      version: candidateVersion,
+    });
+    report.library_busy_descriptor = descriptor;
+    libraryHolder = await startInstalledLibraryBusy({
+      fixtureRoot: admitted.ownedRoot,
+      library: String(admitted.config.library),
+      output: path.join(output, "library-busy-activity"),
+      helperRoot: path.dirname(helperPath),
+      helper: descriptor.helper,
+      portId: installed.port_id,
+      installationId: installed.id,
+      writerSchema: descriptor.writerSchema,
+      lockProtocol: descriptor.lockProtocol,
+    });
+    report.library_activity = libraryHolder.evidence;
+    await save();
+  }
   if (embedded) {
     embeddedSession = await startEmbeddedInstalledSession(app, output);
     browser = await embeddedSession.connect();
@@ -380,6 +419,40 @@ try {
   });
   report.staged = staged;
   report.actions.push("renderer-downloaded-and-verified");
+  if (libraryHolder) {
+    const before = embeddedSession ? embeddedSession.capture() : nativeSessionCommand("Snapshot");
+    report.library_busy_refusal = await driveInstalledBusyRestartRefusal(
+      browser,
+      report.actions,
+      libraryHolder.assertActive,
+    );
+    assert.equal((await hashFile(app)).sha256, report.initial_executable_sha256);
+    assert.deepEqual(
+      await verifyInstalledUpdateStaging({
+        stagingRoot: staging,
+        payloadName: "candidate-installer.exe",
+        candidateSha: installerSha,
+        candidateVersion,
+        application: app,
+        initialSha: report.initial_executable_sha256,
+      }),
+      staged,
+    );
+    await assert.rejects(readJson(helperMarker), { code: "ENOENT" });
+    await assert.rejects(readJson(relaunchMarker), { code: "ENOENT" });
+    const after = embeddedSession ? embeddedSession.capture() : nativeSessionCommand("Snapshot");
+    assert.equal(after.application_pid, before.application_pid);
+    const original = before.processes.find((entry) => entry.pid === before.application_pid);
+    assert.ok(original);
+    assert.deepEqual(
+      after.processes.find((entry) => entry.pid === before.application_pid),
+      original,
+    );
+    report.library_busy_processes = { before, after };
+    report.library_busy_release = await libraryHolder.release();
+    report.actions.push("held-core-activity-cancelled-and-helper-os-exit-observed");
+    await save();
+  }
   await writeFile(path.join(output, "before-restart.png"), await browser.takeScreenshot(), {
     encoding: "base64",
   });
@@ -397,52 +470,7 @@ try {
       );
     }),
   );
-  await executeBrowserScript(browser, () => {
-    const runtime = window as Window & {
-      __TAURI_INTERNALS__?: {
-        invoke(command: string, args?: unknown, options?: unknown): Promise<unknown>;
-      };
-      __portcoveRestartResult?: unknown;
-    };
-    const internals = runtime.__TAURI_INTERNALS__;
-    if (!internals) throw new Error("Native bridge unavailable");
-    const original = internals.invoke.bind(internals);
-    runtime.__portcoveRestartResult = null;
-    internals.invoke = (command, args, options) => {
-      const result = original(command, args, options);
-      if (command === "restart_to_apply_application_update") {
-        void result.then(
-          () => {
-            runtime.__portcoveRestartResult = { ok: true };
-          },
-          (error: unknown) => {
-            runtime.__portcoveRestartResult = {
-              ok: false,
-              code:
-                error !== null &&
-                (typeof error === "object" || typeof error === "function") &&
-                "code" in error
-                  ? error.code
-                  : undefined,
-              message:
-                error !== null &&
-                (typeof error === "object" || typeof error === "function") &&
-                "message" in error
-                  ? error.message
-                  : undefined,
-              details:
-                error !== null &&
-                (typeof error === "object" || typeof error === "function") &&
-                "details" in error
-                  ? error.details
-                  : undefined,
-            };
-          },
-        );
-      }
-      return result;
-    };
-  });
+  await installWindowsUpdateRestartHook(browser);
   await save();
   try {
     report.restart_action_attempted = true;
@@ -457,7 +485,7 @@ try {
   );
   assert.equal(helper.schema_version, 1);
   assert.ok(Number.isInteger(helper.process_id) && helper.process_id > 0);
-  const workerRelative = workerRelativePath(helper.executable);
+  const workerRelative = windowsUpdateWorkerRelativePath(staging, helper.executable);
   assert.match(
     workerRelative,
     /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu,
@@ -558,6 +586,16 @@ try {
   await recordInstalledUpdateFailure(report, error, helperMarker);
   process.exitCode = 1;
 } finally {
+  if (libraryHolder) {
+    try {
+      report.library_busy_cleanup = await libraryHolder.settleOwned();
+    } catch (error) {
+      report.phase = "failed";
+      report.failure = `${report.failure ?? "Qualification failed"}; Core holder settlement: ${errorMessage(error)}`;
+      process.exitCode = 1;
+    }
+    await save();
+  }
   if (helperExitObserver) {
     // Settle this read-only child before existing cleanup can stop the helper;
     // forced cleanup must never become a claimed natural OS exit observation.
@@ -595,7 +633,16 @@ try {
         continue;
       }
       try {
-        const cleanup = await cleanupMarkedProcess(markerPath, label);
+        const cleanup = await cleanupWindowsUpdateMarkedProcess({
+          markerPath,
+          label,
+          staging,
+          app,
+          output,
+          restartStarted,
+          readJson,
+          command: markedProcessCommand,
+        });
         report.updater_process_cleanup[label] = cleanup;
         if (
           report.phase === "complete" &&

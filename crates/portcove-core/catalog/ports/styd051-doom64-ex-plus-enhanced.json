@@ -6,7 +6,6 @@
     "summary": "Use a permitted DOOM 64 EX+ Enhanced copy with your PC remaster files and preserved user profile.",
     "project_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced",
     "issue_number": 1812,
-    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme",
     "artwork": {
@@ -30,12 +29,51 @@
         {
           "title": "Preserve both current and older profiles",
           "instruction": "Choose that player and its folder, then Play explicitly. Current Windows saves, config.cfg and screenshots normally use AppData/Roaming/doom64ex-plus. Older copies may keep them beside the executable, and the game can move those files on startup. Back up both locations before changing versions. Upstream updates and any shared profile remain outside Portcove management."
+        },
+        {
+          "title": "Register your prepared player",
+          "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual DOOM64EX+ENHANCED.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
+        },
+        {
+          "title": "Keep your runtime and data recoverable",
+          "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
         }
       ],
       "warnings": [
         "Use your permitted upstream copy under its applicable conditions. Keep both the older working folder and current user profile backed up before first Play."
       ],
       "help_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme"
+    },
+    "original_game_title": "Doom 64"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "Styd051/DOOM64-EX-Plus-Enhanced",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use an existing permitted Windows installation with DOOM64EX+ENHANCED.exe and its accompanying Enhanced WAD and libraries. Keep your current working copy recoverable. The engine searches supported GOG and Steam DOOM 64 remaster installations. It requires DOOM64.WAD, Doom64.kpf and normally DOOMSND.DLS; legacy ROM-derived WADs do not substitute. Missing files cause an error rather than an original-file picker. Choose that player and its folder, then Play explicitly. Current Windows saves, config.cfg and screenshots normally use AppData/Roaming/doom64ex-plus. Older copies may keep them beside the executable, and the game can move those files on startup. Back up both locations before changing versions. Upstream updates and any shared profile remain outside Portcove management. Complete the upstream setup in your permitted working copy first. Select the actual DOOM64EX+ENHANCED.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready. You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route. Use your permitted upstream copy under its applicable conditions. Keep both the older working folder and current user profile backed up before first Play."
     }
   }
 }

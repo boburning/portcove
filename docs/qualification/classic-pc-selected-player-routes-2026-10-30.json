@@ -1,0 +1,343 @@
+{
+  "format_version": 1,
+  "kind": "four-classic-pc-selected-player-consumer-source-fit",
+  "owners": [2510, 2926],
+  "historical_1422_members": 0,
+  "baseline_commit": "018ab7c45667cbc946e128767f56414feb47e579",
+  "scope": {
+    "existing_frozen_ids": 4,
+    "listing_additions": 0,
+    "source_identity_additions": 0,
+    "baseline_definitions": 263,
+    "candidate_definitions": 267,
+    "actual_game_native_observations": 0,
+    "installed_or_protected_acceptance": "not_evaluated",
+    "supported_promotions": 0
+  },
+  "contract": "existing staged-source-portable/user-prepared/user-selected; Stable manual registration channel selects no fixed or stable upstream package; version user-managed",
+  "validation": "Four new actual embedded-ID cases reuse the unchanged existing consent/stale intent/single-owner/strict-definition/restart/supervised Play/preserving-removal helper. Probe programs are inert, not games. Current review/CI/guarded merge/canonical readback required before credit.",
+  "legal": "Root engine licenses and publisher ownership do not license original game data or every bundled component. No original game data is acquired or supplied; software ZIP inspection is read-only.",
+  "remaining": "Whole canonical generic criteria may complete after qualified definition/operation delivery and per-ID Project/issue reconciliation. Stronger management and game/native/protected observations remain unoffered or explicitly unknown, not invented closure gates.",
+  "rows": [
+    {
+      "id": "lethal-guitar-rigelengine",
+      "canonical_issue": 1877,
+      "frozen_cohort": "original-524",
+      "historical_1422_member": false,
+      "repository": "lethal-guitar/RigelEngine",
+      "repository_id": 69728109,
+      "tag": "v0.9.1",
+      "title_commit": "84ae53f039fc3d08971433b3287cd1910b78fb6b",
+      "source_documents": [
+        {
+          "path": "LICENSE.md",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "0daa0415013a5a1d51c593534bdc95d88a849b06",
+          "size": 17941,
+          "url": "https://api.github.com/repos/lethal-guitar/RigelEngine/git/blobs/0daa0415013a5a1d51c593534bdc95d88a849b06"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "d6a2d9ea61e250b5de600ea70d99ca2e408bd772",
+          "size": 7324,
+          "url": "https://api.github.com/repos/lethal-guitar/RigelEngine/git/blobs/d6a2d9ea61e250b5de600ea70d99ca2e408bd772"
+        }
+      ],
+      "entry_and_profile_git_blobs": [
+        {
+          "path": "src/main.cpp",
+          "git_sha1": "d3f97065003c005b6d07f76746b4a242ed7f95cc"
+        },
+        {
+          "path": "src/game_main.cpp",
+          "git_sha1": "57e0d10cc4167af061b823d961c8d4a7c48f8a63"
+        }
+      ],
+      "asset_id": 87717569,
+      "asset_bytes": 2361055,
+      "observed_zip_sha256": "f3269c5665b22674e577680f9b60c6c90623b0890f9b3a728fb1605892ca3a02",
+      "publisher_digest": null,
+      "zip_entries": 11,
+      "expanded_bytes": 5644800,
+      "executables": [
+        {
+          "path": "RigelEngine.exe",
+          "bytes": 2382848,
+          "machine": "0x8664"
+        }
+      ],
+      "selected_executable": "RigelEngine.exe",
+      "working_directory": "actual selected executable parent",
+      "arguments": "normally empty upstream startup; optional user-chosen literal arguments with consent",
+      "profiles_and_originals": "SDL lethal-guitar / Rigel Engine profile; imported original settings/high scores/saves, Options.json and ModLibrary.json; preserve mods and original NUKEM2.CMP/movies.",
+      "upstream_platforms_before": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+      "operational_platforms": ["windows-x86-64"],
+      "platform_fact_preservation": "Upstream Linux/macOS alternatives retained explicitly where previously listed; other Core operation qualification remains unknown. No private Mac app-bundle binary offer.",
+      "before_record_sha256": "1a2e4f77d6823720b179b30125b07823b747700b31a21ef130e5542f7a50aedc",
+      "record_sha256": "08159bc4d8585c306252b47bba7bf83a67c96c71924a7b5646371c40b6dcaa74",
+      "actual_game_execution": "not_run",
+      "maintenance": "user-managed-update; runtime/originals/profiles external-user-owned",
+      "operations": [
+        "explicit registration/relink with consent",
+        "separate supervised Play",
+        "retained restart intent",
+        "registration-only preserving removal"
+      ],
+      "unoffered": [
+        "managed acquisition",
+        "managed update",
+        "managed backup/rollback",
+        "migration",
+        "external deletion",
+        "Core original authentication"
+      ]
+    },
+    {
+      "id": "keriew-augustus",
+      "canonical_issue": 1793,
+      "frozen_cohort": "original-524",
+      "historical_1422_member": false,
+      "repository": "Keriew/augustus",
+      "repository_id": 234331549,
+      "tag": "v4.0.0",
+      "title_commit": "3edf0f889c977a63117c555d4ef3d0891d797664",
+      "source_documents": [
+        {
+          "path": "LICENSE.txt",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "be3f7b28e564e7dd05eaf59d64adba1a4065ac0e",
+          "size": 34523,
+          "url": "https://api.github.com/repos/Keriew/augustus/git/blobs/be3f7b28e564e7dd05eaf59d64adba1a4065ac0e"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "2f0e8b518f03c4370ba88b5c3e5364a10fa7bdf6",
+          "size": 5326,
+          "url": "https://api.github.com/repos/Keriew/augustus/git/blobs/2f0e8b518f03c4370ba88b5c3e5364a10fa7bdf6"
+        }
+      ],
+      "entry_and_profile_git_blobs": [
+        {
+          "path": "src/platform/augustus.c",
+          "git_sha1": "bb1b7adf2267f9236c9e5f3a87b873315516128b"
+        },
+        {
+          "path": "src/platform/prefs.c",
+          "git_sha1": "2416cd86b09560ce520df904f2b4914eaf66b97d"
+        }
+      ],
+      "asset_id": 142765702,
+      "asset_bytes": 25743052,
+      "observed_zip_sha256": "2388a6577d777539e645b0cd9c40b40f23b7dbcdc6a2113e26bfbd015050b79f",
+      "publisher_digest": null,
+      "zip_entries": 46,
+      "expanded_bytes": 34399445,
+      "executables": [
+        {
+          "path": "augustus.exe",
+          "bytes": 3374188,
+          "machine": "0x14c"
+        }
+      ],
+      "selected_executable": "augustus.exe",
+      "working_directory": "actual selected executable parent",
+      "arguments": "normally empty upstream startup; optional user-chosen literal arguments with consent",
+      "profiles_and_originals": "Writable Caesar III 1.0.1.0 data folder stores saves; SDL augustus / augustus profile remembers it. Caesar III/Julius saves can be read; Augustus saves do not work in those readers.",
+      "upstream_platforms_before": ["windows-x86-64", "linux-x86-64"],
+      "operational_platforms": ["windows-x86-64"],
+      "platform_fact_preservation": "Upstream Linux/macOS alternatives retained explicitly where previously listed; other Core operation qualification remains unknown. No private Mac app-bundle binary offer.",
+      "before_record_sha256": "7faef0030fb818e489bcf2b780215dc8319d13c68f3a3bd165966f5ff6b1ef7d",
+      "record_sha256": "ad8b2deadd105ad29c49b9768273368286ea5dfd45a4b55d3fb8320d95aa1451",
+      "actual_game_execution": "not_run",
+      "maintenance": "user-managed-update; runtime/originals/profiles external-user-owned",
+      "operations": [
+        "explicit registration/relink with consent",
+        "separate supervised Play",
+        "retained restart intent",
+        "registration-only preserving removal"
+      ],
+      "unoffered": [
+        "managed acquisition",
+        "managed update",
+        "managed backup/rollback",
+        "migration",
+        "external deletion",
+        "Core original authentication"
+      ]
+    },
+    {
+      "id": "elasota-aerofoil",
+      "canonical_issue": 1790,
+      "frozen_cohort": "original-524",
+      "historical_1422_member": false,
+      "repository": "elasota/Aerofoil",
+      "repository_id": 213221472,
+      "tag": "1.1.7",
+      "title_commit": "fee191e5f7845f042601a4955bdc46d0cfe4ee78",
+      "source_documents": [
+        {
+          "path": "LICENSE.txt",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "size": 18092,
+          "url": "https://api.github.com/repos/elasota/Aerofoil/git/blobs/d159169d1050894d3ea3b98e1c965c4058208fe1"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "c13d85931e82b538a2c5eab31ce6ce05f403687a",
+          "size": 865,
+          "url": "https://api.github.com/repos/elasota/Aerofoil/git/blobs/c13d85931e82b538a2c5eab31ce6ce05f403687a"
+        },
+        {
+          "path": "README.txt",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "061d6e46c4e43fece440cb1b13d195ccc2906461",
+          "size": 3627,
+          "url": "https://api.github.com/repos/elasota/Aerofoil/git/blobs/061d6e46c4e43fece440cb1b13d195ccc2906461"
+        }
+      ],
+      "entry_and_profile_git_blobs": [
+        {
+          "path": "Aerofoil/GpMain_Win32.cpp",
+          "git_sha1": "207d11106046ea948ac240aaf180ac9d53b00e97"
+        },
+        {
+          "path": "GpApp/Main.cpp",
+          "git_sha1": "4753d2372e056def9c31ee481567f1c41d2ad3f2"
+        },
+        {
+          "path": "GpShell/GpMain.cpp",
+          "git_sha1": "d20723713adebaae659df45b93fc5c0d699c4191"
+        },
+        {
+          "path": "Aerofoil/GpFileSystem_Win32.cpp",
+          "git_sha1": "f9a294d09de308511bb33a3d617121e1e48f009c"
+        }
+      ],
+      "asset_id": 677500685,
+      "asset_bytes": 9508687,
+      "observed_zip_sha256": "53aef334a071118aeca8d824db134fd283d90cba62dbafa1a78e72f5a4f076ef",
+      "publisher_digest": "sha256:53aef334a071118aeca8d824db134fd283d90cba62dbafa1a78e72f5a4f076ef",
+      "zip_entries": 56,
+      "expanded_bytes": 11215816,
+      "executables": [
+        {
+          "path": "Aerofoil/Aerofoil.exe",
+          "bytes": 40448,
+          "machine": "0x8664"
+        }
+      ],
+      "selected_executable": "Aerofoil.exe",
+      "working_directory": "actual selected executable parent",
+      "arguments": "normally empty upstream startup; optional user-chosen literal arguments with consent",
+      "profiles_and_originals": "Redirectable Windows Documents known folder / Aerofoil: Houses, SavedGames, Scores, Logs, Export and preferences. Complete packaged runtime/editor/houses stay together; optional import tools are separate.",
+      "upstream_platforms_before": ["windows-x86-64"],
+      "operational_platforms": ["windows-x86-64"],
+      "platform_fact_preservation": "Upstream Linux/macOS alternatives retained explicitly where previously listed; other Core operation qualification remains unknown. No private Mac app-bundle binary offer.",
+      "before_record_sha256": "209f2fcb1f89d9663a1e869ec8535536cec14ddbada69e841774cea2a4523c7b",
+      "record_sha256": "f2e1ebbb2f47260c42f0a5d2bb58f06e043fe47ef83598701d579cccc84a5341",
+      "actual_game_execution": "not_run",
+      "maintenance": "user-managed-update; runtime/originals/profiles external-user-owned",
+      "operations": [
+        "explicit registration/relink with consent",
+        "separate supervised Play",
+        "retained restart intent",
+        "registration-only preserving removal"
+      ],
+      "unoffered": [
+        "managed acquisition",
+        "managed update",
+        "managed backup/rollback",
+        "migration",
+        "external deletion",
+        "Core original authentication"
+      ]
+    },
+    {
+      "id": "m-x-d-heretic2r",
+      "canonical_issue": 1826,
+      "frozen_cohort": "original-524",
+      "historical_1422_member": false,
+      "repository": "m-x-d/Heretic2R",
+      "repository_id": 815210911,
+      "tag": "R6",
+      "title_commit": "2b59338ff3d8150e7231da771c0f1fb323c78bbb",
+      "source_documents": [
+        {
+          "path": "LICENSE",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "size": 35149,
+          "url": "https://api.github.com/repos/m-x-d/Heretic2R/git/blobs/f288702d2fa16d3cdf0035b15a9fcbc552cd88e7"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "82fbebe6764f6eb21f5afc842ff6a669de3d9402",
+          "size": 3163,
+          "url": "https://api.github.com/repos/m-x-d/Heretic2R/git/blobs/82fbebe6764f6eb21f5afc842ff6a669de3d9402"
+        }
+      ],
+      "entry_and_profile_git_blobs": [
+        {
+          "path": "src/launcher/src/main.c",
+          "git_sha1": "944c368810b6429cb65f77a3a3aea42371d09b98"
+        },
+        {
+          "path": "src/quake2/src/win32/sys_win.c",
+          "git_sha1": "e651b82b9169cf26b52c93d6f161865bf8747637"
+        }
+      ],
+      "asset_id": 499901240,
+      "asset_bytes": 3337407,
+      "observed_zip_sha256": "8b7d76c323f0829ebb71b83f3599453069b71c18f85b3fe3d51f809b2d266a06",
+      "publisher_digest": "sha256:8b7d76c323f0829ebb71b83f3599453069b71c18f85b3fe3d51f809b2d266a06",
+      "zip_entries": 12,
+      "expanded_bytes": 10042771,
+      "executables": [
+        {
+          "path": "Heretic2R.exe",
+          "bytes": 576512,
+          "machine": "0x14c"
+        }
+      ],
+      "selected_executable": "Heretic2R.exe",
+      "working_directory": "actual selected executable parent",
+      "arguments": "normally empty upstream startup; optional user-chosen literal arguments with consent",
+      "profiles_and_originals": "Separate prepared Heretic II 1.06 base copy excluding original DLLs, retaining packaged base DLLs/defaults. Windows Saved Games / Heretic2R stores saves/settings/screenshots/logs; original saves/modules incompatible. Own optional CD music stays separate.",
+      "upstream_platforms_before": ["windows-x86-64"],
+      "operational_platforms": ["windows-x86-64"],
+      "platform_fact_preservation": "Upstream Linux/macOS alternatives retained explicitly where previously listed; other Core operation qualification remains unknown. No private Mac app-bundle binary offer.",
+      "before_record_sha256": "22df4eca9b53572b31c09bd8221c86bda560c71442f52d99b1e0c6e9d43f5088",
+      "record_sha256": "f57a60db75d7b965bef11484f54f5b0d6c6e484388c2b49aa08d48df4eebcc8f",
+      "actual_game_execution": "not_run",
+      "maintenance": "user-managed-update; runtime/originals/profiles external-user-owned",
+      "operations": [
+        "explicit registration/relink with consent",
+        "separate supervised Play",
+        "retained restart intent",
+        "registration-only preserving removal"
+      ],
+      "unoffered": [
+        "managed acquisition",
+        "managed update",
+        "managed backup/rollback",
+        "migration",
+        "external deletion",
+        "Core original authentication"
+      ]
+    }
+  ]
+}

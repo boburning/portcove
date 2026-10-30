@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { parse, stringify } from "yaml";
@@ -261,6 +262,17 @@ void test("complete source amendment projects application165/catalog40 without a
     if (Object.hasOwn(amendedTimeouts, key)) {
       assert.ok(isRecord(job));
       assert.deepEqual(proposed.jobs[key], { ...job, "timeout-minutes": amendedTimeouts[key] });
+    } else if (key === "release_publication") {
+      assert.ok(isRecord(job) && Array.isArray(job.needs) && typeof job.if === "string");
+      const needed: unknown[] = job.needs;
+      assert.deepEqual(proposed.jobs[key], {
+        ...job,
+        needs: [...needed, "native_windows"],
+        if: job.if.replace(
+          "needs.native_linux.result == 'success'",
+          "(needs.native_linux.result == 'success' && needs.native_windows.result == 'success')",
+        ),
+      });
     } else
       assert.deepEqual(
         proposed.jobs[key],
@@ -385,5 +397,97 @@ void test("measured proposal preserves exact component scopes and the older maxi
   assert.equal(latest.aggregate_component_seconds, 258 + 531);
   assert.ok(
     receipt.jobs.every((row: unknown) => isRecord(row) && row.observed_protected_seconds === null),
+  );
+});
+
+void test("prepared publication waits for both native proofs without changing legacy or reused routes", async () => {
+  const { prepareReleaseResourceAmendmentProposal: prepare } =
+    await import("./release-resource-amendment-proposal.mts");
+  const bytes = await Promise.all(
+    ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
+      (name) => readFile(new URL("../.github/workflows/" + name, import.meta.url)),
+    ),
+  );
+  const proposed: unknown = parse(
+    prepare(bytes[0]!, bytes[1]!, bytes[2]!).proposedWorkflow.toString(),
+  );
+  assert.ok(
+    isRecord(proposed) && isRecord(proposed.jobs) && isRecord(proposed.jobs.release_publication),
+  );
+  const publication = proposed.jobs.release_publication;
+  assert.ok(Array.isArray(publication.needs) && typeof publication.if === "string");
+  const dependencies: unknown[] = publication.needs,
+    condition = publication.if;
+  assert.equal(dependencies.filter((name) => name === "native_linux").length, 1);
+  assert.equal(dependencies.filter((name) => name === "native_windows").length, 1);
+  const eligible = (
+    linux: string,
+    windows: string,
+    transport = "fixed-job",
+    purpose = "application",
+    mode = "release",
+    signingReused = false,
+    published = false,
+    attested = true,
+    signed = true,
+  ) => {
+    const result: unknown = runInNewContext(condition.slice(3, -2), {
+      always: () => true,
+      needs: {
+        admission: {
+          outputs: { publication_purpose: purpose, classification_transport: transport },
+        },
+        coordinator: {
+          outputs: {
+            mode,
+            signing_custody: signingReused ? "reused" : "",
+            publication_custody: published ? "reused" : "",
+          },
+        },
+        attest: { result: attested ? "success" : "failure" },
+        tuf_timestamp: { result: signed ? "success" : "failure" },
+        native_linux: { result: linux },
+        native_windows: { result: windows },
+      },
+    });
+    assert.ok(typeof result === "boolean");
+    return result;
+  };
+  for (const linux of ["pending", "in_progress", "failure", "cancelled", "skipped", "success"])
+    for (const windows of ["pending", "in_progress", "failure", "cancelled", "skipped", "success"])
+      assert.equal(
+        eligible(linux, windows),
+        linux === "success" && windows === "success",
+        `${linux}/${windows}`,
+      );
+  assert.equal(eligible("success", "success", "unknown"), false);
+  assert.equal(eligible("success", "success", "fixed-job", "catalog-publication"), false);
+  assert.equal(eligible("success", "success", "fixed-job", "application", "metadata"), false);
+  assert.equal(
+    eligible("success", "success", "fixed-job", "application", "release", false, true),
+    false,
+  );
+  assert.equal(
+    eligible("success", "success", "fixed-job", "application", "release", false, false, false),
+    false,
+  );
+  assert.equal(
+    eligible(
+      "success",
+      "success",
+      "fixed-job",
+      "application",
+      "release",
+      false,
+      false,
+      true,
+      false,
+    ),
+    false,
+  );
+  assert.equal(eligible("skipped", "skipped", "legacy-app"), true);
+  assert.equal(
+    eligible("skipped", "skipped", "fixed-job", "application", "release", true, false, true, false),
+    true,
   );
 });

@@ -3061,6 +3061,92 @@ mod tests {
     }
 
     #[test]
+    fn single_member_file_set_admits_and_reloads_directory_and_zip_records() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("originals");
+        fs::create_dir(&root).unwrap();
+        let bytes = b"synthetic one-member original";
+        fs::write(root.join("diabdat.mpq"), bytes).unwrap();
+        let profile_id = "diablo-devilutionx-retail-originals";
+        let catalog = catalog_with_identity(profile_id, |profile| {
+            let SourceRepresentationKind::FileSet { members } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                panic!("Diablo fixture must be a file set")
+            };
+            assert_eq!(members.len(), 1);
+            members[0].identities = vec![DigestIdentity {
+                scope: DigestScope::FileSetMember,
+                sha1: Some(hex::encode(Sha1::digest(bytes))),
+                sha256: Some(hex::encode(Sha256::digest(bytes))),
+                crc32: None,
+            }];
+        });
+        let archive_path = temporary.path().join("originals.zip");
+        let mut archive = zip::ZipWriter::new(fs::File::create(&archive_path).unwrap());
+        archive
+            .start_file("diabdat.mpq", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        archive.write_all(bytes).unwrap();
+        archive.finish().unwrap();
+        let library_root = temporary.path().join("library");
+        let mut aggregate = None;
+        for path in [&root, &archive_path] {
+            let inspection = inspect_file_set(&catalog, profile_id, path).unwrap();
+            assert!(matches!(
+                inspection.assessment.admission,
+                SourceAdmission::Admitted {
+                    mode: SourceAdmissionMode::ExactIdentity
+                }
+            ));
+            let record = inspection.require_admitted_record().unwrap();
+            assert_eq!(record.sha256.len(), 64);
+            assert!(record.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()));
+            if let Some(expected) = &aggregate {
+                assert_eq!(&record.sha256, expected);
+                assert_ne!(record.storage_sha256, record.sha256);
+                assert_eq!(
+                    record.storage_sha256,
+                    hex::encode(Sha256::digest(fs::read(&archive_path).unwrap()))
+                );
+            } else {
+                aggregate = Some(record.sha256.clone());
+                assert_eq!(record.storage_sha256, record.sha256);
+            }
+            Library::open(&library_root)
+                .unwrap()
+                .register_source(&record)
+                .unwrap();
+            let stored = Library::open(&library_root)
+                .unwrap()
+                .source(profile_id)
+                .unwrap()
+                .unwrap();
+            assert_eq!(stored.sha256, record.sha256);
+            assert_eq!(stored.storage_sha256, record.storage_sha256);
+            assert_eq!(stored.observed_identity, record.observed_identity);
+            stored
+                .observed_identity
+                .as_ref()
+                .unwrap()
+                .validate_for_record(&stored)
+                .unwrap();
+        }
+        assert_eq!(fs::read(root.join("diabdat.mpq")).unwrap(), bytes);
+    }
+
+    #[test]
+    fn aggregate_digest_preserves_raw_singletons_and_folds_named_members() {
+        let raw = hex::encode(Sha256::digest(b"original"));
+        assert_eq!(aggregate_sha256(std::slice::from_ref(&raw)), raw);
+        let named = format!("original:{raw}");
+        let mut expected = Sha256::new();
+        expected.update(named.as_bytes());
+        expected.update([0]);
+        assert_eq!(aggregate_sha256(&[named]), hex::encode(expected.finalize()));
+    }
+
+    #[test]
     fn file_set_members_are_observed_once_and_impossible_cross_pairs_are_rejected() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("source-set");

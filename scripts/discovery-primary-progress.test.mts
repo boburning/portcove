@@ -10,7 +10,7 @@ import type { SourceContext, CollectedSource } from "./daily-discovery-sources.m
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { emptyCheckpoint, advanceDiscovery } from "./discovery-checkpoint.mts";
 const epoch = Date.parse("2026-10-27T00:00:00Z");
-function primaryFixture() {
+function primaryFixture(numericLinks = false) {
   let allowance = 7;
   let clock = epoch;
   let changed = false;
@@ -45,14 +45,14 @@ function primaryFixture() {
         },
       ];
       if (page < 24)
-        link = `<https://api.github.com/repos/owner/game/releases?per_page=10&page=${page + 1}>; rel="next"`;
+        link = `<https://api.github.com/${numericLinks ? "repositories/41" : "repos/owner/game"}/releases?per_page=10&page=${page + 1}>; rel="next"`;
     } else if (/\/assets\?/u.test(endpoint)) {
       const page = Number(
         new URL(endpoint, "https://api.github.com").searchParams.get("page") ?? 1,
       );
       body = [{ id: corrupt ? 1 : page, size: 17, name: `file-${page}.zip` }];
       if (page < 4)
-        link = `<https://api.github.com/repos/owner/game/releases/24/assets?per_page=100&page=${page + 1}>; rel="next"`;
+        link = `<https://api.github.com/${numericLinks ? "repositories/41" : "repos/owner/game"}/releases/24/assets?per_page=100&page=${page + 1}>; rel="next"`;
     } else if (endpoint.includes("/git/ref/tags/"))
       body = { object: { type: "commit", sha: "a".repeat(40) } };
     else if (endpoint.includes("/readme?"))
@@ -106,36 +106,39 @@ function primaryFixture() {
   };
 }
 
-void test("primary investigations and complete validation advance through bounded pages without replaying completed collection", () => {
-  const h = primaryFixture();
-  let result: ReturnType<typeof investigateDiscoveryUpstream> | undefined;
-  let batches = 0;
-  while (!result && batches < 30) {
-    h.setAllowance(7);
-    h.tick();
-    batches += 1;
-    try {
-      result = investigateDiscoveryUpstream(h.context, "owner/game");
-    } catch (error) {
-      assert.ok(error instanceof GitHubApiError && error.code === "budget_exhausted");
-    }
-  }
-  assert.ok(result);
-  assert.ok(batches > 6);
-  assert.equal(result.releases.length, 24);
-  assert.equal(result.selected[0]!.assets instanceof Array, true);
-  assert.equal((result.selected[0]!.assets as unknown[]).length, 4);
-  assert.equal(result.manifest_evidence.status, "unavailable-or-invalid");
-  assert.ok(result.observed_at);
-  const reads = h.calls.filter((call) => call.endpoint !== "repos/owner/game");
-  for (const endpoint of new Set(reads.map((call) => call.endpoint))) {
-    const operations = reads.filter((call) => call.endpoint === endpoint);
-    assert.equal(
-      operations.filter((call) => !call.conditional).length,
-      endpoint.includes(".recomp.json") ? 2 : 1,
-    );
-  }
-  assert.ok(h.writes() > 30);
+void test("primary investigations and complete validation advance through bounded pages without replaying completed collection", async (t) => {
+  for (const numericLinks of [false, true])
+    await t.test(numericLinks ? "numeric repository aliases" : "named repository links", () => {
+      const h = primaryFixture(numericLinks);
+      let result: ReturnType<typeof investigateDiscoveryUpstream> | undefined;
+      let batches = 0;
+      while (!result && batches < 30) {
+        h.setAllowance(7);
+        h.tick();
+        batches += 1;
+        try {
+          result = investigateDiscoveryUpstream(h.context, "owner/game");
+        } catch (error) {
+          assert.ok(error instanceof GitHubApiError && error.code === "budget_exhausted");
+        }
+      }
+      assert.ok(result);
+      assert.ok(batches > 6);
+      assert.equal(result.releases.length, 24);
+      assert.equal(result.selected[0]!.assets instanceof Array, true);
+      assert.equal((result.selected[0]!.assets as unknown[]).length, 4);
+      assert.equal(result.manifest_evidence.status, "unavailable-or-invalid");
+      assert.ok(result.observed_at);
+      const reads = h.calls.filter((call) => call.endpoint !== "repos/owner/game");
+      for (const endpoint of new Set(reads.map((call) => call.endpoint))) {
+        const operations = reads.filter((call) => call.endpoint === endpoint);
+        assert.equal(
+          operations.filter((call) => !call.conditional).length,
+          endpoint.includes(".recomp.json") ? 2 : 1,
+        );
+      }
+      assert.ok(h.writes() > 30);
+    });
 });
 
 void test("changed or corrupt primary facts, repository identities and duplicate pages cannot complete resumed research", () => {
@@ -194,6 +197,61 @@ void test("pagination refuses foreign scopes, skipped pages and ambiguous comple
       () => discoveryNextPage({ headers: new Map([["link", value]]), body: [] }, first, first),
       /pagination/,
     );
+});
+
+void test("numeric pagination aliases require the exact metadata ID and release collection", () => {
+  const release = "repos/YeOldPress/alttp-dx/releases?per_page=10";
+  const assets = "repos/YeOldPress/alttp-dx/releases/24/assets?per_page=100";
+  const response = (url: string) => ({
+    headers: new Map([["link", `<${url}>; rel="next"`]]),
+    body: [],
+  });
+  const valid = "https://api.github.com/repositories/1377070929/releases?per_page=10&page=2";
+  assert.equal(
+    discoveryNextPage(response(valid), release, release, 1377070929),
+    `${release}&page=2`,
+  );
+  assert.equal(
+    discoveryNextPage(
+      response(valid.replace("releases?per_page=10", "releases/24/assets?per_page=100")),
+      assets,
+      assets,
+      1377070929,
+    ),
+    `${assets}&page=2`,
+  );
+  for (const id of [undefined, 0, -1, NaN, 1.5, Number.MAX_SAFE_INTEGER + 1, 1377070930])
+    assert.throws(() => discoveryNextPage(response(valid), release, release, id), /pagination/u);
+  for (const url of [
+    valid.replace("api.github.com", "evil.example"),
+    valid.replace("https:", "http:"),
+    valid.replace("repositories/", "repos/"),
+    valid.replace("1377070929", "01377070929"),
+    valid.replace("releases?", "issues?"),
+    valid.replace("releases?", "releases/24/assets?"),
+    valid.replace("page=2", "page=3"),
+    valid.replace("page=2", "page=02"),
+    valid.replace("per_page=10", "per_page=100"),
+    `${valid}&page=2`,
+    `${valid}&per_page=10`,
+    `${valid}&state=all`,
+    `${valid}#fragment`,
+    valid.replace("api.github.com", "foreign@api.github.com"),
+  ])
+    assert.throws(
+      () => discoveryNextPage(response(url), release, release, 1377070929),
+      /pagination/u,
+    );
+  assert.throws(
+    () =>
+      discoveryNextPage(
+        response(valid.replace("releases?per_page=10", "releases/25/assets?per_page=100")),
+        assets,
+        assets,
+        1377070929,
+      ),
+    /pagination/u,
+  );
 });
 
 void test("manifest work drains fairly past eight files, persists each exact blob, and resumes after interruption and provider failure", () => {

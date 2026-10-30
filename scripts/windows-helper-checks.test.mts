@@ -24,6 +24,12 @@ void test("every registered Windows helper test selects its maintained helper ro
   for (const file of files) {
     assert.equal(windowsHelperChecksRequired(plan(file)), true, file);
     assert.equal(windowsHelperChecksRequired(plan(file, file, "D")), true, file);
+    for (const selected of [
+      plan(file, file, "A"),
+      plan(file, "docs/moved-helper.md", "R100"),
+      plan("docs/moved-helper.md", file, "R100"),
+    ])
+      assert.ok(selected.mode === "qualification" || windowsHelperChecksRequired(selected), file);
   }
 });
 
@@ -59,6 +65,59 @@ void test(
       }
     }
     const installer = path.join(root, "scripts/test-windows-installer.ps1");
+    const metadataScript = `
+$ErrorActionPreference = 'Stop'
+$command = Get-Command '${installer.replaceAll("'", "''")}'
+$sets = @($command.Parameters['RendererTransport'].Attributes | Where-Object { $_ -is [Management.Automation.ValidateSetAttribute] })
+if ($sets.Count -ne 1) { throw 'RendererTransport must expose exactly one closed validation set' }
+ConvertTo-Json -InputObject @($sets[0].ValidValues) -Compress
+`;
+    const metadata = spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(metadataScript, "utf16le").toString("base64"),
+      ],
+      { cwd: root, encoding: "utf8", windowsHide: true, timeout: 10000 },
+    );
+    assert.ifError(metadata.error);
+    assert.equal(metadata.status, 0, metadata.stderr);
+    const validValues: unknown = JSON.parse(metadata.stdout);
+    assert.ok(
+      Array.isArray(validValues) && validValues.every((value) => typeof value === "string"),
+    );
+    assert.deepEqual(validValues.toSorted(), ["embedded", "official"]);
+    for (const transport of ["official", "embedded", "unrecognized"]) {
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-File",
+          installer,
+          "-Help",
+          "-RendererTransport",
+          transport,
+        ],
+        { cwd: root, encoding: "utf8", windowsHide: true, timeout: 10000 },
+      );
+      assert.ifError(result.error);
+      if (transport === "unrecognized") {
+        assert.notEqual(result.status, 0);
+        const message = result.stderr.replace(/\r?\n\s*\|\s*/gu, " ");
+        assert.match(message, /RendererTransport/u);
+        assert.match(message, /unrecognized/u);
+        assert.match(message, /ValidateSet|validation|set/u);
+        assert.doesNotMatch(result.stdout, /Usage:/u);
+      } else {
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, /Usage:/u);
+        assert.equal(result.stderr, "");
+      }
+    }
+    assert.deepEqual(await readdir(root), ["scripts"]);
     const required = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", installer], {
       cwd: root,
       encoding: "utf8",
@@ -719,7 +778,7 @@ const plan = (oldPath: string, newPath = oldPath, status = "M") =>
         oldPath,
         newPath,
         status,
-        oldMode: "100644",
+        oldMode: status === "A" ? "000000" : "100644",
         newMode: status === "D" ? "000000" : "100644",
       },
     ],
@@ -739,9 +798,13 @@ void test("native tool inputs retain affected Windows proof without frontend ins
     "apps/desktop/scripts/cli-command-shell.native.test.mts",
     "scripts/dev-storage.mts",
     "scripts/tool-cache.mts",
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
   ]) {
     for (const selected of [
       plan(file),
+      plan(file, file, "A"),
+      plan("docs/moved.md", file, "R100"),
       plan(file, "docs/moved.md", "R100"),
       plan(file, file, "D"),
     ]) {
@@ -758,6 +821,10 @@ void test("native tool inputs retain affected Windows proof without frontend ins
 
 void test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
   for (const file of [
+    ".github/workflows/hosted-native-continuity.yml",
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
     "scripts/release-local-worker-accounts.ps1",
     "scripts/release-local-worker-accounts.test.mts",
     "scripts/recover-local-worker-empty-setup.ps1",

@@ -30,7 +30,7 @@ jobs:
   installed-prerequisite:
     if: github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public'
     runs-on: ${{ inputs.platform == 'windows-x86_64' && 'windows-2022' || 'ubuntu-24.04' }}
-    timeout-minutes: ${{ inputs.resource_observer_only && 3 || 90 }}
+    timeout-minutes: ${{ inputs.resource_observer_only && 3 || inputs.connected_private_diagnostic && inputs.platform == 'windows-x86_64' && 100 || 90 }}
     env:
       pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
       CARGO_BUILD_JOBS: "2"
@@ -58,7 +58,7 @@ jobs:
           $taskRoot = Join-Path $env:RUNNER_TEMP 'portcove-hosted-resource-observation'
           $taskUtf8 = [Text.UTF8Encoding]::new($false,$true)
           $taskInterval = 5000
-          $taskMaximumMilliseconds = if($env:PORTCOVE_HOSTED_OBSERVATION_ONLY -ceq 'true'){180000}else{5400000}
+          $taskMaximumMilliseconds = if($env:PORTCOVE_HOSTED_OBSERVATION_ONLY -ceq 'true'){180000}elseif($IsWindows -and $env:PORTCOVE_HOSTED_CONNECTED_DIAGNOSTIC -ceq 'true'){6000000}else{5400000}
           $taskMaximumSamples = [int]($taskMaximumMilliseconds/$taskInterval)
           $taskMaximumBytes = 8388608
           function Write-MeasurementJson([string]$Name,$Value) {
@@ -545,6 +545,10 @@ jobs:
             work/updater-rehearsal/windows-renderer-evidence/*.png
             work/updater-rehearsal/windows-renderer-evidence/failure.html
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-descriptor/status.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-descriptor/*.txt
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-activity/activity-holder.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-activity/*.txt
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
             work/updater-rehearsal/installer-test/run-*/predecessor-smoke.stdout.log
@@ -552,6 +556,12 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/candidate-smoke.stdout.log
             work/updater-rehearsal/installer-test/run-*/candidate-smoke.stderr.log
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
+            work/updater-rehearsal/linux-appimage-qualification/state/noexec-probe.json
+            work/updater-rehearsal/linux-appimage-qualification/state/noexec-probe-stdout.txt
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-descriptor/status.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-descriptor/*.txt
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/activity-holder.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/*.txt
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.png
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/failure.html

@@ -44,12 +44,30 @@ void test(
       t.mock.restoreAll();
       syncBuiltinESMExports();
     });
+    const excluded = [
+      "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
+      "PORTCOVE_RELEASE_DISPATCH_TOKEN",
+      "PORTCOVE_RELEASE_PUBLICATION_TOKEN",
+      "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+      "PORTCOVE_TUF_RELEASES_KEY",
+      "NODE_OPTIONS",
+      "PORTCOVE_SEMANTIC_APP_KEY",
+    ] as const;
     process.env.GH_TOKEN = "inert-original-reader";
-    process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-parent-oidc";
-    process.env.PORTCOVE_SEMANTIC_APP_KEY = "inert-excluded-key";
+    for (const key of excluded) process.env[key] = `inert-excluded-${key}`;
     let capturedHome: string | undefined;
     const recover = await withReadOnlyReleaseChildren(f.parent, async () => {
-      capturedHome = readOnlyReleaseChildEnvironment()?.HOME;
+      const captured = readOnlyReleaseChildEnvironment();
+      capturedHome = captured?.HOME;
+      assert.ok(capturedHome && path.isAbsolute(capturedHome));
+      const relative = path.relative(f.parent, capturedHome);
+      assert.ok(
+        relative &&
+          relative !== ".." &&
+          !relative.startsWith(".." + path.sep) &&
+          !path.isAbsolute(relative),
+      );
+      assert.equal(captured?.GH_CONFIG_DIR, capturedHome);
       return bindReadOnlyReleaseChildren(() =>
         recoverRemoteCoordinator(
           f.parent,
@@ -63,8 +81,11 @@ void test(
       () => bindReadOnlyReleaseChildren(() => undefined),
       /existing private reader scope/,
     );
+    // Later ambient credentials cannot replace the captured reader identity.
+    process.env.GH_TOKEN = "inert-later-reader";
     const original = childProcess.execFileSync;
     let gitCalls = 0;
+    const initialized: string[] = [];
     t.mock.method(
       childProcess,
       "execFileSync",
@@ -75,9 +96,10 @@ void test(
         if (command === "git" && !fixtureBackend) {
           gitCalls++;
           assert.equal(options.env?.HOME, capturedHome);
+          assert.equal(options.env?.GH_CONFIG_DIR, capturedHome);
           assert.equal(options.env?.GH_TOKEN, "inert-original-reader");
-          assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-          assert.equal(options.env?.PORTCOVE_SEMANTIC_APP_KEY, undefined);
+          for (const key of excluded) assert.equal(options.env?.[key], undefined, key);
+          if (args.includes("init")) initialized.push(String(args.at(-1)));
         }
         return original(command, args, options);
       },
@@ -85,6 +107,11 @@ void test(
     syncBuiltinESMExports();
     const recovered = await recover();
     assert.equal(recovered.checkpoint, f.saved.checkpoint);
+    assert.deepEqual(
+      initialized,
+      [recovered.repository],
+      "One actual owned recovery Git initialization must occur",
+    );
     assert.ok(gitCalls > 0, "real recovery/import must run actual local Git children");
     assert.equal(readOnlyReleaseChildEnvironment(), undefined);
   },

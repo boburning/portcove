@@ -4,6 +4,8 @@ import {
   readWindowsUpdateProcessMarker as processMarker,
   readWindowsUpdateProcessObservation as markedObservation,
   readWindowsUpdateExitObservation,
+  cleanupWindowsUpdateMarkedProcess,
+  installWindowsUpdateRestartHook,
 } from "./desktop-installed-update-harness.mts";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
@@ -14,14 +16,6 @@ const source = stripTypeScriptTypes(
   await readFile(new URL("./desktop-windows-update-test.mts", import.meta.url), "utf8"),
   { mode: "strip" },
 );
-function fragment(start: string, end: string): string {
-  const from = source.indexOf(start),
-    until = source.indexOf(end, from);
-  assert.ok(from >= 0 && until > from);
-  return source.slice(from, until);
-}
-const readers = fragment("function object(", "const report");
-const cleanup = fragment("function workerRelativePath(", "\ntry {");
 const valid = {
   schema_version: 1,
   process_id: 42,
@@ -104,31 +98,33 @@ void test("Windows updater cleanup keeps marker/path validation before identity-
   };
   for (const [marker, label, captureStatus, stopExpected] of [
     [valid, "candidate", "captured", true],
+    [{ ...valid, executable: "C:\\foreign\\Portcove.exe" }, "candidate", "captured", true],
     [worker, "helper", "captured", true],
     [worker, "helper", "exited", false],
+    [worker, "helper", "prior-process-exited", false],
+    [worker, "helper", "stopped", false],
     [null, "helper", "captured", false],
   ] as const) {
     const calls: { mode: string; args: string[] }[] = [];
-    const result: unknown = runInNewContext(
-      `${readers} ${cleanup} cleanupMarkedProcess("marker.json", label)`,
-      {
-        assert,
-        processMarker,
-        markedObservation,
-        path,
-        staging,
-        app,
-        output,
-        label,
-        restartStarted: "2026-10-17T09:00:00Z",
-        readJson: async (file: string) => (file === "marker.json" ? marker : null),
-        markedProcessCommand: (mode: string, args: string[]) => {
-          calls.push({ mode, args });
-          return { status: mode === "Capture" ? captureStatus : "stopped", pid: 42 };
-        },
+    const result = cleanupWindowsUpdateMarkedProcess({
+      markerPath: "marker.json",
+      label,
+      staging,
+      app,
+      output,
+      restartStarted: "2026-10-17T09:00:00Z",
+      readJson: async (file) => (file === "marker.json" ? marker : null),
+      command: (mode, args) => {
+        calls.push({ mode, args });
+        return { status: mode === "Capture" ? captureStatus : "stopped", pid: 42 };
       },
-    );
-    await result;
+    });
+    const observed = await result;
+    if (marker) {
+      assert.ok("capture" in observed);
+      assert.deepEqual(observed.capture, { status: captureStatus, pid: 42 });
+      assert.deepEqual(observed.stop, stopExpected ? { status: "stopped", pid: 42 } : null);
+    } else assert.deepEqual(observed, { status: "marker-absent" });
     assert.equal(
       calls.some((call) => call.mode === "Stop"),
       stopExpected,
@@ -141,8 +137,17 @@ void test("Windows updater cleanup keeps marker/path validation before identity-
     if (marker) {
       const capture = calls[0];
       assert.ok(capture);
-      assert.ok(capture.args.includes("-EarliestStart"));
-      assert.equal(capture.args.includes("-Helper"), label === "helper");
+      assert.deepEqual(capture.args, [
+        "-MarkerPath",
+        "marker.json",
+        "-IdentityPath",
+        path.join(output, `${label}-process-identity.json`),
+        "-ExpectedPath",
+        label === "candidate" ? app : marker.executable,
+        "-EarliestStart",
+        "2026-10-17T09:00:00Z",
+        ...(label === "helper" ? ["-Helper"] : []),
+      ]);
     }
   }
   for (const marker of [
@@ -150,33 +155,102 @@ void test("Windows updater cleanup keeps marker/path validation before identity-
     { ...worker, process_id: 0 },
   ]) {
     let actions = 0;
-    const result: unknown = runInNewContext(
-      `${readers} ${cleanup} cleanupMarkedProcess("marker.json", "helper")`,
-      {
-        assert,
-        processMarker,
-        markedObservation,
-        path,
-        staging,
-        app,
-        output,
-        restartStarted: "2026-10-17T09:00:00Z",
-        readJson: async () => marker,
-        markedProcessCommand: () => {
-          actions += 1;
-          throw new Error("must not act");
-        },
+    const result = cleanupWindowsUpdateMarkedProcess({
+      markerPath: "marker.json",
+      label: "helper",
+      staging,
+      app,
+      output,
+      restartStarted: "2026-10-17T09:00:00Z",
+      readJson: async (file) => (file === "marker.json" ? marker : null),
+      command: () => {
+        actions += 1;
+        throw new Error("must not act");
       },
-    );
+    });
     await assert.rejects(async () => {
       await result;
     });
     assert.equal(actions, 0);
   }
+  const base = {
+    markerPath: "marker.json",
+    label: "helper" as const,
+    staging,
+    app,
+    output,
+    restartStarted: "2026-10-17T09:00:00Z",
+  };
+  for (const restartStarted of [undefined, ""]) {
+    let actions = 0;
+    await assert.rejects(
+      cleanupWindowsUpdateMarkedProcess({
+        ...base,
+        restartStarted,
+        readJson: async (file) => (file === "marker.json" ? worker : null),
+        command: () => {
+          actions++;
+          throw new Error("must not act");
+        },
+      }),
+      /Restart timestamp required/,
+    );
+    assert.equal(actions, 0);
+  }
+  for (const retained of [{ pid: 83 }, { pid: 0 }, { pid: "83" }, {}, false]) {
+    const calls: string[] = [];
+    const action = cleanupWindowsUpdateMarkedProcess({
+      ...base,
+      readJson: async (file) => (file === "marker.json" ? worker : retained),
+      command: (mode) => {
+        calls.push(mode);
+        return { status: mode === "Capture" ? "captured" : "stopped", pid: 83 };
+      },
+    });
+    if (typeof retained === "object" && "pid" in retained && retained.pid === 83) {
+      assert.deepEqual(await action, {
+        capture: { status: "captured", pid: 83 },
+        stop: { status: "stopped", pid: 83 },
+      });
+      assert.deepEqual(calls, ["Stop"], "Retained identity must not be recaptured");
+    } else if (retained) {
+      await assert.rejects(action, { code: "ERR_ASSERTION" });
+      assert.deepEqual(calls, []);
+    } else {
+      await action;
+      assert.deepEqual(calls, ["Capture", "Stop"]);
+    }
+  }
+  for (const mode of ["Capture", "Stop"] as const) {
+    const refusal = new Error(`provider-${mode}`),
+      calls: string[] = [];
+    await assert.rejects(
+      cleanupWindowsUpdateMarkedProcess({
+        ...base,
+        readJson: async (file) => (file === "marker.json" ? worker : null),
+        command: (current) => {
+          calls.push(current);
+          if (current === mode) throw refusal;
+          return { status: "captured", pid: 42 };
+        },
+      }),
+      (error) => error === refusal,
+    );
+    assert.deepEqual(calls, mode === "Capture" ? ["Capture"] : ["Capture", "Stop"]);
+  }
+  assert.deepEqual(
+    await cleanupWindowsUpdateMarkedProcess({
+      ...base,
+      readJson: async () => {
+        throw new Error("missing marker");
+      },
+      command: () => assert.fail("Missing marker must not act"),
+    }),
+    { status: "marker-absent" },
+  );
 });
 
 void test("Windows restart hook serializes as executable JavaScript and preserves invoke results/rejections", async () => {
-  const hook = fragment("  await executeBrowserScript(browser, () => {", "  await save();");
   for (const failure of [
     undefined,
     null,
@@ -204,11 +278,12 @@ void test("Windows restart hook serializes as executable JavaScript and preserve
         },
       },
     };
-    const installed: unknown = runInNewContext(`(async () => { ${hook} })()`, {
-      browser: {},
-      executeBrowserScript: (_browser: unknown, callback: unknown): unknown => {
+    const installed = installWindowsUpdateRestartHook({
+      executeScript: async <Result,>(
+        callback: string | ((...args: never[]) => unknown),
+      ): Promise<Result> => {
         assert.ok(typeof callback === "function");
-        return runInNewContext(`(${callback.toString()})()`, { window, Error });
+        return runInNewContext(`(${callback.toString()})()`, { window, Error }) as Result;
       },
     });
     await installed;
@@ -236,6 +311,47 @@ void test("Windows restart hook serializes as executable JavaScript and preserve
     ) {
       assert.ok("code" in result);
       assert.equal(result.code, failure.code);
+      for (const key of ["message", "details"] as const) {
+        assert.ok(key in result);
+        assert.equal(
+          Reflect.get(result, key),
+          key in failure ? Reflect.get(failure, key) : undefined,
+        );
+      }
     }
   }
+});
+
+void test("Windows restart hook records success only for restart and refuses an absent bridge", async () => {
+  const original = Promise.resolve({ retained: true });
+  const runtime = {
+    __TAURI_INTERNALS__: { invoke: (_command: string) => original },
+    __portcoveRestartResult: undefined as unknown,
+  };
+  const browser = {
+    executeScript: async <Result,>(
+      callback: string | ((...args: never[]) => unknown),
+    ): Promise<Result> => {
+      assert.ok(typeof callback === "function");
+      return runInNewContext(`(${callback.toString()})()`, { window: runtime, Error }) as Result;
+    },
+  };
+  await installWindowsUpdateRestartHook(browser);
+  assert.equal(runtime.__TAURI_INTERNALS__.invoke("get_bootstrap_status"), original);
+  await original;
+  assert.equal(runtime.__portcoveRestartResult, null);
+  assert.equal(runtime.__TAURI_INTERNALS__.invoke("restart_to_apply_application_update"), original);
+  await original;
+  assert.equal(JSON.stringify(runtime.__portcoveRestartResult), '{"ok":true}');
+  await assert.rejects(
+    installWindowsUpdateRestartHook({
+      executeScript: async <Result,>(
+        callback: string | ((...args: never[]) => unknown),
+      ): Promise<Result> => {
+        assert.ok(typeof callback === "function");
+        return runInNewContext(`(${callback.toString()})()`, { window: {}, Error }) as Result;
+      },
+    }),
+    /Native bridge unavailable/,
+  );
 });

@@ -1,0 +1,133 @@
+{
+  "source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+  "run": 40934887557,
+  "attempt": 1,
+  "workflow_id": 353940824,
+  "artifact": 12926701381,
+  "archive_bytes": 629666242,
+  "archive_sha256": "cfc5f19d45839d45bdecc1ff36944f48c59d91d51744af4d5f362503bb3e8478",
+  "file_count": 525,
+  "expanded_bytes": 840401642,
+  "helper_source": "d29563ea99263e33dbec693ecf0aebd9f3de709c",
+  "files": [
+    {
+      "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage",
+      "bytes": 98675192,
+      "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+      "crc32": "ab197c66",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage.sig",
+      "bytes": 440,
+      "sha256": "510bd5b8cd74bc1a55e8801ccd438abfaea014afaa9a578c8bcf41a49037b920",
+      "crc32": "ee55fd45",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/disposable.key.pub",
+      "bytes": 152,
+      "sha256": "5dde708dbcac98f757704ae0c4fedbaa6e3bd3fe99a552e957c7e56be3264b4e",
+      "crc32": "8f0cf7aa",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.preview.json",
+      "bytes": 700,
+      "sha256": "66596a19e8a9758e6f913274d51137b4d08aa4435e6c9191f2f7b419f8d78078",
+      "crc32": "ae741f9d",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.releases.json",
+      "bytes": 693,
+      "sha256": "28c67d5021be300a864634f2f0f514472245b35eb7004684a12e30400234af18",
+      "crc32": "3be617e6",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.root.json",
+      "bytes": 3072,
+      "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+      "crc32": "ba2b8009",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.snapshot.json",
+      "bytes": 1205,
+      "sha256": "bf3c26d3c83e508ca35580b9b6a8d2226c5b27f1ae8f54890c6a85098cb6ec2b",
+      "crc32": "85749419",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.stable.json",
+      "bytes": 486,
+      "sha256": "e6723f4ce455b0445e5c97930200f5766ff5dd2e628cf889936161cc9341504b",
+      "crc32": "e4824c8d",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.targets.json",
+      "bytes": 2428,
+      "sha256": "08a2da1700d74217446076c160e774408d7f4fd82870be638369204685141776",
+      "crc32": "cb5de8f3",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/timestamp.json",
+      "bytes": 622,
+      "sha256": "55bc5ebf5088adb7bf7c3a102e53723d94505cc66be61247651d6ad645b83d33",
+      "crc32": "eb737a5e",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/repository-manifest.json",
+      "bytes": 1888,
+      "sha256": "a90b66b4a92c60d321ac275ee2e9ed574c4c2868ddaf8cddcab5e457da5a2102",
+      "crc32": "3182c4d3",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883.releases/0.3.0/linux-x86_64/appimage.json",
+      "bytes": 1953,
+      "sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+      "crc32": "7435ce10",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e.channels/preview/linux-x86_64/appimage/0.3.0.json",
+      "bytes": 395,
+      "sha256": "6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e",
+      "crc32": "d1ef6f7f",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289.keys/payload.json",
+      "bytes": 315,
+      "sha256": "e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289",
+      "crc32": "e9e02cc8",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+      "bytes": 3072,
+      "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+      "crc32": "ba2b8009",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage",
+      "bytes": 98859512,
+      "sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da",
+      "crc32": "06c91df5",
+      "directory": false
+    },
+    {
+      "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage.sig",
+      "bytes": 440,
+      "sha256": "a2f9ed256dcf4ed72776ab9110fe072fca573502f02abf34e064761346af8dec",
+      "crc32": "4a70be43",
+      "directory": false
+    }
+  ]
+}

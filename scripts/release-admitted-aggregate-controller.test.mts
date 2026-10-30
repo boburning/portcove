@@ -117,46 +117,6 @@ void test("trusted GH read calls inherit the captured job token while candidate 
     assert.equal(child.HOME, child.GH_CONFIG_DIR);
     child.GH_TOKEN = "local-copy-mutation";
     assert.equal(readOnlyReleaseChildEnvironment()!.GH_TOKEN, "inert-GH_TOKEN");
-    // Execute the actual recovery initialization body with inert snapshot/Git
-    // providers: stop at the first Git call, before checkpoint import.
-    const recovery = await readFile(
-      new URL("./release-coordinator-recovery.mts", import.meta.url),
-      "utf8",
-    );
-    const body = recovery.slice(
-      recovery.indexOf("async function recoverRemoteCoordinatorWithinScope("),
-    );
-    let initializations = 0;
-    const initialization: unknown = runInNewContext(
-      stripTypeScriptTypes(`${body}\nrecoverRemoteCoordinatorWithinScope;`),
-      {
-        readRemoteCoordinatorSnapshot: async () => ({ checkpoint: "a".repeat(40), requests: 0 }),
-        mkdtemp,
-        path,
-        process,
-        readOnlyReleaseChildEnvironment,
-        coordinatorCommandTimeout: () => 1000,
-        execFileSync(command: string, args: string[], options: { env: NodeJS.ProcessEnv }) {
-          initializations++;
-          assert.equal(command, "git");
-          assert.ok(args.includes("init"));
-          assert.equal(options.env.GH_TOKEN, "inert-GH_TOKEN");
-          for (const key of keys.filter((key) => key !== "GH_TOKEN"))
-            assert.equal(options.env[key], undefined);
-          assert.equal(options.env.GH_CONFIG_DIR, child.GH_CONFIG_DIR);
-          throw new Error("inert-initialization-stop");
-        },
-        CoordinatorRemoteError: Error,
-        sanitizeOperationError: () => "inert-initialization-stop",
-      },
-    );
-    assert.equal(typeof initialization, "function");
-    const initialize = initialization as (
-      parent: string,
-      configuration: unknown,
-    ) => Promise<unknown>;
-    await assert.rejects(initialize(root, {}), /recovery failed/);
-    assert.equal(initializations, 1);
     createGitHubRunner({
       spawn(_command, _args, options) {
         assert.equal(options.env?.GH_TOKEN, "inert-GH_TOKEN");

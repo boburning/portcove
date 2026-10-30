@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { executeBrowserScript } from "./browser-script.mts";
 import type { WebDriver } from "selenium-webdriver";
 import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { spawn, execFile, execFileSync } from "node:child_process";
@@ -632,4 +633,117 @@ export function createMacInstalledProcessCleanup(
   }
 
   return { positivePid, processMarker, ownedMarker, stopOwned, freezeCaptureAndStop };
+}
+
+/** Relative worker authority remains Windows-specific even in portable tests. */
+export function windowsUpdateWorkerRelativePath(staging: string, executable: string) {
+  return path.win32
+    .relative(path.win32.toNamespacedPath(staging), path.win32.toNamespacedPath(executable))
+    .replaceAll("\\", "/");
+}
+
+export interface WindowsUpdateMarkedCleanup {
+  capture: WindowsUpdateProcessObservation;
+  stop: WindowsUpdateProcessObservation | null;
+}
+
+/** Decide marker cleanup through required caller-owned read/process capabilities.
+ * The native provider owns actual PID/birth/path verification and stop effects. */
+export async function cleanupWindowsUpdateMarkedProcess({
+  markerPath,
+  label,
+  staging,
+  app,
+  output,
+  restartStarted,
+  readJson,
+  command,
+}: {
+  markerPath: string;
+  label: "candidate" | "helper";
+  staging: string;
+  app: string;
+  output: string;
+  restartStarted: string | undefined;
+  readJson: (file: string) => Promise<unknown>;
+  command: (mode: "Capture" | "Stop", args: string[]) => WindowsUpdateProcessObservation;
+}): Promise<WindowsUpdateMarkedCleanup | { status: "marker-absent" }> {
+  const rawMarker = await readJson(markerPath).catch(() => null);
+  if (!rawMarker) return { status: "marker-absent" };
+  const marker = readWindowsUpdateProcessMarker(rawMarker);
+  const expected = label === "candidate" ? app : marker.executable;
+  if (label === "helper") {
+    const relative = windowsUpdateWorkerRelativePath(staging, expected);
+    assert.match(relative, /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu);
+  }
+  const identityPath = path.join(output, `${label}-process-identity.json`);
+  const capturedEarlier = await readJson(identityPath).catch(() => null);
+  assert.ok(restartStarted, "Restart timestamp required for marked-process capture");
+  const capture: WindowsUpdateProcessObservation = capturedEarlier
+    ? { status: "captured", pid: installedUpdatePid(object(capturedEarlier).pid) }
+    : command("Capture", [
+        "-MarkerPath",
+        markerPath,
+        "-IdentityPath",
+        identityPath,
+        "-ExpectedPath",
+        expected,
+        "-EarliestStart",
+        restartStarted,
+        ...(label === "helper" ? ["-Helper"] : []),
+      ]);
+  return {
+    capture,
+    stop: capture.status === "captured" ? command("Stop", ["-IdentityPath", identityPath]) : null,
+  };
+}
+
+/** Install the observation hook through the real browser serialization boundary. */
+export async function installWindowsUpdateRestartHook(browser: Pick<WebDriver, "executeScript">) {
+  await executeBrowserScript(browser, () => {
+    const runtime = window as Window & {
+      __TAURI_INTERNALS__?: {
+        invoke(command: string, args?: unknown, options?: unknown): Promise<unknown>;
+      };
+      __portcoveRestartResult?: unknown;
+    };
+    const internals = runtime.__TAURI_INTERNALS__;
+    if (!internals) throw new Error("Native bridge unavailable");
+    const original = internals.invoke.bind(internals);
+    runtime.__portcoveRestartResult = null;
+    internals.invoke = (command, args, options) => {
+      const result = original(command, args, options);
+      if (command === "restart_to_apply_application_update") {
+        void result.then(
+          () => {
+            runtime.__portcoveRestartResult = { ok: true };
+          },
+          (error: unknown) => {
+            runtime.__portcoveRestartResult = {
+              ok: false,
+              code:
+                error !== null &&
+                (typeof error === "object" || typeof error === "function") &&
+                "code" in error
+                  ? error.code
+                  : undefined,
+              message:
+                error !== null &&
+                (typeof error === "object" || typeof error === "function") &&
+                "message" in error
+                  ? error.message
+                  : undefined,
+              details:
+                error !== null &&
+                (typeof error === "object" || typeof error === "function") &&
+                "details" in error
+                  ? error.details
+                  : undefined,
+            };
+          },
+        );
+      }
+      return result;
+    };
+  });
 }

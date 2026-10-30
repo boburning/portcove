@@ -136,14 +136,14 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
   assert.match(windows, /id: native-quality-pins/);
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
-  assert.match(windows, /taiki-e\/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037/);
+  assert.match(windows, /taiki-e\/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32/);
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
   const quality = workflowJob("backup_focus", source);
   assert.ok(Array.isArray(quality.steps));
   const qualitySteps = quality.steps.filter(isRecord);
   const provisioning = qualitySteps.findIndex(
     (step) =>
-      step.uses === "taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037" &&
+      step.uses === "taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32" &&
       isRecord(step.with) &&
       step.with.tool === "${{ steps.native-quality-pins.outputs.required_prebuilt }}",
   );
@@ -444,7 +444,7 @@ void test("fixed-account cases execute on Windows in both fast and qualification
         workflowStep(job, "Test inert fixed-account setup and capability contracts on Windows").run,
       ),
       [
-        "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts scripts/ci-windows-helpers.test.mts",
+        "node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-local-worker-accounts.test.mts scripts/release-native-account-capability.test.mts scripts/recover-local-worker-empty-setup.test.mts scripts/release-native-runtime-custody.test.mts scripts/release-hosted-native-windows-setup.test.mts scripts/native-qualification-account.test.mts scripts/ci-windows-helpers.test.mts scripts/release-windows-webview-driver.test.mts",
       ],
     );
   }

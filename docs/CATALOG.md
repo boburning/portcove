@@ -180,6 +180,34 @@ a range whose lower bound is Native4 cannot authorize the new behavior. Earlier
 definitions omit the field and retain Native1–4 semantics. Complete retained
 projection continues to refuse unknown or discarded fields in older readers.
 
+Native6 supports verified original-file preparation through the existing
+`source_profile` and `runtime_source_set` fields. This opt-in accepts complete
+schema-2 FileSet variants with cryptographic member identities, one enforced game
+source contract covering those variants, and Copy targets only. Original outputs
+are immutable and reserve their first path component apart from mutable
+profile/TEMP paths and filename patterns. Manual
+setup markers, conversion, installers and per-title initialization do not establish
+this completion. No production title is admitted by the generic capability.
+
+The existing SourceOnly planner, authorization, private staging, receipt, manifest
+and publisher own preparation. Fresh packages must leave every original output
+and sidecar vacant, including case aliases. Core resolves the package executable
+and derives its exact parent directory; a wrapper does not move the outer
+installation manifest or preparation receipts. Copied files are hashed against
+the admitted complete source set, and original inputs are checked again before
+publication and registration. The source and complete typed source contract are
+bound to the existing receipt. Launch never repairs or recopies sealed originals.
+
+Reviewed preparation can copy a verified installation into a new private payload.
+Unrecorded or altered immutable inputs refuse preparation. A prepared installation
+cannot silently rebind to another original edition, source registration or member
+mapping; maintenance and retained activation compare their creating contracts and
+sealed source receipts. Unapproved populated adoption and persistence changes stay
+held. Preserving removal retains declared profile data and leaves external
+originals unchanged. Native1–5 definitions and older SourceOnly interpretations
+retain their existing semantics. Fresh and retained indexed entries with native
+source profiles require a Native6 lower bound.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route
@@ -1681,6 +1709,22 @@ their original scope. Ordinary contract shrinking, populated additions and
 unproven scope expansion remain refused. Runtime rollback still carries current
 data and does not rewind saves.
 
+The historical Sonic 3K v0.5.3 (#154), Sonic 1 v0.6.0 (#152) and Mega Man X2
+v0.1.4 (#165) reader transitions to newer routes have an additional
+compatibility hold: common declared player data must also be absent in the retained
+runtime, canonical data and actual target. Only separately verified regular original
+bytes are exempt; an empty set of added sidecars proves no save compatibility.
+A fresh newer route cannot initialize unknown canonical player data through collection,
+restore, backup restoration, activation or recovery. The exact legacy reader keeps
+its creating contract. An established target's exact retained contract and matching
+installation/manifest data-restore receipt preserve its administrative restore
+behavior; that receipt does not establish state ABI or authorize legacy adoption.
+A separate empty library remains the fresh creation case. Other ports retain the
+generic common-data preservation rule above. New indexed fresh definitions for
+these newer routes must declare staged-source capability version 25, so readers
+without this behavior refuse them. Retained entries keep their creating reader
+requirements; current runtime checks remain independent of that envelope.
+
 Explicit rollback between two authenticated retained ready-archive copies may use
 that same empty-path proof in either direction when one persistence scope strictly
 contains the other. Both copies keep their original manifests and receipt scope; ordinary restore
@@ -1732,16 +1776,23 @@ or another external user-profile directory; such state needs an upstream
 redirect or a separately reviewed ownership capability.
 
 `windows_runtime_path_policy: "printable-ascii-max-path"` declares a verified
-upstream limitation for a Windows-only managed staged-source runtime. Core rejects
+upstream limitation for a Windows-only managed staged-source runtime, or a native
+archive with Windows support and no original-source preparation or setup helpers. Core rejects
 known unsuitable output roots before acquisition, and checks the selected executable
 and its probe filename budget during readiness and again before preparation. The
 requirement is retained with the installation and survives an output-folder move;
 it grants no relocation or adoption permission. Source files may remain in their
 original Unicode locations when the adapter passes a checked relative runtime copy.
 This policy currently excludes external runtimes, setup executables and managed
-build recipes. Independent definition entries must require staged-source template
-version11. Absent policy retains the prior route contract; this is not a blanket
+build recipes. Native archives also check every authenticated package member at
+its final destination; other declared platforms retain their existing behavior.
+Independent definition entries must require staged-source template version11 or
+native-portable version7, respectively. Absent policy retains the prior route contract; this is not a blanket
 ASCII restriction or a claim that every other runtime supports Unicode paths.
+Existing installations use their creating definition: a new catalog declaration
+does not retrofit this guard into retained manifests. Review an existing supported
+move/adoption route separately; never rewrite the historical definition to claim
+that an old installation is protected.
 
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares

@@ -1148,6 +1148,15 @@ impl Installer {
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
+            if crate::preparation::source::native(port) {
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                crate::preparation::source::require_pristine_package(
+                    port,
+                    &payload_root,
+                    &selected,
+                )?;
+            }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 crate::native_temp::require_pristine_package(port, &payload_root, &selected)?;
@@ -1211,8 +1220,11 @@ impl Installer {
                     &catalog,
                     &port,
                     &inputs,
-                    &source_root,
-                    &working,
+                    crate::preparation::source::MaterializationRoot {
+                        payload: &source_root,
+                        working: &working,
+                        replace_prepared: false,
+                    },
                     &|| operation.checkpoint(),
                     &quiesced,
                 );
@@ -1257,6 +1269,13 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
         self.require_acquisition(&request)?;
+        if let Some(contract) = &request.qualification.retained_contract {
+            let catalog = contract.catalog(&request.port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(
+                catalog.port(&request.port_id)?,
+                &self.library,
+            )?;
+        }
         if request.qualification.source_preparation.is_some() {
             let staged = InstallRecord {
                 path: payload_root.clone(),
@@ -1283,6 +1302,13 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.require_acquisition(&request)?;
+        if let Some(contract) = &request.qualification.retained_contract {
+            let catalog = contract.catalog(&request.port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(
+                catalog.port(&request.port_id)?,
+                &self.library,
+            )?;
+        }
         if request.qualification.source_preparation.is_some() {
             crate::preparation::source::require_publication(&self.library, &install, None)?;
         }
@@ -1680,7 +1706,7 @@ impl Installer {
         qualification: &InstallQualification,
         port: &PortDefinition,
     ) -> Result<VerificationReport> {
-        if !crate::preparation::source::eligible(port) {
+        if !crate::preparation::source::eligible(port) || crate::preparation::source::native(port) {
             return self.verify_managed(install, qualification);
         }
         self.require_curated_operation(
@@ -2094,6 +2120,19 @@ impl Installer {
                 "prepared-game-data/sm64.o2r".into(),
             ]);
         }
+        if let Some(contract) = &manifest.retained_contract
+            && contract.preparation_mode() == Some(crate::PreparationMode::SourceOnly)
+        {
+            let catalog = contract.catalog(&install.port_id)?;
+            qualification
+                .critical_paths
+                .extend(crate::preparation::source::outputs(
+                    catalog.port(&install.port_id)?,
+                ));
+            // Preserve the caller's checked mutability scope while consuming the
+            // authenticated SourceOnly interpretation of outer receipts and originals.
+            qualification.retained_contract = Some(contract.clone());
+        }
         let selected = resolve_declared_executable(&install.path, &qualification)?;
         let (mut files, mutable_paths) = manifest_files(&install.path, &qualification, &selected)?;
         if manifest.schema_version < 5 {
@@ -2160,6 +2199,11 @@ impl Installer {
         if let Some(contract) = &qualification.retained_contract {
             let catalog = contract.catalog(port_id)?;
             let port = catalog.port(port_id)?;
+            crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
+            if crate::preparation::source::native(port) {
+                let selected = resolve_declared_executable(root, qualification)?;
+                crate::preparation::source::require_pristine_adoption(port, root, &selected)?;
+            }
             if port.windows_temp_directory.is_some() {
                 let selected = resolve_declared_executable(root, qualification)?;
                 crate::native_temp::require_pristine_package(port, root, &selected)?;

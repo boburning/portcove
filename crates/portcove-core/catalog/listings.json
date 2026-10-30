@@ -9996,9 +9996,6 @@
       "summary": "Play PlayStation Doom and Final Doom through PsyDoom using your own game-disc image.",
       "project_url": "https://github.com/BodbDearg/PsyDoom",
       "issue_number": 1873,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/BodbDearg/PsyDoom#running-the-game",
       "manual_setup": {
@@ -10014,6 +10011,14 @@
           {
             "title": "Preserve your working copy",
             "instruction": "Updates remain with you and upstream. Keep original disc files and mods backed up. Windows settings, saves and demos normally use AppData/Roaming/com.codelobster/PsyDoom; also preserve a local launcher.ini or custom files if your copy uses them."
+          },
+          {
+            "title": "Register your prepared player",
+            "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual PsyDoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
+          },
+          {
+            "title": "Keep your runtime and data recoverable",
+            "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
           }
         ],
         "warnings": [],
@@ -10025,7 +10030,11 @@
           "PsyDoom_",
           "_Windows_x86_64.zip"
         ]
-      }
+      },
+      "original_game_title": "Doom",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "body-harvest-recompiled",
@@ -10992,7 +11001,7 @@
     {
       "id": "cannonball-dx-outrun",
       "name": "CannonBall DX OutRun",
-      "summary": "Use a permitted CannonBall DX player with your own compatible OutRun arcade ROM data.",
+      "summary": "Use your permitted noncommercial Cannonball DX Windows player with your own matching OutRun ROM data.",
       "project_url": "https://github.com/Endprodukt/cannonball-dx",
       "issue_number": 1132,
       "platforms": [
@@ -11023,9 +11032,24 @@
           {
             "title": "Keep your data when updating",
             "instruction": "You or upstream manage runtime updates. Back up the complete working folder, including settings, scores, ROMs and custom music, before replacing it; retain the current copy until ready. Portcove records launch details without starting the player, adopting its files or promising managed backup, rollback or deletion."
+          },
+          {
+            "title": "Use a permitted noncommercial copy",
+            "instruction": "This route is for an already permitted noncommercial working copy. Keep the engine and third-party notices and comply with applicable modified-source conditions. You need a lawful matching OutRun original-data set; engine terms do not license the ROMs or every bundled component. Portcove does not acquire a new package for this route."
+          },
+          {
+            "title": "Confirm the player, then choose Play",
+            "instruction": "Select the actual cannonball-dx.exe and its complete player folder as the working directory. Normally leave arguments empty; enter separate documented literal options only deliberately. Review and consent to the selected executable, folder and arguments. Registration does not start the player; choose Play separately. Keep each fork and its actual configuration and ROM data with its own working copy."
+          },
+          {
+            "title": "Preserve the copy and every data location",
+            "instruction": "You and upstream own runtime replacement and data. Before Play with a changed copy or an upstream update, close all actual players and preserve the working folder, config.xml, ROMs, res, scores, custom music and every custom configuration or save path. Keep the previous working copy until ready. Removing the registration preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The source grants conditional noncommercial use and redistribution; this registration does not certify arbitrary copies, component permissions or your original ROM data. The existing fresh-package download restriction remains in force.",
+          "The reviewed DX 1.04 runtime can import legacy hiscores*.xml files into highscores.xml and remove the old files after a valid combined file exists. Before playing a changed DX copy, back up both old and combined score files and every actual custom save folder. Another player folder does not isolate a shared save path. This is upstream behavior, not a Portcove migration or retention guarantee."
+        ],
         "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md"
       },
       "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data."
@@ -11033,7 +11057,7 @@
     {
       "id": "cannonball-outrun",
       "name": "Cannonball / OutRun",
-      "summary": "Use an existing permitted Cannonball installation with your matching OutRun ROMs.",
+      "summary": "Use your permitted noncommercial Cannonball Windows player with your own matching OutRun ROM data.",
       "project_url": "https://github.com/djyt/cannonball",
       "issue_number": 120,
       "platforms": [
@@ -11059,12 +11083,27 @@
           {
             "title": "Select the completed installation",
             "instruction": "Select the native Cannonball player and its working folder. Keep your existing copy available; updates and data stay with you and upstream."
+          },
+          {
+            "title": "Use a permitted noncommercial copy",
+            "instruction": "This route is for an already permitted noncommercial working copy. Keep the engine and third-party notices and comply with applicable modified-source conditions. You need a lawful matching OutRun original-data set; engine terms do not license the ROMs or every bundled component. Portcove does not acquire a new package for this route. The reviewed original v0.34 setup uses the documented loose Revision B ROM files in its configured ROM folder; DX ZIP support does not apply to this separate player."
+          },
+          {
+            "title": "Confirm the player, then choose Play",
+            "instruction": "Select the actual cannonball.exe and its complete player folder as the working directory. Normally leave arguments empty; enter separate documented literal options only deliberately. Review and consent to the selected executable, folder and arguments. Registration does not start the player; choose Play separately. Keep each fork and its actual configuration and ROM data with its own working copy."
+          },
+          {
+            "title": "Preserve the copy and every data location",
+            "instruction": "You and upstream own runtime replacement and data. Before Play with a changed copy or an upstream update, close all actual players and preserve the working folder, config.xml, ROMs, res, scores, custom music and every custom configuration or save path. Keep the previous working copy until ready. Removing the registration preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The source grants conditional noncommercial use and redistribution; this registration does not certify arbitrary copies, component permissions or your original ROM data. The existing fresh-package download restriction remains in force."
+        ],
         "help_url": "https://github.com/djyt/cannonball#readme"
       },
-      "download_block_reason": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered."
+      "download_block_reason": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered.",
+      "original_game_title": "OutRun"
     },
     {
       "id": "captain-america-super-soldier-recompiled-m1ndcrap-captain-america-super-soldier",
@@ -12326,12 +12365,9 @@
     {
       "id": "cps2recomp-alien-vs-predator",
       "name": "Alien vs. Predator (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Alien vs. Predator using your own matching arcade originals.",
       "original_game_title": "Alien vs. Predator",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
       "issue_number": 2769,
@@ -12365,17 +12401,17 @@
           "This is upstream beta software. Upstream reports only scripted first-stage play and no human play observation for this newer beat-em-up."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-cadillacs-and-dinosaurs",
       "name": "Cadillacs and Dinosaurs (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Cadillacs and Dinosaurs using your own matching arcade originals.",
       "original_game_title": "Cadillacs and Dinosaurs",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md",
       "artwork": {
@@ -12417,17 +12453,17 @@
           "This is upstream beta software. Upstream reports only scripted first-stage play and no human play/audio observation for this newer beat-em-up."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-marvel-super-heroes",
       "name": "Marvel Super Heroes (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Marvel Super Heroes using your own matching arcade originals.",
       "original_game_title": "Marvel Super Heroes",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md",
       "artwork": {
@@ -12469,17 +12505,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-street-fighter-alpha",
       "name": "Street Fighter Alpha: Warriors Dreams (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Street Fighter Alpha: Warriors Dreams using your own matching arcade originals.",
       "original_game_title": "Street Fighter Alpha: Warriors Dreams",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
       "issue_number": 2762,
@@ -12513,17 +12549,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-street-fighter-alpha-2",
       "name": "Street Fighter Alpha2 (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Street Fighter Alpha2 using your own matching arcade originals.",
       "original_game_title": "Street Fighter Alpha2",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
       "issue_number": 2763,
@@ -12557,17 +12593,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-super-gem-fighter-mini-mix",
       "name": "Super Gem Fighter Mini Mix (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Super Gem Fighter Mini Mix using your own matching arcade originals.",
       "original_game_title": "Super Gem Fighter Mini Mix",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md",
       "issue_number": 2780,
@@ -12601,17 +12637,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
       "name": "Super Puzzle FighterII Turbo (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Super Puzzle FighterII Turbo using your own matching arcade originals.",
       "original_game_title": "Super Puzzle FighterII Turbo",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md",
       "issue_number": 2765,
@@ -12645,17 +12681,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-hunter-2",
       "name": "Vampire Hunter2: Darkstalkers Revenge (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Hunter2: Darkstalkers Revenge using your own matching arcade originals.",
       "original_game_title": "Vampire Hunter2: Darkstalkers Revenge",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
       "issue_number": 2782,
@@ -12689,17 +12725,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-savior",
       "name": "Vampire Savior: The Lord of Vampire (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior: The Lord of Vampire using your own matching arcade originals.",
       "original_game_title": "Vampire Savior: The Lord of Vampire",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
       "issue_number": 2766,
@@ -12733,17 +12769,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-savior-2",
       "name": "Vampire Savior2: The Lord of Vampire (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior2: The Lord of Vampire using your own matching arcade originals.",
       "original_game_title": "Vampire Savior2: The Lord of Vampire",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
       "issue_number": 2767,
@@ -12777,17 +12813,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-savior-definitive",
       "name": "Vampire Savior Definitive (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior Definitive using your own matching arcade originals.",
       "original_game_title": "Vampire Savior Definitive",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
       "issue_number": 2768,
@@ -12821,17 +12857,17 @@
           "This is upstream beta software. Upstream says the three imported characters have not been played by hand and lists missing Donovan stage/music."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-x-men-vs-street-fighter",
       "name": "X-Men vs. Street Fighter (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play X-Men vs. Street Fighter using your own matching arcade originals.",
       "original_game_title": "X-Men vs. Street Fighter",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md",
       "artwork": {
@@ -12873,7 +12909,10 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "crackdown-crackdown-recompiled",
@@ -14309,7 +14348,7 @@
     {
       "id": "diablo-devilutionx",
       "name": "Diablo (DevilutionX)",
-      "summary": "Set up Diablo through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
@@ -14324,6 +14363,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -14351,7 +14394,7 @@
     {
       "id": "diablo-hellfire-devilutionx",
       "name": "Diablo: Hellfire (DevilutionX)",
-      "summary": "Set up Diablo: Hellfire through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo: Hellfire through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo: Hellfire",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
@@ -14374,6 +14417,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -15290,9 +15337,6 @@
       "summary": "Play Doom II RPG with the upstream Windows player and your original iOS game package.",
       "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
       "issue_number": 370,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Erick194/DoomIIRPG-RE#readme",
       "artwork": {
@@ -15316,6 +15360,10 @@
           {
             "title": "Select the player and keep your saves",
             "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
@@ -15328,7 +15376,10 @@
           ".zip"
         ]
       },
-      "original_game_title": "Doom II RPG"
+      "original_game_title": "Doom II RPG",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-rpg-doomrpg-re",
@@ -15336,9 +15387,6 @@
       "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
       "project_url": "https://github.com/Erick194/DoomRPG-RE",
       "issue_number": 369,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Erick194/DoomRPG-RE#readme",
       "artwork": {
@@ -15362,6 +15410,10 @@
           {
             "title": "Keep progress when updating",
             "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [
@@ -15376,7 +15428,10 @@
           ".zip"
         ]
       },
-      "original_game_title": "Doom RPG"
+      "original_game_title": "Doom RPG",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
@@ -16558,9 +16613,6 @@
       "summary": "Fly through Glider PRO’s houses with Aerofoil’s gamepad support and built-in house editor.",
       "project_url": "https://github.com/elasota/Aerofoil",
       "issue_number": 1790,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/elasota/Aerofoil#about-aerofoil",
       "artwork": {
@@ -16587,11 +16639,19 @@
           {
             "title": "Keep custom houses and saved games",
             "instruction": "Aerofoil stores your houses, saved games, scores and preferences in the Aerofoil folder in your Windows Documents location. Keep that folder when updating. The separate tools ZIP is available for importing additional original-format content."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual Aerofoil.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/elasota/Aerofoil#about-aerofoil"
-      }
+      },
+      "original_game_title": "Glider PRO",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "elgus-kameorecomp-elguslml-kameo-elements-of-power",
@@ -22205,10 +22265,6 @@
       "summary": "Play Caesar III with Augustus’s roadblocks, city improvements and expanded building tools.",
       "project_url": "https://github.com/Keriew/augustus",
       "issue_number": 1793,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Keriew/augustus#running-the-game",
       "artwork": {
@@ -22235,13 +22291,25 @@
           {
             "title": "Keep your game folder and saves",
             "instruction": "Augustus keeps saves in the selected Caesar III data folder and remembers its location in its own profile. Keep both when replacing the upstream runtime."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          },
+          {
+            "title": "Keep the upstream Linux alternative",
+            "instruction": "The upstream Linux package remains an alternative with its own native setup, game-data selection and profile rules. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. The Linux availability fact is retained, not declared unsupported."
           }
         ],
         "warnings": [
           "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate."
         ],
         "help_url": "https://github.com/Keriew/augustus#running-the-game"
-      }
+      },
+      "original_game_title": "Caesar III",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "kevinfoley-herculan",
@@ -23053,11 +23121,6 @@
       "summary": "Play Duke Nukem II with widescreen, smooth scrolling and Rigel Engine’s mod support.",
       "project_url": "https://github.com/lethal-guitar/RigelEngine",
       "issue_number": 1877,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
       "artwork": {
@@ -23083,13 +23146,25 @@
           {
             "title": "Select your Duke Nukem II files",
             "instruction": "On first Play, choose your Duke Nukem II folder containing NUKEM2.CMP. Shareware and registered editions work. Keep the optional NUKEM2.F1–F5 intro movies with it for movie playback; Rigel Engine remembers your choice."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          },
+          {
+            "title": "Keep upstream platform alternatives separate",
+            "instruction": "Upstream also provides Linux packages and a macOS application. Follow their native upstream setup and keep their original-data and profile rules. On macOS use the ordinary application flow rather than registering a private bundle executable. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. Their upstream availability is retained, not declared unsupported."
           }
         ],
         "warnings": [
           "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation."
         ],
         "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine"
-      }
+      },
+      "original_game_title": "Duke Nukem II",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
@@ -23453,9 +23528,6 @@
       "summary": "Play Heretic II with Heretic2R’s widescreen display, smoother effects and OGG music support.",
       "project_url": "https://github.com/m-x-d/Heretic2R",
       "issue_number": 1826,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/m-x-d/Heretic2R#installation",
       "artwork": {
@@ -23486,13 +23558,21 @@
           {
             "title": "Optional CD music",
             "instruction": "For OGG music, place your own CD tracks named track02.ogg through track14.ogg in base/music inside the separate runtime folder."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual Heretic2R.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [
           "Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately."
         ],
         "help_url": "https://github.com/m-x-d/Heretic2R#installation"
-      }
+      },
+      "original_game_title": "Heretic II",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "macross-vfx-2-recomp-omegakatana92-macross-vf-x2",
@@ -23922,10 +24002,9 @@
     {
       "id": "mario-kart-wii-wiicompiled",
       "name": "Mario Kart Wii / WiiCompiled",
-      "summary": "Explore Mario Kart Wii / WiiCompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your already prepared vanilla WiiCompiled Windows player after upstream setup with your own Mario Kart Wii disc.",
       "project_url": "https://github.com/patchzyy/Wiicompiled",
       "issue_number": 149,
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/patchzyy/Wiicompiled",
       "artwork": {
@@ -23935,7 +24014,41 @@
         "image_sha256": "99649b10acf61fded11decddbd2ad02ddb1b91e2ebbc92123b1a5242029cf9e9",
         "game_slug": "mario-kart-wii",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Mario Kart Wii",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish upstream setup first",
+            "instruction": "Use the official WiiCompiled setup through Wheel Wizard with your own clean, supported Mario Kart Wii disc. The reviewed route uses the resolved PAL RMCP01 source identity. Complete upstream preparation and establish a working vanilla player before registration; Portcove does not extract, translate, compile, repair or validate game data."
+          },
+          {
+            "title": "Select the prepared game player",
+            "instruction": "Choose Base/WiiCompiled.exe inside the existing installation, with that Base folder as the working directory and no arguments. Keep the complete installation and its configured GameAssets together. Do not select WiiCompiled-Setup.exe, Wheel Wizard or a compiler as the player. This route covers the vanilla game, not Retro Rewind."
+          },
+          {
+            "title": "Confirm and choose Play separately",
+            "instruction": "Review the selected executable, folder and literal arguments and consent to that execution intent. Registration does not start the game. Choose Play separately when ready. Portcove retains the selection for restart or relink and observes the selected player process."
+          },
+          {
+            "title": "Preserve your actual profiles and originals",
+            "instruction": "Keep the whole portable folder, portable.txt marker and UserData together. Otherwise the normal Windows profile is LocalAppData/WiiCompiled; if that known folder is unavailable upstream can use WiiCompiled under the working directory. Preserve Config.toml, NAND saves/settings, Cache, Logs and all original disc files and game assets. Configured relative NAND and DVD paths resolve from the Config.toml folder; preserve every actual custom path too."
+          },
+          {
+            "title": "Keep one update owner",
+            "instruction": "Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files."
+          }
+        ],
+        "warnings": [
+          "Do not move the Base folder alone or add/remove portable.txt to change profile locations. Different installations may share LocalAppData/WiiCompiled. Portcove registration does not authenticate the game disc, setup package, generated player or source/build provenance.",
+          "The upstream runtime writes its profile, may seed missing files in a configured NAND and prunes entries older than four days in its Logs folder. Preserve diagnostic evidence before Play when needed. External files remain upstream/player owned; Portcove cannot guarantee their retention by the game.",
+          "Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. No original-game redistribution, Retro Rewind compatibility, gameplay/save-load or other-platform qualification is implied."
+        ],
+        "help_url": "https://github.com/patchzyy/Wiicompiled#installing"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "mario-party-4-party-board",
@@ -27649,7 +27762,6 @@
       "summary": "Use your own Jedi Knight game files with OpenJKDF2’s first-launch setup and upstream updater.",
       "project_url": "https://github.com/shinyquagsire23/OpenJKDF2",
       "issue_number": 725,
-      "platforms": [],
       "availability": "packages",
       "setup_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
       "artwork": {
@@ -27669,6 +27781,10 @@
           {
             "title": "Keep updates and data with the working copy",
             "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
@@ -27681,7 +27797,10 @@
       },
       "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
       "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases",
-      "recommended_download_channel": "beta"
+      "recommended_download_channel": "beta",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
@@ -28026,7 +28145,9 @@
             "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
+        ],
         "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
       },
       "original_game_title": "Tyrian",
@@ -36097,9 +36218,6 @@
       "summary": "Use a permitted DOOM 64 EX+ Enhanced copy with your PC remaster files and preserved user profile.",
       "project_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced",
       "issue_number": 1812,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme",
       "artwork": {
@@ -36123,13 +36241,25 @@
           {
             "title": "Preserve both current and older profiles",
             "instruction": "Choose that player and its folder, then Play explicitly. Current Windows saves, config.cfg and screenshots normally use AppData/Roaming/doom64ex-plus. Older copies may keep them beside the executable, and the game can move those files on startup. Back up both locations before changing versions. Upstream updates and any shared profile remain outside Portcove management."
+          },
+          {
+            "title": "Register your prepared player",
+            "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual DOOM64EX+ENHANCED.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
+          },
+          {
+            "title": "Keep your runtime and data recoverable",
+            "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
           }
         ],
         "warnings": [
           "Use your permitted upstream copy under its applicable conditions. Keep both the older working folder and current user profile backed up before first Play."
         ],
         "help_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced#readme"
-      }
+      },
+      "original_game_title": "Doom 64",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "super-3-d-noah-s-ark-dos-reflectionhle",
@@ -40612,9 +40742,6 @@
       "summary": "Choose your own Doom-family game data and mods in UZDoom; the upstream launcher provides runtime updates.",
       "project_url": "https://github.com/UZDoom/UZDoom",
       "issue_number": 1899,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md",
       "manual_setup": {
@@ -40630,9 +40757,19 @@
           {
             "title": "Update through upstream",
             "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup."
+          },
+          {
+            "title": "Register your prepared player",
+            "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual uzdoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
+          },
+          {
+            "title": "Keep your runtime and data recoverable",
+            "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Portcove tracks the player you selected. If UZDoom’s error window restarts it, the new player can keep running after Portcove reports the original process finished. Close any remaining UZDoom players before choosing Play again or updating files. Removing the registration does not confirm that restarted players have stopped and leaves every external file untouched."
+        ],
         "help_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md"
       },
       "original_game_title": "Doom",
@@ -40642,7 +40779,10 @@
         "windows-x86-64": [
           "Windows-UZDoom-Release-x86_64.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "v64recomp-1080-us-polaco1782-1080-snowboarding",
@@ -42569,10 +42709,6 @@
       "summary": "Play Wolfenstein RPG with your own matching original iOS game data.",
       "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
       "issue_number": 371,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
       "artwork": {
@@ -42612,12 +42748,20 @@
           {
             "title": "Preserve the writable game folder when updating",
             "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player or already working Linux AppImage/native player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md"
       },
-      "original_game_title": "Wolfenstein RPG"
+      "original_game_title": "Wolfenstein RPG",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "woody-woodpecker-woodyre",

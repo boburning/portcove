@@ -105,6 +105,103 @@ async function waitForFixture(predicate: () => boolean | undefined, message: str
   }
 }
 
+export async function installRefreshProbe(browser: WebDriver) {
+  return browser.executeAsyncScript<unknown>((done: (value: unknown) => void) => {
+    const runtime = window as InstallWindow;
+    const native = runtime.__TAURI_INTERNALS__;
+    if (!native) throw new Error("Native bridge unavailable");
+    const original = window.fetch;
+    const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
+    runtime.__portcoveInstallRefreshProbe = {
+      original,
+      target,
+      calls: [],
+      failing: true,
+      injected: 0,
+    };
+    window.fetch = function (input, ...args) {
+      const probe = runtime.__portcoveInstallRefreshProbe;
+      if (!probe) throw new Error("Install refresh probe unavailable");
+      // Preserve the existing coercion for cross-realm request-like inputs.
+      const url =
+        typeof input === "string"
+          ? input
+          : ((typeof input === "object" && input !== null && "url" in input
+              ? input.url
+              : undefined) ??
+            // oxlint-disable-next-line typescript/no-base-to-string
+            String(input));
+      const parsed = new URL(url, location.href);
+      if (parsed.hostname === "ipc.localhost")
+        probe.calls.push(decodeURIComponent(parsed.pathname.slice(1)));
+      if (url === probe.target && probe.failing) {
+        probe.injected++;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              code: "state",
+              message: "synthetic-post-install-refresh-failure",
+              details: {},
+              presentation: {
+                presentation_key: "state_unavailable",
+                summary: "Library information is temporarily unavailable.",
+                tone: "error",
+                mutation_state: "unknown",
+                phase: null,
+                recovery_actions: ["review_current_state", "view_technical_details"],
+                technical_message:
+                  "Synthetic post-install refresh rejection for presentation verification.",
+                technical_context: {},
+              },
+            }),
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "Tauri-Response": "error",
+              },
+            },
+          ),
+        );
+      }
+      return original.call(window, input, ...args);
+    };
+    done({ installed: true });
+  });
+}
+
+export async function retryRefreshProbe(browser: WebDriver) {
+  return executeBrowserScript(browser, () => {
+    const runtime = window as InstallWindow;
+    if (!runtime.__portcoveInstallRefreshProbe)
+      throw new Error("Install refresh probe unavailable");
+    const retryButton = [...document.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent?.trim() === "Retry refresh",
+    );
+    if (!retryButton) return false;
+    runtime.__portcoveInstallRefreshProbe.failing = false;
+    retryButton.click();
+    return true;
+  });
+}
+
+export async function restoreRefreshProbe(browser: WebDriver) {
+  return executeBrowserScript(browser, () => {
+    const runtime = window as InstallWindow;
+    const probe = runtime.__portcoveInstallRefreshProbe;
+    if (!probe) return { installed: false as const };
+    window.fetch = probe.original;
+    const result = {
+      installed: true as const,
+      injected: probe.injected,
+      failing: probe.failing,
+      commands: probe.calls,
+      restored: window.fetch === probe.original,
+    };
+    delete runtime.__portcoveInstallRefreshProbe;
+    return result;
+  });
+}
+
 export async function selectInstallTheme(browser: WebDriver, theme: "dark" | "light") {
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
   await browser
@@ -369,69 +466,7 @@ export async function installScenarios({
     };
     await openFixture(port);
     try {
-      const installedProbe = await browser.executeAsyncScript<unknown>(
-        (done: (value: unknown) => void) => {
-          const runtime = window as InstallWindow;
-          const native = runtime.__TAURI_INTERNALS__;
-          if (!native) throw new Error("Native bridge unavailable");
-          const original = window.fetch;
-          const target = native.convertFileSrc("get_workspace_snapshot", "ipc");
-          runtime.__portcoveInstallRefreshProbe = {
-            original,
-            target,
-            calls: [],
-            failing: true,
-            injected: 0,
-          };
-          window.fetch = function (input, ...args) {
-            const probe = runtime.__portcoveInstallRefreshProbe;
-            if (!probe) throw new Error("Install refresh probe unavailable");
-            // Preserve the existing coercion for cross-realm request-like inputs.
-            const url =
-              typeof input === "string"
-                ? input
-                : ((typeof input === "object" && input !== null && "url" in input
-                    ? input.url
-                    : undefined) ??
-                  // oxlint-disable-next-line typescript/no-base-to-string
-                  String(input));
-            const parsed = new URL(url, location.href);
-            if (parsed.hostname === "ipc.localhost")
-              probe.calls.push(decodeURIComponent(parsed.pathname.slice(1)));
-            if (url === probe.target && probe.failing) {
-              probe.injected++;
-              return Promise.resolve(
-                new Response(
-                  JSON.stringify({
-                    code: "state",
-                    message: "synthetic-post-install-refresh-failure",
-                    details: {},
-                    presentation: {
-                      presentation_key: "state_unavailable",
-                      summary: "Library information is temporarily unavailable.",
-                      tone: "error",
-                      mutation_state: "unknown",
-                      phase: null,
-                      recovery_actions: ["review_current_state", "view_technical_details"],
-                      technical_message:
-                        "Synthetic post-install refresh rejection for presentation verification.",
-                      technical_context: {},
-                    },
-                  }),
-                  {
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Tauri-Response": "error",
-                    },
-                  },
-                ),
-              );
-            }
-            return original.call(window, input, ...args);
-          };
-          done({ installed: true });
-        },
-      );
+      const installedProbe = await installRefreshProbe(browser);
       assert.equal(object(installedProbe).installed, true);
 
       await reviewAndStart();
@@ -504,21 +539,7 @@ export async function installScenarios({
       const accessibility = path.join(output, "install-refresh-failure-accessibility.json");
       await captureAccessibilityReport(browser, accessibility, artifacts);
 
-      assert.equal(
-        await executeBrowserScript(browser, () => {
-          const runtime = window as InstallWindow;
-          if (!runtime.__portcoveInstallRefreshProbe)
-            throw new Error("Install refresh probe unavailable");
-          const retryButton = [...document.querySelectorAll("button")].find(
-            (candidate) => candidate.textContent?.trim() === "Retry refresh",
-          );
-          if (!retryButton) return false;
-          runtime.__portcoveInstallRefreshProbe.failing = false;
-          retryButton.click();
-          return true;
-        }),
-        true,
-      );
+      assert.equal(await retryRefreshProbe(browser), true);
       await browser.wait(async () => {
         const buttons = await browser.findElements(
           By.xpath('//button[normalize-space(.)="Retry refresh"]'),
@@ -560,21 +581,7 @@ export async function installScenarios({
       throw error;
     } finally {
       try {
-        observations.probe = await executeBrowserScript(browser, () => {
-          const runtime = window as InstallWindow;
-          const probe = runtime.__portcoveInstallRefreshProbe;
-          if (!probe) return { installed: false as const };
-          window.fetch = probe.original;
-          const result = {
-            installed: true as const,
-            injected: probe.injected,
-            failing: probe.failing,
-            commands: probe.calls,
-            restored: window.fetch === probe.original,
-          };
-          delete runtime.__portcoveInstallRefreshProbe;
-          return result;
-        });
+        observations.probe = await restoreRefreshProbe(browser);
         assert.ok(observations.probe.installed);
         assert.equal(observations.probe.restored, true);
       } finally {

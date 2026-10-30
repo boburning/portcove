@@ -6,7 +6,6 @@
     "summary": "Choose your own Doom-family game data and mods in UZDoom; the upstream launcher provides runtime updates.",
     "project_url": "https://github.com/UZDoom/UZDoom",
     "issue_number": 1899,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md",
     "manual_setup": {
@@ -22,9 +21,19 @@
         {
           "title": "Update through upstream",
           "instruction": "UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup."
+        },
+        {
+          "title": "Register your prepared player",
+          "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual uzdoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
+        },
+        {
+          "title": "Keep your runtime and data recoverable",
+          "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Portcove tracks the player you selected. If UZDoom’s error window restarts it, the new player can keep running after Portcove reports the original process finished. Close any remaining UZDoom players before choosing Play again or updating files. Removing the registration does not confirm that restarted players have stopped and leaves every external file untouched."
+      ],
       "help_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md"
     },
     "original_game_title": "Doom",
@@ -32,6 +41,36 @@
     "recommended_download_channel": "stable",
     "download_asset_hints": {
       "windows-x86-64": ["Windows-UZDoom-Release-x86_64.zip"]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "UZDoom/UZDoom",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Extract the complete official Windows x64 archive into a separate folder. Choose uzdoom.exe with that folder as its working directory and save launch details, then choose Play deliberately. updater.exe is the upstream runtime replacement helper, not the player to register. Other upstream platforms use their own AppImage or Mac disk-image setup; this Windows package does not establish their operation. Use the launcher to select your own supported IWAD or compatible free game data. Keep mods and game data under the upstream documented setup. Adding launch details does not start a game; choose Play separately. UZDoom’s launcher checks for updates and can use updater.exe to replace package files. Keep that runtime ownership with upstream. Portcove leaves these external files untouched and offers no managed Update, Backup or Rollback promise for them. Before changing versions, close the game and back up your actual IWADs, mods and configured save paths. Windows normally stores uzdoom.ini under Documents/My Games/UZDoom and saves under the Windows Saved Games/UZDoom folder. Portable mode uses uzdoom_portable.ini and the local Save and Screenshots folders. Custom config/save overrides and relocated Windows user folders need their own backup. Keep the working copy recoverable; upstream update_backup is not a Portcove-verified player-data backup. Complete the upstream setup in your permitted working copy first. Select the actual uzdoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready. You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route. Portcove tracks the player you selected. If UZDoom’s error window restarts it, the new player can keep running after Portcove reports the original process finished. Close any remaining UZDoom players before choosing Play again or updating files. Removing the registration does not confirm that restarted players have stopped and leaves every external file untouched."
     }
   }
 }

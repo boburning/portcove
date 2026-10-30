@@ -131,6 +131,8 @@ function lifecycleRun(value: unknown) {
     role: text(raw.role),
     status: text(raw.status),
     pid: nullable(raw.pid, numberValue),
+    start_time: nullable(raw.start_time, text),
+    arguments: nullable(raw.arguments, (value) => array(value).map(text)),
     executable_sha256: nullable(raw.executable_sha256, text),
     exit_code: nullable(raw.exit_code, numberValue),
     exit_observation: nullable(raw.exit_observation, text),
@@ -146,12 +148,18 @@ function lifecycleValue(value: unknown) {
   return {
     ...raw,
     phase: text(raw.phase),
+    failure: nullable(raw.failure, text),
+    owned_paths: nullable(raw.owned_paths, object),
     process_runs: nullable(raw.process_runs, (value) => array(value).map(lifecycleRun)),
     uninstaller_sha256: nullable(raw.uninstaller_sha256, text),
     details: nullable(raw.details, (value) => {
       const raw = object(value);
       return {
         ...raw,
+        install_mode: nullable(raw.install_mode, text),
+        registered_version: nullable(raw.registered_version, text),
+        uninstall_registration_count: nullable(raw.uninstall_registration_count, numberValue),
+        registration_path: nullable(raw.registration_path, text),
         update_path: nullable(raw.update_path, text),
         upgrade: raw.upgrade,
         registration_removed: nullable(raw.registration_removed, booleanValue),
@@ -669,6 +677,17 @@ class Uninstaller {
 class Installer {
   static void Main(string[] args) {
     if (Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_HANG_INSTALLER") == "1") Thread.Sleep(60000);
+    var observationDirectory = Environment.GetEnvironmentVariable("PORTCOVE_FIXTURE_INSTALLER_ARGUMENTS");
+    if (observationDirectory != null) {
+      Directory.CreateDirectory(observationDirectory);
+      using (var self = System.Diagnostics.Process.GetCurrentProcess()) {
+        var observation = new string[args.Length + 2];
+        observation[0] = self.Id.ToString();
+        observation[1] = self.StartTime.ToUniversalTime().ToString("o");
+        Array.Copy(args, 0, observation, 2, args.Length);
+        File.WriteAllLines(Path.Combine(observationDirectory, self.Id + "-" + Guid.NewGuid().ToString("N") + ".txt"), observation);
+      }
+    }
     string install = null;
     bool update = false;
     foreach (var arg in args) {
@@ -1026,6 +1045,7 @@ function runInstallerLifecycle(
   processTimeoutSeconds = "5",
   testFault = "",
   upgradeFrom = false,
+  options: { installMode?: "Silent" | "Passive"; expectedVersion?: string } = {},
 ) {
   const caseRoot = path.join(item.root, name);
   mkdirSync(caseRoot);
@@ -1047,6 +1067,8 @@ function runInstallerLifecycle(
   ];
   if (testFault) args.push("-TestFault", testFault);
   if (upgradeFrom) args.push("-UpgradeFromInstallerPath", item.installer);
+  if (options.installMode) args.push("-InstallMode", options.installMode);
+  if (options.expectedVersion) args.push("-ExpectedVersion", options.expectedVersion);
   return spawnSync("pwsh.exe", args, {
     encoding: "utf8",
     windowsHide: true,
@@ -1061,21 +1083,121 @@ void test(
   (t) => {
     const item = makeInstallerLifecycleFixture(t);
     t.after(() => removeInstallerLifecycleRegistration(item));
-    const upgraded = runInstallerLifecycle(item, "update-mode", {}, "5", "", true);
-    assert.equal(upgraded.status, 0, upgraded.stderr);
-    const evidence = lifecycleValue(
-      JSON.parse(readFileSync(path.join(item.root, "update-mode", "evidence.json"), "utf8")),
+    for (const mode of ["Silent", "Passive"] as const)
+      for (const upgrade of [false, true]) {
+        const name = `${mode}-${upgrade ? "upgrade" : "fresh"}`;
+        const captured = path.join(item.root, `${name}-arguments`);
+        const result = runInstallerLifecycle(
+          item,
+          name,
+          { PORTCOVE_FIXTURE_INSTALLER_ARGUMENTS: captured },
+          "5",
+          "",
+          upgrade,
+          { installMode: mode, expectedVersion: "0.1.0-alpha.2" },
+        );
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, result.stderr);
+        const evidence = lifecycleValue(
+          JSON.parse(readFileSync(path.join(item.root, name, "evidence.json"), "utf8")),
+        );
+        assert.equal(evidence.phase, "complete");
+        const details = required(evidence.details);
+        assert.equal(
+          details.update_path,
+          upgrade ? "registered_nsis_update" : "explicit_bootstrap_destination",
+        );
+        assert.equal(Boolean(details.upgrade), upgrade);
+        assert.equal(details.install_mode, mode);
+        assert.equal(details.registered_version, "0.1.0-alpha.2");
+        assert.equal(details.uninstall_registration_count, 1);
+        assert.equal(
+          details.registration_path,
+          `Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\${item.keyPath}`,
+        );
+        assert.equal(details.registration_removed, true);
+        const runs = required(evidence.process_runs),
+          candidates = runs.filter((run) => run.role === "candidate_installer"),
+          predecessors = runs.filter((run) => run.role === "predecessor_installer");
+        assert.equal(candidates.length, 1);
+        assert.equal(predecessors.length, upgrade ? 1 : 0);
+        const installRoot = path.join(
+          item.root,
+          name,
+          "runs",
+          text(required(evidence.owned_paths).install_relative),
+        );
+        const observations = readdirSync(captured).map((file) => {
+          const lines = readFileSync(path.join(captured, file), "utf8")
+            .replace(/^\uFEFF/u, "")
+            .trimEnd()
+            .split(/\r?\n/u);
+          return { pid: Number(lines[0]), started_at: lines[1], argv: lines.slice(2) };
+        });
+        assert.equal(observations.length, upgrade ? 2 : 1);
+        for (const run of [...predecessors, ...candidates]) {
+          const observed = observations.filter(
+            (value) => value.pid === run.pid && value.started_at === run.start_time,
+          );
+          assert.equal(
+            observed.length,
+            1,
+            "Bind actual argv to the exact retained process identity",
+          );
+          const expected =
+            run.role === "predecessor_installer"
+              ? ["/S", `/D=${installRoot}`]
+              : [mode === "Passive" ? "/P" : "/S", upgrade ? "/UPDATE" : `/D=${installRoot}`];
+          assert.deepEqual(required(observed[0]).argv, expected);
+          assert.deepEqual(required(run.arguments), expected);
+        }
+        t.diagnostic(
+          "Installer invocation fixture observation: " +
+            JSON.stringify({
+              name,
+              mode,
+              upgrade,
+              registration_path: details.registration_path,
+              registered_version: details.registered_version,
+              observations,
+            }),
+        );
+      }
+    // The installer independently writes alpha.2; only the caller expects 0.9.
+    const refused = runInstallerLifecycle(item, "wrong-version", {}, "5", "", false, {
+      expectedVersion: "0.9.0",
+    });
+    assert.ifError(refused.error);
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /Installed registration does not match expected version 0\.9\.0/u);
+    const refusedEvidence = lifecycleValue(
+      JSON.parse(readFileSync(path.join(item.root, "wrong-version", "evidence.json"), "utf8")),
     );
-    assert.equal(evidence.phase, "complete");
-    assert.equal(required(evidence.details).update_path, "registered_nsis_update");
-    assert.ok(required(evidence.details).upgrade);
+    assert.equal(refusedEvidence.phase, "failed");
     assert.equal(
-      required(evidence.process_runs).filter((run) => run.role === "predecessor_installer").length,
+      refusedEvidence.failure,
+      "Installed registration does not match expected version 0.9.0",
+    );
+    assert.equal(
+      required(refusedEvidence.process_runs).filter(
+        (run) =>
+          run.role === "candidate_installer" &&
+          run.status === "exit_observed" &&
+          run.exit_code === 0,
+      ).length,
       1,
     );
     assert.equal(
-      required(evidence.process_runs).filter((run) => run.role === "candidate_installer").length,
-      1,
+      required(refusedEvidence.process_runs).filter((run) => run.role === "candidate_smoke").length,
+      0,
+    );
+    t.diagnostic(
+      "Installer version fixture refusal: " +
+        JSON.stringify({
+          failure: refusedEvidence.failure,
+          installer_exited: true,
+          smoke_launches: 0,
+        }),
     );
   },
 );

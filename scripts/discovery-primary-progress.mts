@@ -221,7 +221,12 @@ export class DiscoveryPrimaryReads {
 }
 
 /** Provider links may change only their sequential page within the exact collection. */
-export function discoveryNextPage(response: IncludedResponse, first: string, current: string) {
+export function discoveryNextPage(
+  response: IncludedResponse,
+  first: string,
+  current: string,
+  repositoryId?: number,
+) {
   const raw = response.headers.get("link");
   if (raw) {
     const links = [...raw.matchAll(/<([^>]+)>;\s*rel="([^"]+)"/gu)];
@@ -236,10 +241,21 @@ export function discoveryNextPage(response: IncludedResponse, first: string, cur
   const base = new URL(first, "https://api.github.com/");
   const last = new URL(current, "https://api.github.com/");
   const candidate = new URL(next, "https://api.github.com/");
+  const collection = /^\/repos\/[^/]+\/[^/]+\/(releases(?:\/[1-9]\d*\/assets)?)$/u.exec(
+    base.pathname,
+  )?.[1];
+  // GitHub emits immutable numeric repository routes in Link headers even when
+  // the request used owner/name. Accept only the primary metadata's exact ID
+  // and this exact collection; keep journal requests on their original route.
+  const boundAlias =
+    collection !== undefined &&
+    Number.isSafeInteger(repositoryId) &&
+    Number(repositoryId) > 0 &&
+    candidate.pathname === `/repositories/${repositoryId}/${collection}`;
   const page = candidate.searchParams.get("page");
   if (
     candidate.origin !== base.origin ||
-    candidate.pathname !== base.pathname ||
+    (candidate.pathname !== base.pathname && !boundAlias) ||
     candidate.username ||
     candidate.password ||
     candidate.hash ||
@@ -253,5 +269,5 @@ export function discoveryNextPage(response: IncludedResponse, first: string, cur
     Number(page) !== Number(last.searchParams.get("page") ?? 1) + 1
   )
     throw new Error("Research pagination escaped or failed to advance its exact collection");
-  return candidate.pathname.slice(1) + candidate.search;
+  return base.pathname.slice(1) + candidate.search;
 }
