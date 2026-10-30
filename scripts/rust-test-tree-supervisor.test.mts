@@ -545,8 +545,9 @@ interface LinuxCapture {
   identity: string;
 }
 type LinuxMode =
-  | "legacy-sibling-red"
+  | "legacy-sibling-adopted"
   | "natural"
+  | "adopted-exit"
   | "gate-refusal"
   | "cancel-pipe"
   | "supervisor-loss"
@@ -783,6 +784,14 @@ async function linuxInnerCase(
     }
     throw new Error(`Linux ${mode} fixture did not reach its bounded condition`);
   };
+  const terminalOrAbsent = (pid: number) => {
+    try {
+      return identity(pid).state === "Z";
+    } catch (error) {
+      if (absent(error)) return true;
+      throw error;
+    }
+  };
   const gate = path.join(directory, "inner.gate");
   const status = path.join(directory, "inner.status");
   const receipt = path.join(directory, "inner.receipt");
@@ -791,20 +800,45 @@ async function linuxInnerCase(
   const descendant = path.join(directory, "inner.descendant");
   const helperPid = path.join(directory, "inner.helper");
   const finish = path.join(directory, "inner.finish");
-  const payload = [
+  const adoptedExit = path.join(directory, "adopted.exit");
+  // Publish complete PID bytes before existsSync can release an observer.
+  // Linking the finished pending file also refuses an existing destination.
+  const publishPid = (filename: string) =>
+    [
+      `writeFileSync(${JSON.stringify(filename + ".pending")},String(child.pid),{flag:"wx"})`,
+      `linkSync(${JSON.stringify(filename + ".pending")},${JSON.stringify(filename)})`,
+      `unlinkSync(${JSON.stringify(filename + ".pending")})`,
+    ].join(";");
+  const adoptedPayload = [
     'const {spawn}=require("node:child_process")',
-    'const {writeFileSync,existsSync}=require("node:fs")',
-    `writeFileSync(${JSON.stringify(started)},"started")`,
-    `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-closure"},stdio:"ignore"})`,
-    `writeFileSync(${JSON.stringify(descendant)},String(child.pid))`,
-    "child.unref()",
-    ...(mode === "natural" ||
-    mode === "ignored-sigchld" ||
-    mode === "receipt-refusal" ||
-    mode === "root-complete-reaper-loss"
-      ? [`setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`]
-      : ["setInterval(()=>{},1000)"]),
+    'const {writeFileSync,linkSync,unlinkSync}=require("node:fs")',
+    `const child=spawn(process.execPath,["-e",${JSON.stringify(`const {existsSync}=require("node:fs");setInterval(()=>{if(existsSync(${JSON.stringify(adoptedExit)}))process.exit(0)},10)`)}],{stdio:"ignore"})`,
+    publishPid(descendant),
+    "process.exit(0)",
   ].join(";");
+  const payload =
+    mode === "adopted-exit"
+      ? [
+          'const {spawn}=require("node:child_process")',
+          'const {writeFileSync,existsSync}=require("node:fs")',
+          `writeFileSync(${JSON.stringify(started)},"started")`,
+          `spawn(process.execPath,["-e",${JSON.stringify(adoptedPayload)}],{stdio:"ignore"}).unref()`,
+          `setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`,
+        ].join(";")
+      : [
+          'const {spawn}=require("node:child_process")',
+          'const {writeFileSync,existsSync,linkSync,unlinkSync}=require("node:fs")',
+          `writeFileSync(${JSON.stringify(started)},"started")`,
+          `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-closure"},stdio:"ignore"})`,
+          publishPid(descendant),
+          "child.unref()",
+          ...(mode === "natural" ||
+          mode === "ignored-sigchld" ||
+          mode === "receipt-refusal" ||
+          mode === "root-complete-reaper-loss"
+            ? [`setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`]
+            : ["setInterval(()=>{},1000)"]),
+        ].join(";");
   const args = [
     gate,
     status,
@@ -885,7 +919,7 @@ async function linuxInnerCase(
       siblingCompletion = closed(sibling);
       siblingIdentity = identity(positive(sibling.pid));
     }
-    if (mode === "legacy-sibling-red") {
+    if (mode === "legacy-sibling-adopted") {
       managed = spawn(
         process.execPath,
         [supervisor, gate, status, receipt, process.execPath, "-e", payload],
@@ -909,12 +943,12 @@ async function linuxInnerCase(
     } else if (mode === "wrapper-loss") {
       const wrapperScript = [
         'const {spawn}=require("node:child_process")',
-        'const {writeFileSync,readFileSync}=require("node:fs")',
+        'const {writeFileSync,readFileSync,linkSync,unlinkSync}=require("node:fs")',
         `const args=${JSON.stringify(args)}`,
         'const stat=readFileSync(`/proc/${process.pid}/stat`,"utf8");const fields=stat.slice(stat.lastIndexOf(")")+2).trim().split(/\\s+/u)',
         'args[4]=`linux:${readFileSync("/proc/sys/kernel/random/boot_id","utf8").trim()}:${process.pid}:${fields[19]}`',
         `const child=spawn(${JSON.stringify(reaper)},args,{stdio:["pipe","inherit","inherit"]})`,
-        `writeFileSync(${JSON.stringify(helperPid)},String(child.pid))`,
+        publishPid(helperPid),
         "setInterval(()=>{},1000)",
       ].join(";");
       wrapper = spawn(process.execPath, ["-e", wrapperScript], { stdio: "inherit" });
@@ -949,7 +983,7 @@ async function linuxInnerCase(
       assert.equal(existsSync(started), false);
     } else {
       let node;
-      if (mode === "legacy-sibling-red" || mode === "root-complete-reaper-loss")
+      if (mode === "legacy-sibling-adopted" || mode === "root-complete-reaper-loss")
         node = required(captured[0]);
       else {
         await wait(() => existsSync(registration));
@@ -976,9 +1010,31 @@ async function linuxInnerCase(
           );
         writeFileSync(gate, "registered\n", { flag: "wx" });
         await wait(() => existsSync(descendant));
-        const child = capture(Number(readFileSync(descendant, "utf8")), (value) => {
+        const child = capture(positive(Number(readFileSync(descendant, "utf8"))), (value) => {
           if (mode === "escaped-closure") escaped = value;
         });
+        if (mode === "adopted-exit") {
+          await wait(() => identity(child.pid).parent === helper);
+          writeFileSync(adoptedExit, "exit\n", { flag: "wx" });
+          await wait(() => !existsSync(`/proc/${child.pid}`));
+          assert.equal(identity(node.pid).identity, node.identity);
+          assert.notEqual(
+            identity(node.pid).state,
+            "Z",
+            "supervisor anchor exited before adopted child settlement",
+          );
+          assert.equal(
+            existsSync(status),
+            false,
+            "payload completed before adopted child settlement",
+          );
+          assert.equal(
+            existsSync(receipt),
+            false,
+            "early reaping manufactured final cleanup proof",
+          );
+          writeFileSync(finish, "finish\n");
+        }
         if (
           mode === "natural" ||
           mode === "ignored-sigchld" ||
@@ -996,7 +1052,7 @@ async function linuxInnerCase(
           required(managed?.stdin).end();
         }
         if (mode === "cancel-pipe") required(managed?.stdin).end();
-        if (mode === "supervisor-loss" || mode === "legacy-sibling-red") {
+        if (mode === "supervisor-loss" || mode === "legacy-sibling-adopted") {
           assert.equal(identity(node.pid).start, node.start);
           assert.equal(identity(node.pid).group, node.pid);
           process.kill(-node.pid, "SIGKILL");
@@ -1011,23 +1067,27 @@ async function linuxInnerCase(
             () =>
               (mode === "root-complete-reaper-loss"
                 ? !existsSync(`/proc/${node.pid}`)
-                : identity(node.pid).state === "Z") && identity(child.pid).state === "Z",
+                : terminalOrAbsent(node.pid)) && terminalOrAbsent(child.pid),
           );
           assert.equal(existsSync(receipt), false, "lost reaper manufactured a receipt");
         }
       }
       if (mode !== "reaper-loss" && mode !== "root-complete-reaper-loss") {
-        // The old sibling cleaner retains its existing 5s
-        // cleanup deadline; the enclosing Node test retains its unchanged 30s guard.
-        await wait(() => existsSync(receipt), mode === "legacy-sibling-red" ? 6_000 : 5_000);
+        // The old sibling topology now settles under this enclosing active adopter.
+        // Keep its original 5s cleanup deadline and the enclosing 30s guard.
+        await wait(() => existsSync(receipt), mode === "legacy-sibling-adopted" ? 6_000 : 5_000);
         const outcome = json(readFileSync(receipt, "utf8")).outcome;
-        if (mode === "legacy-sibling-red") {
+        if (mode === "legacy-sibling-adopted") {
           assert.equal(
             outcome,
-            "failed:timeout",
-            "old sibling topology did not reproduce its orphan defect",
+            "quiescent",
+            "enclosing adopter did not settle the old sibling topology",
           );
-          assert.equal(identity(Number(readFileSync(descendant, "utf8"))).state, "Z");
+          assert.equal(
+            existsSync(`/proc/${Number(readFileSync(descendant, "utf8"))}`),
+            false,
+            "enclosing adopter retained an exited orphan",
+          );
           await completion;
         } else if (mode === "receipt-refusal") {
           assert.equal((await required(completion)).code, 1);
@@ -1075,8 +1135,9 @@ function linuxFixtureProgram(
 
 let linuxEvidenceHeld = false;
 for (const mode of [
-  "legacy-sibling-red",
+  "legacy-sibling-adopted",
   "natural",
+  "adopted-exit",
   "gate-refusal",
   "cancel-pipe",
   "supervisor-loss",
