@@ -204,6 +204,7 @@
       "managerFilePatterns": [
         "/^\\.node-version$/",
         "/^scripts\\/controller-node-runtime\\.mts$/",
+        "/^scripts\\/release-hosted-native-windows-diagnostic-launch\\.ps1$/",
         "/^\\.github\\/workflows\\/application-update-production\\.yml$/",
         "/^docs\\/qualification\\/application-update-production\\.complete\\.yml$/",
         "/^docs\\/qualification\\/application-update-production\\.controller-tools\\.yml$/"
@@ -211,7 +212,8 @@
       "matchStrings": [
         "^(?<currentValue>\\d+\\.\\d+\\.\\d+)[\\r\\n]*$",
         "export[ \\t]+const[ \\t]+controllerNodeVersion[ \\t]*=[ \\t]*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\";",
-        "(?:^|\\r?\\n)[ \\t]+node-version:[ \\t]*[\"']?(?<currentValue>\\d+\\.\\d+\\.\\d+)[\"']?[ \\t]*(?:\\r?\\n|$)"
+        "(?:^|\\r?\\n)[ \\t]+node-version:[ \\t]*[\"']?(?<currentValue>\\d+\\.\\d+\\.\\d+)[\"']?[ \\t]*(?:\\r?\\n|$)",
+        "& \\$node --version\\|Out-String\\)\\.Trim\\(\\) -cne 'v(?<currentValue>\\d+\\.\\d+\\.\\d+)'"
       ],
       "depNameTemplate": "node",
       "datasourceTemplate": "node-version",
