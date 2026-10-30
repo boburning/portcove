@@ -1627,24 +1627,31 @@ async function restartApplication(
         undefined,
         "Identity-bound restart cannot rewrite fixture state",
       );
-    const inventory = captureBackupFocusCleanup(
-      selectedSetupRestart || acquisitionRestart ? name : cleanupName,
-    );
-    validateBackupFocusInventory(
-      readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
-      selectedSetupRestart || acquisitionRestart,
-    );
-    await required(browser).quit();
-    browser = undefined;
-    stopBackupFocusDriver();
-    const cleanup = ownedSession.requireQuiescence();
-    const restartEvidence = path.join(output, `${name}-restart.json`);
-    await writeFile(restartEvidence, `${JSON.stringify(cleanup, null, 2)}\n`, { flag: "wx" });
-    artifacts.push(restartEvidence);
-    if (prepareWhileStopped) await prepareWhileStopped();
-    await startDriver(childEnvironment);
-    await connect();
-    return driverBrowser();
+    return await ownedSession.restart({
+      capture: async () => {
+        const inventory = captureBackupFocusCleanup(
+          selectedSetupRestart || acquisitionRestart ? name : cleanupName,
+        );
+        validateBackupFocusInventory(
+          readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
+          selectedSetupRestart || acquisitionRestart,
+        );
+      },
+      close: async () => {
+        await required(browser).quit();
+        browser = undefined;
+      },
+      stop: stopBackupFocusDriver,
+      publish: async (cleanup) => {
+        const restartEvidence = path.join(output, `${name}-restart.json`);
+        await writeFile(restartEvidence, `${JSON.stringify(cleanup, null, 2)}\n`, { flag: "wx" });
+        artifacts.push(restartEvidence);
+      },
+      prepare: prepareWhileStopped,
+      start: () => startDriver(childEnvironment),
+      connect,
+      browser: driverBrowser,
+    });
   }
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
@@ -2194,22 +2201,26 @@ async function launchDriverProcess(childEnvironment: NodeJS.ProcessEnv) {
     });
     driver = launch.child;
   } else if (nativeAccount) {
-    admission.assertReady();
-    ownedSession.beginLaunch();
-    driver = nativeAccount.start(
-      driverPath,
-      arguments_,
-      runtimeRoot,
-      driverEnvironment(childEnvironment),
-    );
+    driver = ownedSession.startLaunch({
+      admit: () => admission.assertReady(),
+      create: () =>
+        required(nativeAccount).start(
+          driverPath,
+          arguments_,
+          runtimeRoot,
+          driverEnvironment(childEnvironment),
+        ),
+    });
   } else {
-    admission.assertReady();
-    ownedSession.beginLaunch();
-    driver = spawn(driverPath, arguments_, {
-      windowsHide: true,
-      detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-      env: driverEnvironment(childEnvironment),
+    driver = ownedSession.startLaunch({
+      admit: () => admission.assertReady(),
+      create: () =>
+        spawn(driverPath, arguments_, {
+          windowsHide: true,
+          detached: process.platform !== "win32",
+          stdio: ["ignore", "pipe", "pipe"],
+          env: driverEnvironment(childEnvironment),
+        }),
     });
   }
 }

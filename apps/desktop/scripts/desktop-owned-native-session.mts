@@ -325,6 +325,46 @@ export class OwnedNativeSession {
     this.cleanup = undefined;
   }
 
+  /** Admission refusal preserves the former proof; an attempted replacement
+   * invalidates it even when the caller-owned factory throws synchronously. */
+  startLaunch<Driver>({ admit, create }: { admit: () => void; create: () => Driver }): Driver {
+    admit();
+    this.beginLaunch();
+    return create();
+  }
+
+  /** Strict identity-bound restart. Actual observations and receipt publication
+   * stay caller capabilities; no fixture mutation precedes positive quiescence. */
+  async restart<Browser>({
+    capture,
+    close,
+    stop,
+    publish,
+    prepare,
+    start,
+    connect,
+    browser,
+  }: {
+    capture: () => Promise<void>;
+    close: () => Promise<void>;
+    stop: () => void;
+    publish: (cleanup: NativeSessionCleanup) => Promise<void>;
+    prepare: (() => Promise<void>) | undefined;
+    start: () => Promise<void>;
+    connect: () => Promise<void>;
+    browser: () => Browser;
+  }): Promise<Browser> {
+    await capture();
+    await close();
+    stop();
+    const cleanup = this.requireQuiescence();
+    await publish(cleanup);
+    if (prepare) await prepare();
+    await start();
+    await connect();
+    return browser();
+  }
+
   captureDriverLaunch({
     pid,
     executable,
