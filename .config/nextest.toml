@@ -1055,9 +1055,15 @@ success-output = "immediate"
 # CI40903721571/a1 Windows6 cut activated_resume_abort at30.110s after
 # command3 completed29.354s and observation13 completed29.859s. Keep its
 # complete ownership sequence and exact intermediate assertions in this60s group.
+# CI41042715945/a1 Windows6 job124021832587 cut verified_abort_resume
+# at30.127s after observation13 completed29.662s and observation15 began.
+# The unchanged fixture passed12.154s in41036617330/a1. Include only this
+# exact progressing case in the existing finite60s Windows sibling allowance.
+# Preserve every intermediate observation/assertion, cleanup, resources, two
+# workers, zero retries and product/child deadlines; no speedup claim.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/))'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::verified_abort_resume$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
