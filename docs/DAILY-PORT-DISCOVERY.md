@@ -464,6 +464,17 @@ zero quota also retain backoff. Lower-priority API work stops at observed provid
 delivery headroom as well as the local request/byte reserve. No failed request
 is automatically retried and no identity is switched.
 
+Each configured credential retains its own quota observations in the same budget
+ledger; shared admission uses conservative capacity. An observed window expiring
+does not restore the startup request estimate or erase charged usage. Before more
+work, the transport permits one charged, authenticated `GET /rate_limit` per quota
+generation, capped at one request and 16 KiB inside the existing time, byte and
+backoff bounds. All required resource observations must be complete and fresh;
+failed, malformed or stale observations stop without retrying the pending request.
+A previously admitted successful response remains recordable across a quota reset;
+the next operation requires fresh capacity. This does not change ambiguous POST
+recovery, physical envelopes or the requirement to retain confirmed identities.
+
 | `op`           | Additional message fields and completion criterion                                                                                                                                                                                                         |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                                       |
