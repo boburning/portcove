@@ -4026,7 +4026,10 @@ void test("native transport producers retain their actual Node consumers across 
     ]),
     [
       "apps/desktop/scripts/desktop-qualification-history-test.mts",
-      ["scripts/desktop-scenarios.test.mts"],
+      [
+        "scripts/desktop-scenarios.test.mts",
+        "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+      ],
     ],
     [
       "apps/desktop/scripts/desktop-host-publication-test.mts",
@@ -4114,6 +4117,7 @@ void test("native transport producers retain their actual Node consumers across 
         "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
         "apps/desktop/scripts/desktop-readiness.native.test.mts",
         "scripts/desktop-staged-layout.test.mts",
+        "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
       ],
     ],
   ];
@@ -4143,7 +4147,8 @@ void test("native transport producers retain their actual Node consumers across 
       });
       if (
         file === "scripts/fixtures/desktop-module-fixture.mts" ||
-        file === "scripts/fixtures/native-fetch-probe-fixture.mts"
+        file === "scripts/fixtures/native-fetch-probe-fixture.mts" ||
+        file === "apps/desktop/scripts/desktop-qualification-history-test.mts"
       ) {
         assert.equal(windowsHelperChecksRequired(plan), true, variant);
         assert.equal(windowsNativeToolsRequired(plan), true, variant);
