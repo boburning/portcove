@@ -1,0 +1,1642 @@
+{
+  "schema_version": 1,
+  "scope": "Ordinary isolated rootless x86-64 guest OS reboot and existing interrupted-copy recovery. Earlier actual GUI/real-game acceptance is independent; no power-loss, Steam/Deck, production/default-byte or publication claim.",
+  "controller": {
+    "source": "7e93ee75d38779634323a90a4a1f93464e340375",
+    "ci": {
+      "run": 40986938400,
+      "attempt": 1,
+      "required_contexts": ["catalog", "dependency-review", "frontend", "rust", "rust-quality"],
+      "all_success": true
+    },
+    "native": {
+      "workflow": 353940824,
+      "run": 40993092728,
+      "attempt": 1,
+      "job": 123859868703,
+      "conclusion": "success",
+      "packages_job": "skipped"
+    }
+  },
+  "artifact": {
+    "run": 40993092728,
+    "attempt": 1,
+    "head": "7e93ee75d38779634323a90a4a1f93464e340375",
+    "artifact": 12950636778,
+    "bytes": 204500,
+    "sha256": "2c69a4d36ce2bd59cb23dd569512bac22b645712553b65d66896485f006a059c",
+    "path": "/mnt/e/Codex-Evidence/beta-updater-20261028/3900-continuation/4003-7e93-reboot-12950636778.zip",
+    "scope": "Exact bounded artifact custody only; no native acceptance inferred"
+  },
+  "custody": {
+    "files": 144,
+    "expanded_bytes": 708367,
+    "all_crc_length_sha256_pass": true,
+    "all_nine_controller_inputs_byte_equal_git": true
+  },
+  "frozen_cohort": {
+    "source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+    "run": 40934887557,
+    "attempt": 1,
+    "workflow_id": 353940824,
+    "artifact": 12926701381,
+    "archive_bytes": 629666242,
+    "archive_sha256": "cfc5f19d45839d45bdecc1ff36944f48c59d91d51744af4d5f362503bb3e8478",
+    "file_count": 525,
+    "expanded_bytes": 840401642,
+    "helper_source": "d29563ea99263e33dbec693ecf0aebd9f3de709c",
+    "files": [
+      {
+        "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage",
+        "bytes": 98675192,
+        "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+        "crc32": "ab197c66",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/0.3.0-linux-x86_64/Portcove_0.3.0_amd64.AppImage.sig",
+        "bytes": 440,
+        "sha256": "510bd5b8cd74bc1a55e8801ccd438abfaea014afaa9a578c8bcf41a49037b920",
+        "crc32": "ee55fd45",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/disposable.key.pub",
+        "bytes": 152,
+        "sha256": "5dde708dbcac98f757704ae0c4fedbaa6e3bd3fe99a552e957c7e56be3264b4e",
+        "crc32": "8f0cf7aa",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.preview.json",
+        "bytes": 700,
+        "sha256": "66596a19e8a9758e6f913274d51137b4d08aa4435e6c9191f2f7b419f8d78078",
+        "crc32": "ae741f9d",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.releases.json",
+        "bytes": 693,
+        "sha256": "28c67d5021be300a864634f2f0f514472245b35eb7004684a12e30400234af18",
+        "crc32": "3be617e6",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.root.json",
+        "bytes": 3072,
+        "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+        "crc32": "ba2b8009",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.snapshot.json",
+        "bytes": 1205,
+        "sha256": "bf3c26d3c83e508ca35580b9b6a8d2226c5b27f1ae8f54890c6a85098cb6ec2b",
+        "crc32": "85749419",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.stable.json",
+        "bytes": 486,
+        "sha256": "e6723f4ce455b0445e5c97930200f5766ff5dd2e628cf889936161cc9341504b",
+        "crc32": "e4824c8d",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.targets.json",
+        "bytes": 2428,
+        "sha256": "08a2da1700d74217446076c160e774408d7f4fd82870be638369204685141776",
+        "crc32": "cb5de8f3",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/timestamp.json",
+        "bytes": 622,
+        "sha256": "55bc5ebf5088adb7bf7c3a102e53723d94505cc66be61247651d6ad645b83d33",
+        "crc32": "eb737a5e",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/repository-manifest.json",
+        "bytes": 1888,
+        "sha256": "a90b66b4a92c60d321ac275ee2e9ed574c4c2868ddaf8cddcab5e457da5a2102",
+        "crc32": "3182c4d3",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883.releases/0.3.0/linux-x86_64/appimage.json",
+        "bytes": 1953,
+        "sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+        "crc32": "7435ce10",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e.channels/preview/linux-x86_64/appimage/0.3.0.json",
+        "bytes": 395,
+        "sha256": "6297a98375864ab5e4e1256a4d2857461a6317d025de085651377ef235880f8e",
+        "crc32": "d1ef6f7f",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/targets/e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289.keys/payload.json",
+        "bytes": 315,
+        "sha256": "e0ff8b0c29a6feecf1381de20b5179f361db6e7bf1b656bc81479249dc10e289",
+        "crc32": "e9e02cc8",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+        "bytes": 3072,
+        "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+        "crc32": "ba2b8009",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage",
+        "bytes": 98859512,
+        "sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da",
+        "crc32": "06c91df5",
+        "directory": false
+      },
+      {
+        "path": "updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove_0.1.0_amd64.AppImage.sig",
+        "bytes": 440,
+        "sha256": "a2f9ed256dcf4ed72776ab9110fe072fca573502f02abf34e064761346af8dec",
+        "crc32": "4a70be43",
+        "directory": false
+      }
+    ]
+  },
+  "helper": {
+    "source": "d29563ea99263e33dbec693ecf0aebd9f3de709c",
+    "shipping_product_source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+    "helper": {
+      "path": "/home/runner/work/portcove/portcove/work/updater-linux-reboot/public-inputs/prepare_installed_update",
+      "bytes": 46922552,
+      "sha256": "d850c698f6c35776002589e51aabf20621e4dd9de15b7e30dbd5fa6803634efd"
+    },
+    "build_os_exit_code": 0,
+    "compiler": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+    "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)\n",
+    "cargo_lock": {
+      "path": "/home/runner/work/portcove/portcove/work/updater-linux-reboot-helper-source/Cargo.lock",
+      "bytes": 165562,
+      "sha256": "911c66e22227dd35407a6ede87210edafba11f6b068fabf94b8257489f2a08e4"
+    },
+    "scope": "Existing preparation example/profile only; no shipping application/package, frontend, signing, or public feed build"
+  },
+  "guest_image": {
+    "recorded_at": "2026-10-30T02:44:55.455009+00:00",
+    "phase": "signed-checksum-verified-cloud-image-retained",
+    "image": {
+      "url": "https://cloud-images.ubuntu.com/releases/resolute/release-20261016/ubuntu-26.04-server-cloudimg-amd64.img",
+      "bytes": 859090944,
+      "sha256": "5645d0318ad21f643ebb1ac4567514620e9893380b07b0201fda163baa5b7eb5"
+    },
+    "metadata": [
+      {
+        "url": "https://cloud-images.ubuntu.com/releases/resolute/release-20261016/SHA256SUMS",
+        "bytes": 8788,
+        "sha256": "489dd5ab1206aba5cb21769e8095e911feb01a313aec448e4bdc291f918b6549"
+      },
+      {
+        "url": "https://cloud-images.ubuntu.com/releases/resolute/release-20261016/SHA256SUMS.gpg",
+        "bytes": 833,
+        "sha256": "65b9916fdb6776bd0a740bb010123e6589f0790adf504a4c961289b1146c6df3"
+      }
+    ],
+    "keyring_package": {
+      "Package": "ubuntu-keyring",
+      "Version": "2023.11.28.1",
+      "SHA256": "36de43b15853ccae0028e9a767613770c704833f82586f28eb262f0311adb8a8",
+      "deb": "/home/runner/work/portcove/portcove/work/updater-linux-reboot/keyring-download/ubuntu-keyring_2023.11.28.1_all.deb",
+      "extracted": "/",
+      "source": "pool/main/u/ubuntu-keyring/ubuntu-keyring_2023.11.28.1_all.deb"
+    },
+    "keyring": {
+      "path": "/home/runner/work/portcove/portcove/work/updater-linux-reboot/image/gnupg/authenticated-ubuntu-cloudimage-keyring.gpg",
+      "bytes": 2444,
+      "sha256": "c2d40d925557dbe9a0745c12ca0dc98bed593ce9a6652f1b2faa1ff0858dbf2f",
+      "binding": "Exact regular member of SHA-pinned Ubuntu .deb; extracted bytes match and private GPG-home copy rehashed"
+    },
+    "scope": "Official dated Ubuntu26.04 x86-64 cloud image authenticated with task-local Ubuntu keyring; no QCOW inspection, global key import, guest launch or host mutation"
+  },
+  "runtime": {
+    "tools": {
+      "qemu-system-x86_64": "/usr/bin/qemu-system-x86_64",
+      "qemu-img": "/usr/bin/qemu-img"
+    },
+    "bios": "/usr/share/seabios/bios-256k.bin",
+    "data": "/usr/share/qemu",
+    "files": [
+      {
+        "path": "/usr/bin/qemu-system-x86_64",
+        "bytes": 26415624,
+        "sha256": "8a35ccba41582fc6c38b9df85fc9e35fa1d42f414d2d7d8090ee9b2f5e7c0854"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libpixman-1.so.0.42.2",
+        "bytes": 710832,
+        "sha256": "73aa0daeedb7228754d798b194e2ff69c8b82a689b9aa4f1d8ab32a8763b0cc5"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libgnutls.so.30.37.1",
+        "bytes": 2065824,
+        "sha256": "ddbae2995750875c07bc218d12a062d73f8250678f54dedda7e9be5068781c98"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libpng16.so.16.43.0",
+        "bytes": 223304,
+        "sha256": "89c0c6569a8c00480d451401ad4c0a74942e62dc57f229a970592fdc5adb29e8"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libz.so.1.3",
+        "bytes": 113000,
+        "sha256": "f61677c7bdb7c2aa2a243ea781bfd16afcb361cede7b4ef76127a9d8eb9a5242"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libjpeg.so.8.2.2",
+        "bytes": 534592,
+        "sha256": "ac09f2cd6f8a3b8e3cb123999ce275f9bcbe31c6cf9e20212c8f297772591d15"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libsasl2.so.2.0.25",
+        "bytes": 101200,
+        "sha256": "a0f410ad093236856eee59c4ff2838dc04d932ea0993400f23ed77d67d85af34"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libfdt-1.7.0.so",
+        "bytes": 39064,
+        "sha256": "66c111808e61c7f6be6715b4b03d0fe75beb5bc5b3a8809608d58d99a6bc9828"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libudev.so.1.7.8",
+        "bytes": 207288,
+        "sha256": "0d6934adafb2ef3c640382440c14d6bd60f391e688c000796ffcea0c72849269"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libpmem.so.1.0.0",
+        "bytes": 358688,
+        "sha256": "52f14a3f2a80464be81a56ac7098ba1a457309cd353e05a319ce55a915def9c0"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libseccomp.so.2.5.5",
+        "bytes": 125360,
+        "sha256": "b4d9140a7797ccf3ac14f5d9d579b64f157111662940cb8330c632b11a8cea8e"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libnuma.so.1.0.0",
+        "bytes": 52248,
+        "sha256": "02d7582c5d391e460e56aa67a414360e3183b968206645b9123f9dc7bff5d009"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libgio-2.0.so.0.8000.0",
+        "bytes": 1887632,
+        "sha256": "373801faa40cd4eb46a40ce02bd0945b4905160a59894b600636e0fadfb78f2b"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libgobject-2.0.so.0.8000.0",
+        "bytes": 399752,
+        "sha256": "2bf396b14b469ca2eed46a785b3bc0bd1fd979261c6bf505bc4debdcd0a6870a"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libglib-2.0.so.0.8000.0",
+        "bytes": 1343056,
+        "sha256": "448d9d271e77a7f6c4d057336df40c34b02c794f551caf8fa03b5122f25e601b"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/librdmacm.so.1.3.50.0",
+        "bytes": 122144,
+        "sha256": "18609553ba84c9206739d0a6d62ae5371d4713058ed4b68c665e627d967df648"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libibverbs.so.1.14.50.0",
+        "bytes": 138032,
+        "sha256": "249242c3ba29d72b7a9be560b768bf43fc5924c8a166f4e3bbb224bd81ade3ab"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.5",
+        "bytes": 755864,
+        "sha256": "0a2128bc10841fb29e76d08d945864dfb0b6a66da5df6df5d8299197439e54bb"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libslirp.so.0.4.0",
+        "bytes": 141304,
+        "sha256": "1f71a24af59f3aa76c1e0bcf7852de08c1c21c40524479b9d5df404d903b2280"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libbpf.so.1.3.0",
+        "bytes": 387728,
+        "sha256": "0e9998e17e38d78e5ce953f89a5e6a7c8b457d3e1bfe71e3ec5a1cfb05bbd1c3"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/liburing.so.2.5",
+        "bytes": 26856,
+        "sha256": "51594b92ac35f96595d3fcec9c3ec5d190637d9b426d5f8a8f4207875d2962f6"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libgmodule-2.0.so.0.8000.0",
+        "bytes": 22736,
+        "sha256": "1d3459ce2cd1a1fd276b08f75aa191597ece3e44bbe12ddd6bf0fe1dc8c27181"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libm.so.6",
+        "bytes": 952616,
+        "sha256": "fce00b6f25f459cf4ae0b7fae4257909a1a8a86f9149e7c029a5d617baf1ccd0"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libnettle.so.8.8",
+        "bytes": 342280,
+        "sha256": "a245ed916229583d6fe0b07657b3ed945bc148c28cc08b5266295f620d2b91cc"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libgmp.so.10.5.0",
+        "bytes": 534896,
+        "sha256": "0ccdfb6d6f5c039465f6d002cf7e4c072d48ac6a2cffc8dd6c748dec31592804"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libhogweed.so.6.8",
+        "bytes": 288920,
+        "sha256": "c3c606139d4f7776efa4dbd4a6b62e30c916b07a0cafd8c3ef173d6f093607e3"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libfuse3.so.3.14.0",
+        "bytes": 256184,
+        "sha256": "f1e75247f42d414df611ee554c8399bfe74565f89eed7c4501e2d97c48f21eab"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libaio.so.1t64.0.2",
+        "bytes": 14336,
+        "sha256": "9dbba7441fe096f6654bfd31bfdbba52f41a209bd4a560468293c226ff63c998"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "bytes": 2129424,
+        "sha256": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "bytes": 236616,
+        "sha256": "c20a2dc8917c755f02b94049356320fe1f62ac7d9f8994731f807d9df39302da"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libp11-kit.so.0.3.1",
+        "bytes": 1714008,
+        "sha256": "a59efd4792d3343dedea1d26a28f5597abfe3369082deb504c4802a31b014897"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libidn2.so.0.4.0",
+        "bytes": 133192,
+        "sha256": "6e632fd9a3125db60bbc623719bbc17b0470330321c5b1c57f1ff7190e5551ad"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libunistring.so.5.0.0",
+        "bytes": 1755312,
+        "sha256": "7bcf825cd449892db5105ad2aed91dcf94a27b796426600c765720c584c54dd1"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libtasn1.so.6.6.3",
+        "bytes": 88216,
+        "sha256": "59994414d0cdec4f678ef91eaaafc44b26b00bca507e4cc7978caaf79f584173"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+        "bytes": 5309400,
+        "sha256": "6866ed711dab8927e1bf82bf1cd30e828bdfc34f3cc1e83b1c9eb01ce6c37d9a"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libcap.so.2.66",
+        "bytes": 51536,
+        "sha256": "6ac6abc86ac891c6e13486470e26f1d939f47fda9e6b5d5508a7f5ec881adc84"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libndctl.so.6.1.21",
+        "bytes": 168136,
+        "sha256": "97859d906e55e67786f6c3d2f568553f8638d9c717880cf1295cc53e6b0d433c"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libdaxctl.so.1.2.5",
+        "bytes": 47256,
+        "sha256": "9b81e8d837bc49013099d5dc8b5263772d645dfcb205d9566e91e7d414839b59"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libmount.so.1.1.0",
+        "bytes": 309960,
+        "sha256": "7472255ae5799059b37ddd544788f5665dbd3e1cb78259f52180293039efc2a5"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "bytes": 174472,
+        "sha256": "0ec0843463f90e227b0e138e1f379774f50b5514bd7f5dbd4c8a87aca0aa6670"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libffi.so.8.1.4",
+        "bytes": 47672,
+        "sha256": "00f593fe192f2851b8ce23b25cec2488d769beb5a8f63e8c9e563071e1075153"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.11.2",
+        "bytes": 625344,
+        "sha256": "e00576d71d81d3ba0cfa4903c835a44a8723aac96f72f79ff75200b4cff9071b"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libnl-3.so.200.26.0",
+        "bytes": 133944,
+        "sha256": "afcb69e2ef0b46c2ce7b7483848332fa9462776d33163f64209acf01f86eddd7"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libnl-route-3.so.200.26.0",
+        "bytes": 575344,
+        "sha256": "088b0021d638306f5541e7baab06a0182b07db0a280e19b3b40c746f729b3773"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libelf-0.190.so",
+        "bytes": 121560,
+        "sha256": "248c989360783cdc52f3659921de852c2efcc2097253ce58e34443f856412814"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libuuid.so.1.3.0",
+        "bytes": 35032,
+        "sha256": "78d7f4d6f27b7dffc1c84dfe2f83e84aefa6f6ceeffc6ac4bc41f9fbc61cb84e"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libkmod.so.2.4.1",
+        "bytes": 112792,
+        "sha256": "6108903e15200313fd0bb71bb7e17d8fb8d01a01fa7f3dd1649d4f0c6187c8d3"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/libblkid.so.1.1.0",
+        "bytes": 236592,
+        "sha256": "9c3860ffab5422410ff9e073d3e82267f00bc68ff1248cbb191640ee2ff045bc"
+      },
+      {
+        "path": "/usr/lib/x86_64-linux-gnu/liblzma.so.5.4.5",
+        "bytes": 202904,
+        "sha256": "26b37d25f7ca2a2d348de8ecabacda12e921cd933b21fa069a179760db77219d"
+      },
+      {
+        "path": "/usr/bin/qemu-img",
+        "bytes": 2480872,
+        "sha256": "634320b91165669917123e8e79cce1c4d00cee0a4aa4d662d7c0a8186479b3fb"
+      },
+      {
+        "path": "/usr/share/seabios/bios-256k.bin",
+        "bytes": 262144,
+        "sha256": "1a9ea4f17bcfb27bda5728e2c21d9fa074cf7947b9b4910bb28213a735c96735"
+      }
+    ],
+    "packages": "qemu-system-x86\t1:8.2.2+ds-0ubuntu1.18\nqemu-utils\t1:8.2.2+ds-0ubuntu1.18\nseabios\t1.16.3-2\nubuntu-keyring\t2023.11.28.1\n",
+    "scope": "Managed Ubuntu24 hosted tool prerequisites; actualbinary/library/firmware hashes, no host reboot or GPU/KVM assumption"
+  },
+  "execution": {
+    "result": {
+      "phase": "complete",
+      "recovery": {
+        "phase": "complete",
+        "before": {
+          "boot_id": "f6e5a615-a4f9-40cb-8703-9fcce0539e62",
+          "machine_id": "78cfb89f09dc47d8923b8d56aa97e07d",
+          "kernel": "7.0.0-38-generic",
+          "uid": 1001,
+          "gid": 1001
+        },
+        "after": {
+          "boot_id": "6fbd3593-b63f-44a7-a990-792a59b80a71",
+          "machine_id": "78cfb89f09dc47d8923b8d56aa97e07d",
+          "kernel": "7.0.0-38-generic",
+          "uid": 1001,
+          "gid": 1001
+        },
+        "cap_eff": "0000000000000000",
+        "stable_preserved": true,
+        "verified_candidate_retained": true,
+        "partial_swap_removed": true,
+        "witnesses_preserved": true,
+        "recovery_os_exit_code": 0,
+        "scope": "Actual guest reboot identity check plus interrupted-copy recovery; no real installed game, power-loss, GUI, host-reboot, Deck or production claim"
+      },
+      "source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+      "controller_source": "7e93ee75d38779634323a90a4a1f93464e340375",
+      "run": "40993092728",
+      "attempt": "1",
+      "image": {
+        "url": "https://cloud-images.ubuntu.com/releases/resolute/release-20261016/ubuntu-26.04-server-cloudimg-amd64.img",
+        "bytes": 859090944,
+        "sha256": "5645d0318ad21f643ebb1ac4567514620e9893380b07b0201fda163baa5b7eb5"
+      },
+      "qemu_pid": 12998,
+      "scope": "One ordinary guest UID1001 normal OS reboot, interrupted replacement recovery and synthetic witnesses; existing GUI/real-game acceptance remains separate"
+    },
+    "qemu_start": {
+      "pid": 12998,
+      "start_identity": "12998 (qemu-system-x86) R 12987 1860 1860 0 -1 4194304 2 0 0 0 0 0 0 0 20 0 1 0 38308 26992640 0 18446744073709551615 0 0 140732302842704 0 0 0 0 0 0 0 0 0 17 2 0 0 0 0 0 0 0 0 140732302842704 0 0 0 0\n",
+      "host_boot_id": "e14bc146-9177-4298-9bd7-9942f051c717",
+      "arguments": [
+        "/usr/bin/qemu-system-x86_64",
+        "-machine",
+        "q35,accel=tcg",
+        "-cpu",
+        "max",
+        "-smp",
+        "2",
+        "-m",
+        "3072",
+        "-display",
+        "none",
+        "-vga",
+        "none",
+        "-monitor",
+        "none",
+        "-L",
+        "/usr/share/qemu",
+        "-bios",
+        "/usr/share/seabios/bios-256k.bin",
+        "-nodefaults",
+        "-serial",
+        "file:/home/runner/work/portcove/portcove/work/updater-linux-reboot/guest-run/serial.log",
+        "-drive",
+        "file=/home/runner/work/portcove/portcove/work/updater-linux-reboot/guest-run/owned-guest.qcow2,if=virtio,format=qcow2",
+        "-netdev",
+        "user,id=net0",
+        "-device",
+        "virtio-net-pci,netdev=net0,romfile=",
+        "-fsdev",
+        "local,id=inputs,path=/home/runner/work/portcove/portcove/work/updater-linux-reboot/public-inputs,security_model=none,readonly=on",
+        "-device",
+        "virtio-9p-pci,fsdev=inputs,mount_tag=public-inputs",
+        "-fsdev",
+        "local,id=outputs,path=/home/runner/work/portcove/portcove/work/updater-linux-reboot/guest-run/reports,security_model=none",
+        "-device",
+        "virtio-9p-pci,fsdev=outputs,mount_tag=qualification-output",
+        "-smbios",
+        "type=1,serial=ds=nocloud;s=http://10.0.2.2:36293/b7ecb22660f448e9836031aa47345b3c/"
+      ],
+      "runtime_files": [
+        {
+          "path": "/usr/bin/qemu-system-x86_64",
+          "bytes": 26415624,
+          "sha256": "8a35ccba41582fc6c38b9df85fc9e35fa1d42f414d2d7d8090ee9b2f5e7c0854"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libpixman-1.so.0.42.2",
+          "bytes": 710832,
+          "sha256": "73aa0daeedb7228754d798b194e2ff69c8b82a689b9aa4f1d8ab32a8763b0cc5"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libgnutls.so.30.37.1",
+          "bytes": 2065824,
+          "sha256": "ddbae2995750875c07bc218d12a062d73f8250678f54dedda7e9be5068781c98"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libpng16.so.16.43.0",
+          "bytes": 223304,
+          "sha256": "89c0c6569a8c00480d451401ad4c0a74942e62dc57f229a970592fdc5adb29e8"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libz.so.1.3",
+          "bytes": 113000,
+          "sha256": "f61677c7bdb7c2aa2a243ea781bfd16afcb361cede7b4ef76127a9d8eb9a5242"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libjpeg.so.8.2.2",
+          "bytes": 534592,
+          "sha256": "ac09f2cd6f8a3b8e3cb123999ce275f9bcbe31c6cf9e20212c8f297772591d15"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libsasl2.so.2.0.25",
+          "bytes": 101200,
+          "sha256": "a0f410ad093236856eee59c4ff2838dc04d932ea0993400f23ed77d67d85af34"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libfdt-1.7.0.so",
+          "bytes": 39064,
+          "sha256": "66c111808e61c7f6be6715b4b03d0fe75beb5bc5b3a8809608d58d99a6bc9828"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libudev.so.1.7.8",
+          "bytes": 207288,
+          "sha256": "0d6934adafb2ef3c640382440c14d6bd60f391e688c000796ffcea0c72849269"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libpmem.so.1.0.0",
+          "bytes": 358688,
+          "sha256": "52f14a3f2a80464be81a56ac7098ba1a457309cd353e05a319ce55a915def9c0"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libseccomp.so.2.5.5",
+          "bytes": 125360,
+          "sha256": "b4d9140a7797ccf3ac14f5d9d579b64f157111662940cb8330c632b11a8cea8e"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libnuma.so.1.0.0",
+          "bytes": 52248,
+          "sha256": "02d7582c5d391e460e56aa67a414360e3183b968206645b9123f9dc7bff5d009"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libgio-2.0.so.0.8000.0",
+          "bytes": 1887632,
+          "sha256": "373801faa40cd4eb46a40ce02bd0945b4905160a59894b600636e0fadfb78f2b"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libgobject-2.0.so.0.8000.0",
+          "bytes": 399752,
+          "sha256": "2bf396b14b469ca2eed46a785b3bc0bd1fd979261c6bf505bc4debdcd0a6870a"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libglib-2.0.so.0.8000.0",
+          "bytes": 1343056,
+          "sha256": "448d9d271e77a7f6c4d057336df40c34b02c794f551caf8fa03b5122f25e601b"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/librdmacm.so.1.3.50.0",
+          "bytes": 122144,
+          "sha256": "18609553ba84c9206739d0a6d62ae5371d4713058ed4b68c665e627d967df648"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libibverbs.so.1.14.50.0",
+          "bytes": 138032,
+          "sha256": "249242c3ba29d72b7a9be560b768bf43fc5924c8a166f4e3bbb224bd81ade3ab"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.5",
+          "bytes": 755864,
+          "sha256": "0a2128bc10841fb29e76d08d945864dfb0b6a66da5df6df5d8299197439e54bb"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libslirp.so.0.4.0",
+          "bytes": 141304,
+          "sha256": "1f71a24af59f3aa76c1e0bcf7852de08c1c21c40524479b9d5df404d903b2280"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libbpf.so.1.3.0",
+          "bytes": 387728,
+          "sha256": "0e9998e17e38d78e5ce953f89a5e6a7c8b457d3e1bfe71e3ec5a1cfb05bbd1c3"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/liburing.so.2.5",
+          "bytes": 26856,
+          "sha256": "51594b92ac35f96595d3fcec9c3ec5d190637d9b426d5f8a8f4207875d2962f6"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libgmodule-2.0.so.0.8000.0",
+          "bytes": 22736,
+          "sha256": "1d3459ce2cd1a1fd276b08f75aa191597ece3e44bbe12ddd6bf0fe1dc8c27181"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libm.so.6",
+          "bytes": 952616,
+          "sha256": "fce00b6f25f459cf4ae0b7fae4257909a1a8a86f9149e7c029a5d617baf1ccd0"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libnettle.so.8.8",
+          "bytes": 342280,
+          "sha256": "a245ed916229583d6fe0b07657b3ed945bc148c28cc08b5266295f620d2b91cc"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libgmp.so.10.5.0",
+          "bytes": 534896,
+          "sha256": "0ccdfb6d6f5c039465f6d002cf7e4c072d48ac6a2cffc8dd6c748dec31592804"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libhogweed.so.6.8",
+          "bytes": 288920,
+          "sha256": "c3c606139d4f7776efa4dbd4a6b62e30c916b07a0cafd8c3ef173d6f093607e3"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libfuse3.so.3.14.0",
+          "bytes": 256184,
+          "sha256": "f1e75247f42d414df611ee554c8399bfe74565f89eed7c4501e2d97c48f21eab"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libaio.so.1t64.0.2",
+          "bytes": 14336,
+          "sha256": "9dbba7441fe096f6654bfd31bfdbba52f41a209bd4a560468293c226ff63c998"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+          "bytes": 2129424,
+          "sha256": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+          "bytes": 236616,
+          "sha256": "c20a2dc8917c755f02b94049356320fe1f62ac7d9f8994731f807d9df39302da"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libp11-kit.so.0.3.1",
+          "bytes": 1714008,
+          "sha256": "a59efd4792d3343dedea1d26a28f5597abfe3369082deb504c4802a31b014897"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libidn2.so.0.4.0",
+          "bytes": 133192,
+          "sha256": "6e632fd9a3125db60bbc623719bbc17b0470330321c5b1c57f1ff7190e5551ad"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libunistring.so.5.0.0",
+          "bytes": 1755312,
+          "sha256": "7bcf825cd449892db5105ad2aed91dcf94a27b796426600c765720c584c54dd1"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libtasn1.so.6.6.3",
+          "bytes": 88216,
+          "sha256": "59994414d0cdec4f678ef91eaaafc44b26b00bca507e4cc7978caaf79f584173"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+          "bytes": 5309400,
+          "sha256": "6866ed711dab8927e1bf82bf1cd30e828bdfc34f3cc1e83b1c9eb01ce6c37d9a"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libcap.so.2.66",
+          "bytes": 51536,
+          "sha256": "6ac6abc86ac891c6e13486470e26f1d939f47fda9e6b5d5508a7f5ec881adc84"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libndctl.so.6.1.21",
+          "bytes": 168136,
+          "sha256": "97859d906e55e67786f6c3d2f568553f8638d9c717880cf1295cc53e6b0d433c"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libdaxctl.so.1.2.5",
+          "bytes": 47256,
+          "sha256": "9b81e8d837bc49013099d5dc8b5263772d645dfcb205d9566e91e7d414839b59"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libmount.so.1.1.0",
+          "bytes": 309960,
+          "sha256": "7472255ae5799059b37ddd544788f5665dbd3e1cb78259f52180293039efc2a5"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+          "bytes": 174472,
+          "sha256": "0ec0843463f90e227b0e138e1f379774f50b5514bd7f5dbd4c8a87aca0aa6670"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libffi.so.8.1.4",
+          "bytes": 47672,
+          "sha256": "00f593fe192f2851b8ce23b25cec2488d769beb5a8f63e8c9e563071e1075153"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.11.2",
+          "bytes": 625344,
+          "sha256": "e00576d71d81d3ba0cfa4903c835a44a8723aac96f72f79ff75200b4cff9071b"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libnl-3.so.200.26.0",
+          "bytes": 133944,
+          "sha256": "afcb69e2ef0b46c2ce7b7483848332fa9462776d33163f64209acf01f86eddd7"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libnl-route-3.so.200.26.0",
+          "bytes": 575344,
+          "sha256": "088b0021d638306f5541e7baab06a0182b07db0a280e19b3b40c746f729b3773"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libelf-0.190.so",
+          "bytes": 121560,
+          "sha256": "248c989360783cdc52f3659921de852c2efcc2097253ce58e34443f856412814"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libuuid.so.1.3.0",
+          "bytes": 35032,
+          "sha256": "78d7f4d6f27b7dffc1c84dfe2f83e84aefa6f6ceeffc6ac4bc41f9fbc61cb84e"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libkmod.so.2.4.1",
+          "bytes": 112792,
+          "sha256": "6108903e15200313fd0bb71bb7e17d8fb8d01a01fa7f3dd1649d4f0c6187c8d3"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/libblkid.so.1.1.0",
+          "bytes": 236592,
+          "sha256": "9c3860ffab5422410ff9e073d3e82267f00bc68ff1248cbb191640ee2ff045bc"
+        },
+        {
+          "path": "/usr/lib/x86_64-linux-gnu/liblzma.so.5.4.5",
+          "bytes": 202904,
+          "sha256": "26b37d25f7ca2a2d348de8ecabacda12e921cd933b21fa069a179760db77219d"
+        },
+        {
+          "path": "/usr/bin/qemu-img",
+          "bytes": 2480872,
+          "sha256": "634320b91165669917123e8e79cce1c4d00cee0a4aa4d662d7c0a8186479b3fb"
+        },
+        {
+          "path": "/usr/share/seabios/bios-256k.bin",
+          "bytes": 262144,
+          "sha256": "1a9ea4f17bcfb27bda5728e2c21d9fa074cf7947b9b4910bb28213a735c96735"
+        }
+      ],
+      "image": {
+        "url": "https://cloud-images.ubuntu.com/releases/resolute/release-20261016/ubuntu-26.04-server-cloudimg-amd64.img",
+        "bytes": 859090944,
+        "sha256": "5645d0318ad21f643ebb1ac4567514620e9893380b07b0201fda163baa5b7eb5"
+      },
+      "scope": "Single process/same writable overlay; normal guest reboot only; no reset, reseed, snapshot, host reboot or GPU claim"
+    },
+    "qemu_outcome": {
+      "code": 0,
+      "error": null,
+      "seconds": 619.3905735630001,
+      "host_boot_id_before": "e14bc146-9177-4298-9bd7-9942f051c717",
+      "host_boot_id_after": "e14bc146-9177-4298-9bd7-9942f051c717"
+    },
+    "phase_outcomes": {
+      "checkpoint": {
+        "phase": "checkpoint",
+        "code": 0
+      },
+      "recover": {
+        "phase": "recover",
+        "code": 0
+      }
+    },
+    "child_outcomes": {
+      "checkpoint": {
+        "installed-stage": {
+          "arguments": [
+            "/home/portcove/Applications/Portcove Public beta β.AppImage",
+            "--portcove-qualify-update-stage",
+            "/home/portcove/inputs/Portcove_0.3.0_amd64.AppImage"
+          ],
+          "code": 0,
+          "timed_out": false,
+          "error": null,
+          "capture_scope": "Raw files; size postchecked after child settlement, not a streaming output cap"
+        },
+        "prepare-staged": {
+          "arguments": [
+            "/home/portcove/tools/prepare_installed_update",
+            "prepare-staged",
+            "0.1.0",
+            "/home/portcove/qualification/update-preferences.json",
+            "/home/portcove/qualification/update-state",
+            "/home/portcove/qualification/library"
+          ],
+          "code": 0,
+          "timed_out": false,
+          "error": null,
+          "capture_scope": "Raw files; size postchecked after child settlement, not a streaming output cap"
+        },
+        "interrupted-apply": {
+          "arguments": [
+            "/home/portcove/Applications/Portcove Public beta β.AppImage",
+            "--portcove-apply-update",
+            "2"
+          ],
+          "code": 86,
+          "timed_out": false,
+          "error": null,
+          "capture_scope": "Raw files; size postchecked after child settlement, not a streaming output cap"
+        }
+      },
+      "recover": {
+        "displayless-recovery": {
+          "arguments": [
+            "/home/portcove/Applications/Portcove Public beta β.AppImage",
+            "--application-update-recovery",
+            "recover",
+            "interrupted-appimage"
+          ],
+          "code": 0,
+          "timed_out": false,
+          "error": null,
+          "capture_scope": "Raw files; size postchecked after child settlement, not a streaming output cap"
+        }
+      }
+    }
+  },
+  "checkpoint": {
+    "phase": "interrupted-awaiting-guest-reboot",
+    "boot": {
+      "boot_id": "f6e5a615-a4f9-40cb-8703-9fcce0539e62",
+      "machine_id": "78cfb89f09dc47d8923b8d56aa97e07d",
+      "kernel": "7.0.0-38-generic",
+      "uid": 1001,
+      "gid": 1001
+    },
+    "cap_eff": "0000000000000000",
+    "configuration_sha256": "845dd6bbd870deb47a0c335336a67476fc6d75a8c9e0c46fc8c1b5ca901db3bf",
+    "files": {
+      "/home/portcove/Applications/Portcove Public beta β.AppImage": {
+        "bytes": 98859512,
+        "sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 493,
+        "device": 64769,
+        "inode": 254152
+      },
+      "/home/portcove/Applications/.portcove-appimage-d2e8d9626cac8ad9.swap": {
+        "bytes": 65536,
+        "sha256": "377bc3cf3dd84d5c557c3265c6defc1440797d6daf579e2bdd81f67aea1b46a0",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 384,
+        "device": 64769,
+        "inode": 254205
+      },
+      "/home/portcove/qualification/update-state/apply.json": {
+        "bytes": 4238,
+        "sha256": "75fb28d0351777cc615fcf4474e72cf04ae624f761420508010a4b4eb0fcd987",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 420,
+        "device": 64769,
+        "inode": 254215
+      },
+      "/home/portcove/qualification/update-state/staging.json": {
+        "bytes": 2897,
+        "sha256": "3754177454692ed9cc53fe0c678a84654c29e9c3c50b0671edc061e72f33bebd",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 420,
+        "device": 64769,
+        "inode": 254183
+      },
+      "/home/portcove/qualification/update-state/candidate.payload": {
+        "bytes": 98675192,
+        "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 420,
+        "device": 64769,
+        "inode": 254184
+      },
+      "/home/portcove/qualification/update-preferences.json": {
+        "bytes": 133,
+        "sha256": "c3cf35f9156c703c28789de73f411329034872b336bbda8ac3025d71a55b3f45",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 420,
+        "device": 64769,
+        "inode": 254167
+      },
+      "/home/portcove/qualification/preserved-witnesses/configuration.txt": {
+        "bytes": 44,
+        "sha256": "76d09adf0a652e2e1ceb438faaf7653a60335d370db75899e8375637d3f9c012",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 420,
+        "device": 64769,
+        "inode": 254210
+      },
+      "/home/portcove/qualification/preserved-witnesses/library.txt": {
+        "bytes": 38,
+        "sha256": "c52b45a693aaf1c586e92abfcf5f5495b59b56cdb92a56ec64687cfdc551e5af",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 420,
+        "device": 64769,
+        "inode": 254208
+      },
+      "/home/portcove/qualification/preserved-witnesses/save.txt": {
+        "bytes": 35,
+        "sha256": "186abe99f903abed77263301e7b13bf45192e77d31d7e0c18324de4411d1b982",
+        "uid": 1001,
+        "gid": 1001,
+        "mode": 420,
+        "device": 64769,
+        "inode": 254209
+      }
+    },
+    "scope": "Process interruption86 before normal guest reboot; synthetic witnesses only"
+  },
+  "recovery": {
+    "phase": "complete",
+    "before": {
+      "boot_id": "f6e5a615-a4f9-40cb-8703-9fcce0539e62",
+      "machine_id": "78cfb89f09dc47d8923b8d56aa97e07d",
+      "kernel": "7.0.0-38-generic",
+      "uid": 1001,
+      "gid": 1001
+    },
+    "after": {
+      "boot_id": "6fbd3593-b63f-44a7-a990-792a59b80a71",
+      "machine_id": "78cfb89f09dc47d8923b8d56aa97e07d",
+      "kernel": "7.0.0-38-generic",
+      "uid": 1001,
+      "gid": 1001
+    },
+    "cap_eff": "0000000000000000",
+    "stable_preserved": true,
+    "verified_candidate_retained": true,
+    "partial_swap_removed": true,
+    "witnesses_preserved": true,
+    "recovery_os_exit_code": 0,
+    "scope": "Actual guest reboot identity check plus interrupted-copy recovery; no real installed game, power-loss, GUI, host-reboot, Deck or production claim"
+  },
+  "journals": {
+    "apply_before": {
+      "schema_version": 4,
+      "revision": 3,
+      "intent": {
+        "preference_revision": 1,
+        "preference_choice": {
+          "channel": "preview",
+          "mode": "automatic",
+          "paused": false
+        },
+        "request": "restart-to-apply",
+        "candidate": {
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+          "release": {
+            "schema_version": 1,
+            "version": "0.3.0",
+            "source_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+            "source_tree": "73296562fd075fac064b2868800733182bb2de60",
+            "qualified_run": {
+              "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+              "workflow_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+              "run_id": 40934887557,
+              "attempt": 1,
+              "inventory_sha256": "446376df8c9e2a303397e628fd1f801f53abacce5db9adc4786dde8ae0c312c5"
+            },
+            "target": "linux-x86_64",
+            "os": "linux",
+            "architecture": "x86_64",
+            "execution_context": "user-owned-appimage",
+            "package": {
+              "kind": "appimage",
+              "owner": "portcove",
+              "product_id": "io.github.portcove.portcove"
+            },
+            "artifact": {
+              "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+              "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+              "bytes": 98675192,
+              "tauri_signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRbVhXT2pzSGVBSjNVc0ZMbDVjTlo1T01UTnhoWG42Z3NkL0FOR0oyY3RSZzg3OXdGa0kyTmIraEkxQ21xbjlvRmZWYUpBRzhXTHl2cmxhTmVka0ErK2w4VkwwTWZ0bUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzAxMTIwCWZpbGU6UG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjMuMApNajBJWmZ4YjlYbUM0dDIxS2E2V2doSE5QUlU5ZEV1cGZvYWJrNkZ1Q3UxTzBGMDFIdWpxQXBxaFA5ODl4cUJUOC9KeWZrczRlcEhiOForb2NxQ0ZBZz09Cg==",
+              "payload_key_id": "8555d4c53b9d32ca1fadbf4a71a28a02ee2ebd908246510ef213dbfc76d0a03d"
+            },
+            "compatibility": {
+              "minimum_os_version": "7.0.0",
+              "required_capabilities": ["library-lock-v1"],
+              "cli_protocol": {
+                "min": 84,
+                "max": 84
+              },
+              "catalog_formats": [2],
+              "library": {
+                "read": {
+                  "min": 1,
+                  "max": 43
+                },
+                "write_schema": 43,
+                "lock_protocol": "library-lock-v1"
+              }
+            },
+            "evidence_ids": ["updater-artifact-rehearsal-40934887557-linux-x86_64"]
+          },
+          "promotion": {
+            "schema_version": 1,
+            "channel": "preview",
+            "target": "linux-x86_64",
+            "package": "appimage",
+            "version": "0.3.0",
+            "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+            "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+            "eligible": true,
+            "production_eligible": false,
+            "withdrawn": false,
+            "reason": null,
+            "required_bridge": null
+          }
+        },
+        "installed": {
+          "current_version": "0.1.0",
+          "target": "linux-x86_64",
+          "os": "linux",
+          "os_version": "7.0.0",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package_kind": "appimage",
+          "install_owner": "portcove",
+          "product_id": "io.github.portcove.portcove",
+          "capabilities": ["library-lock-v1"],
+          "cli_protocol": 84,
+          "catalog_format": 2,
+          "library_schema": 1,
+          "library_write_schema": 43,
+          "lock_protocol": "library-lock-v1"
+        },
+        "library_root": "/home/portcove/qualification/library"
+      },
+      "termination": "restart-to-apply",
+      "native_launch": "starting",
+      "native_exit_code": null,
+      "native_replacement": {
+        "source_path": "/home/portcove/Applications/Portcove Public beta β.AppImage",
+        "backup_path": "/home/portcove/Applications/.portcove-appimage-d2e8d9626cac8ad9.swap",
+        "previous_bytes": 98859512,
+        "previous_sha256": "cda06e2dd9d2ac50bf2eb72057d466bc96011188af275d77a0c22497a319b9da"
+      }
+    },
+    "apply_after": {
+      "schema_version": 4,
+      "revision": 4,
+      "intent": {
+        "preference_revision": 1,
+        "preference_choice": {
+          "channel": "preview",
+          "mode": "automatic",
+          "paused": false
+        },
+        "request": "restart-to-apply",
+        "candidate": {
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+          "release": {
+            "schema_version": 1,
+            "version": "0.3.0",
+            "source_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+            "source_tree": "73296562fd075fac064b2868800733182bb2de60",
+            "qualified_run": {
+              "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+              "workflow_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+              "run_id": 40934887557,
+              "attempt": 1,
+              "inventory_sha256": "446376df8c9e2a303397e628fd1f801f53abacce5db9adc4786dde8ae0c312c5"
+            },
+            "target": "linux-x86_64",
+            "os": "linux",
+            "architecture": "x86_64",
+            "execution_context": "user-owned-appimage",
+            "package": {
+              "kind": "appimage",
+              "owner": "portcove",
+              "product_id": "io.github.portcove.portcove"
+            },
+            "artifact": {
+              "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+              "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+              "bytes": 98675192,
+              "tauri_signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRbVhXT2pzSGVBSjNVc0ZMbDVjTlo1T01UTnhoWG42Z3NkL0FOR0oyY3RSZzg3OXdGa0kyTmIraEkxQ21xbjlvRmZWYUpBRzhXTHl2cmxhTmVka0ErK2w4VkwwTWZ0bUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzAxMTIwCWZpbGU6UG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjMuMApNajBJWmZ4YjlYbUM0dDIxS2E2V2doSE5QUlU5ZEV1cGZvYWJrNkZ1Q3UxTzBGMDFIdWpxQXBxaFA5ODl4cUJUOC9KeWZrczRlcEhiOForb2NxQ0ZBZz09Cg==",
+              "payload_key_id": "8555d4c53b9d32ca1fadbf4a71a28a02ee2ebd908246510ef213dbfc76d0a03d"
+            },
+            "compatibility": {
+              "minimum_os_version": "7.0.0",
+              "required_capabilities": ["library-lock-v1"],
+              "cli_protocol": {
+                "min": 84,
+                "max": 84
+              },
+              "catalog_formats": [2],
+              "library": {
+                "read": {
+                  "min": 1,
+                  "max": 43
+                },
+                "write_schema": 43,
+                "lock_protocol": "library-lock-v1"
+              }
+            },
+            "evidence_ids": ["updater-artifact-rehearsal-40934887557-linux-x86_64"]
+          },
+          "promotion": {
+            "schema_version": 1,
+            "channel": "preview",
+            "target": "linux-x86_64",
+            "package": "appimage",
+            "version": "0.3.0",
+            "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+            "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+            "eligible": true,
+            "production_eligible": false,
+            "withdrawn": false,
+            "reason": null,
+            "required_bridge": null
+          }
+        },
+        "installed": {
+          "current_version": "0.1.0",
+          "target": "linux-x86_64",
+          "os": "linux",
+          "os_version": "7.0.0",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package_kind": "appimage",
+          "install_owner": "portcove",
+          "product_id": "io.github.portcove.portcove",
+          "capabilities": ["library-lock-v1"],
+          "cli_protocol": 84,
+          "catalog_format": 2,
+          "library_schema": 1,
+          "library_write_schema": 43,
+          "lock_protocol": "library-lock-v1"
+        },
+        "library_root": "/home/portcove/qualification/library"
+      },
+      "termination": "restart-to-apply",
+      "native_launch": "failed",
+      "native_exit_code": null,
+      "native_replacement": null
+    },
+    "staging_before": {
+      "schema_version": 1,
+      "phase": "verified",
+      "candidate": {
+        "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+        "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+        "release": {
+          "schema_version": 1,
+          "version": "0.3.0",
+          "source_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+          "source_tree": "73296562fd075fac064b2868800733182bb2de60",
+          "qualified_run": {
+            "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+            "workflow_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+            "run_id": 40934887557,
+            "attempt": 1,
+            "inventory_sha256": "446376df8c9e2a303397e628fd1f801f53abacce5db9adc4786dde8ae0c312c5"
+          },
+          "target": "linux-x86_64",
+          "os": "linux",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package": {
+            "kind": "appimage",
+            "owner": "portcove",
+            "product_id": "io.github.portcove.portcove"
+          },
+          "artifact": {
+            "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+            "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+            "bytes": 98675192,
+            "tauri_signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRbVhXT2pzSGVBSjNVc0ZMbDVjTlo1T01UTnhoWG42Z3NkL0FOR0oyY3RSZzg3OXdGa0kyTmIraEkxQ21xbjlvRmZWYUpBRzhXTHl2cmxhTmVka0ErK2w4VkwwTWZ0bUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzAxMTIwCWZpbGU6UG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjMuMApNajBJWmZ4YjlYbUM0dDIxS2E2V2doSE5QUlU5ZEV1cGZvYWJrNkZ1Q3UxTzBGMDFIdWpxQXBxaFA5ODl4cUJUOC9KeWZrczRlcEhiOForb2NxQ0ZBZz09Cg==",
+            "payload_key_id": "8555d4c53b9d32ca1fadbf4a71a28a02ee2ebd908246510ef213dbfc76d0a03d"
+          },
+          "compatibility": {
+            "minimum_os_version": "7.0.0",
+            "required_capabilities": ["library-lock-v1"],
+            "cli_protocol": {
+              "min": 84,
+              "max": 84
+            },
+            "catalog_formats": [2],
+            "library": {
+              "read": {
+                "min": 1,
+                "max": 43
+              },
+              "write_schema": 43,
+              "lock_protocol": "library-lock-v1"
+            }
+          },
+          "evidence_ids": ["updater-artifact-rehearsal-40934887557-linux-x86_64"]
+        },
+        "promotion": {
+          "schema_version": 1,
+          "channel": "preview",
+          "target": "linux-x86_64",
+          "package": "appimage",
+          "version": "0.3.0",
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+          "eligible": true,
+          "production_eligible": false,
+          "withdrawn": false,
+          "reason": null,
+          "required_bridge": null
+        }
+      },
+      "previous_candidate": null
+    },
+    "staging_after": {
+      "schema_version": 1,
+      "phase": "verified",
+      "candidate": {
+        "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+        "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+        "release": {
+          "schema_version": 1,
+          "version": "0.3.0",
+          "source_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+          "source_tree": "73296562fd075fac064b2868800733182bb2de60",
+          "qualified_run": {
+            "workflow": ".github/workflows/updater-artifact-rehearsal.yml",
+            "workflow_commit": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+            "run_id": 40934887557,
+            "attempt": 1,
+            "inventory_sha256": "446376df8c9e2a303397e628fd1f801f53abacce5db9adc4786dde8ae0c312c5"
+          },
+          "target": "linux-x86_64",
+          "os": "linux",
+          "architecture": "x86_64",
+          "execution_context": "user-owned-appimage",
+          "package": {
+            "kind": "appimage",
+            "owner": "portcove",
+            "product_id": "io.github.portcove.portcove"
+          },
+          "artifact": {
+            "url": "https://github.com/boburning/portcove/releases/download/v0.3.0/Portcove_0.3.0_amd64.AppImage",
+            "sha256": "d2e8d9626cac8ad9febdf3db6c9eb23177602231051634564c888f853ed0f552",
+            "bytes": 98675192,
+            "tauri_signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRbVhXT2pzSGVBSjNVc0ZMbDVjTlo1T01UTnhoWG42Z3NkL0FOR0oyY3RSZzg3OXdGa0kyTmIraEkxQ21xbjlvRmZWYUpBRzhXTHl2cmxhTmVka0ErK2w4VkwwTWZ0bUE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMzAxMTIwCWZpbGU6UG9ydGNvdmVfMC4zLjBfYW1kNjQuQXBwSW1hZ2UJdmVyc2lvbjowLjMuMApNajBJWmZ4YjlYbUM0dDIxS2E2V2doSE5QUlU5ZEV1cGZvYWJrNkZ1Q3UxTzBGMDFIdWpxQXBxaFA5ODl4cUJUOC9KeWZrczRlcEhiOForb2NxQ0ZBZz09Cg==",
+            "payload_key_id": "8555d4c53b9d32ca1fadbf4a71a28a02ee2ebd908246510ef213dbfc76d0a03d"
+          },
+          "compatibility": {
+            "minimum_os_version": "7.0.0",
+            "required_capabilities": ["library-lock-v1"],
+            "cli_protocol": {
+              "min": 84,
+              "max": 84
+            },
+            "catalog_formats": [2],
+            "library": {
+              "read": {
+                "min": 1,
+                "max": 43
+              },
+              "write_schema": 43,
+              "lock_protocol": "library-lock-v1"
+            }
+          },
+          "evidence_ids": ["updater-artifact-rehearsal-40934887557-linux-x86_64"]
+        },
+        "promotion": {
+          "schema_version": 1,
+          "channel": "preview",
+          "target": "linux-x86_64",
+          "package": "appimage",
+          "version": "0.3.0",
+          "release_path": "releases/0.3.0/linux-x86_64/appimage.json",
+          "release_sha256": "5f7d14164efca2854fe2710cbb7525746320aba6feb2cd278906e59541e69883",
+          "eligible": true,
+          "production_eligible": false,
+          "withdrawn": false,
+          "reason": null,
+          "required_bridge": null
+        }
+      },
+      "previous_candidate": null
+    },
+    "preferences_before": {
+      "schema_version": 1,
+      "revision": 1,
+      "choice": {
+        "channel": "preview",
+        "mode": "automatic",
+        "paused": false
+      }
+    },
+    "preferences_after": {
+      "schema_version": 1,
+      "revision": 1,
+      "choice": {
+        "channel": "preview",
+        "mode": "automatic",
+        "paused": false
+      }
+    }
+  },
+  "guest_os": {
+    "os_release": "PRETTY_NAME=\"Ubuntu 26.04.1 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.04\"\nVERSION=\"26.04.1 LTS (Resolute Raccoon)\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=resolute\nLOGO=ubuntu-logo\n",
+    "packages": "cloud-init\t26.1-0ubuntu3~26.04.1\nfuse3\t3.18.2-1\nlibfuse2t64:amd64\t2.9.9-9build1\nlibglib2.0-0t64:amd64\t2.88.0-1ubuntu0.1\nlibgtk-3-0t64:amd64\t3.24.52-0ubuntu1\nlibwebkit2gtk-4.1-0:amd64\t2.52.6-0ubuntu0.26.04.1\nsystemd\t259.5-0ubuntu3.4\n",
+    "kernel": "Linux portcove-owned-reboot 7.0.0-38-generic #38-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep  4 09:10:14 UTC 2026 x86_64 GNU/Linux\n",
+    "mounts": {
+      "filesystems": [
+        {
+          "target": "/",
+          "source": "/dev/vda1",
+          "fstype": "ext4",
+          "options": "rw,relatime,discard,errors=remount-ro,commit=30"
+        }
+      ]
+    },
+    "units": {
+      "checkpoint": {
+        "cell-unit.txt": "[Unit]\nDescription=Owned Portcove reboot recovery observation\nAfter=network-online.target cloud-final.service\n[Service]\nType=oneshot\nExecStart=/usr/local/lib/portcove-cell.sh\nTimeoutStartSec=15min\n[Install]\nWantedBy=cloud-init.target\n",
+        "cloud-final-unit.txt": "[Unit]\n# https://docs.cloud-init.io/en/latest/explanation/boot.html\nDescription=Cloud-init: Final Stage\nAfter=network-online.target time-sync.target cloud-config.service rc-local.service\nAfter=multi-user.target\nBefore=apt-daily.service\nWants=network-online.target cloud-config.service\nConditionPathExists=!/etc/cloud/cloud-init.disabled\nConditionKernelCommandLine=!cloud-init=disabled\nConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled\n\n\n[Service]\nType=oneshot\n# This service is a shim which preserves systemd ordering while allowing a\n# single Python process to run cloud-init's logic. This works by communicating\n# with the cloud-init process over a unix socket to tell the process that this\n# stage can start, and then wait on a return socket until the cloud-init\n# process has completed this stage. The output from the return socket is piped\n# into a shell so that the process can send a completion message (defaults to\n# \"done\", otherwise includes an error message) and an exit code to systemd.\nExecStart=sh -c 'echo \"start\" | nc -U /run/cloud-init/share/final.sock | sh'\nRemainAfterExit=yes\nTimeoutSec=0\nTasksMax=infinity\n\n# Output needs to appear in instance console output\nStandardOutput=journal+console\n\n[Install]\nWantedBy=cloud-init.target\n",
+        "cloud-init-target.txt": "# cloud-init.target is enabled by cloud-init-generator\n# To disable it you can either:\n#  a.) boot with kernel cmdline of 'cloud-init=disabled'\n#  b.) touch a file /etc/cloud/cloud-init.disabled\n#\n# cloud-init.target is a  synchronization point when all cloud-init's initial\n# system configuration tasks have completed. To order a service after cloud-init\n# is done, add the directives as applicable:\n#  After=cloud-init.target and Wants=cloud-init.target\n[Unit]\nDescription=Cloud-init target\nAfter=multi-user.target\nConditionPathExists=!/etc/cloud/cloud-init.disabled\nConditionKernelCommandLine=!cloud-init=disabled\nConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled\n"
+      },
+      "recover": {
+        "cell-unit.txt": "[Unit]\nDescription=Owned Portcove reboot recovery observation\nAfter=network-online.target cloud-final.service\n[Service]\nType=oneshot\nExecStart=/usr/local/lib/portcove-cell.sh\nTimeoutStartSec=15min\n[Install]\nWantedBy=cloud-init.target\n",
+        "cloud-final-unit.txt": "[Unit]\n# https://docs.cloud-init.io/en/latest/explanation/boot.html\nDescription=Cloud-init: Final Stage\nAfter=network-online.target time-sync.target cloud-config.service rc-local.service\nAfter=multi-user.target\nBefore=apt-daily.service\nWants=network-online.target cloud-config.service\nConditionPathExists=!/etc/cloud/cloud-init.disabled\nConditionKernelCommandLine=!cloud-init=disabled\nConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled\n\n\n[Service]\nType=oneshot\n# This service is a shim which preserves systemd ordering while allowing a\n# single Python process to run cloud-init's logic. This works by communicating\n# with the cloud-init process over a unix socket to tell the process that this\n# stage can start, and then wait on a return socket until the cloud-init\n# process has completed this stage. The output from the return socket is piped\n# into a shell so that the process can send a completion message (defaults to\n# \"done\", otherwise includes an error message) and an exit code to systemd.\nExecStart=sh -c 'echo \"start\" | nc -U /run/cloud-init/share/final.sock | sh'\nRemainAfterExit=yes\nTimeoutSec=0\nTasksMax=infinity\n\n# Output needs to appear in instance console output\nStandardOutput=journal+console\n\n[Install]\nWantedBy=cloud-init.target\n",
+        "cloud-init-target.txt": "# cloud-init.target is enabled by cloud-init-generator\n# To disable it you can either:\n#  a.) boot with kernel cmdline of 'cloud-init=disabled'\n#  b.) touch a file /etc/cloud/cloud-init.disabled\n#\n# cloud-init.target is a  synchronization point when all cloud-init's initial\n# system configuration tasks have completed. To order a service after cloud-init\n# is done, add the directives as applicable:\n#  After=cloud-init.target and Wants=cloud-init.target\n[Unit]\nDescription=Cloud-init target\nAfter=multi-user.target\nConditionPathExists=!/etc/cloud/cloud-init.disabled\nConditionKernelCommandLine=!cloud-init=disabled\nConditionEnvironment=!KERNEL_CMDLINE=cloud-init=disabled\n"
+      }
+    }
+  },
+  "preservation_evidence": "Exact executed guest source compares all nine checkpoint file identities before recovery and every nonjournal/non-swap file after recovery (device/inode/UID/GID/mode/length/SHA). Assertions and native child/phase OS0 establish equality; a separate after-file identity map was not emitted. Raw journal/pref copies and unchanged checkpoint copy are independently retained. Synthetic witnesses are not real-game data.",
+  "original_failure": {
+    "run": 40983521568,
+    "attempt": 1,
+    "job": 123829004950,
+    "head": "1d5cd8f0c04021af4027cfbb075887ecf152b599",
+    "artifact": 12949881379,
+    "artifact_bytes": 183462,
+    "artifact_sha256": "c070bb7fc90e9817470702af9a4845cd3eaacc98b455bf2ddafff86a94388915",
+    "custody": "Complete105file656093expanded audit plus exact9Git inputs passed",
+    "checkpoint": {
+      "phase": "interrupted-awaiting-guest-reboot",
+      "boot": {
+        "boot_id": "b6236976-cec9-410e-a245-6c4f7b373266",
+        "machine_id": "a066b20029f24052b1605566d8a64faf",
+        "kernel": "7.0.0-38-generic",
+        "uid": 1001,
+        "gid": 1001
+      },
+      "cap_eff": "0000000000000000",
+      "configuration_sha256": "845dd6bbd870deb47a0c335336a67476fc6d75a8c9e0c46fc8c1b5ca901db3bf",
+      "scope": "Process interruption86 before normal guest reboot; synthetic witnesses only"
+    },
+    "observed_child_outcomes": {
+      "installed-stage": {
+        "arguments": [
+          "/home/portcove/Applications/Portcove Public beta β.AppImage",
+          "--portcove-qualify-update-stage",
+          "/home/portcove/inputs/Portcove_0.3.0_amd64.AppImage"
+        ],
+        "code": 0,
+        "timed_out": false,
+        "error": null,
+        "capture_scope": "Raw files; size postchecked after child settlement, not a streaming output cap"
+      },
+      "prepare-staged": {
+        "arguments": [
+          "/home/portcove/tools/prepare_installed_update",
+          "prepare-staged",
+          "0.1.0",
+          "/home/portcove/qualification/update-preferences.json",
+          "/home/portcove/qualification/update-state",
+          "/home/portcove/qualification/library"
+        ],
+        "code": 0,
+        "timed_out": false,
+        "error": null,
+        "capture_scope": "Raw files; size postchecked after child settlement, not a streaming output cap"
+      },
+      "interrupted-apply": {
+        "arguments": [
+          "/home/portcove/Applications/Portcove Public beta β.AppImage",
+          "--portcove-apply-update",
+          "2"
+        ],
+        "code": 86,
+        "timed_out": false,
+        "error": null,
+        "capture_scope": "Raw files; size postchecked after child settlement, not a streaming output cap"
+      }
+    },
+    "guest_boot_ids": [
+      "b6236976-cec9-410e-a245-6c4f7b373266",
+      "8471f1bf-5498-4278-be1b-528b2cd37254"
+    ],
+    "persisted_machine_id": "a066b20029f24052b1605566d8a64faf",
+    "serial_causal_line": "Ordering cycle found, skipping portcove-reboot-cell.service",
+    "qemu_outcome": {
+      "code": 0,
+      "error": "Command '['/usr/bin/qemu-system-x86_64', '-machine', 'q35,accel=tcg', '-cpu', 'max', '-smp', '2', '-m', '3072', '-display', 'none', '-vga', 'none', '-monitor', 'none', '-L', '/usr/share/qemu', '-bios', '/usr/share/seabios/bios-256k.bin', '-nodefaults', '-serial', 'file:/home/runner/work/portcove/portcove/work/updater-linux-reboot/guest-run/serial.log', '-drive', 'file=/home/runner/work/portcove/portcove/work/updater-linux-reboot/guest-run/owned-guest.qcow2,if=virtio,format=qcow2', '-netdev', 'user,id=net0', '-device', 'virtio-net-pci,netdev=net0,romfile=', '-fsdev', 'local,id=inputs,path=/home/runner/work/portcove/portcove/work/updater-linux-reboot/public-inputs,security_model=none,readonly=on', '-device', 'virtio-9p-pci,fsdev=inputs,mount_tag=public-inputs', '-fsdev', 'local,id=outputs,path=/home/runner/work/portcove/portcove/work/updater-linux-reboot/guest-run/reports,security_model=none', '-device', 'virtio-9p-pci,fsdev=outputs,mount_tag=qualification-output', '-smbios', 'type=1,serial=ds=nocloud;s=http://10.0.2.2:45997/c16e9fa060b543dd893f081aa01d4bf6/']' timed out after 5400 seconds",
+      "seconds": 5400.375747879,
+      "host_boot_id_before": "f9689079-a51a-4740-919b-f4f2904d0c39",
+      "host_boot_id_after": "f9689079-a51a-4740-919b-f4f2904d0c39"
+    },
+    "first_divergent_boundary": "Harness systemd second-boot recovery service admission; product recovery was not invoked",
+    "classification": "harness",
+    "native_acceptance": false,
+    "complete_evidence_collection": true,
+    "independent_review": "Raw artifact/source/status/serial readback CLEAR; corrected7e93 reboot-only rerun justified after currentCI guard",
+    "scope": "Actual OS reboot observed; recovery sequence failed. Initial initramfs/pre-provision machine IDs are not the persisted checkpoint identity. Separate Linux renderer Restart pass and old846unknowncause remain unchanged."
+  },
+  "retained_file_identities": {
+    "guest-run/result.json": {
+      "bytes": 1452,
+      "sha256": "d7d4f8ed9bb39054bf557141826ec014b51a7515555a93d851223bc66c35e45b"
+    },
+    "guest-run/qemu-start.json": {
+      "bytes": 11093,
+      "sha256": "26a884159de93621796964710461c4ec372f9d0d1701d487c33e89b03696f269"
+    },
+    "guest-run/qemu-outcome.json": {
+      "bytes": 194,
+      "sha256": "4a9660f9681e82d7a3116b9c12a3b5cddecbab93404b5647f0f8a4e33818d776"
+    },
+    "helper.json": {
+      "bytes": 1028,
+      "sha256": "112dc038f4166183291ca93ecb10fab2bb95b1a9d648499ea293b0903465e55f"
+    },
+    "runtime.json": {
+      "bytes": 9636,
+      "sha256": "704302d046fea309721e1862eddf368d2e5a9241bd3c5b1ca8ff25247ede200e"
+    },
+    "image/image-receipt.json": {
+      "bytes": 1759,
+      "sha256": "52c5face79364fb3de27b35f97fb1cb4618838042d00a39ced339179b66b5c45"
+    },
+    "launch-inputs.json": {
+      "bytes": 18700,
+      "sha256": "db36a860bfaa8d846999050202cb0b02a539993eff2e956636ca5034c748393e"
+    },
+    "public-manifest.json": {
+      "bytes": 25997,
+      "sha256": "32aa0a086105aae35d50a3e80e5410f7c237b63d03b93e067010f30c32a93ac3"
+    },
+    "guest-run/serial.log": {
+      "bytes": 287365,
+      "sha256": "91cc6d6b545703dd33539ca35d48b22db8fb5029b6646af5808fb1561844b92a"
+    },
+    "guest-run/reports/checkpoint/checkpoint.json": {
+      "bytes": 3028,
+      "sha256": "1e015d3f2a7d63a77b631098e88aab14ef41754bf0226af9d5844f9af6e47033"
+    },
+    "guest-run/reports/checkpoint/update-state-apply.json": {
+      "bytes": 4238,
+      "sha256": "75fb28d0351777cc615fcf4474e72cf04ae624f761420508010a4b4eb0fcd987"
+    },
+    "guest-run/reports/checkpoint/update-state-staging.json": {
+      "bytes": 2897,
+      "sha256": "3754177454692ed9cc53fe0c678a84654c29e9c3c50b0671edc061e72f33bebd"
+    },
+    "guest-run/reports/checkpoint/update-preferences.json": {
+      "bytes": 133,
+      "sha256": "c3cf35f9156c703c28789de73f411329034872b336bbda8ac3025d71a55b3f45"
+    },
+    "guest-run/reports/checkpoint/cell-unit.txt": {
+      "bytes": 234,
+      "sha256": "abc32e58226219c602dc57009b2c89702f1a1d82c2e557100d615d07e1a2cb69"
+    },
+    "guest-run/reports/checkpoint/cloud-final-unit.txt": {
+      "bytes": 1256,
+      "sha256": "3c2de66f60b26e3482d441f1580068fd2019ee2623fe648ca9a4f5d8e406ce14"
+    },
+    "guest-run/reports/checkpoint/cloud-init-target.txt": {
+      "bytes": 674,
+      "sha256": "d9fdbc55f79e76333ce010f530e70fbc1f6d80370fc17e2021656fc709bc54a5"
+    },
+    "guest-run/reports/checkpoint/phase-status.json": {
+      "bytes": 34,
+      "sha256": "b4d031c9cc8a17a23cc5a5e1ae173852e92eafcbe3d6f73650bc3baf1fee2a7e"
+    },
+    "guest-run/reports/recover/checkpoint.json": {
+      "bytes": 3028,
+      "sha256": "1e015d3f2a7d63a77b631098e88aab14ef41754bf0226af9d5844f9af6e47033"
+    },
+    "guest-run/reports/recover/update-state-apply.json": {
+      "bytes": 3939,
+      "sha256": "d6957d155766f9554da6d1f5fe8fb78ae59c169cf9343f027ac6c928283a62f5"
+    },
+    "guest-run/reports/recover/update-state-staging.json": {
+      "bytes": 2897,
+      "sha256": "3754177454692ed9cc53fe0c678a84654c29e9c3c50b0671edc061e72f33bebd"
+    },
+    "guest-run/reports/recover/update-preferences.json": {
+      "bytes": 133,
+      "sha256": "c3cf35f9156c703c28789de73f411329034872b336bbda8ac3025d71a55b3f45"
+    },
+    "guest-run/reports/recover/cell-unit.txt": {
+      "bytes": 234,
+      "sha256": "abc32e58226219c602dc57009b2c89702f1a1d82c2e557100d615d07e1a2cb69"
+    },
+    "guest-run/reports/recover/cloud-final-unit.txt": {
+      "bytes": 1256,
+      "sha256": "3c2de66f60b26e3482d441f1580068fd2019ee2623fe648ca9a4f5d8e406ce14"
+    },
+    "guest-run/reports/recover/cloud-init-target.txt": {
+      "bytes": 674,
+      "sha256": "d9fdbc55f79e76333ce010f530e70fbc1f6d80370fc17e2021656fc709bc54a5"
+    },
+    "guest-run/reports/recover/phase-status.json": {
+      "bytes": 31,
+      "sha256": "633c0d6b3e7558832bf385e49bca542bc45c07c3125ab10a43de26f5eff9375c"
+    }
+  },
+  "independent_nonwriting_review": "Complete raw custody, source, stage/journal, caller/boot/unit, candidate/file ownership and QEMU readback clear. No native credit inferred from exit0 alone.",
+  "production_gate": {
+    "owner": 534,
+    "integration_owner": 52,
+    "actual_production_candidate_root_feed_signing_publication_join_established": false,
+    "glib": "#706/#49 scoped non-remediating disposition; reconfirm exact candidate/full scanner/native inputs/features/first tag/publication count at actual release. Expires2026-11-14T23:59:00 America/New_York or before relevant second ordinary Linux Public beta; no automatic renewal."
+  },
+  "artifact_published_at_utc": "2026-10-30T02:55:18Z",
+  "receipt_recorded_at_utc": "2026-10-30T03:02:42.947217+00:00",
+  "compiled_fixture_feed": {
+    "metadata_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/",
+    "targets_url": "file:///home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/repository/positive/targets/",
+    "bundled_root_file": "/home/runner/work/portcove/portcove/work/updater-rehearsal/linux-appimage-qualification/trusted-root.json",
+    "derivation_source": "38cc869f1f1db165351d65a9b490d8d35c71dd56",
+    "derivation": "scripts/rehearse-updater-artifacts.ps1 selects positiveRepository before qualified predecessor build; retained lifecycle/renderer paths bind actual fixture root.",
+    "scope": "Source-derived compiled predecessor positive file-feed identity; negative/recovery repositories and public artifact download URLs are separate. Candidate production/default feed is not established.",
+    "native_consumption": "The new guest recreates these exact source-derived predecessor file URLs using the unchanged signed cohort; installed stage exits0. This is not a production/default feed or an artifact download URL.",
+    "bundled_root_identity": {
+      "path": "updater-rehearsal/linux-appimage-qualification/repository/positive/metadata/1.root.json",
+      "bytes": 3072,
+      "sha256": "48d32472bcc328553cb5fb40b24509e4e496c1c461dfa45e5d653b18ed5d0162",
+      "crc32": "ba2b8009",
+      "directory": false
+    }
+  },
+  "payload_public_key": {
+    "kind": "Payload minisign public-key file, distinct from TUF metadata Root role keys",
+    "retained_path": "updater-rehearsal/disposable.key.pub",
+    "encoded_bytes": 152,
+    "encoded_sha256": "5dde708dbcac98f757704ae0c4fedbaa6e3bd3fe99a552e957c7e56be3264b4e",
+    "decoded_bytes": 114,
+    "decoded_sha256": "8555d4c53b9d32ca1fadbf4a71a28a02ee2ebd908246510ef213dbfc76d0a03d",
+    "encoding": "Base64 encoded minisign public-key file",
+    "independent_verification_reference": "installed-updater-busy-observation-2026-10-29.json#/linux_current/independent_payload_verification",
+    "public_metadata_signature_bytes_reference": "installed-updater-busy-observation-2026-10-29.json#/linux_current/public_trust_bytes",
+    "scope": "Exact unchanged source38 cohort; both payload signatures independently verified there and installed authenticated staging succeeds here. No production key/custody/publication authority."
+  }
+}

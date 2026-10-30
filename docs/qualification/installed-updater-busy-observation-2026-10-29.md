@@ -193,13 +193,13 @@ The enclosing admitted command exits 0. No updater operation or forced restart
 occurs. The earlier failed case remains failed; current success does not erase
 its forced cleanup or offscreen screenshot.
 
-Actual Linux OS reboot remains unobserved. A task-owned isolated guest route is
-being prepared; the shared host will not be rebooted and the row is not waived. Production candidate/default-feature
+At the controller276 checkpoint, actual Linux OS reboot remained unobserved.
+The subsequent independently reviewed [isolated reboot/recovery receipt](installed-updater-reboot-observation-2026-10-29.md) now passes; the shared host was not rebooted and no row was waived. Production candidate/default-feature
 source, Root/key/grant/feed/custody/signing/publication and readback remain held
 by [#534](https://github.com/boburning/portcove/issues/534). Full 1.0 #46, macOS
 #226 and Steam Deck #535 remain independent.
 
-### Remaining isolated reboot cell
+### Isolated reboot preparation and retained failures
 
 The local task-owned Ubuntu 26.04.1 guest attempt failed in cloud-init account
 provisioning before any application or updater execution: an empty supplementary
@@ -231,8 +231,8 @@ retained journals, actual child outcomes and synthetic witness preservation.
 Synthetic witnesses do not replace the earlier real installed game-data proof.
 Only explicitly allowed bounded public diagnostics are uploaded; VM/base disks,
 private profiles, raw artifact, binaries and transport credentials are excluded.
-This route is unexecuted and the reboot row remains pending until its actual
-result is reviewed. It confers no production, power-loss, GUI or Deck acceptance.
+At this preparation checkpoint the route was unexecuted and the reboot row
+remained pending actual result review; the completed observation is linked below. It confers no production, power-loss, GUI or Deck acceptance.
 
 The current-head CI run
 [40973981141/1](https://github.com/boburning/portcove/actions/runs/40973981141)
@@ -286,6 +286,27 @@ The source repair and new CI can proceed independently while the immutable old
 native invocation finishes. This static proof does not attribute that guest's
 actual cause/outcome or establish a reboot pass. No replacement invocation is
 permitted until its terminal outcome and available serial/journals are collected.
+
+### Current isolated reboot and recovery pass
+
+[40993092728/1](https://github.com/boburning/portcove/actions/runs/40993092728)
+now passes at reviewed controller7e93 and the unchanged signed source38 cohort /
+D295 helper. The original1d5 attempt is fully collected and remains failed:
+its serial explicitly skips the recovery cell for the ordering cycle after a
+real guest reboot. This confirms a harness service-admission fault rather than
+a product recovery failure. The corrected target's actual run changes boot ID,
+preserves the machine/caller identities, exits recovery0, retains the original
+application/verified candidate/preferences, removes the partial swap and preserves
+its synthetic witnesses. One QEMU exits0/errornull with unchanged host boot ID.
+Full archive/source/raw-journal/ownership readback and independent review pass.
+See the [exact receipt and scope](installed-updater-reboot-observation-2026-10-29.md).
+
+Together with the earlier real GUI/game-data observations, this completes the
+ordinary Windows/Linux native acceptance cells at their stated package/source
+identities. The older846 renderer Restart failure's cause remains unknown;
+its successful later journey and this separate reboot-harness repair do not
+retroactively assign it a cause. Production/default-feature candidate and real
+Root/feed/signing/publication joins remain unmet under #534 and required by #52.
 
 The separate #706/#49 scoped, non-remediating GLib disposition expires November
 14, 2026 at 23:59 America/New_York, or earlier at the relevant second beta

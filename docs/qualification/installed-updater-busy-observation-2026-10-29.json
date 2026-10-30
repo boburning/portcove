@@ -12604,5 +12604,14 @@
       "Empty private Core library; earlier original real-game/preservation chains retain their separate scopes",
       "No machine-wide installation, credential continuity or production publication claim"
     ]
+  },
+  "followup_isolated_reboot_receipt": {
+    "path": "installed-updater-reboot-observation-2026-10-29.json",
+    "controller_source": "7e93ee75d38779634323a90a4a1f93464e340375",
+    "native_run": 40993092728,
+    "attempt": 1,
+    "artifact": 12950636778,
+    "artifact_sha256": "2c69a4d36ce2bd59cb23dd569512bac22b645712553b65d66896485f006a059c",
+    "scope": "Actual ordinary isolated guest reboot/interrupted-copy recovery passes; earlier real GUI/game-data observations remain separate. Original guest failure retained; no production/Deck/power-loss claim."
   }
 }
