@@ -58,7 +58,10 @@ import {
   readNativeProcessSnapshot,
   readNativeSessionObservation,
 } from "./desktop-owned-native-session.mts";
-import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
+import {
+  launchLinuxNativeSession,
+  LinuxLaunchPublication,
+} from "./desktop-linux-native-session.mts";
 import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
 import { inspectIsolatedNativeLinuxBinding } from "./native-linux-isolated-plan.mts";
 import { createHash } from "node:crypto";
@@ -384,10 +387,16 @@ const linuxSelectedSession =
         ].includes(name) ||
         (name === "native-preparation-cancellation" && selection.selected_scenarios.length === 1),
     ));
-let linuxLaunch: LinuxLaunch | undefined;
-let linuxCleanup: LinuxCleanup | undefined;
-let linuxLaunchCount = 0;
-let linuxStop: Promise<void> | undefined;
+const linuxPublication = new LinuxLaunchPublication<LinuxCleanup, LinuxLaunch, boolean>({
+  output,
+  artifacts,
+  write: writeFile,
+  beforeCommit: publishLinuxMediaEvidence,
+  committed: () => {
+    driver = undefined;
+  },
+  afterCommit: validateLinuxMediaEvidence,
+});
 let packageEvidence:
   | Awaited<ReturnType<typeof verifyNormalPackageEvidence>>
   | Awaited<ReturnType<typeof verifyLinuxPackageEvidence>>
@@ -518,76 +527,69 @@ async function retainNativeCustody(error: unknown): Promise<never> {
   });
 }
 
+async function publishLinuxMediaEvidence(cleanup: LinuxCleanup, evidence: string) {
+  let mediaWrapperFailure = false;
+  if (linuxPackagedInspector) {
+    const finalEvidence = `${applicationMediaEvidence}.final.json`;
+    await writeFile(
+      finalEvidence,
+      JSON.stringify(
+        {
+          quiesced: cleanup.quiesced,
+          namespace_join: evidence,
+          limitation: "Namespace closure; no application or wrapper normal-exit inference",
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+    artifacts.push(finalEvidence);
+    for (const suffix of ["", ".failure.json", ".exit.json"]) {
+      const captured = await lstat(`${applicationMediaEvidence}${suffix}`).catch((error) => {
+        if (errorCode(error) === "ENOENT") return null;
+        throw error;
+      });
+      if (captured) {
+        assert.ok(captured.isFile() && !captured.isSymbolicLink());
+        artifacts.push(`${applicationMediaEvidence}${suffix}`);
+        if (suffix === ".failure.json") mediaWrapperFailure = true;
+      }
+    }
+  }
+  return mediaWrapperFailure;
+}
+
+async function validateLinuxMediaEvidence(
+  cleanup: LinuxCleanup,
+  mediaWrapperFailure: boolean | undefined,
+) {
+  if (linuxPackagedInspector) {
+    const { assertMediaWrapperOutcome } = await import("../../../scripts/desktop-linux-media.mts");
+    assertMediaWrapperOutcome(cleanup.events);
+    assert.equal(
+      mediaWrapperFailure,
+      false,
+      "Application media wrapper failed; preserve its failure receipt",
+    );
+    const exit = await readFile(`${applicationMediaEvidence}.exit.json`, "utf8").catch((error) => {
+      if (errorCode(error) === "ENOENT") return null;
+      throw error;
+    });
+    if (exit) {
+      const observed = object(JSON.parse(exit));
+      assert.deepEqual(
+        { code: observed.code, signal: observed.signal },
+        { code: 0, signal: null },
+        "Unexpected ordinary app exit before namespace cleanup",
+      );
+    }
+  }
+}
+
 async function stopDriver() {
   if (linuxSelectedSession) {
-    if (!linuxLaunch) return;
-    if (!linuxStop) {
-      const launch = linuxLaunch;
-      const launchIndex = linuxLaunchCount;
-      linuxStop = (async () => {
-        const cleanup = await launch.stop();
-        const evidence = path.join(output, `linux-native-launch-${launchIndex}-join.json`);
-        await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
-        artifacts.push(evidence);
-        let mediaWrapperFailure = false;
-        if (linuxPackagedInspector) {
-          const finalEvidence = `${applicationMediaEvidence}.final.json`;
-          await writeFile(
-            finalEvidence,
-            JSON.stringify(
-              {
-                quiesced: cleanup.quiesced,
-                namespace_join: evidence,
-                limitation: "Namespace closure; no application or wrapper normal-exit inference",
-              },
-              null,
-              2,
-            ) + "\n",
-            { flag: "wx" },
-          );
-          artifacts.push(finalEvidence);
-          for (const suffix of ["", ".failure.json", ".exit.json"]) {
-            const captured = await lstat(`${applicationMediaEvidence}${suffix}`).catch((error) => {
-              if (errorCode(error) === "ENOENT") return null;
-              throw error;
-            });
-            if (captured) {
-              assert.ok(captured.isFile() && !captured.isSymbolicLink());
-              artifacts.push(`${applicationMediaEvidence}${suffix}`);
-              if (suffix === ".failure.json") mediaWrapperFailure = true;
-            }
-          }
-        }
-        linuxCleanup = cleanup;
-        linuxLaunch = undefined;
-        driver = undefined;
-        if (linuxPackagedInspector) {
-          const { assertMediaWrapperOutcome } =
-            await import("../../../scripts/desktop-linux-media.mts");
-          assertMediaWrapperOutcome(cleanup.events);
-          assert.equal(
-            mediaWrapperFailure,
-            false,
-            "Application media wrapper failed; preserve its failure receipt",
-          );
-          const exit = await readFile(`${applicationMediaEvidence}.exit.json`, "utf8").catch(
-            (error) => {
-              if (errorCode(error) === "ENOENT") return null;
-              throw error;
-            },
-          );
-          if (exit) {
-            const observed = object(JSON.parse(exit));
-            assert.deepEqual(
-              { code: observed.code, signal: observed.signal },
-              { code: 0, signal: null },
-              "Unexpected ordinary app exit before namespace cleanup",
-            );
-          }
-        }
-      })();
-    }
-    return linuxStop;
+    return linuxPublication.stop();
   }
   if (identityBoundSession) {
     stopBackupFocusDriver();
@@ -1437,7 +1439,7 @@ async function connectObservedDriver() {
       awaitApplicationMediaReadiness,
       verifyApplicationMediaInputs,
     } = await import("../../../scripts/desktop-linux-media.mts");
-    const launch = required(linuxLaunch);
+    const launch = required(linuxPublication.launch);
     let readiness: unknown;
     const inspector = await connectLinuxInspector({
       port,
@@ -1488,8 +1490,8 @@ async function connectObservedDriver() {
           ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
         },
       });
-    if (linuxLaunch && "privateAgent" in linuxLaunch)
-      builder.usingHttpAgent(linuxLaunch.privateAgent);
+    if (linuxPublication.launch && "privateAgent" in linuxPublication.launch)
+      builder.usingHttpAgent(linuxPublication.launch.privateAgent);
     browser = await builder.build();
   } finally {
     if (finishObservation) {
@@ -1575,9 +1577,11 @@ async function restartApplication(
     await required(browser).quit();
     browser = undefined;
     await stopDriver();
-    assert.equal(required(linuxCleanup).quiesced, true);
+    assert.equal(required(linuxPublication.cleanup).quiesced, true);
     const evidence = path.join(output, `${name}-restart.json`);
-    await writeFile(evidence, JSON.stringify(linuxCleanup, null, 2) + "\n", { flag: "wx" });
+    await writeFile(evidence, JSON.stringify(linuxPublication.cleanup, null, 2) + "\n", {
+      flag: "wx",
+    });
     artifacts.push(evidence);
     await startDriver(childEnvironment);
     await connect();
@@ -1815,42 +1819,20 @@ async function interruptLinuxPreparation(
   assertStillPreparing: () => Promise<void>,
 ) {
   assert.equal(process.platform, "linux");
-  assert.equal(selection.selected_scenarios.length, 1);
-  assert.equal(selection.selected_scenarios[0], "native-linux-interrupted-preparation");
-  assert.ok(linuxSelectedSession && linuxLaunch);
-  assert.ok(
-    path.resolve(preparationExecutable).startsWith(path.resolve(library, "staging") + path.sep),
-  );
-  await assertStillPreparing();
-  const startedAt = new Date().toISOString();
-  const receipt = linuxLaunch.receipt;
-  // Do not delete the WebDriver session or request an application close. EOF
-  // makes the private PID namespace's init exit; the kernel ends its members.
-  browser = undefined;
-  await stopDriver();
-  assert.equal(required(linuxCleanup).quiesced, true);
-  const evidence = path.join(output, `${name}-restart.json`);
-  await writeFile(
-    evidence,
-    JSON.stringify(
-      {
-        started_at: startedAt,
-        shutdown_request: "private-pid-namespace-init-eof-without-session-delete",
-        launch_receipt: receipt,
-        joined_at: new Date().toISOString(),
-        cleanup: linuxCleanup,
-        limitation:
-          "Namespace teardown; no graceful close, app-only termination, OS shutdown or product quiescence attestation",
-      },
-      null,
-      2,
-    ) + "\n",
-    { flag: "wx" },
-  );
-  artifacts.push(evidence);
-  await startDriver();
-  await connect();
-  return driverBrowser();
+  assert.ok(linuxSelectedSession);
+  return linuxPublication.interruptPreparation({
+    name,
+    preparationExecutable,
+    library,
+    selectedScenarios: selection.selected_scenarios,
+    assertStillPreparing,
+    invalidateBrowser: () => {
+      browser = undefined;
+    },
+    start: () => startDriver(),
+    connect,
+    browser: driverBrowser,
+  });
 }
 
 async function closeApplication(
@@ -2055,7 +2037,7 @@ function captureBackupFocusDriverLaunch(launchStarted: number) {
 async function driverReady() {
   try {
     if (linuxBinding) {
-      const launch = required(linuxLaunch);
+      const launch = required(linuxPublication.launch);
       assert.ok("privateAgent" in launch);
       return await new Promise<boolean>((resolve, reject) => {
         const request = httpGet(
@@ -2144,7 +2126,7 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
     });
   }
-  if (linuxSelectedSession) await required(linuxLaunch).ready();
+  if (linuxSelectedSession) await required(linuxPublication.launch).ready();
   if (linuxPackagedInspector) return;
   try {
     await captureSelectedDriverLaunch(launchStarted);
@@ -2177,42 +2159,40 @@ async function launchDriverProcess(childEnvironment: NodeJS.ProcessEnv) {
   ];
   if (linuxSelectedSession) {
     ownedSession.beginLaunch();
-    assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
-    linuxCleanup = undefined;
-    linuxStop = undefined;
-    linuxLaunchCount++;
-    if (linuxBinding) {
-      assert.equal(
-        linuxPackagedInspector,
-        false,
-        "Inspector media route is separate from isolated WebDriver package qualification",
-      );
-      linuxLaunch = await launchIsolatedLinuxNativeSession(
-        linuxBinding,
-        driverPath,
-        arguments_,
-        driverEnvironment(childEnvironment),
-        admission.assertReady,
-      );
-    } else
-      linuxLaunch = await launchLinuxNativeSession(
-        linuxPackagedInspector ? process.execPath : driverPath,
-        linuxPackagedInspector
-          ? [
-              path.join(root, "scripts/desktop-linux-media.mts"),
-              "--launch-probed-app",
-              required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
-              application,
-              required(inputs[0]).sha256,
-              applicationMediaEvidence,
-            ]
-          : arguments_,
-        linuxPackagedInspector
-          ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
-          : driverEnvironment(childEnvironment),
-        { beforeLaunch: admission.assertReady },
-      );
-    driver = linuxLaunch.child;
+    const launch = await linuxPublication.start(async () => {
+      if (linuxBinding) {
+        assert.equal(
+          linuxPackagedInspector,
+          false,
+          "Inspector media route is separate from isolated WebDriver package qualification",
+        );
+        return await launchIsolatedLinuxNativeSession(
+          linuxBinding,
+          driverPath,
+          arguments_,
+          driverEnvironment(childEnvironment),
+          admission.assertReady,
+        );
+      } else
+        return await launchLinuxNativeSession(
+          linuxPackagedInspector ? process.execPath : driverPath,
+          linuxPackagedInspector
+            ? [
+                path.join(root, "scripts/desktop-linux-media.mts"),
+                "--launch-probed-app",
+                required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
+                application,
+                required(inputs[0]).sha256,
+                applicationMediaEvidence,
+              ]
+            : arguments_,
+          linuxPackagedInspector
+            ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
+            : driverEnvironment(childEnvironment),
+          { beforeLaunch: admission.assertReady },
+        );
+    });
+    driver = launch.child;
   } else if (nativeAccount) {
     admission.assertReady();
     ownedSession.beginLaunch();
@@ -2852,7 +2832,7 @@ try {
         { flag: "wx" },
       );
       artifacts.push(filename);
-      const launch = required(linuxLaunch);
+      const launch = required(linuxPublication.launch);
       assert.ok("observeRuntime" in launch);
       const runtime = await launch.observeRuntime();
       const browserCapabilities = await browser.getCapabilities();
@@ -4631,7 +4611,7 @@ try {
               ? nativeGameFileFolderPicker({
                   application: application,
                   getDriverIdentity: () => ownedSession.driver,
-                  getLinuxLaunch: () => linuxLaunch,
+                  getLinuxLaunch: () => linuxPublication.launch,
                   output,
                   artifacts,
                 })
@@ -4730,7 +4710,7 @@ try {
         browser = undefined;
         await stopDriver();
         assert.equal(
-          linuxCleanup?.quiesced,
+          linuxPublication.cleanup?.quiesced,
           true,
           "Positive current Linux namespace join is required",
         );
@@ -4746,11 +4726,17 @@ try {
       }
       if (cleanupFailed || quitFailure) {
         const failure = cleanupFailed ? cleanupError : required(quitFailure).error;
-        const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-unknown.json`);
+        const evidence = path.join(
+          output,
+          `linux-native-launch-${linuxPublication.ordinal}-unknown.json`,
+        );
         await writeFile(
           evidence,
-          JSON.stringify({ error: errorMessage(failure), receipt: linuxLaunch?.receipt }, null, 2) +
-            "\n",
+          JSON.stringify(
+            { error: errorMessage(failure), receipt: linuxPublication.launch?.receipt },
+            null,
+            2,
+          ) + "\n",
           { flag: "wx" },
         );
         artifacts.push(evidence);
@@ -4954,14 +4940,14 @@ try {
     });
     console.log(JSON.stringify(checks, null, 2));
   } finally {
-    if (linuxSelectedSession && linuxLaunch) {
+    if (linuxSelectedSession && linuxPublication.launch) {
       try {
         // A late normal join can release custody but never repair the failed
         // qualification. Keep the owning runner/slot alive while still pending.
-        const custody = await linuxLaunch.custody();
+        const custody = await linuxPublication.launch.custody();
         const evidence = path.join(
           output,
-          `linux-native-launch-${linuxLaunchCount}-retained-join.json`,
+          `linux-native-launch-${linuxPublication.ordinal}-retained-join.json`,
         );
         await writeFile(evidence, JSON.stringify(custody, null, 2) + "\n", { flag: "wx" });
       } catch (error) {

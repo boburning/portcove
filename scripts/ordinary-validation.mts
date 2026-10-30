@@ -472,6 +472,14 @@ for (const [file, tests] of [
     ["scripts/native-qualification-linux-transfer.test.mts"],
   ],
   [
+    "apps/desktop/scripts/desktop-linux-native-session.mts",
+    [
+      "scripts/desktop-linux-native-session.test.mts",
+      "scripts/desktop-linux-stop.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
+  ],
+  [
     "apps/desktop/scripts/native-linux-isolated-plan.mts",
     ["scripts/native-linux-isolated-plan.test.mts"],
   ],
