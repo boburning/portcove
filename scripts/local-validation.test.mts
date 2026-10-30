@@ -4313,3 +4313,44 @@ void test("native runtime owners retain direct behavior and caller contracts on 
       assert.ok(!local.unknown.has(file), `${file}:${variant}`);
     }
 });
+
+void test("POSIX qualification identity module retains its public caller tests on every path operation", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const file = "scripts/native-qualification-posix-identity.psm1";
+  const consumer = "scripts/updater-artifact-inventory.test.mts";
+  for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+    const change = {
+      status: variant.startsWith("R") ? "R100" : variant,
+      oldPath: variant === "R-new" ? "docs/moved-posix-identity.md" : file,
+      newPath: variant === "R-old" ? "docs/moved-posix-identity.md" : file,
+      oldMode: variant === "A" ? "000000" : "100644",
+      newMode: variant === "D" ? "000000" : "100644",
+    };
+    const local = classifyChanges(
+      [
+        {
+          status: change.status,
+          path: change.newPath,
+          ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
+        },
+      ],
+      { fileExists: () => false },
+    );
+    assert.ok(local.nodeTests.has(consumer), variant);
+    assert.ok(!local.unknown.has(file), variant);
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(
+      baselineContractTests(plan, { fileExists: () => false }).filter((value) => value === consumer)
+        .length,
+      1,
+      variant,
+    );
+  }
+});
