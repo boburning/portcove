@@ -734,8 +734,14 @@ Keep the detailed specification here. Do not launch a second product writer.
 Primary research retains exact successful GET positions and collection links in
 `active-run.json` under `research_progress`, with a 32 MiB physical envelope.
 Numeric repository identity, canonical repository scope, page identities and
-sequential provider-only continuation links remain mandatory. Interrupted
-release/asset listings, tag resolution and pinned documentation continue from
+sequential provider-only continuation links remain mandatory.
+GitHub release/asset pagination may use the numeric `/repositories/<id>/`
+alias only when it matches the freshly observed immutable primary repository ID
+and the exact release or selected-release-assets collection. Page sequence,
+page size, origin and query checks still apply. Accepted aliases normalize to
+the original named request path so retained research evidence and conditional
+validation keep their existing repository binding.
+Interrupted release/asset listings, tag resolution and pinned documentation continue from
 accepted reads. A resumed collection performs a checkpointed conditional
 validation pass before returning complete research evidence. Changed pages reset
 that collection; corrupt or changed repository identities refuse. Accepted
