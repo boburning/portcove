@@ -407,7 +407,13 @@ void test("installed update entrypoints consume their imported observation owner
   const policies = [
     {
       file: "desktop-windows-update-test.mts",
-      exports: ["readWindowsUpdateProcessMarker", "readWindowsUpdateProcessObservation"],
+      exports: [
+        "readWindowsUpdateProcessMarker",
+        "readWindowsUpdateProcessObservation",
+        "cleanupWindowsUpdateMarkedProcess",
+        "installWindowsUpdateRestartHook",
+        "windowsUpdateWorkerRelativePath",
+      ],
     },
     { file: "desktop-macos-installed-update-test.mts", exports: ["readMacInstalledProcessField"] },
   ];
@@ -428,7 +434,7 @@ void test("installed update entrypoints consume their imported observation owner
           assert.ok(Array.isArray(node.specifiers));
           return node.specifiers.filter(isRecord);
         });
-      return policy.exports.map((name) => {
+      const owners = policy.exports.map((name) => {
         const imported = specifiers.find(
           (node) => (identifier(node.imported) ?? literal(node.imported)) === name,
         );
@@ -441,6 +447,121 @@ void test("installed update entrypoints consume their imported observation owner
         assert.ok(calls.length > 0, "Consume imported installed observation owner " + name);
         return { name, imported, calls };
       });
+      for (const owner of owners.filter((entry) =>
+        ["cleanupWindowsUpdateMarkedProcess", "installWindowsUpdateRestartHook"].includes(
+          entry.name,
+        ),
+      )) {
+        assert.equal(owner.calls.length, 1, "One live installed operation");
+        const call = owner.calls[0];
+        assert.ok(call);
+        assert.ok(
+          syntax.some((node) => node.type === "AwaitExpression" && node.argument === call),
+          "Await installed operation",
+        );
+        assert.ok(
+          !syntax.some(
+            (node) =>
+              ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+                String(node.type),
+              ) &&
+              range(node).start < range(call).start &&
+              range(node).end > range(call).end,
+          ),
+          "Installed operation cannot be a disconnected function",
+        );
+        assert.ok(
+          !syntax.some(
+            (node) =>
+              node.type === "LogicalExpression" &&
+              range(node).start < range(call).start &&
+              range(node).end > range(call).end,
+          ),
+          "Installed operation cannot be conditionally disconnected",
+        );
+        if (owner.name === "cleanupWindowsUpdateMarkedProcess") {
+          assert.ok(
+            syntax.some(
+              (node) =>
+                node.type === "TryStatement" &&
+                isRecord(node.finalizer) &&
+                range(node.finalizer).start < range(call).start &&
+                range(node.finalizer).end > range(call).end,
+            ),
+            "Cleanup stays in actual finally",
+          );
+          const options = args(call)[0];
+          assert.ok(isRecord(options) && Array.isArray(options.properties));
+          const slots = new Map(
+            options.properties
+              .filter(isRecord)
+              .map((property) => [
+                identifier(property.key) ?? literal(property.key),
+                property.value,
+              ]),
+          );
+          for (const field of ["app", "staging", "output"]) {
+            const binding = syntax.find(
+              (node) =>
+                node.type === "VariableDeclarator" &&
+                isRecord(node.init) &&
+                node.init.type === "CallExpression" &&
+                literal(args(node.init)[0]) === field,
+            );
+            assert.ok(binding, "Owned option " + field);
+            assert.equal(
+              identifier(slots.get(field)),
+              identifier(binding.id),
+              "Forward owned " + field,
+            );
+          }
+          const read = specifiers.find((node) => identifier(node.imported) === "readJson");
+          assert.ok(read);
+          assert.equal(
+            identifier(slots.get("readJson")),
+            identifier(read.local),
+            "Forward imported marker reader",
+          );
+          const provider = syntax.find(
+            (node) =>
+              node.type === "FunctionDeclaration" &&
+              identifier(node.id) === identifier(slots.get("command")),
+          );
+          assert.ok(provider, "Forward actual process provider");
+          const observation = owners.find(
+            (entry) => entry.name === "readWindowsUpdateProcessObservation",
+          );
+          assert.ok(observation);
+          assert.ok(
+            observation.calls.some(
+              (node) =>
+                range(node).start > range(provider).start && range(node).end < range(provider).end,
+            ),
+            "Actual provider consumes parsed process observation",
+          );
+        }
+      }
+      const hook = owners.find((entry) => entry.name === "installWindowsUpdateRestartHook");
+      if (hook) {
+        const connect = specifiers.find(
+          (node) => identifier(node.imported) === "connectInstalledUpdateDriver",
+        );
+        assert.ok(connect);
+        const assignments = syntax.filter(
+          (node) =>
+            node.type === "AssignmentExpression" &&
+            isRecord(node.right) &&
+            identifier(awaited(node.right)?.callee) === identifier(connect.local),
+        );
+        assert.ok(assignments.length > 0, "Connected browser assignment");
+        assert.equal(args(hook.calls[0]).length, 1, "Pass connected browser");
+        assert.equal(
+          identifier(args(hook.calls[0])[0]),
+          identifier(assignments[0]?.left),
+          "Pass connected browser",
+        );
+      }
+      return owners;
     }
     for (const owner of route(source)) {
       const alias = "$observedInstalledInput";
@@ -453,6 +574,63 @@ void test("installed update entrypoints consume their imported observation owner
         'import {hashFile as unusedHash} from "./desktop-installed-update-harness.mts";\n' +
           aliased,
       );
+      if (
+        ["cleanupWindowsUpdateMarkedProcess", "installWindowsUpdateRestartHook"].includes(
+          owner.name,
+        )
+      ) {
+        const call = owner.calls[0];
+        assert.ok(call);
+        const original = source.slice(range(call).start, range(call).end);
+        const disconnected = edit(source, [
+          { ...range(call), text: "false && (" + original + ")" },
+        ]);
+        parseAst(disconnected);
+        assert.throws(
+          () => route(disconnected),
+          /conditionally disconnected|Await installed operation/,
+        );
+        const decoy =
+          edit(source, [{ ...range(call), text: "Promise.resolve()" }]) +
+          "\nasync function unusedInstalledOperation(){await " +
+          original +
+          ";}\n";
+        parseAst(decoy);
+        assert.throws(() => route(decoy), /disconnected function/);
+        if (owner.name === "installWindowsUpdateRestartHook") {
+          const bad = edit(source, [{ ...range(args(call)[0]), text: '"wrong-browser"' }]);
+          parseAst(bad);
+          assert.throws(() => route(bad), /Pass connected browser/);
+        }
+        if (owner.name === "cleanupWindowsUpdateMarkedProcess") {
+          const options = args(call)[0];
+          assert.ok(isRecord(options) && Array.isArray(options.properties));
+          for (const field of ["app", "staging", "output", "readJson", "command"]) {
+            const property = options.properties
+              .filter(isRecord)
+              .find((node) => identifier(node.key) === field);
+            assert.ok(property);
+            const bad = edit(source, [
+              { ...range(property), text: field + ': "wrong-owned-input"' },
+            ]);
+            parseAst(bad);
+            assert.throws(
+              () => route(bad),
+              /Forward owned|Forward imported marker reader|Forward actual process provider/,
+            );
+          }
+          route(
+            edit(
+              source,
+              options.properties.filter(isRecord).map((property) => ({
+                ...range(property),
+                text: identifier(property.key) + ": " + identifier(property.value),
+              })),
+            ),
+          );
+          route(source.replaceAll("absoluteOption", "$ownedAbsoluteOption"));
+        }
+      }
       const bypass = edit(
         source,
         owner.calls.map((node) => ({ ...range(node.callee), text: "unreviewedObservation" })),

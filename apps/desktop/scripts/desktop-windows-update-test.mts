@@ -25,6 +25,10 @@ import {
 } from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
 import {
+  cleanupWindowsUpdateMarkedProcess,
+  installWindowsUpdateRestartHook,
+  windowsUpdateWorkerRelativePath,
+  type WindowsUpdateMarkedCleanup as MarkedCleanup,
   readWindowsUpdateProcessMarker as processMarker,
   readWindowsUpdateProcessObservation as markedObservation,
   type WindowsUpdateProcessMarker as ProcessMarker,
@@ -138,10 +142,6 @@ interface MarkedExit {
   capture: MarkedObservation;
   exit: MarkedObservation;
 }
-interface MarkedCleanup {
-  capture: MarkedObservation;
-  stop: MarkedObservation | null;
-}
 type ProcessLabel = "candidate" | "helper";
 interface WindowsUpdateReport extends InstalledUpdateFailure {
   schema_version: 1;
@@ -202,10 +202,6 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
 function object(value: unknown): Record<string, unknown> {
   assert.ok(value !== null && typeof value === "object" && !Array.isArray(value));
   return value as Record<string, unknown>;
-}
-function positivePid(value: unknown): number {
-  assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
-  return value;
 }
 const report: WindowsUpdateReport = {
   schema_version: 1,
@@ -277,47 +273,6 @@ function markedProcessCommand(
       }),
     ),
   );
-}
-function workerRelativePath(executable: string) {
-  return path.win32
-    .relative(path.win32.toNamespacedPath(staging), path.win32.toNamespacedPath(executable))
-    .replaceAll("\\", "/");
-}
-async function cleanupMarkedProcess(
-  markerPath: string,
-  label: ProcessLabel,
-): Promise<MarkedCleanup | { status: "marker-absent" }> {
-  const rawMarker = await readJson(markerPath).catch(() => null);
-  if (!rawMarker) return { status: "marker-absent" };
-  const marker = processMarker(rawMarker);
-  const expected = label === "candidate" ? app : marker.executable;
-  if (label === "helper") {
-    const relative = workerRelativePath(expected);
-    assert.match(relative, /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu);
-  }
-  const identityPath = path.join(output, `${label}-process-identity.json`);
-  const capturedEarlier = await readJson(identityPath).catch(() => null);
-  assert.ok(restartStarted, "Restart timestamp required for marked-process capture");
-  const capture: MarkedObservation = capturedEarlier
-    ? { status: "captured", pid: positivePid(object(capturedEarlier).pid) }
-    : markedProcessCommand("Capture", [
-        "-MarkerPath",
-        markerPath,
-        "-IdentityPath",
-        identityPath,
-        "-ExpectedPath",
-        expected,
-        "-EarliestStart",
-        restartStarted,
-        ...(label === "helper" ? ["-Helper"] : []),
-      ]);
-  return {
-    capture,
-    stop:
-      capture.status === "captured"
-        ? markedProcessCommand("Stop", ["-IdentityPath", identityPath])
-        : null,
-  };
 }
 async function awaitMarkedProcessExit(
   markerPath: string,
@@ -515,52 +470,7 @@ try {
       );
     }),
   );
-  await executeBrowserScript(browser, () => {
-    const runtime = window as Window & {
-      __TAURI_INTERNALS__?: {
-        invoke(command: string, args?: unknown, options?: unknown): Promise<unknown>;
-      };
-      __portcoveRestartResult?: unknown;
-    };
-    const internals = runtime.__TAURI_INTERNALS__;
-    if (!internals) throw new Error("Native bridge unavailable");
-    const original = internals.invoke.bind(internals);
-    runtime.__portcoveRestartResult = null;
-    internals.invoke = (command, args, options) => {
-      const result = original(command, args, options);
-      if (command === "restart_to_apply_application_update") {
-        void result.then(
-          () => {
-            runtime.__portcoveRestartResult = { ok: true };
-          },
-          (error: unknown) => {
-            runtime.__portcoveRestartResult = {
-              ok: false,
-              code:
-                error !== null &&
-                (typeof error === "object" || typeof error === "function") &&
-                "code" in error
-                  ? error.code
-                  : undefined,
-              message:
-                error !== null &&
-                (typeof error === "object" || typeof error === "function") &&
-                "message" in error
-                  ? error.message
-                  : undefined,
-              details:
-                error !== null &&
-                (typeof error === "object" || typeof error === "function") &&
-                "details" in error
-                  ? error.details
-                  : undefined,
-            };
-          },
-        );
-      }
-      return result;
-    };
-  });
+  await installWindowsUpdateRestartHook(browser);
   await save();
   try {
     report.restart_action_attempted = true;
@@ -575,7 +485,7 @@ try {
   );
   assert.equal(helper.schema_version, 1);
   assert.ok(Number.isInteger(helper.process_id) && helper.process_id > 0);
-  const workerRelative = workerRelativePath(helper.executable);
+  const workerRelative = windowsUpdateWorkerRelativePath(staging, helper.executable);
   assert.match(
     workerRelative,
     /^workers\/revision-\d+\/attempt-[^/]+\/portcove-update-worker\.exe$/iu,
@@ -723,7 +633,16 @@ try {
         continue;
       }
       try {
-        const cleanup = await cleanupMarkedProcess(markerPath, label);
+        const cleanup = await cleanupWindowsUpdateMarkedProcess({
+          markerPath,
+          label,
+          staging,
+          app,
+          output,
+          restartStarted,
+          readJson,
+          command: markedProcessCommand,
+        });
         report.updater_process_cleanup[label] = cleanup;
         if (
           report.phase === "complete" &&
