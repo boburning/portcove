@@ -107,6 +107,18 @@ filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_rest
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41035104853/a1 Windows8 cut the published-restore fixture at60.233s
+# after preparation11.387s, retained fault35.084s and recovery reopen43.307s.
+# Earlier source heads passed25.425s/26.216s. Match its prepared sibling's
+# finite120s room for the remaining version/rollback/activation assertions;
+# keep existing phase diagnostics, cleanup, workers, zero retries and all
+# product/child deadlines. Completion here is not a causal or speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::backups::recovers_restore_published$/)'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
 # The coordinated Windows cancellation fixture retains its held-worker and
 # terminal-after-join assertions. Its four synchronization waits allow 60s;
 # exact 90s outer room permits failure reporting and cleanup without changing
