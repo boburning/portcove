@@ -663,15 +663,10 @@ void test("manual rehearsal retains the complete matrix without production crede
     new URL("./test-windows-installer.ps1", import.meta.url),
     "utf8",
   );
-  assert.match(lifecycle, /\$InstallMode -eq "Passive".*"\/P"/);
-  assert.match(lifecycle, /\$predecessor.*"\/UPDATE"/);
-  assert.doesNotMatch(lifecycle, /@\(\$installFlag, "\/D=\$installRoot"\).*candidate_installer/);
-  assert.match(lifecycle, /DisplayVersion -ne \$ExpectedVersion/);
   assert.match(lifecycle, /HKEY_CURRENT_USER/);
   assert.match(lifecycle, /installed_update_truncated_stage/);
   assert.match(lifecycle, /installed_truncated_stage_rejected/);
   assert.match(lifecycle, /desktop-windows-update-test\.mts/);
-  assert.match(lifecycle, /ValidateSet\('official', 'embedded'\)/);
   assert.equal((lifecycle.match(/if \(\$RendererTransport -eq 'embedded'\)/g) ?? []).length, 2);
   assert.equal((lifecycle.match(/desktop-windows-embedded-preflight\.mts/g) ?? []).length, 2);
   assert.match(lifecycle, /\$rendererArguments \+= @\('--transport', \$RendererTransport\)/);

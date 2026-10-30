@@ -65,6 +65,59 @@ void test(
       }
     }
     const installer = path.join(root, "scripts/test-windows-installer.ps1");
+    const metadataScript = `
+$ErrorActionPreference = 'Stop'
+$command = Get-Command '${installer.replaceAll("'", "''")}'
+$sets = @($command.Parameters['RendererTransport'].Attributes | Where-Object { $_ -is [Management.Automation.ValidateSetAttribute] })
+if ($sets.Count -ne 1) { throw 'RendererTransport must expose exactly one closed validation set' }
+ConvertTo-Json -InputObject @($sets[0].ValidValues) -Compress
+`;
+    const metadata = spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(metadataScript, "utf16le").toString("base64"),
+      ],
+      { cwd: root, encoding: "utf8", windowsHide: true, timeout: 10000 },
+    );
+    assert.ifError(metadata.error);
+    assert.equal(metadata.status, 0, metadata.stderr);
+    const validValues: unknown = JSON.parse(metadata.stdout);
+    assert.ok(
+      Array.isArray(validValues) && validValues.every((value) => typeof value === "string"),
+    );
+    assert.deepEqual(validValues.toSorted(), ["embedded", "official"]);
+    for (const transport of ["official", "embedded", "unrecognized"]) {
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-File",
+          installer,
+          "-Help",
+          "-RendererTransport",
+          transport,
+        ],
+        { cwd: root, encoding: "utf8", windowsHide: true, timeout: 10000 },
+      );
+      assert.ifError(result.error);
+      if (transport === "unrecognized") {
+        assert.notEqual(result.status, 0);
+        const message = result.stderr.replace(/\r?\n\s*\|\s*/gu, " ");
+        assert.match(message, /RendererTransport/u);
+        assert.match(message, /unrecognized/u);
+        assert.match(message, /ValidateSet|validation|set/u);
+        assert.doesNotMatch(result.stdout, /Usage:/u);
+      } else {
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, /Usage:/u);
+        assert.equal(result.stderr, "");
+      }
+    }
+    assert.deepEqual(await readdir(root), ["scripts"]);
     const required = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", installer], {
       cwd: root,
       encoding: "utf8",
