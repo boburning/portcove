@@ -801,11 +801,19 @@ async function linuxInnerCase(
   const helperPid = path.join(directory, "inner.helper");
   const finish = path.join(directory, "inner.finish");
   const adoptedExit = path.join(directory, "adopted.exit");
+  // Publish complete PID bytes before existsSync can release an observer.
+  // Linking the finished pending file also refuses an existing destination.
+  const publishPid = (filename: string) =>
+    [
+      `writeFileSync(${JSON.stringify(filename + ".pending")},String(child.pid),{flag:"wx"})`,
+      `linkSync(${JSON.stringify(filename + ".pending")},${JSON.stringify(filename)})`,
+      `unlinkSync(${JSON.stringify(filename + ".pending")})`,
+    ].join(";");
   const adoptedPayload = [
     'const {spawn}=require("node:child_process")',
-    'const {writeFileSync}=require("node:fs")',
+    'const {writeFileSync,linkSync,unlinkSync}=require("node:fs")',
     `const child=spawn(process.execPath,["-e",${JSON.stringify(`const {existsSync}=require("node:fs");setInterval(()=>{if(existsSync(${JSON.stringify(adoptedExit)}))process.exit(0)},10)`)}],{stdio:"ignore"})`,
-    `writeFileSync(${JSON.stringify(descendant)},String(child.pid))`,
+    publishPid(descendant),
     "process.exit(0)",
   ].join(";");
   const payload =
@@ -819,10 +827,10 @@ async function linuxInnerCase(
         ].join(";")
       : [
           'const {spawn}=require("node:child_process")',
-          'const {writeFileSync,existsSync}=require("node:fs")',
+          'const {writeFileSync,existsSync,linkSync,unlinkSync}=require("node:fs")',
           `writeFileSync(${JSON.stringify(started)},"started")`,
           `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-closure"},stdio:"ignore"})`,
-          `writeFileSync(${JSON.stringify(descendant)},String(child.pid))`,
+          publishPid(descendant),
           "child.unref()",
           ...(mode === "natural" ||
           mode === "ignored-sigchld" ||
@@ -935,12 +943,12 @@ async function linuxInnerCase(
     } else if (mode === "wrapper-loss") {
       const wrapperScript = [
         'const {spawn}=require("node:child_process")',
-        'const {writeFileSync,readFileSync}=require("node:fs")',
+        'const {writeFileSync,readFileSync,linkSync,unlinkSync}=require("node:fs")',
         `const args=${JSON.stringify(args)}`,
         'const stat=readFileSync(`/proc/${process.pid}/stat`,"utf8");const fields=stat.slice(stat.lastIndexOf(")")+2).trim().split(/\\s+/u)',
         'args[4]=`linux:${readFileSync("/proc/sys/kernel/random/boot_id","utf8").trim()}:${process.pid}:${fields[19]}`',
         `const child=spawn(${JSON.stringify(reaper)},args,{stdio:["pipe","inherit","inherit"]})`,
-        `writeFileSync(${JSON.stringify(helperPid)},String(child.pid))`,
+        publishPid(helperPid),
         "setInterval(()=>{},1000)",
       ].join(";");
       wrapper = spawn(process.execPath, ["-e", wrapperScript], { stdio: "inherit" });
@@ -1002,7 +1010,7 @@ async function linuxInnerCase(
           );
         writeFileSync(gate, "registered\n", { flag: "wx" });
         await wait(() => existsSync(descendant));
-        const child = capture(Number(readFileSync(descendant, "utf8")), (value) => {
+        const child = capture(positive(Number(readFileSync(descendant, "utf8"))), (value) => {
           if (mode === "escaped-closure") escaped = value;
         });
         if (mode === "adopted-exit") {
