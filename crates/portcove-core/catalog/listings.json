@@ -30590,7 +30590,7 @@
     {
       "id": "pokemon-yellow-recomp",
       "name": "Pokémon Yellow Recomp",
-      "summary": "Explore Pokémon Yellow Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Research the stock and extended Pokémon Yellow implementation; fresh acquisition remains held for the selected ROM-bearing package and unresolved code-permission basis.",
       "project_url": "https://github.com/mstan/PokemonYellowRecomp",
       "issue_number": 174,
       "platforms": [],
@@ -30603,7 +30603,8 @@
         "image_sha256": "4be67775dc5afbbffb9c1a81c7ac009368ef1a2cefefab08defa813f73790f02",
         "game_slug": "pokemon-yellow-version-special-pikachu-edition",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "The selected public v0.0.4 ZIP contains original or ROM-derived game content despite the upstream private/source-only declaration. Do not acquire or mirror that package. Resume only with an attributable clean permitted package or a reviewed lawful owned-input build/use contract covering the selected glue and framework; private build/source-only wording does not establish that permission."
     },
     {
       "id": "pokepark-2-recompiled-thibaudvb-poke-park-2-wonders-beyond",
@@ -44148,7 +44149,7 @@
     {
       "id": "zelda-link-s-awakening-dx-hd",
       "name": "Zelda: Link's Awakening DX HD",
-      "summary": "Explore Zelda: Link's Awakening DX HD and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Research this distinct Link’s Awakening DX HD patch fork; its required original PC-port content and exact permitted acquisition/use path remain unresolved.",
       "project_url": "https://github.com/ryancheung/Zelda-LA-DX-HD",
       "issue_number": 128,
       "platforms": [],
@@ -44161,7 +44162,8 @@
         "image_sha256": "270128e2277a26e22faa7bcb2e24550952e1d1a9719de9d858f51cf6ffef67ea",
         "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "The v2.0.0 Content.rar is an incomplete patch that depends on Content/Data from the withdrawn original v1.0.0 PC-port package. A ROM, patch checksum or new mirror does not supply the missing permitted original-data and executable contract. Fresh acquisition remains held until attributable permission and exact original-data/executable mapping or a clean lawful replacement are established."
     },
     {
       "id": "zelda3",
