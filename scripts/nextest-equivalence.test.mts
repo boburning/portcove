@@ -542,7 +542,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
-      ...intelRetainedContractBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
+      ...intelRetainedContractBudgets.map(({ filter }) => ({
+        platform: "x86_64-apple-darwin",
+        filter,
+      })),
       ...publicationFilters,
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
