@@ -377,6 +377,7 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
       "apps/desktop/scripts/desktop-readiness.native.test.mts",
       "scripts/desktop-staged-layout.test.mts",
+      "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
     ],
   ],
   [
@@ -1281,7 +1282,10 @@ for (const [file, tests] of [
   ]),
   [
     "apps/desktop/scripts/desktop-qualification-history-test.mts",
-    ["scripts/desktop-scenarios.test.mts"],
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+    ],
   ],
   [
     "apps/desktop/scripts/desktop-host-publication-test.mts",
