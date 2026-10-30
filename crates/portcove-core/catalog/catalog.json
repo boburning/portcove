@@ -992,6 +992,36 @@
         "claim": "Tagged combined-game v0.6.2 requires four-MiB original CRC63522553; joins the existing independently admitted exact-stock original identity. Bound only to publisher-matched combined Windows package 16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471. This is source applicability, not native execution or legacy state/data compatibility.",
         "immutable_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/6ce74a70161f0fe42dd8deda5cc9108c4ed0fd90/game/sonic3k/sonic3k_spec.c",
         "live_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c"
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-0-7-3-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehogRecomp",
+        "authority_ref": "510679e66abc435f12a29d66c2d6788f4e1008f9",
+        "reviewed_at": "2026-10-29",
+        "claim": "Tagged v0.7.3 joins the ae1c742adef48b6ef6ed5b4c1dd4b64514086edd framework Sonic1 descriptor requiring the existing 512KiB CRCF9394E97 JUE Rev00 original. Official publisher package SHA256082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8. This binds original applicability only; no native execution or legacy state compatibility.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/510679e66abc435f12a29d66c2d6788f4e1008f9/.gitmodules",
+        "live_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/main/.gitmodules"
+      },
+      {
+        "id": "mega-man-x2-snes-recomp-0-1-5-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/MegaManX2Recomp",
+        "authority_ref": "9c3b374c4a0cf0a93748a52a74375d2b4af731a3",
+        "reviewed_at": "2026-10-29",
+        "claim": "Tagged v0.1.5 requires the exact USA headerless 1572864-byte original, CRC947B0355 and SHA256f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed. Official publisher Windows package SHA256dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d. No native execution or retained state compatibility is inferred.",
+        "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/9c3b374c4a0cf0a93748a52a74375d2b4af731a3/rom_identity.txt",
+        "live_url": "https://github.com/mstan/MegaManX2Recomp/blob/main/rom_identity.txt"
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract",
+        "role": "upstream_support",
+        "authority": "mstan/segagenesisrecomp",
+        "authority_ref": "ae1c742adef48b6ef6ed5b4c1dd4b64514086edd",
+        "reviewed_at": "2026-10-29",
+        "claim": "Sonic1 descriptor pinned by the v0.7.3 title gitlink requires 512KiB and CRCF9394E97. Existing Core No-Intro exact-stock SHA256 remains independently enforced. This source descriptor supplies no state-size/save/load callbacks and establishes no legacy quickstate compatibility.",
+        "immutable_url": "https://github.com/mstan/segagenesisrecomp/blob/ae1c742adef48b6ef6ed5b4c1dd4b64514086edd/sonicthehedgehog/sonic1_spec.c",
+        "live_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/sonic1_spec.c"
       }
     ],
     "identities": [
@@ -11273,10 +11303,12 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "sonic-the-hedgehog-recomp-0-6-0-source-contract",
-          "sonic-genesis-jue-rev00-no-intro-byte-identity"
+          "sonic-genesis-jue-rev00-no-intro-byte-identity",
+          "sonic-the-hedgehog-recomp-0-7-3-source-contract",
+          "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract"
         ],
         "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
-        "reviewed_at": "2026-10-18",
+        "reviewed_at": "2026-10-29",
         "immutable_review_url": "https://github.com/mstan/segagenesisrecomp/blob/5c165f6195a88b17d8da4ae619aec2b8f640d84f/sonicthehedgehog/game.toml",
         "live_review_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/game.toml",
         "evidence_gap": null,
@@ -11284,6 +11316,10 @@
           {
             "upstream_ref": "v0.6.0",
             "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40"
+          },
+          {
+            "upstream_ref": "v0.7.3",
+            "artifact_sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8"
           }
         ],
         "aliases": [],
@@ -11475,10 +11511,11 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "mega-man-x2-snes-recomp-0-1-4-source-contract",
-          "mega-man-x2-snes-usa-no-intro-byte-identity"
+          "mega-man-x2-snes-usa-no-intro-byte-identity",
+          "mega-man-x2-snes-recomp-0-1-5-source-contract"
         ],
         "authority_ref": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
-        "reviewed_at": "2026-10-19",
+        "reviewed_at": "2026-10-29",
         "immutable_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/c62a096873fd6b98f197bb06b0b6929432de1bc3/rom_identity.txt",
         "live_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/master/rom_identity.txt",
         "evidence_gap": null,
@@ -11486,6 +11523,10 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d"
           }
         ],
         "aliases": [],
@@ -21427,11 +21468,11 @@
         "provider": "direct-manifest",
         "direct": {
           "windows-x86-64": {
-            "version": "v0.6.0",
-            "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
-            "size": 3776546,
-            "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
-            "published_at": "2026-06-17T05:17:11Z"
+            "version": "v0.7.3",
+            "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.7.3/SonicTheHedgehogRecomp-windows-x64-v0.7.3.zip",
+            "size": 4750567,
+            "sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
+            "published_at": "2026-10-28T16:23:58Z"
           }
         }
       },
@@ -21452,7 +21493,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. This fresh managed route uses the checked official Windows v0.7.3 package and starts the base game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress.",
         "original_game_title": "Sonic the Hedgehog",
         "artwork": {
           "game_id": 3192,
@@ -21470,6 +21511,7 @@
       },
       "windows_runtime_path_policy": "printable-ascii-max-path",
       "launch_arguments": [
+        "--no-launcher",
         "game.bin"
       ],
       "persistent_paths": [
@@ -21484,7 +21526,16 @@
         "native_save_6.bin",
         "native_save_7.bin",
         "native_save_8.bin",
-        "native_save_9.bin"
+        "native_save_9.bin",
+        "native_save_1.bin.thumb",
+        "native_save_2.bin.thumb",
+        "native_save_3.bin.thumb",
+        "native_save_4.bin.thumb",
+        "native_save_5.bin.thumb",
+        "native_save_6.bin.thumb",
+        "native_save_7.bin.thumb",
+        "native_save_8.bin.thumb",
+        "native_save_9.bin.thumb"
       ],
       "runtime_mutable_paths": [
         "framelog_step2.txt",
@@ -21496,7 +21547,19 @@
         "chip_ring.txt",
         "snd_ring.txt",
         "yield_log_native.log",
-        "z80_ram.bin"
+        "z80_ram.bin",
+        "dispatch_misses.toml",
+        "dispatch_misses.toml.tmp",
+        "dispatch_misses.prev.toml",
+        "floor_coverage.toml",
+        "floor_coverage.toml.tmp",
+        "floor_coverage.prev.toml",
+        "interior_label_misses.toml",
+        "interior_label_misses.toml.tmp",
+        "interior_label_misses.prev.toml",
+        "floor_unsafe.toml",
+        "floor_unsafe.toml.tmp",
+        "floor_unsafe.prev.toml"
       ]
     },
     {
@@ -22450,11 +22513,11 @@
         "provider": "direct-manifest",
         "direct": {
           "windows-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
-            "size": 13043789,
-            "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
-            "published_at": "2026-10-18T20:43:48Z"
+            "version": "v0.1.5",
+            "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.5/MegaManX2SNESRecomp-windows-x64-v0.1.5.zip",
+            "size": 13128270,
+            "sha256": "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d",
+            "published_at": "2026-10-27T22:32:18Z"
           }
         }
       },
@@ -22470,6 +22533,7 @@
         "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
       },
       "launch_arguments": [
+        "--no-launcher",
         "game.sfc"
       ],
       "launch_environment": {
@@ -22510,7 +22574,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
+        "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. This fresh managed route uses the checked official Windows v0.1.5 package and starts the game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Keep config.local.ini absent and developer trace, capture, oracle and path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package.",
         "original_game_title": "Mega Man X2",
         "artwork": {
           "game_id": 1742,
@@ -22520,7 +22584,8 @@
           "game_slug": "mega-man-x2",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "resident-evil-gaiden-recomp",
