@@ -16609,6 +16609,7 @@
         "warnings": [],
         "help_url": "https://github.com/elasota/Aerofoil#about-aerofoil"
       },
+      "original_game_title": "Glider PRO",
       "platforms": [
         "windows-x86-64"
       ]
@@ -22266,6 +22267,7 @@
         ],
         "help_url": "https://github.com/Keriew/augustus#running-the-game"
       },
+      "original_game_title": "Caesar III",
       "platforms": [
         "windows-x86-64"
       ]
@@ -23120,6 +23122,7 @@
         ],
         "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine"
       },
+      "original_game_title": "Duke Nukem II",
       "platforms": [
         "windows-x86-64"
       ]
@@ -23527,6 +23530,7 @@
         ],
         "help_url": "https://github.com/m-x-d/Heretic2R#installation"
       },
+      "original_game_title": "Heretic II",
       "platforms": [
         "windows-x86-64"
       ]

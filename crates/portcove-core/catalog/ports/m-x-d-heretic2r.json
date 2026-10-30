@@ -43,7 +43,8 @@
         "Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately."
       ],
       "help_url": "https://github.com/m-x-d/Heretic2R#installation"
-    }
+    },
+    "original_game_title": "Heretic II"
   },
   "integration": {
     "support_tier": "beta",

@@ -43,7 +43,8 @@
         "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation."
       ],
       "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine"
-    }
+    },
+    "original_game_title": "Duke Nukem II"
   },
   "integration": {
     "support_tier": "beta",

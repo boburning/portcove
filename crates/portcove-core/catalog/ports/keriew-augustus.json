@@ -43,7 +43,8 @@
         "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate."
       ],
       "help_url": "https://github.com/Keriew/augustus#running-the-game"
-    }
+    },
+    "original_game_title": "Caesar III"
   },
   "integration": {
     "support_tier": "beta",
