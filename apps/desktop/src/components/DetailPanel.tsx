@@ -1208,8 +1208,8 @@ export function InstallationVersionSummary({
         checked?.update_available &&
         !checkedUpdateMatchesStaged(status) && (
           <p className="detail-version-context">
-            Latest release at last check: {checked.release.version}. The saved update above is
-            a separate candidate.
+            Latest release at last check: {checked.release.version}. The saved update above is a
+            separate candidate.
           </p>
         )}
     </section>

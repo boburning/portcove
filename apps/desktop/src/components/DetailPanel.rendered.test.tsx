@@ -1762,37 +1762,50 @@ describe("desktop components", () => {
         port_id: port.id,
         active,
         staged,
-        last_update_check: candidate === "absent" ? null : {
-          checked_at: 2,
-          check: {
-            port_id: port.id,
-            channel: active.channel,
-            installed_version: active.version,
-            installed_artifact: active.artifact,
-            installed_runtime: active.runtime,
-            required_runtime: candidate === "runtime" ? runtimeIdentity : staged.runtime,
-            update_available: true,
-            release: {
-              published_at: null,
-              version: candidate === "version" ? "3.0" : staged.version,
-              channel: staged.channel,
-              asset: {
-                name: staged.artifact.asset_name,
-                url: "https://example.com/sample.zip",
-                size: staged.artifact.size,
-                sha256: candidate === "artifact" ? "c".repeat(64) : staged.artifact.sha256,
+        last_update_check:
+          candidate === "absent"
+            ? null
+            : {
+                checked_at: 2,
+                check: {
+                  port_id: port.id,
+                  channel: active.channel,
+                  installed_version: active.version,
+                  installed_artifact: active.artifact,
+                  installed_runtime: active.runtime,
+                  required_runtime: candidate === "runtime" ? runtimeIdentity : staged.runtime,
+                  update_available: true,
+                  release: {
+                    published_at: null,
+                    version: candidate === "version" ? "3.0" : staged.version,
+                    channel: staged.channel,
+                    asset: {
+                      name: staged.artifact.asset_name,
+                      url: "https://example.com/sample.zip",
+                      size: staged.artifact.size,
+                      sha256: candidate === "artifact" ? "c".repeat(64) : staged.artifact.sha256,
+                    },
+                  },
+                },
               },
-            },
-          },
-        },
       };
       const html = renderToStaticMarkup(
-        <DetailPanel port={port} status={status} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
+        <DetailPanel
+          port={port}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
       );
       const versions = detailSection(html, "versions");
       expect(versions.match(/Apply update · 2\.0/gu)).toHaveLength(1);
-      expect(versions.indexOf("Apply update · 2.0")).toBeLessThan(versions.indexOf("Future update preferences"));
-      expect(versions).toMatch(/<button(?=[^>]*staged-action)(?=[^>]*data-variant="primary")[^>]*>Apply update · 2\.0<\/button>/u);
+      expect(versions.indexOf("Apply update · 2.0")).toBeLessThan(
+        versions.indexOf("Future update preferences"),
+      );
+      expect(versions).toMatch(
+        /<button(?=[^>]*staged-action)(?=[^>]*data-variant="primary")[^>]*>Apply update · 2\.0<\/button>/u,
+      );
       for (const action of ["Update now", "Download for later"]) {
         if (candidate === "absent" || candidate === "same") expect(versions).not.toContain(action);
         else expect(versions).toContain(action);

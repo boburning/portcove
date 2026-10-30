@@ -132,8 +132,10 @@ describe("desktop components", () => {
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
     expect(html).toContain("/brand/mascot/portcove-mascot-v2-front.png");
-    expect(html).toContain(">Version</dt>");
-    expect(html).toContain(desktopPackage.version);
+    expect(html).toContain(`<h3>Portcove ${desktopPackage.version}</h3>`);
+    expect(html).toContain("Licensed under MIT or Apache-2.0.");
+    expect(html).toContain("Open project repository");
+    expect(html).toContain("Open diagnostics");
   });
 
   it("keeps page introductions concise without losing catalog count or controls", () => {

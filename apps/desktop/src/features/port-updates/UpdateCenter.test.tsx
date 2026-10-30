@@ -109,13 +109,21 @@ describe("update center presentation", () => {
       [],
     );
     expect(unobservedEmpty.match(/class="activity-tab-count"[^>]*>—<\/span>/gu)).toHaveLength(3);
-    expect(unobservedEmpty).toContain("No task count is established by the loaded activity records.");
-    expect(unobservedEmpty).toContain("No history count is established by the loaded activity records.");
+    expect(unobservedEmpty).toContain(
+      "No task count is established by the loaded activity records.",
+    );
+    expect(unobservedEmpty).toContain(
+      "No history count is established by the loaded activity records.",
+    );
     const complete = renderHistory(feed);
     expect(complete).toContain("Showing 8 recent finished tasks");
-    expect(complete).toContain("2 recorded tasks and attention items in the loaded activity snapshot.");
+    expect(complete).toContain(
+      "2 recorded tasks and attention items in the loaded activity snapshot.",
+    );
     expect(complete).toContain("11 history records in the loaded activity snapshot.");
-    expect(complete).toContain("Update coverage is incomplete. 0 known updates available at last check.");
+    expect(complete).toContain(
+      "Update coverage is incomplete. 0 known updates available at last check.",
+    );
     expect(renderHistory({ ...feed, active_and_actionable_complete: false })).toMatch(
       /class="activity-tab-count"[^>]*>2\+<\/span>/u,
     );

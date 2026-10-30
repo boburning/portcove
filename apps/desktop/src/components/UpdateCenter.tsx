@@ -524,10 +524,11 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
     ...(feed?.attention_required_activity_ids ?? []),
     ...(feed?.recovery_required_activity_ids ?? []),
     ...model.activities
-      .filter((activity) =>
-        ["running", "unfinished", "failed", "unknown"].includes(
-          activityPresentationState(activity, model.nowSeconds),
-        ) || Boolean(activity.failure),
+      .filter(
+        (activity) =>
+          ["running", "unfinished", "failed", "unknown"].includes(
+            activityPresentationState(activity, model.nowSeconds),
+          ) || Boolean(activity.failure),
       )
       .map((activity) => activity.id),
   ]).size;
@@ -540,11 +541,12 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
   const counts = {
     tasks: {
       value: taskCount > 0 ? boundedCount(taskCount, feed?.active_and_actionable_complete) : "—",
-      description: taskCount === 0
-        ? "No task count is established by the loaded activity records."
-        : feed?.active_and_actionable_complete
-        ? `${taskCount} recorded tasks and attention items in the loaded activity snapshot.`
-        : `Activity snapshot coverage is incomplete. ${taskCount} recorded tasks and attention items.`,
+      description:
+        taskCount === 0
+          ? "No task count is established by the loaded activity records."
+          : feed?.active_and_actionable_complete
+            ? `${taskCount} recorded tasks and attention items in the loaded activity snapshot.`
+            : `Activity snapshot coverage is incomplete. ${taskCount} recorded tasks and attention items.`,
     },
     updates: {
       value: model.earlierBatch ? "—" : boundedCount(model.available, model.complete),
@@ -556,11 +558,12 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
     },
     history: {
       value: historyCount > 0 ? boundedCount(historyCount, feed?.terminal_history_complete) : "—",
-      description: historyCount === 0
-        ? "No history count is established by the loaded activity records."
-        : feed?.terminal_history_complete
-        ? `${historyCount} history records in the loaded activity snapshot.`
-        : `${historyCount} loaded history records. History coverage is incomplete.`,
+      description:
+        historyCount === 0
+          ? "No history count is established by the loaded activity records."
+          : feed?.terminal_history_complete
+            ? `${historyCount} history records in the loaded activity snapshot.`
+            : `${historyCount} loaded history records. History coverage is incomplete.`,
     },
   };
   return (
@@ -589,7 +592,11 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
             render={<Button variant="ghost" className="activity-tab" />}
           >
             {label}
-            <span className="activity-tab-count" aria-hidden="true" title={counts[value].description}>
+            <span
+              className="activity-tab-count"
+              aria-hidden="true"
+              title={counts[value].description}
+            >
               {counts[value].value}
             </span>
             <span id={`${countId}-${value}`} hidden>

@@ -197,7 +197,7 @@ describe("desktop components", () => {
       ["integrations", "controls", 2],
       ["controls", "advanced", 2],
       ["advanced", "about", 3],
-      ["about", null, 1],
+      ["about", null, 2],
     ] as const;
     for (const [id, next, rowCount] of groups) {
       const start = html.indexOf(`data-settings-group="${id}"`);
@@ -220,9 +220,10 @@ describe("desktop components", () => {
       advanced.indexOf(">Create support bundle</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
-    expect(html.slice(html.indexOf('data-settings-group="about"'))).toContain(
-      "Open project repository",
-    );
+    const about = html.slice(html.indexOf('data-settings-group="about"'));
+    expect(about).toContain("Open project repository");
+    expect(about).toContain("Licensed under MIT or Apache-2.0.");
+    expect(about).toContain("Open diagnostics");
   });
 
   it("keeps an untested port in the default catalog", () => {

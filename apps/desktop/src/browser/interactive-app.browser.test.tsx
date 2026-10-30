@@ -436,6 +436,7 @@ it("keeps actual App update entries and their independent Play actions reachable
 
 // Owning issue #4021: matched production-renderer evidence. These are disposable
 // transport fixtures, not Core execution, native WebView or real-file acceptance.
+// Keep captures under ui-refinement, the existing retained browser-evidence root.
 const parityViewports = [
   { width: 1440, height: 900 },
   { width: 1024, height: 800 },
@@ -446,20 +447,16 @@ const parityCases = ["dark", "light"].flatMap((theme) =>
   parityViewports.map((viewport) => ({ theme, ...viewport })),
 );
 
-async function startParityScene(
-  scene: string,
-  { theme, width, height }: (typeof parityCases)[number],
-) {
+type ParityCase = (typeof parityCases)[number];
+
+async function startParityScene(scene: string, { theme, width, height }: ParityCase) {
   await page.viewport(width, height);
   localStorage.setItem(THEME_STORAGE_KEY, theme);
   mount(scene, true);
   await expect.element(page.getByRole("main")).toBeVisible();
 }
 
-async function captureParity(
-  surface: string,
-  { theme, width, height }: (typeof parityCases)[number],
-) {
+async function captureParity(surface: string, { theme, width, height }: ParityCase) {
   await settleCapture();
   expect(document.documentElement.dataset.theme).toBe(theme);
   expect(window.innerWidth).toBe(width);
@@ -482,7 +479,7 @@ async function captureParity(
   document.body.append(frame);
   try {
     await page.screenshot({
-      path: `../../../../outputs/prototype-parity/${surface}-${theme}-${width}x${height}.png`,
+      path: `../../../../outputs/ui-refinement/prototype-parity/${surface}-${theme}-${width}x${height}.png`,
       element: frame,
     });
   } finally {
@@ -494,9 +491,7 @@ it.each(parityCases)(
   "captures browsing and Add games in $theme at $width × $height",
   async (configuration) => {
     await startParityScene("collection", configuration);
-    await expect
-      .element(page.getByRole("heading", { name: "Library", exact: true }))
-      .toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
     await captureParity("library-covers", configuration);
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await captureParity("library-rows", configuration);

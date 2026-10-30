@@ -372,7 +372,12 @@ it("routes the saved-update summary action to the existing activation review own
   await render(
     <DetailPanel
       port={port}
-      status={{ ...portStatus(), port_id: port.id, active, staged: { ...active, id: "saved", version: "2.0", staged: true } }}
+      status={{
+        ...portStatus(),
+        port_id: port.id,
+        active,
+        staged: { ...active, id: "saved", version: "2.0", staged: true },
+      }}
       sourcePath=""
       setSourcePath={vi.fn()}
       actions={{ ...detailActions, activate }}
