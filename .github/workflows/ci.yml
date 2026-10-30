@@ -1065,7 +1065,12 @@ jobs:
       - name: Use the runner-owned temporary directory
         run: echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Execute Intel binaries on Intel hardware
-        run: node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"
+        env:
+          LC_ALL: C
+        run: |
+          mkdir -p work/test-results
+          /usr/sbin/sysctl -n hw.logicalcpu hw.physicalcpu machdep.cpu.brand_string > work/test-results/intel-host.txt
+          /usr/bin/time -lp -o work/test-results/intel-resource-usage.txt node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"
       - name: Retain Intel discovery and original case outcomes
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

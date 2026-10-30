@@ -796,6 +796,17 @@ Cargo's executable artifacts; native Desktop parity retains its separate feature
 build. The required `rust` result waits for the build, all workers and transport
 validation. Qualification profiles and jobs retain their separate coverage.
 
+Intel qualification artifacts also retain `intel-host.txt` (logical/physical
+cores and CPU model) and `intel-resource-usage.txt`, produced in the C locale by
+macOS's bundled `/usr/bin/time -lp` around the unchanged hash qualification command.
+Their source, run, attempt and worker attribution comes from the existing result
+artifact and request receipt. Elapsed/user/system times, context switches and
+block I/O operation counts describe the complete command, including setup and
+reporting; block counts are not byte throughput or device utilization. Retain
+queue, cache, archive, discovery, testing and cleanup phases separately. These
+observations establish neither per-family independence nor a measured speedup,
+CPU/I/O cause, or native acceptance.
+
 Inventory/build, archive creation, transfer/setup, partition execution and
 transport build/run phases must be included when assessing total feedback time.
 Retain queue delay, cache state and summed runner time separately from elapsed
