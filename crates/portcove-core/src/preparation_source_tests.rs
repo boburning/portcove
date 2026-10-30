@@ -1180,11 +1180,11 @@ fn assert_unknown_canonical_data_holds_activation(
     );
 }
 
+// The profile namespace is Windows temporary data in this fixture. Unix's
+// ordinary persistence route is native6_late_ordinary_profile_data_restores_on_unix;
+// native6_late_canonical_originals_hold_staged_activation refuses on every host.
 #[tokio::test]
-#[cfg_attr(
-    not(windows),
-    ignore = "Windows temporary-profile contract; native6_late_ordinary_profile_data_restores_on_unix covers ordinary Unix restoration and native6_late_canonical_originals_hold_staged_activation covers the portable refusal"
-)]
+#[cfg(windows)]
 async fn native6_late_no_active_profile_data_holds_staged_activation() {
     let fixture = Fixture::native(false, true);
     let staged = fixture
@@ -1236,11 +1236,11 @@ async fn native6_late_canonical_originals_hold_staged_activation() {
     );
 }
 
+// Ordinary Unix profile restoration is distinct from the Windows temporary-data
+// refusal in native6_late_no_active_profile_data_holds_staged_activation.
+// Both routes retain native6_late_canonical_originals_hold_staged_activation.
 #[tokio::test]
-#[cfg_attr(
-    windows,
-    ignore = "Unix ordinary profile restoration; Windows profile has the separately tested temporary-data contract"
-)]
+#[cfg(not(windows))]
 async fn native6_late_ordinary_profile_data_restores_on_unix() {
     let fixture = Fixture::native(false, true);
     let staged = fixture
