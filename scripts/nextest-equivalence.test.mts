@@ -497,7 +497,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "success-output": "immediate",
   });
   const windowsRetainedQueryAndResumeFilter =
-    "package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::published_resume_resume$/))";
+    "package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::published_resume_resume$/) | test(/^library_move::sequence_tests::activated_resume_resume$/) | test(/^library_move::sequence_tests::published_resume_abort$/))";
   assert.deepEqual(overrideFor(windowsRetainedQueryAndResumeFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsRetainedQueryAndResumeFilter,
