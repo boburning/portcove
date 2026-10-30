@@ -507,9 +507,8 @@ async fn authored_download_restriction_blocks_options_preview_and_mutation_befor
     assert!(service.pending_setups().unwrap().is_empty());
 }
 
-#[tokio::test]
-async fn embedded_cannonball_listing_routes_keep_download_hold_before_network() {
-    for id in ["cannonball-outrun", "cannonball-dx-outrun"] {
+async fn assert_embedded_player_download_holds(ids: &[&str]) {
+    for &id in ids {
         let (_temporary, mut service, mut request) = fixture();
         service.catalog = Catalog::embedded().unwrap();
         request.port_id = id.into();
@@ -553,6 +552,20 @@ async fn embedded_cannonball_listing_routes_keep_download_hold_before_network() 
         );
         assert!(service.pending_setups().unwrap().is_empty());
     }
+}
+
+#[tokio::test]
+async fn embedded_cannonball_listing_routes_keep_download_hold_before_network() {
+    assert_embedded_player_download_holds(&["cannonball-outrun", "cannonball-dx-outrun"]).await;
+}
+
+#[tokio::test]
+async fn embedded_psx_permitted_players_keep_download_hold_before_network() {
+    assert_embedded_player_download_holds(&[
+        "mstan-battle-arena-toshinden-recomp",
+        "novapowers0-bloody-roar-ii-recomp",
+    ])
+    .await;
 }
 
 #[tokio::test]
