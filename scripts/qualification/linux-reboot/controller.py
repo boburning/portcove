@@ -196,17 +196,20 @@ for p in root.iterdir():
 for name in ['apply.json','staging.json']:
  p=root/'update-state'/name
  if p.is_file() and not p.is_symlink() and p.stat().st_size<=1048576:shutil.copyfile(p,out/('update-state-'+name))
+for name,path in [('cell-unit.txt','/etc/systemd/system/portcove-reboot-cell.service'),('cloud-final-unit.txt','/usr/lib/systemd/system/cloud-final.service'),('cloud-init-target.txt','/usr/lib/systemd/system/cloud-init.target')]:
+ p=Path(path)
+ if p.is_file() and not p.is_symlink() and p.stat().st_size<=65536:shutil.copyfile(p,out/name)
 (out/'os-release.txt').write_bytes(Path('/etc/os-release').read_bytes())
 (out/'boot-id.txt').write_bytes(Path('/proc/sys/kernel/random/boot_id').read_bytes())
 import subprocess
-for label,args in [('packages',['dpkg-query','-W','libwebkit2gtk-4.1-0','libgtk-3-0t64','libfuse2t64','fuse3','libglib2.0-0t64']),('kernel',['uname','-a']),('mounts',['findmnt','-J','--target','/home/portcove','--output','TARGET,SOURCE,FSTYPE,OPTIONS'])]:
+for label,args in [('packages',['dpkg-query','-W','libwebkit2gtk-4.1-0','libgtk-3-0t64','libfuse2t64','fuse3','libglib2.0-0t64','systemd','cloud-init']),('kernel',['uname','-a']),('mounts',['findmnt','-J','--target','/home/portcove','--output','TARGET,SOURCE,FSTYPE,OPTIONS'])]:
  result=subprocess.run(args,capture_output=True,timeout=20)
  (out/(label+'.stdout')).write_bytes(result.stdout[:1048576])
  (out/(label+'.stderr')).write_bytes(result.stderr[:1048576])
  (out/(label+'.status.json')).write_text(json.dumps({'code':result.returncode}))
 with (out/'phase-status.json').open('x') as f:json.dump({'phase':sys.argv[1],'code':int(sys.argv[2])},f);f.flush();os.fsync(f.fileno())
 """
-unit = """[Unit]\nDescription=Owned Portcove reboot recovery observation\nAfter=network-online.target cloud-final.service\n[Service]\nType=oneshot\nExecStart=/usr/local/lib/portcove-cell.sh\nTimeoutStartSec=15min\n[Install]\nWantedBy=multi-user.target\n"""
+unit = """[Unit]\nDescription=Owned Portcove reboot recovery observation\nAfter=network-online.target cloud-final.service\n[Service]\nType=oneshot\nExecStart=/usr/local/lib/portcove-cell.sh\nTimeoutStartSec=15min\n[Install]\nWantedBy=cloud-init.target\n"""
 files = [
     ("/usr/local/lib/portcove-setup.sh", setup, "0755"),
     ("/usr/local/lib/portcove-provision.py", provision, "0644"),

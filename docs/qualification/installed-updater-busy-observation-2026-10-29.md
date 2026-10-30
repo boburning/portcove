@@ -261,6 +261,32 @@ fixtures; that is not a speedup claim. Remaining queued/running work was cancell
 on this exact superseded head after retaining its failures and completed outcomes;
 cancelled Rust partitions are unqualified. A repaired head requires fresh CI.
 
+The source `1d5cd8f0c04021af4027cfbb075887ecf152b599` passed all five
+required contexts in
+[40980923257/1](https://github.com/boburning/portcove/actions/runs/40980923257).
+Its single reboot-only invocation
+[40983521568/1](https://github.com/boburning/portcove/actions/runs/40983521568)
+keeps source38 packages and the D295 helper distinct. The package-building job is
+skipped. Artifact audit, helper build, runtime, signed image, controls and input
+freeze passed; the guest observation is in progress at this checkpoint.
+Its original 5400-second QEMU allowance and normal owned-child settlement/evidence
+path remain in place; interruption is not used to discard its pending journals.
+
+An independent offline systemd boot transaction now reproduces a qualification
+harness defect: the cell was installed into `multi-user.target` while ordered
+after `cloud-final.service`, itself ordered after `multi-user.target`. The
+verifier reports the cycle and drops an optional start job, sometimes returning
+OS 0. The narrow repair installs the cell into `cloud-init.target`, preserving
+its existing `After=cloud-final.service` and explicit first-boot start. Actual
+transaction controls accept the current unit and reject the old target through
+its cycle/deleted-job diagnostic; exit status alone is not the oracle. The
+static verifier's exact tool identity/version is retained. Guest reports now
+also retain the three public unit texts and systemd/cloud-init package versions.
+The source repair and new CI can proceed independently while the immutable old
+native invocation finishes. This static proof does not attribute that guest's
+actual cause/outcome or establish a reboot pass. No replacement invocation is
+permitted until its terminal outcome and available serial/journals are collected.
+
 The separate #706/#49 scoped, non-remediating GLib disposition expires November
 14, 2026 at 23:59 America/New_York, or earlier at the relevant second beta
 publication. Reconfirm exact candidate, complete scanner result, publication

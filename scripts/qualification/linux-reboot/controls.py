@@ -1,12 +1,16 @@
 """Small causal controls: no network, package execution, VM or host mutation."""
 
+import ast
+import configparser
 import copy
 import hashlib
+import json
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
-from common import require, verified_admission
+from common import identity, require, verified_admission
 from evidence import copy_public_file
 from prepare import COHORT, admit_provider
 from qualification_archive import controls as archive_controls
@@ -20,8 +24,119 @@ def refused(action):
     raise AssertionError("Unsafe input was admitted")
 
 
+def guest_unit_controls():
+    """Verify inert boot transactions; never load units into the host manager.
+
+    The pinned Ubuntu26 cloud-final service runs after multi-user.target.
+    Preserve those ordering clauses, both boot branches and systemd's actual
+    default target dependency handling. Executables are inert and never run.
+    """
+    tool = Path("/usr/bin/systemd-analyze").resolve()
+    version = subprocess.run(
+        [str(tool), "--version"], capture_output=True, timeout=10, env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+    )
+    require(
+        version.returncode == 0 and len(version.stdout) + len(version.stderr) <= 65536,
+        "Static verifier version unavailable",
+    )
+    print(
+        json.dumps(
+            {
+                "static_guest_ordering_tool": identity(tool),
+                "version": version.stdout.decode(),
+                "version_stderr": version.stderr.decode(),
+            }
+        ),
+        flush=True,
+    )
+    source = Path(__file__).with_name("controller.py").read_bytes()
+    assignments = [
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "unit" for target in node.targets)
+    ]
+    require(len(assignments) == 1, "One actual guest service template required")
+    unit = ast.literal_eval(assignments[0].value)
+    parsed = configparser.ConfigParser()
+    parsed.read_string(unit)
+    wanted = parsed["Install"]["WantedBy"]
+    counterexample = unit.replace("WantedBy=" + wanted, "WantedBy=multi-user.target")
+    rows = []
+    with tempfile.TemporaryDirectory(prefix="portcove-unit-ordering-") as directory:
+        for label, text, expected_cycle in [("current", unit, False), ("old-target", counterexample, True)]:
+            root = Path(directory) / label
+            units = root / "etc/systemd/system"
+            units.mkdir(parents=True)
+            (root / "bin").mkdir()
+            inert = root / "bin/true"
+            inert.write_text("#!/bin/sh\nexit 0\n")
+            inert.chmod(0o755)
+            (units / "default.target").write_text(
+                "[Unit]\nDescription=Inert boot anchor\nRequires=multi-user.target cloud-init.target\n"
+            )
+            for name in ["multi-user.target", "cloud-init.target", "network-online.target"]:
+                (units / name).write_text(
+                    "[Unit]\nDescription=Inert ordering fixture\n"
+                    + ("After=multi-user.target\n" if name == "cloud-init.target" else "")
+                )
+            for name in ["sysinit.target", "basic.target", "shutdown.target"]:
+                (units / name).write_text("[Unit]\nDescription=Inert base fixture\nDefaultDependencies=no\n")
+            (units / "cloud-final.service").write_text(
+                "[Unit]\nDescription=Pinned cloud-final ordering\nAfter=multi-user.target\n"
+                "[Service]\nType=oneshot\nExecStart=/bin/true\n"
+            )
+            (units / "portcove-reboot-cell.service").write_text(
+                text.replace("ExecStart=/usr/local/lib/portcove-cell.sh", "ExecStart=/bin/true")
+            )
+            settings = configparser.ConfigParser()
+            settings.read_string(text)
+            for target, service in [
+                (settings["Install"]["WantedBy"], "portcove-reboot-cell.service"),
+                ("cloud-init.target", "cloud-final.service"),
+            ]:
+                links = units / (target + ".wants")
+                links.mkdir(exist_ok=True)
+                (links / service).symlink_to("../" + service)
+            arguments = [str(tool), "--root=" + str(root), "--generators=no", "--man=no", "verify", "default.target"]
+            result = subprocess.run(
+                arguments,
+                capture_output=True,
+                timeout=10,
+                env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "SYSTEMD_LOG_LEVEL": "warning"},
+            )
+            require(len(result.stdout) + len(result.stderr) <= 65536, "Static verifier diagnostic bound")
+            row = {
+                "case": label,
+                "code": result.returncode,
+                "expected_cycle": expected_cycle,
+                "stdout": result.stdout.decode(),
+                "stderr": result.stderr.decode(),
+            }
+            rows.append(row)
+            # This verifier can return OS0 after deleting an optional start job.
+            # The original diagnostic, rather than exit status alone, is causal.
+            print(json.dumps({"static_guest_ordering": row}), flush=True)
+            if expected_cycle:
+                require(result.returncode in (0, 1), "Static negative verifier did not complete")
+                require(
+                    "ordering cycle" in row["stderr"].lower()
+                    and "deleted to break ordering cycle" in row["stderr"]
+                    and all(
+                        name in row["stderr"]
+                        for name in ["portcove-reboot-cell.service", "cloud-final.service", "multi-user.target"]
+                    ),
+                    "Old target no longer reproduces the boot cycle and dropped job",
+                )
+            else:
+                require(result.returncode == 0, "Static positive verifier did not complete")
+                require(not row["stderr"], "Current guest service has a boot ordering diagnostic")
+    require(unit != counterexample and len(rows) == 2, "Both distinct ordering controls must execute")
+
+
 def controls():
     archive_controls()
+    guest_unit_controls()
     raw = b'{"source":"frozen"}\n'
     digest = hashlib.sha256(raw).hexdigest()
     require(verified_admission(raw, digest) == {"source": "frozen"}, "Valid admission refused")
