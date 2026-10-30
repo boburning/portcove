@@ -617,8 +617,20 @@ it("keeps category navigation and selected content bounded at the 900px Settings
   await expect.element(category).toHaveAttribute("aria-current", "page");
   await expect.element(document.getElementById("settings-game-files")!).toBeVisible();
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-  expect(navigation.element().scrollWidth).toBeLessThanOrEqual(
-    navigation.element().clientWidth + 1,
-  );
+  // The documented narrow category strip scrolls locally; the page must stay bounded.
+  const buttons = navigation.getByRole("button");
+  expect(buttons.elements()).toHaveLength(8);
+  buttons.first().element().focus();
+  for (const { label } of settingsCategories) {
+    const destination = navigation.getByRole("button", { name: label, exact: true });
+    await expect.element(destination).toHaveFocus();
+    const strip = navigation.element().getBoundingClientRect();
+    const bounds = destination.element().getBoundingClientRect();
+    expect(bounds.left).toBeGreaterThanOrEqual(strip.left - 1);
+    expect(bounds.right).toBeLessThanOrEqual(strip.right + 1);
+    await userEvent.keyboard("{Tab}");
+  }
+  await category.click();
+  await expect.element(category).toHaveAttribute("aria-current", "page");
   await captureParityState("settings-category-breakpoint");
 }, 45_000);

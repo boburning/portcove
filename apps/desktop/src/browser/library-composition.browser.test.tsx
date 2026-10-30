@@ -852,13 +852,17 @@ it("sorts actual Library entries by the selected title order without changing th
   await expect.element(page.getByRole("option", { name: "Title A–Z", exact: true })).toBeVisible();
   await captureParityState("library-sort-menu");
   await page.getByRole("option", { name: "Title A–Z", exact: true }).click();
-  await expect.element(sort).toHaveTextContent("Title A–Z");
+  await expect
+    .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
+    .toHaveTextContent("Title A–Z");
   const ascending = ids();
   expect(ascending).toHaveLength(12);
   expect(new Set(ascending).size).toBe(12);
   await sort.click();
   await page.getByRole("option", { name: "Title Z–A", exact: true }).click();
-  await expect.element(sort).toHaveTextContent("Title Z–A");
+  await expect
+    .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
+    .toHaveTextContent("Title Z–A");
   const descending = ids();
   expect(descending).not.toEqual(ascending);
   expect([...descending].sort((a, b) => a.localeCompare(b))).toEqual(
@@ -901,9 +905,12 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
   await expect.element(save).toHaveAttribute("aria-pressed", "false");
   await expect
     .element(
-      page.getByText("These choices could not be saved. Your previous choices were kept.", {
-        exact: true,
-      }),
+      page.getByRole("group", { name: "Discover collections", exact: true }).getByRole("alert"),
+    )
+    .toMatchTextContent("These choices could not be saved. Your previous choices were kept.");
+  await expect
+    .element(
+      page.getByRole("group", { name: "Discover collections", exact: true }).getByRole("alert"),
     )
     .toBeVisible();
   await captureParityState("discover-group-save-rejected");

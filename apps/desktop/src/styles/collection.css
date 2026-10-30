@@ -341,6 +341,18 @@
     min-inline-size: 0;
     overflow-wrap: anywhere;
   }
+  @container library-query (max-width: 20rem) {
+    .catalog-filter-panel .collection-readiness [data-slot="select-trigger"] {
+      flex-wrap: wrap;
+    }
+    .catalog-filter-panel
+      .collection-readiness
+      [data-slot="select-trigger"]
+      > span[aria-hidden="true"] {
+      flex-basis: 100%;
+      text-align: start;
+    }
+  }
   @container library-query (20rem < width <= 32rem) {
     .collection-readiness [data-slot="select-trigger"] > span[aria-hidden="true"] {
       display: none;

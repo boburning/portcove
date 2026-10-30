@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -153,6 +154,7 @@ describe("local artwork controls", () => {
     expect(button("detail", "Choose local image")).toBeDefined();
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "cover", 7);
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "detail", 7);
+    await captureParityState("artwork-listing-editor-expanded-fixture");
   });
   it("uses the shared cache for listing-only covers and preserves Core's local override", async () => {
     const listing: PortListing = {
@@ -223,6 +225,7 @@ describe("local artwork controls", () => {
     expect(button("cover", "Reset to default").disabled).toBe(true);
     expect(button("cover", "Refresh artwork").disabled).toBe(false);
     expect(button("detail", "Choose local image").disabled).toBe(false);
+    await captureParityState("artwork-retained-refresh-error-fixture");
     await click("cover", "Refresh artwork");
     expect(container.textContent).not.toContain("Showing previously loaded artwork.");
     expect(container.querySelector('[aria-label="Cover image"] [role="alert"]')).toBeNull();
@@ -460,6 +463,7 @@ describe("local artwork controls", () => {
       expect(button("cover", "Choose local image").disabled).toBe(false);
       expect(button("cover", "Reset to default").disabled).toBe(false);
       expect(container.textContent).not.toContain("Local image selected.");
+      await captureParityState(`artwork-${kind}-rejected-fixture`);
       change.mockResolvedValueOnce(artworkState("sample", "cover", 6, kind === "import"));
       await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
       expect(change).toHaveBeenLastCalledWith(
@@ -629,6 +633,7 @@ describe("local artwork controls", () => {
       expect(container.textContent).toContain("owned-image.png");
       expect(container.textContent).toContain("Not provided with this local image.");
       expect(document.activeElement).toBe(button("cover", "Choose local image"));
+      await captureParityState("artwork-cover-local-selected-fixture");
       await click("detail", "Choose local image");
       expect(change).toHaveBeenLastCalledWith("sample", "detail", "E:/owned.png", 0, 7);
       await click("cover", "Reset to default");
@@ -647,6 +652,7 @@ describe("local artwork controls", () => {
       container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
       await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
       expect(button("detail", "Reset to default").disabled).toBe(false);
+      await captureParityState("artwork-cover-reset-detail-retained-fixture");
     },
   );
 

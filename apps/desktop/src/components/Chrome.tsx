@@ -782,7 +782,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   const StateIcon = connected ? CheckCircle2 : CircleUserRound;
   return (
     <>
-      <div className="settings-title flex items-center justify-between gap-[12px]">
+      <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
         <h2 className="m-0 flex items-center gap-2">GitHub connection</h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
@@ -814,7 +814,7 @@ function githubQuota(status?: GithubAuthStatus) {
 function DeviceLogin({ login }: { login?: GithubDeviceLogin | undefined }) {
   if (!login) return null;
   return (
-    <div className="flex items-center gap-3 rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3">
       <strong className="tracking-[0.12em] text-pc-warning-foreground">
         Enter {login.user_code}
       </strong>

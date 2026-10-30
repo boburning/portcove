@@ -110,6 +110,7 @@ it("renders a synthetic device code and password entry at narrow width", async (
   await expect
     .element(page.getByLabelText("Personal access token"))
     .toHaveAttribute("type", "password");
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
   await captureParityState("github-device-code-narrow-synthetic");
 });
 

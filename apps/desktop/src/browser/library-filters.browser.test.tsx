@@ -586,7 +586,13 @@ it("keeps selected filter labels and their popover bounded at 320px with enlarge
     await openAdvancedFilters("Filters (2)");
     const panel = page.getByRole("region", { name: "Filter options", exact: true });
     await expect.element(panel).toBeVisible();
-    expect(panel.element().scrollWidth).toBeLessThanOrEqual(panel.element().clientWidth + 1);
+    const panelBounds = panel.element().getBoundingClientRect();
+    const overflowing = [...panel.element().querySelectorAll<HTMLElement>("*")]
+      .filter((element) => element.getBoundingClientRect().right > panelBounds.right + 1)
+      .map((element) => `${element.className}: ${element.textContent}`);
+    expect(panel.element().scrollWidth, overflowing.join("\n")).toBeLessThanOrEqual(
+      panel.element().clientWidth + 1,
+    );
     await captureParityState("library-selected-popover-narrow-text-200");
     await closeFilters();
     await expect.element(button("Filters (2)")).toHaveFocus();
