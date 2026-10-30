@@ -180,9 +180,13 @@ rollback or external deletion.
 CLI and Tauri translate these same Core operations; React displays their
 assessments and review inputs. Artwork and favorites use the same stable listing
 identity, including a retained pending setup or registration after its current
-listing disappears. The first directory is bundled with the client. Delivery to
-an unchanged client remains with the existing protected definition-delivery
-boundary in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md), not a second feed.
+listing disappears. The first directory is bundled with the client.
+`listing_delivery.rs` already implements the signed descriptive-directory reader
+and its accepted local state; it is not awaiting a second feed implementation.
+Actual protected provisioning/publication and unchanged-client production
+acceptance remain with #246/#534 through the existing
+[descriptive-directory delivery contract](DEFINITION-DELIVERY.md#descriptive-directory-delivery).
+Reader implementation does not establish production delivery.
 
 `service/package_selection.rs` separates release choice from native asset ranking.
 The provider selects a channel or explicit release, inventories that release's
