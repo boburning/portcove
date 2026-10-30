@@ -494,6 +494,20 @@ async function captureParity(surface: string, { theme, width, height }: ParityCa
   }
 }
 
+it.each(parityCases.filter(({ width }) => width === 320))(
+  "captures the open navigation sheet in $theme at $width × $height",
+  async (configuration) => {
+    await startParityScene("collection", configuration);
+    await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+    await page.getByRole("button", { name: "Open navigation", exact: true }).click();
+    await expect
+      .element(page.getByRole("dialog", { name: "Navigation", exact: true }))
+      .toBeVisible();
+    await captureParityState("navigation-sheet-open");
+  },
+  45_000,
+);
+
 it.each(parityCases)(
   "captures browsing and Add games in $theme at $width × $height",
   async (configuration) => {
@@ -504,13 +518,6 @@ it.each(parityCases)(
     await captureParity("library-covers", configuration);
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await captureParity("library-rows", configuration);
-    if (configuration.width === 320) {
-      await page.getByRole("button", { name: "Open navigation", exact: true }).click();
-      await expect
-        .element(page.getByRole("dialog", { name: "Navigation", exact: true }))
-        .toBeVisible();
-      await captureParityState("navigation-sheet-open");
-    }
     await navigateTo("Discover");
     await page.getByRole("button", { name: "Covers", exact: true }).click();
     await captureParity("discover-covers", configuration);

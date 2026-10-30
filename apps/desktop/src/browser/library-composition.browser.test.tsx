@@ -730,9 +730,12 @@ it("creates and removes a collection through its editor while retaining a failed
   await captureParityState("collection-create-failed-draft");
   await create.click();
   await expect.element(name).toHaveValue("");
+  const created = change.mock.calls.at(-1)![1];
+  if (created.kind !== "upsert_collection") throw new Error("Expected collection creation");
+  expect(created.collection_id).toMatch(/^[0-9a-f-]{36}$/);
   expect(change).toHaveBeenLastCalledWith(
     0,
-    { kind: "upsert_collection", collection_id: expect.any(String), name: "Weekend sessions" },
+    { kind: "upsert_collection", collection_id: created.collection_id, name: "Weekend sessions" },
     1,
   );
   const selected = page.getByRole("button", { name: "Weekend sessions (0)", exact: true });
@@ -740,8 +743,6 @@ it("creates and removes a collection through its editor while retaining a failed
   await expect.element(selected).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
   await captureParityState("collection-created-empty-selected");
-  const created = change.mock.calls.at(-1)![1];
-  if (created.kind !== "upsert_collection") throw new Error("Expected collection creation");
   await page.getByRole("button", { name: "Remove collection", exact: true }).click();
   expect(change).toHaveBeenLastCalledWith(
     1,
