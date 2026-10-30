@@ -390,6 +390,11 @@
 }
 
 @layer utilities {
+  @media (width <= 30rem) {
+    .continue-card {
+      margin-block-end: var(--space-4);
+    }
+  }
   @media (width <= 22rem) {
     .app-shell > main {
       padding-block-start: var(--space-4);

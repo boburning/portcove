@@ -273,7 +273,7 @@ it("keeps artwork favorites separate from details and restores filter focus when
   button.focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => favorite.mock.calls[0]).toEqual(["collection-0", true, 1]);
-  const filter = page.getByRole("button", { name: "Favorites (1)", exact: true });
+  const filter = page.getByRole("button", { name: "Favorites 1", exact: true });
   await filter.click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
   await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
@@ -281,7 +281,7 @@ it("keeps artwork favorites separate from details and restores filter focus when
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
   await expect
-    .element(page.getByRole("button", { name: "Favorites (0)", exact: true }))
+    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
     .toHaveFocus();
   expect(favorite.mock.calls[1]).toEqual(["collection-0", false, 1]);
 });
@@ -291,7 +291,7 @@ it("shares the narrow filter row without losing query, independent readiness or 
   await mount("light");
   const search = page.getByRole("textbox", { name: "Search your library" });
   await search.fill("Super Mario 64");
-  const favorites = page.getByRole("button", { name: "Favorites (0)", exact: true }).element();
+  const favorites = page.getByRole("button", { name: "Favorites 0", exact: true }).element();
   const filters = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
   expect(favorites.getBoundingClientRect().bottom).toBeLessThanOrEqual(
     search.element().getBoundingClientRect().top,

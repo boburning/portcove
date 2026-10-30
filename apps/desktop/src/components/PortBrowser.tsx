@@ -1517,7 +1517,7 @@ function BrowserQuickViews({
           variant={favorites.only ? "selected" : "ghost"}
           aria-pressed={favorites.only}
           disabled={!favorites.ids}
-          aria-label={`Favorites ${model.favoriteCount === undefined ? "(unavailable)" : `(${model.favoriteCount})`}`}
+          aria-label={`Favorites ${model.favoriteCount ?? "unavailable"}`}
           onClick={() => favorites.setOnly(!favorites.only)}
         >
           Favorites{" "}

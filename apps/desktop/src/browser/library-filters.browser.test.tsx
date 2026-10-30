@@ -327,7 +327,7 @@ it.each(["dark", "light"])(
     await expectReadinessLabel("Readiness All (3)");
     await userEvent.click(button("Switch library"));
     await expectReadinessLabel("Readiness Ready (1)");
-    await userEvent.click(button("Favorites (1)"));
+    await userEvent.click(button("Favorites 1"));
     await expectReadinessOption("Needs attention (1)");
     await userEvent.fill(
       page.getByRole("textbox", { name: "Search library" }),
@@ -367,7 +367,7 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
     .toHaveAttribute("aria-checked", "true");
   await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
-  await userEvent.click(button("Favorites (2)"));
+  await userEvent.click(button("Favorites 2"));
   await userEvent.click(button("Toggle favorite facts"));
   await expectReadinessOption("Ready (unavailable)");
   await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
@@ -382,11 +382,11 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
 });
 it("clears retained Favorites when its facts are unavailable", async () => {
   flushSync(() => root.render(<Fixture />));
-  await userEvent.click(button("Favorites (2)"));
+  await userEvent.click(button("Favorites 2"));
   await userEvent.click(button("Toggle favorite facts"));
-  await expect.element(button("Favorites (unavailable)")).toBeDisabled();
+  await expect.element(button("Favorites unavailable")).toBeDisabled();
   await userEvent.click(button("Reset view"));
-  await expect.element(button("Favorites (unavailable)")).toHaveAttribute("aria-pressed", "false");
+  await expect.element(button("Favorites unavailable")).toHaveAttribute("aria-pressed", "false");
   await expectReadinessLabel("Readiness All (3)");
 });
 it("holds unknown migrated readiness and query separately until correction", async () => {
@@ -516,7 +516,7 @@ it("composes quick views with declared filters and clears only quick-view scope 
   await openAdvancedFilters("Filters (0)");
   await userEvent.click(await filterChoice("Windows (2)"));
   await closeFilters();
-  await page.getByRole("button", { name: "Favorites (1)", exact: true }).click();
+  await page.getByRole("button", { name: "Favorites 1", exact: true }).click();
   const quick = page.getByRole("group", { name: "Library quick views", exact: true });
   await quick.getByRole("button", { name: "Updates", exact: true }).click();
   await expect
@@ -530,7 +530,7 @@ it("composes quick views with declared filters and clears only quick-view scope 
   await expect.element(button("Remove Windows filter")).toBeVisible();
   await expect.element(button("Remove Available at last check filter")).not.toBeInTheDocument();
   await expect.element(button("Remove Matching update staged filter")).not.toBeInTheDocument();
-  await expect.element(button("Favorites (1)")).toHaveAttribute("aria-pressed", "false");
+  await expect.element(button("Favorites 1")).toHaveAttribute("aria-pressed", "false");
   await expect
     .element(quick.getByRole("button", { name: "Updates", exact: true }))
     .toHaveAttribute("aria-pressed", "false");
