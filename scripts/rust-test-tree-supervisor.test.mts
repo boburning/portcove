@@ -784,6 +784,14 @@ async function linuxInnerCase(
     }
     throw new Error(`Linux ${mode} fixture did not reach its bounded condition`);
   };
+  const terminalOrAbsent = (pid: number) => {
+    try {
+      return identity(pid).state === "Z";
+    } catch (error) {
+      if (absent(error)) return true;
+      throw error;
+    }
+  };
   const gate = path.join(directory, "inner.gate");
   const status = path.join(directory, "inner.status");
   const receipt = path.join(directory, "inner.receipt");
@@ -1051,8 +1059,7 @@ async function linuxInnerCase(
             () =>
               (mode === "root-complete-reaper-loss"
                 ? !existsSync(`/proc/${node.pid}`)
-                : !existsSync(`/proc/${node.pid}`) || identity(node.pid).state === "Z") &&
-              (!existsSync(`/proc/${child.pid}`) || identity(child.pid).state === "Z"),
+                : terminalOrAbsent(node.pid)) && terminalOrAbsent(child.pid),
           );
           assert.equal(existsSync(receipt), false, "lost reaper manufactured a receipt");
         }
