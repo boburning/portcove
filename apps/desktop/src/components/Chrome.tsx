@@ -34,6 +34,9 @@ import {
   Gamepad2,
   Library,
   LoaderCircle,
+  Monitor,
+  Moon,
+  Sun,
   Menu as MenuIcon,
   Settings,
   Search,
@@ -1483,51 +1486,42 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
   );
 }
 
-function AboutCard() {
+function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
   return (
-    <SettingsRow
-      className="about-card grid min-h-0 grid-cols-1 items-center gap-6 @min-[40rem]/section:grid-cols-[8rem_minmax(0,1fr)]"
-      data-focus-group
-    >
-      <div className="about-art flex min-w-0 items-center justify-center">
-        <BrandMascot
-          className="block max-h-40 max-w-[100%] bg-transparent object-contain"
-          decorative
-        />
+    <div className="about-card" data-focus-group>
+      <div className="about-identity">
+        <BrandMascot className="size-14 bg-transparent object-contain" decorative />
+        <h3>Portcove</h3>
+        <p>Install, update, and play native game ports.</p>
       </div>
-      <div className="self-center">
-        <p className="leading-relaxed text-pc-muted-foreground">
-          Install, update, and play native game ports. Portcove keeps track of your library,
-          installed versions, saved file locations, and recovery information.
-        </p>
-        <dl className="my-5 grid grid-cols-1 gap-4 @min-[32rem]/section:grid-cols-3">
-          <div className="min-w-0 border-b border-pc-border py-3">
-            <dt className="text-xs text-pc-muted-foreground">Version</dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              {desktopPackage.version}
-            </dd>
-          </div>
-          <div className="min-w-0 border-b border-pc-border py-3">
-            <dt className="text-xs text-pc-muted-foreground">Built with</dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              Tauri 2 · Rust · React
-            </dd>
-          </div>
-          <div className="min-w-0 border-b border-pc-border py-3">
-            <dt className="text-xs text-pc-muted-foreground">License</dt>
-            <dd className="mt-1 mr-0 mb-0 ml-0 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              MIT or Apache-2.0
-            </dd>
-          </div>
-        </dl>
+      <SettingsRow className="settings-field-row">
+        <div className="settings-field-copy">
+          <h3>Portcove {desktopPackage.version}</h3>
+          <p>Tauri 2 · Rust · React</p>
+          <p>Licensed under MIT or Apache-2.0.</p>
+        </div>
         <ExternalLink
-          className="button-link inline-flex items-center rounded-pc-md px-[13px] py-[9px] text-[var(--color-text)] [text-decoration:none] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)]"
+          className="settings-field-control inline-flex min-h-10 items-center rounded-pc-md border border-pc-border px-3 py-2 text-sm no-underline hover:bg-pc-secondary"
           href="https://github.com/boburning/portcove"
         >
           Open project repository
         </ExternalLink>
-      </div>
-    </SettingsRow>
+      </SettingsRow>
+      <SettingsRow className="settings-field-row">
+        <div className="settings-field-copy">
+          <h3>Support</h3>
+          <p>Review diagnostics or create a support bundle.</p>
+        </div>
+        <Button
+          data-focusable
+          variant="outline"
+          className="settings-field-control justify-self-start"
+          onClick={onOpenDiagnostics}
+        >
+          Open diagnostics
+        </Button>
+      </SettingsRow>
+    </div>
   );
 }
 
@@ -1596,11 +1590,14 @@ function ThemeOption({ option }: { option: ThemePreference }) {
           <b />
         </span>
       </span>
-      <span className="flex items-center gap-2">
-        <Radio.Indicator>
+      <span className="flex w-full min-w-0 items-center gap-2 text-start">
+        <Icon glyph={option === "dark" ? Moon : option === "light" ? Sun : Monitor} size="sm" />
+        <span className="min-w-0">
+          {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
+        </span>
+        <Radio.Indicator className="ms-auto shrink-0">
           <Icon glyph={Check} size="sm" />
         </Radio.Indicator>
-        {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
       </span>
     </Radio.Root>
   );
@@ -1707,7 +1704,7 @@ export function SettingsView(props: SettingsViewProps) {
 
   const renderCategoryNavigation = () => (
     <nav
-      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[65rem]:flex-col min-[65rem]:overflow-visible"
+      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[56.3125rem]:flex-col min-[56.3125rem]:overflow-visible"
       aria-label="Settings categories"
       data-focus-group
     >
@@ -1718,7 +1715,7 @@ export function SettingsView(props: SettingsViewProps) {
           variant={selectedCategory === id ? "selected" : "ghost"}
           size="sm"
           className={cn(
-            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[65rem]:w-full min-[65rem]:whitespace-normal",
+            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[56.3125rem]:w-full min-[56.3125rem]:whitespace-normal",
             selectedCategory !== id && "text-pc-muted-foreground",
           )}
           aria-current={selectedCategory === id ? "page" : undefined}
@@ -1897,7 +1894,7 @@ export function SettingsView(props: SettingsViewProps) {
     </SettingsSection>
   );
   return (
-    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[65rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
+    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[56.3125rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
       {renderCategoryNavigation()}
       <div className="min-w-0">
         <SettingsSection
@@ -1996,7 +1993,12 @@ export function SettingsView(props: SettingsViewProps) {
           title="About Portcove"
           description="Version, project information and acknowledgements."
         >
-          <AboutCard />
+          <AboutCard
+            onOpenDiagnostics={() => {
+              (onCategoryChange ?? setLocalCategory)("advanced");
+              jumpToSettingsSection("advanced");
+            }}
+          />
         </SettingsSection>
       </div>
     </section>
@@ -2031,7 +2033,7 @@ function SettingsSection({
         <h2
           id={headingId}
           tabIndex={-1}
-          className="mb-1 scroll-mt-3 text-[length:var(--text-xl)] focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid"
+          className="mb-1 scroll-mt-3 text-[1.25rem] focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid"
         >
           {title}
         </h2>

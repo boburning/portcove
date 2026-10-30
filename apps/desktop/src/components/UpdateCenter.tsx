@@ -517,6 +517,52 @@ function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdat
 }
 
 function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
+  const countId = useId();
+  const feed = model.activityFeed;
+  const taskCount = new Set([
+    ...(feed?.current_activity_ids ?? []),
+    ...(feed?.attention_required_activity_ids ?? []),
+    ...(feed?.recovery_required_activity_ids ?? []),
+    ...model.activities
+      .filter((activity) =>
+        ["running", "unfinished", "failed", "unknown"].includes(
+          activityPresentationState(activity, model.nowSeconds),
+        ) || Boolean(activity.failure),
+      )
+      .map((activity) => activity.id),
+  ]).size;
+  const historyCount = model.activities.filter(
+    (activity) =>
+      !["running", "unfinished"].includes(activityPresentationState(activity, model.nowSeconds)),
+  ).length;
+  const boundedCount = (count: number, complete: boolean | undefined) =>
+    complete ? String(count) : count > 0 ? `${count}+` : "—";
+  const counts = {
+    tasks: {
+      value: taskCount > 0 ? boundedCount(taskCount, feed?.active_and_actionable_complete) : "—",
+      description: taskCount === 0
+        ? "No task count is established by the loaded activity records."
+        : feed?.active_and_actionable_complete
+        ? `${taskCount} recorded tasks and attention items in the loaded activity snapshot.`
+        : `Activity snapshot coverage is incomplete. ${taskCount} recorded tasks and attention items.`,
+    },
+    updates: {
+      value: model.earlierBatch ? "—" : boundedCount(model.available, model.complete),
+      description: model.earlierBatch
+        ? `${model.available} updates at last check. Current results are unavailable or still being checked.`
+        : model.complete
+          ? `${model.available} updates available at last check.`
+          : `Update coverage is incomplete. ${model.available} known updates available at last check.`,
+    },
+    history: {
+      value: historyCount > 0 ? boundedCount(historyCount, feed?.terminal_history_complete) : "—",
+      description: historyCount === 0
+        ? "No history count is established by the loaded activity records."
+        : feed?.terminal_history_complete
+        ? `${historyCount} history records in the loaded activity snapshot.`
+        : `${historyCount} loaded history records. History coverage is incomplete.`,
+    },
+  };
   return (
     <Tabs.Root
       render={<section className="update-center" data-activity-section={model.selectedSection} />}
@@ -539,9 +585,16 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
             key={value}
             value={value}
             data-focusable
+            aria-describedby={`${countId}-${value}`}
             render={<Button variant="ghost" className="activity-tab" />}
           >
             {label}
+            <span className="activity-tab-count" aria-hidden="true" title={counts[value].description}>
+              {counts[value].value}
+            </span>
+            <span id={`${countId}-${value}`} hidden>
+              {counts[value].description}
+            </span>
           </Tabs.Tab>
         ))}
       </Tabs.List>

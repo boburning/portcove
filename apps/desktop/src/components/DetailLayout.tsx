@@ -231,7 +231,7 @@ export function DetailLayout({
               {installation}
             </span>
           </div>
-          <div className="detail-header-actions mt-5 flex flex-wrap items-center gap-2">
+          <div className="detail-header-actions mt-6 flex flex-wrap items-center gap-2">
             {action(reveal)}
             {favoriteControl}
             <Menu.Root>

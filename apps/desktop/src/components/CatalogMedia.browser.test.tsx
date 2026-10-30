@@ -160,6 +160,16 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("dialog").getByRole("link", { name: "CC0-1.0", exact: true }))
     .toHaveAttribute("href", second.rights_url);
+  const firstChoice = page.getByRole("button", {
+    name: "Show screenshot 1: Owned first scene",
+    exact: true,
+  });
+  await expect.element(firstChoice).toHaveAttribute("aria-pressed", "false");
+  await firstChoice.click();
+  await expect.element(firstChoice).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
+    .toBeVisible();
   await userEvent.keyboard("{Escape}");
   await expect.element(origin).toHaveFocus();
 });

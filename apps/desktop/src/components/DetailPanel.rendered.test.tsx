@@ -1752,6 +1752,54 @@ describe("desktop components", () => {
     expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
+  it.each(["absent", "same", "version", "artifact", "runtime"] as const)(
+    "keeps saved activation primary and retains distinct checked candidates: %s",
+    (candidate) => {
+      const active = installRecord();
+      const staged = installRecord({ id: "saved", version: "2.0", staged: true });
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active,
+        staged,
+        last_update_check: candidate === "absent" ? null : {
+          checked_at: 2,
+          check: {
+            port_id: port.id,
+            channel: active.channel,
+            installed_version: active.version,
+            installed_artifact: active.artifact,
+            installed_runtime: active.runtime,
+            required_runtime: candidate === "runtime" ? runtimeIdentity : staged.runtime,
+            update_available: true,
+            release: {
+              published_at: null,
+              version: candidate === "version" ? "3.0" : staged.version,
+              channel: staged.channel,
+              asset: {
+                name: staged.artifact.asset_name,
+                url: "https://example.com/sample.zip",
+                size: staged.artifact.size,
+                sha256: candidate === "artifact" ? "c".repeat(64) : staged.artifact.sha256,
+              },
+            },
+          },
+        },
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel port={port} status={status} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
+      );
+      const versions = detailSection(html, "versions");
+      expect(versions.match(/Apply update · 2\.0/gu)).toHaveLength(1);
+      expect(versions.indexOf("Apply update · 2.0")).toBeLessThan(versions.indexOf("Future update preferences"));
+      expect(versions).toMatch(/<button(?=[^>]*staged-action)(?=[^>]*data-variant="primary")[^>]*>Apply update · 2\.0<\/button>/u);
+      for (const action of ["Update now", "Download for later"]) {
+        if (candidate === "absent" || candidate === "same") expect(versions).not.toContain(action);
+        else expect(versions).toContain(action);
+      }
+    },
+  );
+
   it("keeps direct Play in the header and staged activation with its consequences in Versions", () => {
     const install = installRecord();
     const status: PortStatus = {
@@ -1983,7 +2031,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Selected channel");
     expect(html).toContain("Preview");
-    expect(html).not.toContain("Latest version at last check");
+    expect(html).not.toContain("Latest release at last check");
     expect(html).not.toContain("9.9-stale");
   });
 
@@ -2027,7 +2075,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Installed version");
     expect(html).toContain("<strong>1.1</strong>");
-    expect(html).not.toContain("Latest version at last check");
+    expect(html).not.toContain("Latest release at last check");
     expect(html).not.toContain("9.9-stale");
   });
 });

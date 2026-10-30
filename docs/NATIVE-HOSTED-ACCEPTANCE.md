@@ -170,3 +170,30 @@ before a visual claim. Codec unit PNGs, a file reference, truncated tool text or
 unreadable logs never establish native acceptance. Failure or an exceeded retention
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
+
+## Normal-app presentation and interface sizing
+
+The fixed manual `presentation` operation in `native-design-compatibility.yml`
+uses two isolated standard public `windows-2022` jobs: the maintained
+`presentation` profile and the standalone `native-interface-size` scenario.
+The latter cannot share a selection/library with the profile. Each job records
+its exact source and hosted session before setup, uses the repository-pinned
+quality/native bootstrap and the normal `desktop-verify` plan/build/run owner,
+and retains existing resource, signature, process-identity and cleanup guards.
+The 60-minute job allocation leaves setup/build headroom without changing child
+or product deadlines. A failure in one selection does not cancel the other.
+
+The workflow accepts no command, scenario or source override for these jobs.
+A noninteractive desktop, unavailable supported WebView/driver or failed bootstrap
+stops that job with original evidence. The bounded lossless job-log codec retains
+one isolated run per job under its existing byte/file limits, with no cache or
+artifact upload. Recover each complete job log separately, verify its source and
+executable identities, and inspect the actual images before claiming appearance.
+A retention-bound refusal remains incomplete acceptance, never permission to
+omit screenshots or raise storage bounds silently.
+
+These runs observe the ordinary Tauri renderer and native keyboard/size controls.
+Injected controller and expanded-text cases remain synthetic input observations;
+they do not establish physical controller, installed-package, minimum-OS or game
+workflow acceptance. Owned lifecycle and screen-specific visual acceptance remain
+separate where required by the owning issue.

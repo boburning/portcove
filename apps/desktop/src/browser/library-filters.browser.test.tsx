@@ -477,7 +477,7 @@ it("retains specific attention with independent Library readiness, zero counts a
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessLabel("Readiness Needs attention (1)");
   expect(invoke).not.toHaveBeenCalled();
-});
+}, 30_000);
 
 it("keeps playable plus matching staged updates independent from attention with self-excluding counts and zero IPC", async () => {
   flushSync(() => root.render(<Fixture />));

@@ -183,6 +183,65 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.match(source, /if \(\$LASTEXITCODE -ne 0\) \{ throw 'Required evidence retention failed/);
 });
 
+void test("normal-app presentation uses fixed isolated Windows selections and bounded evidence", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  const job = workflowJob("presentation", source);
+  const section = workflowJobSource(source, "presentation");
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(job["timeout-minutes"], 60);
+  assert.equal(
+    job.if,
+    "${{ inputs.operation == 'presentation' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.deepEqual(job.strategy.matrix.selection, ["presentation", "interface-size"]);
+  assert.ok(isRecord(job.env));
+  assert.equal(
+    job.env.PORTCOVE_OUTPUT_DIR,
+    "${{ github.workspace }}/work/native-presentation-${{ matrix.selection }}",
+  );
+  assert.equal(
+    job.env.PORTCOVE_TEMP_DIR,
+    "${{ github.workspace }}/work/temp/native-presentation-${{ matrix.selection }}",
+  );
+  assert.ok(Array.isArray(job.steps));
+  const steps = job.steps.filter(isRecord);
+  const bootstrap = steps.findIndex(
+    (step) =>
+      typeof step.run === "string" && step.run.includes("bootstrap-quality-tools.ps1 -Desktop"),
+  );
+  assert.ok(bootstrap >= 0);
+  for (const [selection, arguments_] of [
+    ["presentation", "--profile presentation"],
+    ["interface-size", "--scenario native-interface-size"],
+  ]) {
+    const index = steps.findIndex((step) => step.if === `matrix.selection == '${selection}'`);
+    assert.ok(index > bootstrap);
+    const step = requiredFixture(steps[index]);
+    assert.equal(typeof step.run, "string");
+    assert.ok(!("continue-on-error" in step));
+    const commands = executableLines(String(step.run)).filter((line) =>
+      line.startsWith("just desktop-verify"),
+    );
+    assert.deepEqual(commands, [
+      `just desktop-verify ${arguments_} --require-clean --plan`,
+      `just desktop-verify ${arguments_} --require-clean`,
+    ]);
+  }
+  const retention = requiredFixture(steps.at(-1));
+  assert.equal(retention.if, "always()");
+  assert.match(String(retention.run), /native-backup-evidence\.mts emit/);
+  assert.match(String(retention.run), /if \(\$LASTEXITCODE -ne 0\) \{ throw/);
+  assert.match(section, /persist-credentials: false/);
+  assert.match(section, /\$source -cne \$env:GITHUB_SHA/);
+  assert.match(section, /-not \$identity.user_interactive/);
+  assert.doesNotMatch(
+    section,
+    /upload-artifact|rust-cache|actions\/cache|cache: pnpm|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|secrets\.|inputs\.(?:focus_head|execution_binding)/,
+  );
+});
+
 void test("native design compatibility remains explicit, isolated, and non-publishing", () => {
   assert.match(nativeDesignCompatibilityWorkflow, /^ {2}workflow_dispatch:$/m);
   assert.doesNotMatch(nativeDesignCompatibilityWorkflow, /^ {2}(pull_request|push|schedule):/m);

@@ -26,3 +26,11 @@ it("keeps exactly one theme selected through clicks and composite keyboard navig
   await expect.element(group.getByRole("radio", { name: "Dark" })).toHaveFocus();
   expect(group.element().querySelectorAll('[aria-checked="true"]')).toHaveLength(1);
 });
+
+it("opens the existing diagnostics owner from About and transfers heading focus", async () => {
+  await render(<SettingsView />);
+  await page.getByRole("button", { name: "About", exact: true }).click();
+  await page.getByRole("button", { name: "Open diagnostics", exact: true }).click();
+  await expect.element(page.getByRole("heading", { name: "Advanced", exact: true })).toHaveFocus();
+  await expect.element(page.getByRole("heading", { name: "Create support bundle", exact: true })).toBeVisible();
+});

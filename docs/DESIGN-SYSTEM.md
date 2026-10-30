@@ -77,10 +77,11 @@ Geist, semantic tokens, the existing controls and the one persisted/native sizin
 authority remain shared. Enlarged text may wrap and scroll; it never authorizes
 shrinking essential text, hiding consequences or replacing the domain projections.
 
-Collection titles use scalable 14px-equivalent type with 1.45 leading; project text
-uses a 12px-equivalent role with 1.5 leading. The cover-to-identity gap is 24px at
-normal scale, columns are separated by 20px, and card actions use a 32px-equivalent
-height. Shared general-purpose buttons retain their larger hit targets. Saved and
+Cover-grid titles use scalable 14px-equivalent type with 1.45 leading; project text
+uses a 12px-equivalent role with 1.5 leading. Compact-row titles use 15px-equivalent
+type with 1.4 leading and 13px-equivalent project text. The cover-to-identity gap is
+24px in Library and 12px in Discover at normal scale. Columns are separated by
+20px, and card actions use a 32px-equivalent height. Shared general-purpose buttons retain their larger hit targets. Saved and
 hidden collection views, Favorites, and Not in library share existing query owners;
 the latter is selected only for that exact singleton membership, not an OR selection
 that also includes installed games. Selecting a quick view preserves search and
@@ -114,8 +115,9 @@ keep the complete glyph bounds over a readable surface. Logo ink/contrast and
 minimum rendered size are checked; unsuitable or failed assets advance to the
 next fallback without arbitrary pixel recoloring. Continue uses recorded launch
 history and relaunches that installation; it does not load a save automatically.
-Loaded galleries use three columns for exactly three images in wide containers,
-two for other multi-image sets and medium widths, and one in compact containers; per-slot attribution,
+Loaded galleries use contained 4:3 stages, with three columns for exactly three images at
+851px viewport width and above and two columns otherwise. The viewer includes a selectable thumbnail
+filmstrip with an exposed current selection; per-slot attribution,
 errors and lightbox focus remain with the media owner. Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.

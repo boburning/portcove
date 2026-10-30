@@ -364,3 +364,24 @@ it.each([
     }
   },
 );
+
+it("routes the saved-update summary action to the existing activation review owner", async () => {
+  const port = portDefinition();
+  const active = installRecord({ port_id: port.id });
+  const activate = vi.fn();
+  await render(
+    <DetailPanel
+      port={port}
+      status={{ ...portStatus(), port_id: port.id, active, staged: { ...active, id: "saved", version: "2.0", staged: true } }}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={{ ...detailActions, activate }}
+    />,
+  );
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+  const summary = page.getByRole("region", { name: "Installation and release versions" });
+  await summary.getByRole("button", { name: "Apply update · 2.0", exact: true }).click();
+  expect(activate).toHaveBeenCalledOnce();
+  expect(page.getByRole("button", { name: "Update now", exact: true }).query()).toBeNull();
+  expect(page.getByRole("button", { name: "Download for later", exact: true }).query()).toBeNull();
+});

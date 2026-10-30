@@ -35,6 +35,7 @@ import {
   AlertTriangle,
   ArchiveX,
   ArrowRight,
+  ArrowUpRight,
   Info,
   Play,
   CheckCircle2,
@@ -877,6 +878,22 @@ function RequirementsGroup({
   );
 }
 
+function checkedUpdateMatchesStaged(status: PortStatus | undefined) {
+  const checked = currentUpdateSnapshot(status)?.check;
+  const staged = status?.staged;
+  return Boolean(
+    checked &&
+      staged &&
+      checked.port_id === staged.port_id &&
+      checked.release.version === staged.version &&
+      checked.release.channel === staged.channel &&
+      checked.release.asset.sha256 === staged.artifact.sha256 &&
+      checked.release.asset.name === staged.artifact.asset_name &&
+      checked.release.asset.size === staged.artifact.size &&
+      JSON.stringify(checked.required_runtime ?? null) === JSON.stringify(staged.runtime ?? null),
+  );
+}
+
 function UpdatesGroup({
   perform,
   port,
@@ -902,7 +919,7 @@ function UpdatesGroup({
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
   const knownCandidate = Boolean(
-    status?.staged || status?.acquisition || checked?.update_available,
+    status?.acquisition || (checked?.update_available && !checkedUpdateMatchesStaged(status)),
   );
   const preferences = (
     <>
@@ -931,14 +948,6 @@ function UpdatesGroup({
       title="Updates"
       action={installed ? <UpdateCheckAction busy={busy} check={actions.check} /> : undefined}
     >
-      {status?.staged && (
-        <section aria-label="Apply saved update">
-          <p>
-            Update saved for later: <strong>{status.staged.version}</strong>. Using this checked
-            local copy does not download it again, and keeps the current version for rollback.
-          </p>
-        </section>
-      )}
       {installed && (
         <>
           <p>
@@ -959,7 +968,7 @@ function UpdatesGroup({
               status={status}
               busy={Boolean(busy)}
               perform={perform}
-              primary={knownCandidate}
+              primary={!status?.staged}
             />
           )}
         </>
@@ -1135,9 +1144,11 @@ function DetailGroup({
 export function InstallationVersionSummary({
   status,
   selectedChannel,
+  action,
 }: {
   status?: PortStatus | undefined;
   selectedChannel: ReleaseChannel;
+  action?: ReactNode;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
   const candidate =
@@ -1171,7 +1182,14 @@ export function InstallationVersionSummary({
             </div>
           </>
         )}
+        {action && <div className="detail-version-action">{action}</div>}
       </div>
+      {status?.staged && (
+        <p className="detail-version-context">
+          Using this checked local copy does not download it again, and keeps the current version
+          for rollback.
+        </p>
+      )}
       {channel !== selectedChannel && (
         <p className="detail-version-context">
           Selected channel for future checks: {channelChip(selectedChannel)}
@@ -1188,10 +1206,10 @@ export function InstallationVersionSummary({
       )}
       {status?.staged &&
         checked?.update_available &&
-        checked.release.version !== status.staged.version && (
+        !checkedUpdateMatchesStaged(status) && (
           <p className="detail-version-context">
-            Latest version at last check: {checked.release.version}. The downloaded update above is
-            separate.
+            Latest release at last check: {checked.release.version}. The saved update above is
+            a separate candidate.
           </p>
         )}
     </section>
@@ -2039,17 +2057,19 @@ function StagedActivation({
   version,
   busy,
   activate,
+  primary = false,
 }: {
   version?: string | undefined;
   busy?: string | undefined;
   activate: DetailActions["activate"];
+  primary?: boolean;
 }) {
   if (!version) return null;
   return (
     <Button
       data-focusable
       className="staged-action"
-      variant="selected"
+      variant={primary ? "primary" : "selected"}
       size="lg"
       disabled={Boolean(busy)}
       onClick={() => {
@@ -3409,22 +3429,22 @@ function DetailOverviewActions({
       <div className="detail-journey-links">
         <Button
           variant="ghost"
-          className="justify-start p-4.5 text-start"
+          className="grid min-h-22.5 items-start justify-start gap-x-3.5 gap-y-4.25 rounded-[0.625rem] border-pc-border bg-pc-surface p-4.5 text-start"
           onClick={() => reveal("files")}
         >
-          <Icon glyph={FolderOpen} />
+          <Icon glyph={FolderOpen} size="lg" />
           <span>
             <strong>Game files</strong>
             <small>{gameFilesPresentation(model.port, model.status).title}</small>
           </span>
-          <Icon glyph={ArrowRight} />
+          <Icon glyph={ArrowUpRight} />
         </Button>
         <Button
           variant="ghost"
-          className="justify-start p-4.5 text-start"
+          className="grid min-h-22.5 items-start justify-start gap-x-3.5 gap-y-4.25 rounded-[0.625rem] border-pc-border bg-pc-surface p-4.5 text-start"
           onClick={() => reveal("saves")}
         >
-          <Icon glyph={Save} />
+          <Icon glyph={Save} size="lg" />
           <span>
             <strong>Saves & backups</strong>
             <small>
@@ -3437,7 +3457,7 @@ function DetailOverviewActions({
                   : "Review backup history"}
             </small>
           </span>
-          <Icon glyph={ArrowRight} />
+          <Icon glyph={ArrowUpRight} />
         </Button>
       </div>
       {model.openActivity && (
@@ -3761,6 +3781,16 @@ function DetailVersionsSection({
           <InstallationVersionSummary
             status={model.status}
             selectedChannel={model.selectedChannel}
+            action={
+              !external && model.stagedVersion ? (
+                <StagedActivation
+                  primary
+                  version={model.stagedVersion}
+                  busy={model.busy}
+                  activate={model.actions.activate}
+                />
+              ) : undefined
+            }
           />
         )}
         {!external && model.port.release.provider !== "user-prepared" && (
@@ -3780,11 +3810,6 @@ function DetailVersionsSection({
 
         {!external && (
           <>
-            <StagedActivation
-              version={model.stagedVersion}
-              busy={model.busy}
-              activate={model.actions.activate}
-            />
             {model.installed && (
               <ManagementRow
                 title="Previous version"
