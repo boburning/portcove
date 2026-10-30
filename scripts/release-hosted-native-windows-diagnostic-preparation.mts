@@ -12,6 +12,7 @@ import { mkdir, writeFile, readdir, lstat } from "node:fs/promises";
 import { closeSync, openSync } from "node:fs";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import {
   bundleWindowsSourcePreparation,
   controllerBootstrapEnvironment,
@@ -225,7 +226,7 @@ export async function prepareHostedWindowsDiagnosticClosure() {
     );
   };
   active();
-  assert.equal(process.version, "v24.22.1");
+  assert.equal(process.version, `v${controllerNodeVersion}`);
   assert.equal(path.basename(process.execPath), "node.exe");
   await hashNativeCapturedFile(
     path.dirname(process.execPath),
