@@ -1662,9 +1662,18 @@ for (const [file, tests] of [
     "scripts/fixtures/desktop-input-observation-baseline.json",
     ["scripts/desktop-input-observation.test.mts"],
   ],
+  ...[
+    "apps/desktop/scripts/desktop-owned-native-session.mts",
+    "apps/desktop/scripts/desktop-real-runtime-test.mts",
+  ].map((file): [string, string[]] => [
+    file,
+    ["scripts/desktop-real-runtime.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ]),
   [
     "apps/desktop/scripts/desktop-test.mts",
     [
+      "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-input-observation.test.mts",
       "scripts/desktop-scenarios.test.mts",

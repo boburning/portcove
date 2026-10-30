@@ -4,68 +4,54 @@ import os from "node:os";
 import { test } from "node:test";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { writeFileSync } from "node:fs";
-import { stripTypeScriptTypes } from "node:module";
-import { runInNewContext } from "node:vm";
 import { parseRealRuntimeInput, runtimeMutable } from "./desktop-real-runtime-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
+import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
+import type { NativeProcessSnapshot } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
 import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 
 void test("real runtime restarts retain distinct exclusive driver launch receipts", async (t) => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-runtime-launch-"));
   t.after(() => rm(output, { recursive: true, force: true }));
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function captureBackupFocusDriverLaunch(");
-  const end = source.indexOf("async function driverReady()", start);
-  assert.ok(start >= 0 && end > start);
   const now = Date.now();
   const driverPath = path.join(output, "selected-driver.exe");
   const artifacts: string[] = [];
-  const ownedSession: { driver?: unknown } = {};
-  const context = {
-    assert,
-    path,
-    required: (value: unknown) => {
-      assert.ok(value);
-      return value;
-    },
-    driver: { pid: 101 },
-    driverStartupSequence: 0,
-    driverPath,
-    output,
-    artifacts,
-    ownedSession,
-    cleanupName: "real-prepared-runtime",
-    hostInterruptionSession: false,
-    hostPublicationSession: false,
-    ordinaryCloseSession: false,
-    savedLibraryRecoverySession: false,
-    selection: { selected_scenarios: ["native-real-prepared-runtime"] },
-    observeNativeSession: (mode: string, snapshot: string) => {
-      assert.equal(mode, "SnapshotDriver");
-      const captured = {
-        driver: {
-          pid: context.driver.pid,
-          path: driverPath,
-          started_filetime: String((BigInt(now) + 11_644_473_600_000n) * 10_000n),
-        },
-      };
-      writeFileSync(snapshot, JSON.stringify(captured), { flag: "wx" });
-      return captured;
-    },
+  const ownedSession = new OwnedNativeSession();
+  const filetime = (milliseconds: number) =>
+    String((BigInt(milliseconds) + 11_644_473_600_000n) * 10_000n);
+  let current: NativeProcessSnapshot["driver"] = {
+    pid: 101,
+    path: driverPath,
+    started_filetime: filetime(now),
   };
-  const capture = runInNewContext(
-    `${stripTypeScriptTypes(source.slice(start, end))}; captureBackupFocusDriverLaunch`,
-    context,
-  ) as (started: number) => void;
+  const capture = (pid = current.pid) =>
+    ownedSession.captureDriverLaunch({
+      pid,
+      executable: driverPath,
+      output,
+      name: "real-prepared-runtime",
+      launchStarted: now,
+      artifacts,
+      now: () => now,
+      observe: (mode, snapshot) => {
+        assert.equal(mode, "SnapshotDriver");
+        const captured = {
+          captured_at: new Date(now).toISOString(),
+          driver: current,
+          application_pid: null,
+          processes: [],
+        };
+        writeFileSync(snapshot, JSON.stringify(captured), { flag: "wx" });
+        return captured;
+      },
+    });
   const launchedPids = [101, 202, 303, 101];
   for (const pid of launchedPids) {
-    context.driver = { pid };
-    capture(now);
+    ownedSession.beginLaunch();
+    current = { ...current, pid };
+    assert.doesNotThrow(() => capture(), "NATIVE_DRIVER_SEQUENCE_CUSTODY");
   }
-  assert.equal(new Set(artifacts).size, 4);
+  assert.equal(new Set(artifacts).size, 4, "NATIVE_DRIVER_RECEIPT_INVENTORY");
   assert.deepEqual(
     artifacts.map((file) => path.basename(file)),
     launchedPids.map(
@@ -83,22 +69,21 @@ void test("real runtime restarts retain distinct exclusive driver launch receipt
   );
   const originalArtifacts = [...artifacts],
     originalDriver = ownedSession.driver;
-  assert.deepEqual(originalDriver, {
-    pid: 101,
-    path: driverPath,
-    started_filetime: String((BigInt(now) + 11_644_473_600_000n) * 10_000n),
-  });
-  // Deliberately replay a previously used sequence/PID to retain the exclusive
-  // write refusal, independently of a legitimate later launch reusing a PID.
-  context.driverStartupSequence = 2;
-  context.driver = { pid: 303 };
-  assert.throws(() => capture(now), { code: "EEXIST" });
+  assert.deepEqual(originalDriver, current, "NATIVE_DRIVER_CUSTODY_BINDING");
+  // Collide with the next immutable receipt without reaching into private state.
+  const collision = path.join(output, "real-prepared-runtime-driver-startup-5-303.json");
+  writeFileSync(collision, "earlier receipt", { flag: "wx" });
+  current = { ...current, pid: 303 };
+  assert.throws(() => capture(), { code: "EEXIST" });
   assert.deepEqual(artifacts, originalArtifacts);
   assert.equal(ownedSession.driver, originalDriver);
+  assert.equal(await readFile(collision, "utf8"), "earlier receipt");
   assert.deepEqual(
     await Promise.all(artifacts.map((file) => readFile(file, "utf8"))),
     originalBytes,
   );
+  capture();
+  assert.equal(path.basename(artifacts.at(-1)!), "real-prepared-runtime-driver-startup-6-303.json");
 });
 
 void test("real runtime review waits for the actual visible enabled action after preview", async () => {
@@ -207,54 +192,105 @@ void test("mutable file accounting uses declared complete path components", () =
   assert.equal(runtimeMutable("WaveRace64Recompiled.exe", [".runtime"]), false);
 });
 
-void test("ordinary game close retains its real request when the positive exit wait fails", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-real-runtime-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf('    const requested = native("RequestClose", closeFile,');
-  const end = source.indexOf("    const terminal = await browser.wait(", start);
-  assert.ok(start >= 0 && end > start);
-  const requested = {
-    application_pid: 42,
-    main_window_handle: "101",
-    main_window_title: "Owned game",
-    message_sent: true,
-  };
-  const failure = new Error("owned process did not exit");
-  const route: Record<string, unknown> = {};
+void test("ordinary game close retains its real request when the positive exit wait fails", () => {
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        new URL("../apps/desktop/scripts/desktop-real-runtime-test.mts", import.meta.url),
+        `
+      const {requestRealRuntimeClose}=await import(entry);
+      const requested={application_pid:42,main_window_handle:'101',main_window_title:'Owned game',message_sent:true};
+      const exited={exited_at:'2026-10-30T00:00:00Z',observed_processes:2,wait_ms:4};
+      for(const phase of ['ready','request','write','wait']) for(const failure of [new Error('owned refusal'),undefined,null,false,0,'']) {
+        const calls=[],route={},artifacts=[],requestFile='/owned/request.json';
+        const native=(mode,snapshot,extra)=>{
+          assert.equal(snapshot,'/owned/identity.json');calls.push(mode);
+          if(mode==='RequestClose'){
+            assert.deepEqual(extra,['-ApplicationPath','/owned/game.exe']);
+            if(phase==='request')throw failure;return requested;
+          }
+          assert.equal(mode,'Wait');assert.equal(extra,undefined);
+          assert.equal(route.ordinary_game_close.requested,requested);
+          assert.deepEqual(artifacts,[requestFile]);
+          if(phase==='wait')throw failure;return exited;
+        };
+        const write=async(file,bytes,options)=>{
+          calls.push('write');assert.equal(file,requestFile);assert.deepEqual(options,{flag:'wx'});
+          assert.deepEqual(JSON.parse(bytes),requested);
+          assert.equal(route.ordinary_game_close.requested,requested);
+          assert.deepEqual(artifacts,[]);if(phase==='write')throw failure;
+        };
+        const action=requestRealRuntimeClose({native,closeFile:'/owned/identity.json',executable:'/owned/game.exe',requestFile,route,artifacts,write});
+        if(phase==='ready'){
+          await action;assert.deepEqual(calls,['RequestClose','write','Wait'],'NATIVE_REAL_RUNTIME_CLOSE_ORDER');
+          assert.equal(route.ordinary_game_close.requested,requested);assert.equal(route.ordinary_game_close.exited,exited);
+        }else{
+          await assert.rejects(action,error=>error===failure);
+          assert.deepEqual(calls,phase==='request'?['RequestClose']:phase==='write'?['RequestClose','write']:['RequestClose','write','Wait']);
+          assert.equal(route.ordinary_game_close?.requested,phase==='request'?undefined:requested);
+          assert.equal(route.ordinary_game_close?.exited,undefined);
+          assert.deepEqual(artifacts,phase==='wait'?[requestFile]:[]);
+        }
+      }
+      `,
+        variant === "original" ? undefined : { exportName: "requestRealRuntimeClose", variant },
+      );
+    if (variant === "wrong-export")
+      assert.throws(
+        execute,
+        (error) =>
+          error instanceof assert.AssertionError &&
+          error.actual === 1 &&
+          /ERR_ASSERTION/u.test(error.message) &&
+          /NATIVE_REAL_RUNTIME_CLOSE_ORDER/u.test(error.message),
+      );
+    else execute();
+  }
+});
+
+void test("driver launch rejects foreign identity and birth observations before binding custody", () => {
+  const session = new OwnedNativeSession();
+  const original = { pid: 1, path: path.resolve("prior-driver.exe"), started_filetime: "100" };
   const artifacts: string[] = [];
-  const writes: unknown[] = [];
-  const execute = runInNewContext(
-    `(async () => { ${stripTypeScriptTypes(source.slice(start, end))} })`,
-    {
-      native: (mode: string) => {
-        if (mode === "RequestClose") return requested;
-        assert.equal(mode, "Wait");
-        throw failure;
-      },
-      closeFile: "/owned/identity.json",
-      executable: "/owned/game.exe",
-      route,
-      path,
-      output: "/owned/output",
-      port: { id: "pilot" },
-      writeFile: async (file: string, bytes: string, options: unknown) => {
-        const value: unknown = JSON.parse(bytes);
-        const parsedOptions: unknown = JSON.parse(JSON.stringify(options));
-        writes.push({ file, value, options: parsedOptions });
-      },
-      artifacts,
-    },
-  ) as () => Promise<unknown>;
-  await assert.rejects(execute(), (error) => error === failure);
-  assert.equal((route.ordinary_game_close as { requested: unknown }).requested, requested);
-  assert.deepEqual(writes, [
-    {
-      file: path.join("/owned/output", "pilot-ordinary-close-request.json"),
-      value: requested,
-      options: { flag: "wx" },
-    },
-  ]);
-  assert.deepEqual(artifacts, [path.join("/owned/output", "pilot-ordinary-close-request.json")]);
+  const now = Date.now(),
+    executable = path.resolve("selected-driver.exe");
+  const ticks = (milliseconds: number) =>
+    String((BigInt(milliseconds) + 11_644_473_600_000n) * 10_000n);
+  let sequence = 0;
+  session.driver = original;
+  for (const fault of ["pid", "path", "early", "future", "malformed", "observer"] as const) {
+    const failure = new Error(fault);
+    const action = () =>
+      session.captureDriverLaunch({
+        pid: 42,
+        executable,
+        output: os.tmpdir(),
+        name: "owned",
+        launchStarted: now,
+        artifacts,
+        now: () => now,
+        observe: (mode, file) => {
+          assert.equal(mode, "SnapshotDriver");
+          assert.equal(path.basename(file), `owned-driver-startup-${++sequence}-42.json`);
+          if (fault === "observer") throw failure;
+          return {
+            captured_at: "observed",
+            application_pid: null,
+            processes: [],
+            driver: {
+              pid: fault === "pid" ? 43 : 42,
+              path: fault === "path" ? path.resolve("foreign.exe") : executable,
+              started_filetime:
+                fault === "malformed"
+                  ? "invalid"
+                  : ticks(now + (fault === "early" ? -2 : fault === "future" ? 1 : 0)),
+            },
+          };
+        },
+      });
+    if (fault === "observer") assert.throws(action, (error) => error === failure);
+    else assert.throws(action, "NATIVE_DRIVER_IDENTITY_GUARD:" + fault);
+    assert.equal(session.driver, original, "NATIVE_DRIVER_IDENTITY_PRESERVED");
+    assert.deepEqual(artifacts, []);
+  }
 });

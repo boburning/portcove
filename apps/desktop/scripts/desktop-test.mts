@@ -2040,26 +2040,16 @@ function observeNativeSession<Mode extends NativeSessionMode>(
   return readNativeSessionObservation(mode, JSON.parse(result.stdout));
 }
 
-let driverStartupSequence = 0;
 function captureBackupFocusDriverLaunch(launchStarted: number) {
-  const child = required(driver);
-  // Every launch retains a new immutable proof, including full-profile restarts
-  // and a later launch that happens to reuse an earlier PID.
-  const suffix = `-${++driverStartupSequence}-${child.pid}`;
-  const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
-  const captured = observeNativeSession("SnapshotDriver", snapshot);
-  assert.equal(captured.driver.pid, child.pid);
-  assert.equal(
-    path.resolve(captured.driver.path).toLowerCase(),
-    path.resolve(driverPath).toLowerCase(),
-  );
-  const created = Number(BigInt(captured.driver.started_filetime) / 10_000n) - 11_644_473_600_000;
-  assert.ok(
-    created >= launchStarted - 1 && created <= Date.now(),
-    "Driver creation must belong to this launch",
-  );
-  ownedSession.driver = captured.driver;
-  artifacts.push(snapshot);
+  ownedSession.captureDriverLaunch({
+    pid: required(driver).pid,
+    executable: driverPath,
+    output,
+    name: cleanupName,
+    launchStarted,
+    artifacts,
+    observe: observeNativeSession,
+  });
 }
 
 async function driverReady() {

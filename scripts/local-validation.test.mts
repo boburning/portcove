@@ -4260,3 +4260,52 @@ void test("diagnostic provider and preparation changes retain budget and observe
           assert.ok(selected.has(consumer), `${variant}/${file}/${consumer}`);
     }
 });
+
+void test("native runtime owners retain direct behavior and caller contracts on every path operation", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    "apps/desktop/scripts/desktop-owned-native-session.mts",
+    "apps/desktop/scripts/desktop-real-runtime-test.mts",
+    "apps/desktop/scripts/desktop-test.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved-native-runtime.md" : file,
+        newPath: variant === "R-old" ? "docs/moved-native-runtime.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [
+          {
+            status: change.status,
+            path: change.newPath,
+            ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
+          },
+        ],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      for (const consumer of [
+        "scripts/desktop-real-runtime.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+      ]) {
+        assert.ok(local.nodeTests.has(consumer), `${file}:${variant}:${consumer}`);
+        assert.equal(
+          hosted.filter((value) => value === consumer).length,
+          1,
+          `${file}:${variant}:${consumer}`,
+        );
+      }
+      assert.ok(!local.unknown.has(file), `${file}:${variant}`);
+    }
+});

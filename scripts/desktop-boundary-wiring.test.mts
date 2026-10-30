@@ -3238,3 +3238,589 @@ void test("recovery and rejected artwork intent use their actual serialized obse
     }
   }
 });
+
+void test("native runtime callers retain imported custody and ordinary-close wiring", async () => {
+  // These are the two changed call boundaries. Startup policy and native
+  // serialization retain their existing suites; whole-owner tests own behavior.
+  function index(code: string) {
+    const ast = parseAst(code),
+      all = [...nodes(ast)];
+    const parents = new WeakMap<object, Record<string, unknown>>();
+    for (const node of all)
+      for (const [key, value] of Object.entries(node))
+        if (key !== "loc") {
+          if (Array.isArray(value)) {
+            for (const child of value) if (isRecord(child)) parents.set(child, node);
+          } else if (isRecord(value)) parents.set(value, node);
+        }
+    const parent = (child: unknown) => (isRecord(child) ? parents.get(child) : undefined);
+    const functionNode = (node: Record<string, unknown>) =>
+      ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+        String(node.type),
+      );
+    const functions = all.filter(functionNode);
+    const owner = (node: unknown) =>
+      functions
+        .filter((fn) => range(fn).start < range(node).start && range(fn).end > range(node).end)
+        .sort((a, b) => range(a).end - range(a).start - range(b).end + range(b).start)[0];
+    const binding = (fn: Record<string, unknown>) =>
+      fn.type === "FunctionDeclaration" ? identifier(fn.id) : identifier(parent(fn)?.id);
+    const scope = (fn: Record<string, unknown>) =>
+      all
+        .filter(
+          (node) =>
+            ["Program", "BlockStatement"].includes(String(node.type)) &&
+            range(node).start <= range(fn).start &&
+            range(node).end >= range(fn).end,
+        )
+        .sort((a, b) => range(a).end - range(a).start - range(b).end + range(b).start)[0];
+    const resolve = (name: string | undefined, at: unknown) =>
+      functions
+        .filter(
+          (fn) =>
+            binding(fn) === name &&
+            scope(fn) &&
+            range(scope(fn)).start <= range(at).start &&
+            range(scope(fn)).end >= range(at).end,
+        )
+        .sort(
+          (a, b) =>
+            range(scope(a)).end -
+            range(scope(a)).start -
+            range(scope(b)).end +
+            range(scope(b)).start,
+        )[0];
+    const imports = (module: string, symbol: string) =>
+      new Set(
+        all
+          .filter((node) => node.type === "ImportDeclaration" && literal(node.source) === module)
+          .flatMap((node) =>
+            Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : [],
+          )
+          .filter((node) =>
+            symbol === "default"
+              ? node.type === "ImportDefaultSpecifier"
+              : (identifier(node.imported) ?? literal(node.imported)) === symbol,
+          )
+          .map((node) => identifier(node.local)),
+      );
+    const direct = (call: Record<string, unknown>) => {
+      const wrapper = parent(call),
+        expression = wrapper?.type === "AwaitExpression" ? parent(wrapper) : wrapper;
+      if (expression?.type !== "ExpressionStatement") return false;
+      const block = parent(expression),
+        fn = owner(call);
+      if (!block) return false;
+      if (
+        !Array.isArray(block.body) ||
+        block.body
+          .slice(0, block.body.indexOf(expression))
+          .some(
+            (node) =>
+              isRecord(node) && ["ReturnStatement", "ThrowStatement"].includes(String(node.type)),
+          )
+      )
+        return false;
+      if (block === (fn?.body ?? ast)) return true;
+      const container = parent(block);
+      return (
+        !!container &&
+        ((container.type === "TryStatement" && container.block === block) ||
+          (container.type === "ForOfStatement" && container.body === block)) &&
+        parent(container) === (fn?.body ?? ast)
+      );
+    };
+    const calls = (fn: Record<string, unknown>) =>
+      all.filter(
+        (node) =>
+          node.type === "CallExpression" &&
+          identifier(node.callee) === binding(fn) &&
+          resolve(identifier(node.callee), node) === fn &&
+          direct(node),
+      );
+    const slots = (call: Record<string, unknown>) => {
+      const input = args(call)[0];
+      assert.ok(
+        isRecord(input) && input.type === "ObjectExpression" && Array.isArray(input.properties),
+        "Runtime caller options",
+      );
+      return new Map(
+        input.properties
+          .filter(isRecord)
+          .map((node) => [identifier(node.key) ?? literal(node.key), node.value]),
+      );
+    };
+    return { ast, all, parent, owner, binding, resolve, imports, direct, calls, slots };
+  }
+  const property = (node: unknown, name: string) =>
+    isRecord(node) &&
+    node.type === "MemberExpression" &&
+    (identifier(node.property) ?? literal(node.property)) === name;
+  const same = (a: unknown, b: unknown, message: string) => {
+    assert.ok(identifier(a) && identifier(b), message);
+    assert.equal(identifier(a), identifier(b), message);
+  };
+  const driverSource = stripTypeScriptTypes(
+    await readFile(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  const closeSource = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-real-runtime-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function driver(code: string) {
+    const m = index(code),
+      classes = m.imports("./desktop-owned-native-session.mts", "OwnedNativeSession");
+    const instances = m.all.filter(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.init) &&
+        node.init.type === "NewExpression" &&
+        classes.has(identifier(node.init.callee)) &&
+        !m.owner(node),
+    );
+    assert.equal(instances.length, 1, "Construct actual native custody owner");
+    const receiver = identifier(instances[0]!.id);
+    assert.ok(receiver);
+    const calls = m.all.filter(
+      (node) =>
+        node.type === "CallExpression" &&
+        property(node.callee, "captureDriverLaunch") &&
+        isRecord(node.callee) &&
+        identifier(node.callee.object) === receiver &&
+        m.direct(node),
+    );
+    assert.equal(calls.length, 1, "Consume actual driver capture boundary");
+    const call = calls[0]!,
+      fn = m.owner(call);
+    assert.ok(fn && Array.isArray(fn.params));
+    const callers = m.calls(fn);
+    assert.equal(callers.length, 1, "Selected driver route consumes capture boundary");
+    const selected = m.owner(callers[0]!);
+    assert.ok(selected && Array.isArray(selected.params));
+    same(args(callers[0])[0], selected.params[0], "Forward selected launch timestamp");
+    const starts = m.calls(selected);
+    assert.equal(starts.length, 1, "Startup consumes selected driver capture");
+    const start = m.owner(starts[0]!);
+    assert.ok(
+      start && m.calls(start).some((node) => !m.owner(node)),
+      "Actual entrypoint consumes driver startup",
+    );
+    const slots = m.slots(call),
+      pid = slots.get("pid");
+    assert.ok(
+      property(pid, "pid") &&
+        isRecord(pid) &&
+        isRecord(pid.object) &&
+        pid.object.type === "CallExpression",
+      "Capture actual driver PID",
+    );
+    const child = identifier(args(pid.object)[0]);
+    assert.ok(child, "Capture actual driver PID");
+    const spawned = m.all.find(
+      (node) =>
+        node.type === "AssignmentExpression" &&
+        identifier(node.left) === child &&
+        isRecord(node.right) &&
+        node.right.type === "CallExpression" &&
+        m.imports("node:child_process", "spawn").has(identifier(node.right.callee)),
+    );
+    assert.ok(spawned && isRecord(spawned.right), "Capture current spawned driver");
+    same(slots.get("executable"), args(spawned.right)[0], "Capture selected executable");
+    same(slots.get("launchStarted"), fn.params[0], "Forward original launch timestamp");
+    const observer = m.resolve(identifier(slots.get("observe")), call);
+    assert.ok(observer && Array.isArray(observer.params), "Consume native observer");
+    const returns = [...nodes(observer.body)].filter(
+      (node) =>
+        node.type === "ReturnStatement" &&
+        m.parent(node) === observer.body &&
+        isRecord(node.argument) &&
+        node.argument.type === "CallExpression" &&
+        m
+          .imports("./desktop-owned-native-session.mts", "readNativeSessionObservation")
+          .has(identifier(node.argument.callee)),
+    );
+    assert.equal(returns.length, 1, "Consume parsed native observation");
+    return { m, call, slots, fn, providerReturn: returns[0]!, provider: observer };
+  }
+  function close(code: string) {
+    const m = index(code);
+    const publicBinding = (symbol: string) => {
+      for (const node of m.all.filter((node) => node.type === "ExportNamedDeclaration")) {
+        if (isRecord(node.declaration)) {
+          if (identifier(node.declaration.id) === symbol) return symbol;
+          if (
+            Array.isArray(node.declaration.declarations) &&
+            node.declaration.declarations
+              .filter(isRecord)
+              .some((item) => identifier(item.id) === symbol)
+          )
+            return symbol;
+        }
+        if (Array.isArray(node.specifiers))
+          for (const spec of node.specifiers.filter(isRecord))
+            if ((identifier(spec.exported) ?? literal(spec.exported)) === symbol)
+              return identifier(spec.local);
+      }
+      assert.fail("Public runtime operation " + symbol);
+    };
+    const helper = m.resolve(publicBinding("requestRealRuntimeClose"), m.ast);
+    assert.ok(helper);
+    const calls = m.calls(helper);
+    assert.equal(calls.length, 1, "Live runtime consumes close boundary");
+    const call = calls[0]!,
+      fn = m.owner(call);
+    assert.ok(fn && Array.isArray(fn.params));
+    const callers = m.calls(fn);
+    assert.equal(callers.length, 1, "Actual runtime routes consume launch boundary");
+    const routeOwner = m.owner(callers[0]!);
+    assert.ok(routeOwner);
+    const publicOwner = m.resolve(publicBinding("realRuntimeScenario"), m.ast);
+    assert.ok(
+      publicOwner && m.calls(routeOwner).some((node) => m.owner(node) === publicOwner),
+      "Public runtime scenario consumes routes",
+    );
+    const awaited = m.parent(call);
+    assert.ok(awaited?.type === "AwaitExpression", "Await positive close completion");
+    const statement = m.parent(awaited),
+      block = statement && m.parent(statement);
+    assert.ok(block && Array.isArray(block.body));
+    const finalizer = m.parent(block);
+    assert.ok(
+      finalizer?.type === "TryStatement" &&
+        isRecord(finalizer.finalizer) &&
+        Array.isArray(finalizer.finalizer.body),
+    );
+    const gate = finalizer.finalizer.body
+      .filter(isRecord)
+      .find(
+        (node) =>
+          node.type === "IfStatement" &&
+          isRecord(node.test) &&
+          node.test.type === "LogicalExpression" &&
+          isRecord(node.test.right) &&
+          node.test.right.type === "UnaryExpression" &&
+          node.test.right.operator === "!",
+      );
+    assert.ok(gate && isRecord(gate.test) && isRecord(gate.test.right));
+    const exit = identifier(gate.test.right.argument);
+    assert.ok(exit);
+    const completions = block.body
+      .filter(isRecord)
+      .filter(
+        (node) =>
+          node.type === "ExpressionStatement" &&
+          isRecord(node.expression) &&
+          node.expression.type === "AssignmentExpression" &&
+          identifier(node.expression.left) === exit &&
+          literal(node.expression.right) === true &&
+          range(node).start > range(call).end &&
+          m.direct(node.expression),
+      );
+    assert.equal(completions.length, 1, "Record natural exit after joined close");
+    const completed = completions[0]!.expression;
+    assert.ok(isRecord(completed));
+    const slots = m.slots(call);
+    assert.ok(
+      m.imports("node:fs/promises", "writeFile").has(identifier(slots.get("write"))),
+      "Use actual exclusive evidence writer",
+    );
+    const observerIndex = fn.params.findIndex(
+      (param) => identifier(param) === identifier(slots.get("native")),
+    );
+    assert.ok(observerIndex >= 0, "Forward actual native observer");
+    const provider = m.resolve(identifier(args(callers[0])[observerIndex]), callers[0]!);
+    assert.ok(provider, "Forward actual native observer");
+    const returns = [...nodes(provider.body)].filter(
+      (node) =>
+        node.type === "ReturnStatement" &&
+        m.parent(node) === provider.body &&
+        isRecord(node.argument) &&
+        node.argument.type === "CallExpression" &&
+        m
+          .imports("./desktop-owned-native-session.mts", "readNativeSessionObservation")
+          .has(identifier(node.argument.callee)),
+    );
+    assert.equal(returns.length, 1, "Forward parsed native observations");
+    const snapshots = m.all.filter(
+      (node) =>
+        node.type === "CallExpression" &&
+        identifier(node.callee) === identifier(slots.get("native")) &&
+        literal(args(node)[0]) === "Snapshot" &&
+        m.owner(node) === fn,
+    );
+    assert.equal(snapshots.length, 1);
+    same(slots.get("closeFile"), args(snapshots[0])[1], "Close current captured game identity");
+    const snapshotArgs = args(snapshots[0])[2];
+    assert.ok(isRecord(snapshotArgs) && Array.isArray(snapshotArgs.elements));
+    const app = snapshotArgs.elements.findIndex((node) => literal(node) === "-ApplicationPath");
+    assert.ok(app >= 0);
+    same(
+      slots.get("executable"),
+      snapshotArgs.elements[app + 1],
+      "Close current captured game executable",
+    );
+    const context = identifier(fn.params[0]),
+      item = identifier(fn.params[1]);
+    const local = (from: string | undefined, key: string) => {
+      const declaration = m.all.find(
+        (node) =>
+          node.type === "VariableDeclarator" &&
+          identifier(node.init) === from &&
+          m.owner(node) === fn &&
+          isRecord(node.id) &&
+          node.id.type === "ObjectPattern" &&
+          Array.isArray(node.id.properties) &&
+          node.id.properties
+            .filter(isRecord)
+            .some((part) => (identifier(part.key) ?? literal(part.key)) === key),
+      );
+      assert.ok(
+        declaration && isRecord(declaration.id) && Array.isArray(declaration.id.properties),
+      );
+      return declaration.id.properties
+        .filter(isRecord)
+        .find((part) => (identifier(part.key) ?? literal(part.key)) === key)?.value;
+    };
+    same(
+      slots.get("artifacts"),
+      local(context, "artifacts"),
+      "Append to current runtime report artifacts",
+    );
+    const routeIndex = fn.params.findIndex(
+      (param) => identifier(param) === identifier(slots.get("route")),
+    );
+    assert.ok(routeIndex >= 0, "Record in current runtime route");
+    const incoming = identifier(args(callers[0])[routeIndex]),
+      record = m.all.find(
+        (node) =>
+          node.type === "VariableDeclarator" &&
+          identifier(node.id) === incoming &&
+          m.owner(node) === routeOwner,
+      );
+    assert.ok(
+      record &&
+        isRecord(record.init) &&
+        record.init.type === "ObjectExpression" &&
+        Array.isArray(record.init.properties) &&
+        record.init.properties
+          .filter(isRecord)
+          .some((part) => (identifier(part.key) ?? literal(part.key)) === "port_id"),
+      "Record in current runtime route",
+    );
+    const file = slots.get("requestFile");
+    assert.ok(
+      isRecord(file) &&
+        file.type === "CallExpression" &&
+        property(file.callee, "join") &&
+        isRecord(file.callee) &&
+        m.imports("node:path", "default").has(identifier(file.callee.object)),
+      "Port-derived close request receipt",
+    );
+    same(args(file)[0], local(context, "output"), "Port-derived close request receipt");
+    const name = args(file)[1];
+    assert.ok(
+      isRecord(name) &&
+        name.type === "TemplateLiteral" &&
+        Array.isArray(name.quasis) &&
+        Array.isArray(name.expressions),
+      "Port-derived close request receipt",
+    );
+    assert.deepEqual(
+      name.quasis
+        .filter(isRecord)
+        .map((part) => (isRecord(part.value) ? part.value.cooked : undefined)),
+      ["", "-ordinary-close-request.json"],
+      "Port-derived close request receipt",
+    );
+    const id: unknown = name.expressions[0];
+    assert.ok(
+      name.expressions.length === 1 && property(id, "id") && isRecord(id),
+      "Port-derived close request receipt",
+    );
+    same(id.object, local(item, "port"), "Port-derived close request receipt");
+    return { m, call, slots, fn, completed, providerReturn: returns[0]!, provider };
+  }
+  const d = driver(driverSource),
+    c = close(closeSource);
+  for (const [source, check, fn] of [
+    [driverSource, driver, d.fn],
+    [closeSource, close, c.fn],
+  ] as const) {
+    check(source.replaceAll("\n", "\r\n\n"));
+    const name = (source === driverSource ? d.m : c.m).binding(fn);
+    assert.ok(name);
+    const changed = source.replaceAll(name, "$renamedRuntimeBoundary");
+    check(changed);
+    if (fn.type === "FunctionDeclaration") {
+      assert.ok(Array.isArray(fn.params));
+      const body = range(fn.body);
+      check(
+        edit(source, [
+          {
+            ...range(fn),
+            text: `const ${name} = ${fn.async ? "async " : ""}(${fn.params.map((param) => source.slice(range(param).start, range(param).end)).join(",")}) => ${source.slice(body.start, body.end)};`,
+          },
+        ]),
+      );
+    }
+    if (fn.type === "FunctionDeclaration")
+      check(
+        edit(source, [{ ...range(fn), text: "" }]) +
+          "\n" +
+          source.slice(range(fn).start, range(fn).end),
+      );
+  }
+  driver(
+    'import {OwnedNativeSession as $extraAlias} from "./desktop-owned-native-session.mts";\n' +
+      driverSource,
+  );
+  close(
+    edit(closeSource, [
+      {
+        start: range(c.completed).start,
+        end: range(c.completed).start,
+        text: "const $harmlessIntermediate = 1;\n",
+      },
+    ]),
+  );
+  const reject = (
+    source: string,
+    check: (code: string) => unknown,
+    node: unknown,
+    text: string,
+    oracle: RegExp,
+  ) => {
+    const property = (source === driverSource ? d.m : c.m).parent(node);
+    const change =
+      property?.type === "Property" && property.shorthand === true && property.value === node
+        ? {
+            ...range(property),
+            text: JSON.stringify(identifier(property.key) ?? literal(property.key)) + ": " + text,
+          }
+        : { ...range(node), text };
+    const changed = edit(source, [change]);
+    parseAst(changed);
+    assert.throws(
+      () => check(changed),
+      (error) => error instanceof assert.AssertionError && oracle.test(error.message),
+      "Expected wiring oracle " + oracle,
+    );
+  };
+  assert.ok(isRecord(d.call.callee));
+  reject(
+    driverSource,
+    driver,
+    d.call.callee.object,
+    "foreignSession",
+    /Consume actual driver capture boundary/u,
+  );
+  reject(driverSource, driver, d.slots.get("pid"), "42", /Capture actual driver PID/u);
+  reject(
+    driverSource,
+    driver,
+    d.slots.get("executable"),
+    "foreignExecutable",
+    /Capture selected executable/u,
+  );
+  reject(
+    driverSource,
+    driver,
+    d.slots.get("observe"),
+    "foreignObserver",
+    /Consume native observer/u,
+  );
+  reject(
+    driverSource,
+    driver,
+    d.slots.get("launchStarted"),
+    "Date.now()",
+    /Forward original launch timestamp/u,
+  );
+  reject(
+    driverSource,
+    driver,
+    d.call,
+    `false && (${driverSource.slice(range(d.call).start, range(d.call).end)})`,
+    /Consume actual driver capture boundary/u,
+  );
+  reject(
+    closeSource,
+    close,
+    c.call.callee,
+    "foreignClose",
+    /Live runtime consumes close boundary/u,
+  );
+  for (const [key, oracle] of [
+    ["write", /Use actual exclusive evidence writer/u],
+    ["native", /Forward actual native observer/u],
+    ["closeFile", /Close current captured game identity/u],
+    ["executable", /Close current captured game executable/u],
+    ["requestFile", /Port-derived close request receipt/u],
+    ["route", /Record in current runtime route/u],
+    ["artifacts", /Append to current runtime report artifacts/u],
+  ] as const)
+    reject(closeSource, close, c.slots.get(key), "foreignInput", oracle);
+  const awaited = c.m.parent(c.call);
+  assert.ok(awaited);
+  reject(
+    closeSource,
+    close,
+    awaited,
+    closeSource.slice(range(c.call).start, range(c.call).end),
+    /Await positive close completion/u,
+  );
+  reject(
+    closeSource,
+    close,
+    c.completed,
+    `false && (${closeSource.slice(range(c.completed).start, range(c.completed).end)})`,
+    /Record natural exit after joined close/u,
+  );
+  reject(
+    closeSource,
+    close,
+    c.completed.left,
+    "unrelatedCompletionFlag",
+    /Record natural exit after joined close/u,
+  );
+  for (const [source, check, result, oracle] of [
+    [driverSource, driver, d.providerReturn, /Consume parsed native observation/u],
+    [closeSource, close, c.providerReturn, /Forward parsed native observations/u],
+  ] as const) {
+    const original = source.slice(range(result).start, range(result).end);
+    reject(source, check, result, `function unusedNativeReturn(){${original}} return {};`, oracle);
+    const call = check === driver ? d.call : c.call,
+      m = check === driver ? d.m : c.m;
+    const expression =
+      m.parent(call)?.type === "AwaitExpression" ? m.parent(m.parent(call)!) : m.parent(call);
+    assert.ok(expression);
+    for (const termination of ["return;", "throw new Error('controlled early exit');"])
+      reject(
+        source,
+        check,
+        expression,
+        termination + source.slice(range(expression).start, range(expression).end),
+        check === driver
+          ? /Consume actual driver capture boundary/u
+          : /Live runtime consumes close boundary/u,
+      );
+  }
+  for (const [source, check, call] of [
+    [driverSource, driver, d.call],
+    [closeSource, close, c.call],
+  ] as const) {
+    const changed =
+      edit(source, [{ ...range(call), text: "foreignOperation()" }]) +
+      `\nasync function unusedBoundaryDecoy(){await ${source.slice(range(call).start, range(call).end)};}`;
+    parseAst(changed);
+    assert.throws(() => check(changed), {
+      code: "ERR_ASSERTION",
+      message:
+        /Selected driver route consumes capture boundary|Actual runtime routes consume launch boundary/u,
+    });
+  }
+});
