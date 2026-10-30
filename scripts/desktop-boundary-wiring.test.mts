@@ -434,16 +434,49 @@ void test("installed update entrypoints consume their imported observation owner
           assert.ok(Array.isArray(node.specifiers));
           return node.specifiers.filter(isRecord);
         });
+      const parents = new WeakMap<object, Record<string, unknown>>();
+      for (const node of syntax)
+        for (const [key, value] of Object.entries(node))
+          if (key !== "loc") {
+            if (Array.isArray(value)) {
+              for (const child of value) if (isRecord(child)) parents.set(child, node);
+            } else if (isRecord(value)) parents.set(value, node);
+          }
+      const parent = (value: unknown) => (isRecord(value) ? parents.get(value) : undefined);
+      const ancestor = (value: unknown, type: string) => {
+        let cursor = parent(value);
+        while (cursor) {
+          if (cursor.type === type) return cursor;
+          cursor = parent(cursor);
+        }
+        return undefined;
+      };
+      const restart = syntax.find(
+        (node) =>
+          node.type === "AssignmentExpression" &&
+          isRecord(node.right) &&
+          node.right.type === "CallExpression" &&
+          isRecord(node.right.callee) &&
+          identifier(node.right.callee.property) === "toISOString" &&
+          isRecord(node.right.callee.object) &&
+          node.right.callee.object.type === "NewExpression" &&
+          identifier(node.right.callee.object.callee) === "Date",
+      );
+      const restartName = identifier(restart?.left);
       const owners = policy.exports.map((name) => {
-        const imported = specifiers.find(
+        const matching = specifiers.filter(
           (node) => (identifier(node.imported) ?? literal(node.imported)) === name,
         );
-        assert.ok(imported, "Import installed observation owner " + name);
-        const alias = identifier(imported.local);
-        assert.ok(alias);
+        assert.ok(matching.length, "Import installed observation owner " + name);
+        const aliases = new Set(matching.map((node) => identifier(node.local)));
         const calls = syntax.filter(
-          (node) => node.type === "CallExpression" && identifier(node.callee) === alias,
+          (node) => node.type === "CallExpression" && aliases.has(identifier(node.callee)),
         );
+        const imported =
+          matching.find((node) =>
+            calls.some((call) => identifier(call.callee) === identifier(node.local)),
+          ) ?? matching[0];
+        assert.ok(imported);
         assert.ok(calls.length > 0, "Consume imported installed observation owner " + name);
         return { name, imported, calls };
       });
@@ -479,6 +512,47 @@ void test("installed update entrypoints consume their imported observation owner
           ),
           "Installed operation cannot be conditionally disconnected",
         );
+        let child: Record<string, unknown> = call;
+        for (let node = parent(child); node; node = parent(child)) {
+          if (node.type === "IfStatement")
+            assert.ok(
+              restartName && identifier(node.test) === restartName && node.consequent === child,
+              "Installed operation cannot be conditionally disconnected",
+            );
+          assert.ok(
+            ![
+              "ConditionalExpression",
+              "WhileStatement",
+              "DoWhileStatement",
+              "ForStatement",
+              "CatchClause",
+            ].includes(String(node.type)),
+            "Installed operation cannot be conditionally disconnected",
+          );
+          if (
+            ["BlockStatement", "Program"].includes(String(node.type)) &&
+            Array.isArray(node.body)
+          ) {
+            const position = node.body.indexOf(child);
+            assert.ok(position >= 0);
+            assert.ok(
+              !node.body
+                .slice(0, position)
+                .some(
+                  (previous) =>
+                    isRecord(previous) &&
+                    [
+                      "ThrowStatement",
+                      "ReturnStatement",
+                      "BreakStatement",
+                      "ContinueStatement",
+                    ].includes(String(previous.type)),
+                ),
+              "Installed operation cannot follow unconditional exit",
+            );
+          }
+          child = node;
+        }
         if (owner.name === "cleanupWindowsUpdateMarkedProcess") {
           assert.ok(
             syntax.some(
@@ -515,16 +589,73 @@ void test("installed update entrypoints consume their imported observation owner
               "Forward owned " + field,
             );
           }
-          const read = specifiers.find((node) => identifier(node.imported) === "readJson");
-          assert.ok(read);
-          assert.equal(
-            identifier(slots.get("readJson")),
-            identifier(read.local),
+          const reads = specifiers.filter((node) => identifier(node.imported) === "readJson");
+          assert.ok(
+            identifier(slots.get("readJson")) &&
+              reads.some((node) => identifier(node.local) === identifier(slots.get("readJson"))),
             "Forward imported marker reader",
           );
+          const loop = ancestor(call, "ForOfStatement");
+          assert.ok(loop && isRecord(loop.left) && Array.isArray(loop.left.declarations));
+          const declaration: unknown = loop.left.declarations[0];
+          assert.ok(
+            isRecord(declaration) &&
+              isRecord(declaration.id) &&
+              declaration.id.type === "ArrayPattern" &&
+              Array.isArray(declaration.id.elements),
+          );
+          assert.equal(
+            identifier(slots.get("label")),
+            identifier(declaration.id.elements[0]),
+            "Forward owned label",
+          );
+          assert.equal(
+            identifier(slots.get("markerPath")),
+            identifier(declaration.id.elements[1]),
+            "Forward owned markerPath",
+          );
+          assert.ok(restartName, "Original restart assignment");
+          assert.equal(
+            identifier(slots.get("restartStarted")),
+            restartName,
+            "Forward owned restartStarted",
+          );
+          assert.ok(
+            isRecord(loop.right) &&
+              loop.right.type === "ArrayExpression" &&
+              Array.isArray(loop.right.elements),
+          );
+          assert.equal(loop.right.elements.length, 2, "Complete cleanup marker routes");
+          for (const [label, option] of [
+            ["candidate", "relaunch-process-marker"],
+            ["helper", "helper-process-marker"],
+          ]) {
+            const entry: Record<string, unknown> | undefined = loop.right.elements
+              .filter(isRecord)
+              .find((node) => Array.isArray(node.elements) && literal(node.elements[0]) === label);
+            assert.ok(entry && Array.isArray(entry.elements), "Complete cleanup marker routes");
+            const binding = syntax.find(
+              (node) =>
+                node.type === "VariableDeclarator" &&
+                isRecord(node.init) &&
+                node.init.type === "CallExpression" &&
+                literal(args(node.init)[0]) === option,
+            );
+            assert.ok(binding, "Owned marker option");
+            assert.equal(
+              identifier(entry.elements[1]),
+              identifier(binding.id),
+              "Complete cleanup marker routes",
+            );
+          }
           const provider = syntax.find(
             (node) =>
-              node.type === "FunctionDeclaration" &&
+              (node.type === "FunctionDeclaration" ||
+                (node.type === "VariableDeclarator" &&
+                  isRecord(node.init) &&
+                  ["ArrowFunctionExpression", "FunctionExpression"].includes(
+                    String(node.init.type),
+                  ))) &&
               identifier(node.id) === identifier(slots.get("command")),
           );
           assert.ok(provider, "Forward actual process provider");
@@ -543,15 +674,17 @@ void test("installed update entrypoints consume their imported observation owner
       }
       const hook = owners.find((entry) => entry.name === "installWindowsUpdateRestartHook");
       if (hook) {
-        const connect = specifiers.find(
-          (node) => identifier(node.imported) === "connectInstalledUpdateDriver",
+        const connections = new Set(
+          specifiers
+            .filter((node) => identifier(node.imported) === "connectInstalledUpdateDriver")
+            .map((node) => identifier(node.local)),
         );
-        assert.ok(connect);
+        assert.ok(connections.size);
         const assignments = syntax.filter(
           (node) =>
             node.type === "AssignmentExpression" &&
             isRecord(node.right) &&
-            identifier(awaited(node.right)?.callee) === identifier(connect.local),
+            connections.has(identifier(awaited(node.right)?.callee)),
         );
         assert.ok(assignments.length > 0, "Connected browser assignment");
         assert.equal(args(hook.calls[0]).length, 1, "Pass connected browser");
@@ -571,6 +704,12 @@ void test("installed update entrypoints consume their imported observation owner
       ]);
       route(aliased);
       route(
+        "import {" +
+          JSON.stringify(owner.name) +
+          ' as $unusedOwner,readJson as $unusedMarkerReader,connectInstalledUpdateDriver as $unusedConnection} from "./desktop-installed-update-harness.mts";\n' +
+          aliased,
+      );
+      route(
         'import {hashFile as unusedHash} from "./desktop-installed-update-harness.mts";\n' +
           aliased,
       );
@@ -582,6 +721,25 @@ void test("installed update entrypoints consume their imported observation owner
         const call = owner.calls[0];
         assert.ok(call);
         const original = source.slice(range(call).start, range(call).end);
+        const all = [...nodes(parseAst(source))];
+        const statement = all
+          .filter(
+            (node) =>
+              ["ExpressionStatement", "VariableDeclaration"].includes(String(node.type)) &&
+              range(node).start <= range(call).start &&
+              range(node).end >= range(call).end,
+          )
+          .sort((a, b) => range(a).end - range(a).start - range(b).end + range(b).start)[0];
+        assert.ok(statement);
+        const statementText = source.slice(range(statement).start, range(statement).end);
+        for (const text of [
+          "if(false){" + statementText + "}",
+          'throw new Error("unconditional fixture exit");' + statementText,
+        ]) {
+          const dead = edit(source, [{ ...range(statement), text }]);
+          parseAst(dead);
+          assert.throws(() => route(dead), /conditionally disconnected|follow unconditional exit/);
+        }
         const disconnected = edit(source, [
           { ...range(call), text: "false && (" + original + ")" },
         ]);
@@ -605,7 +763,16 @@ void test("installed update entrypoints consume their imported observation owner
         if (owner.name === "cleanupWindowsUpdateMarkedProcess") {
           const options = args(call)[0];
           assert.ok(isRecord(options) && Array.isArray(options.properties));
-          for (const field of ["app", "staging", "output", "readJson", "command"]) {
+          for (const field of [
+            "app",
+            "staging",
+            "output",
+            "readJson",
+            "command",
+            "markerPath",
+            "label",
+            "restartStarted",
+          ]) {
             const property = options.properties
               .filter(isRecord)
               .find((node) => identifier(node.key) === field);
@@ -629,6 +796,26 @@ void test("installed update entrypoints consume their imported observation owner
             ),
           );
           route(source.replaceAll("absoluteOption", "$ownedAbsoluteOption"));
+          const provider = [...nodes(parseAst(source))].find(
+            (node) =>
+              node.type === "FunctionDeclaration" && identifier(node.id) === "markedProcessCommand",
+          );
+          assert.ok(provider && Array.isArray(provider.params) && isRecord(provider.body));
+          route(
+            edit(source, [
+              {
+                ...range(provider),
+                text:
+                  "const markedProcessCommand = (" +
+                  provider.params
+                    .map((parameter) => source.slice(range(parameter).start, range(parameter).end))
+                    .join(",") +
+                  ") => " +
+                  source.slice(range(provider.body).start, range(provider.body).end) +
+                  ";",
+              },
+            ]),
+          );
         }
       }
       const bypass = edit(
