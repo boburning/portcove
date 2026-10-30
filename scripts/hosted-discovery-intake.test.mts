@@ -381,9 +381,9 @@ function fixture(candidates = [candidate]) {
   };
 }
 
-async function partialFixture() {
+async function partialFixture(count = 3, stopIndex = count - 1) {
   const f = fixture(
-    Array.from({ length: 3 }, (_, i) => ({
+    Array.from({ length: count }, (_, i) => ({
       ...candidate,
       title: `Recovery game ${i}`,
       game: `Recovery game ${i}`,
@@ -402,11 +402,12 @@ async function partialFixture() {
           }
         ).delivery
       : [];
-    if (d[2]?.status === "create-attempted") throw new Error("Unstarted preflight exhausted");
+    if (d[stopIndex]?.status === "create-attempted")
+      throw new Error("Unstarted preflight exhausted");
     return inventory(cache, full);
   };
   await assert.rejects(f.bridge.process(f.request, f.all()), /Unstarted preflight/u);
-  assert.equal(f.creations, 2);
+  assert.equal(f.creations, stopIndex);
   f.bridge.inventory = inventory;
   return f;
 }
@@ -880,4 +881,215 @@ void test("denied hosted Project write access prevents issue creation", async ()
   f.deny();
   await assert.rejects(f.bridge.process(f.request, f.all()), /denied/u);
   assert.equal(f.creations, 0);
+});
+
+async function reconciliationFixture(count = 3, stopIndex = count - 1, ambiguous = false) {
+  const f = await partialFixture(count, stopIndex);
+  const sourceBody = f.request.body;
+  const receipt = [...f.comments.values()].find((c) =>
+    c.body.startsWith("<!-- portcove-hosted-intake-receipt:100 -->"),
+  )!;
+  const data = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    plan_sha256: string;
+    delivery: { status: string }[];
+  };
+  if (ambiguous) {
+    data.delivery[stopIndex]!.status = "create-attempted";
+    receipt.body = receipt.body.replace(
+      /```json\n[\s\S]+\n```$/u,
+      `\`\`\`json\n${JSON.stringify(data)}\n\`\`\``,
+    );
+  }
+  const sourceReceiptBody = receipt.body;
+  const proposal = {
+    ...parseHostedRequest(sourceBody),
+    reconcile: {
+      request_comment: 100,
+      request_sha256: observationHash(sourceBody),
+      receipt_comment: receipt.id,
+      receipt_sha256: observationHash(receipt.body),
+      plan_sha256: data.plan_sha256,
+    },
+  };
+  f.request.body = `Withdrawn for a full-batch owner reconciliation. Original retained verbatim.\n\n${sourceBody}`;
+  const successor = { ...f.request, id: 101, body: encode(proposal) };
+  f.comments.set(successor.id, successor);
+  f.changePrimary();
+  return Object.assign(f, {
+    successor,
+    proposal,
+    sourceBody,
+    sourceReceiptBody,
+    sourceReceipt: receipt,
+  });
+}
+void test("owner reconciliation preserves six owners and ambiguous intent, then recovers an exact seventh marker", async () => {
+  const f = await reconciliationFixture(10, 6, true);
+  const before = f.issues.map((i) => structuredClone(i));
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /Ambiguous issue POST/u);
+  assert.equal(f.creations, 6);
+  assert.equal(
+    f.sourceReceipt.body,
+    f.sourceReceiptBody,
+    "historical bot receipt is never modified",
+  );
+  assert.deepEqual(f.issues, before);
+  const c = f.proposal.candidates[6]!;
+  f.issues.push({
+    ...before[0]!,
+    id: "I206",
+    node_id: "I206",
+    number: 206,
+    title: `[Port] ${c.title}`,
+    body: hostedBody(c, 100),
+    url: "https://github.com/boburning/portcove/issues/206",
+    html_url: "https://github.com/boburning/portcove/issues/206",
+  });
+  const result = await f.bridge.process(f.successor, f.all());
+  assert.equal(result?.status, "complete");
+  assert.equal(result.body_request_comment, 100);
+  assert.equal(f.creations, 9);
+  assert.equal(f.issues.length, 10);
+  assert.deepEqual(
+    result.delivery.slice(0, 7).map((d) => d.created_issue),
+    [200, 201, 202, 203, 204, 205, 206],
+  );
+  for (const [i, d] of result.delivery.entries()) {
+    assert.equal(d.status, "delivered");
+    assert.deepEqual(d.fields, portFieldInitialization(null));
+    assert.equal(f.issues[i]!.body, hostedBody(f.proposal.candidates[i]!, 100));
+    assert.equal((d.doctor as { status: string }).status, "passed");
+  }
+  assert.equal((await f.bridge.process(f.successor, f.all()))?.status, "complete");
+  assert.equal(f.creations, 9);
+  assert.equal(f.sourceReceipt.body, f.sourceReceiptBody);
+});
+void test("reconciliation refuses changed lineage, active sources and incomplete ordered body coverage", async (t) => {
+  for (const change of [
+    "request hash",
+    "receipt hash",
+    "plan hash",
+    "active",
+    "author",
+    "drop",
+    "reorder",
+    "revise body",
+    "source changed",
+    "receipt changed",
+    "duplicate receipt",
+  ]) {
+    await t.test(change, async () => {
+      const f = await reconciliationFixture();
+      if (change === "request hash") f.proposal.reconcile.request_sha256 = "0".repeat(64);
+      if (change === "receipt hash") f.proposal.reconcile.receipt_sha256 = "0".repeat(64);
+      if (change === "plan hash") f.proposal.reconcile.plan_sha256 = "0".repeat(64);
+      if (change === "active") f.request.body = f.sourceBody;
+      if (change === "author") f.request.user.login = "stranger";
+      if (change === "drop") f.proposal.candidates.pop();
+      if (change === "reorder") f.proposal.candidates.reverse();
+      if (change === "revise body") f.proposal.candidates[0]!.evidence += " revised";
+      if (change === "source changed") f.request.body += "\nchanged";
+      if (change === "receipt changed") f.sourceReceipt.body += "\nchanged";
+      if (change === "duplicate receipt") f.comments.set(998, { ...f.sourceReceipt, id: 998 });
+      f.successor.body = encode(f.proposal);
+      const before = f.creations,
+        writes = f.writes;
+      await assert.rejects(f.bridge.process(f.successor, f.all()));
+      assert.equal(f.creations, before);
+      assert.equal(f.writes, writes);
+    });
+  }
+});
+void test("reconciliation preserves owner bodies, duplicate marker holds and the original full doctor boundary", async (t) => {
+  await t.test("owner revised canonical body", async () => {
+    const f = await reconciliationFixture();
+    f.issues[0]!.body += "\nOwner revision";
+    await assert.rejects(f.bridge.process(f.successor, f.all()), /Created issue was revised/u);
+    assert.equal(f.creations, 2);
+    assert.equal(f.normalizations, 0);
+  });
+  await t.test("duplicate original marker", async () => {
+    const f = await reconciliationFixture();
+    f.issues[1]!.body = f.issues[0]!.body;
+    await assert.rejects(f.bridge.process(f.successor, f.all()), /Ambiguous created issue marker/u);
+    assert.equal(f.creations, 2);
+  });
+  await t.test("eleven remain one logical batch", async () => {
+    const f = await reconciliationFixture(11, 1);
+    const inventory = f.bridge.inventory.bind(f.bridge);
+    let requiredGlobal = false;
+    f.bridge.inventory = (cache, full) => {
+      if (full) {
+        requiredGlobal = true;
+        throw new Error("Required full doctor input is unavailable");
+      }
+      return inventory(cache, full);
+    };
+    await assert.rejects(f.bridge.process(f.successor, f.all()), /Required full doctor input/u);
+    assert.equal(requiredGlobal, true);
+    assert.equal(f.creations, 11);
+    const comment = f
+      .all()
+      .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:101 -->"))!;
+    const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+      status: string;
+      delivery: { status: string }[];
+    };
+    assert.equal(receipt.status, "incomplete");
+    assert.equal(receipt.delivery.length, 11);
+    assert(receipt.delivery.every((d: { status: string }) => d.status === "delivered"));
+    assert.equal(f.sourceReceipt.body, f.sourceReceiptBody);
+  });
+});
+void test("source preimage is checked during successor delivery before a pending capture", async () => {
+  const f = await reconciliationFixture();
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let observations = 0;
+  f.bridge.inventory = (cache, full) => {
+    const result = inventory(cache, full);
+    if (++observations === 2) f.sourceReceipt.body += "\nConcurrent edit";
+    return result;
+  };
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /preimage changed/u);
+  assert.equal(f.creations, 2);
+  assert.equal(f.issues.length, 2);
+});
+void test("a second explicit reconciliation preserves the original marker and the uncertain state", async () => {
+  const f = await reconciliationFixture(3, 2, true);
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /Ambiguous issue POST/u);
+  const source = f.successor,
+    original = source.body;
+  const receipt = f
+    .all()
+    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:101 -->"))!;
+  const prior = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    plan_sha256: string;
+  };
+  source.body = `Withdrawn, exact original retained.\n\n${original}`;
+  const next = {
+    ...source,
+    id: 102,
+    body: encode({
+      ...parseHostedRequest(original),
+      reconcile: {
+        request_comment: 101,
+        request_sha256: observationHash(original),
+        receipt_comment: receipt.id,
+        receipt_sha256: observationHash(receipt.body),
+        plan_sha256: prior.plan_sha256,
+      },
+    }),
+  };
+  f.comments.set(102, next);
+  await assert.rejects(f.bridge.process(next, f.all()), /Ambiguous issue POST/u);
+  assert.equal(f.creations, 2);
+  const result = f
+    .all()
+    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:102 -->"))!;
+  const data = JSON.parse(result.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    body_request_comment: number;
+    delivery: { status: string }[];
+  };
+  assert.equal(data.body_request_comment, 100);
+  assert.equal(data.delivery[2]!.status, "create-attempted");
 });

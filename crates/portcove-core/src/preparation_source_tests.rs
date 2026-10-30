@@ -1145,7 +1145,46 @@ async fn native6_late_canonical_data_holds_publication_and_already_renamed_recov
     }
 }
 
+fn assert_unknown_canonical_data_holds_activation(
+    fixture: &Fixture,
+    staged: &InstallRecord,
+    canonical: &std::path::Path,
+    bytes: &[u8],
+) {
+    let before = crate::library_transfer::reviewed_tree(&staged.path).unwrap();
+    assert!(
+        fixture
+            .service
+            .status(NATIVE_PORT)
+            .unwrap()
+            .active
+            .is_none()
+    );
+    let error = fixture.service.activate_staged(NATIVE_PORT).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        error.presentation().presentation_key,
+        "portable_data_contract_changed"
+    );
+    assert_eq!(
+        error.details.get("path"),
+        Some(&canonical.parent().unwrap().display().to_string())
+    );
+    let status = fixture.service.status(NATIVE_PORT).unwrap();
+    assert!(status.active.is_none());
+    assert_eq!(status.staged.unwrap().id, staged.id);
+    assert_eq!(fs::read(canonical).unwrap(), bytes);
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&staged.path).unwrap(),
+        before
+    );
+}
+
+// The profile namespace is Windows temporary data in this fixture. Unix's
+// ordinary persistence route is native6_late_ordinary_profile_data_restores_on_unix;
+// native6_late_canonical_originals_hold_staged_activation refuses on every host.
 #[tokio::test]
+#[cfg(windows)]
 async fn native6_late_no_active_profile_data_holds_staged_activation() {
     let fixture = Fixture::native(false, true);
     let staged = fixture
@@ -1163,11 +1202,74 @@ async fn native6_late_no_active_profile_data_holds_staged_activation() {
         .join("profile/settings.ini");
     fs::create_dir_all(canonical.parent().unwrap()).unwrap();
     fs::write(&canonical, b"preserved unknown profile").unwrap();
-    assert!(fixture.service.activate_staged(NATIVE_PORT).is_err());
+    assert_unknown_canonical_data_holds_activation(
+        &fixture,
+        &staged,
+        &canonical,
+        b"preserved unknown profile",
+    );
+}
+
+#[tokio::test]
+async fn native6_late_canonical_originals_hold_staged_activation() {
+    let fixture = Fixture::native(false, true);
+    let staged = fixture
+        .install_mode(
+            true,
+            false,
+            std::sync::Arc::new(crate::operation::NoLifecycleFaults),
+        )
+        .await
+        .unwrap();
+    let canonical = fixture
+        .service
+        .library()
+        .user_dir(NATIVE_PORT)
+        .join("originals/unproven.bin");
+    fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+    fs::write(&canonical, b"preserved unknown original").unwrap();
+    assert_unknown_canonical_data_holds_activation(
+        &fixture,
+        &staged,
+        &canonical,
+        b"preserved unknown original",
+    );
+}
+
+// Ordinary Unix profile restoration is distinct from the Windows temporary-data
+// refusal in native6_late_no_active_profile_data_holds_staged_activation.
+// Both routes retain native6_late_canonical_originals_hold_staged_activation.
+#[tokio::test]
+#[cfg(not(windows))]
+async fn native6_late_ordinary_profile_data_restores_on_unix() {
+    let fixture = Fixture::native(false, true);
+    let staged = fixture
+        .install_mode(
+            true,
+            false,
+            std::sync::Arc::new(crate::operation::NoLifecycleFaults),
+        )
+        .await
+        .unwrap();
+    let canonical = fixture
+        .service
+        .library()
+        .user_dir(NATIVE_PORT)
+        .join("profile/settings.ini");
+    fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+    fs::write(&canonical, b"preserved ordinary profile").unwrap();
+    let active = fixture.service.activate_staged(NATIVE_PORT).unwrap();
+    assert_eq!(active.id, staged.id);
     let status = fixture.service.status(NATIVE_PORT).unwrap();
-    assert!(status.active.is_none());
-    assert_eq!(status.staged.unwrap().id, staged.id);
-    assert_eq!(fs::read(canonical).unwrap(), b"preserved unknown profile");
+    assert_eq!(status.active.unwrap().id, staged.id);
+    assert!(status.staged.is_none());
+    assert_eq!(fs::read(canonical).unwrap(), b"preserved ordinary profile");
+    assert_eq!(
+        fs::read(staged.path.join("publisher/profile/settings.ini")).unwrap(),
+        b"preserved ordinary profile"
+    );
+    crate::source_inspection::verify_registered(fixture.service.catalog(), &fixture.source)
+        .unwrap();
 }
 
 #[tokio::test]

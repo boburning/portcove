@@ -80,7 +80,18 @@
       "file": "crates/portcove-core/src/runtime_path_policy.rs",
       "kind": "The reviewed Native5 test literal remains denied in its production path-policy owner",
       "values": [],
-      "denied_values": ["C:\\Games"]
+      "denied_values": ["C:\\Games", "C:\\Games with spaces"]
+    },
+    {
+      "file": "crates/portcove-core/src/runtime_path_policy_tests.rs",
+      "kind": "Exact Windows spaces path in dedicated test-only policy fixture; production and neighboring values remain denied",
+      "values": ["C:\\Games with spaces"],
+      "denied_values": ["C:\\Games with spacesunreviewed"],
+      "source": "dff0f94f3a3a3ced08e6824d823abe6e51662a1c",
+      "observed_run": 41048131025,
+      "observed_attempt": 1,
+      "observed_job": 124037299782,
+      "observed_blocking_findings": 2
     }
   ],
   "global_inheritance_control": {
