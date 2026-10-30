@@ -590,6 +590,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsSuccessorMoveFilter =
+    "package(portcove-core) & test(/^library_move::tests::admitted_post_client_definition_survives_interrupted_move_resume$/)";
+  assert.deepEqual(overrideFor(windowsSuccessorMoveFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsSuccessorMoveFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsPublishedMoveFilter =
     "package(portcove-core) & (test(/^library_move::sequence_tests::published_abort_resume$/) | test(/^library_move::sequence_tests::published_resume_resume$/))";
   const windowsObservedRecoveryBudgets = [
@@ -640,6 +648,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSuccessorMoveFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRetainedQueryAndResumeFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       ...intelRetainedContractBudgets.map(({ filter }) => ({
