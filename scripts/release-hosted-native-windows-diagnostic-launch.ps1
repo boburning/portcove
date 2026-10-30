@@ -48,10 +48,10 @@ function Resolve-OriginalBootstrapNode {
 # Resolve the original provider runtime ONLY during ordinary pre-private Prepare.
 $nodeCommand=Get-Command node -CommandType Application -ErrorAction Stop | Select-Object -First 1
 $node=$nodeCommand.Source
-if($node -isnot [string] -or -not [IO.Path]::IsPathFullyQualified($node) -or [IO.Path]::GetFileName($node) -cne 'node.exe'){throw 'Fixed existing Node24.22.1 runtime required'}
+if($node -isnot [string] -or -not [IO.Path]::IsPathFullyQualified($node) -or [IO.Path]::GetFileName($node) -cne 'node.exe'){throw 'Fixed existing pinned Node runtime required'}
 $nodeItem=Get-Item -LiteralPath $node -Force
 if($nodeItem.PSIsContainer -or ($nodeItem.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Original regular Node executable required'}
-if((& $node --version|Out-String).Trim() -cne 'v24.22.1' -or $LASTEXITCODE -ne 0){throw 'Fixed existing Node24.22.1 runtime required'}
+if((& $node --version|Out-String).Trim() -cne 'v24.22.2' -or $LASTEXITCODE -ne 0){throw 'Fixed existing pinned Node runtime required'}
     return $node
 }
 $workspace=$env:GITHUB_WORKSPACE

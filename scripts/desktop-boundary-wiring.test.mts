@@ -3694,7 +3694,15 @@ void test("native runtime callers retain imported custody and ordinary-close wir
     text: string,
     oracle: RegExp,
   ) => {
-    const changed = edit(source, [{ ...range(node), text }]);
+    const property = (source === driverSource ? d.m : c.m).parent(node);
+    const change =
+      property?.type === "Property" && property.shorthand === true && property.value === node
+        ? {
+            ...range(property),
+            text: JSON.stringify(identifier(property.key) ?? literal(property.key)) + ": " + text,
+          }
+        : { ...range(node), text };
+    const changed = edit(source, [change]);
     parseAst(changed);
     assert.throws(
       () => check(changed),
