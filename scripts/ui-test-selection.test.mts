@@ -637,3 +637,81 @@ void test(
     assert.equal(changed.receipt.complete, false);
   },
 );
+
+void test("frontend coverage resolves catalog pins and refuses mismatched providers before execution", async (t) => {
+  const root = coverageFixture(t);
+  const metadata = (file: string, value: unknown) => {
+    const filename = path.join(root, file);
+    mkdirSync(path.dirname(filename), { recursive: true });
+    writeFileSync(filename, JSON.stringify(value));
+  };
+  const install = (declaration: string, catalog: unknown, provider = "5.0.5", runner = "5.0.5") => {
+    metadata("package.json", {
+      type: "module",
+      devDependencies: { "@vitest/coverage-v8": declaration },
+    });
+    metadata("pnpm-workspace.yaml", { catalog });
+    metadata("node_modules/@vitest/coverage-v8/package.json", {
+      name: "@vitest/coverage-v8",
+      version: provider,
+    });
+    metadata("node_modules/vitest/package.json", { name: "vitest", version: runner });
+    metadata("node_modules/vite-plus/package.json", {
+      name: "vite-plus",
+      exports: { "./test/node": "./node.mjs" },
+    });
+    writeFileSync(path.join(root, "node_modules/vite-plus/node.mjs"), "export {};\n");
+  };
+  install("catalog:", { "@vitest/coverage-v8": "5.0.5" });
+  coverageGit(root);
+  for (const selectedMode of ["frontend-unit", "frontend-browser"] as const) {
+    const request = parseCoverageArguments(
+      [
+        selectedMode,
+        "--module",
+        "src/decision.ts",
+        "--test",
+        selectedMode === "frontend-unit"
+          ? "src/decision.test.ts"
+          : "src/browser/decision.browser.test.tsx",
+      ],
+      root,
+    );
+    let executions = 0;
+    const execute = async () => {
+      executions++;
+      return 42;
+    };
+    for (const declaration of ["catalog:", "5.0.5"]) {
+      install(declaration, { "@vitest/coverage-v8": "5.0.5" });
+      const before = executions;
+      const result = await runMeasuredCoverage(root, request, execute);
+      assert.equal(executions, before + 1);
+      assert.equal(result.receipt.runtime.provider, "5.0.5");
+      assert.equal(result.receipt.runtime.vitest, "5.0.5");
+      assert.equal(result.receipt.original_exit_status, 42);
+      assert.equal(result.receipt.complete, false, "injected admission is not measured coverage");
+      assert.ok(
+        result.receipt.source.executor.some((entry) => entry.file === "pnpm-workspace.yaml"),
+      );
+    }
+    for (const [declaration, catalog, provider, runner] of [
+      ["catalog:", { "@vitest/coverage-v8": "5.0.4" }, "5.0.5", "5.0.5"],
+      ["catalog:", { "@vitest/coverage-v8": "5.0.5" }, "5.0.4", "5.0.5"],
+      ["catalog:", { "@vitest/coverage-v8": "5.0.5" }, "5.0.5", "5.0.4"],
+      ["catalog:", {}, "5.0.5", "5.0.5"],
+      ["catalog:", { "@vitest/coverage-v8": ["5.0.5"] }, "5.0.5", "5.0.5"],
+      ["catalog:other", { "@vitest/coverage-v8": "5.0.5" }, "5.0.5", "5.0.5"],
+    ] as const) {
+      install(declaration, catalog, provider, runner);
+      const before = executions;
+      await assert.rejects(runMeasuredCoverage(root, request, execute));
+      assert.equal(executions, before, "mismatched metadata must refuse before execution");
+    }
+    install("catalog:", { "@vitest/coverage-v8": "5.0.5" });
+    writeFileSync(path.join(root, "pnpm-workspace.yaml"), "catalog: [\n");
+    const before = executions;
+    await assert.rejects(runMeasuredCoverage(root, request, execute));
+    assert.equal(executions, before);
+  }
+});
