@@ -77,6 +77,13 @@ interface Proposal {
   kind: "proposal";
   investigator: string;
   candidates: Candidate[];
+  reconcile?: {
+    request_comment: number;
+    request_sha256: string;
+    receipt_comment: number;
+    receipt_sha256: string;
+    plan_sha256: string;
+  };
 }
 export function parseHostedRequest(body: unknown): Proposal {
   if (typeof body !== "string" || Buffer.byteLength(body) > 64000)
@@ -85,7 +92,28 @@ export function parseHostedRequest(body: unknown): Proposal {
   if (!match) throw new Error("Expected exactly one structured hosted intake request");
   const v = object(JSON.parse(match[1]!));
   if (v.schema_version !== 1) throw new Error("Unsupported hosted intake schema");
-  exact(v, ["schema_version", "kind", "investigator", "candidates"]);
+  exact(v, [
+    "schema_version",
+    "kind",
+    "investigator",
+    "candidates",
+    ...(v.reconcile === undefined ? [] : ["reconcile"]),
+  ]);
+  if (v.reconcile !== undefined) {
+    const r = object(v.reconcile);
+    exact(r, [
+      "request_comment",
+      "request_sha256",
+      "receipt_comment",
+      "receipt_sha256",
+      "plan_sha256",
+    ]);
+    positive(r.request_comment);
+    positive(r.receipt_comment);
+    for (const key of ["request_sha256", "receipt_sha256", "plan_sha256"])
+      if (typeof r[key] !== "string" || !/^[a-f0-9]{64}$/u.test(r[key]))
+        throw new Error("Expected an exact reconciliation hash");
+  }
   if (v.kind !== "proposal" || !Array.isArray(v.candidates) || !v.candidates.length)
     throw new Error("Expected one nonempty logical candidate batch");
   line(v.investigator);
@@ -250,6 +278,7 @@ interface Receipt {
   observed_at?: string;
   doctor?: unknown;
   error?: unknown;
+  body_request_comment?: number;
 }
 export function hostedBody(c: Candidate, request: number) {
   return renderPortIssueBody({
@@ -268,6 +297,70 @@ export function hostedPlanHash(requestHash: string, plan: Planned[]) {
       evidence_sha256: p.evidence_sha256,
     })),
   });
+}
+function readHostedReceipt(
+  comment: Comment,
+  request: Comment,
+  proposal: Proposal,
+  bodyRequest: number,
+): Receipt {
+  const match = /```json\n([\s\S]+)\n```\s*$/u.exec(comment.body);
+  if (!match) throw new Error("Malformed retained hosted receipt");
+  const stored = object(JSON.parse(match[1]!));
+  if (
+    stored.schema_version !== 1 ||
+    (stored.body_request_comment ?? request.id) !== bodyRequest ||
+    !Array.isArray(stored.plan) ||
+    stored.plan.length !== proposal.candidates.length ||
+    !Array.isArray(stored.delivery) ||
+    stored.delivery.length !== proposal.candidates.length
+  )
+    throw new Error("Retained receipt body lineage or coverage differs");
+  if (stored.plan_encoding !== undefined && stored.plan_encoding !== "proposal-bound-v1")
+    throw new Error("Unknown retained plan encoding");
+  stored.plan = stored.plan.map((raw, index) => {
+    const binding = object(raw),
+      candidate = proposal.candidates[index]!,
+      body = hostedBody(candidate, bodyRequest);
+    if (
+      binding.body_sha256 !== observationHash(body) ||
+      binding.evidence_sha256 !== observationHash(binding.primary) ||
+      (stored.plan_encoding === undefined
+        ? observationHash(binding.candidate) !== observationHash(candidate) || binding.body !== body
+        : binding.candidate_index !== index || binding.port_key !== candidate.port_key)
+    )
+      throw new Error("Retained plan body does not match the exact proposal");
+    return {
+      candidate,
+      body,
+      body_sha256: binding.body_sha256,
+      evidence_sha256: binding.evidence_sha256,
+      primary: binding.primary,
+    };
+  });
+  const receipt = stored as unknown as Receipt;
+  const ids = new Set<number>();
+  for (const d of receipt.delivery) {
+    if (
+      !d ||
+      !["prepared", "reviewed", "create-attempted", "created", "delivered"].includes(d.status) ||
+      (["created", "delivered"].includes(d.status) && !d.created_issue)
+    )
+      throw new Error("Retained delivery state is incomplete");
+    if (d.created_issue !== undefined) {
+      positive(d.created_issue);
+      if (ids.has(d.created_issue))
+        throw new Error("Retained canonical issue identity is repeated");
+      ids.add(d.created_issue);
+    }
+  }
+  if (
+    receipt.request_comment !== request.id ||
+    receipt.request_sha256 !== observationHash(request.body) ||
+    hostedPlanHash(receipt.request_sha256, receipt.plan) !== receipt.plan_sha256
+  )
+    throw new Error("Changed proposal or invalid retained plan; preserve prior receipt");
+  return receipt;
 }
 function receiptBody(r: Receipt) {
   // Exact bodies are reconstructed from the hash-bound owner proposal. Do not
@@ -513,11 +606,74 @@ export class HostedIntakeBridge {
     if (duplicates.length)
       throw new Error(`Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`);
   }
+  reconciliation(request: Comment, proposal: Proposal, all: Comment[]) {
+    const ref = proposal.reconcile;
+    if (!ref) return null;
+    if (ref.request_comment >= request.id)
+      throw new Error("Reconciliation must name an earlier request");
+    const sources = all.filter((c) => c.id === ref.request_comment);
+    const receipts = all.filter((c) => c.id === ref.receipt_comment);
+    if (sources.length !== 1 || receipts.length !== 1)
+      throw new Error("Reconciliation source identity is unavailable");
+    if (
+      all.filter(
+        (c) =>
+          c.user.login === "github-actions[bot]" &&
+          c.body.startsWith(receiptMarker(ref.request_comment)),
+      ).length !== 1
+    )
+      throw new Error("Ambiguous reconciliation source receipt identity");
+    const source = trustedHostedComment(sources[0], this.client.config.owner),
+      comment = receipts[0]!;
+    this.fresh(source);
+    this.fresh(comment);
+    const offset = source.body.indexOf(hostedRequestMarker);
+    if (
+      offset <= 0 ||
+      source.body.indexOf(hostedRequestMarker, offset + hostedRequestMarker.length) !== -1
+    )
+      throw new Error(
+        "Reconciliation requires a withdrawn source with its exact original proposal retained",
+      );
+    const original = { ...source, body: source.body.slice(offset) };
+    const old = parseHostedRequest(original.body);
+    if (
+      observationHash(original.body) !== ref.request_sha256 ||
+      comment.user.login !== "github-actions[bot]" ||
+      !comment.body.startsWith(receiptMarker(source.id)) ||
+      observationHash(comment.body) !== ref.receipt_sha256 ||
+      observationHash(old.candidates) !== observationHash(proposal.candidates)
+    )
+      throw new Error("Reconciliation source hashes or complete ordered candidate bodies differ");
+    const raw = object(
+      JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```\s*$/u)?.[1] ?? "null"),
+    );
+    const bodyRequest =
+      raw.body_request_comment === undefined ? source.id : positive(raw.body_request_comment);
+    if (bodyRequest > source.id || (old.reconcile === undefined && bodyRequest !== source.id))
+      throw new Error("Reconciliation root marker identity differs");
+    const receipt = readHostedReceipt(comment, original, old, bodyRequest);
+    if (
+      receipt.plan_sha256 !== ref.plan_sha256 ||
+      receipt.status === "complete" ||
+      !receipt.delivery.some((d) => d.created_issue)
+    )
+      throw new Error("Reconciliation requires the exact incomplete partially created receipt");
+    return { source, comment, receipt, bodyRequest };
+  }
   async process(request: Comment, all: Comment[]) {
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
     this.fresh(request);
     const proposal = parseHostedRequest(request.body);
+    const lineage = this.reconciliation(request, proposal, all);
+    const bodyRequest = lineage?.bodyRequest ?? request.id;
+    const freshLineage = () => {
+      if (lineage) {
+        this.fresh(lineage.source);
+        this.fresh(lineage.comment);
+      }
+    };
     const found = all.filter(
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(receiptMarker(request.id)),
     );
@@ -526,51 +682,29 @@ export class HostedIntakeBridge {
     let receipt: Receipt | undefined;
     if (prior) {
       this.fresh(prior);
-      const match = /```json\n([\s\S]+)\n```$/u.exec(prior.body);
-      if (!match) throw new Error("Malformed retained hosted receipt");
-      const stored = object(JSON.parse(match[1]!));
-      if (stored.plan_encoding !== undefined) {
-        if (
-          stored.plan_encoding !== "proposal-bound-v1" ||
-          !Array.isArray(stored.plan) ||
-          stored.plan.length !== proposal.candidates.length
-        )
-          throw new Error("Unknown or incomplete retained plan encoding");
-        stored.plan = stored.plan.map((raw, index) => {
-          const binding = object(raw);
-          const candidate = proposal.candidates[index]!;
-          const body = hostedBody(candidate, request.id);
-          if (
-            binding.candidate_index !== index ||
-            binding.port_key !== candidate.port_key ||
-            binding.body_sha256 !== observationHash(body)
-          )
-            throw new Error("Retained plan body does not match the exact proposal");
-          return {
-            candidate,
-            body,
-            body_sha256: binding.body_sha256,
-            evidence_sha256: binding.evidence_sha256,
-            primary: binding.primary,
-          };
-        });
-      }
-      receipt = stored as unknown as Receipt;
-      if (
-        receipt.request_comment !== request.id ||
-        receipt.request_sha256 !== observationHash(request.body) ||
-        hostedPlanHash(receipt.request_sha256, receipt.plan) !== receipt.plan_sha256
-      )
-        throw new Error("Changed proposal or invalid retained plan; preserve prior receipt");
+      receipt = readHostedReceipt(prior, request, proposal, bodyRequest);
       if (receipt.status === "complete") return receipt;
     }
-    const plan = proposal.candidates.map((c) => this.primary(c, request.id));
+    const plan = proposal.candidates.map((c) => this.primary(c, bodyRequest));
     this.planningIssues = new Set(
-      receipt?.delivery.flatMap((d) => (d.created_issue ? [d.created_issue] : [])) ?? [],
+      (receipt?.delivery ?? lineage?.receipt.delivery ?? []).flatMap((d) =>
+        d.created_issue ? [d.created_issue] : [],
+      ),
     );
     let inventory = this.inventory();
     if (!receipt) {
-      for (const p of plan) this.duplicates(inventory, p);
+      for (const [index, p] of plan.entries()) {
+        const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
+        const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
+        if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
+        this.duplicates(
+          inventory,
+          p,
+          lineage?.receipt.delivery[index]?.created_issue ??
+            (recovered[0] ? Number(recovered[0].number) : undefined),
+        );
+      }
+      freshLineage();
       receipt = {
         schema_version: 1,
         request_comment: request.id,
@@ -578,7 +712,10 @@ export class HostedIntakeBridge {
         investigator: proposal.investigator,
         plan_sha256: hostedPlanHash(observationHash(request.body), plan),
         plan,
-        delivery: plan.map(() => ({ status: "prepared" })),
+        delivery: lineage
+          ? structuredClone(lineage.receipt.delivery)
+          : plan.map(() => ({ status: "prepared" })),
+        ...(lineage ? { body_request_comment: bodyRequest } : {}),
         status: "prepared",
         head: this.head,
         run: process.env.GITHUB_RUN_ID ?? "local",
@@ -597,6 +734,7 @@ export class HostedIntakeBridge {
     }
     if (receipt.plan_sha256 !== hostedPlanHash(observationHash(request.body), plan))
       throw new Error("Primary evidence changed since preparation; a fresh proposal is required");
+    freshLineage();
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";
     receipt.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
@@ -624,7 +762,8 @@ export class HostedIntakeBridge {
           invalidated = false;
         }
         this.fresh(request);
-        const marker = `<!-- portcove-discovery-intake:hosted-${request.id}-${p.candidate.port_key} -->`;
+        freshLineage();
+        const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
         if (d.created_issue && recovered[0]?.number !== d.created_issue)
@@ -684,6 +823,7 @@ export class HostedIntakeBridge {
             inventory = this.inventory(inventory);
             invalidated = false;
             this.fresh(request);
+            freshLineage();
             this.duplicates(inventory, p);
           } catch (error) {
             d.status = "prepared"; // No POST has begun in this preflight.
