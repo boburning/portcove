@@ -311,11 +311,12 @@ jobs:
         with:
           key: retained-linux-reboot-helper-d295
           workspaces: work/updater-linux-reboot-helper-source -> ../../target/updater-reboot-helper
-      - name: Install only helper and isolated virtual-machine prerequisites
+      - name: Install existing helper build prerequisites
         timeout-minutes: 15
-        run: |
-          ./scripts/install-linux-desktop-prerequisites.sh
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install --yes --no-install-recommends qemu-system-x86 qemu-utils seabios ubuntu-keyring python3-jsonschema
+        run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Install isolated virtual-machine prerequisites
+        timeout-minutes: 10
+        run: sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install --yes --no-install-recommends qemu-system-x86 qemu-utils seabios ubuntu-keyring python3-jsonschema
       - name: Build only the existing frozen preparation helper
         timeout-minutes: 25
         run: python3 scripts/qualification/linux-reboot/prepare.py helper

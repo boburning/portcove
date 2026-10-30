@@ -119,7 +119,7 @@ function retainedRebootJob(value: unknown) {
   failurePropagates(job, "REBOOT_JOB");
   assert.ok(Array.isArray(job.steps), "UPDATER_REBOOT_STEPS");
   const steps = job.steps.map((step) => record(step, "UPDATER_REBOOT_STEP"));
-  assert.equal(steps.length, 14, "UPDATER_REBOOT_EXPLICIT_STEPS");
+  assert.equal(steps.length, 15, "UPDATER_REBOOT_EXPLICIT_STEPS");
   const normalized = (run: unknown) =>
     text(run, "UPDATER_REBOOT_COMMAND").trim().replaceAll("\r\n", "\n");
   const command = (run: string) => {
@@ -207,9 +207,16 @@ function retainedRebootJob(value: unknown) {
   assert.equal(steps[5]!.uses, "Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0");
   assert.equal(
     normalized(steps[6]!.run),
-    "./scripts/install-linux-desktop-prerequisites.sh\nsudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install --yes --no-install-recommends qemu-system-x86 qemu-utils seabios ubuntu-keyring python3-jsonschema",
+    "./scripts/install-linux-desktop-prerequisites.sh",
+    "UPDATER_REBOOT_SHARED_PREREQUISITES",
+  );
+  assert.equal(steps[6]!["timeout-minutes"], 15, "UPDATER_REBOOT_SHARED_PREREQUISITE_BUDGET");
+  assert.equal(
+    normalized(steps[7]!.run),
+    "sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install --yes --no-install-recommends qemu-system-x86 qemu-utils seabios ubuntu-keyring python3-jsonschema",
     "UPDATER_REBOOT_NO_PACKAGE_BUILD",
   );
+  assert.equal(steps[7]!["timeout-minutes"], 10, "UPDATER_REBOOT_VM_PREREQUISITE_BUDGET");
   assert.deepEqual(
     [
       stage.index,
@@ -221,7 +228,7 @@ function retainedRebootJob(value: unknown) {
       retain.index,
       upload.index,
     ],
-    [2, 7, 8, 9, 10, 11, 12, 13],
+    [2, 8, 9, 10, 11, 12, 13, 14],
     "UPDATER_REBOOT_STAGE_ORDER",
   );
   for (const [index, step] of steps.entries()) {

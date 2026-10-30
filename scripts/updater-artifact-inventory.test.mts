@@ -1465,15 +1465,15 @@ void test("retained Linux reboot admits only its frozen independent mode and pub
     },
     (w) => {
       const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
-      object(steps[11]).run = "python3 scripts/qualification/linux-reboot/controller.py";
+      object(steps[12]).run = "python3 scripts/qualification/linux-reboot/controller.py";
     },
     (w) => {
       const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
-      object(steps[12]).if = "success()";
+      object(steps[13]).if = "success()";
     },
     (w) => {
       const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
-      object(object(steps[13]).with).path = "work/";
+      object(object(steps[14]).with).path = "work/";
     },
   ];
   for (const mutate of mutations) {

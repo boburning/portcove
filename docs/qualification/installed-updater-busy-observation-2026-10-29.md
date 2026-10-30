@@ -245,6 +245,22 @@ increased; assertions, production cleanup deadlines, account authority and
 updater busy protection are unchanged. Current-source qualification remains
 pending a new exact-head run.
 
+The subsequent exact-head run
+[40978860090/1](https://github.com/boburning/portcove/actions/runs/40978860090)
+retains two own-source failures: the new reboot prerequisite step combined the
+shared installer with another command, violating the existing single-invocation
+contract; and the new Python qualification files failed repository Ruff rules.
+The repair separates the shared installer from the finite VM-tool setup and
+applies the pinned Ruff 0.17.3 formatting/import rules. Existing prerequisite
+assertions remain intact. ZIP pairing is explicitly strict, and immediate
+negative-control lambdas bind their current fixture value. Embedded guest
+scripts and non-import behavior otherwise remain unchanged, except the equivalent
+Python UTC constant spelling. Raw failure logs are retained. The Windows helper
+producer passed 101/101 with zero skips, including all three previously timed-out
+fixtures; that is not a speedup claim. Remaining queued/running work was cancelled
+on this exact superseded head after retaining its failures and completed outcomes;
+cancelled Rust partitions are unqualified. A repaired head requires fresh CI.
+
 The separate #706/#49 scoped, non-remediating GLib disposition expires November
 14, 2026 at 23:59 America/New_York, or earlier at the relevant second beta
 publication. Reconfirm exact candidate, complete scanner result, publication
