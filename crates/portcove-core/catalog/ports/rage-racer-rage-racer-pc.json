@@ -3,12 +3,44 @@
   "listing": {
     "id": "rage-racer-rage-racer-pc",
     "name": "Rage Racer / rage-racer-pc",
-    "summary": "Rage Racer remains discoverable, with current source-only review and selected-package use permission unresolved.",
+    "summary": "Register an already permitted Rage Racer 0.6.13-alpha Windows player for your PAL disc, preserving actual profile/cards/config/mod paths; fresh acquisition remains held.",
     "project_url": "https://github.com/khasinski/rage-racer-pc",
     "issue_number": 349,
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/khasinski/rage-racer-pc",
+    "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",
+    "original_game_title": "Rage Racer",
+    "manual_setup": {
+      "help_url": "https://github.com/khasinski/rage-racer-pc/blob/e6b6de9a157094848074c8979c32a33a4f980c2a/README.md",
+      "steps": [
+        {
+          "title": "Use an already permitted completed player",
+          "instruction": "Follow the tagged publisher Running a release instructions only for an already permitted official 0.6.13-alpha Windows x64 Rage-Racer.exe copy and legally obtained original. This narrower personal-player use is not an OSS/source-redistribution or blanket component/package grant. Keep the existing fresh-acquisition condition; user selection does not clear it. Prior 0.6.5 artifact integrity does not qualify this version or arbitrary copies."
+        },
+        {
+          "title": "Keep the exact PAL reference media together",
+          "instruction": "Use your own PAL/Europe SCES-006.50 Rage Racer CUE with referenced BIN tracks, Track01 BIN or supported CHD. Preserve the full original set/path for streamed data/audio; a lone Track01 is not all audio tracks. The native picker/saved disc path selects input and imports renderer assets live in-process/in-memory; no separate launcher, extractor, SDK/.NET/Python or generated game executable is required. Core does not authenticate the full image or other regions/masterings."
+        },
+        {
+          "title": "Select the actual native game and creating context",
+          "instruction": "For normal defaults select Rage-Racer.exe with zero launch arguments and its installation root as initial working directory. Preserve an established supported --config and its absolute file path as separate literal arguments when already required for the creating profile. Preserve an already working custom CWD/config/environment rather than redirecting a profile merely to register. The main process remains through importer/renderer/MainLoop and shutdown. Do not select editor/scenario/source tools or add development/cache/scenario options for ordinary Play. Registration itself does not import or launch anything."
+        },
+        {
+          "title": "Review intent and keep updates player-owned",
+          "instruction": "Review and consent to the exact native executable, directory and empty arguments, then choose Play separately. Core observes only the selected process, not an exclusive family/sandbox or full-game qualification. No self-downloading game replacement path was established for this selected entry. Upstream/player owns the copy, repair and actual replacement; close every real instance before changing files and review a replacement through fresh relink."
+        },
+        {
+          "title": "Preserve the real profile, portable cards and custom paths",
+          "instruction": "Keep the whole copy and %APPDATA%/Rage Racer profile/state, actual bu00/bu10 card directories and BESCES-00650 RAGE000/001/002 slots, config files rage-port.ini/rage-input.cfg, disc-cue-path, force-feedback choices, car catalogs/player edits, mods/active.json/manifests/data/packages, diagnostics/logs/captures and every custom/unknown path. An existing nonempty executable-adjacent bu00 directory selects portable cards; an empty directory does not, and config/logs may still be per-user. Preserve explicit custom config, mods.directory, prebuilt developer cache, disc/log overrides and actual resolved paths. Do not create a marker or move state merely to register. Metadata removal preserves all external bytes."
+        }
+      ],
+      "warnings": [
+        "Upstream 0.6.13-alpha explicitly does NOT confirm the reported Windows second-race rendering issue fixed. Keep that scoped known report visible; per-action controller remapping remains INI-based. No gameplay/race stability pass or supported full-game claim is made, and the Windows archive is unsigned.",
+        "Per-user config is checked before executable-adjacent config and CWD fallback. Existing --config/RAGE_CONFIG, RAGE_PORT_DISC_CUE and RAGE_PORT_LOG_PATH are upstream choices; Core intent does not capture per-entry environment. Preserve an already reproducible creating context rather than inventing new settings. Config and portable card storage need not share a root.",
+        "The existing download_block_reason and zero-provider refusal remain. No blanket OSS/source/component/redistribution grant, managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, memory-card-image/state compatibility, actual game/installed/protected qualification or Supported promotion follows from this prepared-copy guide."
+      ]
+    },
     "artwork": {
       "game_id": 18698,
       "cover_id": 387116,
@@ -16,7 +48,6 @@
       "image_sha256": "216e38aac33db9621d62e2c78ff04fd92edfec104a8922006028c30fdd9012d8",
       "game_slug": "rage-racer",
       "match_kind": "underlying-game"
-    },
-    "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission."
+    }
   }
 }
