@@ -118,3 +118,19 @@ remain unchanged. The maintained configuration oracle verifies scope and
 precedence. Cleanup, two workers, zero retries and finite hang detection remain.
 A later pass establishes completion under those budgets, not a causal repair
 or performance improvement. Current-head qualification is still required.
+
+CI41003906042/a1 at `621a75d5db90372003d13910a4c338106c8a818d`
+retained three additional Windows failures. Original-paths recovery completed
+seven of eight scenarios by 59.674 seconds before its 60.204-second cutoff;
+include that exact identity in the existing 90-second recovery rule. The CHD
+preparation sequence completed preparation at 27.600 seconds and fresh status
+at 29.573 seconds before its 30.060-second cutoff during launch observation;
+match its ISO sibling's existing 90-second Windows budget. A GitLab idle-body
+fixture instead exhausted its injected 50-millisecond limit before headers at
+58.224 milliseconds, exercising the wrong response phase. Only that fixture's
+Windows injected connect/idle/request values become 200/200/800 milliseconds
+(non-Windows stays 50/50/180). Every headers/one-byte/body-phase/idle/total-bound
+assertion, its 500-millisecond elapsed ceiling, fixture cleanup and production
+provider defaults remain unchanged. This is test-budget calibration, not a
+product network-deadline change or causal performance claim. Final-source
+qualification remains required; no failed gate is waived.

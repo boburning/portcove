@@ -276,9 +276,11 @@ success-output = "immediate"
 # only these Windows cases the existing full-lifecycle90s safeguard. The
 # query's inner30s behavioral fence, child deadlines, cleanup, concurrency
 # and zero retries remain unchanged; budgeted success is not a speedup claim.
+# CI41003906042/a1 Windows4 CHD preparation completed27.600s and fresh
+# status29.573s before30.060s at launch observation. Match ISO90s room.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = '(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/))'
+filter = '(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/)))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
@@ -367,12 +369,14 @@ success-output = "immediate"
 # quarantine phases and began Adopt/CleanupPending at59.056s before60.410s
 # cutoff. Extend only this exact Windows fixture to the existing90s rule.
 # Preserve assertions, product/child deadlines, worker counts and zero retries.
+# CI41003906042/a1 source621a Windows5 completed seven original-paths
+# scenarios by59.674s before60.204s; include only that identity in90s.
 # CI40797975365/a1 job123202480906 completed seven of eight relocation
 # recovery scenarios at51.885s before the60.279s cutoff. Give only this
 # identity finite90s room, before the broader60s family override below.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine)_intent$/)'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine|original_paths)_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 

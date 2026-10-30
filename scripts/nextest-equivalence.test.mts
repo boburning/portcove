@@ -278,11 +278,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     });
   }
   const windowsPreparationAndDriftFilter =
-    "(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/))";
+    "(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/)))";
   const windowsDiagnosticsFilter =
     "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)";
   const windowsRelocationRecoveryFilter =
-    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine)_intent$/)";
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine|original_paths)_intent$/)";
   const linuxRelocationRecoveryFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)";
   const linuxRelocationRecovery = overrideFor(
