@@ -880,6 +880,19 @@ mod tests {
         assert_listing_only_player_route("svr07-recomp-wwe-smackdown-vs-raw-2007", Some(false));
     }
 
+    #[test]
+    fn budokai3_prepared_player_route_366() {
+        assert_listing_only_player_route(
+            "dragon-ball-z-budokai-3-hd-budokai-3-hd-collection-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn triaevum_prepared_player_route_515() {
+        assert_listing_only_player_route("triaevum-ocarina-of-time-3d", Some(false));
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently

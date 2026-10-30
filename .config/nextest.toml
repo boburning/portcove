@@ -296,6 +296,17 @@ filter = '(package(portcove-core) & test(/^game_file_query::tests::late_channel_
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41139302954/a1 Windows partition5 retained this exact fixture's 30.148s
+# whole-test cutoff without an assertion failure. Its authenticated setup,
+# interrupted transfer and resumed authority checks now emit phase diagnostics.
+# Allow finite60s harness headroom; keep assertions, cleanup, two workers,
+# product deadlines and zero retries. This is not a causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::tests::admitted_post_client_definition_survives_interrupted_move_resume$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 40263836082/a1 reached this Windows case's 30.044s cap after verified
 # withdrawal and fresh-acquisition refusal at 28.68s, before cache refusal ended.
 # Preserve the full signed transition, assertions, two workers and zero retries;

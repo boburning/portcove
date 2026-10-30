@@ -15819,6 +15819,36 @@
         "image_sha256": "d91f230d59b829b382f9e1420518b9ac71efff67776bfc3a577dd81b10a91517",
         "game_slug": "dragon-ball-z-budokai-hd-collection",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection/blob/70e53af12a79e93a9fc2273cce875308b0ad7a99/README.md",
+        "steps": [
+          {
+            "title": "Keep a permitted complete native player",
+            "instruction": "Use an already permitted working official v1.5.5.5 Windows x64 dbz3.exe with all matching adjacent runtime/GPU DLLs and its established graphics/VC++ context. The publisher documents native release play using your own game files; project MIT does not grant original-media or all-package/component rights. Old v1.2.1 archive qualification does not qualify this newer package. This is Budokai 3 HD, not the HD Collection menu, Budokai1 or another project."
+          },
+          {
+            "title": "Finish original selection and onboarding upstream",
+            "instruction": "Use your own Xbox360 Budokai3 HD US/NA or EU/PAL original. Preserve the matching 4,890,624-byte yae3_xenon.xex or yae3_xenon_eu.xex and regional us/ or eu/ data files, or the complete supported original ISO and its actual path. The tagged baserom.md publishes separate XEX/AFS hashes; filename/menu detection or a short runtime checksum is not independent full-disc authentication. Complete the upstream picker/cache/region/settings flow outside Core first. Do not select the HD Collection root menu XEX, PS2 source or optional cross-game/modding tools as this game."
+          },
+          {
+            "title": "Select the normal completed application",
+            "instruction": "Select dbz3.exe itself, zero arguments for a normally configured copy, and its established writable containing installation-root initial working directory. Normal launcher PLAY starts the game within this application; close the application to end the selected session. Preserve already required supported literal arguments/custom profile context. Missing-data picker can start a replacement instance and exit, so finish preparation first; Core does not follow every successor. Do not select diagnostic skip/automation modes, an SDK/build script or modding kit."
+          },
+          {
+            "title": "Review intent and keep updates player-owned",
+            "instruction": "Review and consent to the exact native executable, working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Preparation, repair, profiles and actual replacement remain player/upstream owned. Close all real instances before changing files, keep the old creating runtime and review changed executable bytes through relink. Metadata removal preserves every external runtime, original and player file."
+          },
+          {
+            "title": "Keep creating saves, configuration and custom content",
+            "instruction": "Preserve the whole runtime/original/ISO/extracted-data copy, dbz3_user.toml and backups, dbz3.toml, user_data/dbz3 saves/content/xex_cache/iso caches, mods/player edits, logs, res/custom data and all unknown files. The application uses executable-side user_data/dbz3 when writable, otherwise its actual platform user-folder/dbz3 fallback; an existing executable-side dbz3_user.toml can retain legacy settings. Preserve the actual resolved fallback/custom roots separately; do not move data to force portability. Keep old state/mods with the creating runtime. Upstream normal close uses a hard process exit after its own session/log cleanup; no graceful save/load or cross-build compatibility guarantee follows."
+          }
+        ],
+        "warnings": [
+          "The selected release and current source are distinct observations; no new game/package/original execution, gameplay/save/mod/native/installed/protected qualification or Supported promotion is established. Optional online/cross-game/character/HD-mod features and their data rights are separate, not inherited by this base-player guide.",
+          "Upstream owns update checks, external release links, downloaded mods and replacement. Core supplies no acquisition/setup/Install/Update/Backup/Rollback/migration/deletion or overwrite-all preservation guarantee. Keep a recoverable old copy and player data; publisher update instructions do not grant Core mutation ownership.",
+          "Live original selection can refresh private XEX/ISO caches. Exact Core-owned original admission, isolated extraction/generation, variant and managed lifecycle qualification remain unoffered; no generic Xbox-family framework is required for this existing-copy handoff."
+        ]
       }
     },
     {
@@ -40008,6 +40038,37 @@
         "image_sha256": "6121a7f8647fd6a1606e7406bc81841f04a5e0186e4c9bee7a7d31fd3dd92ce8",
         "game_slug": "the-legend-of-zelda-ocarina-of-time-3d",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/coccofresco/TriAevum/blob/a56f9649747a46655728f217abda9c51c66b11ba/README.md",
+        "steps": [
+          {
+            "title": "Keep a permitted fully prepared Windows copy",
+            "instruction": "Use an already permitted working v0.8.0-beta.1.2 Windows x64 TriAevum installation and its privately Forge-prepared title/runtime/profile, complete adjacent dependencies and creating Vulkan/GPU context. Project GPL3-or-later and third-party notices do not license Nintendo originals or private ROM-derived outputs. This beta is distinct from the formerly qualified v0.6.0-alpha.2c. Do not use the explicitly broken/withdrawn alpha.3/alpha.3b builds or infer Linux/Flatpak/SteamDeck qualification."
+          },
+          {
+            "title": "Complete Forge preparation outside Core",
+            "instruction": "Use your own supported decrypted Ocarina of Time3D .3ds/.cci USA/EUR input and finish official Forge installation/activation and a working normal launch first. Forge checks internal content families and generates private content/title plugin, manifests and launch profile; no external compiler/SDK is needed. Keep exact original/creating build and private outputs. Core does not authenticate or extract the ROM, run Forge, download optional textures/mods, activate generated code or certify original/package/plugin identity."
+          },
+          {
+            "title": "Select the prepared native game entry and profile",
+            "instruction": "Select the actual installed TriAevum.exe after Forge has created it, zero arguments for its established default profile, and the creating writable installation-root initial CWD. The native game loads its existing TriAevum.launch.json beside the executable or under data/ and remains in the game process. If the working installation already requires a custom profile, preserve --launch-profile and its absolute existing JSON path as separate literal arguments. Keep spaces inside path tokens. Do not select TriAevumForge.exe, an installer/helper/plugin DLL or finite --frames diagnostic mode for ordinary Play. Registration itself does not prepare or launch anything."
+          },
+          {
+            "title": "Review intent and keep activation and updates upstream-owned",
+            "instruction": "Review and consent to the exact native executable, working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Preparation, repair, profiles and actual replacement remain player/upstream owned. Close all real instances before changing files, keep the old creating runtime and review changed executable bytes through relink. Metadata removal preserves every external runtime, original and player file. After an upstream package replacement, finish the matching Forge repair/refresh outside Core before reviewing/relinking the resulting native runtime. Do not move only the executable or mix launch profile, generated plugin and package versions. The direct entry does not turn Core into Forge activation/recovery authority. After any interrupted Forge install/activation/update/mod refresh, activation journal, mismatched or not-ready runtime tuple, complete upstream Forge recovery and a successful normal Launch game before Core Play or relink. Do not delete or bypass an activation journal or run an old profile/plugin against a new package; direct native entry does not repeat Forge's journal/receipt checks."
+          },
+          {
+            "title": "Preserve the complete private runtime and player data",
+            "instruction": "Keep the whole actual installation and data root: active-title.json, content-addressed titles and their receipts/manifests, prepared game/content files, activated native title plugin, TriAevum.launch.json and every profile-referenced path; savedata, config/TriAevum.json/topscreen_ui.json, mods/texture/model archives and edits, cache/shaders/pipelines, logs/dumps/custom and unknown files. Windows normally keeps data/ beside the application; custom profile/data paths can be external and must be preserved separately. Keep data with its creating runtime/GPU configuration. Registration neither rebuilds regenerable caches nor adopts/deletes saves; old Flatpak data is not automatically migrated."
+          }
+        ],
+        "warnings": [
+          "The earlier exact-source Forge install and bounded Windows Vulkan intro launch remain credited solely to v0.6.0-alpha.2c and their recorded inputs. Source/probe evidence here does not repeat or expand them to this beta, a full playthrough, saves/state/mods, other GPUs/platforms or installed/protected qualification.",
+          "Selected executable consent is not a certificate for mutable launch-profile references, secondary generated code, ROM or complete package. Preserve the existing permitted working tuple and upstream notices; private outputs must remain private. Optional original-derived textures/model mods have their own terms and are not downloaded or rights-cleared by Core.",
+          "Managed Forge generation/activation, interrupted recovery, update/rollback, private-data migration and GPU cache regeneration remain unresolved/unoffered stronger operations. Existing generated-output registration does not mark those conditions solved or make speculative console-family infrastructure a prerequisite for this native handoff.",
+          "Component terms remain separate: selected LICENSE_SCOPE excludes iMMERSE from the general GPL grant and records TriAevum-exclusive nontransferable redistribution permission; NVIDIA NGX/DLSS and other components retain their own terms. This guide covers only an already permitted working private copy, not redistribution clearance."
+        ]
       }
     },
     {
