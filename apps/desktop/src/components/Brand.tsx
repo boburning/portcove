@@ -1,7 +1,7 @@
 import { cn } from "cn";
 const BRAND_ASSETS = {
-  icon: "/brand/icons/portcove-mascot-head-256.png",
   mascot: "/brand/mascot/portcove-mascot-v2-front.png",
+  transparentMascot: "/brand/icons/portcove-mascot-transparent.png",
   wordmark: "/brand/logo/portcove-logo-v2-transparent.png",
 } as const;
 
@@ -9,10 +9,10 @@ export function BrandAvatar({ className = "" }: { className?: string }) {
   return (
     <img
       className={cn(
-        "brand-avatar block size-10 flex-none rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)] object-cover shadow-(--shadow-raised)",
+        "brand-avatar block size-10 flex-none object-contain",
         className,
       )}
-      src={BRAND_ASSETS.icon}
+      src={BRAND_ASSETS.transparentMascot}
       alt=""
       aria-hidden="true"
       decoding="async"
@@ -23,17 +23,20 @@ export function BrandAvatar({ className = "" }: { className?: string }) {
 export function BrandMascot({
   className = "",
   decorative = false,
+  transparent = false,
 }: {
   className?: string;
   decorative?: boolean;
+  transparent?: boolean;
 }) {
   return (
     <img
       className={cn(
-        `brand-mascot ${className}`.trim(),
-        "block max-w-[100%] bg-[var(--color-brand-stage)] object-contain",
+        "brand-mascot block max-w-[100%] object-contain",
+        transparent ? "bg-transparent" : "bg-[var(--color-brand-stage)]",
+        className,
       )}
-      src={BRAND_ASSETS.mascot}
+      src={transparent ? BRAND_ASSETS.transparentMascot : BRAND_ASSETS.mascot}
       alt={decorative ? "" : "Portcove crab mascot"}
       aria-hidden={decorative || undefined}
       decoding="async"

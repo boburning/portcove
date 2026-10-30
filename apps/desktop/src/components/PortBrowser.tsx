@@ -742,8 +742,8 @@ function BrowserEmptyState({
     return (
       <EmptyState
         visual={
-          <span className="empty-mascot-stage grid size-16 place-items-center overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)]">
-            <BrandMascot className="size-full" decorative />
+          <span className="empty-mascot-stage grid size-16 place-items-center">
+            <BrandMascot className="size-full" decorative transparent />
           </span>
         }
         title="Your library is empty"

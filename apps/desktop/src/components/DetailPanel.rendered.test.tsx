@@ -1458,7 +1458,7 @@ describe("desktop components", () => {
       /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
     );
     expect(buttonLabels).toContain("Check for updates");
-    expect(installed).toContain("Open saved data folder");
+    expect(installed).toContain("Open folder for saved data");
     expect(installed).toContain("Back up now");
     expect(installed).toContain('title="Back up saves and settings managed by Portcove."');
     const backupButton = installed.match(

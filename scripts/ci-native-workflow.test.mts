@@ -1,4 +1,5 @@
 import { readWorkflow } from "./ci-workflow-fixture.mts";
+import { DESKTOP_PROFILES, resolveDesktopSelection } from "./desktop-scenarios.mts";
 import { isRecord } from "./runtime-values.mts";
 import { workflowJobs } from "./qualification-coverage.mts";
 import assert from "node:assert/strict";
@@ -239,6 +240,106 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
   assert.doesNotMatch(
     section,
     /upload-artifact|rust-cache|actions\/cache|cache: pnpm|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|secrets\.|inputs\.(?:focus_head|execution_binding)/,
+  );
+});
+
+void test("fixed native product groups preserve owned lifecycle coverage and isolation constraints", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  const job = workflowJob("product_workflows", source);
+  const section = workflowJobSource(source, "product_workflows");
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(job["timeout-minutes"], 60);
+  assert.equal(
+    job.if,
+    "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
+  assert.equal(job.strategy["fail-fast"], false);
+  assert.equal(job.strategy["max-parallel"], 4);
+  const groups = job.strategy.matrix.include;
+  assert.ok(Array.isArray(groups));
+  assert.deepEqual(
+    groups.map((group: unknown) => {
+      assert.ok(isRecord(group));
+      return group.selection;
+    }),
+    [
+      "owned-ready",
+      "owned-recovery",
+      "owned-backups",
+      "owned-steam",
+      "owned-sources",
+      "owned-handoff",
+      "library-layout",
+      "library-organization",
+      "selected-setup",
+      "update-acquisition",
+      "staged-update",
+      "external-runtime",
+      "artwork",
+      "restart",
+      "startup-preferences",
+      "startup-library",
+      "library-switch",
+    ],
+  );
+  const ownedCoverage = new Set<string>();
+  for (const group of groups) {
+    assert.ok(isRecord(group) && typeof group.selection === "string");
+    assert.ok(Array.isArray(group.scenarios) && group.scenarios.length > 0);
+    const scenarios: string[] = group.scenarios.map((scenario: unknown) => {
+      assert.ok(typeof scenario === "string");
+      assert.match(scenario, /^[a-z][a-z0-9-]+$/u);
+      return scenario;
+    });
+    const selection = resolveDesktopSelection({ scenarios, platform: "win32" });
+    assert.deepEqual(selection.known_gaps, []);
+    assert.deepEqual(selection.requested_scenarios, scenarios);
+    if (group.selection.startsWith("owned-"))
+      for (const scenario of [...selection.selected_scenarios, ...selection.setup_scenarios])
+        ownedCoverage.add(scenario);
+  }
+  assert.deepEqual([...ownedCoverage].sort(), [...DESKTOP_PROFILES["owned-lifecycle"]].sort());
+  assert.ok(isRecord(job.env));
+  assert.equal(job.env.NATIVE_SCENARIOS, "${{ toJSON(matrix.scenarios) }}");
+  assert.equal(
+    job.env.PORTCOVE_OUTPUT_DIR,
+    "${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}",
+  );
+  assert.equal(
+    job.env.PORTCOVE_TEMP_DIR,
+    "${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}",
+  );
+  assert.match(section, /persist-credentials: false/);
+  assert.match(section, /\$source -cne \$env:GITHUB_SHA/);
+  assert.match(section, /-not \$identity.user_interactive/);
+  assert.match(section, /bootstrap-quality-tools\.ps1 -Desktop/);
+  assert.ok(Array.isArray(job.steps));
+  const steps = job.steps.filter(isRecord);
+  const execution = requiredFixture(
+    steps.find((step) => typeof step.run === "string" && step.run.includes("@scenarioArguments")),
+  );
+  assert.ok(!("continue-on-error" in execution));
+  assert.deepEqual(
+    executableLines(String(execution.run)).filter((line) => line.startsWith("just desktop-verify")),
+    [
+      "just desktop-verify @scenarioArguments --require-clean --plan",
+      "just desktop-verify @scenarioArguments --require-clean",
+    ],
+  );
+  const singleton = requiredFixture(
+    steps.find((step) => step.if === "matrix.selection == 'owned-steam'"),
+  );
+  assert.match(String(singleton.run), /steam-entry-result\.json/);
+  assert.match(String(singleton.run), /entry_route -cne 'settings-integrations'/);
+  assert.match(String(singleton.run), /\$eligible.Count -ne 1/);
+  assert.match(String(singleton.run), /\$eligible\[0\] -cne \$report.port_id/);
+  const retention = requiredFixture(steps.at(-1));
+  assert.equal(retention.if, "always()");
+  assert.match(String(retention.run), /native-backup-evidence\.mts emit/);
+  assert.doesNotMatch(
+    section,
+    /upload-artifact|rust-cache|actions\/cache|cache: pnpm|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE|secrets\.|inputs\.(?:focus_head|execution_binding)|Invoke-Expression/,
   );
 });
 

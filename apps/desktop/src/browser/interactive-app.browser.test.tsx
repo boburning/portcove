@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { openAdvancedFilters } from "../../test/filter-fields";
 import { navigateTo } from "../../test/primary-navigation";
 import { settingsCategories } from "../features/app-shell/settings-categories";
@@ -336,6 +337,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await expect.element(page.getByText("Selected game files", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
+  await captureParityState("preparation-reviewed-fixture");
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await expect
     .element(
@@ -346,10 +348,12 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
         }),
     )
     .toBeVisible();
+  await captureParityState("preparation-running-fixture");
   await userEvent.click(page.getByRole("button", { name: "Cancel preparation", exact: true }));
   await expect
     .element(page.getByRole("button", { name: "Cancellation requested", exact: true }))
     .toBeVisible();
+  await captureParityState("preparation-cancellation-requested-fixture");
   await userEvent.keyboard("{Alt>}{Shift>}C{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
@@ -359,6 +363,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await expect
     .element(page.getByText("The demo setup did not finish.", { exact: false }).first())
     .toBeVisible();
+  await captureParityState("preparation-failed-fixture");
   await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}{Enter}{/Shift}{/Alt}");
@@ -370,6 +375,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)
     .toContain("Ready to play");
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toHaveFocus();
+  await captureParityState("preparation-completed-fixture");
 }, 45_000);
 
 it("renders recovery choices, returns to Library via the actual bootstrap hook, and resets", async () => {
@@ -391,6 +397,7 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
   await expect
     .element(page.getByRole("button", { name: "Keep using original library", exact: true }))
     .toBeVisible();
+  await captureParityState("startup-location-recovery-fixture");
   await userEvent.click(page.getByRole("button", { name: "Use platform default", exact: true }));
   await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
   await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
@@ -491,7 +498,9 @@ it.each(parityCases)(
   "captures browsing and Add games in $theme at $width × $height",
   async (configuration) => {
     await startParityScene("collection", configuration);
-    await expect.element(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: "Your library", exact: true }))
+      .toBeVisible();
     await captureParity("library-covers", configuration);
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     await captureParity("library-rows", configuration);
@@ -535,6 +544,10 @@ it.each(parityCases)(
       await expect.element(panel).toBeVisible();
       panel.element().scrollIntoView({ block: "start" });
       await captureParity(`detail-${name}`, configuration);
+      if (panel.element().getBoundingClientRect().bottom > innerHeight + 1) {
+        panel.element().scrollIntoView({ block: "end" });
+        await captureParity(`detail-${name}-lower`, configuration);
+      }
     }
   },
   90_000,
@@ -571,6 +584,11 @@ it.each(parityCases)(
       await expect.element(category).toHaveAttribute("aria-current", "page");
       await expect.element(document.getElementById(`settings-${id}`)!).toBeVisible();
       await captureParity(`settings-${id}`, configuration);
+      const section = document.getElementById(`settings-${id}`)!;
+      if (section.getBoundingClientRect().bottom > innerHeight + 1) {
+        section.scrollIntoView({ block: "end" });
+        await captureParity(`settings-${id}-lower`, configuration);
+      }
     }
   },
   120_000,

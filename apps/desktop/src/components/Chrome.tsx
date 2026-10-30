@@ -1489,12 +1489,7 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
 function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
   return (
     <div className="about-card" data-focus-group>
-      <div className="about-identity">
-        <BrandMascot className="size-14 bg-transparent object-contain" decorative />
-        <h3>Portcove</h3>
-        <p>Install, update, and play native game ports.</p>
-      </div>
-      <SettingsRow className="settings-field-row">
+      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
         <div className="settings-field-copy">
           <h3>Portcove {desktopPackage.version}</h3>
           <p>Tauri 2 · Rust · React</p>
@@ -1507,7 +1502,7 @@ function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
           Open project repository
         </ExternalLink>
       </SettingsRow>
-      <SettingsRow className="settings-field-row">
+      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
         <div className="settings-field-copy">
           <h3>Support</h3>
           <p>Review diagnostics or create a support bundle.</p>
@@ -1990,8 +1985,10 @@ export function SettingsView(props: SettingsViewProps) {
         <SettingsSection
           id="about"
           active={selectedCategory === "about"}
-          title="About Portcove"
-          description="Version, project information and acknowledgements."
+          title="Portcove"
+          headingLabel="About Portcove"
+          identity={<BrandMascot className="mb-5 size-14" decorative transparent />}
+          description="Install, update, and play native game ports."
         >
           <AboutCard
             onOpenDiagnostics={() => {
@@ -2010,6 +2007,8 @@ function SettingsSection({
   id,
   title,
   description,
+  headingLabel,
+  identity,
   action,
   children,
 }: {
@@ -2017,6 +2016,8 @@ function SettingsSection({
   id: string;
   title: string;
   description: string;
+  headingLabel?: string;
+  identity?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
 }) {
@@ -2025,19 +2026,33 @@ function SettingsSection({
     <section
       id={`settings-${id}`}
       hidden={!active}
-      className={cn("settings-section @container/section gap-6", active ? "grid" : "hidden")}
+      className={cn(
+        "settings-section @container/section",
+        identity ? "gap-0" : "gap-6",
+        active ? "grid" : "hidden",
+      )}
       data-settings-group={id}
       aria-labelledby={headingId}
     >
-      <div className="settings-section-heading py-2">
+      <div className={cn("settings-section-heading", identity ? "about-identity" : "py-2")}>
+        {identity}
         <h2
           id={headingId}
           tabIndex={-1}
-          className="mb-1 scroll-mt-3 text-[1.25rem] focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid"
+          aria-label={headingLabel}
+          className={cn(
+            "scroll-mt-3 focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid",
+            identity ? "m-0 text-[2.2rem] tracking-[-0.035em]" : "mb-1 text-[1.25rem]",
+          )}
         >
           {title}
         </h2>
-        <p className="settings-section-description m-0 max-w-[52rem] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
+        <p
+          className={cn(
+            "settings-section-description leading-[var(--leading-relaxed)] text-pc-muted-foreground",
+            identity ? "mt-4 max-w-[24.375rem] text-xs" : "m-0 max-w-[52rem]",
+          )}
+        >
           {description}
         </p>
         {action}

@@ -140,6 +140,7 @@ import {
   captureAccessibilityReport,
   clickVisible,
   reviewGameUpdateDisposition,
+  reviewControls,
   selectPrimaryNavigation,
   selectCatalogPort,
 } from "./desktop-review-controls.mts";
@@ -287,7 +288,7 @@ async function selectActivitySection(
 ) {
   const button = await browser.findElement(
     By.xpath(
-      `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="${label}"]`,
+      `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="${label}"]]`,
     ),
   );
   await clickVisible(browser, button);
@@ -3830,6 +3831,162 @@ export async function preparationScenarios({
       flag: "wx",
     });
     artifacts.push(screenshot);
+  });
+
+  await scenario("native-library-organization-restart", async () => {
+    const { port } = await seed("opengoal-jak1", "success");
+    const before = await status(port.id);
+    assert.ok(before.active, "Organization fixture must be an actual owned installation");
+    const sourcesBefore = command(["source", "list"]);
+    const backupsBefore = command(["backup", "list", port.id]);
+    const originalWindow = await browser.manage().window().getRect();
+    const collectionName = "Owned native collection";
+    const click = (locator: Locator) => reviewControls(browser).click(locator);
+    const organization = async () => {
+      const bootstrap = await read("desktop_bootstrap_status", "get_bootstrap_status");
+      return read("desktop_library_organization", "get_library_organization", {
+        generation: bootstrap.generation,
+      });
+    };
+    const favorites = async () => {
+      const bootstrap = await read("desktop_bootstrap_status", "get_bootstrap_status");
+      const response = await invoke("get_favorite_ports", { generation: bootstrap.generation });
+      assert.equal(response.ok, true);
+      const ids = response.value;
+      assert.ok(Array.isArray(ids) && ids.every((id) => typeof id === "string"));
+      return ids as string[];
+    };
+    const capture = async (name: string) => {
+      const screenshot = path.join(output, `native-organization-${name}.png`);
+      await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+      artifacts.push(screenshot);
+    };
+    const libraryView = async () => {
+      await open(port, false);
+      await clickVisible(browser, await browser.findElement(By.css(".detail-back")));
+      await selectPrimaryNavigation(browser, "Library");
+      await browser.wait(until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)), 15_000);
+    };
+    const manageCollections = async () => {
+      await clickVisible(
+        browser,
+        await browser.findElement(By.css('button[aria-label="Manage collections"]')),
+      );
+      await browser.wait(
+        until.elementLocated(
+          By.xpath('//label[contains(normalize-space(.),"Collection name")]//input'),
+        ),
+        5_000,
+      );
+    };
+    const more = () => By.xpath(`//button[@data-detail-origin="library:card-more:${port.id}"]`);
+    const favorite = () => By.xpath(`//button[@aria-label="Favorite ${gameIdentityLabel(port)}"]`);
+    try {
+      await browser.manage().window().setRect({ width: 1280, height: 900 });
+      await libraryView();
+      const initial = await organization();
+      const initialFavorites = await favorites();
+      assert.equal(initialFavorites.includes(port.id), false, "Owned fixture starts unfavorited");
+      assert.ok(!Object.values(initial.collections).some((entry) => entry.name === collectionName));
+      await manageCollections();
+      await browser
+        .findElement(By.xpath('//label[contains(normalize-space(.),"Collection name")]//input'))
+        .sendKeys(collectionName);
+      await click(button("Create collection"));
+      await browser.wait(
+        async () =>
+          Object.values((await organization()).collections).some(
+            (entry) => entry.name === collectionName,
+          ),
+        15_000,
+      );
+      const created = await organization();
+      const collectionId = required(
+        Object.entries(created.collections).find(([, entry]) => entry.name === collectionName),
+      )[0];
+      assert.deepEqual(required(created.collections[collectionId]).port_ids, []);
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await click(more());
+      const membership = By.xpath(
+        `//*[@role="menuitemcheckbox" and normalize-space(.)="${collectionName}"]`,
+      );
+      await click(membership);
+      await browser.wait(
+        async () => (await organization()).collections[collectionId]?.port_ids.includes(port.id),
+        15_000,
+      );
+      await click(favorite());
+      await browser.wait(async () => (await favorites()).includes(port.id), 15_000);
+      await click(By.css(`button[aria-label="Collection: ${collectionName}"]`));
+      await browser.wait(until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)), 5_000);
+      await capture("membership-favorite-saved");
+      const persisted = await organization();
+      const savedFavorites = await favorites();
+      browser = await restartApplication("native-organization-persisted");
+      await browser.manage().window().setRect({ width: 1280, height: 900 });
+      await libraryView();
+      assert.deepEqual(await organization(), persisted);
+      assert.deepEqual(await favorites(), savedFavorites);
+      await browser.wait(
+        async () => (await browser.findElement(favorite()).getAttribute("aria-pressed")) === "true",
+        5_000,
+      );
+      await click(By.css(`button[aria-label="Collection: ${collectionName}"]`));
+      await browser.wait(until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)), 5_000);
+      await capture("restarted-selection");
+      await click(more());
+      await click(membership);
+      await browser.wait(
+        async () => (await organization()).collections[collectionId]?.port_ids.length === 0,
+        15_000,
+      );
+      await manageCollections();
+      await click(button("All games"));
+      await click(
+        By.xpath(
+          `//p[contains(normalize-space(.),"${collectionName}")]//button[normalize-space(.)="Remove collection"]`,
+        ),
+      );
+      await browser.wait(async () => !(await organization()).collections[collectionId], 15_000);
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await click(favorite());
+      await browser.wait(async () => !(await favorites()).includes(port.id), 15_000);
+      const final = await organization();
+      assert.deepEqual(final.collections, initial.collections);
+      assert.deepEqual(await favorites(), initialFavorites);
+      const after = await status(port.id);
+      for (const key of ["active", "staged", "previous"] as const)
+        assert.deepEqual(after[key], before[key]);
+      assert.deepEqual(command(["source", "list"]), sourcesBefore);
+      assert.deepEqual(command(["backup", "list", port.id]), backupsBefore);
+      await capture("removed-with-installation-preserved");
+      const report = path.join(output, "library-organization-result.json");
+      await writeFile(
+        report,
+        `${JSON.stringify(
+          {
+            port_id: port.id,
+            collection_id: collectionId,
+            initial,
+            persisted,
+            final,
+            favorites_before: initialFavorites,
+            favorites_persisted: savedFavorites,
+            host_restart_preserved_preferences: true,
+            installed_versions_sources_backups_preserved: true,
+            window: await browser.manage().window().getRect(),
+            evidence:
+              "Normal application controls and real preference IPC in an isolated owned fixture; no physical input or gameplay claim.",
+          },
+          null,
+          2,
+        )}\n`,
+        { flag: "wx" },
+      );
+      artifacts.push(report);
+    } finally {
+      await browser.manage().window().setRect(originalWindow);
+    }
   });
 
   await backupReviewScenario({

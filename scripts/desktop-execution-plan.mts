@@ -74,7 +74,11 @@ export function planDesktopExecution(
   const acquisitionJourney = selection.selected_scenarios.includes(
     "native-update-acquisition-lifecycle",
   );
+  const organizationRestart = selection.selected_scenarios.includes(
+    "native-library-organization-restart",
+  );
   const identityBoundSession =
+    organizationRestart ||
     acquisitionJourney ||
     selection.selected_scenarios.includes("native-host-publication-recovery") ||
     selection.selected_scenarios.includes("native-real-prepared-runtime") ||
@@ -104,7 +108,7 @@ export function planDesktopExecution(
     preferencesRecoverySession ||
     bootstrapRecoverySession ||
     librarySwitchRecoverySession;
-  const cleanupName = acquisitionJourney
+  const preferredCleanupName = acquisitionJourney
     ? "update-acquisition"
     : selection.selected_scenarios.includes("native-host-publication-recovery")
       ? "host-publication"
@@ -172,6 +176,10 @@ export function planDesktopExecution(
                                                     )
                                                   ? "steam-batch"
                                                   : "backup-focus";
+  const cleanupName =
+    organizationRestart && !backupFocusSession && preferredCleanupName === "backup-focus"
+      ? "organization-restart"
+      : preferredCleanupName;
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,

@@ -520,6 +520,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-interface-size",
             "native-library-layout",
             "native-update-acquisition-lifecycle",
+            "native-library-organization-restart",
           ].includes(id),
       ),
     });
@@ -1554,4 +1555,33 @@ void test("acquisition qualification is isolated, builds the owned probe and pas
     },
   );
   assert.equal(called, true);
+});
+
+void test("organization restart retains normal builds and requires owned host exit custody", () => {
+  const id = "native-library-organization-restart";
+  const platform = "win32";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform });
+  const plan = planDesktopExecution(selection, { platform });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.deepEqual(selection.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "organization-restart");
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.fixtures.steam, false);
+  assert.ok(familyMembers(plan, "preparation").some((member) => member.id === id));
+  for (const unsupported of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform: unsupported }),
+      /requires Windows/,
+    );
+  const combined = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: [id, "native-backup-delete-focus"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(combined.session.cleanupName, "backup-focus");
 });

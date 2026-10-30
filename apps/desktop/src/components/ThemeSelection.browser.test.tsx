@@ -30,6 +30,9 @@ it("keeps exactly one theme selected through clicks and composite keyboard navig
 it("opens the existing diagnostics owner from About and transfers heading focus", async () => {
   await render(<SettingsView />);
   await page.getByRole("button", { name: "About", exact: true }).click();
+  await expect
+    .element(page.getByRole("heading", { name: "About Portcove", exact: true }))
+    .toHaveFocus();
   await page.getByRole("button", { name: "Open diagnostics", exact: true }).click();
   await expect.element(page.getByRole("heading", { name: "Advanced", exact: true })).toHaveFocus();
   await expect

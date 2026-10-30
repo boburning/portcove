@@ -2627,6 +2627,19 @@ void test("fixture-only reviews select without first-play while continuity keeps
   );
 });
 
+void test("organization persistence selects the normal owned-fixture path without consent or preparation claims", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-library-organization-restart"],
+    platform: "win32",
+  });
+  assert.deepEqual(selection.selected_scenarios, ["native-library-organization-restart"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.ok(selection.prerequisites.includes("owned-fixture"));
+  assert.ok(selection.host_resources.includes("native-desktop"));
+  assert.ok(!selection.prerequisites.includes("native-dialog"));
+  assert.ok(!selection.prerequisites.includes("steam-fixture"));
+});
+
 void test("staged native composition installs its isolated fixture before review", () => {
   const selection = resolveDesktopSelection({ scenarios: ["native-staged-update-composition"] });
   assert.deepEqual(selection.selected_scenarios, ["native-staged-update-composition"]);

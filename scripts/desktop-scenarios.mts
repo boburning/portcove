@@ -457,6 +457,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-library-organization-restart",
+    "Normal-app collection membership and favorites persist across an owned application restart.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-release-channel-selection-and-restart",
     "Release-channel selection survives renderer restart.",
     {
@@ -774,6 +784,8 @@ export function resolveDesktopSelection({
     throw new Error("native-linux-webview-origin-boundary requires one exact standalone scenario");
   if (uniqueRequested.includes("native-linux-webview-origin-boundary") && platform !== "linux")
     throw new Error("native-linux-webview-origin-boundary requires Linux");
+  if (uniqueRequested.includes("native-library-organization-restart") && platform !== "win32")
+    throw new Error("native-library-organization-restart requires Windows");
   if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
     throw new Error("native-startup-network-diagnostic requires Windows");
   if (uniqueRequested.includes("native-saved-folder-selected-setup")) {

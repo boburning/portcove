@@ -128,10 +128,11 @@ describe("desktop components", () => {
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
     expect(html).toContain("width:50%");
-    expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
+    expect(html).not.toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
-    expect(html).toContain("/brand/mascot/portcove-mascot-v2-front.png");
+    expect(html).toContain("/brand/icons/portcove-mascot-transparent.png");
+    expect(html).toMatch(/<h2[^>]*aria-label="About Portcove"[^>]*>Portcove<\/h2>/u);
     expect(html).toContain(`<h3>Portcove ${desktopPackage.version}</h3>`);
     expect(html).toContain("Licensed under MIT or Apache-2.0.");
     expect(html).toContain("Open project repository");

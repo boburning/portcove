@@ -802,7 +802,7 @@ export async function sourceDialogScenario({
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     await click(
       By.xpath(
-        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
       ),
     );
     const sourceActivity = By.xpath(
@@ -854,7 +854,7 @@ export async function sourceDialogScenario({
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     await click(
       By.xpath(
-        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
       ),
     );
     const discoveryActivity = By.xpath(

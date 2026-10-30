@@ -38,22 +38,7 @@
     color: var(--color-text-muted);
   }
   .about-identity {
-    display: grid;
-    justify-items: start;
-    gap: var(--space-5);
-    padding-block: var(--space-4) var(--space-6);
-  }
-  .about-identity > h3 {
-    margin: 0;
-    font-size: 2.2rem;
-    letter-spacing: -0.035em;
-  }
-  .about-identity > p {
-    max-inline-size: 24.375rem;
-    margin: 0;
-    color: var(--color-text-muted);
-    font-size: var(--text-xs);
-    line-height: var(--leading-relaxed);
+    padding-block: 15px 25px;
   }
   .settings-section-index > button {
     min-block-size: var(--control-height-lg);

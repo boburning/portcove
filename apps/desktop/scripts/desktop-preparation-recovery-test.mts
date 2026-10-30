@@ -1587,7 +1587,7 @@ async function livePreparationRecoveryScenario({
     if (required(recovered).status === "succeeded") {
       const history = await browser.findElement(
         By.xpath(
-          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
         ),
       );
       await executeBrowserScript(

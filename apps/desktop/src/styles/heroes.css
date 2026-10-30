@@ -240,5 +240,8 @@
     .game-hero-detail .game-hero-credits-slot {
       background: var(--color-bg-elevated);
     }
+    .game-hero-detail .game-hero-content {
+      padding-block: 0.25rem;
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -58,6 +59,7 @@ it("keeps manual preparation distinct from checked restore and authority-changin
   await expect
     .element(page.getByRole("button", { name: "Change library location", exact: true }))
     .toBeEnabled();
+  await captureParityState("library-recovery-guide");
 });
 
 it("excludes duplicate export and reports only the metadata receipt, never a verified backup", async () => {
@@ -93,6 +95,7 @@ it("recovers from export failure and treats picker cancellation as no new receip
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
   await page.getByRole("button", { name: "Export metadata", exact: true }).click();
   await expect.element(page.getByRole("alert")).toMatchTextContent("Disk unavailable");
+  await captureParityState("library-metadata-export-failure");
   await page.getByRole("button", { name: "Export metadata", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Export metadata", exact: true }))

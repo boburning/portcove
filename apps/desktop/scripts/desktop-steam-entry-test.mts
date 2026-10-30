@@ -14,6 +14,7 @@ import {
   captureAccessibilityReport,
   openCatalogPortAfterRefresh,
   reviewControls,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 
 import type { WebDriver, Locator } from "selenium-webdriver";
@@ -80,9 +81,29 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     const shortcuts = path.join(config, "shortcuts.vdf");
     await mkdir(config, { recursive: true });
     await open(port, false);
-    await revealDetailSection(browser, "Manage");
+    const catalog = transportValue("catalog", success(await invoke("get_catalog")));
+    const catalogIds = new Set(catalog.ports.map((item) => item.id));
+    const installed = transportValues("status", success(await invoke("get_statuses")))
+      .filter((item) => item.active && catalogIds.has(item.port_id))
+      .map((item) => item.port_id);
+    const entryRoute = installed.length === 1 ? "settings-integrations" : "detail-manage";
     const { button, click } = reviewControls(browser);
-    await click(button("Steam shortcut"));
+    if (entryRoute === "settings-integrations") {
+      assert.deepEqual(installed, [port.id]);
+      await selectPrimaryNavigation(browser, "Settings");
+      await click(
+        By.xpath(
+          '//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Integrations"]',
+        ),
+      );
+    } else {
+      // Broad lifecycle profiles retain earlier owned installations. Their
+      // per-game removal coverage must not delete those fixtures for a singleton.
+      await revealDetailSection(browser, "Manage");
+    }
+    const entryLabel =
+      entryRoute === "settings-integrations" ? "Choose games for Steam…" : "Steam shortcut";
+    await click(button(entryLabel));
     const dialog = By.css('[aria-labelledby="steam-entry-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
@@ -91,14 +112,14 @@ export async function steamEntryScenario(context: SteamEntryContext) {
       5_000,
       "Steam entry dialog did not close after Escape",
     );
-    const trigger = await browser.findElement(button("Steam shortcut"));
+    const trigger = await browser.findElement(button(entryLabel));
     await browser.wait(
       async () =>
         executeBrowserScript(browser, "return document.activeElement === arguments[0];", trigger),
       5_000,
       "Steam entry trigger did not regain focus after Escape",
     );
-    await click(button("Steam shortcut"));
+    await click(button(entryLabel));
     await browser.wait(until.elementLocated(dialog), 15_000);
     const installationField = await browser.findElement(By.id("steam-installation"));
     const installationLabel = await browser.findElement(By.css('label[for="steam-installation"]'));
@@ -253,6 +274,8 @@ export async function steamEntryScenario(context: SteamEntryContext) {
       `${JSON.stringify(
         {
           port_id: port.id,
+          entry_route: entryRoute,
+          eligible_installed_port_ids: installed,
           steam_root: steamRoot,
           steam_user_id: steamUserId,
           shortcuts,

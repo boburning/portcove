@@ -1029,34 +1029,57 @@ function SavesStorageGroup({
     (backupReadState !== undefined && backupReadState.status !== "idle");
   const backupPresentation = backupCreatePresentation(backupCreateAssessment, backupReadState);
   return (
-    <DetailGroup title="Saves & backups" headingId="detail-saves-and-storage" hideHeading>
-      <CurrentStateSummary
-        className="detail-saved-data-summary"
-        title="Saved data"
-        headingRef={heading}
-        action={<DataActions busy={busy} actions={actions} presentation={backupPresentation} />}
-      >
-        <p role="status" className="m-0 text-sm" id="backup-create-explanation">
-          {backupPresentation.explanation}
-        </p>
-        <div className="detail-saved-data-facts">
-          <div>
-            <p className="m-0 text-sm text-pc-muted-foreground">Backup history</p>
-            <p className="mt-1 text-lg font-semibold">
+    <section
+      className="detail-group detail-saves-workspace [&>.backup-history]:mt-0 [&>.backup-history]:border-t-0 [&>.backup-history]:pt-0"
+      aria-labelledby="detail-saves-and-storage"
+    >
+      <h2 id="detail-saves-and-storage" tabIndex={-1} className="sr-only">
+        Saves & backups
+      </h2>
+      <header className="detail-saved-data-header">
+        <div className="min-w-0 flex-1">
+          <h3 ref={heading} tabIndex={-1} className="m-0 text-base font-semibold">
+            Saved data
+          </h3>
+          <p
+            role="status"
+            className="mt-2 text-sm text-pc-muted-foreground"
+            id="backup-create-explanation"
+          >
+            {backupPresentation.explanation}
+          </p>
+        </div>
+        <BackupCreateAction busy={busy} actions={actions} presentation={backupPresentation} />
+      </header>
+      <div className="detail-saved-data-summary">
+        <div className="detail-saved-data-fact">
+          <Icon glyph={FileArchive} size="lg" />
+          <div className="min-w-0">
+            <p className="m-0 text-base font-semibold">
               {backupReadState?.status === "current" &&
               backupReadState.hasInventory &&
               backupState === "healthy"
                 ? `${backups.length} ${backups.length === 1 ? "backup" : "backups"}`
                 : "Review history below"}
             </p>
+            <p className="mt-1 text-xs text-pc-muted-foreground">Saves and settings snapshots</p>
           </div>
-          <StorageSummary status={status} />
         </div>
-        <p className="m-0 text-sm text-pc-muted-foreground">
-          Backups cover managed saves and settings. Game-version rollback, library metadata and
-          other folders are separate.
-        </p>
-      </CurrentStateSummary>
+        <StorageSummary status={status} />
+        <Button
+          data-focusable
+          variant="outline"
+          className="justify-self-start"
+          aria-label="Open folder for saved data"
+          disabled={Boolean(busy)}
+          onClick={() => {
+            void actions.openUserData();
+          }}
+        >
+          <Icon glyph={FolderOpen} />
+          Open folder
+        </Button>
+      </div>
       {hasBackupHistory && (
         <BackupHistory
           embedded
@@ -1075,12 +1098,16 @@ function SavesStorageGroup({
           focusFallback={() => heading.current}
         />
       )}
+      <p className="m-0 text-xs text-pc-muted-foreground">
+        Backups cover managed saves and settings. Game-version rollback, library metadata and
+        other folders are separate.
+      </p>
       <details className="text-sm">
         <summary className="cursor-pointer py-2 font-medium">Coverage and recorded rules</summary>
         <SavesAndSettingsSummary port={port} status={status} />
         <TrustStrip status={status} />
       </details>
-    </DetailGroup>
+    </section>
   );
 }
 
@@ -1204,27 +1231,28 @@ export function InstallationVersionSummary({
               : "Check for updates to see the latest available version."}
         </p>
       )}
-      {status?.staged &&
-        checked?.update_available &&
-        !checkedUpdateMatchesStaged(status) && (
-          <p className="detail-version-context">
-            Latest release at last check: {checked.release.version}. The saved update above is a
-            separate candidate.
-          </p>
-        )}
+      {status?.staged && checked?.update_available && !checkedUpdateMatchesStaged(status) && (
+        <p className="detail-version-context">
+          Latest release at last check: {checked.release.version}. The saved update above is a
+          separate candidate.
+        </p>
+      )}
     </section>
   );
 }
 
 function StorageSummary({ status }: { status?: PortStatus | undefined }) {
   return (
-    <div className="text-sm wrap-anywhere">
-      <span className="text-pc-muted-foreground">Saves and settings folder</span>
-      {status?.user_data_root ? (
-        <p className="mt-1 select-text">{status.user_data_root}</p>
-      ) : (
-        <p className="mt-1">Folder not available</p>
-      )}
+    <div className="detail-saved-data-fact">
+      <Icon glyph={FolderOpen} size="lg" />
+      <div className="min-w-0 text-xs wrap-anywhere">
+        <p className="m-0 text-sm font-semibold">Saves and settings folder</p>
+        {status?.user_data_root ? (
+          <p className="mt-1 text-pc-muted-foreground select-text">{status.user_data_root}</p>
+        ) : (
+          <p className="mt-1 text-pc-muted-foreground">Folder not available</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -2517,7 +2545,7 @@ function MaintenanceActions({
   );
 }
 
-function DataActions({
+function BackupCreateAction({
   busy,
   actions,
   presentation,
@@ -2528,32 +2556,19 @@ function DataActions({
 }) {
   const { available, explanation } = presentation;
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button
-        data-focusable
-        variant="primary"
-        title={explanation}
-        aria-describedby="backup-create-explanation"
-        disabled={Boolean(busy) || !available}
-        onClick={() => {
-          void actions.backup();
-        }}
-      >
-        <Icon glyph={Save} />
-        Back up now
-      </Button>
-      <Button
-        data-focusable
-        variant="outline"
-        disabled={Boolean(busy)}
-        onClick={() => {
-          void actions.openUserData();
-        }}
-      >
-        <Icon glyph={FolderOpen} />
-        Open saved data folder
-      </Button>
-    </div>
+    <Button
+      data-focusable
+      variant="primary"
+      title={explanation}
+      aria-describedby="backup-create-explanation"
+      disabled={Boolean(busy) || !available}
+      onClick={() => {
+        void actions.backup();
+      }}
+    >
+      <Icon glyph={Save} />
+      Back up now
+    </Button>
   );
 }
 

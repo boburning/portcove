@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -146,6 +147,7 @@ it("shows source and edition attribution, navigates previews and returns focus t
     exact: true,
   });
   await expect.element(origin).toBeEnabled();
+  await captureParityState("catalog-gallery-synthetic");
   await origin.click();
   await expect
     .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
@@ -167,6 +169,7 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect.element(firstChoice).toHaveAttribute("aria-pressed", "false");
   await firstChoice.click();
   await expect.element(firstChoice).toHaveAttribute("aria-pressed", "true");
+  await captureParityState("catalog-lightbox-filmstrip-synthetic");
   await expect
     .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
     .toBeVisible();
@@ -438,6 +441,7 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
     const play = page.getByRole("button", { name: "Play controlled game", exact: true });
     await play.click();
     const action = document.activeElement;
+    if (keyArtState === "unavailable") await captureParityState("hero-admitted-logo-synthetic");
     const logoElement = document.querySelector<HTMLImageElement>(".game-hero-image");
     if (!logoElement) throw new Error("Logo did not render");
     await act(async () => {
@@ -449,6 +453,7 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
     expect(document.activeElement).toBe(action);
     const cover = document.querySelector<HTMLImageElement>(".game-hero-image");
     if (!cover) throw new Error("Cover fallback did not render");
+    if (keyArtState === "unavailable") await captureParityState("hero-cover-fallback-synthetic");
     await page.getByText("Image credits", { exact: true }).click();
     await expect.element(page.getByText("Image credits", { exact: true })).toHaveFocus();
     await act(async () => {
@@ -461,6 +466,7 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
     expect(document.activeElement).toBe(action);
     expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
     expect(document.querySelector(".game-hero-background")).toBeNull();
+    if (keyArtState === "unavailable") await captureParityState("hero-title-fallback-synthetic");
   },
 );
 
@@ -499,6 +505,7 @@ it("keeps a legible logo ahead of key art when the Continue footprint shrinks", 
     })
     .toBe(true);
   expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("logo");
+  await captureParityState("continue-logo-wide-synthetic");
   await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
   const action = document.activeElement;
   await act(async () => {
@@ -512,6 +519,7 @@ it("keeps a legible logo ahead of key art when the Continue footprint shrinks", 
   await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
   expect(document.activeElement).toBe(action);
   expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
+  await captureParityState("continue-logo-240-container-synthetic");
 });
 
 it.each(

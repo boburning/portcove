@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { filterChoice } from "../../test/filter-fields";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
@@ -297,6 +298,7 @@ it.each(["dark", "light"])(
     await chooseReadiness("Ready (2)");
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(await filterChoice("Linux (1)"));
+    await captureParityState("library-filters-expanded");
     await closeFilters();
     await expect
       .element(page.getByRole("region", { name: "Filter options", exact: true }))
@@ -312,6 +314,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     await chooseReadiness("Ready (1)");
     await expect.element(button("Remove Preview filter")).toBeInTheDocument();
+    await captureParityState("library-selected-filter-chips");
     await userEvent.click(button("View details for Linux game Linux game"));
     await userEvent.click(button("Back to library"));
     await expectReadinessLabel("Readiness Ready (1)");
@@ -338,6 +341,7 @@ it.each(["dark", "light"])(
     await expect.element(await filterChoice("Linux (0)")).toBeEnabled();
     await closeFilters();
     await expect.element(button("Filters (2)")).toHaveFocus();
+    await captureParityState("library-zero-results");
     const chip = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Linux filter"]',
     )!;
@@ -371,6 +375,7 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   await userEvent.click(button("Toggle favorite facts"));
   await expectReadinessOption("Ready (unavailable)");
   await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
+  await captureParityState("library-unavailable-facts");
   await userEvent.click(button("Toggle favorite facts"));
   await userEvent.click(button("Toggle empty"));
   await expectReadinessOption("Ready (0)");

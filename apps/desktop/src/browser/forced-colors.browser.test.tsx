@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -32,6 +33,7 @@ for (const theme of ["dark", "light"]) {
     await userEvent.tab();
     await expect.element(selected).toHaveFocus();
     expect(getComputedStyle(selected.element()).outlineStyle).not.toBe("none");
+    await captureParityState("forced-colors-selection-focus");
   });
   it(`respects actual reduced motion for ${theme} controls and portaled popups`, async () => {
     expect(matchMedia("(prefers-reduced-motion: reduce)").matches).toBe(true);
@@ -64,6 +66,7 @@ for (const theme of ["dark", "light"]) {
     expect(
       getComputedStyle(document.querySelector('[data-slot="select-content"]')!).transitionProperty,
     ).toBe("none");
+    await captureParityState("reduced-motion-popup");
     await userEvent.keyboard("{Escape}");
     await expect.element(page.getByRole("combobox", { name: "Release Stable" })).toHaveFocus();
   });
@@ -89,5 +92,6 @@ for (const theme of ["dark", "light"]) {
     const dialogStyle = getComputedStyle(page.getByRole("dialog").element());
     expect(dialogStyle.outlineStyle).not.toBe("none");
     expect(parseFloat(dialogStyle.outlineWidth)).toBeGreaterThanOrEqual(1);
+    await captureParityState("forced-colors-dialog");
   });
 }

@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -187,6 +188,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.element(page.getByRole("menu", { name: /^More actions for/ })).toHaveFocus();
   await userEvent.keyboard("{End}");
   await expect.element(page.getByRole("menuitem", { name: "Saves & backups" })).toHaveFocus();
+  await captureParityState("card-overflow-keyboard-focus");
   await userEvent.keyboard("{Escape}");
   await expect.element(more).toHaveFocus();
 });
@@ -277,6 +279,7 @@ it("keeps artwork favorites separate from details and restores filter focus when
   await filter.click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
   await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  await captureParityState("library-favorites");
   toggle.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
@@ -575,6 +578,7 @@ it("keeps Collections inside the shared controller scope and returns Back and Es
   expect(scope).not.toBe(document);
   expect(focusableControls().length).toBeGreaterThan(0);
   expect(focusableControls().every((control) => scope.contains(control))).toBe(true);
+  await captureParityState("collection-editor");
   const active = document.activeElement;
   cyclePrimaryNavigation(1);
   expect(document.activeElement).toBe(active);
@@ -609,6 +613,7 @@ it("keeps a sidebar collection selected through detail return and compact naviga
   await collection.click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   await expect.element(collection).toHaveAttribute("aria-pressed", "true");
+  await captureParityState("library-selected-collection");
   const identity = document.querySelector<HTMLButtonElement>(
     '[data-detail-game-id="collection-0"]',
   )!;
@@ -631,6 +636,7 @@ it("keeps a sidebar collection selected through detail return and compact naviga
   await expect
     .element(page.getByRole("button", { name: "Weekend games (2)", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
+  await captureParityState("compact-collection-picker");
   await userEvent.keyboard("{Escape}");
   await expect.element(compact).toHaveFocus();
 });

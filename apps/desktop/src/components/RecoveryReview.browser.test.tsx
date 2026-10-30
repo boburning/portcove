@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -6,6 +7,7 @@ import { desktopApi } from "../api";
 import type { DoctorReport, PreparationCleanupPreview } from "../types";
 import { portDefinition } from "../test-fixtures";
 import { RecoveryReview } from "./RecoveryReview";
+import "../styles/index.css";
 
 type Repair = DoctorReport["repair"];
 const port = portDefinition();
@@ -135,6 +137,7 @@ it("inspects exact retained facts without deleting, then refreshes the bound pla
     expect(document.body.textContent).not.toContain("Delete files left by unfinished setup?");
     expect(document.body.textContent).not.toContain("Setup working folder to delete");
     expect(cleanup).not.toHaveBeenCalled();
+    await captureParityState("retained-preparation-readonly-review");
     const updated = { ...preview, preview_sha256: "c".repeat(64) };
     load.mockResolvedValue(updated);
     await act(async () =>
@@ -149,6 +152,7 @@ it("inspects exact retained facts without deleting, then refreshes the bound pla
     expect(document.body.textContent).toContain("Delete files left by unfinished setup?");
     expect(document.body.textContent).toContain("setup and any programs it started have stopped");
     expect(cleanup).not.toHaveBeenCalled();
+    await captureParityState("retained-preparation-delete-confirmation");
     const apply = [...document.body.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Delete setup working files"),
     );
