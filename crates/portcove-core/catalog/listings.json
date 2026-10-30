@@ -24497,7 +24497,7 @@
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/MegaManXSNESRecomp",
       "original_game_title": "Mega Man X (USA) (Rev 1)",
-      "download_block_reason": "This handoff covers a permitted current-source completed noncommercial build. The old unlicensed-source package hold is not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
+      "download_block_reason": "This handoff covers a permitted current-source completed noncommercial build. Historical package permission holds are not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
       "manual_setup": {
         "help_url": "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md",
         "steps": [

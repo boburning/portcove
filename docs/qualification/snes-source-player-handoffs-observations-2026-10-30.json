@@ -33,7 +33,7 @@
       "complete_tree_entries": 492,
       "tree_truncated": false,
       "tree_response_sha256": "6220ad2dc079f8bbdd7ecae5bfc5c086523ea9b29ca5661f6cc68989c40c28d4",
-      "authored_record_sha256": "4de98d58cb89bc41bb7c03c91977583cd4082e9edb0d3ee8fed1d8c107fd11ff",
+      "authored_record_sha256": "c11ef732f64749f77dbf4c0ee7290c863f984f528759214cfb2de6eb6da72f03",
       "offered_platform": "Windows completed native player",
       "offered_operations": [
         "review explicit executable/CWD/literal arguments",
