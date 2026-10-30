@@ -3374,13 +3374,19 @@ void test("isolated executor recovery fixture edits retain the local and hosted 
   assert.ok(!classifyChanges([{ status: "M", path: "docs/README.md" }]).nodeTests.has(consumer));
 });
 
-void test("isolated context receiver fixtures retain local and hosted authenticated-getter coverage", async () => {
-  for (const file of [
-    "scripts/fixtures/signing-context-artifact-fixture.mts",
-    "scripts/fixtures/signing-context-receiver-fixture.mts",
-  ]) {
+void test("isolated signing fixtures retain local and hosted signer/getter coverage", async () => {
+  for (const [file, consumer] of [
+    [
+      "scripts/fixtures/signing-context-artifact-fixture.mts",
+      "scripts/release-signing-context-artifact.test.mts",
+    ],
+    [
+      "scripts/fixtures/signing-context-receiver-fixture.mts",
+      "scripts/release-signing-context-artifact.test.mts",
+    ],
+    ["scripts/fixtures/tuf-prekey-fixture.mts", "scripts/release-tuf-signing.test.mts"],
+  ] as const) {
     const { baselineContractTests } = await import("./ci-baseline.mts");
-    const consumer = "scripts/release-signing-context-artifact.test.mts";
     for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
       const change = {
         status: variant.startsWith("R") ? "R100" : variant,

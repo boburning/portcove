@@ -394,6 +394,11 @@ function ApplicationUpdateStatusPanel({
 
       {status && (
         <>
+          {!status.staged && status.install_eligibility !== "eligible" && (
+            <p className={`${updateSurfaceClass} ${updateMutedCopyClass}`}>
+              {installRestrictionCopy(status)}
+            </p>
+          )}
           <ApplicationUpdateRecoveryItems
             recoveries={status.recovery_required}
             disabled={disabled}

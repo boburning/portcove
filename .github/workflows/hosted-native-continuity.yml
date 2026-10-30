@@ -545,6 +545,10 @@ jobs:
             work/updater-rehearsal/windows-renderer-evidence/*.png
             work/updater-rehearsal/windows-renderer-evidence/failure.html
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-descriptor/status.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-descriptor/*.txt
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-activity/activity-holder.json
+            work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/library-busy-activity/*.txt
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/*.png
             work/updater-rehearsal/installer-test/run-*/renderer-qualification/evidence/failure.html
             work/updater-rehearsal/installer-test/run-*/predecessor-smoke.stdout.log
@@ -552,6 +556,12 @@ jobs:
             work/updater-rehearsal/installer-test/run-*/candidate-smoke.stdout.log
             work/updater-rehearsal/installer-test/run-*/candidate-smoke.stderr.log
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
+            work/updater-rehearsal/linux-appimage-qualification/state/noexec-probe.json
+            work/updater-rehearsal/linux-appimage-qualification/state/noexec-probe-stdout.txt
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-descriptor/status.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-descriptor/*.txt
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/activity-holder.json
+            work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/library-busy-activity/*.txt
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.json
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/*.png
             work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/evidence/failure.html

@@ -108,9 +108,17 @@ if ($Mode -eq 'Observe') {
 }
 if ($Mode -eq 'RequestClose') {
     $records = @($snapshot.processes | Where-Object pid -eq $snapshot.application_pid)
-    if ($records.Count -ne 1 -or $snapshot.application_pid -eq $snapshot.driver.pid -or
+    $directApplication = $snapshot.root_kind -eq 'direct-application'
+    $applicationIsRoot = $snapshot.application_pid -eq $snapshot.driver.pid
+    if ($records.Count -ne 1 -or $applicationIsRoot -ne $directApplication -or
         -not [string]::Equals($records[0].path, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'Exactly one captured owned application is required for ordinary close.'
+    }
+    if ($directApplication -and
+        ($ExpectedApplicationSha256 -notmatch '^[0-9a-f]{64}$' -or
+         $snapshot.executable_sha256 -cne $ExpectedApplicationSha256 -or
+         (Get-FileHash -LiteralPath $ApplicationPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedApplicationSha256)) {
+        throw 'Direct application executable identity changed before ordinary close.'
     }
     $driver = try { [Diagnostics.Process]::GetProcessById([int]$snapshot.driver.pid) } catch [ArgumentException] { $null }
     if (-not $driver) { throw 'Captured driver exited before ordinary close.' }

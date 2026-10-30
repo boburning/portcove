@@ -800,9 +800,11 @@ ConvertTo-Json -InputObject $results -Depth 4 -Compress
   },
 );
 
+// CI40973981141/a1 Windows helper job123797649680 hit its30s CSC fixture
+// cutoff before PATH assertions. Finite per-case compile/test room only.
 void test(
   "diagnostic controller resolves the PATH-first Node and refuses a wrong first version before effects",
-  { skip: process.platform !== "win32" },
+  { skip: process.platform !== "win32", timeout: 90000 },
   (t) => {
     const root = disposableDirectory(t, path.join(homedir(), ".pc-diagnostic-node-"));
     const first = path.join(root, "first node"),
@@ -821,7 +823,7 @@ void test(
     );
     const compile = spawnSync(compiler, ["/nologo", "/target:exe", `/out:${bad}`, badSource], {
       encoding: "utf8",
-      timeout: 30000,
+      timeout: 60000,
       windowsHide: true,
     });
     assert.equal(compile.status, 0, compile.stderr);

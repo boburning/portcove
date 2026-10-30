@@ -4,6 +4,7 @@ import {
   observeUpdaterCaller,
   observeLinuxDriver,
   observeHistoricalScope,
+  observeRetainedRebootScope,
 } from "./fixtures/updater-workflow-fixture.mts";
 import { prerequisiteInvocation } from "./fixtures/linux-prerequisites-fixture.mts";
 import { readWorkflow } from "./ci-workflow-fixture.mts";
@@ -619,9 +620,6 @@ void test("manual rehearsal retains the complete matrix without production crede
     rehearsal,
     /\$qualifiedBundleName = "qualified-\$predecessorVersion-bundles"[\s\S]*Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$predecessor = Join-Path \$runRoot[\s\S]*Invoke-Checked "dbus-run-session"/,
   );
-  assert.match(rehearsal, /ValidateSet\("legacy-adjacent", "legacy-skipped", "preview-final"\)/);
-  assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
-  assert.match(rehearsal, /"1\.0\.0"/);
   assert.match(rehearsal, /-PredecessorVersion/);
   assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
@@ -760,12 +758,9 @@ void test("manual rehearsal retains the complete matrix without production crede
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 15/);
   assert.match(linuxHarness, /& \$stable --portcove-qualify-update-stage \$truncatedCandidate/);
   assert.match(linuxHarness, /& \$stable --portcove-qualify-update-stage \$candidate/);
   assert.match(linuxHarness, /-- prepare-staged \$PredecessorVersion/);
-  assert.match(linuxHarness, /\$PredecessorVersion = "0\.1\.0"/);
-  assert.match(linuxHarness, /\$CandidateVersion = "0\.3\.0"/);
   assert.match(rehearsal, /wrong-disposable\.key/);
   assert.match(rehearsal, /repository\/missing-payload-signature/);
   assert.match(rehearsal, /repository\/wrong-payload-signature/);
@@ -1159,7 +1154,11 @@ void test("packaged transition and evidence contracts execute exact profile sema
       "-DescribeTransition",
     ]);
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), expected);
+    assert.deepEqual(
+      JSON.parse(result.stdout),
+      expected,
+      `UPDATER_TRANSITION_METADATA:${platform}:${profile}`,
+    );
   }
 
   const invalid = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
@@ -1169,8 +1168,45 @@ void test("packaged transition and evidence contracts execute exact profile sema
     "not-a-transition",
     "-DescribeTransition",
   ]);
-  assert.notEqual(invalid.status, 0);
+  assert.equal(invalid.status, 1, "UPDATER_INVALID_PROFILE_REFUSAL");
   assert.match(invalid.stderr, /Cannot validate argument.*TransitionProfile/);
+
+  const rehearsalPath = fileURLToPath(new URL("./rehearse-updater-artifacts.ps1", import.meta.url));
+  const metadata = spawnSync(
+    "pwsh",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `
+$ErrorActionPreference = 'Stop'
+$command = Get-Command -Name '${rehearsalPath.replaceAll("'", "''")}'
+$sets = @($command.Parameters['TransitionProfile'].Attributes | Where-Object { $_ -is [Management.Automation.ValidateSetAttribute] })
+if ($sets.Count -ne 1) { throw 'Exactly one TransitionProfile validation set is required' }
+ConvertTo-Json -InputObject @($sets[0].ValidValues) -Compress
+`,
+    ],
+    { encoding: "utf8", timeout: 10000 },
+  );
+  assert.equal(metadata.status, 0, `UPDATER_PROFILE_METADATA_COMPLETION: ${metadata.stderr}`);
+  assert.deepEqual(
+    array(JSON.parse(metadata.stdout)).map(text).sort(),
+    ["legacy-adjacent", "legacy-skipped", "preview-final"],
+    "UPDATER_PROFILE_ENUM",
+  );
+
+  const defaults = runPowerShellScript("./test-linux-appimage-update.ps1", ["-DescribeContract"]);
+  assert.equal(defaults.status, 0, defaults.stderr);
+  assert.deepEqual(
+    JSON.parse(defaults.stdout),
+    {
+      schema_version: 15,
+      predecessor_version: "0.1.0",
+      candidate_version: "0.3.0",
+    },
+    "UPDATER_DEFAULT_EVIDENCE_CONTRACT",
+  );
 
   const evidence = runPowerShellScript("./test-linux-appimage-update.ps1", [
     "-DescribeContract",
@@ -1180,11 +1216,15 @@ void test("packaged transition and evidence contracts execute exact profile sema
     "1.0.0",
   ]);
   assert.equal(evidence.status, 0, evidence.stderr);
-  assert.deepEqual(JSON.parse(evidence.stdout), {
-    schema_version: 15,
-    predecessor_version: "1.0.0-rc.2",
-    candidate_version: "1.0.0",
-  });
+  assert.deepEqual(
+    JSON.parse(evidence.stdout),
+    {
+      schema_version: 15,
+      predecessor_version: "1.0.0-rc.2",
+      candidate_version: "1.0.0",
+    },
+    "UPDATER_OVERRIDE_EVIDENCE_CONTRACT",
+  );
 });
 
 void test(
@@ -1414,4 +1454,73 @@ $stageExit=$LASTEXITCODE
   assert.equal(observed.stage_exit, 0);
   assert.match(text(observed.selection_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
   assert.match(text(observed.stage_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
+});
+
+void test("retained Linux reboot admits only its frozen independent mode and public evidence", async () => {
+  const source = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  const contract = updaterWorkflow(source, releaseLabels(policy));
+  const baseline = {
+    PLATFORM: "linux-x86_64",
+    PROFILE: "legacy-skipped",
+    LINUX_RUNNER: "ubuntu-24.04",
+    HISTORICAL: "false",
+  };
+  assert.equal(observeRetainedRebootScope(contract.retainedReboot.scope.step, baseline), 0);
+  for (const [key, value] of Object.entries({
+    PLATFORM: "all",
+    PROFILE: "adjacent",
+    LINUX_RUNNER: "ubuntu-26.04",
+    HISTORICAL: "true",
+  })) {
+    assert.notEqual(
+      observeRetainedRebootScope(contract.retainedReboot.scope.step, { ...baseline, [key]: value }),
+      0,
+    );
+  }
+  const mutations: ((workflow: Record<string, unknown>) => void)[] = [
+    (w) => {
+      object(object(object(w.on).workflow_dispatch).inputs).retained_reboot_only = {
+        type: "boolean",
+        default: true,
+      };
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).if = "always()";
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).needs = "packages";
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).permissions = {
+        contents: "read",
+        actions: "write",
+      };
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(object(steps[3]).with).ref = "main";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(steps[12]).run = "python3 scripts/qualification/linux-reboot/controller.py";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(steps[13]).if = "success()";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(object(steps[14]).with).path = "work/";
+    },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(contract.workflow);
+    mutate(changed);
+    assert.throws(
+      () => updaterWorkflow(JSON.stringify(changed), releaseLabels(policy)),
+      assert.AssertionError,
+    );
+  }
 });
