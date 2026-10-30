@@ -862,6 +862,24 @@ mod tests {
         assert_listing_only_player_route("rage-racer-rage-racer-pc", Some(true));
     }
 
+    #[test]
+    fn kameo_permitted_player_route_129() {
+        assert_listing_only_player_route("kameo-repowered", Some(true));
+    }
+
+    #[test]
+    fn redahm_permitted_player_route_130() {
+        assert_listing_only_player_route(
+            "redahm-destroy-all-humans-path-of-the-furon",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn svr07_permitted_player_route_131() {
+        assert_listing_only_player_route("svr07-recomp-wwe-smackdown-vs-raw-2007", Some(false));
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently

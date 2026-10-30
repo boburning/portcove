@@ -22284,7 +22284,38 @@
         "image_sha256": "571fd0443f4a46cc879dc18a7abf7f3de88629ff3686406c376b9fcacb6af63a",
         "game_slug": "kameo-elements-of-power",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/birabittoh/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+        "steps": [
+          {
+            "title": "Keep a lawful completed native copy",
+            "instruction": "Use an already lawfully prepared working Windows x64 kameorepowered.exe copy with its complete adjacent dependencies and the original creating data/profile. The tagged README grants MIT for host-side source/build/CI but expressly says recompiled generated game code and linked built binaries are not redistributable. Published releases or old matching digests do not override that exclusion. Fresh package acquisition remains held pending an applicable attributable permission/asset-clean route; this is not a blanket private-execution prohibition."
+          },
+          {
+            "title": "Finish original and variant preparation outside Core",
+            "instruction": "Use your own Kameo: Elements of Power Xbox 360 original, upstream documented USA extracted assets/default.xex, and complete existing extracted data. Keep vanilla and title-update builds distinct, with matching lawful update/DLC packages and actual extracted roots. Core does not extract an ISO/STFS package, install a title update, generate code or validate an exact disc/XEX hash. Do not infer foreign-revision, DLC, save or vanilla/TU interchangeability."
+          },
+          {
+            "title": "Select the game with its established roots",
+            "instruction": "Select kameorepowered.exe itself, with the actual writable installation-root initial CWD. For the tagged pinned-SDK interface, review --game_data_root and the absolute existing assets directory as two literal arguments. Preserve the creating --update_data_root and its absolute extracted update path when that TU copy requires it, plus any established --user_data_root and --cache_root choices, each followed by its separate absolute path token. Keep spaces inside each path token. Do not choose scripts/run.py, an extractor, Goopie or a build/helper entry. Registration itself does not prepare or launch anything; retain an already working build-specific launch context rather than inventing a profile."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+          },
+          {
+            "title": "Preserve the actual runtime, originals and user profile",
+            "instruction": "Keep the complete runtime/original/asset/update/DLC roots and kameorepowered.toml, all actual user/save/content/cache/log/mod/custom paths and unknown files. The reviewed SDK uses the Windows known Documents folder plus kameorepowered by default (Documents may be redirected), including Xbox-style 0000000000000000/4D5307D2/00000002 DLC content; explicit root choices override defaults. Preserve any custom roots separately. Keep variant-specific state with its creating copy; do not move or regenerate state merely to register."
+          }
+        ],
+        "warnings": [
+          "The selected v0.2.1 tag and current source differ. Its .sdk-version pins f22cd9dc, while a manifest also names 0.8.1; source/SDK review is not a source-to-binary certificate. The tagged pinned runtime requires game_data_root despite the abbreviated README zero-argument placement example. Only a completed already working copy with its actual supported arguments is offered.",
+          "Fresh downloads remain blocked by the explicit built-code redistribution condition, not missing optional LICENSE alone. No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, exact original authentication or new Xbox-family framework is provided. Existing source/extraction/variant/managed qualification remains unresolved.",
+          "No new game package/original/game execution, save/load/gameplay/installed/protected acceptance or Supported promotion. Prior Windows TU v0.2.1 artifact-integrity evidence remains scoped to that exact asset, not vanilla or arbitrary builds."
+        ]
+      },
+      "download_block_reason": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question."
     },
     {
       "id": "kandowontu2-urbanrecomp",
@@ -32607,6 +32638,36 @@
         "image_sha256": "006284fde5d80cb1c49e1163b7657da68b27daf7fcfb85b1d90abf887761170b",
         "game_slug": "destroy-all-humans-path-of-the-furon",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/masterspike52/reDAHM/blob/da958b288c6f8f42812b9f36b08c29ffdd7e48fd/README.md",
+        "steps": [
+          {
+            "title": "Keep an already permitted working direct player",
+            "instruction": "Use an already permitted working Windows x64 redahm.exe copy, its complete actual dependencies and creating configuration. Upstream explicitly documents direct release play with one's own US original alongside optional Goopie; Goopie is not selected or granted Core lifecycle authority. No top-level project license is established by this review; publisher player instructions do not establish whole-source/component/redistribution rights."
+          },
+          {
+            "title": "Complete original extraction and path selection upstream",
+            "instruction": "Use your own US Destroy All Humans! Path of the Furon Xbox 360 original and its complete extracted assets, preserving the exact source and existing game/user/update roots. Finish the direct player's first-run path wizard outside Core. The tagged native entry persists redahm.cfg beside the actual executable, with game_data_root, user_data_root and optional update_data_root. Keep its actual valid configuration and roots; directory existence is not exact disc/XEX identity authentication. No Core ISO extraction, title-update installation or source generation is supplied."
+          },
+          {
+            "title": "Select the established actual game process",
+            "instruction": "Select redahm.exe itself, zero arguments for an already configured normal copy, and its actual established writable installation-root initial CWD. Preserve already required supported custom literal arguments and creating environment; do not redirect user data merely to register. Keep the whole adjacent DLL/plugin/runtime dependency set rather than synthesizing one from source. Do not select Goopie, a build/extractor/helper or DLL. Registration itself does not run setup or play."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+          },
+          {
+            "title": "Preserve all real configuration and player paths",
+            "instruction": "Keep the complete runtime, executable-side redahm.cfg, redahm.toml, originals/extracted assets and the actual configured user/save/content/update/cache/log/mod roots, including every custom and unknown file. Absolute configured roots can be outside the runtime and must be retained separately; retain established relative coordinates with their creating CWD. Upstream wizard writes its own path config; this is not Core migration or a preservation guarantee for changing upstream versions. Keep old state with its creating runtime."
+          }
+        ],
+        "warnings": [
+          "The current release tag new is mutable in practice: its current Windows asset is 34,942,774 bytes / publisher SHA256 9c90176d7cefb88975b8b2b9c84d8c66e913578ef6b0b74296e0412bdf4e5dc8, distinct from the previously acquired 34,918,055-byte ae2d24a6... asset. Old accepted archive/native identity does not qualify changed bytes. Do not silently replace a known working copy or treat a freshly computed hash as old accepted identity.",
+          "Selected tag source and current source differ, including audio code; the README-named custom SDK fork returned HTTP404 and its exact selected binary SDK provenance is not established. Source review records the native entry and path-store boundary, not source-to-binary certification or a reproducible managed kit.",
+          "No Core-managed acquisition/preparation/Install/Update/Backup/Rollback/migration/external deletion, new SDK/.NET/compiler provisioning, exact original authentication or generic Xbox framework. No game/package/original execution, gameplay/save compatibility/installed/protected acceptance or Supported promotion is established here."
+        ]
       }
     },
     {
@@ -37253,6 +37314,36 @@
         "image_sha256": "67695ffc1a9bc9a5b41ef3d1ce2df91b84223497b65b7ed1e351f43577744f1d",
         "game_slug": "wwe-smackdown-vs-raw-2007",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/HollywoodAkeem/SVR07-Recomp/blob/c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc/README.md",
+        "steps": [
+          {
+            "title": "Keep a permitted completed direct native player",
+            "instruction": "Use an already permitted working official v1.0 Windows x64 svr07.exe and the complete actual installation, with existing Windows10/11/D3D12 support. Root BSD3 covers project code, not original game/assets/trademarks or exhaustive dependency/package clearance. The publisher explicitly documents native release use with a legally owned original; this is not whole-package/source-to-binary or gameplay certification."
+          },
+          {
+            "title": "Preserve the exact own extracted original",
+            "instruction": "Complete upstream preparation using your own WWE SmackDown vs. Raw 2007 Xbox 360 original. USA/Canada is recommended; other regions are untested. Keep assets/ and the complete extracted files/default.xex, existing title-update paths and original set. Core does not extract an ISO, authenticate a full disc/XEX, install an update or establish arbitrary regional/revision compatibility."
+          },
+          {
+            "title": "Select the game rather than the settings prelauncher",
+            "instruction": "Select the actual already working svr07.exe game entry, zero arguments for the normal prepared copy, and its established writable containing installation-root CWD. The official release also advertises a settings prelauncher; complete settings there separately and select the long-lived native game for Core Play. Preserve any already required supported custom literal arguments/profile context; do not select an updater, SDK/build/helper or DLL. Registration itself does not prepare or launch the game."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+          },
+          {
+            "title": "Preserve every actual root and creating profile",
+            "instruction": "Keep the whole runtime, original/extracted assets, actual configuration, save/user content, title-update data, logs/caches/mods/custom and unknown paths. The title source uses application name svr07 and overrides update_data_root to a rooted assets/1_update coordinate; do not rewrite/create that path merely to register. The named runtime-fork observation uses a Windows Documents/svr07 default user root, but is not pinned to the selected release binary: preserve the actual established profile/custom roots rather than inferring or migrating it from that example. Keep state with its creating runtime; removal preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Upstream current README still reports roughly a 10% per-session random D3D12 GPU-device-loss crash, not root-caused, plus vertex artifacts and fixed internal resolution/aspect constraints. The older tag lacks the later crash text; no fix, stability, full-game/gameplay or save-load pass is inferred. Relaunch advice is upstream recovery guidance, not a Core crash-repair guarantee.",
+          "The v1.0 package/old matching digest and BSD3 source grant retain their original scopes. The selected release source has no exact SDK-fork commit pin; current fork source is only an explicitly separate observation, not a certificate for that binary. No generic SDK/source/other-game support is inherited.",
+          "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion or new console-family framework. Actual game/original/package execution, state/mod compatibility, installed/human/other-platform/protected qualification and Supported promotion remain unestablished here."
+        ]
       }
     },
     {
