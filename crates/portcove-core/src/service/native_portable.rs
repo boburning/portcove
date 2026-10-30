@@ -238,6 +238,7 @@ impl PortcoveService {
             self.persistence_contract_for_install(target)?;
             roots.push(self.persistence_root(target_port, &target.path)?);
         }
+        self.require_direct_empty_expansion(retained, to, &roots)?;
         for path in added {
             for root in &roots {
                 crate::persistence::require_absent_path(root, path).map_err(|error| {
@@ -3431,6 +3432,213 @@ mod tests {
             catalog.port("portable-fixture").unwrap()
         ));
         catalog
+    }
+
+    fn sonic3k_compatibility_fixture(legacy: bool) -> Catalog {
+        // Synthetic package with the historical reader selector, not game data.
+        let catalog = ready_persistence_catalog(!legacy, !legacy);
+        let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        document["ports"][0]["id"] = serde_json::json!("sonic-3-and-knuckles-recomp");
+        document["ports"][0]["channels"] = serde_json::json!(["stable"]);
+        if legacy {
+            document["ports"][0]["release"] = serde_json::json!({
+                "provider": "direct-manifest", "direct": { "windows-x86-64": {
+                    "version": "v0.5.3", "url": "https://example.invalid/legacy.zip", "size": 1,
+                    "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+                }}
+            });
+        }
+        Catalog::from_json(&document.to_string()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn sonic3k_expansion_refuses_populated_common_data_and_preserves_legacy_play_contract() {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        for canonical in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(sonic3k_compatibility_fixture(true));
+            let old = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
+            let receipt = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
+            let root = if canonical {
+                library.user_dir(ID)
+            } else {
+                old.path.clone()
+            };
+            fs::create_dir_all(&root).unwrap();
+            fs::write(root.join("settings.ini"), b"preserve common legacy data").unwrap();
+            service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+            *provider.0.lock().unwrap() = server.release("v2", 2);
+            let failure = service
+                .update(ID, None, None, false, |_| {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                failure.presentation().presentation_key,
+                "portable_data_contract_changed"
+            );
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+            assert_eq!(
+                fs::read(root.join("settings.ini")).unwrap(),
+                b"preserve common legacy data"
+            );
+            assert_eq!(
+                fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+                manifest
+            );
+            assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), receipt);
+            assert!(!root.join("campaign.dat").exists());
+            service
+                .require_direct_fresh_data(&service.installed_port(&old).unwrap())
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn sonic3k_fresh_creation_and_recovery_refuse_unproven_canonical_data() {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v2", 2))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"unknown creating runtime",
+        )
+        .unwrap();
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+        fs::remove_file(library.user_dir(ID).join("settings.ini")).unwrap();
+        let staged = service
+            .install(ID, None, None, None, false, |_| {})
+            .await
+            .unwrap();
+        // An attacker or interrupted/manual copy cannot acquire creating-runtime
+        // authority from a launch marker or a new manifest alone.
+        let receipt = staged.path.join(PSX_DATA_RECEIPT);
+        if receipt.exists() {
+            fs::remove_file(&receipt).unwrap();
+        }
+        fs::write(staged.path.join(LAUNCH_MARKER), b"").unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"unknown creating runtime",
+        )
+        .unwrap();
+        assert!(service.prepare_retained_install_data(&staged).is_err());
+        assert!(service.activate_staged(ID).is_err());
+        assert!(!receipt.exists());
+        assert!(!staged.path.join("settings.ini").exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("settings.ini")).unwrap(),
+            b"unknown creating runtime"
+        );
+        assert!(service.status(ID).unwrap().active.is_none());
+    }
+
+    #[tokio::test]
+    async fn sonic3k_backup_restore_cannot_initialize_unknown_data_but_retains_established_restore()
+    {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v2", 2))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+        let current = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let port = service.installed_port(&current).unwrap();
+        service.restore_user_data_to(&port, &current.path).unwrap();
+        let receipt = fs::read(current.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"established bytes",
+        )
+        .unwrap();
+        fs::write(current.path.join("settings.ini"), b"established bytes").unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        fs::write(library.user_dir(ID).join("settings.ini"), b"newer bytes").unwrap();
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &consent.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(current.path.join("settings.ini")).unwrap(),
+            b"established bytes"
+        );
+        assert_eq!(
+            fs::read(current.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        // Remove only the task fixture's initialization authority. The next
+        // restore must refuse BEFORE canonical publication or runtime writes.
+        fs::remove_file(current.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"preserve canonical",
+        )
+        .unwrap();
+        fs::write(current.path.join("settings.ini"), b"preserve runtime").unwrap();
+        assert!(
+            service
+                .require_psx_restore_preflight(ID, &backup.path.join("data"))
+                .is_err()
+        );
+        assert!(service.synchronize_restored_user_data(ID).is_err());
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        assert!(
+            service
+                .restore_backup(ID, &backup.id, &consent.token)
+                .is_err()
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("settings.ini")).unwrap(),
+            b"preserve canonical"
+        );
+        assert_eq!(
+            fs::read(current.path.join("settings.ini")).unwrap(),
+            b"preserve runtime"
+        );
+        assert!(!current.path.join(PSX_DATA_RECEIPT).exists());
     }
 
     #[tokio::test]

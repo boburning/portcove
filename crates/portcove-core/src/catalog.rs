@@ -2230,7 +2230,7 @@ mod tests {
             (
                 "sonic-the-hedgehog-recomp",
                 "game.bin",
-                Some("v0.6.0"),
+                Some("v0.7.3"),
                 "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
             ),
             (

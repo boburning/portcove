@@ -490,11 +490,48 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       periods: 12,
     },
   ];
+  const intelRetainedContractBudgets = [
+    {
+      filter:
+        "package(portcove-core) & test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/)",
+      periods: 12,
+    },
+    {
+      filter:
+        "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
+      periods: 18,
+    },
+  ];
+  const olderIntelRetainedLifecycle = intelObservedLifecycle[0];
+  assert.ok(olderIntelRetainedLifecycle);
+  for (const [index, { filter, periods }] of intelRetainedContractBudgets.entries()) {
+    const observed = overrideFor(filter, "x86_64-apple-darwin");
+    assert.deepEqual(observed, {
+      platform: "x86_64-apple-darwin",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+    assert.equal(overrides.indexOf(observed), intelFullControlBudgets.length + index);
+    assert.ok(
+      overrides.indexOf(observed) <
+        overrides.indexOf(overrideFor(olderIntelRetainedLifecycle.filter, "x86_64-apple-darwin")),
+      "Exact retained-contract budgets precede the older overlapping Intel60s group",
+    );
+  }
   const windowsReviewedPreparationFilter =
     "package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/)";
   assert.deepEqual(overrideFor(windowsReviewedPreparationFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsReviewedPreparationFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const windowsRetainedQueryAndResumeFilter =
+    "package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::published_resume_resume$/) | test(/^library_move::sequence_tests::activated_resume_resume$/) | test(/^library_move::sequence_tests::published_resume_abort$/))";
+  assert.deepEqual(overrideFor(windowsRetainedQueryAndResumeFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsRetainedQueryAndResumeFilter,
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
@@ -533,7 +570,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsRetainedQueryAndResumeFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
+      ...intelRetainedContractBudgets.map(({ filter }) => ({
+        platform: "x86_64-apple-darwin",
+        filter,
+      })),
       ...publicationFilters,
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),

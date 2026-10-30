@@ -28,11 +28,11 @@
       "provider": "direct-manifest",
       "direct": {
         "windows-x86-64": {
-          "version": "v0.6.0",
-          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
-          "size": 3776546,
-          "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
-          "published_at": "2026-06-17T05:17:11Z"
+          "version": "v0.7.3",
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.7.3/SonicTheHedgehogRecomp-windows-x64-v0.7.3.zip",
+          "size": 4750567,
+          "sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
+          "published_at": "2026-10-28T16:23:58Z"
         }
       }
     },
@@ -51,7 +51,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility."
+      "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. This fresh managed route uses the checked official Windows v0.7.3 package and starts the base game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress."
     },
     "runtime_source_filename": "game.bin",
     "runtime_source_materialization": "copy",
@@ -59,7 +59,7 @@
       "game.bin": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6"
     },
     "windows_runtime_path_policy": "printable-ascii-max-path",
-    "launch_arguments": ["game.bin"],
+    "launch_arguments": ["--no-launcher", "game.bin"],
     "persistent_paths": [
       "game.bin",
       "settings.ini",
@@ -72,7 +72,16 @@
       "native_save_6.bin",
       "native_save_7.bin",
       "native_save_8.bin",
-      "native_save_9.bin"
+      "native_save_9.bin",
+      "native_save_1.bin.thumb",
+      "native_save_2.bin.thumb",
+      "native_save_3.bin.thumb",
+      "native_save_4.bin.thumb",
+      "native_save_5.bin.thumb",
+      "native_save_6.bin.thumb",
+      "native_save_7.bin.thumb",
+      "native_save_8.bin.thumb",
+      "native_save_9.bin.thumb"
     ],
     "runtime_mutable_paths": [
       "framelog_step2.txt",
@@ -84,7 +93,19 @@
       "chip_ring.txt",
       "snd_ring.txt",
       "yield_log_native.log",
-      "z80_ram.bin"
+      "z80_ram.bin",
+      "dispatch_misses.toml",
+      "dispatch_misses.toml.tmp",
+      "dispatch_misses.prev.toml",
+      "floor_coverage.toml",
+      "floor_coverage.toml.tmp",
+      "floor_coverage.prev.toml",
+      "interior_label_misses.toml",
+      "interior_label_misses.toml.tmp",
+      "interior_label_misses.prev.toml",
+      "floor_unsafe.toml",
+      "floor_unsafe.toml.tmp",
+      "floor_unsafe.prev.toml"
     ]
   }
 }

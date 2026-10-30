@@ -1709,6 +1709,22 @@ their original scope. Ordinary contract shrinking, populated additions and
 unproven scope expansion remain refused. Runtime rollback still carries current
 data and does not rewind saves.
 
+The historical Sonic 3K v0.5.3 (#154), Sonic 1 v0.6.0 (#152) and Mega Man X2
+v0.1.4 (#165) reader transitions to newer routes have an additional
+compatibility hold: common declared player data must also be absent in the retained
+runtime, canonical data and actual target. Only separately verified regular original
+bytes are exempt; an empty set of added sidecars proves no save compatibility.
+A fresh newer route cannot initialize unknown canonical player data through collection,
+restore, backup restoration, activation or recovery. The exact legacy reader keeps
+its creating contract. An established target's exact retained contract and matching
+installation/manifest data-restore receipt preserve its administrative restore
+behavior; that receipt does not establish state ABI or authorize legacy adoption.
+A separate empty library remains the fresh creation case. Other ports retain the
+generic common-data preservation rule above. New indexed fresh definitions for
+these newer routes must declare staged-source capability version 25, so readers
+without this behavior refuse them. Retained entries keep their creating reader
+requirements; current runtime checks remain independent of that envelope.
+
 Explicit rollback between two authenticated retained ready-archive copies may use
 that same empty-path proof in either direction when one persistence scope strictly
 contains the other. Both copies keep their original manifests and receipt scope; ordinary restore
