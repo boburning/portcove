@@ -439,7 +439,7 @@ export function SourceImportReview({
   const admission = sourceAdmissionPresentation(plan.admission_mode);
   const profile = profiles.find((candidate) => candidate.id === plan.profile_id);
   return (
-    <section className="source-discovery-results" aria-label="Source import review">
+    <section className="source-discovery-results mt-6 grid gap-3" aria-label="Source import review">
       <h3>{presentation.label}</h3>
       <p>{presentation.explanation}</p>
       <p>

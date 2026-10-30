@@ -109,6 +109,7 @@ for (const theme of ["dark", "light"] as const) {
   for (const width of [320, 740, 1440]) {
     it(`keeps three mixed-aspect screenshots contained in ${theme} at ${width}px`, async () => {
       const previousTheme = document.documentElement.dataset.theme;
+      const previousViewport = { width: window.innerWidth, height: window.innerHeight };
       document.documentElement.dataset.theme = theme;
       try {
         await page.viewport(width, width === 320 ? 844 : 900);
@@ -184,6 +185,7 @@ for (const theme of ["dark", "light"] as const) {
       } finally {
         if (previousTheme === undefined) delete document.documentElement.dataset.theme;
         else document.documentElement.dataset.theme = previousTheme;
+        await page.viewport(previousViewport.width, previousViewport.height);
       }
     });
   }

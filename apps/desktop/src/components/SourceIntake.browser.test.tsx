@@ -187,6 +187,18 @@ describe("source intake dialog", () => {
       expect(preview.mock.lastCall).toEqual([profile.id, "D:/Game.z64", "move"]);
     };
     await openMove();
+    const review = document.querySelector<HTMLElement>('[aria-label="Source import review"]')!;
+    expect(
+      review.getBoundingClientRect().top -
+        review.previousElementSibling!.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(23);
+    const reviewChildren = [...review.children];
+    for (let index = 1; index < reviewChildren.length; index += 1) {
+      expect(
+        reviewChildren[index]!.getBoundingClientRect().top -
+          reviewChildren[index - 1]!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(11);
+    }
     await captureParityState("source-move-initial-review-fixture");
     await page.getByRole("button", { name: "Cancel review", exact: true }).click();
     expect(imported).not.toHaveBeenCalled();
@@ -493,6 +505,19 @@ describe("source intake dialog", () => {
     expect(document.body.textContent).toContain("Preparation tool needed");
     expect(document.body.textContent).toContain("Your selected game files remain unchanged.");
     expect(document.body.textContent).not.toContain("Technical ID");
+    const toolSection = document.querySelector<HTMLElement>(".source-intake-tool")!;
+    const toolChildren = [...toolSection.children];
+    for (let index = 1; index < toolChildren.length; index += 1) {
+      expect(
+        toolChildren[index]!.getBoundingClientRect().top -
+          toolChildren[index - 1]!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(11);
+    }
+    const resultSection = toolSection.parentElement!;
+    expect(
+      resultSection.getBoundingClientRect().top -
+        resultSection.previousElementSibling!.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(11);
     await captureParityState("source-tool-needed-fixture");
     await act(async () => button("Locate chdman…")!.click());
     expect(locate).toHaveBeenCalledWith(tool);

@@ -1373,7 +1373,25 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
     stat.textContent?.includes("Prepared updates"),
   );
   expect(prepared?.querySelector("strong")?.textContent).toBe("0");
+  const header = container.querySelector<HTMLElement>(".update-entry > .update-row")!;
+  const actions = container.querySelector<HTMLElement>('.update-entry > [role="group"]')!;
+  const title = header.querySelector<HTMLElement>(".update-title")!;
+  const archive = actions.querySelector<HTMLElement>('[aria-label="Retained update archive"]')!;
+  expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    header.getBoundingClientRect().bottom,
+  );
+  expect(title.getBoundingClientRect().width).toBeGreaterThan(160);
+  expect(archive.getBoundingClientRect().right).toBeLessThanOrEqual(
+    container.getBoundingClientRect().right,
+  );
   await captureParityState("game-update-archive-not-prepared-fixture");
+  await page.viewport(414, 896);
+  expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    header.getBoundingClientRect().bottom,
+  );
+  expect(archive.getBoundingClientRect().right).toBeLessThanOrEqual(414);
+  expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
+  await captureParityState("game-update-archive-not-prepared-narrow-fixture");
   await click("Play");
   expect(launch).toHaveBeenCalledExactlyOnceWith(port.id);
 });

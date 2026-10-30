@@ -154,6 +154,10 @@ describe("local artwork controls", () => {
     expect(button("detail", "Choose local image")).toBeDefined();
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "cover", 7);
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "detail", 7);
+    container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
+    const coverControls = button("cover", "Choose local image").getBoundingClientRect();
+    expect(coverControls.top).toBeGreaterThanOrEqual(0);
+    expect(coverControls.bottom).toBeLessThanOrEqual(innerHeight);
     await captureParityState("artwork-listing-editor-expanded-fixture");
   });
   it("uses the shared cache for listing-only covers and preserves Core's local override", async () => {
@@ -652,6 +656,11 @@ describe("local artwork controls", () => {
       container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
       await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
       expect(button("detail", "Reset to default").disabled).toBe(false);
+      container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
+      expect(button("cover", "Reset to default").disabled).toBe(true);
+      const resetControls = button("cover", "Reset to default").getBoundingClientRect();
+      expect(resetControls.top).toBeGreaterThanOrEqual(0);
+      expect(resetControls.bottom).toBeLessThanOrEqual(innerHeight);
       await captureParityState("artwork-cover-reset-detail-retained-fixture");
     },
   );

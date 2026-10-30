@@ -194,6 +194,9 @@
     padding: 20px;
     border-radius: 12px;
   }
+  .update-center .update-entry:has([aria-label="Retained update archive"]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .update-center .update-row {
     display: grid;
     grid-template-columns: 54px minmax(0, 1fr) minmax(6rem, 9rem) minmax(5.625rem, max-content);

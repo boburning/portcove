@@ -484,6 +484,9 @@ it("opens actual Overview evidence and future-folder controls in a renderer fixt
         libraryGeneration={7}
       />,
     );
+    const overview = page.getByRole("tab", { name: "Overview", exact: true });
+    await overview.click();
+    await expect.element(overview).toHaveAttribute("aria-selected", "true");
     for (const [label, expected, name] of [
       [
         "Project status and release information",

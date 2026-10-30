@@ -624,10 +624,22 @@ it("keeps category navigation and selected content bounded at the 900px Settings
   for (const { label } of settingsCategories) {
     const destination = navigation.getByRole("button", { name: label, exact: true });
     await expect.element(destination).toHaveFocus();
-    const strip = navigation.element().getBoundingClientRect();
-    const bounds = destination.element().getBoundingClientRect();
-    expect(bounds.left).toBeGreaterThanOrEqual(strip.left - 1);
-    expect(bounds.right).toBeLessThanOrEqual(strip.right + 1);
+    // Focus is synchronous; the browser may reveal the tab stop on a later frame.
+    // Observe native scrolling without moving the strip on the test's behalf.
+    await expect
+      .poll(
+        () =>
+          destination.element().getBoundingClientRect().left -
+          navigation.element().getBoundingClientRect().left,
+      )
+      .toBeGreaterThanOrEqual(-1);
+    await expect
+      .poll(
+        () =>
+          destination.element().getBoundingClientRect().right -
+          navigation.element().getBoundingClientRect().right,
+      )
+      .toBeLessThanOrEqual(1);
     await userEvent.keyboard("{Tab}");
   }
   await category.click();
