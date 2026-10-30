@@ -623,7 +623,7 @@ impl ModRestore {
 mod tests;
 
 impl PortcoveService {
-    fn psx_data_install(
+    pub(super) fn psx_data_install(
         &self,
         port: &PortDefinition,
         install_root: &Path,
@@ -656,6 +656,7 @@ impl PortcoveService {
     ) -> Result<()> {
         if let Some(install) = self.psx_data_install(port, install_root)? {
             initialized(&install)?;
+            self.require_direct_initial_restore(port, &install)?;
         }
         Ok(())
     }
@@ -681,6 +682,7 @@ impl PortcoveService {
         let Some(install) = self.psx_data_install(port, install_root)? else {
             return Ok(None);
         };
+        self.require_direct_initial_restore(port, &install)?;
         if initialized(&install)? {
             return Ok(None);
         }
@@ -733,6 +735,7 @@ impl PortcoveService {
     ) -> Result<BTreeMap<PathBuf, ModRestore>> {
         let mut plans = BTreeMap::new();
         for (install_root, contract) in self.retained_persistence_contracts(port_id)? {
+            self.require_direct_restore_snapshot(&contract.port, &install_root, user_root)?;
             if !contract.writes_directly
                 && (contract.port.adapter == AdapterKind::PsxRecompManaged
                     || contract.port.mod_package_policy.is_some())

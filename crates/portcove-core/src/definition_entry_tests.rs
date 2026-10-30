@@ -140,6 +140,69 @@ fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
 }
 
 #[test]
+fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let packet: Value = serde_json::from_str(include_str!(
+        "../../../docs/qualification/retained-direct-decisions-2026-10-27.json"
+    ))
+    .unwrap();
+    for id in [
+        "sonic-3-and-knuckles-recomp",
+        "sonic-the-hedgehog-recomp",
+        "mega-man-x2-snes-recomp",
+    ] {
+        let mut port = catalog.port(id).unwrap().clone();
+        // Synthetic successor identity selects the guard; no artifact is run.
+        port.release.provider = crate::ReleaseSource::Github;
+        port.release.repository = "fixture/guarded-reader".into();
+        port.release.direct.clear();
+        let mut entry = entry_for_port(&port);
+        for minimum in [1, 23, 24] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            entry["required_capabilities"][0]["maximum_version"] = json!(25);
+            assert!(
+                inspect(&entry).unwrap_err().message.contains("version 25"),
+                "{id}"
+            );
+        }
+        entry["required_capabilities"][0]["minimum_version"] = json!(23);
+        entry["required_capabilities"][0]["maximum_version"] = json!(23);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        let retained = index(&bytes, id)
+            .inspect_retained_entry("official", id, &bytes)
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained.port()).unwrap(),
+            entry["port"]
+        );
+        entry["required_capabilities"][0]["minimum_version"] = json!(25);
+        entry["required_capabilities"][0]["maximum_version"] = json!(25);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+        entry["required_capabilities"][0]["minimum_version"] = json!(26);
+        entry["required_capabilities"][0]["maximum_version"] = json!(26);
+        assert!(!inspect(&entry).unwrap().capabilities().compatible);
+        let old = packet["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == id)
+            .unwrap();
+        let mut old_value = old["old"]["integration"].clone();
+        for name in ["id", "name", "summary", "project_url"] {
+            old_value[name] = serde_json::to_value(&port).unwrap()[name].clone();
+        }
+        let old_port: crate::PortDefinition = serde_json::from_value(old_value).unwrap();
+        let mut old_entry = entry_for_port(&old_port);
+        old_entry["required_capabilities"][0]["minimum_version"] = json!(23);
+        old_entry["required_capabilities"][0]["maximum_version"] = json!(23);
+        assert!(
+            inspect(&old_entry).unwrap().capabilities().compatible,
+            "{id}"
+        );
+    }
+}
+
+#[test]
 fn versioned_mod_package_entries_require_their_reader_even_when_retained() {
     let catalog = crate::test_fixture::versioned_mod_catalog();
     let mut entry = entry_for_port(&catalog.ports()[0]);
@@ -425,6 +488,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             20
         } else if crate::preparation::has_manual_marker(port) {
             2
+        } else if crate::persistence::requires_fresh_direct_data_guard(port) {
+            25
         } else if port.mod_package_policy.is_some() {
             24
         } else if crate::persistence::ready_staged_archive(port) {

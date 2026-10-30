@@ -525,10 +525,16 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsRetainedQueryAndResumeFilter =
+    "package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::published_resume_resume$/) | test(/^library_move::sequence_tests::activated_resume_resume$/) | test(/^library_move::sequence_tests::published_resume_abort$/))";
+  assert.deepEqual(overrideFor(windowsRetainedQueryAndResumeFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsRetainedQueryAndResumeFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsPublishedMoveFilter =
     "package(portcove-core) & test(/^library_move::sequence_tests::published_abort_resume$/)";
-  const windowsPublishedResumeFilter =
-    "package(portcove-core) & (test(/^library_move::sequence_tests::published_resume_abort$/) | test(/^library_move::sequence_tests::published_resume_resume$/))";
   const windowsTrackedCancellationFilter =
     "package(portcove-core) & test(/^game_file_query::tests::tracked_refresh_settles_cancellation_only_after_worker_exit$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
@@ -543,7 +549,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
-      { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedResumeFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsRetainedQueryAndResumeFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       ...intelRetainedContractBudgets.map(({ filter }) => ({
         platform: "x86_64-apple-darwin",
@@ -581,20 +587,6 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
-  const windowsPublishedResume = overrideFor(
-    windowsPublishedResumeFilter,
-    "x86_64-pc-windows-msvc",
-  );
-  assert.deepEqual(windowsPublishedResume, {
-    platform: "x86_64-pc-windows-msvc",
-    filter: windowsPublishedResumeFilter,
-    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
-    "success-output": "immediate",
-  });
-  assert.equal(
-    overrides.indexOf(windowsPublishedResume),
-    intelFullControlBudgets.length + intelRetainedContractBudgets.length,
-  );
   assert.deepEqual(overrideFor(windowsTrackedCancellationFilter, "x86_64-pc-windows-msvc"), {
     platform: "x86_64-pc-windows-msvc",
     filter: windowsTrackedCancellationFilter,

@@ -80,6 +80,41 @@ pub(crate) fn validate_mod_package_policy(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
+// Exact historical readers keep their creating contracts. Newer managed
+// recipes for these three identities require the same bounded data guard in
+// both independent-definition admission and actual lifecycle operations.
+const LEGACY_PACKAGE: &str = "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99";
+
+pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'static str)> {
+    match port_id {
+        "sonic-3-and-knuckles-recomp" => Some(("v0.5.3", LEGACY_PACKAGE)),
+        "sonic-the-hedgehog-recomp" => Some((
+            "v0.6.0",
+            "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+        )),
+        "mega-man-x2-snes-recomp" => Some((
+            "v0.1.4",
+            "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+        )),
+        _ => None,
+    }
+}
+
+pub(crate) fn requires_fresh_direct_data_guard(port: &crate::PortDefinition) -> bool {
+    if !ready_staged_archive(port) {
+        return false;
+    }
+    let Some((version, sha256)) = legacy_direct_reader(&port.id) else {
+        return false;
+    };
+    !(port.release.provider == crate::ReleaseSource::DirectManifest
+        && port
+            .release
+            .direct
+            .get(&crate::Platform::WindowsX86_64)
+            .is_some_and(|release| release.version == version && release.sha256 == sha256))
+}
+
 /// A ready managed archive with at most one verified, persistent raw-file copy.
 /// Decide from the retained definition before collecting data from an install.
 pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
