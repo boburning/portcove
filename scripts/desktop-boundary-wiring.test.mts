@@ -451,18 +451,6 @@ void test("installed update entrypoints consume their imported observation owner
         }
         return undefined;
       };
-      const restart = syntax.find(
-        (node) =>
-          node.type === "AssignmentExpression" &&
-          isRecord(node.right) &&
-          node.right.type === "CallExpression" &&
-          isRecord(node.right.callee) &&
-          identifier(node.right.callee.property) === "toISOString" &&
-          isRecord(node.right.callee.object) &&
-          node.right.callee.object.type === "NewExpression" &&
-          identifier(node.right.callee.object.callee) === "Date",
-      );
-      const restartName = identifier(restart?.left);
       const owners = policy.exports.map((name) => {
         const matching = specifiers.filter(
           (node) => (identifier(node.imported) ?? literal(node.imported)) === name,
@@ -480,6 +468,30 @@ void test("installed update entrypoints consume their imported observation owner
         assert.ok(calls.length > 0, "Consume imported installed observation owner " + name);
         return { name, imported, calls };
       });
+      const cleanupOwner = owners.find(
+        (entry) => entry.name === "cleanupWindowsUpdateMarkedProcess",
+      );
+      const cleanupOptions = cleanupOwner ? args(cleanupOwner.calls[0])[0] : undefined;
+      const restartProperty =
+        isRecord(cleanupOptions) && Array.isArray(cleanupOptions.properties)
+          ? cleanupOptions.properties
+              .filter(isRecord)
+              .find((node) => identifier(node.key) === "restartStarted")
+          : undefined;
+      const restartName = identifier(restartProperty?.value);
+      const restart = syntax.find(
+        (node) =>
+          node.type === "AssignmentExpression" &&
+          identifier(node.left) === restartName &&
+          isRecord(node.right) &&
+          node.right.type === "CallExpression" &&
+          isRecord(node.right.callee) &&
+          identifier(node.right.callee.property) === "toISOString" &&
+          isRecord(node.right.callee.object) &&
+          node.right.callee.object.type === "NewExpression" &&
+          identifier(node.right.callee.object.callee) === "Date",
+      );
+      if (cleanupOwner) assert.ok(restartName && restart, "Forward owned restartStarted");
       for (const owner of owners.filter((entry) =>
         ["cleanupWindowsUpdateMarkedProcess", "installWindowsUpdateRestartHook"].includes(
           entry.name,
@@ -516,7 +528,10 @@ void test("installed update entrypoints consume their imported observation owner
         for (let node = parent(child); node; node = parent(child)) {
           if (node.type === "IfStatement")
             assert.ok(
-              restartName && identifier(node.test) === restartName && node.consequent === child,
+              owner.name === "cleanupWindowsUpdateMarkedProcess" &&
+                restartName &&
+                identifier(node.test) === restartName &&
+                node.consequent === child,
               "Installed operation cannot be conditionally disconnected",
             );
           assert.ok(
@@ -756,6 +771,11 @@ void test("installed update entrypoints consume their imported observation owner
         parseAst(decoy);
         assert.throws(() => route(decoy), /disconnected function/);
         if (owner.name === "installWindowsUpdateRestartHook") {
+          const guarded = edit(source, [
+            { ...range(statement), text: "if(restartStarted){" + statementText + "}" },
+          ]);
+          parseAst(guarded);
+          assert.throws(() => route(guarded), /conditionally disconnected/);
           const bad = edit(source, [{ ...range(args(call)[0]), text: '"wrong-browser"' }]);
           parseAst(bad);
           assert.throws(() => route(bad), /Pass connected browser/);
@@ -796,6 +816,9 @@ void test("installed update entrypoints consume their imported observation owner
             ),
           );
           route(source.replaceAll("absoluteOption", "$ownedAbsoluteOption"));
+          route(
+            "let $unrelatedTimestamp; $unrelatedTimestamp = new Date().toISOString();\n" + source,
+          );
           const provider = [...nodes(parseAst(source))].find(
             (node) =>
               node.type === "FunctionDeclaration" && identifier(node.id) === "markedProcessCommand",
