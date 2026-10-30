@@ -3406,6 +3406,7 @@ mod tests {
         let catalog = ready_persistence_catalog(!legacy, !legacy);
         let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
         document["ports"][0]["id"] = serde_json::json!("sonic-3-and-knuckles-recomp");
+        document["ports"][0]["channels"] = serde_json::json!(["stable"]);
         if legacy {
             document["ports"][0]["release"] = serde_json::json!({
                 "provider": "direct-manifest", "direct": { "windows-x86-64": {
