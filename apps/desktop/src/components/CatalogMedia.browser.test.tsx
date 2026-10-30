@@ -470,57 +470,83 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
   },
 );
 
-it("keeps a legible logo ahead of key art when the Continue footprint shrinks", async () => {
-  const { keyArt, logo, port, logoBytes } = controlledHeroMedia(true);
-  keyArt.width = 960;
-  keyArt.height = 240;
-  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
-    automaticArtwork(id, slot),
-  );
-  const media = vi
-    .spyOn(desktopApi, "catalogMediaThumbnail")
-    .mockImplementation(async (_id, mediaId, hash) => ({
-      asset_sha256: hash,
+it.each([true, false])(
+  "contains compact=%s Continue media and preserves its legibility fallback",
+  async (compactLogo) => {
+    const { keyArt, logo, port, logoBytes } = controlledHeroMedia(compactLogo);
+    keyArt.width = 960;
+    keyArt.height = 240;
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "b".repeat(64),
       choice_revision: 0,
-      png_base64: mediaId === keyArt.id ? controlledKeyArt(960, 240) : logoBytes,
-    }));
-  await page.viewport(1200, 900);
-  await render(
-    <div
-      data-testid="continue-width"
-      style={{ width: "900px", containerType: "inline-size", containerName: "library-query" }}
-    >
-      <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
-        <GameHero port={port} variant="continue">
-          <h2>Sample</h2>
-          <button>Continue controlled game</button>
-        </GameHero>
-      </ArtworkProvider>
-    </div>,
-  );
-  await expect
-    .poll(() => {
-      const image = document.querySelector<HTMLImageElement>(".game-hero-image");
-      return image?.complete && image.naturalWidth === logo.width;
-    })
-    .toBe(true);
-  expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("logo");
-  await captureParityState("continue-logo-wide-synthetic");
-  await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
-  const action = document.activeElement;
-  await act(async () => {
-    const container = document.querySelector<HTMLElement>('[data-testid="continue-width"]');
-    if (!container) throw new Error("Continue fixture missing");
-    container.style.width = "240px";
-  });
-  await expect
-    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
-    .toBe("logo");
-  await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
-  expect(document.activeElement).toBe(action);
-  expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
-  await captureParityState("continue-logo-240-container-synthetic");
-});
+      png_base64: controlledKeyArt(160, 240),
+    });
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+      automaticArtwork(id, slot),
+    );
+    const media = vi
+      .spyOn(desktopApi, "catalogMediaThumbnail")
+      .mockImplementation(async (_id, mediaId, hash) => ({
+        asset_sha256: hash,
+        choice_revision: 0,
+        png_base64: mediaId === keyArt.id ? controlledKeyArt(960, 240) : logoBytes,
+      }));
+    await page.viewport(1200, 900);
+    await render(
+      <div
+        data-testid="continue-width"
+        style={{ width: "900px", containerType: "inline-size", containerName: "library-query" }}
+      >
+        <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+          <GameHero port={port} variant="continue">
+            <h2>Sample</h2>
+            <button>Continue controlled game</button>
+          </GameHero>
+        </ArtworkProvider>
+      </div>,
+    );
+    await expect
+      .poll(() => {
+        const image = document.querySelector<HTMLImageElement>(".game-hero-image");
+        return image?.complete && image.naturalWidth === logo.width;
+      })
+      .toBe(true);
+    expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("logo");
+    const assertContainedMedia = () => {
+      const frame = document.querySelector(".game-hero-foreground")!.getBoundingClientRect();
+      const image = document.querySelector(".game-hero-image")!.getBoundingClientRect();
+      const credits = document.querySelector(".game-hero-credits")!.getBoundingClientRect();
+      expect(image.left).toBeGreaterThanOrEqual(frame.left - 1);
+      expect(image.right).toBeLessThanOrEqual(frame.right + 1);
+      expect(image.top).toBeGreaterThanOrEqual(frame.top - 1);
+      expect(image.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+      expect(image.bottom).toBeLessThanOrEqual(credits.top);
+    };
+    assertContainedMedia();
+    await captureParityState(
+      compactLogo ? "continue-logo-wide-synthetic" : "continue-horizontal-logo-wide-synthetic",
+    );
+    await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
+    const action = document.activeElement;
+    await act(async () => {
+      const container = document.querySelector<HTMLElement>('[data-testid="continue-width"]');
+      if (!container) throw new Error("Continue fixture missing");
+      container.style.width = "240px";
+    });
+    await expect
+      .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+      .toBe(compactLogo ? "logo" : "cover");
+    await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
+    expect(document.activeElement).toBe(action);
+    expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
+    assertContainedMedia();
+    await captureParityState(
+      compactLogo
+        ? "continue-logo-240-container-synthetic"
+        : "continue-horizontal-logo-cover-fallback-240-synthetic",
+    );
+  },
+);
 
 it.each(
   (["detail", "continue"] as const).flatMap((variant) =>

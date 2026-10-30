@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite-plus/test";
 import { Boxes, Library } from "lucide-react";
 import { userEvent } from "vite-plus/test/browser";
@@ -135,6 +136,7 @@ describe("command search transitions", () => {
     ).toEqual(["command-library", "command-unavailable", "command-catalog"]);
     await key("ArrowDown");
     expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+    await captureParityState("command-palette-groups-disabled");
     await key("ArrowUp");
     expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
     await key("ArrowDown");
@@ -182,6 +184,7 @@ describe("command search transitions", () => {
     expect(document.body.querySelector('[role="listbox"]')).toBeNull();
     expect(search.getAttribute("aria-expanded")).toBe("false");
     expect(search.hasAttribute("aria-controls")).toBe(false);
+    await captureParityState("command-palette-empty-search");
     await key("ArrowDown");
     await key("Enter");
     expect(action).not.toHaveBeenCalled();
@@ -243,6 +246,7 @@ describe("command search transitions", () => {
       ),
     );
     expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+    await captureParityState("command-palette-reordered-active");
 
     await act(async () =>
       root.render(
@@ -300,6 +304,7 @@ describe("command search transitions", () => {
     const search = document.body.querySelector<HTMLInputElement>("input")!;
     expect(document.body.querySelector('[role="option"]')?.textContent).toContain("Open library");
     expect(search.hasAttribute("aria-activedescendant")).toBe(false);
+    await captureParityState("command-palette-unavailable-only");
     await act(async () => {
       search.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),

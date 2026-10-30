@@ -707,3 +707,100 @@ it("shares Discover membership quick views with filters while preserving search"
   await expect.element(search).toHaveValue("Mario");
   await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(2);
 });
+
+it("creates and removes a collection through its editor while retaining a failed draft and restoring All games focus", async () => {
+  await page.viewport(1440, 900);
+  await mount();
+  const change = vi.spyOn(desktopApi, "changeOrganization");
+  await page.getByRole("button", { name: "Manage collections", exact: true }).click();
+  const name = page.getByRole("textbox", { name: "Collection name", exact: true });
+  await expect.element(name).toBeVisible();
+  const create = page.getByRole("button", { name: "Create collection", exact: true });
+  await expect.element(create).toBeDisabled();
+  await name.fill("  Weekend sessions  ");
+  change.mockRejectedValueOnce(new Error("Fixture organization write refused"));
+  await create.click();
+  await expect
+    .poll(() => document.body.textContent)
+    .toContain("These choices could not be saved. Your previous choices were kept.");
+  await expect.element(name).toHaveValue("  Weekend sessions  ");
+  await expect
+    .element(page.getByRole("button", { name: "Collection: Weekend sessions", exact: true }))
+    .not.toBeInTheDocument();
+  await captureParityState("collection-create-failed-draft");
+  await create.click();
+  await expect.element(name).toHaveValue("");
+  expect(change).toHaveBeenLastCalledWith(
+    0,
+    { kind: "upsert_collection", collection_id: expect.any(String), name: "Weekend sessions" },
+    1,
+  );
+  const selected = page.getByRole("button", { name: "Weekend sessions (0)", exact: true });
+  await selected.click();
+  await expect.element(selected).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
+  await captureParityState("collection-created-empty-selected");
+  const created = change.mock.calls.at(-1)![1];
+  if (created.kind !== "upsert_collection") throw new Error("Expected collection creation");
+  await page.getByRole("button", { name: "Remove collection", exact: true }).click();
+  expect(change).toHaveBeenLastCalledWith(
+    1,
+    { kind: "remove_collection", collection_id: created.collection_id },
+    1,
+  );
+  const all = page
+    .getByRole("group", { name: "Library collections", exact: true })
+    .getByRole("button", { name: "All games", exact: true });
+  await expect.element(all).toHaveAttribute("aria-pressed", "true");
+  await expect.element(all).toHaveFocus();
+  await expect.element(selected).not.toBeInTheDocument();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await captureParityState("collection-removed-all-games-focus");
+}, 45_000);
+
+it("opens Hidden games and restores Favorites focus when its last entry is shown in Library", async () => {
+  await page.viewport(1440, 900);
+  await mount();
+  const change = vi.spyOn(desktopApi, "changeOrganization");
+  const entry = () =>
+    page.elementLocator(
+      document
+        .querySelector('[data-detail-game-id="collection-0"]')!
+        .closest<HTMLElement>(".collection-entry")!,
+    );
+  await entry()
+    .getByRole("button", { name: /^More actions for/ })
+    .click();
+  await page.getByRole("menuitem", { name: "Hide from Library", exact: true }).click();
+  expect(change).toHaveBeenLastCalledWith(
+    0,
+    { kind: "set_hidden", port_id: "collection-0", hidden: true },
+    1,
+  );
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(11);
+  const hidden = page.getByRole("button", { name: /^Hidden games/ });
+  await hidden.click();
+  await expect.element(hidden).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
+  await captureParityState("library-hidden-selection");
+  await entry()
+    .getByRole("button", { name: /^More actions for/ })
+    .click();
+  await page.getByRole("menuitem", { name: "Show in Library", exact: true }).click();
+  expect(change).toHaveBeenLastCalledWith(
+    1,
+    { kind: "set_hidden", port_id: "collection-0", hidden: false },
+    1,
+  );
+  await expect.element(hidden).not.toBeInTheDocument();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
+  await expect
+    .element(page.getByRole("heading", { name: "No matching library entries", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
+    .toHaveFocus();
+  await captureParityState("library-hidden-final-entry-restored");
+  await page.getByRole("button", { name: "Reset view", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+}, 45_000);

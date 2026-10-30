@@ -3,11 +3,13 @@ import { page } from "vite-plus/test/browser";
 
 /** Retain the current renderer fixture state without changing its controls or scroll. */
 export async function captureParityState(name: string) {
-  await document.fonts.ready;
-  await expect.poll(() => [...document.images].every((image) => image.complete)).toBe(true);
+  await globalThis.document.fonts.ready;
+  await expect
+    .poll(() => [...globalThis.document.images].every((image) => image.complete))
+    .toBe(true);
   await expect
     .poll(() =>
-      document
+      globalThis.document
         .getAnimations()
         .every((animation) =>
           animation.effect?.getComputedTiming().iterations === Infinity
@@ -17,16 +19,16 @@ export async function captureParityState(name: string) {
     )
     .toBe(true);
   await new Promise<void>((resolve) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(() => resolve())),
   );
-  const theme = document.documentElement.dataset.theme ?? "default";
-  const viewport = `${innerWidth}x${innerHeight}`;
+  const theme = globalThis.document.documentElement.dataset.theme ?? "default";
+  const viewport = `${globalThis.innerWidth}x${globalThis.innerHeight}`;
   // The runner document may exceed its iframe. This transparent rectangle clips
   // to the actual viewport without altering the application layout or focus.
-  const frame = document.createElement("div");
+  const frame = globalThis.document.createElement("div");
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = "position:fixed;inset:0;pointer-events:none";
-  document.body.append(frame);
+  globalThis.document.body.append(frame);
   try {
     await page.screenshot({
       path: `../../../../outputs/ui-refinement/prototype-parity-states/${name}-${theme}-${viewport}.png`,

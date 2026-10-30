@@ -202,7 +202,9 @@ describe("update destination links", () => {
       const updates = host.querySelector<HTMLElement>('[aria-label="Game updates"]')!;
       expect(tasks.hidden).toBe(false);
       expect(updates.hidden).toBe(true);
-      const tabs = [...host.querySelectorAll('[aria-label="Activity sections"] [role="tab"]')];
+      const tabs = [
+        ...host.querySelectorAll<HTMLElement>('[aria-label="Activity sections"] [role="tab"]'),
+      ];
       expect(tabs).toHaveLength(3);
       const descriptions = [
         "No task count is established by the loaded activity records.",
@@ -212,7 +214,7 @@ describe("update destination links", () => {
       for (const [index, label] of ["Tasks", "Game updates", "History"].entries()) {
         const tab = tabs[index]!;
         await expect.element(tab).toHaveAccessibleName(label);
-        await expect.element(tab).toHaveAccessibleDescription(descriptions[index]!);
+        await expect.element(tab).toHaveAccessibleDescription(descriptions[index]);
         const count = tab.querySelector(".activity-tab-count")!;
         expect(count.textContent).toBe("—");
         expect(count.getAttribute("aria-hidden")).toBe("true");

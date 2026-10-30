@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -44,6 +45,7 @@ for (const theme of ["dark", "light"]) {
       document.createTreeWalker(label, NodeFilter.SHOW_TEXT).nextNode()!,
     );
     expect(libraryRange.getClientRects()).toHaveLength(1);
+    await captureParityState("navigation-sheet-short-window");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.viewport(240, 160);
     for (const name of ["Follow system", "Dark", "Light"]) {
@@ -198,6 +200,9 @@ for (const theme of ["dark", "light"]) {
       await expect
         .element(page.getByRole("button", { name: "Reset to 100%", exact: true }))
         .toBeEnabled();
+      await captureParityState(
+        mode === "spacing overrides" ? "settings-spacing-overrides" : "settings-text-200",
+      );
     });
   }
 }

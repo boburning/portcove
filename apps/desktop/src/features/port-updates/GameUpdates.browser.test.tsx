@@ -1,3 +1,4 @@
+import { captureParityState } from "../../../test/parity-capture";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -621,11 +622,13 @@ it("keeps update cancellation inside the busy review and locks dismissal", async
   await click("Update now");
   await click("Prepare update for later");
   expect(dialog()?.textContent).toContain("Cancel game update");
+  await captureParityState("game-update-running-fixture");
   await pressEscape();
   expect(dialog()).not.toBeNull();
   await click("Cancel game update");
   expect(cancel).toHaveBeenCalledExactlyOnceWith("update-1");
   expect(dialog()?.textContent).toContain("Cancellation requested");
+  await captureParityState("game-update-cancellation-requested-fixture");
   await act(async () => finish());
   await expect.poll(dialog).toBeNull();
 });

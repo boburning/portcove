@@ -235,8 +235,8 @@
   }
   .collection-cover .library-entry-footer {
     width: min(100%, var(--collection-art-limit));
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     align-items: start;
     min-block-size: 2.75rem;
     align-content: start;

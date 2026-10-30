@@ -26,6 +26,7 @@
   }
   .game-hero-foreground {
     display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
     place-items: center;
     flex: 0 0 8rem;
     min-inline-size: 0;
@@ -33,6 +34,8 @@
   }
   .game-hero-image {
     display: block;
+    min-inline-size: 0;
+    min-block-size: 0;
     max-inline-size: 100%;
     max-block-size: 100%;
     inline-size: auto;

@@ -576,6 +576,11 @@
     }
   }
   @container detail (max-width: 28em) {
+    .detail-saved-data-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: start;
+    }
     .backup-row {
       grid-template-columns: minmax(0, 1fr);
     }

@@ -1807,8 +1807,7 @@ describe("desktop components", () => {
         /<button(?=[^>]*staged-action)(?=[^>]*data-variant="primary")[^>]*>Apply update · 2\.0<\/button>/u,
       );
       for (const action of ["Update now", "Download for later"]) {
-        if (candidate === "absent" || candidate === "same") expect(versions).not.toContain(action);
-        else expect(versions).toContain(action);
+        expect(versions.includes(action)).toBe(candidate !== "absent" && candidate !== "same");
       }
     },
   );

@@ -390,11 +390,12 @@ void test("non-publishing policy permits only the fixed game channel matrix valu
     },
   ]) {
     assert.ok(isRecord(configuration) && isRecord(configuration.jobs));
+    const jobs = configuration.jobs;
     assert.throws(() =>
       assertNonPublishingNativeWorkflow({
         ...configuration,
         ...mutation,
-        jobs: { ...configuration.jobs, ...("jobs" in mutation ? mutation.jobs : {}) },
+        jobs: { ...jobs, ...("jobs" in mutation ? mutation.jobs : {}) },
       }),
     );
   }

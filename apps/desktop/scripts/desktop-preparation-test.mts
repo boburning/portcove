@@ -3854,7 +3854,7 @@ export async function preparationScenarios({
       assert.equal(response.ok, true);
       const ids = response.value;
       assert.ok(Array.isArray(ids) && ids.every((id) => typeof id === "string"));
-      return ids as string[];
+      return ids;
     };
     const capture = async (name: string) => {
       const screenshot = path.join(output, `native-organization-${name}.png`);

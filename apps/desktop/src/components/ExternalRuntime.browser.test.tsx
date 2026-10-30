@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -808,6 +809,7 @@ it("reviews an exact player-owned folder before registering it", async () => {
   expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, record.path, 7);
   expect(document.body.textContent).toContain(record.executable);
   expect(register).not.toHaveBeenCalled();
+  await captureParityState("external-registration-reviewed-fixture");
   await click("Use this installation");
   expect(register).toHaveBeenCalledExactlyOnceWith(port.id, record.path, "reviewed-external", 7);
   expect(changed).toHaveBeenCalledOnce();

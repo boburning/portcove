@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -103,6 +104,7 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     "Add shortcut",
   ])
     expect(document.body.textContent).toContain(value);
+  await captureParityState("steam-singleton-reviewed-fixture");
   await click("Add or repair shortcut");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     port.id,
@@ -132,6 +134,7 @@ it("blocks apply while Steam is running and clears a review when the target chan
     (candidate) => candidate.textContent === "Add or repair shortcut",
   );
   expect(applyButton?.disabled).toBe(true);
+  await captureParityState("steam-running-client-refusal-fixture");
   preview.mockResolvedValue({ ...review, steam_client_state: "closed" });
   await click("Check again");
   expect(preview).toHaveBeenCalledTimes(2);
@@ -197,6 +200,7 @@ it("keeps the reviewed plan visible when native consent is declined", async () =
   await click("Add or repair shortcut");
   expect(document.body.textContent).toContain(review.shortcuts_path);
   expect(document.body.querySelector('[role="alert"]')).toBeNull();
+  await captureParityState("steam-consent-declined-fixture");
 });
 
 it("offers owned-shortcut removal after uninstall without offering Add or Repair", async () => {
@@ -272,6 +276,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     7,
   );
   expect(document.body.textContent).toContain("Selected: Another Port");
+  await captureParityState("steam-batch-reviewed-fixture");
   await click("Add or repair selected shortcuts");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     {

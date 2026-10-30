@@ -1,3 +1,4 @@
+import { captureParityState } from "../../../test/parity-capture";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useEffect } from "react";
@@ -768,6 +769,7 @@ describe("ApplicationUpdateSettings", () => {
     expect(failed.outcome).toBe("failed");
     expect(failed.failure).toBe(failure);
     expect(host.textContent).not.toContain("The request did not complete");
+    await captureParityState("application-update-offline-fixture");
     await click("Check for updates");
     expect(check).toHaveBeenCalledTimes(2);
     expect(host.textContent).toContain(
@@ -791,6 +793,7 @@ describe("ApplicationUpdateSettings", () => {
     await render();
     await act(async () => button("Check for updates").click());
     expect(button("Cancel check").hasAttribute("data-focusable")).toBe(true);
+    await captureParityState("application-update-checking-fixture");
     for (const control of host.querySelectorAll<HTMLButtonElement>(
       '[aria-label="One-time update channel"] button',
     )) {
@@ -988,6 +991,7 @@ describe("ApplicationUpdateSettings", () => {
 
     await root.rerender(<SettingsFixture generation={17} />);
     expect(host.textContent).toContain("Update ready to install");
+    await captureParityState("application-update-ready-restart-fixture");
     await click("Restart to update");
 
     expect(restart).toHaveBeenCalledExactlyOnceWith(17);
@@ -1004,6 +1008,7 @@ describe("ApplicationUpdateSettings", () => {
     expect(host.textContent).toContain("Verified update downloaded");
     expect(host.textContent).toContain("Save your update settings before restarting to update.");
     expect(button("Restart to update").disabled).toBe(true);
+    await captureParityState("application-update-choice-required-fixture");
     expect(host.textContent).not.toContain("Update ready to install");
   });
 

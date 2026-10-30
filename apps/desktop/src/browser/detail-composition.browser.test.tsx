@@ -468,6 +468,15 @@ it.each([1440, 320])(
       .getByRole("button", { name: "Open folder for saved data", exact: true })
       .element();
     expect(backup.getBoundingClientRect().bottom).toBeLessThanOrEqual(bounds.top);
+    const explanation = document.getElementById("backup-create-explanation")!;
+    expect(backup.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      width === 320
+        ? explanation.getBoundingClientRect().bottom
+        : heading.element().getBoundingClientRect().top,
+    );
+    expect(explanation.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+      width === 320 ? bounds.width - 1 : 96,
+    );
     expect(summary.contains(folder)).toBe(true);
     const accessibleNames = await axe.run(summary, {
       runOnly: { type: "rule", values: ["label-content-name-mismatch"] },

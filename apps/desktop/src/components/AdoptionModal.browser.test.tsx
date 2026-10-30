@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vite-plus/test";
@@ -103,6 +104,7 @@ it("keeps an uncancellable copy open and inputs locked even while another operat
     );
     expect(dialog.textContent).toContain("Copying…");
     expect(dialog.textContent).not.toContain("Waiting for copy");
+    await captureParityState("adoption-copy-pending-fixture");
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -221,6 +223,7 @@ it("shows the reviewed copy plan and skipped entries in the portaled Dialog", as
         .find((item) => item.textContent?.includes("Continue to copy confirmation"))
         ?.getAttribute("aria-describedby"),
     ).toBe("adopt-save-warning");
+    await captureParityState("adoption-copy-reviewed-fixture");
   } finally {
     await act(async () => root.unmount());
     container.remove();

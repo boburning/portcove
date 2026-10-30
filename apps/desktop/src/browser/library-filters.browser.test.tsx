@@ -314,6 +314,26 @@ it.each(["dark", "light"])(
     await closeFilters();
     await chooseReadiness("Ready (1)");
     await expect.element(button("Remove Preview filter")).toBeInTheDocument();
+    const footers = [
+      ...document.querySelectorAll<HTMLElement>(".collection-cover .library-entry-footer"),
+    ];
+    expect(footers.length).toBeGreaterThan(0);
+    for (const footer of footers) {
+      const bounds = footer.getBoundingClientRect();
+      const status = footer
+        .querySelector<HTMLElement>(".collection-state")!
+        .getBoundingClientRect();
+      const actions = footer
+        .querySelector<HTMLElement>(".collection-actions")!
+        .getBoundingClientRect();
+      expect(status.width).toBeGreaterThanOrEqual(Math.min(96, bounds.width) - 1);
+      expect(
+        status.right <= actions.left ||
+          actions.right <= status.left ||
+          status.bottom <= actions.top ||
+          actions.bottom <= status.top,
+      ).toBe(true);
+    }
     await captureParityState("library-selected-filter-chips");
     await userEvent.click(button("View details for Linux game Linux game"));
     await userEvent.click(button("Back to library"));

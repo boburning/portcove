@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { reloadWorkspace } from "../reload-workspace";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
@@ -99,6 +100,7 @@ it("invalidates a reviewed backup after editing and exposes recoverable import e
   expect(document.body.textContent).toContain(plan.content_root);
   expect(document.body.textContent).toContain(plan.destination_root);
   expect(button("Restore this library").disabled).toBe(false);
+  await captureParityState("library-restore-reviewed-fixture");
   const input = document.querySelector<HTMLInputElement>("#import-metadata")!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -121,6 +123,7 @@ it("invalidates a reviewed backup after editing and exposes recoverable import e
   await click("Resume restore");
   expect(desktopApi.recoverLibraryImport).toHaveBeenCalledWith(plan.destination_root);
   expect(document.body.textContent).toContain("Backup disk is offline");
+  await captureParityState("library-restore-recovery-failed-fixture");
 });
 
 it("keeps the dialog open while a reviewed import is running", async () => {
@@ -136,6 +139,7 @@ it("keeps the dialog open while a reviewed import is running", async () => {
   await click("Review restore");
   await click("Restore this library");
   expect(button("Close").disabled).toBe(true);
+  await captureParityState("library-restore-pending-fixture");
   await act(async () =>
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
   );

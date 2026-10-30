@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
@@ -173,6 +174,7 @@ describe("per-game install folder", () => {
     expect(current?.textContent).toContain("Current destination");
     expect(current?.textContent).toContain("Available");
     expect(current?.textContent).toContain("8.0 GiB available of 16.0 GiB");
+    await captureParityState("output-current-capacity-fixture");
     expect(desktopApi.previewOutputLocation).toHaveBeenCalledWith("sample", null, 7);
   });
 
@@ -197,6 +199,7 @@ describe("per-game install folder", () => {
     expect(current?.textContent).toContain("selected drive is unavailable");
     expect(current?.textContent).toContain("This destination stays selected");
     expect(current?.textContent).toContain("Choose an available folder below");
+    await captureParityState("output-current-unavailable-fixture");
     expect(document.body.textContent).toContain(custom);
     expect(document.body.textContent).toContain("Custom for this game");
     expect(desktopApi.previewOutputLocation).toHaveBeenCalledWith("sample", custom, 7);
@@ -412,6 +415,7 @@ describe("per-game install folder", () => {
     await click("Review future folder");
     expect(document.body.textContent).toContain("Full · no free space");
     expect(document.body.textContent).toContain("game output volume has no available space");
+    await captureParityState("output-review-full-validation-fixture");
     expect(button("Use this folder for future installs").disabled).toBe(true);
   });
 

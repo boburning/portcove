@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
@@ -242,6 +243,7 @@ describe("source intake dialog", () => {
     expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
     expect(button("Close")!.disabled).toBe(false);
     expect(button("Copy into Portcove")).toBeUndefined();
+    await captureParityState("source-import-refresh-failed-fixture");
     refresh.mockResolvedValue(undefined);
     await act(async () => button("Retry refresh")!.click());
     expect(refresh).toHaveBeenCalledTimes(2);
@@ -306,6 +308,7 @@ describe("source intake dialog", () => {
     expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
       "owned import failure",
     );
+    await captureParityState("source-import-failed-fixture");
     expect(button("Close")!.disabled).toBe(false);
   });
 
@@ -319,6 +322,7 @@ describe("source intake dialog", () => {
     expect(document.body.textContent).not.toContain("the files were already added");
     expect(document.body.textContent).toContain("Move cancelled");
     expect(document.body.querySelector('[role="alert"]')).toBeNull();
+    await captureParityState("source-import-cancelled-fixture");
     expect(button("Close")!.disabled).toBe(false);
   });
 
@@ -353,6 +357,7 @@ describe("source intake dialog", () => {
     expect(button("Copy into Portcove")).toBeDefined();
     expect(button("Use current location")).toBeDefined();
     expect(button("Review move")).toBeDefined();
+    await captureParityState("source-intake-readonly-fixture");
     expect(plan).not.toHaveBeenCalled();
     expect(apply).not.toHaveBeenCalled();
   });
@@ -375,6 +380,7 @@ describe("source intake dialog", () => {
     expect(button("Copy into Portcove")).toBeUndefined();
     expect(document.body.textContent).toContain("Try again.");
     expect(document.body.textContent).not.toContain("Choose how to add them.");
+    await captureParityState("source-intake-multiple-paths-fixture");
   });
 
   it("keeps pending validation guidance distinct from an accepted match", async () => {
@@ -388,6 +394,7 @@ describe("source intake dialog", () => {
       <SourceIntakeDialog request={request(["D:/Needs-upstream-check.iso"])} close={vi.fn()} />,
     );
     expect(document.body.textContent).toContain(pending.next_action);
+    await captureParityState("source-intake-validation-pending-fixture");
     expect(document.body.textContent).not.toContain("Choose how to add these files.");
     expect(button("Copy into Portcove")).toBeDefined();
   });
@@ -553,6 +560,7 @@ describe("source intake dialog", () => {
 
     expect(document.body.textContent).toContain("Check BIOS for Example Port");
     expect(button("Choose BIOS file to check")).toBeDefined();
+    await captureParityState("source-intake-bios-selection-fixture");
     await act(async () => button("Choose BIOS file to check")!.click());
     expect(choose).toHaveBeenCalledWith(biosProfile, "", "bios");
     expect(document.body.textContent).toContain("File selection cancelled. Nothing was changed.");
