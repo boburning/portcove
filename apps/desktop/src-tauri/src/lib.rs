@@ -1237,11 +1237,14 @@ async fn set_policy(
 #[tauri::command]
 async fn install_port(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     state: tauri::State<'_, DesktopState>,
     input: InstallInput,
     generation: u64,
-    on_event: Option<tauri::ipc::Channel<OperationEvent>>,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
 ) -> DesktopResult<InstallRecord> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
     let state = state.inner().clone();
     blocking_async_service_at_generation(state, generation, move |service| async move {
         if service.catalog().port(&input.port_id)?.managed_shared_preferences.is_some() {
