@@ -1,0 +1,206 @@
+{
+  "format_version": 1,
+  "kind": "dated operation-scoped source/package observation; canonical issue and Project retain acceptance/planning ownership",
+  "date": "2026-10-30",
+  "owners": [149, 2510, 2926, 1422],
+  "catalog_id": "mario-kart-wii-wiicompiled",
+  "base_commit": "630b7fedf9430b15e486a0ce6620b599c935fb81",
+  "frozen_membership": {
+    "primary": "original-524",
+    "historical_1422_member": true,
+    "new_identity": false
+  },
+  "upstream": {
+    "repository": "patchzyy/Wiicompiled",
+    "repository_id": 1329615643,
+    "tag": "v0.9.3",
+    "commit": "f02d000ba8e67240a04d95676da89023f781222f",
+    "recursive_tree_entries": 1078,
+    "recursive_tree_truncated": false,
+    "reviewed_verified_blobs": [
+      {
+        "path": "LICENSE",
+        "git_blob_sha": "61d18602bd64e167b6fe05ee64bcd79bc67157fb",
+        "bytes": 35128
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Common/PortableRoot.cs",
+        "git_blob_sha": "8344b5fae77d05d08d6bc4fc05a2d5155d9197c0",
+        "bytes": 4506
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Common/RuntimeConfiguration.cs",
+        "git_blob_sha": "ec7e72c6171688ea4a791e523dc8f2175f70f4c8",
+        "bytes": 11070
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Windows/CommandLine.cs",
+        "git_blob_sha": "14cd664095cb0645507a5acbe8f20eea0cc402c0",
+        "bytes": 9146
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Windows/GameLaunchService.cs",
+        "git_blob_sha": "6bdf7d2aead54431b139d617b3d6cd8b86ba432e",
+        "bytes": 3196
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Windows/InputValidation.cs",
+        "git_blob_sha": "3e9a14fe0f7d2db887785340ed74ff485010e72c",
+        "bytes": 7195
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Windows/Installation.cs",
+        "git_blob_sha": "d1e704007082a567f3f5281e9e33e42c0fcc84fe",
+        "bytes": 30547
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Windows/InstalledLayout.cs",
+        "git_blob_sha": "598343e9629b30ec373acfd0d641fdf5a88e3108",
+        "bytes": 2733
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Windows/Program.cs",
+        "git_blob_sha": "761f39abed4ca202dd88000ca09a6ef16056533f",
+        "bytes": 5700
+      },
+      {
+        "path": "Launcher/WiiCompiled.Setup.Windows/RunningProductGuard.cs",
+        "git_blob_sha": "cdfd77b6c1194d503df70f6cd1022a7b6a9e7fca",
+        "bytes": 1777
+      },
+      {
+        "path": "README.md",
+        "git_blob_sha": "50ae9c1884484f83cbd2da40158174166ac33a00",
+        "bytes": 13440
+      },
+      {
+        "path": "runtime/game/runtime_config_values.cpp",
+        "git_blob_sha": "e7677ff2098c84a20dd827ce47f6509c5182f8b2",
+        "bytes": 246
+      },
+      {
+        "path": "runtime/include/nand_path.h",
+        "git_blob_sha": "b607a9a6cc2d50c086d99f787295409ca7d38387",
+        "bytes": 7131
+      },
+      {
+        "path": "runtime/include/nand_settings.h",
+        "git_blob_sha": "fd48dce6238056dc14571b7647f3ca111c0ec0dc",
+        "bytes": 8656
+      },
+      {
+        "path": "runtime/include/runtime_config.h",
+        "git_blob_sha": "3648d0eaacc8b0c9d7cb17579efafe05507725df",
+        "bytes": 41873
+      },
+      {
+        "path": "runtime/include/runtime_log.h",
+        "git_blob_sha": "60ff3617fdd16c3557b417511c5339e100104344",
+        "bytes": 1589
+      },
+      {
+        "path": "runtime/include/runtime_product.h",
+        "git_blob_sha": "6738d3be625d659969afd84b1b0aa1719fced6f4",
+        "bytes": 563
+      },
+      {
+        "path": "runtime/src/main.cpp",
+        "git_blob_sha": "6d0dd6bd26c9e191618514462eb36a7d7b9e0ffd",
+        "bytes": 62917
+      }
+    ]
+  },
+  "official_setup_observation": {
+    "capture_date": "2026-10-30",
+    "asset_id": 675082180,
+    "name": "WiiCompiled-Setup.exe",
+    "size": 392477226,
+    "expected_digest": "sha256:a1c93c0e6b9203a1b3c0b91b87aa13be90f02c3c9b380b65d694f7555bf12b46",
+    "actual_sha256": "a1c93c0e6b9203a1b3c0b91b87aa13be90f02c3c9b380b65d694f7555bf12b46",
+    "machine": "0x8664",
+    "optional_header_magic": "0x20b",
+    "scope": "Read-only official setup software download/header inspection. No execution/extraction, original game files, preparation output or actual game runtime observation."
+  },
+  "selected_route": {
+    "contract": "staged-source-portable/user-prepared/user-selected; Windows x86-64 only",
+    "precondition": "Permitted already upstream-prepared, working vanilla installation. Actual preparation and generated player not observed here. Registration is not readiness, original or build authentication.",
+    "executable": "<install>/Base/WiiCompiled.exe",
+    "working_directory": "<install>/Base",
+    "arguments": [],
+    "portable_example": "<portable>/Install/Base/WiiCompiled.exe; marker <portable>/portable.txt; state <portable>/UserData",
+    "replacement_owner": "Upstream/Wheel Wizard/player; user-managed-update. Core never replaces runtime.",
+    "offered_operations": [
+      "explicit executable/CWD/literal-argument consent",
+      "registration/relink retaining execution intent across restart",
+      "separate selected-process Play",
+      "registration-only removal preserving all external files"
+    ],
+    "unoffered_operations": [
+      "managed preparation/source materialization",
+      "managed acquisition/update/backup/rollback/migration",
+      "external deletion",
+      "original/build authentication",
+      "Retro Rewind",
+      "whole-session recovery",
+      "other-platform qualification"
+    ]
+  },
+  "source_and_rights": {
+    "retained_PAL_identity_resolved": true,
+    "game_id": "RMCP01",
+    "main_dol_sha256": "80d18895b39c63bd80f457398bfcbb91b7d16ac116a41a88967e954080155b05",
+    "static_r_rel_sha256": "16d9d146112541fefea701ecb5bc1a496f9d50e4a752fbb5b6778e7c6399f67d",
+    "qualification": "Retained source equivalence, not current preparation. Follow actual upstream-supported input checks. README mentions PAL while current InputValidation dispatches against the payload supported-release manifest; this narrow route neither certifies every upstream region nor distributes originals.",
+    "licensing": "Root source GPL-3.0; no original-game or every bundled-component rights grant inferred."
+  },
+  "data_and_lifetime": {
+    "portable": "Search from executable parent through four ancestors for portable.txt; preserve entire tree and marker. UserData contains Config.toml, NAND, Cache, Logs.",
+    "ordinary_windows": "Known-folder LocalAppData/WiiCompiled; fallback current-working-directory/WiiCompiled if known-folder unavailable. Profiles can be shared across installations.",
+    "custom_paths": "Relative config paths resolve from Config.toml parent, never Base CWD. Preserve actual dvd_root/GameAssets and custom nand_root/overlay paths and originals.",
+    "upstream_writes": "NAND bootstrap may seed missing files even for configured NAND. Logs contains per-run console/crash evidence; upstream removes entries older than four days on startup. No Core retention or migration promise.",
+    "lifetime": "Source main calls RuntimeMain; ordinary game runs in selected process, joins/stops workers and shuts down before return. Upstream setup GameLaunchService also starts Base executable with Base CWD/noargs and waits. Source review is not binary/source attestation or an actual game run.",
+    "direct_registration_limit": "Does not perform upstream install lock, provenance/ready checks or moved-install healing. Close all actual players and preserve runtime/data before upstream repair/update; no concurrent replacement promise."
+  },
+  "acceptance_rows_selected": [
+    {
+      "row": 1,
+      "scope": "Exact Windows upstream/prepared-player handoff"
+    },
+    {
+      "row": 2,
+      "scope": "Nonowning path/consent/preservation branch; managed preparation unoffered"
+    },
+    {
+      "row": 3,
+      "scope": "Single update owner, executable/CWD/args and actual data boundaries"
+    },
+    {
+      "row": 4,
+      "scope": "Existing executable/path/intent/recovery checks plus independent review and exact-head delivery"
+    },
+    {
+      "row": 5,
+      "scope": "Mandatory failures scoped; absent gameplay/platform evidence honest"
+    }
+  ],
+  "qualification": {
+    "actual_id_test": "wiicompiled_route_149",
+    "test_helper": "unchanged prepared_player_case in user_selected.rs",
+    "expected_coverage": "Existing consent, stale intent, one replacement owner, strict definition identity, restart/relink, root-process Play and external-file preserving removal",
+    "exact_head_ci": "pending delivery; no pass claimed in this dated source packet",
+    "actual_setup_execution": "not_run",
+    "actual_preparation": "not_run",
+    "actual_game_startup_gameplay_save_load": "not_run",
+    "installed_desktop_protected_delivery": "not_evaluated"
+  },
+  "preservation": {
+    "prior_operational_objects_unchanged": 270,
+    "new_operational_definitions": 1,
+    "new_listings": 0,
+    "source_authority_changes": 0,
+    "retained_direct_decisions_retired": 0,
+    "catalog_record_before_sha256": "9514a895b91138c2b39a28919cc72b0d3a28561d58212d0c2b697441e3f4d2a7",
+    "catalog_record_after_sha256": "d106583645f1f27308790c08b4f7eed7efdaf0a1645a318802ecba179b4d21d3"
+  },
+  "coverage_limit": "Focused source inspection, not every file audit. Stale source-comment reference to absent docs/WHEELWIZARD_CONTRACT.md was not used as evidence; actual checked code and README own handoff facts. Later gameplay/current package changes acquire separate evidence."
+}
