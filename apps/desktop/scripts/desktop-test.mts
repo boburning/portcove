@@ -105,6 +105,7 @@ import {
 } from "./desktop-qualification-history-test.mts";
 import {
   revealDetailSection,
+  clickVisible,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -799,6 +800,8 @@ async function verifySettingsRows() {
   );
   assert.match(await savedBundle.getText(), /support|bundle/iu);
   const originalWindow = await browser.manage().window().getRect();
+  let primaryFailure: unknown;
+  let failed = false;
   try {
     for (const theme of ["dark", "light"]) {
       await selectSettingsTheme(theme);
@@ -893,17 +896,31 @@ async function verifySettingsRows() {
         }
       }
     }
-  } finally {
+  } catch (error) {
+    failed = true;
+    primaryFailure = error;
+    await captureScenarioScreenshot("settings-rows-primary-failure");
+  }
+  try {
     await browser.manage().window().setRect(originalWindow);
     await selectSettingsCategory("appearance");
-    await browser
-      .findElement(
+    await clickVisible(
+      browser,
+      await browser.findElement(
         By.xpath(
           '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="Follow system"]',
         ),
-      )
-      .click();
+      ),
+    );
+  } catch (restoreError) {
+    if (failed)
+      throw new Error(
+        `Settings row verification failed: ${errorMessage(primaryFailure)}; restoring appearance failed: ${errorMessage(restoreError)}`,
+        { cause: new AggregateError([primaryFailure, restoreError]) },
+      );
+    throw restoreError;
   }
+  if (failed) throw primaryFailure;
 }
 
 interface SettingsRect {
@@ -1047,7 +1064,7 @@ async function selectSettingsCategory(id: string) {
     `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
   );
   await browser.wait(until.elementLocated(category), 15_000);
-  await browser.findElement(category).click();
+  await clickVisible(browser, await browser.findElement(category));
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1271,13 +1288,14 @@ async function captureKeyboardTarget(
 async function selectSettingsTheme(theme: string) {
   const browser = driverBrowser();
   await selectSettingsCategory("appearance");
-  await browser
-    .findElement(
+  await clickVisible(
+    browser,
+    await browser.findElement(
       By.xpath(
         `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
       ),
-    )
-    .click();
+    ),
+  );
   await browser.wait(
     async () =>
       (await executeBrowserScript(browser, () => document.documentElement.dataset.theme)) === theme,
@@ -3734,20 +3752,37 @@ try {
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
     const filters = await openCatalogFilters(browser);
-    const selectedFilter = await filters.findElement(
-      By.xpath(
-        './/fieldset[legend[normalize-space(.)="Release channels"]]//button[starts-with(normalize-space(.),"Stable (")]',
-      ),
+    const channelChoices = await filters.findElement(
+      By.css('button[aria-label="Release channels: All"]'),
     );
+    await clickVisible(browser, channelChoices);
+    const selectedFilter = await browser.wait(
+      until.elementLocated(
+        By.css('fieldset[aria-label="Release channels"] [role="checkbox"][aria-label^="Stable ("]'),
+      ),
+      5_000,
+    );
+    await browser.wait(until.elementIsVisible(selectedFilter), 5_000);
     await selectedFilter.sendKeys(Key.SPACE);
     await browser.wait(
-      async () => (await selectedFilter.getAttribute("aria-pressed")) === "true",
+      async () => (await selectedFilter.getAttribute("aria-checked")) === "true",
       5_000,
       "Keyboard activation did not select the Stable channel filter",
     );
-    assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
-    assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
+    assert.equal(await selectedFilter.getAttribute("data-slot"), "checkbox");
     await selectedFilter.sendKeys(Key.ESCAPE);
+    await browser.wait(
+      async () =>
+        (await channelChoices.getAttribute("aria-expanded")) === "false" &&
+        (await executeBrowserScript(
+          browser,
+          (element) => document.activeElement === element,
+          channelChoices,
+        )),
+      5_000,
+      "Escape did not close channel choices and restore focus to its trigger",
+    );
+    await channelChoices.sendKeys(Key.ESCAPE);
     await browser.wait(
       () =>
         executeBrowserScript(browser, () => {
