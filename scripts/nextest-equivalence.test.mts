@@ -488,6 +488,35 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       periods: 12,
     },
   ];
+  const intelRetainedContractBudgets = [
+    {
+      filter:
+        "package(portcove-core) & test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/)",
+      periods: 12,
+    },
+    {
+      filter:
+        "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
+      periods: 18,
+    },
+  ];
+  const olderIntelRetainedLifecycle = intelObservedLifecycle[0];
+  assert.ok(olderIntelRetainedLifecycle);
+  for (const [index, { filter, periods }] of intelRetainedContractBudgets.entries()) {
+    const observed = overrideFor(filter, "x86_64-apple-darwin");
+    assert.deepEqual(observed, {
+      platform: "x86_64-apple-darwin",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": periods, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+    assert.equal(overrides.indexOf(observed), intelFullControlBudgets.length + index);
+    assert.ok(
+      overrides.indexOf(observed) <
+        overrides.indexOf(overrideFor(olderIntelRetainedLifecycle.filter, "x86_64-apple-darwin")),
+      "Exact retained-contract budgets precede the older overlapping Intel60s group",
+    );
+  }
   const windowsReviewedPreparationFilter =
     "package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup$/)";
   assert.deepEqual(overrideFor(windowsReviewedPreparationFilter, "x86_64-pc-windows-msvc"), {
@@ -513,6 +542,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
+      ...intelRetainedContractBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       ...publicationFilters,
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),

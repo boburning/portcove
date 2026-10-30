@@ -41,6 +41,25 @@ filter = 'package(portcove-cli) & binary(machine_contract) & (test(/^artwork_con
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Qualification40978222851/a1 retained these exact Intel watchdogs after
+# continued lifecycle progress: companion recovery29.625s before30.025s,
+# and authenticated retained-contract verification46.763s before60.032s.
+# Identical cases passed27.881s/56.541s in40966545050/a1. Match existing
+# Windows60s/90s fixture headroom; preserve every final refusal/assertion,
+# product deadline, resource reservation, two workers, cleanup and zero retries.
+# This calibration establishes neither a causal repair nor balancing value.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40879228847/a1 Windows2 reached observation16 at29.690s before
 # the 30.108s watchdog. The identical test file passed14.404s in
 # CI40876858821/a1 Windows8. Preserve every sequence assertion and resource
