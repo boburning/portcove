@@ -1026,8 +1026,16 @@ async function verifyLongTitleCatalogDetail(theme: string) {
 
 async function refreshSettings(category?: string) {
   const browser = driverBrowser();
+  const previousDocument = await browser.findElement(By.css("html"));
   await browser.navigate().refresh();
+  // WebView's refresh command can return while the previous renderer is still visible.
+  // Select the category only after the new document and workspace have settled.
+  await browser.wait(until.stalenessOf(previousDocument), 15_000);
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+  await browser.wait(
+    () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
+    15_000,
+  );
   await selectPrimaryNavigation(browser, "Settings");
   if (category) await selectSettingsCategory(category);
 }
@@ -3652,7 +3660,7 @@ try {
       );
     await captureKeyboardTarget(
       "settings-about-title-compact",
-      await about.findElement(By.css("h2")),
+      await about.findElement(By.css("h3")),
     );
 
     await selectSettingsCategory("updates");
