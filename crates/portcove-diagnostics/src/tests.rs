@@ -413,7 +413,11 @@ fn qualification_preparation_requires_the_compile_feature_and_exact_opt_in() {
     }
     for flag in [None, Some("1"), Some("true")] {
         let temporary = tempfile::tempdir().unwrap();
-        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        let mut command = portcove_core::ChildProcessPolicy::native_command(
+            portcove_core::ChildProcessClass::HostIntegration,
+            std::env::current_exe().unwrap(),
+        )
+        .unwrap();
         command
             .args([
                 "--exact",
