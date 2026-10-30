@@ -223,12 +223,30 @@ export function windowsPreparationEntryDisappeared(
   }
 }
 
+/** Only a live directory enumeration may defer a Windows sharing violation.
+ * This is not inventory coverage: settled scans and the final graph stay strict.
+ */
+export function windowsPreparationDirectoryEnumerationDeferred(
+  error: unknown,
+  filename: string,
+  requiredRoot: string,
+  live: boolean,
+) {
+  if (!live || filename === requiredRoot || !isRecord(error) || error.code !== "EBUSY")
+    return false;
+  // Recheck type after the enumeration failure. Never defer lstat failures,
+  // links, files, denied access or a required root.
+  const info = lstatSync(filename);
+  return info.isDirectory() && !info.isSymbolicLink();
+}
+
 export function inspectWindowsSourcePreparationInventory(
   root: string,
   active: () => void,
   live = false,
 ) {
-  let count = 0, bytes = 0;
+  let count = 0,
+    bytes = 0;
   const pending = [root];
   while (pending.length) {
     active();
@@ -253,8 +271,9 @@ export function inspectWindowsSourcePreparationInventory(
       }
       assert.ok(!info.isSymbolicLink());
       bytes += info.size;
-      assert.ok(bytes <= 512 * 1024 ** 2 &&
-        (info.isDirectory() || (info.isFile() && info.nlink === 1)));
+      assert.ok(
+        bytes <= 512 * 1024 ** 2 && (info.isDirectory() || (info.isFile() && info.nlink === 1)),
+      );
       if (info.isDirectory()) pending.push(filename);
     }
   }
@@ -568,6 +587,8 @@ async function acquireDependencies(planFile: string) {
           entries = readdirSync(current);
         } catch (error) {
           if (windowsPreparationEntryDisappeared(error, current, plan.root, live)) continue;
+          if (windowsPreparationDirectoryEnumerationDeferred(error, current, plan.root, live))
+            continue;
           throw error;
         }
         assert.ok(count + pending.length + entries.length <= 100000);
