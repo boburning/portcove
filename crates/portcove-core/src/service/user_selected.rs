@@ -1054,6 +1054,11 @@ mod tests {
         ["--play", "xmvsf"]
     );
 
+    prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
+    prepared_player_case!(classic_pc_route_1793, "keriew-augustus");
+    prepared_player_case!(classic_pc_route_1790, "elasota-aerofoil");
+    prepared_player_case!(classic_pc_route_1826, "m-x-d-heretic2r");
+
     prepared_player_case!(historical_pc_route_369, "doom-rpg-doomrpg-re");
     prepared_player_case!(historical_pc_route_370, "doom-ii-rpg-doomiirpg-re");
     prepared_player_case!(historical_pc_route_371, "wolfenstein-rpg-wolfensteinrpg-re");

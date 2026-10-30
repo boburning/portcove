@@ -1747,6 +1747,7 @@ mod tests {
     #[tokio::test]
     async fn ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults() {
         const ID: &str = "alariq-mc2";
+        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -1759,11 +1760,16 @@ mod tests {
         let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
         let port = service.catalog.port(ID).unwrap();
         assert!(crate::persistence::ready_staged_archive(port));
+        eprintln!("Ready staged fixture ready: {:?}", started.elapsed());
         let first = service
             .install(ID, None, None, None, true, |_| {})
             .await
             .unwrap();
         let root = first.path.join("mc2-win64-v0.1.3");
+        eprintln!(
+            "Ready staged fixture initial install complete: {:?}",
+            started.elapsed()
+        );
         assert!(psx_mod_data::initialized(&first).unwrap());
         fs::write(root.join("options.cfg"), b"before first Play").unwrap();
         fs::create_dir_all(root.join("data/multiplayer")).unwrap();
@@ -1780,6 +1786,10 @@ mod tests {
         .unwrap();
         assert!(!first.path.join(LAUNCH_MARKER).exists());
         let backup = service.create_backup(ID).unwrap();
+        eprintln!(
+            "Ready staged fixture backup complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::read(backup.path.join("data/options.cfg")).unwrap(),
             b"before first Play"
@@ -1790,8 +1800,16 @@ mod tests {
             server.release_in_folder("v0.1.4", 2, "mc2-win64-v0.1.4/", "mc2.exe");
         let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
         assert!(staged.staged);
+        eprintln!(
+            "Ready staged fixture successor staged: {:?}",
+            started.elapsed()
+        );
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         let second = service.activate_staged(ID).unwrap();
+        eprintln!(
+            "Ready staged fixture successor activated: {:?}",
+            started.elapsed()
+        );
         let second_root = second.path.join("mc2-win64-v0.1.4");
         assert_eq!(
             fs::read(second_root.join("options.cfg")).unwrap(),
@@ -1815,6 +1833,10 @@ mod tests {
             .prepare_launch_for_install(port, &second, None, None)
             .unwrap();
         assert_eq!(spec.working_directory, second_root);
+        eprintln!(
+            "Ready staged fixture launch preparation complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::read(library.user_dir(ID).join("options.cfg")).unwrap(),
             b"deliberate successor choice"
@@ -1822,6 +1844,10 @@ mod tests {
         // Preparation returns a specification; no fixture executable is run.
         assert!(!second.path.join(LAUNCH_MARKER).exists());
         let restored = service.rollback(ID).unwrap();
+        eprintln!(
+            "Ready staged fixture runtime rollback complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(restored.id, first.id);
         assert_eq!(
             fs::read(root.join("options.cfg")).unwrap(),
@@ -1840,6 +1866,10 @@ mod tests {
                 .contains("unrecognized files")
         );
         assert!(service.update(ID, None, None, true, |_| {}).await.is_err());
+        eprintln!(
+            "Ready staged fixture unknown-file update refused: {:?}",
+            started.elapsed()
+        );
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         assert_eq!(
             fs::read(root.join("unknown-player-file")).unwrap(),
