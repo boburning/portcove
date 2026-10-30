@@ -6,7 +6,10 @@ import {
   observeHistoricalScope,
   observeRetainedRebootScope,
 } from "./fixtures/updater-workflow-fixture.mts";
-import { prerequisiteInvocation } from "./fixtures/linux-prerequisites-fixture.mts";
+import {
+  prerequisiteInvocation,
+  prerequisiteEnvironment,
+} from "./fixtures/linux-prerequisites-fixture.mts";
 import { readWorkflow } from "./ci-workflow-fixture.mts";
 import type { TestContext } from "node:test";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -188,64 +191,172 @@ function runPowerShellScript(
 
 void test("AppImage qualification refuses root and unknown identities before creating state", async (t) => {
   const harness = fileURLToPath(new URL("./test-linux-appimage-update.ps1", import.meta.url));
-  const source = await readFile(harness, "utf8");
-  assert.ok(
-    source.indexOf("$qualificationIdentity = Get-RootlessQualificationIdentity") <
-      source.indexOf("$predecessor = Resolve-ExistingFile"),
+  const identityModule = fileURLToPath(
+    new URL("./native-qualification-posix-identity.psm1", import.meta.url),
   );
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-rootless-identity-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const script = path.join(root, "identity.ps1");
+  const missingModuleHarness = path.join(root, "missing-module", "test-linux-appimage-update.ps1");
+  await mkdir(path.dirname(missingModuleHarness));
+  await copyFile(harness, missingModuleHarness);
   await writeFile(
     script,
     `
 $ErrorActionPreference = 'Stop'
-$tokens = $null; $errors = $null
-$ast = [Management.Automation.Language.Parser]::ParseFile('${harness.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
-if ($errors.Count) { throw 'AppImage harness parse failed' }
-$functions = @($ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-RootlessQualificationIdentity'}, $true))
-if ($functions.Count -ne 1) { throw 'Missing rootless identity preflight' }
-Invoke-Expression $functions[0].Extent.Text
-function Invoke-IdFixture {
+$harness = '${harness.replaceAll("'", "''")}'
+$identityModule = '${identityModule.replaceAll("'", "''")}'
+$fixtureRoot = '${root.replaceAll("'", "''")}'
+$missingModuleHarness = '${missingModuleHarness.replaceAll("'", "''")}'
+function global:Invoke-IdFixture {
+ if ($args.Count -ne 1 -or $args[0] -notin @('-u','-g')) { throw 'APPIMAGE_ID_ARGUMENTS' }
  $Kind = $args[0]
+ $global:QualificationIdCalls += $Kind
+ $case = $global:QualificationIdentityFixtureCase
  $global:LASTEXITCODE = if ($Kind -eq '-u') { $case.user_exit } else { $case.group_exit }
  if ($Kind -eq '-u') { $case.uid } else { $case.gid }
 }
-Set-Alias -Name /usr/bin/id -Value Invoke-IdFixture
+Set-Alias -Scope Global -Name /usr/bin/id -Value Invoke-IdFixture
+function global:Resolve-Path {
+ $global:QualificationInputResolutionCalls++
+ throw 'APPIMAGE_INPUT_RESOLUTION_BOUNDARY'
+}
+$global:QualificationUnexpectedEffects = 0
+function global:Refuse-IdentityFixtureEffect {
+ $global:QualificationUnexpectedEffects += 1
+ throw 'APPIMAGE_UNEXPECTED_EFFECT'
+}
+foreach ($name in @('New-Item','Remove-Item','Copy-Item','Move-Item','Start-Process','Invoke-WebRequest','Invoke-RestMethod','/usr/bin/cp','chmod','sudo','git')) {
+ Set-Alias -Scope Global -Name $name -Value Refuse-IdentityFixtureEffect
+}
 $cases = @(
- @{ uid='0'; gid='0'; user_exit=0; group_exit=0; error='Root cannot qualify' },
- @{ uid=''; gid='1000'; user_exit=0; group_exit=0; error='user ID' },
- @{ uid='invalid'; gid='1000'; user_exit=0; group_exit=0; error='user ID' },
- @{ uid='1000'; gid='1000'; user_exit=1; group_exit=0; error='user ID' },
- @{ uid='1000'; gid=''; user_exit=0; group_exit=0; error='group ID' },
- @{ uid='1000'; gid='1000'; user_exit=0; group_exit=1; error='group ID' },
- @{ uid='1000'; gid='1000'; user_exit=0; group_exit=0; error=$null }
+ @{ uid='0'; gid='0'; user_exit=0; group_exit=0; error='Root cannot qualify'; calls=@('-u') },
+ @{ uid=''; gid='1000'; user_exit=0; group_exit=0; error='user ID'; calls=@('-u') },
+ @{ uid='invalid'; gid='1000'; user_exit=0; group_exit=0; error='user ID'; calls=@('-u') },
+ @{ uid='1000'; gid='1000'; user_exit=1; group_exit=0; error='user ID'; calls=@('-u') },
+ @{ uid='1000'; gid=''; user_exit=0; group_exit=0; error='group ID'; calls=@('-u','-g') },
+ @{ uid='1000'; gid='1000'; user_exit=0; group_exit=1; error='group ID'; calls=@('-u','-g') },
+ @{ uid='1000'; gid='1000'; user_exit=0; group_exit=0; error=$null; calls=@('-u','-g') }
 )
+$moduleObservations = @()
+$entryObservations = @()
+$ordinal = 0
 foreach ($case in $cases) {
+ $identityOwner = Import-Module $identityModule -Force -PassThru
+ $global:QualificationIdentityFixtureCase = $case
+ $global:QualificationIdCalls = @()
+ $global:QualificationInputResolutionCalls = 0
  $refused = $false
  try {
   $identity = Get-RootlessQualificationIdentity
-  if ($case.error) { throw 'Unexpected identity acceptance' }
-  if ($identity.uid -ne $case.uid -or $identity.gid -ne $case.gid) { throw 'Identity changed' }
+  if ($case.error) { throw 'APPIMAGE_UNEXPECTED_IDENTITY_ACCEPTANCE' }
+  if ($identity.uid -cne $case.uid -or $identity.gid -cne $case.gid) { throw 'APPIMAGE_IDENTITY_CHANGED' }
  } catch {
   if (-not $case.error -or $_.Exception.Message -notlike "*$($case.error)*") { throw }
   $refused = $true
  }
- if ($case.error -and -not $refused) { throw 'Missing refusal' }
+ if ($case.error -and -not $refused) { throw 'APPIMAGE_MISSING_IDENTITY_REFUSAL' }
+ if (($global:QualificationIdCalls -join ',') -cne ($case.calls -join ',')) { throw 'APPIMAGE_MODULE_ID_CALLS' }
+ if ($global:QualificationInputResolutionCalls -ne 0) { throw 'APPIMAGE_MODULE_INPUT_EFFECT' }
+ $moduleObservations += @{ ordinal=$ordinal; refused=$refused; arguments=@($global:QualificationIdCalls) }
+ Remove-Module -ModuleInfo $identityOwner -Force
+ if (Get-Command Get-RootlessQualificationIdentity -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IDENTITY_COMMAND' }
+ if ($IsLinux -or $ordinal -eq 0) {
+  $global:QualificationIdCalls = @()
+  $global:QualificationInputResolutionCalls = 0
+  $state = Join-Path $fixtureRoot "state-$ordinal"
+  $evidence = Join-Path $fixtureRoot "evidence-$ordinal.json"
+  $missing = Join-Path $fixtureRoot 'missing-input'
+  $invocation = @{
+   PredecessorPath=$missing; CandidatePath=$missing; TrustedRootPath=$missing;
+   MetadataPath=$missing; TargetsPath=$missing; MissingSignatureRepositoryPath=$missing;
+   WrongSignatureRepositoryPath=$missing; RecoveryRepositoryPath=$missing;
+   WrongPayloadPublicKeySha256=('0' * 64); PayloadPrivateKeyPath=$missing;
+   TufPrivateRootPath=$missing; StateRoot=$state; EvidencePath=$evidence
+  }
+  $expected = if (-not $IsLinux) { 'AppImage update harness requires Linux' } elseif ($case.error) { $case.error } else { 'APPIMAGE_INPUT_RESOLUTION_BOUNDARY' }
+  $observed = $null
+  try { & $harness @invocation; throw 'APPIMAGE_UNEXPECTED_ENTRY_ACCEPTANCE' }
+  catch { $observed = $_.Exception.Message }
+  if ($observed -notlike "*$expected*") { throw "APPIMAGE_ENTRY_REFUSAL:$ordinal expected=$expected observed=$observed" }
+  $expectedResolution = if ($IsLinux -and -not $case.error) { 1 } else { 0 }
+  if ($global:QualificationInputResolutionCalls -ne $expectedResolution) { throw "APPIMAGE_ENTRY_INPUT_ORDER:$ordinal" }
+  $expectedCalls = if ($IsLinux) { $case.calls } else { @() }
+  if (($global:QualificationIdCalls -join ',') -cne ($expectedCalls -join ',')) { throw "APPIMAGE_ENTRY_ID_CALLS:$ordinal" }
+  if ((Test-Path -LiteralPath $state) -or (Test-Path -LiteralPath $evidence)) { throw "APPIMAGE_ENTRY_STATE_CREATED:$ordinal" }
+  $entryObservations += @{ ordinal=$ordinal; arguments=@($global:QualificationIdCalls); input_resolutions=$global:QualificationInputResolutionCalls; refusal=$observed; state_absent=$true; evidence_absent=$true }
+ }
+ $ordinal++
 }
-@{ cases = $cases.Count; root_refused = $true; ordinary_identity_retained = $true } | ConvertTo-Json -Compress
+$dependencyObservations = @()
+if ($IsLinux) {
+ # Neither direct-module setup nor an earlier public call may supply the
+ # operation when this exact invocation omits its required dependency.
+ Get-Module | Where-Object Path -CEQ $identityModule | Remove-Module -Force
+ if (Get-Command Get-RootlessQualificationIdentity -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IDENTITY_COMMAND' }
+ $global:QualificationIdentityFixtureCase = $cases[-1]
+ $global:QualificationIdCalls = @()
+ $global:QualificationInputResolutionCalls = 0
+ $global:QualificationUnexpectedEffects = 0
+ $missingModule = Join-Path (Split-Path -Parent $missingModuleHarness) 'native-qualification-posix-identity.psm1'
+ if (Test-Path -LiteralPath $missingModule) { throw 'APPIMAGE_MISSING_MODULE_FIXTURE_PRESENT' }
+ $failure = $null
+ try { & $missingModuleHarness @invocation } catch { $failure = $_ }
+ if ($null -eq $failure -or $failure.FullyQualifiedErrorId.Split(',')[0] -cne 'Modules_ModuleNotFound' -or -not $failure.Exception.Message.Contains($missingModule)) { throw 'APPIMAGE_MISSING_MODULE_REFUSAL' }
+ if ($global:QualificationIdCalls.Count -ne 0 -or $global:QualificationInputResolutionCalls -ne 0 -or $global:QualificationUnexpectedEffects -ne 0 -or (Test-Path -LiteralPath $state) -or (Test-Path -LiteralPath $evidence)) { throw 'APPIMAGE_MISSING_MODULE_EFFECT' }
+ $dependencyObservations += @{ kind='missing-artifact'; error_id=$failure.FullyQualifiedErrorId; module_path=$missingModule; identity_calls=0; input_resolutions=0; effects=0; state_absent=$true; evidence_absent=$true }
+ if (Get-Command Get-RootlessQualificationIdentity -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IDENTITY_COMMAND' }
+ if (Get-Alias -Name Import-Module -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IMPORT_ALIAS' }
+ $global:QualificationFixtureModulePath = $identityModule
+ $global:QualificationSuppressedImports = 0
+ function global:Suppress-IdentityModuleImport {
+  [CmdletBinding()]
+  param([Parameter(Position=0,Mandatory=$true)][string]$Name, [switch]$Force)
+  if ([IO.Path]::GetFullPath($Name) -cne $global:QualificationFixtureModulePath) { throw 'APPIMAGE_IMPORT_MODULE_IDENTITY' }
+  $global:QualificationSuppressedImports += 1
+ }
+ Set-Alias -Scope Global -Name Import-Module -Value Suppress-IdentityModuleImport
+ $failure = $null
+ try {
+  try { & $harness @invocation } catch { $failure = $_ }
+ } finally {
+  # Remove only the alias created by this control; filesystem mutation remains
+  # denied by the unqualified command boundary above.
+  Microsoft.PowerShell.Management\\Remove-Item -LiteralPath Alias:\\Import-Module -Force
+ }
+ if ($global:QualificationSuppressedImports -ne 1 -or $null -eq $failure -or $failure.Exception -isnot [Management.Automation.CommandNotFoundException] -or -not $failure.Exception.Message.Contains('Get-RootlessQualificationIdentity')) { throw 'APPIMAGE_SUPPRESSED_IMPORT_REFUSAL' }
+ if ($global:QualificationIdCalls.Count -ne 0 -or $global:QualificationInputResolutionCalls -ne 0 -or $global:QualificationUnexpectedEffects -ne 0 -or (Test-Path -LiteralPath $state) -or (Test-Path -LiteralPath $evidence)) { throw 'APPIMAGE_SUPPRESSED_IMPORT_EFFECT' }
+ $dependencyObservations += @{ kind='suppressed-import'; error_id=$failure.FullyQualifiedErrorId; imports=$global:QualificationSuppressedImports; identity_calls=0; input_resolutions=0; effects=0; state_absent=$true; evidence_absent=$true }
+}
+@{ module_observations=$moduleObservations; entry_observations=$entryObservations; dependency_observations=$dependencyObservations; actual_linux=[bool]$IsLinux; authority='none; controlled provider observations, no installed qualification' } | ConvertTo-Json -Depth 8 -Compress
 `,
   );
   const result = spawnSync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", script], {
     encoding: "utf8",
+    env: prerequisiteEnvironment(),
     timeout: 30_000,
   });
+  assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), {
-    cases: 7,
-    root_refused: true,
-    ordinary_identity_retained: true,
-  });
+  const report = object(JSON.parse(result.stdout));
+  assert.equal(report.actual_linux, process.platform === "linux");
+  assert.ok(Array.isArray(report.module_observations) && report.module_observations.length === 7);
+  assert.ok(
+    Array.isArray(report.entry_observations) &&
+      report.entry_observations.length === (process.platform === "linux" ? 7 : 1),
+  );
+  for (let ordinal = 0; ordinal < 7; ordinal++) {
+    const observation = object(report.module_observations[ordinal]);
+    assert.equal(observation.ordinal, ordinal);
+    assert.equal(observation.refused, ordinal !== 6);
+    assert.deepEqual(observation.arguments, ordinal < 4 ? ["-u"] : ["-u", "-g"]);
+  }
+  assert.ok(Array.isArray(report.dependency_observations));
+  assert.deepEqual(
+    report.dependency_observations.map((value: unknown) => object(value).kind),
+    process.platform === "linux" ? ["missing-artifact", "suppressed-import"] : [],
+  );
+  console.log("AppImage identity fixture observations: " + JSON.stringify(report));
 });
 
 async function fixture(t: TestContext, label = "windows-x86_64") {

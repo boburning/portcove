@@ -1201,6 +1201,10 @@ for (const [file, tests] of [
     ["scripts/updater-artifact-inventory.test.mts"],
   ],
   [
+    "scripts/native-qualification-posix-identity.psm1",
+    ["scripts/updater-artifact-inventory.test.mts"],
+  ],
+  [
     "scripts/fixtures/linux-prerequisites-fixture.mts",
     [
       "scripts/container-build.test.mts",

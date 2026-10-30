@@ -35,18 +35,7 @@ $ErrorActionPreference = "Stop"
 if (-not $IsLinux) { throw "The AppImage update harness requires Linux" }
 if ($StartupTimeoutSeconds -lt 5 -or $StartupTimeoutSeconds -gt 120) { throw "StartupTimeoutSeconds must be between 5 and 120" }
 
-function Get-RootlessQualificationIdentity {
-    $userId = (& /usr/bin/id -u | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^(0|[1-9]\d*)$') {
-        throw "Could not determine the qualification user ID"
-    }
-    if ($userId -eq '0') { throw "Root cannot qualify ordinary rootless AppImage updates" }
-    $groupId = (& /usr/bin/id -g | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $groupId -notmatch '^(0|[1-9]\d*)$') {
-        throw "Could not determine the qualification group ID"
-    }
-    return [ordered]@{ uid = $userId; gid = $groupId }
-}
+Import-Module (Join-Path $PSScriptRoot "native-qualification-posix-identity.psm1") -Force
 
 # Check the actual application caller before resolving inputs or creating state.
 # Privileged tmpfs setup below remains separate from application execution.
