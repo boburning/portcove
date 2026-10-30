@@ -392,6 +392,27 @@ filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_r
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41076336853/a1 Windows3 retained a30.126s whole-case timeout for
+# move_previews_check_retained_policy_before_creating_destinations.
+# Identical assertions passed21.846s in41069532772/a1 Windows3. Preserve
+# both retained-policy cases and add phase diagnostics with finite60s room;
+# no product deadline, assertions, worker slots, cleanup or retry changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^runtime_path_policy::tests::move_previews_check_retained_policy_before_creating_destinations$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41076336853/a1 Windows7, sourcece367f3f, completed seven source-import
+# scenarios and began Adopt/CleanupPending at54.365s before the60.295s
+# watchdog. Include only that sibling in the existing finite90s allowance;
+# keep all eight scenarios, assertions, product deadlines, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40797975365/a1 job123202480764 cut this four-family cleanup fixture
 # off at30.214s without internal phase output. Retain all four families and
 # assertions with exact60s diagnostic room; do not infer a product cause.

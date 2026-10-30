@@ -48,3 +48,25 @@ The existing operative issue minimum allows independently permitted prepared reg
 `ringout_route_148` runs the existing production registration/relink/restart/Play/preserving-removal contract against the actual catalog identity using a repository-owned inert native probe. Six path-bearing literal arguments, including spaces, are retained without interpolation; the probe observes those bindings. It does not load a generated DLL or prove an actual game run. Existing adversarial coverage checks token/intent drift, executable changes, old-reader refusal, preservation and unoffered operations. Actual game execution/gameplay, generated-module ABI, save/load, netplay, installed Desktop/protected delivery and other platforms are not evaluated by these fixtures.
 
 Selected denominator remains one route until independent review, exact-head required CI, guarded merge, remote readback and individual canonical/Project reconciliation complete. Zero new listing/frozen identities are added. The historical 317 rows/316 identities overlap frozen858; these inventories are never added.
+
+The earlier exact-head run 41076336853/a1 passed the named Ring Out operation
+case, but Windows partition7 cut the unrelated
+`service::tests::publication_recovery_retains_conflicting_source_import_intent`
+fixture at60.295 seconds. Its first seven scenarios completed; final
+Adopt/CleanupPending began at54.365 seconds. The exact Windows case receives
+the existing finite90-second harness allowance ahead of its60-second family
+rule. All eight scenarios, product deadlines, resource slots, cleanup and zero
+automatic retries remain unchanged. Existing configuration regression coverage
+checks exact platform/identity/budget/precedence. This establishes completion
+under that budget when freshly qualified, not a performance improvement or
+causal product repair. The failed producer and prior invalid-hint record
+failure remain retained.
+
+The same run's Windows partition3 also retained a30.126-second whole-case
+timeout in `runtime_path_policy::tests::move_previews_check_retained_policy_before_creating_destinations`.
+The identical two-case assertions passed21.846 seconds in41069532772/a1.
+Only that Windows fixture receives finite60-second diagnostic room and
+per-case registration/library-preview/output-preview/assertion timings. Its
+assertions, filesystem refusal/preservation checks and product limits remain
+unchanged. The configuration oracle explicitly retains both new scoped rules
+without broadening defaults or dropping any prior override expectations.
