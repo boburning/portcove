@@ -816,6 +816,7 @@ async function verifySettingsRows() {
           "game-files",
           "updates",
           "integrations",
+          "controls",
           "advanced",
         ]) {
           await selectSettingsCategory(group);
@@ -942,7 +943,8 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
     "library-storage": 3,
     "game-files": 3,
     updates: 2,
-    integrations: 1,
+    integrations: 2,
+    controls: 2,
     advanced: 3,
   };
   for (const [name, group] of Object.entries(rows.groups)) {
@@ -1024,9 +1026,9 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     });
     await captureScenarioScreenshot(`game-details-long-title-${theme}-${size.width}`, true);
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
-    assert.equal(layout.project, "Port project: Castlevania: Legacy of Darkness Recompiled");
+    assert.equal(layout.project, "Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Set up game");
+    assert.equal(layout.action.label, "Set up");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -3578,6 +3580,7 @@ try {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]) {
@@ -3624,6 +3627,7 @@ try {
       { name: "game-files", columns: 1 },
       { name: "updates", columns: 1 },
       { name: "integrations", columns: 1 },
+      { name: "controls", columns: 1 },
       { name: "advanced", columns: 1 },
       { name: "about", columns: 1 },
     ]);
@@ -3923,7 +3927,7 @@ try {
         "Manage",
       ]);
       assert.equal(hierarchy.selected, "Game files");
-      assert.equal(hierarchy.action, "Set up game");
+      assert.equal(hierarchy.action, "Set up");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);
@@ -3949,9 +3953,6 @@ try {
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
     await revealDetailSection(browser, "Manage");
-    await browser
-      .findElement(By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'))
-      .click();
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();
