@@ -721,6 +721,7 @@ void test("Node proposals update every maintained isolated pin without rewriting
   for (const [filename, count] of [
     [".node-version", 1],
     ["scripts/controller-node-runtime.mts", 1],
+    ["scripts/release-hosted-native-windows-diagnostic-launch.ps1", 1],
     [".github/workflows/application-update-production.yml", 1],
     ["docs/qualification/application-update-production.complete.yml", 1],
     ["docs/qualification/application-update-production.controller-tools.yml", 1],
