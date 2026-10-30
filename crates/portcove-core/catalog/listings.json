@@ -7426,19 +7426,25 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Download the upstream setup package",
-            "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+            "title": "Finish the upstream setup package first",
+            "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
           },
           {
-            "title": "Supply the matching original files",
-            "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Use both canonical USA discs and your own SCPH-1001 BIOS. OpenBIOS is unqualified for this game. Upstream reports a corrected Disc 2 load in its operator test; that attributed result does not establish other versions or a full playthrough."
+            "title": "Keep both USA discs and your BIOS",
+            "instruction": "Use your own complete canonical USA disc pair, SLUS-01156 and SLUS-01179, keeping each CUE with every referenced track, and your own legal SCPH-1001 BIOS. OpenBIOS is not qualified for this title. The published first-track identity is not a complete two-disc verification. Upstream reports one corrected Windows Disc 2 operator test; that does not establish every transition, save/reload or future rebuilt version."
           },
           {
-            "title": "Finish upstream setup, then add the player",
-            "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version’s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+            "title": "Add the completed native player",
+            "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe, or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
+          },
+          {
+            "title": "Preserve the complete creating project and profiles",
+            "instruction": "Keep the whole setup project, both original discs, BIOS, generated sources, build-release or custom build directory, dependencies, game.toml, game_options.toml, settings.toml, sidecar .cfg files, cards, saves, states, mods, caches, logs and unknown files. Runtime paths anchor to the actual executable, with some source paths searched above it; inspect the actual settings and preserve custom paths and both root/build histories. You or upstream manage rebuilds and updates. Portcove registration provides no managed backup, update, rollback or migration; removing registration leaves every external file untouched."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Project-owned GPL terms do not grant rights to original game data, generated retail code, BIOS or separately licensed dependencies. Keep private prepared outputs private unless their applicable terms permit sharing."
+        ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme"
       },
       "release_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/releases",
@@ -13985,6 +13991,31 @@
         "image_sha256": "2f0018b77441d22dc139ce436c20923cba8fb58eaea682e15bd6bc32c253c851",
         "game_slug": "deadly-premonition",
         "match_kind": "underlying-game"
+      },
+      "download_block_reason": "Selected DPRecomp source describes release-bundled pre-warmed shader storage, including original-disc shader microcode. Fresh acquisition is held until the selected package/component applicability and attributable permission for its inclusion, or a reviewed asset-clean or owned-input preparation route, are established. Sharing consent alone does not resolve this component condition. This is source-bound evidence, not an inspection certificate for unacquired archive bytes or a ban on already-permitted private working copies.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare and confirm the regional player upstream",
+            "instruction": "Start from an already-permitted, fully prepared working Windows copy corresponding to the upstream v2.0.14 route, using your own supported PAL or USA Xbox 360 disc. The selected source describes release-bundled disc-derived shader storage; establish applicable permission for the selected package/component or an asset-clean or owned-input route before fresh acquisition. Sharing consent alone does not resolve that condition. Finish upstream import and one normal working launch before adding it. An incomplete first-run installer can start another process and exit. The importer and launcher use default.xex size to choose a region; that is not complete original-file authentication. Keep your originals and failed preparation work recoverable rather than mixing regional files or treating a same-size retry as verification."
+          },
+          {
+            "title": "Keep shader sharing off",
+            "instruction": "In the upstream launcher explicitly choose No at the sharing prompt (Yes is preselected), and keep Advanced → Share Shader Cache off (launcher.ini: launcher_share_shader_cache=off). That prompt offers to send disc-derived shader microcode and pipeline descriptions; adding a Portcove registration grants no permission to upload them. Portcove does not accept this prompt or configure sharing. Leave optional native-renderer testing, external reporting and upstream online features to your own separate choices."
+          },
+          {
+            "title": "Add the actual prepared game executable",
+            "instruction": "Select the already-working deadlyprem.exe for PAL or deadlyprem_usa.exe for USA, using the installation as the normal working directory; preserve a different established working directory and its literal paths if your actual prepared launch requires it. Do not select PlayDeadlyPremonition.exe: its PLAY button starts the game, closes the child handle and exits. The prepared native entry defaults to assets beside the executable; retain actual supported --game_data_root, --user_data_root and --cache_root flags with their creating absolute paths as separate arguments if your copy uses them. Saving launch details and Play are separate actions. This route does not run or supervise the upstream importer or updater."
+          },
+          {
+            "title": "Preserve originals and all actual player data",
+            "instruction": "Keep the entire working package, assets, regional executables and companions, deadlyprem.toml, launcher.ini, userdata, saves/profile, shader caches, textures/mods, achievements, logs, update backups and unknown files. Preserve actual custom roots and the older Documents profile/cache history as well; upstream migration is not Portcove migration or backup. You or upstream manage updates and replacement. Registration removal preserves every external file. The maintainer reports a v1.4.2 save-handle fix based on unit testing but could not reproduce the reported Defender/save hang; that is not new real-save acceptance here. Reported ROV rendering and shadow issues remain open; a closed pacing question is not a pacing fix. Preserve these affected-operation limits instead of inferring safety from a newer version."
+          }
+        ],
+        "warnings": [
+          "This is a Windows prepared-copy handoff. Original-data admission, installer recovery, game/save behavior, optional renderer quality and other platforms are not qualified by registration."
+        ],
+        "help_url": "https://github.com/LittleBitUA/DPRecomp#readme"
       }
     },
     {
@@ -24847,6 +24878,30 @@
         "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
         "game_slug": "super-smash-bros-melee",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the working engine and your original ISO together",
+            "instruction": "For the v0.9.81 Windows Static Recomp route, finish the supported upstream setup with your own Melee NTSC-U 1.02 ISO and keep the complete package and required Sys/runtime companions. Source Port is a different engine; do not substitute executables, generated output, mod data or profiles merely because both are in the release. Portcove registration does not authenticate the whole original disc or build private output. Keep the complete original and creating configuration recoverable."
+          },
+          {
+            "title": "Select the direct native player",
+            "instruction": "Select the working melee_port.exe. Its installation is the normal working directory, but keep a different established working directory when your actual working launch uses one: relative settings, Sys, cards and replays can otherwise point to a new profile. Supply --iso and the absolute path to your original ISO as separate arguments. Retain the actual creating --sys-dir, --settings-path, --card-dir, --replay-dir, --user-dir and any supported renderer/mod arguments rather than inventing a new profile. Do not select a .bat file or MeleeUnlockedLauncher.exe for this direct-player route. Save launch details, then choose Play separately."
+          },
+          {
+            "title": "Finish upstream restarts and replacement separately",
+            "instruction": "The optional launcher and in-game updater belong to upstream. A backend/settings restart or update can start a successor process; complete those operations upstream before selecting or relinking the working player and choosing Play again. Portcove supervises the selected native process and does not adopt an updater successor or own runtime replacement. Online Slippi accounts, controller/adapter setup, mods, crash-report sharing and optional DLSS model downloads are separate choices, not automatic Portcove setup."
+          },
+          {
+            "title": "Preserve all engine and shared player data",
+            "instruction": "Before changing versions keep the whole working installation, Versions, Sys, port-settings.ini, launcher.ini, User/GC/CardA and other actual card folders, replays, practice/lab data, PhobGCC settings, Slippi user/account state, shader/pipeline caches, logs, mods, unknown files and all explicit custom paths. Preserve the actual LOCALAPPDATA/MeleeUnlocked launcher history too. Different engine/version folders can share ISO, settings, cards and replays; they do not establish compatibility or isolation. Upstream owns updates. Portcove registration provides no managed update, backup, rollback, migration or deletion; removing registration leaves all external files untouched."
+          }
+        ],
+        "warnings": [
+          "Original game data and NVIDIA/Intel/Slippi and other components retain their separate terms. This handoff does not qualify online matches, mod/save compatibility, generated output, gameplay or the optional other engine."
+        ],
+        "help_url": "https://github.com/Hero88go/melee-unlocked#readme"
       }
     },
     {
@@ -37095,6 +37150,30 @@
         "image_sha256": "9953c59416011cdbe3074beed3a4ac8863368b7e11c1d31cf11445864279dc8b",
         "game_slug": "super-mario-strikers",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own game data with the selected upstream release",
+            "instruction": "Use the complete official v1.3.0 Windows x64 package for new-coke/strikers, keeping its dependencies and notices. Supply your own supported US, European or Japanese disc image or extracted game files following this version’s guide. Header/file presence checks are not complete region/revision identity verification. This implementation is distinct from StrikersRecomp and AuroraStrikers; do not mix their binaries, preparation or save assumptions."
+          },
+          {
+            "title": "Configure upstream, then add the direct player",
+            "instruction": "Finish the upstream settings application and a normal working launch first. Select strikers.exe. Its installation is the normal working folder, but preserve the established working directory and literal paths if the actual working launch differs; relative INI/source/profile paths can otherwise change. A configured copy normally needs no extra arguments. The settings app starts the game detached, so select the game itself. Preserve your actual strikers.ini and source paths. Portcove saves launch details without starting setup; choosing Play is separate."
+          },
+          {
+            "title": "Keep the existing configuration and profile coordinates",
+            "instruction": "The runtime looks for strikers.ini beside its executable before the working-folder fallback; an explicit STRIKERS_CONFIG selects another file. Existing USER_DIR and CACHE_DIR configuration or STRIKERS_USER_DIR/STRIKERS_CACHE_DIR can select other profile/cache paths. Keep the same established configuration and absolute paths; this route does not invent environment redirects or migrate data. The Windows default user folder is APPDATA/Super Mario Strikers. Another runtime folder does not isolate a shared profile."
+          },
+          {
+            "title": "Preserve the complete copy and actual external roots",
+            "instruction": "Before upstream replacement keep the whole runtime, strikers.ini, original images or extracted files, actual user/card/save and cache folders, imgui settings, texture packs, mods, screenshots, logs, custom paths and unknown files. You or upstream manage versions; no matching release metadata proves save compatibility. Portcove registration provides no managed preparation, update, backup, rollback, migration or deletion. Removing registration preserves every external file."
+          }
+        ],
+        "warnings": [
+          "The selected upstream now explicitly publishes source and compiled releases. Its CC0 original porting contributions do not relicense reconstructed game code, original assets or third-party components; follow their applicable terms and keep your original data. Gameplay and other-platform qualification remain separate."
+        ],
+        "help_url": "https://github.com/new-coke/strikers#readme"
       }
     },
     {

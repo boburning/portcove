@@ -16,6 +16,30 @@
       "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
       "game_slug": "super-smash-bros-melee",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the working engine and your original ISO together",
+          "instruction": "For the v0.9.81 Windows Static Recomp route, finish the supported upstream setup with your own Melee NTSC-U 1.02 ISO and keep the complete package and required Sys/runtime companions. Source Port is a different engine; do not substitute executables, generated output, mod data or profiles merely because both are in the release. Portcove registration does not authenticate the whole original disc or build private output. Keep the complete original and creating configuration recoverable."
+        },
+        {
+          "title": "Select the direct native player",
+          "instruction": "Select the working melee_port.exe. Its installation is the normal working directory, but keep a different established working directory when your actual working launch uses one: relative settings, Sys, cards and replays can otherwise point to a new profile. Supply --iso and the absolute path to your original ISO as separate arguments. Retain the actual creating --sys-dir, --settings-path, --card-dir, --replay-dir, --user-dir and any supported renderer/mod arguments rather than inventing a new profile. Do not select a .bat file or MeleeUnlockedLauncher.exe for this direct-player route. Save launch details, then choose Play separately."
+        },
+        {
+          "title": "Finish upstream restarts and replacement separately",
+          "instruction": "The optional launcher and in-game updater belong to upstream. A backend/settings restart or update can start a successor process; complete those operations upstream before selecting or relinking the working player and choosing Play again. Portcove supervises the selected native process and does not adopt an updater successor or own runtime replacement. Online Slippi accounts, controller/adapter setup, mods, crash-report sharing and optional DLSS model downloads are separate choices, not automatic Portcove setup."
+        },
+        {
+          "title": "Preserve all engine and shared player data",
+          "instruction": "Before changing versions keep the whole working installation, Versions, Sys, port-settings.ini, launcher.ini, User/GC/CardA and other actual card folders, replays, practice/lab data, PhobGCC settings, Slippi user/account state, shader/pipeline caches, logs, mods, unknown files and all explicit custom paths. Preserve the actual LOCALAPPDATA/MeleeUnlocked launcher history too. Different engine/version folders can share ISO, settings, cards and replays; they do not establish compatibility or isolation. Upstream owns updates. Portcove registration provides no managed update, backup, rollback, migration or deletion; removing registration leaves all external files untouched."
+        }
+      ],
+      "warnings": [
+        "Original game data and NVIDIA/Intel/Slippi and other components retain their separate terms. This handoff does not qualify online matches, mod/save compatibility, generated output, gameplay or the optional other engine."
+      ],
+      "help_url": "https://github.com/Hero88go/melee-unlocked#readme"
     }
   }
 }

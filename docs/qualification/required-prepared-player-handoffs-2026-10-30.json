@@ -1,0 +1,1429 @@
+{
+  "format_version": 1,
+  "kind": "dated four Required prepared-player source/use observation; not live planning, package contents certification or full acceptance ledger",
+  "observation_date": "2026-10-30",
+  "owners": [2510, 2926, 1422],
+  "local_stack_parent_source": "ebd22eb5bd06840030fb80cc1e3ec36e5f50338d",
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 88,
+    "unique_content_blobs": 80,
+    "complete_tree_reference_roles": 10,
+    "distinct_commit_root_tree_bindings": 8
+  },
+  "selected_rows": [
+    {
+      "canonical_issue": 491,
+      "id": "alexbeav-valkyrie-profile-recomp",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:49:16.086Z",
+      "canonical_body_sha256_at_pickup": "c36f090fb07175d319ad789a9a192484c038847629cadaf2ccc8b757da8f6a06",
+      "authored_sha256": "2d586351bda68d550173d2a7fca8176b176ef8583342f6be4f960db2545f392f",
+      "changed_listing_fields": ["manual_setup"],
+      "selected_tag": "v0.1.3",
+      "selected_source": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+      "current_source": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+      "repository_node_id": "R_kgDOUNATaw",
+      "publisher_assets": [
+        {
+          "id": 546104582,
+          "name": "RELEASE-MANIFEST.json",
+          "bytes": 2650,
+          "digest": "sha256:eddb6a2bff2c1b65208ebe183858fcdd0264d335b4e5363a26b743cac5eccc9c"
+        },
+        {
+          "id": 546104589,
+          "name": "SHA256SUMS.txt",
+          "bytes": 537,
+          "digest": "sha256:9c9c69efee0f803a3a2225b795230018ea095c1f037bec64fe7efcef27bd27b7"
+        },
+        {
+          "id": 546104579,
+          "name": "valkyrie-profile-recomp-0.1.3-linux-x64.zip",
+          "bytes": 27788467,
+          "digest": "sha256:a8fd484a97df1ffe22390b5778e41e285e17a9f4140fc056d9e8eb197557a499"
+        },
+        {
+          "id": 546104577,
+          "name": "valkyrie-profile-recomp-0.1.3-macos-arm64.zip",
+          "bytes": 26615580,
+          "digest": "sha256:09b6129ce42d9ef64441a790c4bea9b26a611b9f4fd454dfe3b6e9e7d89eaa99"
+        },
+        {
+          "id": 546104580,
+          "name": "valkyrie-profile-recomp-0.1.3-macos-x64.zip",
+          "bytes": 27198536,
+          "digest": "sha256:da38229f7c9dba2cb89c5afa18894c33384b4511a011731cae0e03bfd039177b"
+        },
+        {
+          "id": 546104578,
+          "name": "valkyrie-profile-recomp-0.1.3-windows-x64.zip",
+          "bytes": 29853755,
+          "digest": "sha256:3a1d6280d54ed52d5407a0d72aaa0db4cb56aa4f85f7753e1000e8608af06b2b"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted fully upstream-prepared working Windows native copy; explicit creating CWD and literal arguments; intent/consent/register/relink/restart/separate selected-process Play/metadata-only preserving removal",
+      "native_game_original_package_private_save_execution_this_batch": "not_run",
+      "installed_protected_gameplay_save_qualification_this_batch": "not_evaluated"
+    },
+    {
+      "canonical_issue": 812,
+      "id": "deadly-premonition-dprecomp",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Blocked",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:49:19.950Z",
+      "canonical_body_sha256_at_pickup": "349ad16dbf4ecb8c534d25863d4b52d62d6a1bbe3f2203f339b04fd4668383a1",
+      "authored_sha256": "320d683afa013510e0a1367da776b52665e144e6b42f50b983fbf6de65f402d5",
+      "changed_listing_fields": ["download_block_reason", "manual_setup"],
+      "selected_tag": "v2.0.14",
+      "selected_source": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+      "current_source": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+      "repository_node_id": "R_kgDOS62IGw",
+      "publisher_assets": [
+        {
+          "id": 608403170,
+          "name": "DPRecomp-2.0.14-win64.zip",
+          "bytes": 46811589,
+          "digest": "sha256:3d26da25ff910cc2c41b4d2f7d5a8d6c17f6a3e4e2a9a29d2e4afee5e38b75fe"
+        }
+      ],
+      "acquisition_hold_present": true,
+      "offered_route": "already permitted fully upstream-prepared working Windows native copy; explicit creating CWD and literal arguments; intent/consent/register/relink/restart/separate selected-process Play/metadata-only preserving removal",
+      "native_game_original_package_private_save_execution_this_batch": "not_run",
+      "installed_protected_gameplay_save_qualification_this_batch": "not_evaluated"
+    },
+    {
+      "canonical_issue": 814,
+      "id": "melee-unlocked",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Blocked",
+        "Priority": "High",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:49:21.050Z",
+      "canonical_body_sha256_at_pickup": "7338e98b480cc0cf6fe6e2954fd535933fdf2beeb93e3c471df43ffe32ae5bbe",
+      "authored_sha256": "340e42c4ba5060f6e7e546c6230dff9182522cfbacf4c9bfe7797c928738eaf8",
+      "changed_listing_fields": ["manual_setup"],
+      "selected_tag": "v0.9.81",
+      "selected_source": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+      "current_source": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+      "repository_node_id": "R_kgDOUXh-gA",
+      "publisher_assets": [
+        {
+          "id": 693272517,
+          "name": "MeleeUnlocked-0.9.81-linux-x86_64.tar.gz",
+          "bytes": 161793820,
+          "digest": "sha256:a2f83390f366a09b73d213e589d6441b0d3fc3c404975296ca1699561eb7f2c4"
+        },
+        {
+          "id": 693272509,
+          "name": "MeleeUnlocked-0.9.81-win64.zip",
+          "bytes": 241438285,
+          "digest": "sha256:c19f0f410870d1815f39ee7e30dbd89410517f16a12af58fc7303bb4694249de"
+        },
+        {
+          "id": 693272515,
+          "name": "MeleeUnlocked-DLSS5-Model.zip",
+          "bytes": 188430374,
+          "digest": "sha256:cb6adeb89a439aac5dbe542e1cc662f58829283a8f4ea57a0c5cde942b0997f0"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted fully upstream-prepared working Windows native copy; explicit creating CWD and literal arguments; intent/consent/register/relink/restart/separate selected-process Play/metadata-only preserving removal",
+      "native_game_original_package_private_save_execution_this_batch": "not_run",
+      "installed_protected_gameplay_save_qualification_this_batch": "not_evaluated"
+    },
+    {
+      "canonical_issue": 816,
+      "id": "super-mario-strikers-strikers",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Blocked",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:49:22.037Z",
+      "canonical_body_sha256_at_pickup": "374242c5f95a7b639fd23040a9c87c2de456d9ea3097ae19c420a54b65218cb3",
+      "authored_sha256": "f2d71a6b918b08a85242bf73b338e52e04d19d09982ffadf4db878c31e857d09",
+      "changed_listing_fields": ["manual_setup"],
+      "selected_tag": "v1.3.0",
+      "selected_source": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+      "current_source": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+      "repository_node_id": "R_kgDOUU6ENw",
+      "publisher_assets": [
+        {
+          "id": 581712887,
+          "name": "SHA256SUMS",
+          "bytes": 463,
+          "digest": "sha256:6f2c47c7a5f0dc45378b7b0212fc69af86f6f16d3670baab470ae7fd7ee5db57"
+        },
+        {
+          "id": 581712881,
+          "name": "strikers-linux-arm64.tar.gz",
+          "bytes": 11679263,
+          "digest": "sha256:05dbccd7a43ab677d765ab9c330cbda24d5ab62be95fa65691ed41938bf5a2be"
+        },
+        {
+          "id": 581712882,
+          "name": "strikers-linux-x86_64.tar.gz",
+          "bytes": 12062628,
+          "digest": "sha256:196de1cfdeb47db3cffc643331a67db64064e19d3e0ad734d98b589c385d290d"
+        },
+        {
+          "id": 581712886,
+          "name": "strikers-macos-arm64.tar.gz",
+          "bytes": 40895445,
+          "digest": "sha256:caeb28642ab7eb6d49368b9201e68e70f7fc0bcce9423f84c9c6b2f9b65b9d50"
+        },
+        {
+          "id": 581712884,
+          "name": "strikers-switch.zip",
+          "bytes": 20934441,
+          "digest": "sha256:bb8d7d0142ffa6d46aaa06cffa14764808093d7d092d66013307cc02f4ad07ed"
+        },
+        {
+          "id": 581712888,
+          "name": "strikers-windows-x86_64.zip",
+          "bytes": 39998197,
+          "digest": "sha256:1f42a9e3c2eabe828311f706151b9efe170c2bb6410feb6a531780e89cd93f5c"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted fully upstream-prepared working Windows native copy; explicit creating CWD and literal arguments; intent/consent/register/relink/restart/separate selected-process Play/metadata-only preserving removal",
+      "native_game_original_package_private_save_execution_this_batch": "not_run",
+      "installed_protected_gameplay_save_qualification_this_batch": "not_evaluated"
+    }
+  ],
+  "source_packets": [
+    {
+      "canonical_issue": 491,
+      "source_bindings": [
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "README.md",
+          "blob": "7f5e4d0bfb2ea174f156e208f15131c2e531aa34",
+          "bytes": 5449,
+          "sha256": "a46800a86a6490735a6131e33cece632076b6cb2f9cbf4470bed943a1c4b0d02",
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "LICENSE",
+          "blob": "80598e992f22bfd8814e86b61ed86d603844a6a6",
+          "bytes": 251,
+          "sha256": "9cec8f41a0b08e721fdfa110bd910bb5fa395e48573fef68466e1db7736f7375",
+          "retained_source_name": "tag--LICENSE"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "THIRD_PARTY_NOTICES.md",
+          "blob": "3df48997af6ae3531b9abbf576f3228717b2768e",
+          "bytes": 548,
+          "sha256": "572b1769212cfc8549faa40cd7ebd200c6b1d2fb034e90f2f20274e3eef6a413",
+          "retained_source_name": "tag--THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "game.toml",
+          "blob": "5431aaa3bc3461c65d5918cadfdb2097a281f550",
+          "bytes": 1560,
+          "sha256": "a5c1c13c79397fc6db72ab7cb0a3032168fe3cf636a6449f07f8b0479adcb291",
+          "retained_source_name": "tag--game.toml"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "project-manifest.toml",
+          "blob": "5c4eb814503fc0165246dad4bda51c738896139f",
+          "bytes": 1505,
+          "sha256": "553effc53d68a4e1c70afa2ec0314953041fe224e8423e3d43e865b7446c18cb",
+          "retained_source_name": "tag--project-manifest.toml"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "CMakeLists.txt",
+          "blob": "e1a410047723722566cb8501100b11e79feac8e5",
+          "bytes": 2153,
+          "sha256": "eec905aa06462c813169cd7e81c17884e13ec4444a1183a10c29119f7edb6494",
+          "retained_source_name": "tag--CMakeLists.txt"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": "README.md",
+          "blob": "56c09e520cdf714673e36e1623ce2564108dba18",
+          "bytes": 5714,
+          "sha256": "c697d704eb2374971d619094c194a9bfdbd8cb03d0a27d4ba4cac081c19bd9b3",
+          "retained_source_name": "current--README.md"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": "LICENSE",
+          "blob": "80598e992f22bfd8814e86b61ed86d603844a6a6",
+          "bytes": 251,
+          "sha256": "9cec8f41a0b08e721fdfa110bd910bb5fa395e48573fef68466e1db7736f7375",
+          "retained_source_name": "current--LICENSE"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": "THIRD_PARTY_NOTICES.md",
+          "blob": "3df48997af6ae3531b9abbf576f3228717b2768e",
+          "bytes": 548,
+          "sha256": "572b1769212cfc8549faa40cd7ebd200c6b1d2fb034e90f2f20274e3eef6a413",
+          "retained_source_name": "current--THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": "game.toml",
+          "blob": "5431aaa3bc3461c65d5918cadfdb2097a281f550",
+          "bytes": 1560,
+          "sha256": "a5c1c13c79397fc6db72ab7cb0a3032168fe3cf636a6449f07f8b0479adcb291",
+          "retained_source_name": "current--game.toml"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": "project-manifest.toml",
+          "blob": "5c4eb814503fc0165246dad4bda51c738896139f",
+          "bytes": 1505,
+          "sha256": "553effc53d68a4e1c70afa2ec0314953041fe224e8423e3d43e865b7446c18cb",
+          "retained_source_name": "current--project-manifest.toml"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": "CMakeLists.txt",
+          "blob": "e1a410047723722566cb8501100b11e79feac8e5",
+          "bytes": 2153,
+          "sha256": "eec905aa06462c813169cd7e81c17884e13ec4444a1183a10c29119f7edb6494",
+          "retained_source_name": "current--CMakeLists.txt"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": ".gitmodules",
+          "blob": "34adfb6b7abc7186f332179727d3cde8b17c9e1e",
+          "bytes": 214,
+          "sha256": "38ecaf6268c36cf3af2861220b981b5ec6f7c787d79163354e668b608f9b32b6",
+          "retained_source_name": "tag--.gitmodules"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "docs/DISC2_FIX.md",
+          "blob": "f4d477f69e13e65a2fbb06a3e320281524a4f4e0",
+          "bytes": 1842,
+          "sha256": "31a23391079d9f94b82dcf6cb0c338b366ea267db3be92f19603ae7727c7ddcb",
+          "retained_source_name": "tag--docs__DISC2_FIX.md"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": ".gitmodules",
+          "blob": "34adfb6b7abc7186f332179727d3cde8b17c9e1e",
+          "bytes": 214,
+          "sha256": "38ecaf6268c36cf3af2861220b981b5ec6f7c787d79163354e668b608f9b32b6",
+          "retained_source_name": "current--.gitmodules"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "path": "docs/DISC2_FIX.md",
+          "blob": "f4d477f69e13e65a2fbb06a3e320281524a4f4e0",
+          "bytes": 1842,
+          "sha256": "31a23391079d9f94b82dcf6cb0c338b366ea267db3be92f19603ae7727c7ddcb",
+          "retained_source_name": "current--docs__DISC2_FIX.md"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "runtime/runtime.cmake",
+          "blob": "63ed26a7781b7bea8616b6a3531a8e858895db73",
+          "bytes": 98438,
+          "sha256": "67521bc9d74ee6b89eba197d02b2969092873007d3e8e3036bd1c0178dd57079",
+          "retained_source_name": "framework--runtime__runtime.cmake"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "runtime/src/main.cpp",
+          "blob": "98a49470d757328fb09535387c2dcf75f92eca0b",
+          "bytes": 696992,
+          "sha256": "4ff4f528ba8657c6e7751d898c43002aea04366f59bf3ccdd5a01420afc02d34",
+          "retained_source_name": "framework--runtime__src__main.cpp"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "runtime/src/disc_path.cpp",
+          "blob": "a2e208d065219ab764c105cab755726eaa213ead",
+          "bytes": 7557,
+          "sha256": "c8f49537e353f8453a7e647ce8fb2813284e1b4f6d6a97a94edeee6c96be7329",
+          "retained_source_name": "framework--runtime__src__disc_path.cpp"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "LICENSE",
+          "blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+          "bytes": 3852,
+          "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2",
+          "retained_source_name": "framework--LICENSE"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "docs/BIOS_SELECTION.md",
+          "blob": "4bc22503636e0d28eadd2170da4502f2386f1040",
+          "bytes": 9210,
+          "sha256": "488b6810e08dcd2b1c309b2bcaf4012395ad94d5bef11f004f8690cf147e4c9b",
+          "retained_source_name": "framework--docs__BIOS_SELECTION.md"
+        },
+        {
+          "repository": "Alexbeav/recomp-ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "path": "LICENSE",
+          "blob": "a4e60e1cc9c426120561d3ab85b58fcc9201a3ef",
+          "bytes": 1072,
+          "sha256": "676252c9efb0849cc08cdba279318b4d62ae144c19a52a0aa7ab5ca845ae5ddc",
+          "retained_source_name": "ui--LICENSE"
+        },
+        {
+          "repository": "Alexbeav/recomp-ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "path": "src/common/launcher_files.c",
+          "blob": "aa9b491e6db0d37dcc42815a05c1b99e3cabb5c8",
+          "bytes": 18535,
+          "sha256": "6b0da1c45a637b9d8749bb38fcb4c7f9e06dd08bed7c6c049b639b1e34ef938f",
+          "retained_source_name": "ui--src__common__launcher_files.c"
+        },
+        {
+          "repository": "Alexbeav/recomp-ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "path": "src/common/launcher_model.c",
+          "blob": "bffa7595278e4cbcc3b4d470848f0e24f2791886",
+          "bytes": 151432,
+          "sha256": "f64a14af05369a91b30bf70195509d5aa89f83fd3a1cc5f07ae90f304fafa625",
+          "retained_source_name": "ui--src__common__launcher_model.c"
+        },
+        {
+          "repository": "Alexbeav/recomp-ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "path": "src/common/launcher_platform_sdl3.c",
+          "blob": "06a20b1e350c053b03289704562dcb9627c20038",
+          "bytes": 5931,
+          "sha256": "165b190a833624838eb81faf1e207457dd85e38be9d90009df8d23a9b2a1a7e2",
+          "retained_source_name": "ui--src__common__launcher_platform_sdl3.c"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "host/psxrecomp_codegen_host.c",
+          "blob": "fcc3a5b3e9581dc861712f0277ac7bdd7a290744",
+          "bytes": 143344,
+          "sha256": "cd29d543cc5b8d99b0a5a89ebbe78113dbc4be2ff434ba65d0340e413a51eb54",
+          "retained_source_name": "framework--host__psxrecomp_codegen_host.c"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "host/psxrecomp_codegen_host.h",
+          "blob": "03aae3eb380bb0166d9e62c9971e48a2b828ebe8",
+          "bytes": 2345,
+          "sha256": "80edf27f923b665c1c9e809c9d199e19c281227df9fa97ea77c716d07474064c",
+          "retained_source_name": "framework--host__psxrecomp_codegen_host.h"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "path": "tools/new_project_layout/templates/codegen_setup.c.in",
+          "blob": "df215314494a62238b934365a532c48f118c655e",
+          "bytes": 1850,
+          "sha256": "6a781798eff81fcf0875247f978d90a9b5520a37746a90ebfff0b19942013267",
+          "retained_source_name": "framework--tools__new_project_layout__templates__codegen_setup.c.in"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "codegen_setup.c",
+          "blob": "6002ed833134853aabf6f3bb085cccfe1f6c2054",
+          "bytes": 1902,
+          "sha256": "15efa1e474addc5dc379e99593c1f206af8c7dea9c0486ca2f91b9bbf12364e1",
+          "retained_source_name": "tag--codegen_setup.c"
+        },
+        {
+          "repository": "alexbeavs-ps1-ports/valkyrie-profile-recomp",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "path": "codegen_setup.h",
+          "blob": "f643fca97cabadac4074b4b9fecb8b097a3e7a0a",
+          "bytes": 346,
+          "sha256": "adc1f1bcbc9295307fb5d4b8ac57629a9c168f913ffc5a5e3939a9703be15bd4",
+          "retained_source_name": "tag--codegen_setup.h"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "069ed835294ec238f0ef1b03bd74b54157fe8c08",
+          "root_tree": "caf65dea6d6795a5e938f0f9b10fcc481ab47bac",
+          "entries": 55,
+          "truncated": false,
+          "sha256": "aad0b371ecf164294c2c0d2c735b4f7b687634c35a8274339260d1ee05745363",
+          "retained_name": "current-tree.json",
+          "gitlinks": [
+            {
+              "path": "psxrecomp",
+              "sha": "d7a07cb4aabc73ae045cd6173bde35155c837978"
+            },
+            {
+              "path": "recomp-ui",
+              "sha": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659"
+            }
+          ]
+        },
+        {
+          "role": "tag",
+          "commit": "6bfa1707d461a9c1c190fbe4709f2c9247b707bb",
+          "root_tree": "acb688298ea39b60212e45db27985822c4add252",
+          "entries": 50,
+          "truncated": false,
+          "sha256": "85976cb2b98499569224fb69755f2a694690387216f6606934690b7ef11fd435",
+          "retained_name": "tag-tree.json",
+          "gitlinks": [
+            {
+              "path": "psxrecomp",
+              "sha": "d7a07cb4aabc73ae045cd6173bde35155c837978"
+            },
+            {
+              "path": "recomp-ui",
+              "sha": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659"
+            }
+          ]
+        },
+        {
+          "role": "framework",
+          "commit": "d7a07cb4aabc73ae045cd6173bde35155c837978",
+          "root_tree": "0607bc191f96a36eb4abfc2ea6ca750d9d30c46f",
+          "entries": 1879,
+          "truncated": false,
+          "sha256": "68876b7a8ebcfa53e82556055925e78f1fccc230074a2da4356df03a75b69085",
+          "retained_name": "framework-tree.json",
+          "gitlinks": [
+            {
+              "path": "lib/recomp-net",
+              "sha": "268e74fe718b38fe38643c358588bbc1e0f0af70"
+            },
+            {
+              "path": "lib/retcomm-rbengine",
+              "sha": "ebd94a4729abe2c0615070cef3ffe05b3f9ebf28"
+            }
+          ]
+        },
+        {
+          "role": "ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "root_tree": "773e83fd1d78c4f254df754fd64716aef91fe500",
+          "entries": 201,
+          "truncated": false,
+          "sha256": "399762ac1ee31a1df851378a472398f2e58dd87c7c191311c5ac3ec01e62b231",
+          "retained_name": "ui-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 13638,
+          "sha256": "aad0b371ecf164294c2c0d2c735b4f7b687634c35a8274339260d1ee05745363"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 4448,
+          "sha256": "999dd4f1bf35f443b13bc8077840115e6e52d913ee9c6fb27ee55c2ac78ff177"
+        },
+        {
+          "retained_name": "framework-tree.json",
+          "bytes": 489156,
+          "sha256": "68876b7a8ebcfa53e82556055925e78f1fccc230074a2da4356df03a75b69085"
+        },
+        {
+          "retained_name": "framework.json",
+          "bytes": 19654,
+          "sha256": "ae71f9c797ba42bd50c715c7888d9eee3b68fc090aae8dd07dc0bf6c73098b6b"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 12539,
+          "sha256": "a2bff6536d0ec9ee418f21cae4dfb0185a688c981a7334c4434cdcd64963126c"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 7569,
+          "sha256": "dd56707659f7a1778a3f8166b18d3ee9bc56b5aca0db29bdc1d69456f4b9cd7e"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 12483,
+          "sha256": "8eb6b1dac7dba7971b8a24f4219bbb4c2f236fcb9db2003e0c7dae17f9ea6d3f"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 12369,
+          "sha256": "85976cb2b98499569224fb69755f2a694690387216f6606934690b7ef11fd435"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 5696,
+          "sha256": "8cdf83bb2643ae4740752eed97a3906f718973f8aa0774dc5c30130dc5e8660e"
+        },
+        {
+          "retained_name": "ui-tree.json",
+          "bytes": 49968,
+          "sha256": "399762ac1ee31a1df851378a472398f2e58dd87c7c191311c5ac3ec01e62b231"
+        },
+        {
+          "retained_name": "ui.json",
+          "bytes": 14747,
+          "sha256": "f573ff3064f4144b791de0ececadebcbb7686267871a82e560be347415be318f"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 812,
+      "source_bindings": [
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "README.md",
+          "blob": "71a00743ca68ef59ebc4109616ffc7f8d7d547e0",
+          "bytes": 31346,
+          "sha256": "39e4b161d8fbb5cfa795b811fbc2e8f3b14e32bf8c11e507f0862d29f977d221",
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "LICENSE",
+          "blob": "2f4444b67e0de78f73559ef6decd0b74d258fbfb",
+          "bytes": 1078,
+          "sha256": "de2916aecc2e69b551f8721443e12497776cdd06c77733778ab1437b79ba6f92",
+          "retained_source_name": "tag--LICENSE"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "docs/README-zip.txt",
+          "blob": "b95464c5fc2312cb0f007a9e74e86eedd8a34556",
+          "bytes": 2852,
+          "sha256": "760f317584931ae63b5cb6535c11589480ff7fdf0c0847692d2155b0155aa5ca",
+          "retained_source_name": "tag--docs__README-zip.txt"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "launcher/src/main.cpp",
+          "blob": "7d0257aff6b94b3a47fbce81a76cac25a4f2933c",
+          "bytes": 193634,
+          "sha256": "ff711b2b7c48d3202168d93d13ad20025f79eb6408bf18615d2445fdbd2716a1",
+          "retained_source_name": "tag--launcher__src__main.cpp"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "launcher/CMakeLists.txt",
+          "blob": "697f5bffb17477912eaee9abcbe880e7065c3f20",
+          "bytes": 800,
+          "sha256": "6ed315fc5695993bb7c540b5372bb9634cbe18d21380ca6d684b63eee3a6095a",
+          "retained_source_name": "tag--launcher__CMakeLists.txt"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "src/main.cpp",
+          "blob": "2b05da5da04291c3a513566eb8bcb7fb1c540b08",
+          "bytes": 171,
+          "sha256": "1e2c1131f729d5542aa1a036ba6abd5247ea0b2ef6b8a881fb6ef20d949f8a9a",
+          "retained_source_name": "tag--src__main.cpp"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "CMakeLists.txt",
+          "blob": "a3a2384c76aa06e7f04cd79be2e6636c9b00a365",
+          "bytes": 5691,
+          "sha256": "ade3633892ae3813dad172817b5740e905f59f345180595214c28ac5c2843108",
+          "retained_source_name": "tag--CMakeLists.txt"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "src/native/native_cache_path.h",
+          "blob": "8adfa8c522dbccd0e28daa96a19ba3bc5d5ab64b",
+          "bytes": 3688,
+          "sha256": "0a67f61301e550d9ab1dbea9837ca93ca9976130c418856373b4cd0cdb7d4c3b",
+          "retained_source_name": "tag--src__native__native_cache_path.h"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "deadlyprem_manifest.toml",
+          "blob": "2038433fe57cf65cd50f4bec29aa531c5bdde23b",
+          "bytes": 280,
+          "sha256": "6e0e53200e7ae3204a1f38e2a6edc5f1a2fc1cc5a695c56c343bffc00bbe7630",
+          "retained_source_name": "tag--deadlyprem_manifest.toml"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "src/deadlyprem_app.h",
+          "blob": "868ed20e6e0161458fc6ec84d6be10292b161e61",
+          "bytes": 8900,
+          "sha256": "4e9ecaa20a55eeac6db9990d926dd78882a9f801c0cb5488ef20c782bd343d27",
+          "retained_source_name": "tag--src__deadlyprem_app.h"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "src/deadlyprem_iso_installer.cpp",
+          "blob": "0ddffafca97c41a0f3b2e8201ce0dff59404614f",
+          "bytes": 19611,
+          "sha256": "7cf22043465d5f5d5d636a564ce7f2a67b82c85cbf51bb1638d6f55496ff5733",
+          "retained_source_name": "tag--src__deadlyprem_iso_installer.cpp"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "src/deadlyprem_iso_installer.h",
+          "blob": "17337aaea28c7faccb34816689eae085340cfc0b",
+          "bytes": 1763,
+          "sha256": "f52b129cbb0a59b24d4adc2e7ec4c804c7704f355089d7a30669d91bfc9b2e4d",
+          "retained_source_name": "tag--src__deadlyprem_iso_installer.h"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "generated/rexglue.cmake",
+          "blob": "2f74fe67a03fdb63371228215321154fa7516463",
+          "bytes": 5995,
+          "sha256": "7e7f41d53434d03efd901f93094bb278662e78f3f21661e48bf86376ca73f141",
+          "retained_source_name": "tag--generated__rexglue.cmake"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "docs/RELEASE-NOTES-2.0.14.md",
+          "blob": "b94f7fc1452293ee0e711af16cdda7196217c5a5",
+          "bytes": 1638,
+          "sha256": "7d9435beadf8d0a33c239bda32660c9044a51ff9c7ecf61b3ad3007c911a7a3c",
+          "retained_source_name": "tag--docs__RELEASE-NOTES-2.0.14.md"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "docs/RELEASE-NOTES-1.4.2.md",
+          "blob": "e35bcd60a9e6df9dd19b597015bc131cd9259ff8",
+          "bytes": 1932,
+          "sha256": "0dd9f591661c97766321149f94a873ff2990b81c98f963324c21173aab7dc0ea",
+          "retained_source_name": "tag--docs__RELEASE-NOTES-1.4.2.md"
+        },
+        {
+          "repository": "LittleBitUA/DPRecomp",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "path": "docs/RELEASE-NOTES-1.3.4.md",
+          "blob": "b0817409eb02ca928f88ac91ea5dab311ced6699",
+          "bytes": 3514,
+          "sha256": "8704c7f8ac5cd5e77e0bd486ceee2769257299273823ef80ba3898a9d93681f8",
+          "retained_source_name": "tag--docs__RELEASE-NOTES-1.3.4.md"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "root_tree": "87be7400a78eb252b8b7022617bd768c6347d01c",
+          "entries": 357,
+          "truncated": false,
+          "sha256": "f714d795a0b5fe8ab6b45ddd474c18eb9a511b7154afb0dcf866657f0c0bbf27",
+          "retained_name": "current-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "e0624129c06b9437aa0278b58f2f3eb954192aec",
+          "root_tree": "87be7400a78eb252b8b7022617bd768c6347d01c",
+          "entries": 357,
+          "truncated": false,
+          "sha256": "f714d795a0b5fe8ab6b45ddd474c18eb9a511b7154afb0dcf866657f0c0bbf27",
+          "retained_name": "tag-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 87764,
+          "sha256": "f714d795a0b5fe8ab6b45ddd474c18eb9a511b7154afb0dcf866657f0c0bbf27"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 73529,
+          "sha256": "3f3cc6bae3655722366e2058288685cbc71f0e142eabb75126805e7a1c3c8dca"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 5186,
+          "sha256": "ea3ed1a521a22619a799885729a703ade39897295183b0e0ad7547fb08b462a2"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5780,
+          "sha256": "8441f8c5b56b6594d9caa5501edf1e5b6151fbb286c33c3cf4c210e06aa4f0cf"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 6518,
+          "sha256": "075ff797a3c3eafea9394e589e6111e0d127088bd167b77678f3e7a671bde978"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 87764,
+          "sha256": "f714d795a0b5fe8ab6b45ddd474c18eb9a511b7154afb0dcf866657f0c0bbf27"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 73529,
+          "sha256": "3f3cc6bae3655722366e2058288685cbc71f0e142eabb75126805e7a1c3c8dca"
+        },
+        {
+          "retained_name": "upstream-issue-21-comments.json",
+          "bytes": 19227,
+          "sha256": "043b3c676cc9a6c20f7cd5b2cc1be5edce4731b8ddedc9835bf06ed2f4cfad88"
+        },
+        {
+          "retained_name": "upstream-issue-21.json",
+          "bytes": 4992,
+          "sha256": "103b5c8d64d05f8ba20cf41bc293c6c013bd6a77decd084de285fbf4ea81a234"
+        },
+        {
+          "retained_name": "upstream-issue-23-comments.json",
+          "bytes": 3343,
+          "sha256": "0514cc68e66a335fa2bf0020264dcd9be2f0d5f0d16a7a964ccf738fc0263ac4"
+        },
+        {
+          "retained_name": "upstream-issue-23.json",
+          "bytes": 4158,
+          "sha256": "b58ad27a0ffeefe9ed0595e3057e561ee7403495fc6ca3783d3bd85f016fde7a"
+        },
+        {
+          "retained_name": "upstream-issue-25-comments.json",
+          "bytes": 2957,
+          "sha256": "f2e510bf72cd1e8e2fbee353c2fd29e1f3a10388ef565860f62c0fa3a819c341"
+        },
+        {
+          "retained_name": "upstream-issue-25.json",
+          "bytes": 3110,
+          "sha256": "42fef95b0eff939d6a146c0eb7bae276362644eb2a71908dcffbdf059b26f7c8"
+        },
+        {
+          "retained_name": "upstream-issue-26-comments.json",
+          "bytes": 7383,
+          "sha256": "9393a9e86761c4fa06e1d9e227af425742fa1668c3f16167840476375db9fcf3"
+        },
+        {
+          "retained_name": "upstream-issue-26.json",
+          "bytes": 4274,
+          "sha256": "79d8f52eefeb7ca4d36733d8bbf603b555e66d4e1df19a265d6cafed23cce1a9"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 814,
+      "source_bindings": [
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "README.md",
+          "blob": "87f3cb1d17504553534fb08480ce2101098a8211",
+          "bytes": 22683,
+          "sha256": "84b68f5c9dc11c157371e3224daa620d1f3a4b5d0ed7af27f5aa2dc8f19a144c",
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "LICENSE",
+          "blob": "3877ae0a7ff6f94ac222fd704e112723db776114",
+          "bytes": 35823,
+          "sha256": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+          "retained_source_name": "tag--LICENSE"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "NOTICE",
+          "blob": "87ab71dabf00b0880f925f63b92975f62c633928",
+          "bytes": 6116,
+          "sha256": "9d484289d3f19e401256385c8811bdfc6f502d8bdfbd4f40d0d85b7caed26b9c",
+          "retained_source_name": "tag--NOTICE"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/app/main.cpp",
+          "blob": "5b756c83fcf63b8a39972286032f2de7f49255fa",
+          "bytes": 137001,
+          "sha256": "edfd747d10c0fb0f3282c7bfe96a997636697e6e463904dd2d34550a3507284e",
+          "retained_source_name": "tag--port__app__main.cpp"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/app/launcher.cpp",
+          "blob": "be287ef4a3c1574b3e6d920687ef9c82c85656f9",
+          "bytes": 126883,
+          "sha256": "15b33cc61e689b9f7370832fefe288b123a5ea40dfc9c9d3109486ee9bd19057",
+          "retained_source_name": "tag--port__app__launcher.cpp"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/runtime/host/updater.cpp",
+          "blob": "62eab730febe336c3c53beab6f16c8cb5f7a9717",
+          "bytes": 50643,
+          "sha256": "0c2ea391e51caeb5d1863e96dbea28b8c5b508ed286f969e519be1f04e4df546",
+          "retained_source_name": "tag--port__runtime__host__updater.cpp"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/runtime/host/updater.h",
+          "blob": "3d833e3666e61e6951b25196bcd6e914797c4e9e",
+          "bytes": 3768,
+          "sha256": "e2ff7d6b15754ab6133291582d26a6c25dfa83c0b0890615e9a263165b63861f",
+          "retained_source_name": "tag--port__runtime__host__updater.h"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/CMakeLists.txt",
+          "blob": "cd0e71c806f671f9012d3fc4eb369ee30f5d6901",
+          "bytes": 86141,
+          "sha256": "96940288356f9190378e22becdcd96ee69dcd826249a96504bb447ba41c83796",
+          "retained_source_name": "tag--port__CMakeLists.txt"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/runtime/host/dolphin_profile.cpp",
+          "blob": "82a01072a576394780a21f288c516ec1aae2a47a",
+          "bytes": 7262,
+          "sha256": "f18e511bd8071011e0b86e78722f32c8d645cfa2c2549cfde0daf9d20ea1753f",
+          "retained_source_name": "tag--port__runtime__host__dolphin_profile.cpp"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/app/launcher_engine.h",
+          "blob": "2ea6c433af4c00eacdb80034597d007633c3e423",
+          "bytes": 2932,
+          "sha256": "a9dc500eac17154eeaeab0bdbf37bb13ea06f832d3fc036543a790335cfb5db6",
+          "retained_source_name": "tag--port__app__launcher_engine.h"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/runtime/gx/pc_settings.cpp",
+          "blob": "db5115cd7b66e798085d9e07cd4f0119462672ed",
+          "bytes": 626964,
+          "sha256": "89fa0cf03afc71b4571677523026b217ac00062ac46de92db01d02fd2ec2143b",
+          "retained_source_name": "tag--port__runtime__gx__pc_settings.cpp"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "docs/licenses/nvidia-dlss-third-party.txt",
+          "blob": "0308a4cc796f0635d01e44438125eec9c6a22a06",
+          "bytes": 10970,
+          "sha256": "8f03885f692121654de15598631173328aed4af6bf7a60dc8cb8804b094eb089",
+          "retained_source_name": "tag--docs__licenses__nvidia-dlss-third-party.txt"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/runtime/host/host.h",
+          "blob": "302f9c42bcea3d986d7e8a3507658b557fd77b57",
+          "bytes": 23820,
+          "sha256": "3e9a3fe011d88ef0d5a1d44cdae5d928bffdf1536ffc1e444838f95db3fabe8e",
+          "retained_source_name": "tag--port__runtime__host__host.h"
+        },
+        {
+          "repository": "Hero88go/melee-unlocked",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "path": "port/runtime/host/host.cpp",
+          "blob": "682fadfa15d7188ddb66ef2c3648290dc4f3d053",
+          "bytes": 171396,
+          "sha256": "a9668d644a8a060de328fbad27db8d8f64da586684f868d8f0fc001607e8d424",
+          "retained_source_name": "tag--port__runtime__host__host.cpp"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "root_tree": "74702041d7f0e72b3784080d1d0c4502d2faaf80",
+          "entries": 2871,
+          "truncated": false,
+          "sha256": "acd2f1ad76416f9d8eda80aca304c5af9f064dc5d433c7130b0c8364c3f57e85",
+          "retained_name": "current-tree.json",
+          "gitlinks": [
+            {
+              "path": "sourceport/extern/aurora",
+              "sha": "d0c931da2ed3f41d0e42736c2ab52a78c7cf1a9d"
+            },
+            {
+              "path": "sourceport/extern/melee",
+              "sha": "039c4bf4ca33338c35d21901ad19b7ede19d19ad"
+            }
+          ]
+        },
+        {
+          "role": "tag",
+          "commit": "b13cf9253d0408aa444046c15ad0a69b61fdaa1f",
+          "root_tree": "74702041d7f0e72b3784080d1d0c4502d2faaf80",
+          "entries": 2871,
+          "truncated": false,
+          "sha256": "acd2f1ad76416f9d8eda80aca304c5af9f064dc5d433c7130b0c8364c3f57e85",
+          "retained_name": "tag-tree.json",
+          "gitlinks": [
+            {
+              "path": "sourceport/extern/aurora",
+              "sha": "d0c931da2ed3f41d0e42736c2ab52a78c7cf1a9d"
+            },
+            {
+              "path": "sourceport/extern/melee",
+              "sha": "039c4bf4ca33338c35d21901ad19b7ede19d19ad"
+            }
+          ]
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 744835,
+          "sha256": "acd2f1ad76416f9d8eda80aca304c5af9f064dc5d433c7130b0c8364c3f57e85"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 6235,
+          "sha256": "3ced4129906babc4845148739a13696e2ed0208ab5bf38afb671d82a44af7b63"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 7872,
+          "sha256": "45d65c913ab6641e2fe3d6ca3ab29177725485c71f12ab54c2692860c8c33d5c"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5752,
+          "sha256": "ad0d5948a3d693ccc39a0ab7862d18c85164bd4c305f591dbef0a90120f8994b"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 5808,
+          "sha256": "955a70eddd01cda9ecaf939a22b58460a2d1dd5c772de75d0fb38e684d9b2c57"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 744835,
+          "sha256": "acd2f1ad76416f9d8eda80aca304c5af9f064dc5d433c7130b0c8364c3f57e85"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 6235,
+          "sha256": "3ced4129906babc4845148739a13696e2ed0208ab5bf38afb671d82a44af7b63"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 816,
+      "source_bindings": [
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "README.md",
+          "blob": "9661c9a74c73214a65443085197c92f5aa1da2d7",
+          "bytes": 7621,
+          "sha256": "f60660c773ac17f018768e54cfa2ad3ddebd9f3f9b5400c43a8ca1c5cdf9b8ac",
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/src/platform/launch.cpp",
+          "blob": "1dd7fe58927a80d671a877e00ceac20d5f344f1a",
+          "bytes": 17719,
+          "sha256": "06bb6192c19dd49aead2cbd1cd3dd7955b02251ab82cc779a40f3459d8cef774",
+          "retained_source_name": "tag--smstrikers-port__src__platform__launch.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/settings/src/apppaths.cpp",
+          "blob": "04f515da9923f50a65afa85ab13b0903978c38e7",
+          "bytes": 4341,
+          "sha256": "0acf64585b8b6965b15aeffb2abdaa0ce11ae1873fc2702249d5f60e366ef3c3",
+          "retained_source_name": "tag--smstrikers-port__settings__src__apppaths.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/settings/src/discimage.cpp",
+          "blob": "73356311514e4f505cb77a6303d80dafbcc1efaa",
+          "bytes": 12744,
+          "sha256": "92419a67e117bcf465c8ae5160d21d83137858a1cf474d157f4ea5b1ce46f2cd",
+          "retained_source_name": "tag--smstrikers-port__settings__src__discimage.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/tools/package.sh",
+          "blob": "871356a56a47efb4866b5bd5554599db3dafa3c4",
+          "bytes": 11271,
+          "sha256": "e44e7706040cfdd25a261e0173185aa05f9140944949c1d3bd067fe87e6cda5d",
+          "retained_source_name": "tag--smstrikers-port__tools__package.sh"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/CMakeLists.txt",
+          "blob": "97533be2fbf3e9635297e2dcd2ef447c45184c20",
+          "bytes": 39223,
+          "sha256": "0d1ef504cefa063ed98d7a4d7dd6556f4b31b08c7fb1cd7ea7125ecd2ad4638e",
+          "retained_source_name": "tag--smstrikers-port__CMakeLists.txt"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "README.md",
+          "blob": "5af1d823d0ef4b22fc3549da84c03ddf5a25b282",
+          "bytes": 9141,
+          "sha256": "1838ab4cea227b0af7937be00452aae2e1f472b97688d8acae596da7a6138d9d",
+          "retained_source_name": "current--README.md"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "smstrikers-port/src/platform/launch.cpp",
+          "blob": "1dd7fe58927a80d671a877e00ceac20d5f344f1a",
+          "bytes": 17719,
+          "sha256": "06bb6192c19dd49aead2cbd1cd3dd7955b02251ab82cc779a40f3459d8cef774",
+          "retained_source_name": "current--smstrikers-port__src__platform__launch.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "smstrikers-port/settings/src/apppaths.cpp",
+          "blob": "2412e9c637cde22bccbd68a45e104e241c2e1524",
+          "bytes": 7723,
+          "sha256": "1c2e482803c9e0e0f17fce250741c9fcc7e6a45d8b5680b5616bdc5574324a06",
+          "retained_source_name": "current--smstrikers-port__settings__src__apppaths.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "smstrikers-port/settings/src/discimage.cpp",
+          "blob": "3e8f2ff4248b243bd2cc49c125fc0c0dd50cd32f",
+          "bytes": 12869,
+          "sha256": "42b97bf2ced813b9f57ea921c5e3ae866fac0c0d53e5b8470842af9b2158c513",
+          "retained_source_name": "current--smstrikers-port__settings__src__discimage.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "smstrikers-port/tools/package.sh",
+          "blob": "f4f7adbc5df08b661d3b8789cfff143f02a88992",
+          "bytes": 10804,
+          "sha256": "2a5e8c9015ad1e28a3aedf42a78a4bee6d790f9059eda31c2a37b6eca38d54d3",
+          "retained_source_name": "current--smstrikers-port__tools__package.sh"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "smstrikers-port/CMakeLists.txt",
+          "blob": "c16afb047d174f8fcad5219307df07b95e561a7f",
+          "bytes": 35829,
+          "sha256": "79b97ffa8c16eb3d23f2e8893c280c9a77d34004ebe178015ea6d699e757ace9",
+          "retained_source_name": "current--smstrikers-port__CMakeLists.txt"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/settings/src/main.cpp",
+          "blob": "d83656b887801fe403475e9b198190ab03d42a68",
+          "bytes": 24674,
+          "sha256": "e01651c88b4b687f56996f3fe2e578f914aa613a43db4afd82a7ef2c2e4ef853",
+          "retained_source_name": "tag--smstrikers-port__settings__src__main.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/settings/src/mainwindow.cpp",
+          "blob": "ed481e856636e6ddee64be1f56277841bf158c1f",
+          "bytes": 66783,
+          "sha256": "e908e88f4483e6d9296d223c13cd6485ca0c2e831f73c14541ff44d445ed8677",
+          "retained_source_name": "tag--smstrikers-port__settings__src__mainwindow.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "smstrikers-port/settings/src/main.cpp",
+          "blob": "f57f5a8d7243555217c450be01d6c0871c96bd8e",
+          "bytes": 24187,
+          "sha256": "ee30d1c80d28c0f14aa6a0120f8c3b14d9215a8f4fe6a412db95689cbe1aa290",
+          "retained_source_name": "current--smstrikers-port__settings__src__main.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "path": "smstrikers-port/settings/src/mainwindow.cpp",
+          "blob": "f3ae10caa05d003bd049727ca6b3b5054bfab89c",
+          "bytes": 72600,
+          "sha256": "0b275fe2278cc12d7c7b96f37bf18c6e7ac708fd5010171da0c3ebb72672c254",
+          "retained_source_name": "current--smstrikers-port__settings__src__mainwindow.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/src/platform/host.c",
+          "blob": "2b3fd9612d9ba1ef84820eab7c7a127facfbcc67",
+          "bytes": 7488,
+          "sha256": "66f2ff6f7525be8db716ebfa8c2ed826e3818d35f8076cdbab7d63932f032588",
+          "retained_source_name": "tag--smstrikers-port__src__platform__host.c"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/src/platform/config.c",
+          "blob": "8fdfe24244a3b36b0acf170b0c429e3634553be9",
+          "bytes": 7980,
+          "sha256": "cae565862964b04c5dd7834dac92aabf540c423011f6d8450d0e04645064ab80",
+          "retained_source_name": "tag--smstrikers-port__src__platform__config.c"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/src/platform/disc.c",
+          "blob": "8ea313fbcab6b02daf887f18ec364fe86dedf142",
+          "bytes": 23266,
+          "sha256": "caae8c3706b6db5e38fe0617be5cedc87946dd66faa9120ef8733f651a95a102",
+          "retained_source_name": "tag--smstrikers-port__src__platform__disc.c"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/src/platform/crashlog.c",
+          "blob": "83745eee52b803e52b017a058d7fecfc3afffbce",
+          "bytes": 10289,
+          "sha256": "e9111abcee376f76b0b57b7a713cbf78d21b2c37e1b2921bf1ff55987bd79bfc",
+          "retained_source_name": "tag--smstrikers-port__src__platform__crashlog.c"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/extern/aurora/lib/main.cpp",
+          "blob": "8a7fbeeed9af40f04a7af2d3c3dfa3500f7125f9",
+          "bytes": 134,
+          "sha256": "1d17a95063727455cd5a2f1762f6f2a919f2b3840bca5f85226dd887e498b0b3",
+          "retained_source_name": "tag--smstrikers-port__extern__aurora__lib__main.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/extern/aurora/lib/card/DolphinCardPath.cpp",
+          "blob": "2c2c9df8493f3c67873316a4745d73bebab6eeda",
+          "bytes": 4191,
+          "sha256": "bd36e4e44bece9402e0e13e8b79175dfc2b42b682c1b0723ccc74d541ab976d2",
+          "retained_source_name": "tag--smstrikers-port__extern__aurora__lib__card__DolphinCardPath.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/extern/aurora/lib/aurora.cpp",
+          "blob": "0d23d3c15054898b2a1353a3218155f9da3365e8",
+          "bytes": 23290,
+          "sha256": "540510771b61355512a0c23a2788327110d98e02a0c253d7d011e3d81b4b3ee6",
+          "retained_source_name": "tag--smstrikers-port__extern__aurora__lib__aurora.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/extern/aurora/LICENSE",
+          "blob": "baf2790cc2a65e1a61bc50d0e7220988f6f483ad",
+          "bytes": 1072,
+          "sha256": "40c03cee04cda570d1029b85b6c2ee7ba78431ab1a754b9d912091d73b8ecb18",
+          "retained_source_name": "tag--smstrikers-port__extern__aurora__LICENSE"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/src/Game/main.cpp",
+          "blob": "954c13fb69b8f9cdfc6337c0fbb84f490761bae2",
+          "bytes": 34195,
+          "sha256": "37c659ab329a63f2546489972fe1a397a93e1319b31efd6642cd6f0431fac278",
+          "retained_source_name": "tag--smstrikers-port__src__Game__main.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/src/NL/nlMain.cpp",
+          "blob": "2dd721563bb09f6c1464c769cf1002a6fb69b88c",
+          "bytes": 5776,
+          "sha256": "aac81e025ef7c2d53142d97d7ac0723af9cd6cf0e76eb6863b76014c205090f7",
+          "retained_source_name": "tag--smstrikers-port__src__NL__nlMain.cpp"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/extern/aurora/cmake/aurora_main.cmake",
+          "blob": "b712164a6c9abe11f600f2864038be335e97c0d7",
+          "bytes": 271,
+          "sha256": "d1316bd5e27d3d635b5c0342b1897286ffb084c3914c90b11f4b4ce5721b06a3",
+          "retained_source_name": "tag--smstrikers-port__extern__aurora__cmake__aurora_main.cmake"
+        },
+        {
+          "repository": "new-coke/strikers",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "path": "smstrikers-port/extern/aurora/include/aurora/main.h",
+          "blob": "68ee67c4423c2d9b1ed9f8743e789cb6488fb20c",
+          "bytes": 189,
+          "sha256": "d9f33c7a164acf54c4a41e5707a0528ba854f1900e33d0afded2108b330f1fb2",
+          "retained_source_name": "tag--smstrikers-port__extern__aurora__include__aurora__main.h"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "de257d20f71555b7b9cabc7c555667ccf66b8259",
+          "root_tree": "ecb129304cd5cdf677c5641d96044d9580312564",
+          "entries": 2922,
+          "truncated": false,
+          "sha256": "c1f281ed9da60d0be50c813ab6a19e450fb1a31751e89efbd27c4650087192e5",
+          "retained_name": "current-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "b0e54c9a51cbfcfef7e5487feb02f843ff723d97",
+          "root_tree": "54096ab3d993250687f059d666aa87d350061ebe",
+          "entries": 2817,
+          "truncated": false,
+          "sha256": "4579c1f4774792d473d4cef5f2b8b99f5ec2574fdd3edd8b8f1f4a75d550c84e",
+          "retained_name": "tag-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 756407,
+          "sha256": "c1f281ed9da60d0be50c813ab6a19e450fb1a31751e89efbd27c4650087192e5"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 12152,
+          "sha256": "9e101ca4ac252285b27beba4817e986aa8e2bb8247e8e1421a7d6ab595a2a0b1"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 14982,
+          "sha256": "495487576306b2c67efe14bf997d24e472f89871f09dee089a77ef58fd3285d6"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5244,
+          "sha256": "e9ad3b0076b69c70c2262ef75dddf1aeaf5f8ae02bbb0bd9e165f9d296c856e5"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 12293,
+          "sha256": "38223a172ec819ea97acf262270f4f0f78ba3dcc46384fa5696673a9fef5b55f"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 729216,
+          "sha256": "4579c1f4774792d473d4cef5f2b8b99f5ec2574fdd3edd8b8f1f4a75d550c84e"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 4854,
+          "sha256": "d37f441c68ccceb5d957a86b1f96fe78f88e74f4f6625bd0cc3a58fc1c28b14c"
+        }
+      ]
+    }
+  ],
+  "consequential_conditions": [
+    "491 preserves existing PR3191 generic setup download. Complete upstream private Generate & Build before native selection; root setup host forwarding is not selected. Exact framework/UI gitlinks bind inspected product entry/paths, not future rebuilding or measured gameplay. First-track metadata is not complete both-disc acceptance; project GPL and framework PolyForm noncommercial and UI MIT/component terms are separate from original/generated/BIOS rights.",
+    "812 selects prepared regional native entry instead of detaching launcher or installer. Keep launcher sharing explicitly No/off; its default-Yes prompt and shader microcode upload are outside Core authority. Separately hold fresh acquisition on selected package/component applicability plus attributable permission or reviewed asset-clean/owned-input route for release-bundled disc-derived shader storage. No acquired-archive content certificate, assumed xpso infringement, private-use ban or broad source-code prohibition.",
+    "812 selected README binds SDK only as0.10nightly development plus local patches; no exact linked SDK/source-to-binary identity was established. Downstream RuntimePaths overrides and launcher/installer source are inspected; arbitrary current SDK defaults and whole-process closure are not certified. Conditional already-working selected-native use does not assert immutable or transitive tuple admission.",
+    "812 upstream issue21 closed with maintainer1.4.2 held-handle unit fix claim, actual Defender/save hang not reproduced; no selected-version real-save acceptance. Issues23 ROVUI and25 shadow-distance remain open. Issue26 closed answered pacing question; not a pacing fix. Actual primary issues and complete comment totals retained.",
+    "814 deliberately selects working Static Recomp melee_port.exe, not new Source Port engine or optional launcher. Preserve actual creating CWD/ISO/flags/profile/sharedVersion paths, offline/online/account/mod/cache/component distinctions. Backend restarts/update successors remain upstream-owned and outside selected-process adoption. No blanket transfer of prior GPL2/old updater/source acceptance to current GPL3/publisher conditional-digest updater.",
+    "816 selected README explicitly source+compiled release and CC0 original porting contributions supersedes old source-only wording conflict, not original/thirdparty permission certificate. Bound title main→configuration→Aurora initialization→same-process loop/shutdown, exact macro and Aurora MIT. Settings helper detached launch is not selected. Exe-firstINI thenCWD fallback and all user/cache/card custom roots remain creating-copy facts; no sibling817/818 acceptance inherited."
+  ],
+  "limits": [
+    "No game package/original/ROM/private save/helper/compiler/installer/game acquired or executed. API publisher digests are metadata, not newly acquired independent byte qualification.",
+    "Source inspection, inert native-probe and hosted unit fixtures remain separate from package/source-to-binary, original, game/save/state/mod/online, installed/physical/human/other-platform/protected acceptance.",
+    "All272 strict operational definitions/source contracts, existing identities/artwork/lineage and stronger accepted safety remain unchanged. No Core preparation/managed runtime replacement/update/backup/rollback/migration/deletion/upload/account authority or Supported promotion.",
+    "Keep all Required commitments and actual known mandatory affected-operation holds. Canonical closure requires separate reviewed finite disposition after new exact-head CI/guarded delivery; source route review alone is not closure. #141/#1275 explicit native participation/evidence stops and all other owners remain unchanged."
+  ],
+  "delivery_authority": "Final PR and canonical receipts own actual source/base/composition, full independent review, exact-head required checks/case/artifact inventory, guarded merge/readback and scoped dispositions."
+}

@@ -16,6 +16,31 @@
       "image_sha256": "2f0018b77441d22dc139ce436c20923cba8fb58eaea682e15bd6bc32c253c851",
       "game_slug": "deadly-premonition",
       "match_kind": "underlying-game"
+    },
+    "download_block_reason": "Selected DPRecomp source describes release-bundled pre-warmed shader storage, including original-disc shader microcode. Fresh acquisition is held until the selected package/component applicability and attributable permission for its inclusion, or a reviewed asset-clean or owned-input preparation route, are established. Sharing consent alone does not resolve this component condition. This is source-bound evidence, not an inspection certificate for unacquired archive bytes or a ban on already-permitted private working copies.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare and confirm the regional player upstream",
+          "instruction": "Start from an already-permitted, fully prepared working Windows copy corresponding to the upstream v2.0.14 route, using your own supported PAL or USA Xbox 360 disc. The selected source describes release-bundled disc-derived shader storage; establish applicable permission for the selected package/component or an asset-clean or owned-input route before fresh acquisition. Sharing consent alone does not resolve that condition. Finish upstream import and one normal working launch before adding it. An incomplete first-run installer can start another process and exit. The importer and launcher use default.xex size to choose a region; that is not complete original-file authentication. Keep your originals and failed preparation work recoverable rather than mixing regional files or treating a same-size retry as verification."
+        },
+        {
+          "title": "Keep shader sharing off",
+          "instruction": "In the upstream launcher explicitly choose No at the sharing prompt (Yes is preselected), and keep Advanced → Share Shader Cache off (launcher.ini: launcher_share_shader_cache=off). That prompt offers to send disc-derived shader microcode and pipeline descriptions; adding a Portcove registration grants no permission to upload them. Portcove does not accept this prompt or configure sharing. Leave optional native-renderer testing, external reporting and upstream online features to your own separate choices."
+        },
+        {
+          "title": "Add the actual prepared game executable",
+          "instruction": "Select the already-working deadlyprem.exe for PAL or deadlyprem_usa.exe for USA, using the installation as the normal working directory; preserve a different established working directory and its literal paths if your actual prepared launch requires it. Do not select PlayDeadlyPremonition.exe: its PLAY button starts the game, closes the child handle and exits. The prepared native entry defaults to assets beside the executable; retain actual supported --game_data_root, --user_data_root and --cache_root flags with their creating absolute paths as separate arguments if your copy uses them. Saving launch details and Play are separate actions. This route does not run or supervise the upstream importer or updater."
+        },
+        {
+          "title": "Preserve originals and all actual player data",
+          "instruction": "Keep the entire working package, assets, regional executables and companions, deadlyprem.toml, launcher.ini, userdata, saves/profile, shader caches, textures/mods, achievements, logs, update backups and unknown files. Preserve actual custom roots and the older Documents profile/cache history as well; upstream migration is not Portcove migration or backup. You or upstream manage updates and replacement. Registration removal preserves every external file. The maintainer reports a v1.4.2 save-handle fix based on unit testing but could not reproduce the reported Defender/save hang; that is not new real-save acceptance here. Reported ROV rendering and shadow issues remain open; a closed pacing question is not a pacing fix. Preserve these affected-operation limits instead of inferring safety from a newer version."
+        }
+      ],
+      "warnings": [
+        "This is a Windows prepared-copy handoff. Original-data admission, installer recovery, game/save behavior, optional renderer quality and other platforms are not qualified by registration."
+      ],
+      "help_url": "https://github.com/LittleBitUA/DPRecomp#readme"
     }
   }
 }

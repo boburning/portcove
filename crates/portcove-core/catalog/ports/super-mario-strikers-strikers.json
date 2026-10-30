@@ -16,6 +16,30 @@
       "image_sha256": "9953c59416011cdbe3074beed3a4ac8863368b7e11c1d31cf11445864279dc8b",
       "game_slug": "super-mario-strikers",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your own game data with the selected upstream release",
+          "instruction": "Use the complete official v1.3.0 Windows x64 package for new-coke/strikers, keeping its dependencies and notices. Supply your own supported US, European or Japanese disc image or extracted game files following this version’s guide. Header/file presence checks are not complete region/revision identity verification. This implementation is distinct from StrikersRecomp and AuroraStrikers; do not mix their binaries, preparation or save assumptions."
+        },
+        {
+          "title": "Configure upstream, then add the direct player",
+          "instruction": "Finish the upstream settings application and a normal working launch first. Select strikers.exe. Its installation is the normal working folder, but preserve the established working directory and literal paths if the actual working launch differs; relative INI/source/profile paths can otherwise change. A configured copy normally needs no extra arguments. The settings app starts the game detached, so select the game itself. Preserve your actual strikers.ini and source paths. Portcove saves launch details without starting setup; choosing Play is separate."
+        },
+        {
+          "title": "Keep the existing configuration and profile coordinates",
+          "instruction": "The runtime looks for strikers.ini beside its executable before the working-folder fallback; an explicit STRIKERS_CONFIG selects another file. Existing USER_DIR and CACHE_DIR configuration or STRIKERS_USER_DIR/STRIKERS_CACHE_DIR can select other profile/cache paths. Keep the same established configuration and absolute paths; this route does not invent environment redirects or migrate data. The Windows default user folder is APPDATA/Super Mario Strikers. Another runtime folder does not isolate a shared profile."
+        },
+        {
+          "title": "Preserve the complete copy and actual external roots",
+          "instruction": "Before upstream replacement keep the whole runtime, strikers.ini, original images or extracted files, actual user/card/save and cache folders, imgui settings, texture packs, mods, screenshots, logs, custom paths and unknown files. You or upstream manage versions; no matching release metadata proves save compatibility. Portcove registration provides no managed preparation, update, backup, rollback, migration or deletion. Removing registration preserves every external file."
+        }
+      ],
+      "warnings": [
+        "The selected upstream now explicitly publishes source and compiled releases. Its CC0 original porting contributions do not relicense reconstructed game code, original assets or third-party components; follow their applicable terms and keep your original data. Gameplay and other-platform qualification remain separate."
+      ],
+      "help_url": "https://github.com/new-coke/strikers#readme"
     }
   }
 }

@@ -881,6 +881,26 @@ mod tests {
     }
 
     #[test]
+    fn valkyrie_prepared_product_route_491() {
+        assert_listing_only_player_route("alexbeav-valkyrie-profile-recomp", Some(false));
+    }
+
+    #[test]
+    fn dprecomp_permitted_prepared_runtime_route_812() {
+        assert_listing_only_player_route("deadly-premonition-dprecomp", Some(true));
+    }
+
+    #[test]
+    fn melee_static_prepared_player_route_814() {
+        assert_listing_only_player_route("melee-unlocked", Some(false));
+    }
+
+    #[test]
+    fn strikers_prepared_player_route_816() {
+        assert_listing_only_player_route("super-mario-strikers-strikers", Some(false));
+    }
+
+    #[test]
     fn budokai3_prepared_player_route_366() {
         assert_listing_only_player_route(
             "dragon-ball-z-budokai-3-hd-budokai-3-hd-collection-recomp",
