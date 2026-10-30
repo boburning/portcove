@@ -687,6 +687,7 @@ function validateBackupFocusInventory(
   });
 }
 
+let cleanupCaptureSequence = 0;
 function captureBackupFocusCleanup(evidenceName = cleanupName) {
   if (ownedSession.inventory) return ownedSession.inventory;
   assert.ok(
@@ -694,12 +695,14 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
   const suffix =
-    hostInterruptionSession ||
-    ordinaryCloseSession ||
-    savedLibraryRecoverySession ||
-    hostPublicationSession
-      ? `-${driver.pid}`
-      : "";
+    cleanupName === "presentation" || cleanupName === "organization-restart"
+      ? `-${++cleanupCaptureSequence}-${driver.pid}`
+      : hostInterruptionSession ||
+          ordinaryCloseSession ||
+          savedLibraryRecoverySession ||
+          hostPublicationSession
+        ? `-${driver.pid}`
+        : "";
   const original = path.join(output, `${evidenceName}-final-processes${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriverTree", original);
   artifacts.push(original);
@@ -1619,7 +1622,8 @@ async function restartApplication(
     savedLibraryRecoverySession ||
     selectedSetupRestart ||
     hostPublicationSession ||
-    acquisitionRestart
+    acquisitionRestart ||
+    (process.platform === "win32" && identityBoundSession)
   ) {
     if (!preferencesRecoverySession && !hostPublicationSession && !acquisitionRestart)
       assert.equal(
@@ -2241,7 +2245,23 @@ async function captureSelectedDriverLaunch(launchStarted: number) {
 async function verifyCompactSettingsJumps() {
   const browser = driverBrowser();
   const index = await browser.findElement(By.css('nav[aria-label="Settings categories"]'));
-  assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 7);
+  assert.deepEqual(
+    await Promise.all(
+      (await index.findElements(By.css('button[data-slot="button"]'))).map((button) =>
+        button.getText(),
+      ),
+    ),
+    [
+      "Appearance",
+      "Library and storage",
+      "Game files",
+      "Updates",
+      "Integrations",
+      "Keyboard and controller",
+      "Advanced",
+      "About",
+    ],
+  );
   await executeBrowserScript(
     browser,
     (element) => element.scrollIntoView({ block: "start" }),
@@ -4192,7 +4212,9 @@ try {
         By.xpath('//*[@aria-label="Application update mode"]//button[normalize-space(.)="Manual"]'),
       )
       .click();
-    await browser.findElement(By.id("pause-application-updates")).click();
+    await browser
+      .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
+      .click();
 
     assert.equal(
       success(await invoke("get_application_update_preferences")).choice,
@@ -4240,7 +4262,12 @@ try {
         .getText(),
       "Manual",
     );
-    assert.equal(await browser.findElement(By.id("pause-application-updates")).isSelected(), true);
+    assert.equal(
+      await browser
+        .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
+        .getAttribute("aria-checked"),
+      "true",
+    );
 
     await captureApplicationUpdateSettingsComparison();
 
@@ -4394,9 +4421,9 @@ try {
     const browser = driverBrowser();
     const reset = await invoke("set_locale_preference", { locale: "en" });
     assert.ok(reset.ok);
-    await refreshSettings();
+    await refreshSettings("appearance");
     const languageTrigger = await browser.wait(
-      until.elementLocated(By.xpath('//button[contains(., "Display language")]')),
+      until.elementLocated(By.css('.language-card [role="combobox"]')),
       15_000,
     );
     await languageTrigger.click();
@@ -4427,12 +4454,12 @@ try {
 
     const engineering = await invoke("set_locale_preference", { locale: "ar-XB" });
     assert.ok(engineering.ok);
-    await refreshSettings();
+    await refreshSettings("appearance");
     await browser.wait(async () => {
       const state = await executeBrowserScript(browser, () => ({
         lang: document.documentElement.lang,
         dir: document.documentElement.dir,
-        heading: [...document.querySelectorAll("h2")].some(
+        heading: [...document.querySelectorAll(".language-card h3")].some(
           (element) => element.textContent?.trim() === "لغة الواجهة",
         ),
         preview: document
@@ -4444,7 +4471,7 @@ try {
     const rendered = await executeBrowserScript(browser, () => ({
       lang: document.documentElement.lang,
       dir: document.documentElement.dir,
-      heading: [...document.querySelectorAll("h2")].some(
+      heading: [...document.querySelectorAll(".language-card h3")].some(
         (element) => element.textContent?.trim() === "لغة الواجهة",
       ),
       preview: document
@@ -4486,7 +4513,7 @@ try {
 
     await selectPrimaryNavigation(browser, "Settings");
     const rtlTrigger = await browser.wait(
-      until.elementLocated(By.css(".language-card button")),
+      until.elementLocated(By.css('.language-card [role="combobox"]')),
       15_000,
     );
     await rtlTrigger.click();

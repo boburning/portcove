@@ -184,6 +184,9 @@ The 60-minute job allocation leaves setup/build headroom without changing child
 or product deadlines. A failure in one selection does not cancel the other.
 
 The workflow accepts no command, scenario or source override for these jobs.
+On Windows these two fixed selections use the existing identity-bound driver
+capture, chronological process inventory and positive-exit owner before release;
+failure keeps the original evidence and cannot fall back to unchecked PID cleanup.
 A noninteractive desktop, unavailable supported WebView/driver or failed bootstrap
 stops that job with original evidence. The bounded lossless job-log codec retains
 one isolated run per job under its existing byte/file limits, with no cache or

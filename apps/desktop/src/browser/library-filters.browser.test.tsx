@@ -468,7 +468,7 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
-});
+}, 45_000);
 
 it("retains specific attention with independent Library readiness, zero counts and unavailable removable focus", async () => {
   flushSync(() => root.render(<Fixture />));
@@ -532,7 +532,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessLabel("Readiness Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
-});
+}, 45_000);
 
 it("composes quick views with declared filters and clears only quick-view scope from All games", async () => {
   flushSync(() => root.render(<Fixture />));

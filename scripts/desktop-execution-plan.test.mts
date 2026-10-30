@@ -433,6 +433,18 @@ void test("execution planning preserves the independently reviewed pre-change or
 
     if (!row.harness_admission.error) {
       const expectedSession = structuredClone(row.harness_admission);
+      // Keep the historical oracle; fixed Windows presentation/size acceptance
+      // now selects the existing identity-bound capture and positive-exit owner.
+      if (
+        row.platform === "win32" &&
+        (selection.profile === "presentation" ||
+          (selection.selected_scenarios.length === 1 &&
+            selection.selected_scenarios[0] === "native-interface-size"))
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "presentation";
+      }
       // Preserve the historical oracle while requiring positive cleanup for
       // #1168's owned retained-data backup creation journey on Windows.
       if (
@@ -1360,4 +1372,28 @@ void test("organization restart retains normal builds and requires owned host ex
     { platform: "win32" },
   );
   assert.equal(combined.session.cleanupName, "backup-focus");
+});
+
+void test("fixed Windows presentation and sizing retain normal builds with positive exit custody", () => {
+  for (const options of [{ profile: "presentation" }, { scenarios: ["native-interface-size"] }]) {
+    const selection = resolveDesktopSelection({ ...options, platform: "win32" });
+    const plan = planDesktopExecution(selection, { platform: "win32" });
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(plan.session.cleanupName, "presentation");
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+    assert.equal(plan.fixtures.owned, false);
+    assert.equal(plan.fixtures.steam, false);
+  }
+  for (const platform of ["linux", "darwin"] as const) {
+    const selection = resolveDesktopSelection({ profile: "presentation", platform });
+    assert.equal(planDesktopExecution(selection, { platform }).session.identityBoundSession, false);
+  }
+  const singleKeyboard = resolveDesktopSelection({
+    scenarios: ["keyboard-layout"],
+    platform: "win32",
+  });
+  assert.equal(
+    planDesktopExecution(singleKeyboard, { platform: "win32" }).session.identityBoundSession,
+    false,
+  );
 });

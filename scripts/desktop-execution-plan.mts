@@ -77,7 +77,13 @@ export function planDesktopExecution(
   const organizationRestart = selection.selected_scenarios.includes(
     "native-library-organization-restart",
   );
+  const presentationSession =
+    platform === "win32" &&
+    (selection.profile === "presentation" ||
+      (selection.selected_scenarios.length === 1 &&
+        selection.selected_scenarios[0] === "native-interface-size"));
   const identityBoundSession =
+    presentationSession ||
     organizationRestart ||
     acquisitionJourney ||
     selection.selected_scenarios.includes("native-host-publication-recovery") ||
@@ -179,7 +185,9 @@ export function planDesktopExecution(
   const cleanupName =
     organizationRestart && !backupFocusSession && preferredCleanupName === "backup-focus"
       ? "organization-restart"
-      : preferredCleanupName;
+      : presentationSession && preferredCleanupName === "backup-focus"
+        ? "presentation"
+        : preferredCleanupName;
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,
