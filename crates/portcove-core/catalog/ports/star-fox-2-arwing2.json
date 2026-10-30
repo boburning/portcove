@@ -16,6 +16,35 @@
       "image_sha256": "d8ad67a22559ea19bc63364b18bbe36cdfbc5275df4891758657548475abf694",
       "game_slug": "star-fox-2",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/carlosrmz009/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+      "steps": [
+        {
+          "title": "Keep a permitted installed Star Fox 2 player",
+          "instruction": "Use an already permitted working Windows x64 Project Arwing (2) copy, with its installed arwing2.exe and complete dependencies. The downloaded arwing.exe is an installer, not this game entry. Finish official installation, own-ROM selection and a normal working launch outside Core. This is Star Fox 2, not Star Fox Enhanced or the original Star Fox. Project MIT covers tools/runtime/installer, not Nintendo disassembly, ROM-derived assets or blanket package/component rights."
+        },
+        {
+          "title": "Preserve the exact owned retail original",
+          "instruction": "Use your own Star Fox 2 SNES Classic/Mini retail ROM, upstream SHA1 1135a2a6cb786ac7523e81dd553dc81aaa266f51; the 1995 prototypes are not this input. The official picker normalizes an optional 512-byte copier header and copies the accepted ROM into its actual profile. Keep the original and working copied sf2.sfc and all creating paths. Core does not import/extract/authenticate the ROM, regenerate code or certify hardware/audio/game equivalence."
+        },
+        {
+          "title": "Select the installed long-lived native application",
+          "instruction": "Select installed arwing2.exe, zero arguments, and its actual containing installation directory as initial CWD. The Windows application changes to the creating %APPDATA%/Project Arwing (2) profile and runs its game/UI in this process. Do not select downloaded arwing.exe, an uninstaller, build script, headless --frames/coverage or force-interpreter diagnostic mode. Registration itself does not install, prepare or launch anything."
+        },
+        {
+          "title": "Keep updater and profile mutation upstream-owned",
+          "instruction": "Review and consent to the exact native executable, actual working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns setup, profiles, repair and actual replacement. Close every real instance before changing files, keep the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves all external files. Upstream checks a moving tag and can download/start an installer with --update; selected-process tracking does not follow every installer/successor. Rolling 1.0 tags/assets are replaceable and earlier metadata does not identify current bytes. Finish upstream replacement separately before relink; no signature/digest or process-family certification is inferred."
+        },
+        {
+          "title": "Retain the whole installation and both profile histories",
+          "instruction": "Preserve the complete installed copy and original, %APPDATA%/Project Arwing (2) with sf2.sfc, sf2.sfc.srm, sf2.ini, saves/states/screenshots, custom/log/unknown files and any legacy %APPDATA%/Project Arwing folder. Startup may move the legacy folder when the new folder is absent and the old sf2.sfc exists; this is an upstream migration, not a Core action. Preserve actual custom/source-build coordinates separately, and keep old state/runtime together. Metadata removal does not uninstall the application or delete either profile."
+        }
+      ],
+      "warnings": [
+        "This is a hybrid static 65816/SuperFX recompilation with interpreter/hardware fallback, not an emulation-free or full-equivalence qualification. Upstream sampled dispatch/hash, audio and HD claims retain their scoped limitations; no Portcove native game/gameplay/save/audio/hardware pass is made.",
+        "No Core-managed acquisition/installer/preparation/Update/Backup/Rollback/migration/deletion or protected/installed/human/other-platform acceptance. The selected rolling source is frozen here; later moving-tag packages need their own identity and review."
+      ]
     }
   }
 }
