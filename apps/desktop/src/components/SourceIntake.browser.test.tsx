@@ -200,6 +200,24 @@ describe("source intake dialog", () => {
       ).toBeGreaterThanOrEqual(11);
     }
     await captureParityState("source-move-initial-review-fixture");
+    const move = page.getByRole("button", { name: "Move into Portcove", exact: true });
+    const cancelMove = page.getByRole("button", { name: "Cancel review", exact: true });
+    move.element().scrollIntoView({ block: "center" });
+    await expect.element(move).toBeVisible();
+    await expect
+      .poll(() =>
+        [move.element(), cancelMove.element()].every((element) => {
+          const bounds = element.getBoundingClientRect();
+          return (
+            bounds.top >= 0 &&
+            bounds.bottom <= innerHeight &&
+            bounds.left >= 0 &&
+            bounds.right <= innerWidth
+          );
+        }),
+      )
+      .toBe(true);
+    await captureParityState("source-move-initial-review-lower-fixture");
     await page.getByRole("button", { name: "Cancel review", exact: true }).click();
     expect(imported).not.toHaveBeenCalled();
 

@@ -149,6 +149,27 @@ it("blocks apply while Steam is running and clears a review when the target chan
   );
   expect(applyButton?.disabled).toBe(true);
   await captureParityState("steam-running-client-refusal-fixture");
+  const refusal = page.getByText(
+    "Close Steam, then choose Check again. Portcove will not close Steam for you.",
+    { exact: true },
+  );
+  refusal.element().scrollIntoView({ block: "center" });
+  await expect.element(refusal).toBeVisible();
+  const checkAgain = page.getByRole("button", { name: "Check again", exact: true });
+  await expect
+    .poll(() =>
+      [refusal.element(), checkAgain.element(), applyButton!].every((element) => {
+        const bounds = element.getBoundingClientRect();
+        return (
+          bounds.top >= 0 &&
+          bounds.bottom <= innerHeight &&
+          bounds.left >= 0 &&
+          bounds.right <= innerWidth
+        );
+      }),
+    )
+    .toBe(true);
+  await captureParityState("steam-running-client-refusal-lower-fixture");
   preview.mockResolvedValue({ ...review, steam_client_state: "closed" });
   await click("Check again");
   expect(preview).toHaveBeenCalledTimes(2);

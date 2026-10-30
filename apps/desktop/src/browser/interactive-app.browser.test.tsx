@@ -624,8 +624,10 @@ it("keeps category navigation and selected content bounded at the 900px Settings
   for (const { label } of settingsCategories) {
     const destination = navigation.getByRole("button", { name: label, exact: true });
     await expect.element(destination).toHaveFocus();
-    // Focus is synchronous; the browser may reveal the tab stop on a later frame.
-    // Observe native scrolling without moving the strip on the test's behalf.
+    // The category focus owner reveals each tab stop without changing the selected panel.
+    // Observe its scrolling without moving the strip on the test's behalf.
+    await expect.element(category).toHaveAttribute("aria-current", "page");
+    await expect.element(document.getElementById("settings-game-files")!).toBeVisible();
     await expect
       .poll(
         () =>

@@ -1,3 +1,4 @@
+import { page } from "vite-plus/test/browser";
 import { captureParityState } from "../../../test/parity-capture";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
@@ -997,6 +998,24 @@ describe("ApplicationUpdateSettings", () => {
     await root.rerender(<SettingsFixture generation={17} />);
     expect(host.textContent).toContain("Update ready to install");
     await captureParityState("application-update-ready-restart-fixture");
+    const ready = page.getByText("Update ready to install", { exact: true });
+    ready.element().scrollIntoView({ block: "center" });
+    await expect.element(ready).toBeVisible();
+    const restartButton = button("Restart to update");
+    await expect
+      .poll(() =>
+        [ready.element(), restartButton].every((element) => {
+          const bounds = element.getBoundingClientRect();
+          return (
+            bounds.top >= 0 &&
+            bounds.bottom <= innerHeight &&
+            bounds.left >= 0 &&
+            bounds.right <= innerWidth
+          );
+        }),
+      )
+      .toBe(true);
+    await captureParityState("application-update-ready-restart-lower-fixture");
     await click("Restart to update");
 
     expect(restart).toHaveBeenCalledExactlyOnceWith(17);

@@ -1715,6 +1715,10 @@ export function SettingsView(props: SettingsViewProps) {
           )}
           aria-current={selectedCategory === id ? "page" : undefined}
           aria-controls={`settings-${id}`}
+          onFocus={(event) => {
+            // Native focus can leave a partially visible category clipped in the strip.
+            event.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" });
+          }}
           onClick={() => {
             (onCategoryChange ?? setLocalCategory)(id);
             jumpToSettingsSection(id);

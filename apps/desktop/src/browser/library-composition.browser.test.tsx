@@ -838,6 +838,21 @@ it("keeps the confirmed favorite state during a pending and rejected write", asy
     .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
     .toBeVisible();
   await captureParityState("library-favorite-write-rejected");
+  const rejection = page.getByText("Favorite choice could not be confirmed", { exact: true });
+  rejection.element().scrollIntoView({ block: "center" });
+  await expect.element(rejection).toBeVisible();
+  await expect
+    .poll(() => {
+      const bounds = rejection.element().getBoundingClientRect();
+      return (
+        bounds.top >= 0 &&
+        bounds.bottom <= innerHeight &&
+        bounds.left >= 0 &&
+        bounds.right <= innerWidth
+      );
+    })
+    .toBe(true);
+  await captureParityState("library-favorite-write-rejected-notice");
 }, 45_000);
 
 it("sorts actual Library entries by the selected title order without changing their identities", async () => {
