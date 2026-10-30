@@ -73,7 +73,9 @@ it.each([
     await userEvent.keyboard("{Tab}");
     expect(document.activeElement).toBe(diagnostics);
     expect(diagnostics.scrollHeight - diagnostics.clientHeight).toBeGreaterThan(long ? 0 : -1);
-    await captureParityState(`error-boundary-${long ? "long" : "short"}-${enlarged ? "200" : "100"}`);
+    await captureParityState(
+      `error-boundary-${long ? "long" : "short"}-${enlarged ? "200" : "100"}`,
+    );
     const endOfDetails = /Mac/u.test(navigator.platform)
       ? "{Meta>}{ArrowDown}{/Meta}"
       : "{Control>}{End}{/Control}";

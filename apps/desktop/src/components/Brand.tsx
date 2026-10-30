@@ -8,10 +8,7 @@ const BRAND_ASSETS = {
 export function BrandAvatar({ className = "" }: { className?: string }) {
   return (
     <img
-      className={cn(
-        "brand-avatar block size-10 flex-none object-contain",
-        className,
-      )}
+      className={cn("brand-avatar block size-10 flex-none object-contain", className)}
       src={BRAND_ASSETS.transparentMascot}
       alt=""
       aria-hidden="true"

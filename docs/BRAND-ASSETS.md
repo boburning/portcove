@@ -58,12 +58,12 @@ that candidate. The optional vector-family manifest reference adds verification;
 it does not replace V2 byte/model integrity or grant creative/production approval.
 See [the transition decision](adr/0004-original-vector-brand-and-deterministic-exports.md).
 
-| Role                          | Current source and runtime use                                                                                                                                                              |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Role                          | Current source and runtime use                                                                                                                                                                      |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Wordmark                      | `assets/brand/generated/v2/portcove-logo-v2-transparent.png` is the approved raster master and README image; `public/brand/logo/portcove-logo-v2-transparent.png` serves the library loading state. |
-| Full mascot                   | `assets/brand/generated/v2/portcove-mascot-v2-front.png` is the approved opaque front; `public/brand/mascot/portcove-mascot-v2-front.png` is its retained crop-only derivative.  |
-| Compact identity              | `assets/brand/generated/portcove-mascot-head-icon-master.png` feeds `public/brand/icons/portcove-mascot-head-256.png`, the browser icon and Tauri platform icons.          |
-| Historical sources and proofs | Original V1 JPEGs, V2 turnarounds, Blender/GLB files, render tools, and proofs remain preserved under `assets/brand/`. They are not a new-artwork brief or additional app placements.       |
+| Full mascot                   | `assets/brand/generated/v2/portcove-mascot-v2-front.png` is the approved opaque front; `public/brand/mascot/portcove-mascot-v2-front.png` is its retained crop-only derivative.                     |
+| Compact identity              | `assets/brand/generated/portcove-mascot-head-icon-master.png` feeds `public/brand/icons/portcove-mascot-head-256.png`, the browser icon and Tauri platform icons.                                   |
+| Historical sources and proofs | Original V1 JPEGs, V2 turnarounds, Blender/GLB files, render tools, and proofs remain preserved under `assets/brand/`. They are not a new-artwork brief or additional app placements.               |
 
 The accepted prototype supplies `public/brand/icons/portcove-mascot-transparent.png` for the sidebar identity, empty library, and About. This 1254 × 1254 RGBA PNG is copied byte-for-byte from the approved prototype asset, with SHA-256 `ba53e565053de95f35591467aa8fa54b5f271634ec36e9aab829b5fb74f5e6d7`; no new artwork, recoloring, or creator attribution is introduced. The brand manifest protects these exact bytes alongside the retained V2 assets. Native and browser icons retain their existing sources.
 

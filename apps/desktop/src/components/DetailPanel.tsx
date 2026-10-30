@@ -1099,8 +1099,8 @@ function SavesStorageGroup({
         />
       )}
       <p className="m-0 text-xs text-pc-muted-foreground">
-        Backups cover managed saves and settings. Game-version rollback, library metadata and
-        other folders are separate.
+        Backups cover managed saves and settings. Game-version rollback, library metadata and other
+        folders are separate.
       </p>
       <details className="text-sm">
         <summary className="cursor-pointer py-2 font-medium">Coverage and recorded rules</summary>

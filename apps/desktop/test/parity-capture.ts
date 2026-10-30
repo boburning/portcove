@@ -7,11 +7,13 @@ export async function captureParityState(name: string) {
   await expect.poll(() => [...document.images].every((image) => image.complete)).toBe(true);
   await expect
     .poll(() =>
-      document.getAnimations().every((animation) =>
-        animation.effect?.getComputedTiming().iterations === Infinity
-          ? true
-          : !animation.pending && ["finished", "idle"].includes(animation.playState),
-      ),
+      document
+        .getAnimations()
+        .every((animation) =>
+          animation.effect?.getComputedTiming().iterations === Infinity
+            ? true
+            : !animation.pending && ["finished", "idle"].includes(animation.playState),
+        ),
     )
     .toBe(true);
   await new Promise<void>((resolve) =>

@@ -3858,14 +3858,20 @@ export async function preparationScenarios({
     };
     const capture = async (name: string) => {
       const screenshot = path.join(output, `native-organization-${name}.png`);
-      await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
       artifacts.push(screenshot);
     };
     const libraryView = async () => {
       await open(port, false);
       await clickVisible(browser, await browser.findElement(By.css(".detail-back")));
       await selectPrimaryNavigation(browser, "Library");
-      await browser.wait(until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)), 15_000);
+      await browser.wait(
+        until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)),
+        15_000,
+      );
     };
     const manageCollections = async () => {
       await clickVisible(
