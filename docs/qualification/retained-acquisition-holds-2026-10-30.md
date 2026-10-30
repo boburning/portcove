@@ -44,7 +44,14 @@ basis, or an asset-clean publication. Current source
 [`bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141`](https://github.com/GTTeancum/SotE-Recomp/tree/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141)
 now has an MIT root LICENSE: Git blob `c21bd49182ad6f67f10893f06b905e088efda435`,
 decoded SHA-256 `adc16903adcc1158ff1e052f3e1d686e574a3c4d2537652dfac18383f2004081`.
-Decoded bytes were Git-blob verified. Its old undeclared-project-license wording
+Decoded bytes were Git-blob verified. The same pinned
+[LICENSES.md](https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/LICENSES.md)
+explicitly separates original-code MIT, dependency/combined-build obligations
+and game/media rights. Its verified Git blob is
+`45a8c52cc18d57b8696b23a11b5dc557c612e9c9`, SHA-256
+`f0d216f7cb9907667aa724972baf61622bff3ab5927efcd47fe09d086b4670a3`.
+It grants no separate rights to ROM-derived material, replacement textures or
+third-party fonts. Its old undeclared-project-license wording
 is therefore not copied into the new condition. The independent package-content
 condition remains unresolved; the current source grant does not attest to stock
 texture provenance or every component/package. Latest0.9.7 metadata advertises
