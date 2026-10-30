@@ -6,7 +6,6 @@
     "summary": "Play Duke Nukem II with widescreen, smooth scrolling and Rigel Engine’s mod support.",
     "project_url": "https://github.com/lethal-guitar/RigelEngine",
     "issue_number": 1877,
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
     "artwork": {
@@ -30,12 +29,50 @@
         {
           "title": "Select your Duke Nukem II files",
           "instruction": "On first Play, choose your Duke Nukem II folder containing NUKEM2.CMP. Shareware and registered editions work. Keep the optional NUKEM2.F1–F5 intro movies with it for movie playback; Rigel Engine remembers your choice."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+        },
+        {
+          "title": "Keep upstream platform alternatives separate",
+          "instruction": "Upstream also provides Linux packages and a macOS application. Follow their native upstream setup and keep their original-data and profile rules. On macOS use the ordinary application flow rather than registering a private bundle executable. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. Their upstream availability is retained, not declared unsupported."
         }
       ],
       "warnings": [
         "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation."
       ],
       "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "lethal-guitar/RigelEngine",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the native package for your system. The Windows runtime ZIP contains RigelEngine.exe; upstream’s platform instructions cover Debian packages and the macOS application. Keep your original game files in their own folder. On first Play, choose your Duke Nukem II folder containing NUKEM2.CMP. Shareware and registered editions work. Keep the optional NUKEM2.F1–F5 intro movies with it for movie playback; Rigel Engine remembers your choice. Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. Upstream also provides Linux packages and a macOS application. Follow their native upstream setup and keep their original-data and profile rules. On macOS use the ordinary application flow rather than registering a private bundle executable. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. Their upstream availability is retained, not declared unsupported. Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation."
     }
   }
 }

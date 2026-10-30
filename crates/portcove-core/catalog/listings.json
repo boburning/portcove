@@ -16574,9 +16574,6 @@
       "summary": "Fly through Glider PRO’s houses with Aerofoil’s gamepad support and built-in house editor.",
       "project_url": "https://github.com/elasota/Aerofoil",
       "issue_number": 1790,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/elasota/Aerofoil#about-aerofoil",
       "artwork": {
@@ -16603,11 +16600,18 @@
           {
             "title": "Keep custom houses and saved games",
             "instruction": "Aerofoil stores your houses, saved games, scores and preferences in the Aerofoil folder in your Windows Documents location. Keep that folder when updating. The separate tools ZIP is available for importing additional original-format content."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual Aerofoil.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/elasota/Aerofoil#about-aerofoil"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "elgus-kameorecomp-elguslml-kameo-elements-of-power",
@@ -22221,10 +22225,6 @@
       "summary": "Play Caesar III with Augustus’s roadblocks, city improvements and expanded building tools.",
       "project_url": "https://github.com/Keriew/augustus",
       "issue_number": 1793,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Keriew/augustus#running-the-game",
       "artwork": {
@@ -22251,13 +22251,24 @@
           {
             "title": "Keep your game folder and saves",
             "instruction": "Augustus keeps saves in the selected Caesar III data folder and remembers its location in its own profile. Keep both when replacing the upstream runtime."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          },
+          {
+            "title": "Keep the upstream Linux alternative",
+            "instruction": "The upstream Linux package remains an alternative with its own native setup, game-data selection and profile rules. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. The Linux availability fact is retained, not declared unsupported."
           }
         ],
         "warnings": [
           "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate."
         ],
         "help_url": "https://github.com/Keriew/augustus#running-the-game"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "kevinfoley-herculan",
@@ -23069,11 +23080,6 @@
       "summary": "Play Duke Nukem II with widescreen, smooth scrolling and Rigel Engine’s mod support.",
       "project_url": "https://github.com/lethal-guitar/RigelEngine",
       "issue_number": 1877,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
       "artwork": {
@@ -23099,13 +23105,24 @@
           {
             "title": "Select your Duke Nukem II files",
             "instruction": "On first Play, choose your Duke Nukem II folder containing NUKEM2.CMP. Shareware and registered editions work. Keep the optional NUKEM2.F1–F5 intro movies with it for movie playback; Rigel Engine remembers your choice."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          },
+          {
+            "title": "Keep upstream platform alternatives separate",
+            "instruction": "Upstream also provides Linux packages and a macOS application. Follow their native upstream setup and keep their original-data and profile rules. On macOS use the ordinary application flow rather than registering a private bundle executable. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. Their upstream availability is retained, not declared unsupported."
           }
         ],
         "warnings": [
           "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation."
         ],
         "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
@@ -23469,9 +23486,6 @@
       "summary": "Play Heretic II with Heretic2R’s widescreen display, smoother effects and OGG music support.",
       "project_url": "https://github.com/m-x-d/Heretic2R",
       "issue_number": 1826,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/m-x-d/Heretic2R#installation",
       "artwork": {
@@ -23502,13 +23516,20 @@
           {
             "title": "Optional CD music",
             "instruction": "For OGG music, place your own CD tracks named track02.ogg through track14.ogg in base/music inside the separate runtime folder."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual Heretic2R.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [
           "Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately."
         ],
         "help_url": "https://github.com/m-x-d/Heretic2R#installation"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "macross-vfx-2-recomp-omegakatana92-macross-vf-x2",
