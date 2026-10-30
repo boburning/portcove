@@ -508,6 +508,54 @@ async fn authored_download_restriction_blocks_options_preview_and_mutation_befor
 }
 
 #[tokio::test]
+async fn embedded_cannonball_listing_routes_keep_download_hold_before_network() {
+    for id in ["cannonball-outrun", "cannonball-dx-outrun"] {
+        let (_temporary, mut service, mut request) = fixture();
+        service.catalog = Catalog::embedded().unwrap();
+        request.port_id = id.into();
+        assert!(service.catalog.port(id).is_err());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        let reason = service
+            .catalog
+            .listing(id)
+            .unwrap()
+            .download_block_reason
+            .clone()
+            .unwrap();
+        let upstream = GithubFixture::new(archive(), None, None);
+        let options = service
+            .catalog_download_options_with_provider(id, None, None, Some(&upstream.provider))
+            .await
+            .unwrap();
+        assert!(!options.allowed);
+        assert_eq!(options.reason.as_deref(), Some(reason.as_str()));
+        assert!(options.candidates.is_empty());
+        assert!(options.coverage.is_none());
+        let error = service
+            .catalog_download_preview_with_provider(&request, &upstream.provider)
+            .await
+            .unwrap_err();
+        assert_eq!(error.message, reason);
+        let error = service
+            .download_catalog_package_with_provider(
+                &request,
+                &"a".repeat(64),
+                |_| {},
+                &upstream.provider,
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.message, reason);
+        assert_eq!(upstream.requests.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            fs::read_dir(&request.destination_parent).unwrap().count(),
+            0
+        );
+        assert!(service.pending_setups().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
 async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
     let (_temporary, mut service, request) = fixture();
     let upstream = GithubFixture::new(archive(), None, None);

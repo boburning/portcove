@@ -3,7 +3,7 @@
   "listing": {
     "id": "cannonball-dx-outrun",
     "name": "CannonBall DX OutRun",
-    "summary": "Use a permitted CannonBall DX player with your own compatible OutRun arcade ROM data.",
+    "summary": "Use your permitted noncommercial Cannonball DX Windows player with your own matching OutRun ROM data.",
     "project_url": "https://github.com/Endprodukt/cannonball-dx",
     "issue_number": 1132,
     "platforms": ["windows-x86-64"],
@@ -32,9 +32,24 @@
         {
           "title": "Keep your data when updating",
           "instruction": "You or upstream manage runtime updates. Back up the complete working folder, including settings, scores, ROMs and custom music, before replacing it; retain the current copy until ready. Portcove records launch details without starting the player, adopting its files or promising managed backup, rollback or deletion."
+        },
+        {
+          "title": "Use a permitted noncommercial copy",
+          "instruction": "This route is for an already permitted noncommercial working copy. Keep the engine and third-party notices and comply with applicable modified-source conditions. You need a lawful matching OutRun original-data set; engine terms do not license the ROMs or every bundled component. Portcove does not acquire a new package for this route."
+        },
+        {
+          "title": "Confirm the player, then choose Play",
+          "instruction": "Select the actual cannonball-dx.exe and its complete player folder as the working directory. Normally leave arguments empty; enter separate documented literal options only deliberately. Review and consent to the selected executable, folder and arguments. Registration does not start the player; choose Play separately. Keep each fork and its actual configuration and ROM data with its own working copy."
+        },
+        {
+          "title": "Preserve the copy and every data location",
+          "instruction": "You and upstream own runtime replacement and data. Before Play with a changed copy or an upstream update, close all actual players and preserve the working folder, config.xml, ROMs, res, scores, custom music and every custom configuration or save path. Keep the previous working copy until ready. Removing the registration preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "The source grants conditional noncommercial use and redistribution; this registration does not certify arbitrary copies, component permissions or your original ROM data. The existing fresh-package download restriction remains in force.",
+        "The reviewed DX 1.04 runtime can import legacy hiscores*.xml files into highscores.xml and remove the old files after a valid combined file exists. Before playing a changed DX copy, back up both old and combined score files and every actual custom save folder. Another player folder does not isolate a shared save path. This is upstream behavior, not a Portcove migration or retention guarantee."
+      ],
       "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md"
     },
     "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data."
