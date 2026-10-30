@@ -508,12 +508,19 @@ async fn authored_download_restriction_blocks_options_preview_and_mutation_befor
 }
 
 async fn assert_embedded_player_download_holds(ids: &[&str]) {
+    assert_embedded_listing_download_holds(ids, true).await;
+}
+
+async fn assert_embedded_listing_download_holds(ids: &[&str], expected_manual_setup: bool) {
     for &id in ids {
         let (_temporary, mut service, mut request) = fixture();
         service.catalog = Catalog::embedded().unwrap();
         request.port_id = id.into();
         assert!(service.catalog.port(id).is_err());
-        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert_eq!(
+            service.catalog.listing(id).unwrap().manual_setup.is_some(),
+            expected_manual_setup
+        );
         let reason = service
             .catalog
             .listing(id)
@@ -571,6 +578,19 @@ async fn embedded_psx_permitted_players_keep_download_hold_before_network() {
 #[tokio::test]
 async fn embedded_mmx_source_player_keeps_package_hold_before_network() {
     assert_embedded_player_download_holds(&["mega-man-x-snes-recomp"]).await;
+}
+
+#[tokio::test]
+async fn embedded_retained_acquisition_holds_refuse_before_network() {
+    assert_embedded_listing_download_holds(
+        &[
+            "pokemon-yellow-recomp",
+            "zelda-link-s-awakening-dx-hd",
+            "star-wars-shadows-of-the-empire-n64-sote-recomp",
+        ],
+        false,
+    )
+    .await;
 }
 
 #[tokio::test]
