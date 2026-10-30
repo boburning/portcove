@@ -16,8 +16,8 @@
   },
   "source_scope": {
     "engineering_base": "79bdb25c66085fbbcf94e088b75d4269ac4792ee",
-    "current_workflow_sha256": "76b8fbb5bd7327eb9d33246b0d911ea83943c666efc82607a4458b1b9046020d",
-    "current_policy_sha256": "a951b4c2a6fa036b2b87856ec9e1a06b074626428cbc234400d6ba9bed1b6736",
+    "current_workflow_sha256": "dba706a16fefa22a4e5e717e9840c6692dbaed7cb51ca7f66c6e17b5f2c70efc",
+    "current_policy_sha256": "36e1d13f5bed4e47c01b7d993789cbe6759f83ce3c2bf831e0914f526ee75814",
     "activation_requires": "Exact final implementation source/workflow/configuration/resource digest, independent review, explicit resource ratification; these preimage hashes are not future approval"
   },
   "jobs": [
@@ -486,9 +486,9 @@
   "revision_date": "2026-10-29",
   "prepared_source": {
     "renderer": "scripts/release-resource-amendment-proposal.mts",
-    "proposed_workflow_sha256": "c75172a03542f73a3e17cc9d987653ca6ed8c76c26e641983981561d402e9bad",
-    "proposed_resource_digest": "2c0634836c92354cd5cbeff03871b65417e5b19f9d880b84e6a0259e5166201f",
-    "effective_policy_digest": "f91d5eba7d4a0091e44cb35171429ce4743411931b1617970cb6b46bb076c3b6",
+    "proposed_workflow_sha256": "7df9642c211f500d3ac09c99312a3e40a355c467d8d8a85aaa66dc6d75ae61f6",
+    "proposed_resource_digest": "33b76b4c914f74839670899382ed5bae99add1544675d54e01f9ab66d1112f29",
+    "effective_policy_digest": "c182f626129f06ba82ec62645dd4148d39740b035f5bb3b3f54b1eecd718f859",
     "scope": "Prepared bytes/digests only; no ratification, installation, source activation or execution authority"
   },
   "historical_proposal": {
