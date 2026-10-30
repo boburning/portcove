@@ -3627,119 +3627,116 @@ void test("recovery and rejected artwork intent use their actual serialized obse
   }
 });
 
+function indexDesktopCaller(code: string) {
+  const ast = parseAst(code),
+    all = [...nodes(ast)];
+  const parents = new WeakMap<object, Record<string, unknown>>();
+  for (const node of all)
+    for (const [key, value] of Object.entries(node))
+      if (key !== "loc") {
+        if (Array.isArray(value)) {
+          for (const child of value) if (isRecord(child)) parents.set(child, node);
+        } else if (isRecord(value)) parents.set(value, node);
+      }
+  const parent = (child: unknown) => (isRecord(child) ? parents.get(child) : undefined);
+  const functionNode = (node: Record<string, unknown>) =>
+    ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
+      String(node.type),
+    );
+  const functions = all.filter(functionNode);
+  const owner = (node: unknown) =>
+    functions
+      .filter((fn) => range(fn).start < range(node).start && range(fn).end > range(node).end)
+      .sort((a, b) => range(a).end - range(a).start - range(b).end + range(b).start)[0];
+  const binding = (fn: Record<string, unknown>) =>
+    fn.type === "FunctionDeclaration" ? identifier(fn.id) : identifier(parent(fn)?.id);
+  const scope = (fn: Record<string, unknown>) =>
+    all
+      .filter(
+        (node) =>
+          ["Program", "BlockStatement"].includes(String(node.type)) &&
+          range(node).start <= range(fn).start &&
+          range(node).end >= range(fn).end,
+      )
+      .sort((a, b) => range(a).end - range(a).start - range(b).end + range(b).start)[0];
+  const resolve = (name: string | undefined, at: unknown) =>
+    functions
+      .filter(
+        (fn) =>
+          binding(fn) === name &&
+          scope(fn) &&
+          range(scope(fn)).start <= range(at).start &&
+          range(scope(fn)).end >= range(at).end,
+      )
+      .sort(
+        (a, b) =>
+          range(scope(a)).end - range(scope(a)).start - range(scope(b)).end + range(scope(b)).start,
+      )[0];
+  const imports = (module: string, symbol: string) =>
+    new Set(
+      all
+        .filter((node) => node.type === "ImportDeclaration" && literal(node.source) === module)
+        .flatMap((node) => (Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : []))
+        .filter((node) =>
+          symbol === "default"
+            ? node.type === "ImportDefaultSpecifier"
+            : (identifier(node.imported) ?? literal(node.imported)) === symbol,
+        )
+        .map((node) => identifier(node.local)),
+    );
+  const direct = (call: Record<string, unknown>) => {
+    const wrapper = parent(call),
+      expression = wrapper?.type === "AwaitExpression" ? parent(wrapper) : wrapper;
+    if (expression?.type !== "ExpressionStatement") return false;
+    const block = parent(expression),
+      fn = owner(call);
+    if (!block) return false;
+    if (
+      !Array.isArray(block.body) ||
+      block.body
+        .slice(0, block.body.indexOf(expression))
+        .some(
+          (node) =>
+            isRecord(node) && ["ReturnStatement", "ThrowStatement"].includes(String(node.type)),
+        )
+    )
+      return false;
+    if (block === (fn?.body ?? ast)) return true;
+    const container = parent(block);
+    return (
+      !!container &&
+      ((container.type === "TryStatement" && container.block === block) ||
+        (container.type === "ForOfStatement" && container.body === block)) &&
+      parent(container) === (fn?.body ?? ast)
+    );
+  };
+  const calls = (fn: Record<string, unknown>) =>
+    all.filter(
+      (node) =>
+        node.type === "CallExpression" &&
+        identifier(node.callee) === binding(fn) &&
+        resolve(identifier(node.callee), node) === fn &&
+        direct(node),
+    );
+  const slots = (call: Record<string, unknown>) => {
+    const input = args(call)[0];
+    assert.ok(
+      isRecord(input) && input.type === "ObjectExpression" && Array.isArray(input.properties),
+      "Runtime caller options",
+    );
+    return new Map(
+      input.properties
+        .filter(isRecord)
+        .map((node) => [identifier(node.key) ?? literal(node.key), node.value]),
+    );
+  };
+  return { ast, all, parent, owner, binding, resolve, imports, direct, calls, slots };
+}
+
 void test("native runtime callers retain imported custody and ordinary-close wiring", async () => {
   // These are the two changed call boundaries. Startup policy and native
   // serialization retain their existing suites; whole-owner tests own behavior.
-  function index(code: string) {
-    const ast = parseAst(code),
-      all = [...nodes(ast)];
-    const parents = new WeakMap<object, Record<string, unknown>>();
-    for (const node of all)
-      for (const [key, value] of Object.entries(node))
-        if (key !== "loc") {
-          if (Array.isArray(value)) {
-            for (const child of value) if (isRecord(child)) parents.set(child, node);
-          } else if (isRecord(value)) parents.set(value, node);
-        }
-    const parent = (child: unknown) => (isRecord(child) ? parents.get(child) : undefined);
-    const functionNode = (node: Record<string, unknown>) =>
-      ["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(
-        String(node.type),
-      );
-    const functions = all.filter(functionNode);
-    const owner = (node: unknown) =>
-      functions
-        .filter((fn) => range(fn).start < range(node).start && range(fn).end > range(node).end)
-        .sort((a, b) => range(a).end - range(a).start - range(b).end + range(b).start)[0];
-    const binding = (fn: Record<string, unknown>) =>
-      fn.type === "FunctionDeclaration" ? identifier(fn.id) : identifier(parent(fn)?.id);
-    const scope = (fn: Record<string, unknown>) =>
-      all
-        .filter(
-          (node) =>
-            ["Program", "BlockStatement"].includes(String(node.type)) &&
-            range(node).start <= range(fn).start &&
-            range(node).end >= range(fn).end,
-        )
-        .sort((a, b) => range(a).end - range(a).start - range(b).end + range(b).start)[0];
-    const resolve = (name: string | undefined, at: unknown) =>
-      functions
-        .filter(
-          (fn) =>
-            binding(fn) === name &&
-            scope(fn) &&
-            range(scope(fn)).start <= range(at).start &&
-            range(scope(fn)).end >= range(at).end,
-        )
-        .sort(
-          (a, b) =>
-            range(scope(a)).end -
-            range(scope(a)).start -
-            range(scope(b)).end +
-            range(scope(b)).start,
-        )[0];
-    const imports = (module: string, symbol: string) =>
-      new Set(
-        all
-          .filter((node) => node.type === "ImportDeclaration" && literal(node.source) === module)
-          .flatMap((node) =>
-            Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : [],
-          )
-          .filter((node) =>
-            symbol === "default"
-              ? node.type === "ImportDefaultSpecifier"
-              : (identifier(node.imported) ?? literal(node.imported)) === symbol,
-          )
-          .map((node) => identifier(node.local)),
-      );
-    const direct = (call: Record<string, unknown>) => {
-      const wrapper = parent(call),
-        expression = wrapper?.type === "AwaitExpression" ? parent(wrapper) : wrapper;
-      if (expression?.type !== "ExpressionStatement") return false;
-      const block = parent(expression),
-        fn = owner(call);
-      if (!block) return false;
-      if (
-        !Array.isArray(block.body) ||
-        block.body
-          .slice(0, block.body.indexOf(expression))
-          .some(
-            (node) =>
-              isRecord(node) && ["ReturnStatement", "ThrowStatement"].includes(String(node.type)),
-          )
-      )
-        return false;
-      if (block === (fn?.body ?? ast)) return true;
-      const container = parent(block);
-      return (
-        !!container &&
-        ((container.type === "TryStatement" && container.block === block) ||
-          (container.type === "ForOfStatement" && container.body === block)) &&
-        parent(container) === (fn?.body ?? ast)
-      );
-    };
-    const calls = (fn: Record<string, unknown>) =>
-      all.filter(
-        (node) =>
-          node.type === "CallExpression" &&
-          identifier(node.callee) === binding(fn) &&
-          resolve(identifier(node.callee), node) === fn &&
-          direct(node),
-      );
-    const slots = (call: Record<string, unknown>) => {
-      const input = args(call)[0];
-      assert.ok(
-        isRecord(input) && input.type === "ObjectExpression" && Array.isArray(input.properties),
-        "Runtime caller options",
-      );
-      return new Map(
-        input.properties
-          .filter(isRecord)
-          .map((node) => [identifier(node.key) ?? literal(node.key), node.value]),
-      );
-    };
-    return { ast, all, parent, owner, binding, resolve, imports, direct, calls, slots };
-  }
+  const index = indexDesktopCaller;
   const property = (node: unknown, name: string) =>
     isRecord(node) &&
     node.type === "MemberExpression" &&
@@ -4209,6 +4206,503 @@ void test("native runtime callers retain imported custody and ordinary-close wir
       code: "ERR_ASSERTION",
       message:
         /Selected driver route consumes capture boundary|Actual runtime routes consume launch boundary/u,
+    });
+  }
+});
+
+void test("Linux entrypoint consumes the publication owner for launch, join and interrupted restart", async () => {
+  const original = stripTypeScriptTypes(
+    await readFile(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  function inspect(code: string) {
+    const m = indexDesktopCaller(code),
+      { ast, all } = m;
+    const imported = (from: string, name: string) =>
+      all
+        .filter((node) => node.type === "ImportDeclaration" && literal(node.source) === from)
+        .flatMap((node) => (Array.isArray(node.specifiers) ? node.specifiers.filter(isRecord) : []))
+        .filter((node) => identifier(node.imported) === name)
+        .map((node) => identifier(node.local));
+    const classes = imported("./desktop-linux-native-session.mts", "LinuxLaunchPublication");
+    const instances = all.filter(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.init) &&
+        node.init.type === "NewExpression" &&
+        classes.includes(identifier(node.init.callee)),
+    );
+    assert.equal(instances.length, 1, "Construct the imported Linux publication owner");
+    const instance = instances[0]!;
+    assert.ok(isRecord(instance.init));
+    const receiver = identifier(instance.id);
+    assert.ok(receiver);
+    function slots(value: unknown) {
+      assert.ok(
+        isRecord(value) && value.type === "ObjectExpression" && Array.isArray(value.properties),
+        "Explicit publication dependencies",
+      );
+      return new Map(
+        value.properties
+          .filter(isRecord)
+          .map((node) => [identifier(node.key) ?? literal(node.key), node.value]),
+      );
+    }
+    const dependencies = slots(args(instance.init)[0]);
+    assert.ok(
+      imported("node:fs/promises", "writeFile").includes(identifier(dependencies.get("write"))),
+      "Actual exclusive writer",
+    );
+    assert.ok(
+      identifier(dependencies.get("output")) && identifier(dependencies.get("artifacts")),
+      "Actual output and artifact inventory",
+    );
+    const resolve = (name: unknown) => m.resolve(identifier(name), ast);
+    const before = resolve(dependencies.get("beforeCommit")),
+      after = resolve(dependencies.get("afterCommit"));
+    assert.ok(before && after, "Retain both media publication phases");
+    assert.ok(Array.isArray(before.params) && Array.isArray(after.params));
+    const beforeParameters = before.params,
+      afterParameters = after.params;
+    const member = (value: unknown, objectName: string | undefined, property: string) =>
+      isRecord(value) &&
+      value.type === "MemberExpression" &&
+      identifier(value.object) === objectName &&
+      identifier(value.property) === property;
+    assert.ok(
+      [...nodes(before.body)].some((node) =>
+        member(node, identifier(beforeParameters[0]), "quiesced"),
+      ),
+      "Publish actual cleanup before commit",
+    );
+    assert.ok(
+      [...nodes(before.body)].some(
+        (node) =>
+          node.type === "Property" &&
+          identifier(node.key) === "namespace_join" &&
+          identifier(node.value) === identifier(beforeParameters[1]),
+      ),
+      "Publish actual join evidence",
+    );
+    assert.ok(
+      [...nodes(after.body)].some((node) => member(node, identifier(afterParameters[0]), "events")),
+      "Validate actual media after commit",
+    );
+    const observedInputs = all.find(
+      (node) =>
+        node.type === "CallExpression" &&
+        imported(
+          "../../../scripts/native-helper-dependencies.mts",
+          "observeDesktopHarnessInputs",
+        ).includes(identifier(node.callee)),
+    );
+    assert.ok(observedInputs);
+    const capture = slots(slots(args(observedInputs)[0]).get("capture"));
+    assert.equal(
+      identifier(dependencies.get("output")),
+      identifier(capture.get("output")),
+      "Use admitted output root",
+    );
+    assert.ok(
+      [...nodes(before.body)].some(
+        (node) =>
+          node.type === "MemberExpression" &&
+          identifier(node.object) === identifier(dependencies.get("artifacts")) &&
+          identifier(node.property) === "push",
+      ),
+      "Use shared artifact inventory",
+    );
+    const commit = dependencies.get("committed");
+    const calls = (method: string) =>
+      all.filter(
+        (node) =>
+          node.type === "CallExpression" &&
+          isRecord(node.callee) &&
+          node.callee.type === "MemberExpression" &&
+          identifier(node.callee.object) === receiver &&
+          identifier(node.callee.property) === method,
+      );
+    const enclosing = m.owner;
+    const consumed = (call: Record<string, unknown>, kind: "return" | "await") => {
+      let expression = m.parent(call);
+      if (kind === "return")
+        assert.ok(expression?.type === "ReturnStatement", "Return owner completion");
+      else {
+        assert.ok(expression?.type === "AwaitExpression", "Await owner completion");
+        expression = m.parent(expression);
+      }
+      let current = expression;
+      const fn = enclosing(call);
+      while (current && current !== fn) {
+        const parent = m.parent(current);
+        if (parent?.type === "BlockStatement" && Array.isArray(parent.body)) {
+          const position = parent.body.indexOf(current);
+          assert.ok(
+            position >= 0 &&
+              !parent.body
+                .slice(0, position)
+                .filter(isRecord)
+                .some((node) => ["ReturnStatement", "ThrowStatement"].includes(String(node.type))),
+            "Reachable owner delegate",
+          );
+        }
+        if (parent?.type === "IfStatement")
+          assert.notEqual(literal(parent.test), false, "Reachable owner delegate");
+        current = parent;
+      }
+      assert.equal(current, fn, "Consume delegate in its actual caller");
+    };
+    const joined = calls("stop"),
+      started = calls("start"),
+      interrupted = calls("interruptPreparation");
+    assert.equal(joined.length, 1, "Consume actual join owner");
+    assert.equal(started.length, 1, "Consume actual launch owner");
+    assert.equal(interrupted.length, 1, "Consume actual interruption owner");
+    const stop = enclosing(joined[0]!),
+      start = enclosing(started[0]!),
+      interruption = enclosing(interrupted[0]!);
+    assert.ok(stop && start && interruption);
+    consumed(joined[0]!, "return");
+    consumed(started[0]!, "await");
+    consumed(interrupted[0]!, "return");
+    const launchBinding = m.parent(m.parent(started[0]!));
+    assert.ok(launchBinding?.type === "VariableDeclarator", "Consume awaited launch result");
+    const childAssignments = all.filter(
+      (node) =>
+        node.type === "AssignmentExpression" &&
+        member(node.right, identifier(launchBinding.id), "child") &&
+        enclosing(node) === start,
+    );
+    assert.equal(childAssignments.length, 1, "Bind actual launch child");
+    const driverBinding = identifier(childAssignments[0]!.left);
+    assert.ok(driverBinding);
+    assert.ok(
+      isRecord(commit) &&
+        [...nodes(commit.body)].some(
+          (node) =>
+            node.type === "AssignmentExpression" &&
+            identifier(node.left) === driverBinding &&
+            identifier(node.right) === "undefined" &&
+            m.direct(node),
+        ),
+      "Clear actual driver at publication commit",
+    );
+    const factory = args(started[0])[0];
+    assert.ok(
+      isRecord(factory) &&
+        ["ArrowFunctionExpression", "FunctionExpression"].includes(String(factory.type)),
+      "Explicit launch factory",
+    );
+    for (const provider of ["launchLinuxNativeSession", "launchIsolatedLinuxNativeSession"]) {
+      const aliases = imported(
+        provider === "launchLinuxNativeSession"
+          ? "./desktop-linux-native-session.mts"
+          : "./native-linux-isolated-session.mts",
+        provider,
+      );
+      assert.ok(
+        [...nodes(factory.body)].some((node) => {
+          if (
+            node.type !== "CallExpression" ||
+            !aliases.includes(identifier(node.callee)) ||
+            m.owner(node) !== factory
+          )
+            return false;
+          if (factory.body === node) return true;
+          const parent = m.parent(node);
+          return (
+            parent?.type === "ReturnStatement" ||
+            (parent?.type === "AwaitExpression" && m.parent(parent)?.type === "ReturnStatement")
+          );
+        }),
+        "Return actual launch provider " + provider,
+      );
+    }
+    const options = slots(args(interrupted[0])[0]);
+    const startup = options.get("start");
+    assert.ok(isRecord(startup), "Explicit admitted startup callback");
+    const startupCalls = [...nodes(startup)].filter((node) => node.type === "CallExpression");
+    const startupTarget = startupCalls
+      .map((call) => resolve(call.callee))
+      .find((target) => target && m.calls(start).some((call) => m.owner(call) === target));
+    assert.ok(
+      startupTarget && m.calls(startupTarget).some((call) => !m.owner(call)),
+      "Restart through live admitted startup",
+    );
+    assert.ok(m.calls(stop).length > 0, "Live cleanup consumes join delegate");
+    assert.ok(Array.isArray(interruption.params));
+    for (const [key, position] of [
+      ["name", 0],
+      ["preparationExecutable", 1],
+      ["assertStillPreparing", 2],
+    ] as const) {
+      assert.ok(identifier(options.get(key)), "Forward actual interruption " + key);
+      assert.equal(
+        identifier(options.get(key)),
+        identifier(interruption.params[position]),
+        "Forward actual interruption " + key,
+      );
+    }
+    const selected = options.get("selectedScenarios");
+    assert.ok(
+      isRecord(selected) &&
+        selected.type === "MemberExpression" &&
+        identifier(selected.property) === "selected_scenarios",
+      "Forward actual selected scenarios",
+    );
+    const selections = imported(
+      "../../../scripts/desktop-execution-plan.mts",
+      "resolveDesktopHarnessSelection",
+    );
+    assert.ok(
+      all.some(
+        (node) =>
+          node.type === "VariableDeclarator" &&
+          identifier(node.id) === identifier(selected.object) &&
+          isRecord(node.init) &&
+          node.init.type === "CallExpression" &&
+          selections.includes(identifier(node.init.callee)),
+      ),
+      "Consume admitted scenario selection",
+    );
+    const libraryBinding = identifier(options.get("library"));
+    assert.ok(
+      libraryBinding &&
+        all.some(
+          (node) =>
+            node.type === "VariableDeclarator" &&
+            identifier(node.id) === libraryBinding &&
+            isRecord(node.init) &&
+            node.init.type === "CallExpression" &&
+            args(node.init).some((arg) => literal(arg) === "library"),
+        ),
+      "Forward actual staging library",
+    );
+    const connect = resolve(options.get("connect"));
+    assert.ok(
+      connect &&
+        m.calls(connect).some((call) => !m.owner(call)) &&
+        [...nodes(connect.body)].some(
+          (node) =>
+            node.type === "AwaitExpression" &&
+            isRecord(node.argument) &&
+            node.argument.type === "CallExpression",
+        ),
+      "Forward actual connection route",
+    );
+    const invalidate = options.get("invalidateBrowser");
+    const accessor = resolve(options.get("browser"));
+    assert.ok(accessor, "Actual browser accessor");
+    assert.ok(
+      isRecord(invalidate) &&
+        [...nodes(invalidate)].some(
+          (node) =>
+            node.type === "AssignmentExpression" &&
+            identifier(node.left) &&
+            [...nodes(accessor.body)].some((use) => identifier(use) === identifier(node.left)) &&
+            identifier(node.right) === "undefined" &&
+            m.direct(node),
+        ),
+      "Invalidate browser without graceful deletion",
+    );
+    assert.ok(
+      ![...nodes(invalidate)].some(
+        (node) =>
+          node.type === "CallExpression" &&
+          isRecord(node.callee) &&
+          node.callee.type === "MemberExpression" &&
+          ["quit", "close"].includes(String(identifier(node.callee.property))),
+      ),
+      "Do not gracefully close during forced interruption",
+    );
+    assert.ok(
+      all.some(
+        (node) =>
+          node.type === "Property" &&
+          identifier(node.key) === "interruptApplication" &&
+          [...nodes(node.value)].some((child) => identifier(child) === m.binding(interruption)),
+      ),
+      "Preparation scenario consumes interruption route",
+    );
+    return {
+      m,
+      instance,
+      started: started[0]!,
+      interrupted: interrupted[0]!,
+      dependencies,
+      options,
+    };
+  }
+  const found = inspect(original);
+  inspect(
+    original
+      .replaceAll("linuxPublication", "renamedPublication")
+      .replaceAll("publishLinuxMediaEvidence", "renamedMediaPublication")
+      .replaceAll("validateLinuxMediaEvidence", "renamedMediaValidation")
+      .replaceAll("startDriver", "renamedStartup"),
+  );
+  const preparingProperty = found.m.parent(found.options.get("assertStillPreparing"));
+  assert.ok(preparingProperty?.type === "Property");
+  inspect(
+    edit(original, [
+      {
+        ...range(preparingProperty),
+        text: "assertStillPreparing: " + identifier(found.options.get("assertStillPreparing")),
+      },
+    ]),
+  );
+  const expanded = edit(original, [
+    {
+      ...range(preparingProperty),
+      text: "assertStillPreparing: " + identifier(found.options.get("assertStillPreparing")),
+    },
+  ]);
+  const expandedFound = inspect(expanded),
+    expandedProperty = expandedFound.m.parent(expandedFound.options.get("assertStillPreparing"));
+  assert.ok(expandedProperty?.type === "Property");
+  const expandedNegative = edit(expanded, [
+    { ...range(expandedProperty), text: "assertStillPreparing: async () => {}" },
+  ]);
+  parseAst(expandedNegative);
+  assert.throws(() => inspect(expandedNegative), {
+    code: "ERR_ASSERTION",
+    message: /^Forward actual interruption assertStillPreparing/,
+  });
+  const factory = args(found.started)[0];
+  assert.ok(isRecord(factory));
+  const factorySource = original.slice(range(factory).start, range(factory).end);
+  inspect(
+    edit(original, [
+      {
+        ...range(factory),
+        text: factorySource.replace(/^async\s+/, "").replaceAll("return await ", "return "),
+      },
+    ]),
+  );
+  for (const dependency of [
+    found.dependencies.get("beforeCommit"),
+    found.dependencies.get("afterCommit"),
+  ]) {
+    const fn = indexDesktopCaller(original).resolve(
+      identifier(dependency),
+      indexDesktopCaller(original).ast,
+    );
+    if (fn?.type === "FunctionDeclaration") {
+      assert.ok(Array.isArray(fn.params));
+      const statement = indexDesktopCaller(original).all.find(
+        (node) =>
+          node.type === "VariableDeclaration" &&
+          range(node).start <= range(found.instance).start &&
+          range(node).end >= range(found.instance).end,
+      );
+      assert.ok(statement);
+      inspect(
+        edit(original, [
+          { ...range(fn), text: "" },
+          {
+            start: range(statement).start,
+            end: range(statement).start,
+            text:
+              "const " +
+              identifier(fn.id) +
+              " = async (" +
+              fn.params
+                .map((param) => original.slice(range(param).start, range(param).end))
+                .join(",") +
+              ") => " +
+              original.slice(range(fn.body).start, range(fn.body).end) +
+              ";\n",
+          },
+        ]),
+      );
+    }
+  }
+  inspect("\n/* harmless declaration layout */\n" + original.replaceAll(";\n", ";\n\n"));
+  const invalidation = found.options.get("invalidateBrowser"),
+    commitCallback = found.dependencies.get("committed");
+  assert.ok(isRecord(invalidation) && isRecord(commitCallback));
+  const browserClear = [...nodes(invalidation)].find(
+    (node) => node.type === "AssignmentExpression",
+  );
+  assert.ok(browserClear);
+  for (const [change, message] of [
+    [
+      { ...range(found.m.parent(found.dependencies.get("output"))), text: "output: driverPath" },
+      "Use admitted output root",
+    ],
+    [
+      {
+        ...range(found.m.parent(found.dependencies.get("artifacts"))),
+        text: "artifacts: checks",
+      },
+      "Use shared artifact inventory",
+    ],
+    [
+      {
+        ...range(commitCallback),
+        text:
+          "() => { if (false) " +
+          original.slice(range(commitCallback.body).start, range(commitCallback.body).end) +
+          " }",
+      },
+      "Clear actual driver at publication commit",
+    ],
+    [
+      {
+        ...range(invalidation),
+        text:
+          "() => { if (false) " +
+          original.slice(range(invalidation.body).start, range(invalidation.body).end) +
+          " }",
+      },
+      "Invalidate browser without graceful deletion",
+    ],
+    [
+      {
+        ...range(invalidation),
+        text:
+          "() => { " +
+          identifier(browserClear.left) +
+          ".quit();" +
+          original.slice(range(invalidation.body).start + 1, range(invalidation.body).end - 1) +
+          " }",
+      },
+      "Do not gracefully close during forced interruption",
+    ],
+    [
+      { ...range(found.started), text: "Promise.resolve(undefined)" },
+      "Consume actual launch owner",
+    ],
+    [
+      { ...range(found.interrupted), text: "Promise.resolve(undefined)" },
+      "Consume actual interruption owner",
+    ],
+    [{ ...range(found.dependencies.get("write")), text: "undefined" }, "Actual exclusive writer"],
+    [
+      { ...range(found.dependencies.get("committed")), text: "() => {}" },
+      "Clear actual driver at publication commit",
+    ],
+    [
+      { ...range(found.options.get("invalidateBrowser")), text: "() => {}" },
+      "Invalidate browser without graceful deletion",
+    ],
+    [
+      {
+        ...range(preparingProperty),
+        text: "assertStillPreparing: async () => {}",
+      },
+      "Forward actual interruption assertStillPreparing",
+    ],
+    [
+      { ...range(found.options.get("selectedScenarios")), text: "[]" },
+      "Forward actual selected scenarios",
+    ],
+  ] as const) {
+    const changed = edit(original, [change]);
+    parseAst(changed); // A parser rejection cannot qualify as a causal failure.
+    assert.throws(() => inspect(changed), {
+      code: "ERR_ASSERTION",
+      message: new RegExp("^" + message + "(?:\\n|$)"),
     });
   }
 });

@@ -72,6 +72,10 @@ const allFilesExist = () => true;
 void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const consumers: [string, string[]][] = [
+    [
+      "desktop-linux-native-session.mts",
+      ["desktop-linux-native-session", "desktop-linux-stop", "desktop-boundary-wiring"],
+    ],
     ["native-linux-isolated-session.mts", ["native-linux-isolated-plan", "desktop-linux-stop"]],
     ["native-linux-isolated-plan.mts", ["native-linux-isolated-plan"]],
     ["native-linux-public-plan.mts", ["native-linux-public-plan"]],

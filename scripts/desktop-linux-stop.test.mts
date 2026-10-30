@@ -1,3 +1,4 @@
+import { LinuxLaunchPublication } from "../apps/desktop/scripts/desktop-linux-native-session.mts";
 import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -115,18 +116,14 @@ void test("Linux cover restart joins exact captured processes before fixture mut
     }
   }
 });
-const stop = between("async function stopDriver()", "function stopBackupFocusDriver()");
-const start = between("async function startDriver(", "async function captureSelectedDriverLaunch(");
-
-function fixture(options: { publicationError?: unknown; joinError?: unknown } = {}) {
+async function fixture(options: { publicationError?: unknown; joinError?: unknown } = {}) {
   const { promise: gate, resolve: release } = Promise.withResolvers<void>();
   const calls: {
     stops: number;
     writes: { file: string; bytes: string; options: { flag: string } }[];
   } = { stops: 0, writes: [] };
   const launch = () => ({
-    child: { exitCode: null, stdout: { on() {} }, stderr: { on() {} }, on() {} },
-    ready: async () => {},
+    receipt: { nonce: "owned" },
     stop: async () => {
       calls.stops++;
       await gate;
@@ -135,49 +132,32 @@ function fixture(options: { publicationError?: unknown; joinError?: unknown } = 
     },
   });
   const artifacts: string[] = [];
-  const context = {
-    assert,
-    AccountDriverView: class {},
-    path: path.posix,
+  let committed = 0;
+  const owner = new LinuxLaunchPublication({
     output: "/owned",
     artifacts,
-    linuxSelectedSession: true,
-    linuxBinding: undefined,
-    linuxPackagedInspector: false,
-    linuxLaunch: launch(),
-    linuxLaunchCount: 1,
-    linuxStop: undefined,
-    linuxCleanup: undefined,
-    driver: {},
-    writeFile: async (file: string, bytes: string, writeOptions: { flag: string }) => {
+    write: async (file, bytes, writeOptions) => {
       calls.writes.push({ file, bytes, options: writeOptions });
       if (Object.hasOwn(options, "publicationError")) throw options.publicationError;
     },
-    admission: { verify: async () => {}, assertReady() {} },
-    custody: null,
-    ownedSession: { beginLaunch() {} },
-    port: 4444,
-    driverPath: "/driver",
-    nativeDriverPath: "/native-driver",
-    required,
-    driverEnvironment: () => ({}),
-    launchLinuxNativeSession: async () => launch(),
-    captureSelectedDriverLaunch: async () => {},
-    historySession: false,
-    driverReady: async () => true,
-    setTimeout: (callback: () => void) => callback(),
+    committed: () => {
+      committed++;
+    },
+  });
+  await owner.start(async () => launch());
+  return {
+    owner,
+    calls,
+    artifacts,
+    release,
+    committed: () => committed,
+    stopDriver: () => owner.stop(),
+    startDriver: () => owner.start(async () => launch()),
   };
-  runInNewContext(
-    `${stop}\n${start}\nglobalThis.stopDriver=stopDriver;globalThis.startDriver=startDriver;`,
-    context,
-  );
-  const stopDriver = callable(Reflect.get(context, "stopDriver"));
-  const startDriver = callable(Reflect.get(context, "startDriver"));
-  return { context, calls, release, stopDriver, startDriver };
 }
 
 void test("watchdog and final Linux cleanup share one join publication and subsequent launches stay independent", async () => {
-  const { context, calls, release, stopDriver, startDriver } = fixture();
+  const { owner, calls, release, stopDriver, startDriver } = await fixture();
   const first = stopDriver(),
     second = stopDriver();
   await assert.rejects(startDriver(), /previous Linux launch/u);
@@ -187,21 +167,27 @@ void test("watchdog and final Linux cleanup share one join publication and subse
   await Promise.all([first, second]);
   assert.equal(calls.writes.length, 1);
   assert.equal(required(calls.writes[0]).options.flag, "wx");
-  assert.equal(required(calls.writes[0]).file, "/owned/linux-native-launch-1-join.json");
-  assert.equal(context.linuxLaunch, undefined);
-  assert.equal(object(Reflect.get(context, "linuxCleanup")).quiesced, true);
+  assert.equal(
+    required(calls.writes[0]).file,
+    path.join("/owned", "linux-native-launch-1-join.json"),
+  );
+  assert.equal(owner.launch, undefined);
+  assert.equal(object(owner.cleanup).quiesced, true);
   await startDriver();
   await Promise.all([stopDriver(), stopDriver()]);
   assert.equal(calls.stops, 2);
   assert.equal(calls.writes.length, 2);
-  assert.equal(required(calls.writes[1]).file, "/owned/linux-native-launch-2-join.json");
+  assert.equal(
+    required(calls.writes[1]).file,
+    path.join("/owned", "linux-native-launch-2-join.json"),
+  );
 });
 
 for (const kind of ["publicationError", "joinError"] as const) {
   void test(`Linux cleanup shares ${kind} rejection and retains active custody`, async () => {
     for (const failure of [new Error(kind), undefined, null, false, 0, ""]) {
-      const { context, calls, release, stopDriver } = fixture({ [kind]: failure });
-      const active = context.linuxLaunch;
+      const { owner, calls, artifacts, release, stopDriver } = await fixture({ [kind]: failure });
+      const active = owner.launch;
       const first = stopDriver(),
         second = stopDriver();
       release();
@@ -211,14 +197,178 @@ for (const kind of ["publicationError", "joinError"] as const) {
       );
       assert.equal(calls.stops, 1);
       assert.equal(calls.writes.length, kind === "publicationError" ? 1 : 0);
-      assert.equal(context.linuxLaunch, active);
-      assert.equal(context.linuxCleanup, undefined);
-      assert.deepEqual(context.artifacts, []);
+      assert.equal(owner.launch, active);
+      assert.equal(owner.cleanup, undefined);
+      assert.deepEqual(artifacts, []);
       await assert.rejects(stopDriver(), (error) => error === failure);
       assert.equal(calls.stops, 1);
     }
   });
 }
+
+void test("Linux launch ordinals advance before factories, including rejected startup", async () => {
+  const { owner, release } = await fixture();
+  const active = owner.launch;
+  await assert.rejects(
+    owner.start(async () => {
+      assert.fail("Active custody must refuse factory");
+    }),
+    /previous Linux launch/,
+  );
+  assert.equal(owner.launch, active);
+  assert.equal(owner.ordinal, 1);
+  release();
+  await owner.stop();
+  const failure = new Error("factory failed");
+  await assert.rejects(
+    owner.start(async () => {
+      assert.equal(owner.ordinal, 2);
+      assert.equal(owner.cleanup, undefined);
+      throw failure;
+    }),
+    (error) => error === failure,
+  );
+  assert.equal(owner.launch, undefined);
+  await owner.start(async () => ({ receipt: {}, stop: async () => ({ quiesced: true }) }));
+  assert.equal(owner.ordinal, 3);
+  await owner.stop();
+});
+
+void test("Linux publication commits only after exclusive writes and before media validation", async () => {
+  for (const failureAt of ["none", "before", "after"] as const) {
+    const writeGate = Promise.withResolvers<void>();
+    const calls: string[] = [];
+    const failure = new Error(failureAt);
+    const artifacts: string[] = [];
+    let driver: unknown = {};
+    const owner: LinuxLaunchPublication<
+      { quiesced: boolean },
+      { receipt: unknown; stop(): Promise<{ quiesced: boolean }> },
+      string
+    > = new LinuxLaunchPublication({
+      output: "/owned",
+      artifacts,
+      write: async (_file, bytes, options) => {
+        calls.push("write");
+        assert.deepEqual(JSON.parse(bytes), { quiesced: true });
+        assert.equal(options.flag, "wx");
+        await writeGate.promise;
+      },
+      beforeCommit: async (_cleanup, evidence) => {
+        calls.push("before");
+        assert.deepEqual(artifacts, [evidence]);
+        assert.ok(owner.launch);
+        assert.equal(owner.cleanup, undefined);
+        assert.ok(driver);
+        if (failureAt === "before") throw failure;
+        return "media-observation";
+      },
+      committed: () => {
+        calls.push("commit");
+        driver = undefined;
+      },
+      afterCommit: async (cleanup, extra) => {
+        calls.push("after");
+        assert.equal(owner.cleanup, cleanup);
+        assert.equal(owner.launch, undefined);
+        assert.equal(driver, undefined);
+        assert.equal(extra, "media-observation");
+        if (failureAt === "after") throw failure;
+      },
+    });
+    await owner.start(async () => ({ receipt: {}, stop: async () => ({ quiesced: true }) }));
+    const pending = owner.stop();
+    await Promise.resolve();
+    assert.deepEqual(calls, ["write"]);
+    assert.ok(owner.launch);
+    assert.equal(owner.cleanup, undefined);
+    assert.deepEqual(artifacts, []);
+    writeGate.resolve();
+    if (failureAt === "none") await pending;
+    else await assert.rejects(pending, (error) => error === failure);
+    if (failureAt === "before") {
+      assert.deepEqual(calls, ["write", "before"]);
+      assert.ok(driver);
+      await assert.rejects(owner.stop(), (error) => error === failure);
+    } else {
+      assert.deepEqual(calls, ["write", "before", "commit", "after"]);
+      await owner.stop(); // Committed launches are no-ops even after media rejection.
+    }
+    assert.equal(calls.filter((call) => call === "write").length, 1);
+  }
+});
+
+void test("Linux interrupted restart refuses invalid selection, staging, preparation and nonpositive join", async () => {
+  for (const failureAt of [
+    "selection",
+    "sibling",
+    "root",
+    "preparing",
+    "join",
+    "receipt",
+  ] as const) {
+    const calls: string[] = [];
+    const failure = new Error(failureAt);
+    const owner = new LinuxLaunchPublication({
+      output: "/owned",
+      artifacts: [],
+      write: async (file) => {
+        calls.push(file.endsWith("-restart.json") ? "receipt" : "join-receipt");
+        if (file.endsWith("-restart.json") && failureAt === "receipt") throw failure;
+      },
+      committed: () => {
+        calls.push("commit");
+      },
+    });
+    await owner.start(async () => ({
+      receipt: {},
+      stop: async () => {
+        calls.push("join");
+        return { quiesced: failureAt !== "join" };
+      },
+    }));
+    const invoke = () =>
+      owner.interruptPreparation({
+        name: "preparation",
+        library: "/owned/library",
+        preparationExecutable:
+          failureAt === "sibling"
+            ? "/owned/library/staging-other/setup"
+            : failureAt === "root"
+              ? "/owned/library/staging"
+              : "/owned/library/staging/op/setup",
+        selectedScenarios:
+          failureAt === "selection"
+            ? ["native-linux-interrupted-preparation", "other"]
+            : ["native-linux-interrupted-preparation"],
+        assertStillPreparing: async () => {
+          calls.push("preparing");
+          if (failureAt === "preparing") throw failure;
+        },
+        invalidateBrowser: () => {
+          calls.push("invalidate");
+        },
+        start: async () => {
+          calls.push("start");
+        },
+        connect: async () => {
+          calls.push("connect");
+        },
+        browser: () => {
+          calls.push("browser");
+          return {};
+        },
+      });
+    if (failureAt === "preparing" || failureAt === "receipt")
+      await assert.rejects(invoke(), (error) => error === failure);
+    else await assert.rejects(invoke(), { code: "ERR_ASSERTION" });
+    assert.ok(!calls.includes("start") && !calls.includes("connect") && !calls.includes("browser"));
+    if (["selection", "sibling", "root"].includes(failureAt)) assert.deepEqual(calls, []);
+    if (failureAt === "preparing") assert.deepEqual(calls, ["preparing"]);
+    if (failureAt === "join")
+      assert.deepEqual(calls, ["preparing", "invalidate", "join", "join-receipt", "commit"]);
+  }
+});
 
 function required<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
@@ -237,67 +387,67 @@ function callable(value: unknown) {
 }
 
 void test("forced Linux recovery invalidates the session and requires positive join before fresh startup", async () => {
-  const interruption = between(
-    "async function interruptLinuxPreparation(",
-    "async function closeApplication(",
-  );
   for (const failure of [false, true]) {
     const calls: string[] = [];
-    const context = {
-      assert,
-      path: path.posix,
-      process: { platform: "linux" },
-      selection: { selected_scenarios: ["native-linux-interrupted-preparation"] },
-      library: "/owned/library",
-      output: "/owned",
-      artifacts: [] as string[],
-      linuxSelectedSession: true,
-      linuxLaunch: { receipt: { nonce: "owned" } },
-      linuxCleanup: undefined as { quiesced: boolean } | undefined,
-      browser: {
-        quit: () => {
-          throw new Error("Graceful session deletion is forbidden");
-        },
+    const artifacts: string[] = [];
+    let browser: unknown = {
+      quit() {
+        throw new Error("Graceful session deletion is forbidden");
       },
-      required,
-      stopDriver: async () => {
-        assert.equal(Reflect.get(context, "browser"), undefined);
+    };
+    const owner = new LinuxLaunchPublication({
+      output: "/owned",
+      artifacts,
+      write: async (file, bytes, options) => {
+        assert.equal(options.flag, "wx");
+        assert.ok(bytes.endsWith("\n"));
+        if (file.endsWith("-restart.json")) {
+          calls.push("receipt");
+          assert.deepEqual(object(JSON.parse(bytes)).launch_receipt, { nonce: "owned" });
+        }
+      },
+      committed: () => {},
+    });
+    await owner.start(async () => ({
+      receipt: { nonce: "owned" },
+      stop: async () => {
+        assert.equal(browser, undefined);
         calls.push("join");
         if (failure) throw new Error("join failed");
-        context.linuxCleanup = { quiesced: true };
+        return { quiesced: true };
       },
-      writeFile: async () => {
-        calls.push("receipt");
-      },
-      startDriver: async () => {
-        calls.push("start");
-      },
-      connect: async () => {
-        calls.push("connect");
-      },
-      driverBrowser: () => "fresh-browser",
-    };
-    runInNewContext(`${interruption}\nglobalThis.interrupt = interruptLinuxPreparation;`, context);
-    const fn: unknown = Reflect.get(context, "interrupt");
-    assert.ok(typeof fn === "function");
+    }));
     const invoke = () =>
-      Promise.resolve(
-        Reflect.apply(fn, undefined, [
-          "preparation",
-          "/owned/library/staging/operation/payload/setup",
-          async () => {
-            calls.push("preparing");
-          },
-        ]),
-      );
+      owner.interruptPreparation({
+        name: "preparation",
+        preparationExecutable: "/owned/library/staging/operation/payload/setup",
+        library: "/owned/library",
+        selectedScenarios: ["native-linux-interrupted-preparation"],
+        assertStillPreparing: async () => {
+          calls.push("preparing");
+        },
+        invalidateBrowser: () => {
+          browser = undefined;
+        },
+        start: async () => {
+          calls.push("start");
+        },
+        connect: async () => {
+          calls.push("connect");
+        },
+        browser: () => "fresh-browser",
+      });
     if (failure) {
       await assert.rejects(invoke(), /join failed/);
       assert.deepEqual(calls, ["preparing", "join"]);
-      assert.deepEqual(context.artifacts, []);
+      assert.deepEqual(artifacts, []);
     } else {
       assert.equal(await invoke(), "fresh-browser");
       assert.deepEqual(calls, ["preparing", "join", "receipt", "start", "connect"]);
-      assert.deepEqual(context.artifacts, ["/owned/preparation-restart.json"]);
+      assert.deepEqual(artifacts, [
+        path.join("/owned", "linux-native-launch-1-join.json"),
+        path.join("/owned", "preparation-restart.json"),
+      ]);
     }
   }
 });
