@@ -293,6 +293,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsQuarantineRecoveryFilter =
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_quarantine_intent$/)";
   const windowsRecoveryFamilyFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)";
   const relocationRecovery = overrideFor(windowsRelocationRecoveryFilter, "x86_64-pc-windows-msvc");
@@ -306,6 +308,18 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     overrides.indexOf(relocationRecovery) <
       overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
     "The exact90s identity must precede its60s family",
+  );
+  const quarantineRecovery = overrideFor(windowsQuarantineRecoveryFilter, "x86_64-pc-windows-msvc");
+  assert.deepEqual(quarantineRecovery, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsQuarantineRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(quarantineRecovery) <
+      overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
+    "The exact quarantine90s identity must precede its60s family",
   );
   const intelCuratedRepinFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)";
@@ -575,6 +589,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparationAndDriftFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsDiagnosticsFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRelocationRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsQuarantineRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedPreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: windowsRelocationRecoveryFilter },
     ]

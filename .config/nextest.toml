@@ -339,6 +339,16 @@ filter = 'package(portcove-core) & test(/^service::tests::unpublished_install_cl
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI40996444529/a1 job123872893843 cut quarantine recovery at60.294s.
+# Seven complete phases reached56.821s; final Adopt/CleanupPending was active.
+# Preserve all eight scenarios, refusal/retry assertions and cleanup, with
+# finite90s for only this Windows case. Product deadlines/workers/retries stay.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_quarantine_intent$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 40165157806/a1 cut off the eight-scenario relocation recovery fixture at
 # 30.133s; its source-import sibling finished at 29.424s. Preserve all install
 # and adoption phases, assertions, cleanup, worker slots and zero retries.
