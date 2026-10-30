@@ -8,6 +8,7 @@ import {
   symlinkSync,
   writeFileSync,
   readFileSync,
+  rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -17,6 +18,8 @@ import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import {
   inspectWindowsNativeSourceTree,
+  inspectWindowsSourcePreparationInventory,
+  windowsPreparationEntryDisappeared,
   verifyWindowsNativeSourceFiles,
   requireActualHostedWindowsSource,
   prepareActualHostedWindowsSource,
@@ -390,4 +393,65 @@ void test("Windows dependency child keeps startup homes outside its fresh DACL t
   );
   assert.equal(expired.status, 1);
   assert.match(expired.stdout, /expiry exceeds internal preparation allocation/);
+});
+
+
+void test("Windows live preparation counts a Git leaf removed between listing and stat", (t) => {
+  const root = disposableDirectory(t, path.join(tmpdir(), "pc-win-live-leaf-"));
+  const pack = path.join(root, "pack"), leaf = path.join(pack, "tmp_pack");
+  mkdirSync(pack);
+  const scan = (live: boolean) => {
+    writeFileSync(leaf, "temporary pack bytes");
+    let phase = 0;
+    return inspectWindowsSourcePreparationInventory(root, () => {
+      if (++phase === 4) rmSync(leaf);
+    }, live);
+  };
+  assert.equal(scan(true).entries, 2, "known removed leaf still consumes an entry");
+  assert.throws(() => scan(false), /ENOENT/u, "settled scans must not suppress missing entries");
+  assert.equal(inspectWindowsSourcePreparationInventory(root, () => {}).entries, 1);
+});
+
+void test("Windows live preparation retains a counted directory removed before its open", (t) => {
+  const root = disposableDirectory(t, path.join(tmpdir(), "pc-win-live-directory-"));
+  const child = path.join(root, "staging");
+  const scan = (live: boolean) => {
+    mkdirSync(child);
+    let phase = 0;
+    return inspectWindowsSourcePreparationInventory(root, () => {
+      if (++phase === 3) rmSync(child, { recursive: true });
+    }, live);
+  };
+  assert.equal(scan(true).entries, 1);
+  assert.throws(() => scan(false), /ENOENT/u);
+  assert.throws(() => inspectWindowsSourcePreparationInventory(path.join(root, "missing-root"), () => {}, true), /ENOENT/u);
+});
+
+void test("Windows live preparation distinguishes vanished staging from busy, denied and required roots", (t) => {
+  const root = disposableDirectory(t, path.join(tmpdir(), "pc-win-live-errors-"));
+  const child = path.join(root, "staging");
+  mkdirSync(child);
+  assert.equal(windowsPreparationEntryDisappeared({ code: "EBUSY" }, child, root, true), false);
+  rmSync(child, { recursive: true });
+  assert.equal(windowsPreparationEntryDisappeared({ code: "EBUSY" }, child, root, true), true);
+  assert.equal(windowsPreparationEntryDisappeared({ code: "EBUSY" }, child, root, false), false);
+  assert.equal(windowsPreparationEntryDisappeared({ code: "ENOENT" }, root, root, true), false);
+  for (const code of ["EACCES", "EPERM", "ENOTDIR", "EIO"])
+    assert.equal(windowsPreparationEntryDisappeared({ code }, child, root, true), false);
+});
+
+void test("Windows live preparation retains link, hardlink and original-clock refusals", (t) => {
+  const root = disposableDirectory(t, path.join(tmpdir(), "pc-win-live-refusal-"));
+  const leaf = path.join(root, "file");
+  writeFileSync(leaf, "bytes");
+  linkSync(leaf, path.join(root, "hardlink"));
+  for (const live of [false, true])
+    assert.throws(() => inspectWindowsSourcePreparationInventory(root, () => {}, live));
+  rmSync(path.join(root, "hardlink"));
+  mkdirSync(path.join(root, "directory"));
+  symlinkSync(path.join(root, "directory"), path.join(root, "link"), process.platform === "win32" ? "junction" : "dir");
+  for (const live of [false, true])
+    assert.throws(() => inspectWindowsSourcePreparationInventory(root, () => {}, live));
+  const expired = new Error("original preparation expired");
+  assert.throws(() => inspectWindowsSourcePreparationInventory(root, () => { throw expired; }, true), (error) => error === expired);
 });
