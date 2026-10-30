@@ -199,6 +199,52 @@ source, Root/key/grant/feed/custody/signing/publication and readback remain held
 by [#534](https://github.com/boburning/portcove/issues/534). Full 1.0 #46, macOS
 #226 and Steam Deck #535 remain independent.
 
+### Remaining isolated reboot cell
+
+The local task-owned Ubuntu 26.04.1 guest attempt failed in cloud-init account
+provisioning before any application or updater execution: an empty supplementary
+group list prevented creation of its requested primary group. Its seed, serial
+log, disk and terminal outcome are retained. The exact owned QEMU process settled;
+no shared host reboot occurred. Corrected provisioning passes the official 26.1
+schema and inert success/failure settlement controls, but has no reboot credit.
+A separate Windows-to-WSL dispatch probe returns `Wsl/Service/E_UNEXPECTED`;
+existing namespace recovery released only this task's exact abandoned admission
+records through the maintained APIs. Neither failure invalidates the completed
+Linux busy/cancel/restart or Windows guidance observations above.
+
+The registered updater artifact rehearsal now offers an independent
+`retained_reboot_only` mode, restricted to Linux x86-64, the legacy-skipped
+profile, Ubuntu 24.04 hosted controller and no historical-bootstrap override.
+It consumes the frozen source38 run/attempt/artifact in
+[scripts/qualification/linux-reboot/cohort.json](../../scripts/qualification/linux-reboot/cohort.json),
+authenticates and bounds the complete archive, and transfers only its exact
+public package/feed/signature tuple into one disposable guest. It builds only
+the existing sourceD295 preparation example; it does not build or sign a shipping
+package, recreate release trust, or repeat the accepted GUI sequence. The helper
+and current controller source remain distinct from source38 product bytes.
+
+The guest uses ordinary UID/GID1001, authenticated installed staging, the existing
+interrupted-copy fixture, a normal OS reboot of the same guest disk/process, and
+existing displayless recovery. It requires changed guest boot ID, unchanged
+machine/caller identity and host boot ID, exact checkpoint file identities,
+retained journals, actual child outcomes and synthetic witness preservation.
+Synthetic witnesses do not replace the earlier real installed game-data proof.
+Only explicitly allowed bounded public diagnostics are uploaded; VM/base disks,
+private profiles, raw artifact, binaries and transport credentials are excluded.
+This route is unexecuted and the reboot row remains pending until its actual
+result is reviewed. It confers no production, power-loss, GUI or Deck acceptance.
+
+The current-head CI run
+[40973981141/1](https://github.com/boburning/portcove/actions/runs/40973981141)
+failed only its Windows helper producer and dependent catalog aggregate. Three
+inert fixtures hit their existing child cutoffs: PATH-first diagnostic CSC
+compilation at 30 seconds, account teardown failure aggregation at 60 seconds,
+and an eight-outcome required-root cleanup AST fixture at 15 seconds. Their
+original logs remain failures. Only these fixture child/outer budgets are
+increased; assertions, production cleanup deadlines, account authority and
+updater busy protection are unchanged. Current-source qualification remains
+pending a new exact-head run.
+
 The separate #706/#49 scoped, non-remediating GLib disposition expires November
 14, 2026 at 23:59 America/New_York, or earlier at the relevant second beta
 publication. Reconfirm exact candidate, complete scanner result, publication

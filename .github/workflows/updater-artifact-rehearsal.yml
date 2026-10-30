@@ -18,6 +18,10 @@ on:
         type: choice
         default: ubuntu-24.04
         options: [ubuntu-22.04, ubuntu-24.04]
+      retained_reboot_only:
+        description: Run only the isolated Linux reboot cell with the frozen already-qualified pair
+        type: boolean
+        default: false
       historical_linux_bootstrap:
         description: Include published Alpha 2 manual bootstrap before a Linux legacy update
         type: boolean
@@ -35,6 +39,7 @@ env:
 
 jobs:
   packages:
+    if: ${{ !inputs.retained_reboot_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -261,3 +266,84 @@ jobs:
             work/updater-rehearsal/macos-installed-selection-qualification/gui-update-state/library/logs/portcove-desktop.jsonl*
           if-no-files-found: error
           retention-days: 1
+
+  linux-retained-reboot:
+    if: inputs.retained_reboot_only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: read
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_NET_RETRY: "0"
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target/updater-reboot-helper
+    steps:
+      - name: Refuse unrelated retained reboot modes before checkout or preparation
+        shell: bash
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          PROFILE: ${{ inputs.transition_profile }}
+          LINUX_RUNNER: ${{ inputs.linux_runner }}
+          HISTORICAL: ${{ inputs.historical_linux_bootstrap }}
+        run: |
+          set -euo pipefail
+          test "$PLATFORM" = linux-x86_64
+          test "$PROFILE" = legacy-skipped
+          test "$LINUX_RUNNER" = ubuntu-24.04
+          test "$HISTORICAL" = false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Retain and audit the exact already qualified public Linux tuple
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/qualification/linux-reboot/prepare.py stage
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: d29563ea99263e33dbec693ecf0aebd9f3de709c
+          path: work/updater-linux-reboot-helper-source
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: retained-linux-reboot-helper-d295
+          workspaces: work/updater-linux-reboot-helper-source -> ../../target/updater-reboot-helper
+      - name: Install only helper and isolated virtual-machine prerequisites
+        timeout-minutes: 15
+        run: |
+          ./scripts/install-linux-desktop-prerequisites.sh
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install --yes --no-install-recommends qemu-system-x86 qemu-utils seabios ubuntu-keyring python3-jsonschema
+      - name: Build only the existing frozen preparation helper
+        timeout-minutes: 25
+        run: python3 scripts/qualification/linux-reboot/prepare.py helper
+      - name: Record compatible hosted QEMU runtime and authenticate the fixed guest image
+        timeout-minutes: 15
+        run: |
+          python3 scripts/qualification/linux-reboot/prepare.py runtime
+          python3 scripts/qualification/linux-reboot/image.py
+      - name: Check existing guest boot admission controls
+        run: |
+          python3 scripts/qualification/linux-reboot/controls.py
+          python3 scripts/qualification/linux-reboot/guest.py controls
+      - name: Freeze the exact guest input and runtime manifest
+        id: guest-inputs
+        run: python3 scripts/qualification/linux-reboot/prepare.py finalize >> "$GITHUB_OUTPUT"
+      - name: Observe one owned guest interruption reboot and existing recovery
+        timeout-minutes: 95
+        env:
+          REBOOT_MANIFEST_SHA: ${{ steps.guest-inputs.outputs.manifest_sha256 }}
+        run: python3 scripts/qualification/linux-reboot/controller.py "$REBOOT_MANIFEST_SHA"
+      - name: Retain only explicit public diagnostics and input identities
+        if: always()
+        run: python3 scripts/qualification/linux-reboot/evidence.py
+      - name: Upload bounded public guest qualification evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-retained-reboot-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/updater-linux-reboot/public-evidence/
+          if-no-files-found: error
+          retention-days: 30
