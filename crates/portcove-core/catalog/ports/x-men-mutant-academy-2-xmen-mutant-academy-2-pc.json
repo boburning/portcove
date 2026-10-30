@@ -3,7 +3,7 @@
   "listing": {
     "id": "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
     "name": "X-Men: Mutant Academy 2 / xmen-mutant-academy-2-pc",
-    "summary": "Explore X-Men: Mutant Academy 2 / xmen-mutant-academy-2-pc and follow the upstream project for requirements, downloads and setup.",
+    "summary": "X-Men: Mutant Academy 2 remains discoverable, with selected project/package permission and original-derived texture-pack provenance unresolved.",
     "project_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
     "issue_number": 356,
     "platforms": [],
@@ -16,6 +16,7 @@
       "image_sha256": "7ddf12a8e6d4e1b082dc2892d1a04a8ba431b9cae42d31f25ae00531c8558e13",
       "game_slug": "x-men-mutant-academy-2",
       "match_kind": "underlying-game"
-    }
+    },
+    "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative."
   }
 }

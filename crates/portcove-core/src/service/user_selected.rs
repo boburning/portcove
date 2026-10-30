@@ -649,13 +649,13 @@ mod tests {
 
     // The listing-based contract retains its acquisition restriction without
     // promoting the descriptive identity into a strict managed definition.
-    fn assert_listing_only_player_route(id: &str, embedded: bool) {
+    fn assert_listing_only_player_route(id: &str, embedded_download_hold: Option<bool>) {
         let (temporary, mut service, executable, working) = fixture(id);
-        if embedded {
+        if let Some(download_hold) = embedded_download_hold {
             service.catalog = Catalog::embedded().unwrap();
             let listing = service.catalog.listing(id).unwrap();
             assert!(listing.manual_setup.is_some());
-            assert!(listing.download_block_reason.is_some());
+            assert_eq!(listing.download_block_reason.is_some(), download_hold);
         } else {
             listing_only(&mut service);
         }
@@ -786,17 +786,98 @@ mod tests {
 
     #[test]
     fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
-        assert_listing_only_player_route("listing-only", false);
+        assert_listing_only_player_route("listing-only", None);
     }
 
     #[test]
     fn cannonball_route_120() {
-        assert_listing_only_player_route("cannonball-outrun", true);
+        assert_listing_only_player_route("cannonball-outrun", Some(true));
     }
 
     #[test]
     fn cannonball_route_1132() {
-        assert_listing_only_player_route("cannonball-dx-outrun", true);
+        assert_listing_only_player_route("cannonball-dx-outrun", Some(true));
+    }
+
+    #[test]
+    fn psx_permitted_player_route_826() {
+        assert_listing_only_player_route("mstan-battle-arena-toshinden-recomp", Some(true));
+    }
+
+    #[test]
+    fn psx_permitted_player_route_827() {
+        assert_listing_only_player_route("novapowers0-bloody-roar-ii-recomp", Some(true));
+    }
+
+    #[test]
+    fn verdite_prepared_player_route_1900() {
+        assert_listing_only_player_route("voicedrew11-verdite2", Some(false));
+    }
+
+    #[test]
+    fn verdite_prepared_player_route_1901() {
+        assert_listing_only_player_route("voicedrew11-verdite3", Some(false));
+    }
+
+    #[test]
+    fn snes_source_player_route_146() {
+        assert_listing_only_player_route("mega-man-x-snes-recomp", Some(true));
+    }
+
+    #[test]
+    fn snes_source_player_route_340() {
+        assert_listing_only_player_route("super-metroid-snesrev-sm", Some(false));
+    }
+
+    #[test]
+    fn nes_cycle_source_player_route_1840() {
+        assert_listing_only_player_route("mstan-legendofzeldanesrecomp", Some(false));
+    }
+
+    #[test]
+    fn nes_cycle_source_player_route_2739() {
+        assert_listing_only_player_route("mstan-yoshinesrecomp", Some(false));
+    }
+
+    #[test]
+    fn rechan_prepared_player_route_348() {
+        assert_listing_only_player_route("jackie-chan-stuntmaster-rechan", Some(false));
+    }
+
+    #[test]
+    fn crash_prepared_player_route_385() {
+        assert_listing_only_player_route("crash-bandicoot-crashbandicoot-launcher", Some(false));
+    }
+
+    #[test]
+    fn symphony_permitted_player_route_319() {
+        assert_listing_only_player_route(
+            "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn rage_permitted_player_route_349() {
+        assert_listing_only_player_route("rage-racer-rage-racer-pc", Some(true));
+    }
+
+    #[test]
+    fn kameo_permitted_player_route_129() {
+        assert_listing_only_player_route("kameo-repowered", Some(true));
+    }
+
+    #[test]
+    fn redahm_permitted_player_route_130() {
+        assert_listing_only_player_route(
+            "redahm-destroy-all-humans-path-of-the-furon",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn svr07_permitted_player_route_131() {
+        assert_listing_only_player_route("svr07-recomp-wwe-smackdown-vs-raw-2007", Some(false));
     }
 
     // Bind the real embedded identities to Core's offered operations with an
@@ -1088,6 +1169,18 @@ mod tests {
     prepared_player_case!(classic_fps_route_1899, "uzdoom-uzdoom");
 
     prepared_player_case!(wiicompiled_route_149, "mario-kart-wii-wiicompiled");
+    prepared_player_case!(
+        ringout_route_148,
+        "soulcalibur-ii-ring-out",
+        [
+            "--user-dir",
+            r"C:\Ring Out\userdata",
+            "--game",
+            r"C:\Ring Out\game",
+            "--module",
+            r"C:\Ring Out\bin\gGRSEAF_recomp.dll"
+        ]
+    );
 
     prepared_player_case!(historical_pc_route_369, "doom-rpg-doomrpg-re");
     prepared_player_case!(historical_pc_route_370, "doom-ii-rpg-doomiirpg-re");

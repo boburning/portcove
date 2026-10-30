@@ -297,6 +297,31 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   });
   const windowsRecoveryFamilyFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)";
+  const windowsRetainedMovePolicyFilter =
+    "package(portcove-core) & test(/^runtime_path_policy::tests::move_previews_check_retained_policy_before_creating_destinations$/)";
+  assert.deepEqual(overrideFor(windowsRetainedMovePolicyFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsRetainedMovePolicyFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const windowsSourceImportRecoveryFilter =
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/)";
+  const sourceImportRecovery = overrideFor(
+    windowsSourceImportRecoveryFilter,
+    "x86_64-pc-windows-msvc",
+  );
+  assert.deepEqual(sourceImportRecovery, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsSourceImportRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(sourceImportRecovery) <
+      overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
+    "The exact source-import90s identity must precede its60s family",
+  );
   const relocationRecovery = overrideFor(windowsRelocationRecoveryFilter, "x86_64-pc-windows-msvc");
   assert.deepEqual(relocationRecovery, {
     platform: "x86_64-pc-windows-msvc",
@@ -641,6 +666,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparationAndDriftFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsDiagnosticsFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRelocationRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSourceImportRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsRetainedMovePolicyFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedPreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxRelocationRecoveryFilter },
     ]

@@ -16,6 +16,8 @@ use portcove_diagnostics::{
 };
 use serde_json::{Value, json};
 
+const PREPARED_LOGGING: &str = "PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED";
+
 fn cli_binary() -> PathBuf {
     std::env::var_os("NEXTEST_BIN_EXE_portcove")
         .map(PathBuf::from)
@@ -53,9 +55,16 @@ impl Fixture {
             )
             .env_remove("PORTCOVE_LIBRARY")
             .env_remove("PORTCOVE_DIAGNOSTICS_DEBUG")
+            .env_remove(PREPARED_LOGGING)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        command
+    }
+
+    fn qualified_command(&self) -> Command {
+        let mut command = self.command();
+        command.env(PREPARED_LOGGING, "1");
         command
     }
 
@@ -176,6 +185,17 @@ fn run(command: &mut Command) -> (u32, Output) {
     }
 }
 
+fn assert_prepared_records(records: &[Value]) {
+    assert!(
+        records
+            .iter()
+            .any(|record| record["target"] == "portcove_diagnostics"
+                && record["fields"]["qualification_prepared"] == true
+                && record["fields"]["phase"] == "start"),
+        "positive CLI fixture must observe its actual prepared constructor"
+    );
+}
+
 fn evidence(name: &str, result: Value) {
     let envelope = json!({
         "format_version": 1,
@@ -239,7 +259,7 @@ fn early_failures_retain_actual_typed_phases_without_private_error_text() {
         if !scenario.starts_with("preference_") {
             arguments.extend(["--library", fixture.library.to_str().unwrap()]);
         }
-        let (pid, output) = fixture.run(&arguments);
+        let (pid, output) = run(fixture.qualified_command().args(&arguments));
         assert!(!output.status.success(), "{scenario}: {output:?}");
         assert!(
             output.stderr.is_empty(),
@@ -249,6 +269,7 @@ fn early_failures_retain_actual_typed_phases_without_private_error_text() {
         assert_eq!(response["ok"], false);
         let code = &response["error"]["code"];
         let records = fixture.records(pid);
+        assert_prepared_records(&records);
         assert!(
             !records.is_empty(),
             "host diagnostics unavailable for {scenario}"
@@ -379,7 +400,7 @@ fn explicit_verbosity_and_temporary_debug_reset_without_persisting_preferences()
         (None, Some("true"), false),
         (None, None, false),
     ] {
-        let mut command = fixture.command();
+        let mut command = fixture.qualified_command();
         command.args(["--json", "about"]);
         if let Some(verbosity) = verbosity {
             command.arg(verbosity);
@@ -398,6 +419,7 @@ fn explicit_verbosity_and_temporary_debug_reset_without_persisting_preferences()
             &output.stdout
         );
         let records = fixture.records(pid);
+        assert_prepared_records(&records);
         assert!(!records.is_empty());
         let debug = records
             .iter()
@@ -505,5 +527,43 @@ fn raw_child_bytes_and_exit_code_survive_debug_and_logging_failure() {
     evidence(
         "host-cli-raw-streams",
         json!({"launches": launches.len(), "child_exit_code": 7, "durable_outcome": "failed", "stdout_bytes": 15, "stderr_bytes": 14, "raw_non_utf8_preserved": true, "temporary_debug_and_occupied_sinks": true}),
+    );
+}
+
+#[test]
+fn qualified_logging_is_explicit_and_ordinary_cli_does_not_select_it() {
+    let fixture = Fixture::new();
+    let mut observations = Vec::new();
+    let mut baseline = None;
+    for flag in [None, Some("1"), Some("true"), Some("0")] {
+        let mut command = fixture.command();
+        command.args(["--json", "about"]);
+        if let Some(flag) = flag {
+            command.env(PREPARED_LOGGING, flag);
+        }
+        let (pid, output) = run(&mut command);
+        assert!(output.status.success(), "{output:?}");
+        assert!(output.stderr.is_empty());
+        assert_eq!(
+            baseline.get_or_insert_with(|| output.stdout.clone()),
+            &output.stdout
+        );
+        let records = fixture.records(pid);
+        let prepared = records.iter().any(|record| {
+            record["target"] == "portcove_diagnostics"
+                && record["fields"]["qualification_prepared"] == true
+                && record["fields"]["phase"] == "start"
+        });
+        assert_eq!(prepared, flag == Some("1"));
+        if flag == Some("1") {
+            assert_prepared_records(&records);
+        }
+        observations.push(json!({"requested": flag, "observed_prepared": prepared,
+            "records":records.len(), "ordinary_sink_availability_not_required": flag!=Some("1")}));
+    }
+    evidence(
+        "host-cli-qualified-bootstrap-selection",
+        json!({"cases":observations,
+        "scope":"Actual feature-enabled CLI; prepared sinks only on exact child opt-in; ordinary output unchanged; no production timing claim"}),
     );
 }

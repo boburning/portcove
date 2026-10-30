@@ -392,6 +392,27 @@ filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_r
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41076336853/a1 Windows3 retained a30.126s whole-case timeout for
+# move_previews_check_retained_policy_before_creating_destinations.
+# Identical assertions passed21.846s in41069532772/a1 Windows3. Preserve
+# both retained-policy cases and add phase diagnostics with finite60s room;
+# no product deadline, assertions, worker slots, cleanup or retry changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^runtime_path_policy::tests::move_previews_check_retained_policy_before_creating_destinations$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41076336853/a1 Windows7, sourcece367f3f, completed seven source-import
+# scenarios and began Adopt/CleanupPending at54.365s before the60.295s
+# watchdog. Include only that sibling in the existing finite90s allowance;
+# keep all eight scenarios, assertions, product deadlines, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40797975365/a1 job123202480764 cut this four-family cleanup fixture
 # off at30.214s without internal phase output. Retain all four families and
 # assertions with exact60s diagnostic room; do not infer a product cause.
@@ -1061,6 +1082,12 @@ success-output = "immediate"
 # exact progressing case in the existing finite60s Windows sibling allowance.
 # Preserve every intermediate observation/assertion, cleanup, resources, two
 # workers, zero retries and product/child deadlines; no speedup claim.
+# CI41092148480/a1 Windows7 job124192415441 cut activated_abort_resume
+# at30.070s after observation14 completed29.859s and observation15 began.
+# The unchanged fixture passed16.279s in41082618949/a1. Continue #4061's
+# exact Windows sibling calibration with finite60s room for this case only.
+# Keep every sequence/assertion, product deadline, cleanup, reservation,
+# worker count and zero retries; completion is not a speedup or causal claim.
 # 2026-10-30 CI41094268282/a1 Windows1 job124199786823 cut
 # activated_abort_resume at30.241s after observation7 completed29.439s,
 # and published_abort_abort at30.091s after observation9 completed29.485s.

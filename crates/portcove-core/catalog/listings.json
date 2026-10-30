@@ -11236,12 +11236,43 @@
     {
       "id": "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
       "name": "Castlevania: Symphony of the Night — PS1 / SymphonyRecomp",
-      "summary": "Explore Castlevania: Symphony of the Night — PS1 / SymphonyRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an already permitted working SymphonyRecomp v0.5.1b Windows player with your own US disc, preserving its existing .NET host, actual profile, cards, mods and upstream updater.",
       "project_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
       "issue_number": 319,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
+      "original_game_title": "Castlevania: Symphony of the Night",
+      "manual_setup": {
+        "help_url": "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/16859f39abbeca905dcd6ab062617f19a7285fe6/README.md",
+        "steps": [
+          {
+            "title": "Use an already permitted working official copy",
+            "instruction": "Use an already permitted official v0.5.1b Windows x64 sotn.exe copy in the scope of the publisher’s explicit released-player invitation and own-original instructions. That narrower context is not a top-level/mod source or redistribution license; RecompOne MIT does not license the whole project/mod package. Keep actual selected-copy use conditions and all applicable notices. This route does not clear the broader existing distribution/source-grant conditions."
+          },
+          {
+            "title": "Keep the existing runtime and native entry",
+            "instruction": "Retain the complete working copy, adjacent DLL/native dependencies and its functioning player-owned .NET10 runtime context. Select sotn.exe, not sotn.dll, system dotnet.exe, a generator or updater staging helper. This release is framework-dependent; Portcove does not install/configure a nested .NET runtime or synthesize DOTNET_ROOT. Finish normal upstream setup outside Core before registration."
+          },
+          {
+            "title": "Bind the actual profile and owned original",
+            "instruction": "Use your own North-American Symphony of the Night SLUS-00067/SLUS_000.67 CHD or CUE with all referenced data/audio BIN tracks. Preserve the complete original set/path for streaming; do not substitute known Japanese/European or Nocturne/XBLA inputs. Select the actual established writable runtime/profile working directory, normally the extracted root, and one literal argument token containing the absolute CHD/CUE path. Preserve spaces inside that token and the creating custom CWD. No --rom/--config/--no-updater or profile environment switch is established."
+          },
+          {
+            "title": "Review intent and choose Play separately",
+            "instruction": "Review and consent to the exact executable, working directory and one original-path argument; registration does not prepare or start the game. Choose Play separately. Ordinary runtime is in the same apphost; upstream self-update stages/replaces/relaunches through successors outside Core’s selected-process observation. Its bounded wait is not proof the original exited or that successor arguments/custom profile are preserved. Let upstream finish and close all actual players before manual changes/relink. Upstream/player retains runtime replacement; Core does not compete with it."
+          },
+          {
+            "title": "Preserve the whole creating profile and custom cards",
+            "instruction": "Keep the full runtime, original and actual CWD-relative settings.json/interface.ini, carda.sav/cardb.sav, all .sav/backup/config files, disc and mods including shipped executable sources/.cache and player edits, diagnostics and all unknown/custom outputs. Preserve absolute CardAPath/CardBPath targets separately; relative cards follow actual CWD. Preserve any upstream-owned external updater/recovery evidence. No new managed mod merge, backup, state migration or cross-build compatibility is granted. Removing registration removes only Core metadata and preserves external bytes."
+          }
+        ],
+        "warnings": [
+          "The inspected upstream boot-identity checks are not full-disc cryptographic authentication. Earlier actual v0.5.1b Windows CHD/window/normal-close observations keep their exact scope; this batch adds no game execution or gameplay/save/load qualification and inherits nothing from another Castlevania port.",
+          "The selected tag uses AutoUpdateEnabled in interface.ini; current-source updater options differ. No CLI/environment disable is established, and non-owning registration need not disable the upstream updater. Managed host provisioning, pre-check updater control, mod ownership/merge and actual lifecycle qualification remain unresolved stronger work.",
+          "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, package/build/source authenticity, exclusive successor-session or sandbox guarantee is offered. Project/mod source and redistribution applicability remain distinct from an already permitted player copy; selection itself grants no rights or Supported/native/installed/protected acceptance."
+        ]
+      },
       "artwork": {
         "game_id": 1128,
         "cover_id": 237968,
@@ -12979,12 +13010,43 @@
     {
       "id": "crash-bandicoot-crashbandicoot-launcher",
       "name": "Crash Bandicoot / CrashBandicoot-Launcher",
-      "summary": "Explore Crash Bandicoot / CrashBandicoot-Launcher and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an already prepared permitted Crash Bandicoot 2.3.1 Windows player, preserving your USA disc, creating runtime, cards, states and generated-game files.",
       "project_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
       "issue_number": 385,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
+      "original_game_title": "Crash Bandicoot",
+      "manual_setup": {
+        "help_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md",
+        "steps": [
+          {
+            "title": "Keep a permitted complete official player",
+            "instruction": "Use an already working permitted official 2.3.1 Windows x64 CrashBandicoot.exe copy under applicable project/component terms and upstream own-original requirements. Root/project MIT is not a blanket original-media or all-component certification. This official entry is self-contained .NET10; retain its established writable installation and upstream-required graphics/VC++ runtime context. Other architectures, APK and Linux products are separate."
+          },
+          {
+            "title": "Finish upstream original-disc preparation first",
+            "instruction": "Use your own Crash Bandicoot USA SCUS-94900 standalone single MODE2/2352-track CUE/BIN or supported CHD, preserving the image/set/path for every run. Complete official selection and initial generation outside Portcove. The upstream product/layout/size/metadata and first-4096-boot-byte checks and short fingerprint are not independent full-disc authentication. Parent-dependent, foreign and multitrack media are not established by this guide. Core-owned source admission, private staging/cancellation/atomic preparation publication remain unresolved and unoffered."
+          },
+          {
+            "title": "Select the normal completed application",
+            "instruction": "Select CrashBandicoot.exe with zero launch arguments and its containing installation root as initial working directory. Normal Windows UI stays in this process: START GAME loads the cached game assembly synchronously and embeds the game window; ending play returns to the launcher, so close the launcher too to end the selected session. Do not select a generated DLL, updater/helper or short smoke mode. Registration itself does not prepare or launch the game."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, directory and empty arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns preparation, repair and actual replacement. Preserve the current creating version and review a changed executable through fresh relink. The selected Windows path has no evidenced self-downloading replacement/relaunch; opening external links is not a managed update."
+          },
+          {
+            "title": "Preserve all creating runtime and player files",
+            "instruction": "Keep the whole actual copy and original: settings.json/CdPath, interface.ini, save/carda.sav and cardb.sav, save/states/slotN.state and companions, game/<fingerprint> source/DLL/manifest, mods/.cache/custom assets, examples, catalog, captures, logs and every unknown/custom path. Windows roots data beside the real executable, not its single-file extraction TEMP directory; changing initial CWD is not a profile redirect. Upstream may move legacy root cards into save when destination is absent and seed/refresh stock mods; this is not Core migration. Keep old state with its creating runtime. Removing registration removes only metadata and preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Current source and selected 2.3.1 are distinct revisions; this handoff uses the tagged interface. Prior 1.9.1 local package-integrity evidence is not qualification of 2.3.1. Source/publisher metadata and an inert Core probe do not authenticate this game, original, generated code or package.",
+          "No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion is supplied. Existing source-fingerprint/private-stage/atomic-generation and stronger managed conditions are not marked solved by registration. No emulator, old-port or cross-build state compatibility is promised.",
+          "Actual game/native/gameplay/save-load/state/mod compatibility, other-platform, installed-app and protected observations remain unqualified here; no Supported promotion."
+        ]
+      },
       "artwork": {
         "game_id": 1185,
         "cover_id": 239961,
@@ -21648,12 +21710,43 @@
     {
       "id": "jackie-chan-stuntmaster-rechan",
       "name": "Jackie Chan Stuntmaster / ReChan",
-      "summary": "Explore Jackie Chan Stuntmaster / ReChan and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an already prepared ReChan Windows player with your own SLUS-00684 original, preserving its actual data folder, saves, mods and upstream-owned updater.",
       "project_url": "https://github.com/SilverwireGames/ReChan",
       "issue_number": 348,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/SilverwireGames/ReChan",
+      "original_game_title": "Jackie Chan Stuntmaster",
+      "manual_setup": {
+        "help_url": "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md",
+        "steps": [
+          {
+            "title": "Prepare a permitted completed upstream copy",
+            "instruction": "Use an already working permitted completed ReChan Windows x86-64 copy under the applicable project MIT and component terms and upstream original-game conditions. The reviewed official v1.0.1 source and current source are distinct creating contracts; neither code grant covers the original game/assets or certifies arbitrary binaries. Keep the completed executable with its shipped support files. Upstream/player owns preparation, repair and runtime replacement."
+          },
+          {
+            "title": "Finish upstream owned-disc preparation first",
+            "instruction": "Follow upstream preparation outside Portcove using your own legally obtained NTSC-U Jackie Chan Stuntmaster SLUS-00684 BIN or ISO, with only one image in discimage beside the runtime. Its first launch verifies the version and extracts required data locally; no separate extraction utility is required by the selected source. Complete that supported first launch before registering this already prepared copy. Do not substitute PAL, another game, CHD/CUE or another port’s source contract. This guide establishes no Core-authenticated original hash or package/build equivalence."
+          },
+          {
+            "title": "Select the actual completed player and data working directory",
+            "instruction": "Select rechan.exe with zero launch arguments and explicitly choose its actual prepared runtime root containing shipped pc support and the extracted game roots as working directory. Official v1.0.1 has no executable-folder fallback; do not rely on one. Preserve a correctly working custom data working directory rather than changing its profile merely to register. Newer inspected source uses working-directory pc first and only then executable-parent pc; that behavior must not be applied to v1.0.1. Do not add disc, export, verification, autotest or crash-test flags to ordinary Play."
+          },
+          {
+            "title": "Review intent and choose Play explicitly",
+            "instruction": "Review and consent to the exact native executable, working directory and empty argument list; registration itself does not run preparation or the game. Choose Play separately. Portcove observes the selected process, not an exclusive full process family. The ordinary upstream self-updater owns replacement and may replace files and start a successor; let it finish and close every actual player before changing or relinking the copy. Review an upstream executable replacement through a new relink."
+          },
+          {
+            "title": "Preserve the complete creating copy and player data",
+            "instruction": "Keep the whole actual runtime, shipped pc support and extracted fe/rchars/rtarget/scr/sound/tim/xc roots and other extracted files, your original/discimage, userfiles including jcsSAVE*.sav, jcsAUTOSAVE.sav and game.ini, ~mods including mods.ini and exported assets, any minidumps/rechan-crash reports, rechan.log when present and every unknown/custom path. Preserve existing external updater/recovery evidence under its upstream ownership. Do not delete the original merely because upstream permits removing an extracted image. No old/new save-format or mod compatibility is established here. Removing registration removes only Portcove metadata and preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "The project’s MIT grant applies to its codebase, not original game data or every third-party component. Source declarations about newly authored support files do not certify arbitrary historical/current release contents; earlier package-integrity evidence retains its exact version and scope. Upstream/player must supply a permitted, already prepared copy.",
+          "The upstream extractor/updater and ordinary runtime writes remain upstream-owned. No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, network sandbox or full successor-session guarantee is offered. Do not use its crash/export/test modes as a qualification shortcut.",
+          "Source review and the owned inert Core probe do not execute this game or establish gameplay, save/load, state/mod compatibility, other-platform, installed-app or protected delivery acceptance. Preserve each creating build and profile."
+        ]
+      },
       "artwork": {
         "game_id": 18943,
         "cover_id": 113058,
@@ -22191,7 +22284,38 @@
         "image_sha256": "571fd0443f4a46cc879dc18a7abf7f3de88629ff3686406c376b9fcacb6af63a",
         "game_slug": "kameo-elements-of-power",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/birabittoh/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+        "steps": [
+          {
+            "title": "Keep a lawful completed native copy",
+            "instruction": "Use an already lawfully prepared working Windows x64 kameorepowered.exe copy with its complete adjacent dependencies and the original creating data/profile. The tagged README grants MIT for host-side source/build/CI but expressly says recompiled generated game code and linked built binaries are not redistributable. Published releases or old matching digests do not override that exclusion. Fresh package acquisition remains held pending an applicable attributable permission/asset-clean route; this is not a blanket private-execution prohibition."
+          },
+          {
+            "title": "Finish original and variant preparation outside Core",
+            "instruction": "Use your own Kameo: Elements of Power Xbox 360 original, upstream documented USA extracted assets/default.xex, and complete existing extracted data. Keep vanilla and title-update builds distinct, with matching lawful update/DLC packages and actual extracted roots. Core does not extract an ISO/STFS package, install a title update, generate code or validate an exact disc/XEX hash. Do not infer foreign-revision, DLC, save or vanilla/TU interchangeability."
+          },
+          {
+            "title": "Select the game with its established roots",
+            "instruction": "Select kameorepowered.exe itself, with the actual writable installation-root initial CWD. For the tagged pinned-SDK interface, review --game_data_root and the absolute existing assets directory as two literal arguments. Preserve the creating --update_data_root and its absolute extracted update path when that TU copy requires it, plus any established --user_data_root and --cache_root choices, each followed by its separate absolute path token. Keep spaces inside each path token. Do not choose scripts/run.py, an extractor, Goopie or a build/helper entry. Registration itself does not prepare or launch anything; retain an already working build-specific launch context rather than inventing a profile."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+          },
+          {
+            "title": "Preserve the actual runtime, originals and user profile",
+            "instruction": "Keep the complete runtime/original/asset/update/DLC roots and kameorepowered.toml, all actual user/save/content/cache/log/mod/custom paths and unknown files. The reviewed SDK uses the Windows known Documents folder plus kameorepowered by default (Documents may be redirected), including Xbox-style 0000000000000000/4D5307D2/00000002 DLC content; explicit root choices override defaults. Preserve any custom roots separately. Keep variant-specific state with its creating copy; do not move or regenerate state merely to register."
+          }
+        ],
+        "warnings": [
+          "The selected v0.2.1 tag and current source differ. Its .sdk-version pins f22cd9dc, while a manifest also names 0.8.1; source/SDK review is not a source-to-binary certificate. The tagged pinned runtime requires game_data_root despite the abbreviated README zero-argument placement example. Only a completed already working copy with its actual supported arguments is offered.",
+          "Fresh downloads remain blocked by the explicit built-code redistribution condition, not missing optional LICENSE alone. No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, exact original authentication or new Xbox-family framework is provided. Existing source/extraction/variant/managed qualification remains unresolved.",
+          "No new game package/original/game execution, save/load/gameplay/installed/protected acceptance or Supported promotion. Prior Windows TU v0.2.1 artifact-integrity evidence remains scoped to that exact asset, not vanilla or arbitrary builds."
+        ]
+      },
+      "download_block_reason": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question."
     },
     {
       "id": "kandowontu2-urbanrecomp",
@@ -24490,12 +24614,43 @@
     {
       "id": "mega-man-x-snes-recomp",
       "name": "Mega Man X SNES Recomp",
-      "summary": "Explore Mega Man X SNES Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a permitted noncommercial completed Mega Man X Windows player with your own USA Rev 1 ROM and preserved external files.",
       "project_url": "https://github.com/mstan/MegaManXSNESRecomp",
       "issue_number": 146,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/MegaManXSNESRecomp",
+      "original_game_title": "Mega Man X (USA) (Rev 1)",
+      "download_block_reason": "This handoff covers a permitted current-source completed noncommercial build. Historical package permission holds are not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md",
+        "steps": [
+          {
+            "title": "Check your completed copy and terms",
+            "instruction": "Use an already permitted completed Windows build from the currently licensed source, under the project and framework PolyForm Noncommercial terms and applicable component notices. The current grant does not backdate permission for arbitrary older packages. Complete upstream generation/build separately; an executable with the expected name can still be a ROM-free setup host."
+          },
+          {
+            "title": "Keep your exact original and optional donors",
+            "instruction": "Use your own Mega Man X (USA) (Rev 1) ROM: normalized SHA-256 b8f70a6e7fb93819f79693578887e2c11e196bdf1ac6ddc7cb924b1ad0be2d32. Upstream accepts a raw headerless ROM or strips a 512-byte copier header. Archives, patched ROMs, USA v1.0, Japan and Europe are not this selected route. Optional Zero/X2/X3 content requires its own matching donor and permission; keep those inputs and locally generated caches with their creating copy."
+          },
+          {
+            "title": "Select the completed native player",
+            "instruction": "Select the already working generated MegaManXSNESRecomp.exe and its containing runtime folder as working directory. Do not select a setup host, build script or compiler. For direct play use three literal argument tokens: --no-launcher, --rom, and the absolute path to your supported ROM. Keep spaces inside the path token. Preserve any established custom --config path and its working directory instead of changing an existing profile merely to register."
+          },
+          {
+            "title": "Review consent and choose Play separately",
+            "instruction": "Review and consent to the exact executable, working directory and literal arguments. Registration retains that intent without running upstream setup or starting the game; choose Play separately. Relink an upstream replacement through a new review. In-game launcher/settings or lobby actions can start a successor even with --no-launcher. Portcove observes the selected process; close every actual player and successor before upstream replacement."
+          },
+          {
+            "title": "Keep upstream ownership and the full data tree",
+            "instruction": "You and upstream own preparation, repair and runtime updates. Preserve the whole working tree, original and donor ROMs, generated code and caches, config.ini and any selected custom configuration, rom.cfg, keybinds.ini, saves, mods and preloaded state, logs/reports/captures and all custom paths. Normal configuration anchors to the executable directory; a custom --config preserves its existing working-directory interpretation. Removing registration removes only Portcove metadata and preserves every external file."
+          }
+        ],
+        "warnings": [
+          "Keep SRAM, quickstates, rewind and mod state with their creating runtime, originals and options. Current source licensing or a matching ROM does not prove state compatibility with an older or different build. Core does not authenticate source, donor, generated code, build provenance or component rights for a user-selected copy.",
+          "This is a Windows selected-process handoff, not exclusive process-family ownership or a sandbox. Network/debug/toolchain/rebuild and successor behavior depend on the actual build, configuration and environment. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are not offered. Actual game execution/gameplay/save-load, other platforms and installed/protected delivery are not qualified here."
+        ]
+      },
       "artwork": {
         "game_id": 1741,
         "cover_id": 178634,
@@ -25690,7 +25845,7 @@
     {
       "id": "mstan-battle-arena-toshinden-recomp",
       "name": "Battle Arena Toshinden Recompiled / mstan",
-      "summary": "Explore Battle Arena Toshinden Recompiled / mstan and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your permitted noncommercial prepared Battle Arena Toshinden Windows player with your own USA original and preserved external data.",
       "project_url": "https://github.com/mstan/BattleArenaToshindenRecomp",
       "issue_number": 826,
       "platforms": [],
@@ -25703,6 +25858,38 @@
         "image_sha256": "ff23e8b57e39837e479e054456abc8ef6cea4f39183719072b3b852d3b95728a",
         "game_slug": "battle-arena-toshinden",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Battle Arena Toshinden",
+      "download_block_reason": "Fresh acquisition of the older v0.1.3 package remains held: its selected source predates the current project license. This route registers only a permitted current-source noncommercial completed build; older package grants, component applicability and managed preparation are not certified.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Check the actual copy and terms",
+            "instruction": "Use an already permitted noncommercial completed build from the currently licensed Toshinden source. Preserve the project, framework and component notices. This does not establish permission for arbitrary older v0.1.3 packages."
+          },
+          {
+            "title": "Finish upstream setup with your originals",
+            "instruction": "Finish supported upstream Generate & Build with your own USA SCUS-94200 original outside Portcove. Keep the CUE and all fourteen BIN tracks together. The data track is 14,662,368 bytes, SHA-1 cb03e66d2a5e68f402f9c64741a94c02ca78d4c5; retain the complete TOC/source set, not just that track. Establish a working completed product before registration."
+          },
+          {
+            "title": "Select the completed player",
+            "instruction": "Choose build-release/BattleArenaToshinden_Recompiled.exe, with its containing completed product folder as the working directory. Do not choose the zip-root/setup-host executable: setup-host forwarding runs before argument parsing, so --no-launcher alone does not bypass it."
+          },
+          {
+            "title": "Preserve your established source and save coordinates",
+            "instruction": "For the ordinary direct route use three literal argument tokens: --no-launcher, --disc, and the absolute path to your supported USA CUE. Keep spaces inside the CUE path token. Preserve the working copy's existing BIOS choice, card/state/settings and custom locations. Do not add a new --memcard-dir merely to register: it clears explicit custom slot paths. Retain that override only if it was already part of your established working invocation, with its exact existing directory."
+          },
+          {
+            "title": "Review, consent, Play and preserve ownership",
+            "instruction": "Review the exact executable, working directory and literal arguments and consent to that execution intent. Registration does not start the game; choose Play separately. Portcove retains registration/relink across restart and observes the selected process. Upstream/player own preparation, repair and runtime replacement. Close every actual player and preserve all files before upstream changes. Removing the registration removes only Portcove metadata and preserves every external file."
+          }
+        ],
+        "warnings": [
+          "Preserve all originals/tracks, generated runtime and source, BIOS files and notices, executable-parent settings.toml, config.ini, input.ini, keybinds.ini, mods/state, diagnostics/heartbeat, cache/captures and every actual custom card/state/profile path. --memcard-dir is not an all-writes redirect. A different executable folder can change active settings; registration does not migrate data or prove state compatibility. Keep quickstates with their creating runtime; unchanged originals or current licensing do not establish build-state compatibility.",
+          "Configured setup/rebuild, overlay compiler/toolchain/command modes and relaunches remain upstream-owned. The ordinary direct player is the selected process; successors can require separate closure. Registration is not a sandbox or an exclusive lock over all external players. Network/debug behavior depends on the build, settings and environment; no offline/no-listener, netplay or public-relay qualification is promised.",
+          "Core does not authenticate the disc set, generated code, component rights or build provenance. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay/save-load, new native game runs, other platforms and installed/protected-client delivery remain unqualified by this route."
+        ],
+        "help_url": "https://github.com/mstan/BattleArenaToshindenRecomp#readme"
       }
     },
     {
@@ -25802,12 +25989,42 @@
     {
       "id": "mstan-legendofzeldanesrecomp",
       "name": "The Legend of Zelda / LegendOfZeldaNESRecomp (mstan)",
-      "summary": "Explore The Legend of Zelda / LegendOfZeldaNESRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a permitted noncommercial completed The Legend of Zelda Windows cycle player, preserving your original, actual configuration and creating-backend state.",
       "project_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
       "issue_number": 1840,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
+      "original_game_title": "The Legend of Zelda",
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/07c3004786f36b73e58fe00bfece9ad648ba7d96/README.md",
+        "steps": [
+          {
+            "title": "Prepare a permitted completed cycle player",
+            "instruction": "Use an already permitted noncommercial source-built The Legend of Zelda Windows cycle player under the selected title/framework PolyForm Noncommercial terms and applicable component notices; the shared UI has separate MIT terms. Complete upstream generation/build outside Portcove in a separate folder. This handoff is not a package/component attestation, does not grant original-game or optional media rights, and does not establish a legacy or HD executable as the cycle product."
+          },
+          {
+            "title": "Keep the supported original and backend together",
+            "instruction": "Use your own supported The Legend of Zelda USA PRG0 cartridge image, with upstream accepted PRG+CHR payload CRC32 3fe272fb and compatible cartridge/header metadata. The selected stock source uses SNROM battery RAM. The guide does not establish other regions, the separate HD/Remastered input, FDS or arbitrary patched images."
+          },
+          {
+            "title": "Select the completed native player and actual configuration",
+            "instruction": "Select the already working completed cycle LegendOfZeldaNESRecomp.exe, using its containing runtime folder as working directory for normal defaults. Preserve an already working custom working directory and the interpretation of existing path arguments instead of changing them merely to register. Do not choose setup.bat, setup.sh, a compiler, headless tool or another backend executable. Use one literal argument token: the absolute path to your supported ROM, with spaces kept inside that token. The ordinary upstream launcher remains available; these cycle builds do not accept the SNES --rom or --no-launcher flags. Preserve an established --config and its absolute path as separate tokens when already used; do not switch configuration merely to register."
+          },
+          {
+            "title": "Review intent and choose Play explicitly",
+            "instruction": "Review and consent to the exact native executable, working directory and literal arguments. Registration does not compile, migrate, repair or launch the game. Choose Play separately; upstream’s ordinary launcher and game loop are in-process in the selected source. Portcove observes the selected process, not an exclusive process family. Relink an upstream replacement through a new review and close every actual player before upstream changes."
+          },
+          {
+            "title": "Preserve the creating copy and upstream ownership",
+            "instruction": "Preserve the whole creating runtime/source tree, original, config.ini and any custom configuration, its rom.cfg, keybind/controls and mods, saves/<ROM stem>.sav, cycle slot states under saves/<ROM stem>.cycstate, raw legacy .srm files, diagnostics/captures and every custom save/state path. Legacy binary states cannot transfer to the cycle backend; keep them with their original runtime. Upstream battery import is a separate user-owned choice, not a Portcove migration. Do not rename or import old files merely to register. Upstream/player own preparation, repair and runtime replacement. Removing registration removes only Portcove metadata and preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Default settings use executable-parent config.ini; rom.cfg follows the chosen settings file. A custom --config is not an all-writes redirect: default cartridge battery/state paths remain executable-relative. Preserve actual existing --save-file choices; do not add --save-file or --no-save merely to register. --no-save disables battery loading as well as writing.",
+          "These upstream previews and their source/backend migration reports are not Portcove gameplay or save-compatibility qualification. Core user-selected registration does not authenticate the ROM, generated code, component rights or build provenance. No managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, sandbox, network/debug/netplay or exclusive process-family guarantee is supplied. Actual game execution, gameplay/state/installed/protected and other-platform observations remain unqualified here."
+        ]
+      },
       "artwork": {
         "game_id": 1022,
         "cover_id": 86202,
@@ -26037,13 +26254,42 @@
     {
       "id": "mstan-yoshinesrecomp",
       "name": "Yoshi (YoshiNESRecomp)",
-      "summary": "Upstream route: Upstream runtime package for YoshiNESRecomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream believes single-player, versus and demo playable, while calling it an unfinished preview. Latest startup checks are not a complete mechanics audit. In-development preview despite upstream belief fully playable. Latest header/startup replay evidence is not complete mechanics qualification. Upstream platforms: Windows VS2022/CMake build; native Linux x86-64 recheck documented. Other platform/architecture coverage Unknown. Original data: NES Yoshi USA matching program data, qualified cartridge/header and regional timing. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Register a permitted noncommercial completed Yoshi Windows cycle player, preserving your original, actual configuration and creating-backend state.",
       "original_game_title": "Yoshi",
       "project_url": "https://github.com/mstan/YoshiNESRecomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/YoshiNESRecomp",
-      "issue_number": 2739
+      "issue_number": 2739,
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/YoshiNESRecomp/blob/f219991df2e70d6bf41f4ba9a46c8ddf990b572e/README.md",
+        "steps": [
+          {
+            "title": "Prepare a permitted completed cycle player",
+            "instruction": "Use an already permitted noncommercial source-built Yoshi Windows cycle player under the selected title/framework PolyForm Noncommercial terms and applicable component notices; the shared UI has separate MIT terms. Complete upstream generation/build outside Portcove in a separate folder. This handoff is not a package/component attestation, does not grant original-game or optional media rights, and does not establish a legacy or HD executable as the cycle product."
+          },
+          {
+            "title": "Keep the supported original and backend together",
+            "instruction": "Use your own current supported USA Yoshi payload: CRC32 E7EAD93B, 128 KiB PRG plus 32 KiB CHR. The documented canonical NES 2.0 file SHA-1 is 71cc02d4a005c6ad71f1fbf2b3ccd890d65056a3. Upstream accepts the older header declaring 64 KiB CHR only for the complete known payload and length; this is not acceptance of arbitrary truncation, revisions or regions. The previous larger input and its states are a separate unqualified contract."
+          },
+          {
+            "title": "Select the completed native player and actual configuration",
+            "instruction": "Select the already working completed cycle YoshiRecomp.exe, using its containing runtime folder as working directory for normal defaults. Preserve an already working custom working directory and the interpretation of existing path arguments instead of changing them merely to register. Do not choose setup.bat, setup.sh, a compiler, headless tool or another backend executable. Use one literal argument token: the absolute path to your supported ROM, with spaces kept inside that token. The ordinary upstream launcher remains available; these cycle builds do not accept the SNES --rom or --no-launcher flags. Preserve an established --config and its absolute path as separate tokens when already used; do not switch configuration merely to register."
+          },
+          {
+            "title": "Review intent and choose Play explicitly",
+            "instruction": "Review and consent to the exact native executable, working directory and literal arguments. Registration does not compile, migrate, repair or launch the game. Choose Play separately; upstream’s ordinary launcher and game loop are in-process in the selected source. Portcove observes the selected process, not an exclusive process family. Relink an upstream replacement through a new review and close every actual player before upstream changes."
+          },
+          {
+            "title": "Preserve the creating copy and upstream ownership",
+            "instruction": "Preserve the whole creating runtime/source tree, original, config.ini and any custom configuration, its rom.cfg, older keybinds.ini, mods, cycle states under saves/<ROM stem>.cycstate, diagnostics/captures and all custom paths. Yoshi has no battery-backed save, but that does not make its cycle states disposable. Legacy binary states and states from the previous larger ROM are not qualified for this cycle/input; keep each with its creating copy. Do not rename or import old files merely to register. Upstream/player own preparation, repair and runtime replacement. Removing registration removes only Portcove metadata and preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Default settings use executable-parent config.ini; rom.cfg follows the chosen settings file. A custom --config is not an all-writes redirect: default cartridge battery/state paths remain executable-relative. Preserve actual existing --save-file choices; do not add --save-file or --no-save merely to register. --no-save disables battery loading as well as writing.",
+          "These upstream previews and their source/backend migration reports are not Portcove gameplay or save-compatibility qualification. Core user-selected registration does not authenticate the ROM, generated code, component rights or build provenance. No managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, sandbox, network/debug/netplay or exclusive process-family guarantee is supplied. Actual game execution, gameplay/state/installed/protected and other-platform observations remain unqualified here."
+        ]
+      }
     },
     {
       "id": "mstan-zeroracersvirtualboyrecomp",
@@ -27175,7 +27421,7 @@
     {
       "id": "novapowers0-bloody-roar-ii-recomp",
       "name": "Bloody Roar II Recompiled / novapowers0",
-      "summary": "Explore Bloody Roar II Recompiled / novapowers0 and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your permitted noncommercial prepared Bloody Roar II Windows player with your own USA original and preserved external data.",
       "project_url": "https://github.com/novapowers0/BloodyRoar2Recomp",
       "issue_number": 827,
       "platforms": [],
@@ -27188,6 +27434,38 @@
         "image_sha256": "1d9da18c25e734f649a742ed62e39893226d02633e7d65ec18752fd6b4736072",
         "game_slug": "bloody-roar-2",
         "match_kind": "underlying-game"
+      },
+      "original_game_title": "Bloody Roar II",
+      "download_block_reason": "Fresh package acquisition remains held pending exact notice-complete artifact qualification. The retained v0.7.0 ZIP omitted project/consolidated notices; the newer v0.7.1 is not assumed notice-complete. Register only a permitted noncommercial prepared copy with applicable project/framework/component notices. No original-game redistribution is authorized.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Check the actual copy and terms",
+            "instruction": "Use an already permitted noncommercial working copy with its applicable notices. The title project is MIT-licensed, but its selected PSX framework is PolyForm Noncommercial; the complete runtime is not a blanket commercial-use MIT grant. Preserve all project/framework/component notices and original-file rights."
+          },
+          {
+            "title": "Finish upstream setup with your originals",
+            "instruction": "Use your own supported USA SCUS-94424 original. The retained exact USA data track is 552,729,408 bytes, SHA-1 75a13364ae026fe555e9c666c7c3434e5b403cc8, SHA-256 fbad8aef53b160abfcebddced9f9d69dcf39df00d8853b4c11f231b37220fc57. Keep its complete CUE/BIN set. The earlier v0.7.0 verifier accepted the owned USA CHD and normalized CUE/BIN, but that does not qualify every representation or another build. Complete upstream preparation and establish a working copy first."
+          },
+          {
+            "title": "Select the completed player",
+            "instruction": "Choose the prepared universal BloodyRoar2_Recompiled.exe, or the completed USA source-build product BloodyRoar2_Recompiled_USA.exe, with that player's complete folder as the working directory. Do not select an unprepared root/setup host, compiler or generation tool. This route covers the novapowers0 USA player. The separate Alexbeav implementation has its own setup and identity; Japan/Asia remains outside this route."
+          },
+          {
+            "title": "Preserve your established source and save coordinates",
+            "instruction": "For the ordinary direct route use three literal argument tokens: --no-launcher, --disc, and the absolute path to your supported USA CUE. Keep spaces inside the CUE path token. Preserve the working copy's existing BIOS choice, card/state/settings and custom locations. Do not add a new --memcard-dir merely to register: it clears explicit custom slot paths. Retain that override only if it was already part of your established working invocation, with its exact existing directory."
+          },
+          {
+            "title": "Review, consent, Play and preserve ownership",
+            "instruction": "Review the exact executable, working directory and literal arguments and consent to that execution intent. Registration does not start the game; choose Play separately. Portcove retains registration/relink across restart and observes the selected process. Upstream/player own preparation, repair and runtime replacement. Close every actual player and preserve all files before upstream changes. Removing the registration removes only Portcove metadata and preserves every external file."
+          }
+        ],
+        "warnings": [
+          "Preserve all originals/tracks, generated runtime and source, BIOS files and notices, executable-parent settings.toml, config.ini, input.ini, keybinds.ini, mods/state, diagnostics/heartbeat, cache/captures and every actual custom card/state/profile path. --memcard-dir is not an all-writes redirect. A different executable folder can change active settings; registration does not migrate data or prove state compatibility. Keep quickstates with their creating runtime; unchanged originals or current licensing do not establish build-state compatibility.",
+          "Configured setup/rebuild, overlay compiler/toolchain/command modes and relaunches remain upstream-owned. The ordinary direct player is the selected process; successors can require separate closure. Registration is not a sandbox or an exclusive lock over all external players. Network/debug behavior depends on the build, settings and environment; no offline/no-listener, netplay or public-relay qualification is promised.",
+          "Core does not authenticate the disc set, generated code, component rights or build provenance. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay/save-load, new native game runs, other platforms and installed/protected-client delivery remain unqualified by this route."
+        ],
+        "help_url": "https://github.com/novapowers0/BloodyRoar2Recomp#readme"
       }
     },
     {
@@ -30495,7 +30773,7 @@
     {
       "id": "pokemon-yellow-recomp",
       "name": "Pokémon Yellow Recomp",
-      "summary": "Explore Pokémon Yellow Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Research the stock and extended Pokémon Yellow implementation; fresh acquisition remains held for the selected ROM-bearing package and unresolved code-permission basis.",
       "project_url": "https://github.com/mstan/PokemonYellowRecomp",
       "issue_number": 174,
       "platforms": [],
@@ -30508,7 +30786,8 @@
         "image_sha256": "4be67775dc5afbbffb9c1a81c7ac009368ef1a2cefefab08defa813f73790f02",
         "game_slug": "pokemon-yellow-version-special-pikachu-edition",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "The selected public v0.0.4 ZIP contains original or ROM-derived game content despite the upstream private/source-only declaration. Do not acquire or mirror that package. Resume only with an attributable clean permitted package or a reviewed lawful owned-input build/use contract covering the selected glue and framework; private build/source-only wording does not establish that permission."
     },
     {
       "id": "pokepark-2-recompiled-thibaudvb-poke-park-2-wonders-beyond",
@@ -31757,12 +32036,44 @@
     {
       "id": "rage-racer-rage-racer-pc",
       "name": "Rage Racer / rage-racer-pc",
-      "summary": "Explore Rage Racer / rage-racer-pc and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an already permitted Rage Racer 0.6.13-alpha Windows player for your PAL disc, preserving actual profile/cards/config/mod paths; fresh acquisition remains held.",
       "project_url": "https://github.com/khasinski/rage-racer-pc",
       "issue_number": 349,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/khasinski/rage-racer-pc",
+      "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",
+      "original_game_title": "Rage Racer",
+      "manual_setup": {
+        "help_url": "https://github.com/khasinski/rage-racer-pc/blob/e6b6de9a157094848074c8979c32a33a4f980c2a/README.md",
+        "steps": [
+          {
+            "title": "Use an already permitted completed player",
+            "instruction": "Follow the tagged publisher Running a release instructions only for an already permitted official 0.6.13-alpha Windows x64 Rage-Racer.exe copy and legally obtained original. This narrower personal-player use is not an OSS/source-redistribution or blanket component/package grant. Keep the existing fresh-acquisition condition; user selection does not clear it. Prior 0.6.5 artifact integrity does not qualify this version or arbitrary copies."
+          },
+          {
+            "title": "Keep the exact PAL reference media together",
+            "instruction": "Use your own PAL/Europe SCES-006.50 Rage Racer CUE with referenced BIN tracks, Track01 BIN or supported CHD. Preserve the full original set/path for streamed data/audio; a lone Track01 is not all audio tracks. The native picker/saved disc path selects input and imports renderer assets live in-process/in-memory; no separate launcher, extractor, SDK/.NET/Python or generated game executable is required. Core does not authenticate the full image or other regions/masterings."
+          },
+          {
+            "title": "Select the actual native game and creating context",
+            "instruction": "For normal defaults select Rage-Racer.exe with zero launch arguments and its installation root as initial working directory. Preserve an established supported --config and its absolute file path as separate literal arguments when already required for the creating profile. Preserve an already working custom CWD/config/environment rather than redirecting a profile merely to register. The main process remains through importer/renderer/MainLoop and shutdown. Do not select editor/scenario/source tools or add development/cache/scenario options for ordinary Play. Registration itself does not import or launch anything."
+          },
+          {
+            "title": "Review intent and keep updates player-owned",
+            "instruction": "Review and consent to the exact native executable, directory and literal arguments (empty for defaults, or the established --config and absolute path when required), then choose Play separately. Core observes only the selected process, not an exclusive family/sandbox or full-game qualification. No self-downloading game replacement path was established for this selected entry. Upstream/player owns the copy, repair and actual replacement; close every real instance before changing files and review a replacement through fresh relink."
+          },
+          {
+            "title": "Preserve the real profile, portable cards and custom paths",
+            "instruction": "Keep the whole copy and %APPDATA%/Rage Racer profile/state, actual bu00/bu10 card directories and BESCES-00650 RAGE000/001/002 slots, config files rage-port.ini/rage-input.cfg, disc-cue-path, force-feedback choices, car catalogs/player edits, mods/active.json/manifests/data/packages, diagnostics/logs/captures and every custom/unknown path. An existing nonempty executable-adjacent bu00 directory selects portable cards; an empty directory does not, and config/logs may still be per-user. Preserve explicit custom config, mods.directory, prebuilt developer cache, disc/log overrides and actual resolved paths. Do not create a marker or move state merely to register. Metadata removal preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Upstream 0.6.13-alpha explicitly does NOT confirm the reported Windows second-race rendering issue fixed. Keep that scoped known report visible; per-action controller remapping remains INI-based. No gameplay/race stability pass or supported full-game claim is made, and the Windows archive is unsigned.",
+          "Per-user config is checked before executable-adjacent config and CWD fallback. Existing --config/RAGE_CONFIG, RAGE_PORT_DISC_CUE and RAGE_PORT_LOG_PATH are upstream choices; Core intent does not capture per-entry environment. Preserve an already reproducible creating context rather than inventing new settings. Config and portable card storage need not share a root.",
+          "The existing download_block_reason and zero-provider refusal remain. No blanket OSS/source/component/redistribution grant, managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, memory-card-image/state compatibility, actual game/installed/protected qualification or Supported promotion follows from this prepared-copy guide."
+        ]
+      },
       "artwork": {
         "game_id": 18698,
         "cover_id": 387116,
@@ -32327,6 +32638,36 @@
         "image_sha256": "006284fde5d80cb1c49e1163b7657da68b27daf7fcfb85b1d90abf887761170b",
         "game_slug": "destroy-all-humans-path-of-the-furon",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/masterspike52/reDAHM/blob/da958b288c6f8f42812b9f36b08c29ffdd7e48fd/README.md",
+        "steps": [
+          {
+            "title": "Keep an already permitted working direct player",
+            "instruction": "Use an already permitted working Windows x64 redahm.exe copy, its complete actual dependencies and creating configuration. Upstream explicitly documents direct release play with one's own US original alongside optional Goopie; Goopie is not selected or granted Core lifecycle authority. No top-level project license is established by this review; publisher player instructions do not establish whole-source/component/redistribution rights."
+          },
+          {
+            "title": "Complete original extraction and path selection upstream",
+            "instruction": "Use your own US Destroy All Humans! Path of the Furon Xbox 360 original and its complete extracted assets, preserving the exact source and existing game/user/update roots. Finish the direct player's first-run path wizard outside Core. The tagged native entry persists redahm.cfg beside the actual executable, with game_data_root, user_data_root and optional update_data_root. Keep its actual valid configuration and roots; directory existence is not exact disc/XEX identity authentication. No Core ISO extraction, title-update installation or source generation is supplied."
+          },
+          {
+            "title": "Select the established actual game process",
+            "instruction": "Select redahm.exe itself, zero arguments for an already configured normal copy, and its actual established writable installation-root initial CWD. Preserve already required supported custom literal arguments and creating environment; do not redirect user data merely to register. Keep the whole adjacent DLL/plugin/runtime dependency set rather than synthesizing one from source. Do not select Goopie, a build/extractor/helper or DLL. Registration itself does not run setup or play."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+          },
+          {
+            "title": "Preserve all real configuration and player paths",
+            "instruction": "Keep the complete runtime, executable-side redahm.cfg, redahm.toml, originals/extracted assets and the actual configured user/save/content/update/cache/log/mod roots, including every custom and unknown file. Absolute configured roots can be outside the runtime and must be retained separately; retain established relative coordinates with their creating CWD. Upstream wizard writes its own path config; this is not Core migration or a preservation guarantee for changing upstream versions. Keep old state with its creating runtime."
+          }
+        ],
+        "warnings": [
+          "The current release tag new is mutable in practice: its current Windows asset is 34,942,774 bytes / publisher SHA256 9c90176d7cefb88975b8b2b9c84d8c66e913578ef6b0b74296e0412bdf4e5dc8, distinct from the previously acquired 34,918,055-byte ae2d24a6... asset. Old accepted archive/native identity does not qualify changed bytes. Do not silently replace a known working copy or treat a freshly computed hash as old accepted identity.",
+          "Selected tag source and current source differ, including audio code; the README-named custom SDK fork returned HTTP404 and its exact selected binary SDK provenance is not established. Source review records the native entry and path-store boundary, not source-to-binary certification or a reproducible managed kit.",
+          "No Core-managed acquisition/preparation/Install/Update/Backup/Rollback/migration/external deletion, new SDK/.NET/compiler provisioning, exact original authentication or generic Xbox framework. No game/package/original execution, gameplay/save compatibility/installed/protected acceptance or Supported promotion is established here."
+        ]
       }
     },
     {
@@ -34915,10 +35256,9 @@
     {
       "id": "soulcalibur-ii-ring-out",
       "name": "Soulcalibur II / Ring Out",
-      "summary": "Explore Soulcalibur II / Ring Out and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your already prepared Ring Out Windows runtime with your own Soulcalibur II USA disc data and generated module.",
       "project_url": "https://github.com/jackpoison-prog/RingOut",
       "issue_number": 148,
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/jackpoison-prog/RingOut",
       "artwork": {
@@ -34928,7 +35268,42 @@
         "image_sha256": "cab12016a577512e14d96191bc17f92f08352fa32abea249d0e0f32f37f49adb",
         "game_slug": "soulcalibur-ii--2",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Soulcalibur II",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish upstream preparation first",
+            "instruction": "Use your own permitted Soulcalibur II USA GRSEAF revision 0 disc and complete the supported Ring Out preparation outside Portcove. Establish a working prepared copy first. Keep the original, extracted game and generated module private; Portcove does not extract, compile or authenticate them."
+          },
+          {
+            "title": "Choose the direct runtime",
+            "instruction": "Select bin/moderngekko-run.exe inside the prepared Ring Out folder, with the complete package root as the working directory. Do not select RingOut.exe, RingOut.ps1, setup.ps1, a compiler or tool mode. RingOut.exe can invoke preparation when game/module files are missing."
+          },
+          {
+            "title": "Bind your exact data and module paths",
+            "instruction": "Use six separate literal argument tokens: --user-dir, the absolute path to this copy's userdata directory, --game, its absolute game directory, --module, and its absolute bin/gGRSEAF_recomp.dll path. Preserve spaces within each path token. Replace paths with your actual prepared locations; do not enter placeholders or --extract. The generated DLL is executable code and must be part of your permitted trusted prepared copy."
+          },
+          {
+            "title": "Review, consent and choose Play separately",
+            "instruction": "Review the exact runtime executable, root working directory and all six arguments, then consent to that execution intent. Registration does not start the game. Choose Play separately. Portcove retains the selection across restart and relink and observes the selected runtime process. Re-review and re-consent to every changed path after moving a copy."
+          },
+          {
+            "title": "Preserve the complete copy and keep one update owner",
+            "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement. Close all actual players and preserve originals/data before upstream changes. Removing the registration removes only Portcove metadata and preserves external files."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted prepared copy and comply with its engine and component terms. Engine GPL/source statements do not license original-game files or generated game code. Core validates the selected execution intent; it does not authenticate the disc revision, generated DLL, package/build provenance or every component.",
+          "Explicit --user-dir avoids an unintended shared default profile; without it the runtime can use LOCALAPPDATA/moderngekko, an XDG/HOME profile or a working-directory fallback depending on its build. Explicit --game and --module avoid default-game.txt and module discovery. Keep your actual prior profiles and custom data paths; changing coordinates does not migrate them or prove state compatibility.",
+          "Player startup creates and writes profile directories and settings; diagnostic, replay, texture/mod and configured external paths remain player-owned. Registration provides no sandbox or guarantee that upstream retains every file. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay, save/load, netplay and other platforms remain unqualified.",
+          "The reviewed v1.7 publication is distinct from historical v1.6.1 assets whose bytes changed under one name. It does not repair that old integrity gap. Old package CREDITS/README version and source-bundle instructions are stale; preserve notices and follow the matching upstream source. No binary/source attestation or new distribution right is inferred."
+        ],
+        "help_url": "https://github.com/jackpoison-prog/RingOut#installing"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",
@@ -35736,7 +36111,7 @@
     {
       "id": "star-wars-shadows-of-the-empire-n64-sote-recomp",
       "name": "Star Wars: Shadows of the Empire — N64 / SotE-Recomp",
-      "summary": "Explore Star Wars: Shadows of the Empire — N64 / SotE-Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Research this distinct N64 Shadows of the Empire implementation; the current MIT project grant does not resolve the retained package texture-provenance condition.",
       "project_url": "https://github.com/GTTeancum/SotE-Recomp",
       "issue_number": 343,
       "platforms": [],
@@ -35749,7 +36124,8 @@
         "image_sha256": "1dd963ff17ff5fb846f44a7215c9ee73662bd9991aad4bd3110b8284920677e9",
         "game_slug": "star-wars-shadows-of-the-empire",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "Current source has an MIT project grant, but the canonical selected-package texture permission/provenance condition remains unresolved. The older reviewed package contained reconstructed stock texture references; a new tag, source license or checksum alone does not establish the current package content basis. Fresh acquisition resumes after exact selected-package content and applicable permission are reviewed, or an asset-clean publication resolves that condition."
     },
     {
       "id": "star-wars-the-clone-wars-pc-gtteancum-star-wars-the-clone-wars-xbox",
@@ -36730,12 +37106,42 @@
     {
       "id": "super-metroid-snesrev-sm",
       "name": "Super Metroid / snesrev sm",
-      "summary": "Explore Super Metroid / snesrev sm and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your permitted source-built experimental snesrev Super Metroid Windows player while keeping its original, configuration and diagnostic saves together.",
       "project_url": "https://github.com/snesrev/sm",
       "issue_number": 340,
       "platforms": [],
       "availability": "source-only",
       "setup_url": "https://github.com/snesrev/sm#readme",
+      "manual_setup": {
+        "help_url": "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/BUILDING.md",
+        "steps": [
+          {
+            "title": "Complete the upstream source build",
+            "instruction": "Use the distinct snesrev/sm implementation under its MIT and component notices with your own supported Super Metroid original. Follow the pinned upstream Windows build instructions outside Portcove. This is an early experimental native implementation with bugs and frame-by-frame comparison against the original; a mismatch writes diagnostic snapshots. It is distinct from mstan Super Metroid and does not inherit its source, saves or qualification."
+          },
+          {
+            "title": "Choose the completed player and original",
+            "instruction": "Select your already working sm.exe. The Visual Studio Release recipe writes build/bin-x64-Release/sm.exe; the Make recipe builds the sm target at the project root. Use your established runtime root containing the configuration and saves as the working directory. Do not select run_with_tcc.bat, a compiler or another build wrapper. Keep your supported raw sm.smc, SHA-1 da957f0d63d14cb441d215462904c4fa8519c613; the guide does not establish alternate revisions, copier headers or archive representations."
+          },
+          {
+            "title": "Preserve the actual configuration and literal arguments",
+            "instruction": "For an explicit invocation use three literal tokens in this order: --config, the absolute path to your actual existing configuration, and the absolute path to your supported ROM. Preserve sm.user.ini if that is your active override; otherwise use your existing sm.ini. Keep spaces inside each path token. This explicit --config avoids upward sm.ini directory discovery, but relative data still uses the chosen working directory. Preserve an already working custom invocation rather than switching profiles."
+          },
+          {
+            "title": "Review consent, then Play",
+            "instruction": "Review and consent to the selected executable, working directory and literal arguments. Registration does not build, start or repair the game. Choose Play separately; retained registration and relink remain subject to a new review when execution intent changes. Portcove observes the selected process. Close all actual players before changing the upstream copy."
+          },
+          {
+            "title": "Preserve the experimental runtime and saves",
+            "instruction": "Upstream/player own all builds, repairs and updates. Keep the complete runtime/source tree, original, sm.ini, sm.user.ini, every selected custom configuration, saves/sm.srm and sm.srm.bak, save/replay/mismatch snapshots and all custom files. Keep diagnostic states with their creating build; this route does not migrate or establish compatibility with another build or implementation. Removing registration removes only Portcove metadata and preserves all external files."
+          }
+        ],
+        "warnings": [
+          "The MIT project grant and separate component notices do not grant rights to the original game or generated game content. Core does not authenticate the ROM or source/build provenance in this user-selected route.",
+          "This Windows selected-process route does not provide managed acquisition, compilation, Install, Update, Backup, Rollback, migration or external deletion. Actual game execution/gameplay/save-load, other platforms, exclusive process-family ownership, network/debug behavior and installed/protected delivery are not qualified here."
+        ]
+      },
+      "original_game_title": "Super Metroid",
       "artwork": {
         "game_id": 1103,
         "cover_id": 265426,
@@ -36743,20 +37149,6 @@
         "image_sha256": "6c552ed7337ed7a6a68fd8502d2885747bccd350af9cd4aa081f1f08060c5f6d",
         "game_slug": "super-metroid",
         "match_kind": "underlying-game"
-      },
-      "manual_setup": {
-        "steps": [
-          {
-            "title": "Prepare upstream or keep an existing game build",
-            "instruction": "Follow the linked BUILDING.md for your own Super Metroid source. Upstream expects the supported sm.smc in the runtime root and uses a frame-by-frame comparison mode, writing mismatch snapshots under saves. Keep that source/runtime layout and the upstream limitations with your own native build; this is not a packaged game download."
-          },
-          {
-            "title": "Keep your files and update through upstream",
-            "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
-          }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/snesrev/sm#readme"
       }
     },
     {
@@ -36922,6 +37314,36 @@
         "image_sha256": "67695ffc1a9bc9a5b41ef3d1ce2df91b84223497b65b7ed1e351f43577744f1d",
         "game_slug": "wwe-smackdown-vs-raw-2007",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/HollywoodAkeem/SVR07-Recomp/blob/c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc/README.md",
+        "steps": [
+          {
+            "title": "Keep a permitted completed direct native player",
+            "instruction": "Use an already permitted working official v1.0 Windows x64 svr07.exe and the complete actual installation, with existing Windows10/11/D3D12 support. Root BSD3 covers project code, not original game/assets/trademarks or exhaustive dependency/package clearance. The publisher explicitly documents native release use with a legally owned original; this is not whole-package/source-to-binary or gameplay certification."
+          },
+          {
+            "title": "Preserve the exact own extracted original",
+            "instruction": "Complete upstream preparation using your own WWE SmackDown vs. Raw 2007 Xbox 360 original. USA/Canada is recommended; other regions are untested. Keep assets/ and the complete extracted files/default.xex, existing title-update paths and original set. Core does not extract an ISO, authenticate a full disc/XEX, install an update or establish arbitrary regional/revision compatibility."
+          },
+          {
+            "title": "Select the game rather than the settings prelauncher",
+            "instruction": "Select the actual already working svr07.exe game entry, zero arguments for the normal prepared copy, and its established writable containing installation-root CWD. The official release also advertises a settings prelauncher; complete settings there separately and select the long-lived native game for Core Play. Preserve any already required supported custom literal arguments/profile context; do not select an updater, SDK/build/helper or DLL. Registration itself does not prepare or launch the game."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+          },
+          {
+            "title": "Preserve every actual root and creating profile",
+            "instruction": "Keep the whole runtime, original/extracted assets, actual configuration, save/user content, title-update data, logs/caches/mods/custom and unknown paths. The title source uses application name svr07 and overrides update_data_root to a rooted assets/1_update coordinate; do not rewrite/create that path merely to register. The named runtime-fork observation uses a Windows Documents/svr07 default user root, but is not pinned to the selected release binary: preserve the actual established profile/custom roots rather than inferring or migrating it from that example. Keep state with its creating runtime; removal preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Upstream current README still reports roughly a 10% per-session random D3D12 GPU-device-loss crash, not root-caused, plus vertex artifacts and fixed internal resolution/aspect constraints. The older tag lacks the later crash text; no fix, stability, full-game/gameplay or save-load pass is inferred. Relaunch advice is upstream recovery guidance, not a Core crash-repair guarantee.",
+          "The v1.0 package/old matching digest and BSD3 source grant retain their original scopes. The selected release source has no exact SDK-fork commit pin; current fork source is only an explicitly separate observation, not a certificate for that binary. No generic SDK/source/other-game support is inherited.",
+          "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion or new console-family framework. Actual game/original/package execution, state/mod compatibility, installed/human/other-platform/protected qualification and Supported promotion remain unestablished here."
+        ]
       }
     },
     {
@@ -41396,7 +41818,7 @@
     {
       "id": "vandal-hearts-vandalhearts-pcport",
       "name": "Vandal Hearts / VandalHearts-PcPort",
-      "summary": "Explore Vandal Hearts / VandalHearts-PcPort and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Vandal Hearts remains discoverable, with upstream-disclosed embedded Konami/Sony component permission outside the limited project GPL grant still unresolved.",
       "project_url": "https://github.com/HalmyLyseas/VandalHearts-PcPort",
       "issue_number": 347,
       "platforms": [],
@@ -41409,7 +41831,8 @@
         "image_sha256": "343a6200670f7336e5203f87c640611d9ae28310dfc254645c42b91246640ac0",
         "game_slug": "vandal-hearts",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "New downloads are waiting for applicable permission covering the selected package’s upstream-disclosed embedded Konami static game data and Sony BIOS-derived kanji. The project GPL grant expressly excludes those inherited/original-derived components. Reconsider an exact attributable permitted package/component route, reviewed asset-clean alternative or lawful owned-input prepared route; a local build or old matching digest alone does not expand that grant."
     },
     {
       "id": "vcmi-vcmi",
@@ -41932,12 +42355,48 @@
     {
       "id": "voicedrew11-verdite2",
       "name": "King's Field / Verdite2 (Voicedrew11)",
-      "summary": "Explore King's Field / Verdite2 (Voicedrew11) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an upstream-prepared Verdite2 Windows player for US King's Field, preserving your disc, actual profile, memory cards and creating-runtime build cache.",
       "project_url": "https://github.com/Voicedrew11/verdite2",
       "issue_number": 1900,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Voicedrew11/verdite2",
+      "original_game_title": "King's Field",
+      "manual_setup": {
+        "help_url": "https://github.com/Voicedrew11/verdite2/blob/15c54b244d592f92d85f11f3f20c3d929193f0db/README.md",
+        "steps": [
+          {
+            "title": "Prepare the complete permitted official player",
+            "instruction": "Use an already permitted completed official Verdite2 v0.5.2 Windows x64 portable copy for US King's Field, under the project, vendored RecompOne/verdite-core MIT terms and applicable component notices. These grants do not cover the original FromSoftware game/media or certify arbitrary binaries. Keep the entire extracted installation, including bin, content and licenses. Upstream/player owns preparation, repair and replacement; do not select the setup.exe installer as the game."
+          },
+          {
+            "title": "Keep the exact owned disc with its creating copy",
+            "instruction": "Use your own North American King's Field disc, SLUS-00158: a CUE with every referenced BIN, or an upstream-supported CHD. Retain the original path and related files for streamed game data; the generated assembly is not a replacement for the disc. The selected source supports CHD cdzl/cdlz/cdfl/zlib/lzma codecs, not cdzs. Upstream checks boot serial and selected-file presence, not independently authenticated full-disc identity. Other regions, masterings, different King’s Field games and emulator states are not qualified by this guide."
+          },
+          {
+            "title": "Complete upstream onboarding before registration",
+            "instruction": "Finish the normal upstream disc picker and first-run preparation outside Portcove. On a cache miss the launcher regenerates and compiles KingsField2.dll in its own profile, then invokes the game synchronously in the same apphost; registration does not perform that preparation. Keep the generator, content, original, settings and build cache together with their creating version. A prepared copy still retains its upstream generator; this does not make it a plain immutable native-runtime package."
+          },
+          {
+            "title": "Select the self-contained entry and explicit initial directory",
+            "instruction": "Select bin/Verdite2.exe with zero launch arguments and the complete installation root as initial working directory. Keep all adjacent self-contained .NET/native dependencies; this selected entry does not require a separate system .NET10 installation. Do not select a cached DLL, dotnet host, build helper or installer. The apphost resolves its profile and deliberately changes working directory there; changing the initial directory alone does not redirect all player data. Preserve established custom-profile path interpretation."
+          },
+          {
+            "title": "Review intent and choose Play separately",
+            "instruction": "Review and consent to the exact executable, initial working directory and empty argument list. Registration does not build or launch the game; choose Play explicitly. Core observes this long-lived selected apphost, not an exclusive process family or network sandbox. Upstream update checking only notifies and opens its release page; it does not replace or relaunch the game. Upstream/player owns actual replacement. Close all real instances before replacing the copy and review a replacement executable through a fresh relink."
+          },
+          {
+            "title": "Preserve the whole profile and every custom card path",
+            "instruction": "Keep the entire actual runtime and %LOCALAPPDATA%/Verdite2 profile, or its established override: settings.json including CdPath/CardAPath/CardBPath, interface.ini, carda.sav/cardb.sav and backup/damaged companions, mods including mods/.cache and profile-root .mods-seeded, builds including KingsField2.dll and profile-root build.log, update.json, icon files, crashes, dumps/diagnostics and all unknown/custom paths. Relative card paths resolve under the active profile working directory; absolute cards may live elsewhere and must also be preserved. Keep each creating version and original; no save/card/state/mod migration or cross-build compatibility is established. Removing registration deletes only Portcove metadata and preserves every external byte."
+          }
+        ],
+        "warnings": [
+          "An existing VERDITE2_DATA environment override is an upstream profile choice; relative values resolve from the initial working directory before the apphost changes it. Core registration records executable, directory and arguments, not a per-entry environment override. Do not assume a shell-only setting follows GUI Play, or silently move/redirect a profile. Preserve an already reproducible environment and its actual data paths.",
+          "Windows upstream code can refresh icons of matching Desktop, Start Menu and pinned-taskbar shortcuts; KF2_ICON_INSTALL=0/off is its environment opt-out. These are upstream actions, not a Portcove shortcut/profile ownership promise.",
+          "Upstream memoization uses image path/size/mtime; an unchanged CUE can conceal a changed BIN. Build keys cover selected disc files, source/config and launcher version rather than every media byte. User-selected execution intent is not Core certification of the original, package, generated DLL or full image.",
+          "No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion is supplied. Source inspection and inert Core probes are not actual game, gameplay/save-load/state/mod compatibility, other-platform, installed-app or protected acceptance. Memory cards, generated assemblies and crash dumps remain distinct evidence/data."
+        ]
+      },
       "artwork": {
         "game_id": 7423,
         "cover_id": 467834,
@@ -41950,12 +42409,48 @@
     {
       "id": "voicedrew11-verdite3",
       "name": "King's Field II / Verdite3 (Voicedrew11)",
-      "summary": "Explore King's Field II / Verdite3 (Voicedrew11) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an upstream-prepared Verdite3 Windows player for US King's Field II, preserving your disc, actual profile, memory cards and creating-runtime build cache.",
       "project_url": "https://github.com/Voicedrew11/verdite3",
       "issue_number": 1901,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Voicedrew11/verdite3",
+      "original_game_title": "King's Field II",
+      "manual_setup": {
+        "help_url": "https://github.com/Voicedrew11/verdite3/blob/ebc307bc42669519af736c6d29cd5d1cba06881a/README.md",
+        "steps": [
+          {
+            "title": "Prepare the complete permitted official player",
+            "instruction": "Use an already permitted completed official Verdite3 v0.2.0 Windows x64 portable copy for US King's Field II, under the project, vendored RecompOne/verdite-core MIT terms and applicable component notices. These grants do not cover the original FromSoftware game/media or certify arbitrary binaries. Keep the entire extracted installation, including bin, content and licenses. Upstream/player owns preparation, repair and replacement; do not select the setup.exe installer as the game."
+          },
+          {
+            "title": "Keep the exact owned disc with its creating copy",
+            "instruction": "Use your own North American King's Field II disc, SLUS-00255: a CUE with every referenced BIN, or an upstream-supported CHD. Retain the original path and related files for streamed game data; the generated assembly is not a replacement for the disc. The selected source supports CHD cdzl/cdlz/cdfl/zlib/lzma codecs, not cdzs. Upstream checks boot serial and selected-file presence, not independently authenticated full-disc identity. Other regions, masterings, different King’s Field games and emulator states are not qualified by this guide."
+          },
+          {
+            "title": "Complete upstream onboarding before registration",
+            "instruction": "Finish the normal upstream disc picker and first-run preparation outside Portcove. On a cache miss the launcher regenerates and compiles KingsField3.dll in its own profile, then invokes the game synchronously in the same apphost; registration does not perform that preparation. Keep the generator, content, original, settings and build cache together with their creating version. A prepared copy still retains its upstream generator; this does not make it a plain immutable native-runtime package."
+          },
+          {
+            "title": "Select the self-contained entry and explicit initial directory",
+            "instruction": "Select bin/Verdite3.exe with zero launch arguments and the complete installation root as initial working directory. Keep all adjacent self-contained .NET/native dependencies; this selected entry does not require a separate system .NET10 installation. Do not select a cached DLL, dotnet host, build helper or installer. The apphost resolves its profile and deliberately changes working directory there; changing the initial directory alone does not redirect all player data. Preserve established custom-profile path interpretation."
+          },
+          {
+            "title": "Review intent and choose Play separately",
+            "instruction": "Review and consent to the exact executable, initial working directory and empty argument list. Registration does not build or launch the game; choose Play explicitly. Core observes this long-lived selected apphost, not an exclusive process family or network sandbox. Upstream update checking only notifies and opens its release page; it does not replace or relaunch the game. Upstream/player owns actual replacement. Close all real instances before replacing the copy and review a replacement executable through a fresh relink."
+          },
+          {
+            "title": "Preserve the whole profile and every custom card path",
+            "instruction": "Keep the entire actual runtime and %LOCALAPPDATA%/Verdite3 profile, or its established override: settings.json including CdPath/CardAPath/CardBPath, interface.ini, carda.sav/cardb.sav and backup/damaged companions, mods including mods/.cache and profile-root .mods-seeded, builds including KingsField3.dll and profile-root build.log, update.json, icon files, crashes, dumps/diagnostics and all unknown/custom paths. Relative card paths resolve under the active profile working directory; absolute cards may live elsewhere and must also be preserved. Keep each creating version and original; no save/card/state/mod migration or cross-build compatibility is established. Removing registration deletes only Portcove metadata and preserves every external byte."
+          }
+        ],
+        "warnings": [
+          "An existing VERDITE3_DATA environment override is an upstream profile choice; relative values resolve from the initial working directory before the apphost changes it. Core registration records executable, directory and arguments, not a per-entry environment override. Do not assume a shell-only setting follows GUI Play, or silently move/redirect a profile. Preserve an already reproducible environment and its actual data paths.",
+          "Windows upstream code can refresh icons of matching Desktop, Start Menu and pinned-taskbar shortcuts; KF3_ICON_INSTALL=0/off is its environment opt-out. These are upstream actions, not a Portcove shortcut/profile ownership promise.",
+          "Upstream memoization uses image path/size/mtime; an unchanged CUE can conceal a changed BIN. Build keys cover selected disc files, source/config and launcher version rather than every media byte. User-selected execution intent is not Core certification of the original, package, generated DLL or full image.",
+          "No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion is supplied. Source inspection and inert Core probes are not actual game, gameplay/save-load/state/mod compatibility, other-platform, installed-app or protected acceptance. Memory cards, generated assemblies and crash dumps remain distinct evidence/data."
+        ]
+      },
       "artwork": {
         "game_id": 9500,
         "cover_id": 468234,
@@ -43533,7 +44028,7 @@
     {
       "id": "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
       "name": "X-Men: Mutant Academy 2 / xmen-mutant-academy-2-pc",
-      "summary": "Explore X-Men: Mutant Academy 2 / xmen-mutant-academy-2-pc and follow the upstream project for requirements, downloads and setup.",
+      "summary": "X-Men: Mutant Academy 2 remains discoverable, with selected project/package permission and original-derived texture-pack provenance unresolved.",
       "project_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
       "issue_number": 356,
       "platforms": [],
@@ -43546,7 +44041,8 @@
         "image_sha256": "7ddf12a8e6d4e1b082dc2892d1a04a8ba431b9cae42d31f25ae00531c8558e13",
         "game_slug": "x-men-mutant-academy-2",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative."
     },
     {
       "id": "xander-haj-z3r",
@@ -44003,7 +44499,7 @@
     {
       "id": "zelda-link-s-awakening-dx-hd",
       "name": "Zelda: Link's Awakening DX HD",
-      "summary": "Explore Zelda: Link's Awakening DX HD and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Research this distinct Link’s Awakening DX HD patch fork; its required original PC-port content and exact permitted acquisition/use path remain unresolved.",
       "project_url": "https://github.com/ryancheung/Zelda-LA-DX-HD",
       "issue_number": 128,
       "platforms": [],
@@ -44016,7 +44512,8 @@
         "image_sha256": "270128e2277a26e22faa7bcb2e24550952e1d1a9719de9d858f51cf6ffef67ea",
         "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "The v2.0.0 Content.rar is an incomplete patch that depends on Content/Data from the withdrawn original v1.0.0 PC-port package. A ROM, patch checksum or new mirror does not supply the missing permitted original-data and executable contract. Fresh acquisition remains held until attributable permission and exact original-data/executable mapping or a clean lawful replacement are established."
     },
     {
       "id": "zelda3",

@@ -89,8 +89,14 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
         | "stack_bytes" => value.as_u64().map(|value| json!(value)),
         "stdout_bytes" | "stderr_bytes" => value.as_u64().map(|value| json!(value)),
         "exit_code" => value.as_i64().map(|value| json!(value)),
-        "success" | "truncated" | "activity_recorded" | "capture_recorded" | "stream_complete"
-        | "context_complete" | "session_clean" => value.as_bool().map(|value| json!(value)),
+        "success"
+        | "truncated"
+        | "activity_recorded"
+        | "capture_recorded"
+        | "stream_complete"
+        | "context_complete"
+        | "session_clean"
+        | "qualification_prepared" => value.as_bool().map(|value| json!(value)),
         "operation" => label(
             value,
             &[
@@ -493,4 +499,31 @@ pub(crate) fn project(record: &Map<String, Value>) -> Value {
         "omitted_fields": (omitted as u64).saturating_add(prior_omissions),
         "omitted_envelope_fields": omitted_metadata,
     })
+}
+
+#[cfg(test)]
+mod qualification_marker_tests {
+    use super::*;
+
+    #[test]
+    fn prepared_qualification_marker_accepts_only_its_named_boolean() {
+        for value in [true, false] {
+            assert_eq!(
+                field("qualification_prepared", &json!(value)),
+                Some(json!(value))
+            );
+        }
+        for value in [
+            Value::Null,
+            json!("true"),
+            json!("private-path-canary"),
+            json!(1),
+            json!([]),
+            json!({"private":"canary"}),
+        ] {
+            assert!(field("qualification_prepared", &value).is_none());
+        }
+        assert!(field("qualification_prepared_extra", &json!(true)).is_none());
+        assert!(span_field("qualification_prepared", &json!(true)).is_none());
+    }
 }

@@ -3,7 +3,7 @@
   "listing": {
     "id": "vandal-hearts-vandalhearts-pcport",
     "name": "Vandal Hearts / VandalHearts-PcPort",
-    "summary": "Explore Vandal Hearts / VandalHearts-PcPort and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Vandal Hearts remains discoverable, with upstream-disclosed embedded Konami/Sony component permission outside the limited project GPL grant still unresolved.",
     "project_url": "https://github.com/HalmyLyseas/VandalHearts-PcPort",
     "issue_number": 347,
     "platforms": [],
@@ -16,6 +16,7 @@
       "image_sha256": "343a6200670f7336e5203f87c640611d9ae28310dfc254645c42b91246640ac0",
       "game_slug": "vandal-hearts",
       "match_kind": "underlying-game"
-    }
+    },
+    "download_block_reason": "New downloads are waiting for applicable permission covering the selected package’s upstream-disclosed embedded Konami static game data and Sony BIOS-derived kanji. The project GPL grant expressly excludes those inherited/original-derived components. Reconsider an exact attributable permitted package/component route, reviewed asset-clean alternative or lawful owned-input prepared route; a local build or old matching digest alone does not expand that grant."
   }
 }

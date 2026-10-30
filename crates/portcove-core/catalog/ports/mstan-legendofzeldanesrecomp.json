@@ -3,12 +3,42 @@
   "listing": {
     "id": "mstan-legendofzeldanesrecomp",
     "name": "The Legend of Zelda / LegendOfZeldaNESRecomp (mstan)",
-    "summary": "Explore The Legend of Zelda / LegendOfZeldaNESRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register a permitted noncommercial completed The Legend of Zelda Windows cycle player, preserving your original, actual configuration and creating-backend state.",
     "project_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
     "issue_number": 1840,
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
+    "original_game_title": "The Legend of Zelda",
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/07c3004786f36b73e58fe00bfece9ad648ba7d96/README.md",
+      "steps": [
+        {
+          "title": "Prepare a permitted completed cycle player",
+          "instruction": "Use an already permitted noncommercial source-built The Legend of Zelda Windows cycle player under the selected title/framework PolyForm Noncommercial terms and applicable component notices; the shared UI has separate MIT terms. Complete upstream generation/build outside Portcove in a separate folder. This handoff is not a package/component attestation, does not grant original-game or optional media rights, and does not establish a legacy or HD executable as the cycle product."
+        },
+        {
+          "title": "Keep the supported original and backend together",
+          "instruction": "Use your own supported The Legend of Zelda USA PRG0 cartridge image, with upstream accepted PRG+CHR payload CRC32 3fe272fb and compatible cartridge/header metadata. The selected stock source uses SNROM battery RAM. The guide does not establish other regions, the separate HD/Remastered input, FDS or arbitrary patched images."
+        },
+        {
+          "title": "Select the completed native player and actual configuration",
+          "instruction": "Select the already working completed cycle LegendOfZeldaNESRecomp.exe, using its containing runtime folder as working directory for normal defaults. Preserve an already working custom working directory and the interpretation of existing path arguments instead of changing them merely to register. Do not choose setup.bat, setup.sh, a compiler, headless tool or another backend executable. Use one literal argument token: the absolute path to your supported ROM, with spaces kept inside that token. The ordinary upstream launcher remains available; these cycle builds do not accept the SNES --rom or --no-launcher flags. Preserve an established --config and its absolute path as separate tokens when already used; do not switch configuration merely to register."
+        },
+        {
+          "title": "Review intent and choose Play explicitly",
+          "instruction": "Review and consent to the exact native executable, working directory and literal arguments. Registration does not compile, migrate, repair or launch the game. Choose Play separately; upstream’s ordinary launcher and game loop are in-process in the selected source. Portcove observes the selected process, not an exclusive process family. Relink an upstream replacement through a new review and close every actual player before upstream changes."
+        },
+        {
+          "title": "Preserve the creating copy and upstream ownership",
+          "instruction": "Preserve the whole creating runtime/source tree, original, config.ini and any custom configuration, its rom.cfg, keybind/controls and mods, saves/<ROM stem>.sav, cycle slot states under saves/<ROM stem>.cycstate, raw legacy .srm files, diagnostics/captures and every custom save/state path. Legacy binary states cannot transfer to the cycle backend; keep them with their original runtime. Upstream battery import is a separate user-owned choice, not a Portcove migration. Do not rename or import old files merely to register. Upstream/player own preparation, repair and runtime replacement. Removing registration removes only Portcove metadata and preserves all external bytes."
+        }
+      ],
+      "warnings": [
+        "Default settings use executable-parent config.ini; rom.cfg follows the chosen settings file. A custom --config is not an all-writes redirect: default cartridge battery/state paths remain executable-relative. Preserve actual existing --save-file choices; do not add --save-file or --no-save merely to register. --no-save disables battery loading as well as writing.",
+        "These upstream previews and their source/backend migration reports are not Portcove gameplay or save-compatibility qualification. Core user-selected registration does not authenticate the ROM, generated code, component rights or build provenance. No managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, sandbox, network/debug/netplay or exclusive process-family guarantee is supplied. Actual game execution, gameplay/state/installed/protected and other-platform observations remain unqualified here."
+      ]
+    },
     "artwork": {
       "game_id": 1022,
       "cover_id": 86202,
