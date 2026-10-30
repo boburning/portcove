@@ -29422,7 +29422,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained. Play has not been tested through Portcove on Linux.",
+        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Windows startup and a normal exit were observed through the standalone Portcove CLI after moving the isolated library to a short basic-Latin path. Gameplay remains unverified. Retained installations keep their creating definition; this new path declaration does not rewrite their manifests. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained. Play has not been tested through Portcove on Linux.",
         "original_game_title": "Tyrian",
         "manual_setup": {
           "steps": [
@@ -29431,7 +29431,9 @@
               "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
+          ],
           "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
         },
         "artwork": {
@@ -29442,7 +29444,8 @@
           "game_slug": "tyrian",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "perimeter-emperor-s-testament-perimeter-community-engine",

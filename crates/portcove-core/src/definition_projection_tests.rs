@@ -88,7 +88,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         && typed.release.provider == crate::ReleaseSource::DirectManifest
     {
         if typed.windows_runtime_path_policy.is_some() {
-            4
+            crate::runtime_path_policy::minimum_capability(&typed)
         } else {
             3
         }

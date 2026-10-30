@@ -31,6 +31,21 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("opentyrian-opentyrian").unwrap().clone();
+    port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
+    let mut entry = entry_for_port(&port);
+    for version in 1..=6 {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(7);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 7"));
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn n64_executable_parent_requires_a_new_reader_and_nonconflicting_root() {
     let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
     let port = document
@@ -395,7 +410,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             && port.release.provider == crate::ReleaseSource::DirectManifest
         {
             if port.windows_runtime_path_policy.is_some() {
-                4
+                crate::runtime_path_policy::minimum_capability(port)
             } else {
                 3
             }
@@ -1021,8 +1036,9 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
     );
     entry["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(inspect(&entry).is_err());
-    entry["required_capabilities"][0]["minimum_version"] = json!(7);
-    entry["required_capabilities"][0]["maximum_version"] = json!(7);
+    // Native7 is now implemented; retain refusal for an unimplemented future reader.
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    entry["required_capabilities"][0]["maximum_version"] = json!(8);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 }
 
