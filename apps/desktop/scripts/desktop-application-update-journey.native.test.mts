@@ -140,6 +140,10 @@ void test("shipping status reader imports and executes outside dependency ancest
     path.join(root, "apps/desktop/scripts/desktop-installed-update-harness.mts"),
   );
   await copyFile(
+    new URL("./browser-script.mts", import.meta.url),
+    path.join(root, "apps/desktop/scripts/browser-script.mts"),
+  );
+  await copyFile(
     new URL("../../../scripts/runtime-values.mts", import.meta.url),
     path.join(root, "scripts/runtime-values.mts"),
   );
