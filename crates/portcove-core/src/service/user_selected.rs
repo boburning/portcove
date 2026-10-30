@@ -649,13 +649,13 @@ mod tests {
 
     // The listing-based contract retains its acquisition restriction without
     // promoting the descriptive identity into a strict managed definition.
-    fn assert_listing_only_player_route(id: &str, embedded: bool) {
+    fn assert_listing_only_player_route(id: &str, embedded_download_hold: Option<bool>) {
         let (temporary, mut service, executable, working) = fixture(id);
-        if embedded {
+        if let Some(download_hold) = embedded_download_hold {
             service.catalog = Catalog::embedded().unwrap();
             let listing = service.catalog.listing(id).unwrap();
             assert!(listing.manual_setup.is_some());
-            assert!(listing.download_block_reason.is_some());
+            assert_eq!(listing.download_block_reason.is_some(), download_hold);
         } else {
             listing_only(&mut service);
         }
@@ -786,27 +786,37 @@ mod tests {
 
     #[test]
     fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
-        assert_listing_only_player_route("listing-only", false);
+        assert_listing_only_player_route("listing-only", None);
     }
 
     #[test]
     fn cannonball_route_120() {
-        assert_listing_only_player_route("cannonball-outrun", true);
+        assert_listing_only_player_route("cannonball-outrun", Some(true));
     }
 
     #[test]
     fn cannonball_route_1132() {
-        assert_listing_only_player_route("cannonball-dx-outrun", true);
+        assert_listing_only_player_route("cannonball-dx-outrun", Some(true));
     }
 
     #[test]
     fn psx_permitted_player_route_826() {
-        assert_listing_only_player_route("mstan-battle-arena-toshinden-recomp", true);
+        assert_listing_only_player_route("mstan-battle-arena-toshinden-recomp", Some(true));
     }
 
     #[test]
     fn psx_permitted_player_route_827() {
-        assert_listing_only_player_route("novapowers0-bloody-roar-ii-recomp", true);
+        assert_listing_only_player_route("novapowers0-bloody-roar-ii-recomp", Some(true));
+    }
+
+    #[test]
+    fn snes_source_player_route_146() {
+        assert_listing_only_player_route("mega-man-x-snes-recomp", Some(true));
+    }
+
+    #[test]
+    fn snes_source_player_route_340() {
+        assert_listing_only_player_route("super-metroid-snesrev-sm", Some(false));
     }
 
     // Bind the real embedded identities to Core's offered operations with an

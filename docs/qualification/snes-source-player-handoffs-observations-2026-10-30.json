@@ -1,0 +1,301 @@
+{
+  "format_version": 1,
+  "kind": "dated exact-source two-player handoff evidence; not a live status authority",
+  "owners": [2926, 2510, 1422],
+  "source_base_commit": "fd55947a8e8c7003b968c8733396d9a787c5123d",
+  "observation_date": "2026-10-30",
+  "selected_rows": [
+    {
+      "canonical_issue": 146,
+      "id": "mega-man-x-snes-recomp",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "cc1a6c2f4ca3aac6664e5ac8f6744223f5a7dba4f7bdd10b8ee1bd54526c6eb9",
+      "context_observed_at": "2026-10-30T17:43:42.264Z",
+      "planning_at_pickup": {
+        "Status": "Blocked",
+        "Priority": "High",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "upstream": "mstan/MegaManXSNESRecomp",
+      "source_commit": "9e6dd7b98ba420c4c97567eb192f734d0ba04f53",
+      "complete_tree_entries": 492,
+      "tree_truncated": false,
+      "tree_response_sha256": "6220ad2dc079f8bbdd7ecae5bfc5c086523ea9b29ca5661f6cc68989c40c28d4",
+      "authored_record_sha256": "4de98d58cb89bc41bb7c03c91977583cd4082e9edb0d3ee8fed1d8c107fd11ff",
+      "offered_platform": "Windows completed native player",
+      "offered_operations": [
+        "review explicit executable/CWD/literal arguments",
+        "consent",
+        "register",
+        "relink",
+        "retain across restart",
+        "explicit selected-process Play",
+        "metadata-only removal"
+      ],
+      "update_owner": "upstream/player; user-managed-update",
+      "unoffered_operations": [
+        "managed acquisition/install/preparation",
+        "managed update",
+        "backup",
+        "rollback",
+        "migration",
+        "external deletion"
+      ],
+      "game_execution": "not_run",
+      "gameplay_and_state_compatibility": "not_evaluated",
+      "installed_or_protected_delivery": "not_evaluated"
+    },
+    {
+      "canonical_issue": 340,
+      "id": "super-metroid-snesrev-sm",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "0c8e6150d71563e62c4c3f85e152bc79c33a1f98df47774b61d3cc3443dba244",
+      "context_observed_at": "2026-10-30T17:45:14.940Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "upstream": "snesrev/sm",
+      "source_commit": "578f90b3cc49557bb70060ad033bb90b8cf8ac50",
+      "complete_tree_entries": 137,
+      "tree_truncated": false,
+      "tree_response_sha256": "ce6c17868eab4aaae458182b46734d365cc1ca5e4cbf7cdcafefc6f256fddcb7",
+      "authored_record_sha256": "e19e1c41bc996eef2b1ecfdb9ae6135c1b046b5af77ccfe3fa44460e131a1899",
+      "offered_platform": "Windows completed native player",
+      "offered_operations": [
+        "review explicit executable/CWD/literal arguments",
+        "consent",
+        "register",
+        "relink",
+        "retain across restart",
+        "explicit selected-process Play",
+        "metadata-only removal"
+      ],
+      "update_owner": "upstream/player; user-managed-update",
+      "unoffered_operations": [
+        "managed acquisition/install/preparation",
+        "managed update",
+        "backup",
+        "rollback",
+        "migration",
+        "external deletion"
+      ],
+      "game_execution": "not_run",
+      "gameplay_and_state_compatibility": "not_evaluated",
+      "installed_or_protected_delivery": "not_evaluated"
+    }
+  ],
+  "verified_source_blobs": [
+    {
+      "repository": "snesrev/sm",
+      "path": "BUILDING.md",
+      "git_blob": "e40b0097cd318ecd10399f6552a975629fc60a21",
+      "sha256": "cedb482754718d71ac1e3e6393cf13bd031191c2fa0a24b71682b2588f0ba973",
+      "bytes": 3395
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "LICENSE.txt",
+      "git_blob": "6d95add135bc11fcfa246808ac479179aa9e8aa2",
+      "sha256": "d7b321b1d1009b9d5d0dc1334b0a941def8f15f36ce2396fabd409e9327e2787",
+      "bytes": 2597
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "Makefile",
+      "git_blob": "1fcc86bf91a0b5e866ad4f631e32fc8a0f439b83",
+      "sha256": "5c7844d78b04510f6d6d48c188689afe8c05f4adfb798f9fb1ff75e650d2b98c",
+      "bytes": 803
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "README.md",
+      "git_blob": "4e9dc038343edc2e59a7fa93085350a2566f4c83",
+      "sha256": "01f1c98c43eacb6c53b2b73a46f4987d24bb0a579304514e0085db3c6297c51b",
+      "bytes": 462
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "sm.ini",
+      "git_blob": "3b1a8eaa7f26976da808e335d335fdea45b09e90",
+      "sha256": "d2318423e953f496623cdecffec2753aa11bd9d1723c367527f09df66baf71e6",
+      "bytes": 3004
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "src/config.c",
+      "git_blob": "2d9f3d59cc49b97eab932aad4ba07e6bc6876731",
+      "sha256": "2ac227f88e5cef03ab781b47ea511b573f89300302cde7fb306f22be5005cc0e",
+      "bytes": 16257
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "src/main.c",
+      "git_blob": "64ececa301cd643ab8e90b85eb65396cd9341438",
+      "sha256": "e090462d21e517d6d63e35068ac0a27f7b4a7085bf2197a354edb0b1ae965181",
+      "bytes": 28206
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "src/sm.vcxproj",
+      "git_blob": "c7355e7941971b55e68ac98c7c28ec7073b31e73",
+      "sha256": "b8e70e9eca017bacea37a9bb880eb852893f1023f041beb44dc296003ebc79fe",
+      "bytes": 14777
+    },
+    {
+      "repository": "mstan/MegaManXSNESRecomp",
+      "path": "CMakeLists.txt",
+      "git_blob": "8c6f4b668dc48d8795617dd462532062dd95a353",
+      "sha256": "46444c877ba9cf2c5e21268f86e5ef7a3ac01099e45f2a6586282d913dfa57dc",
+      "bytes": 25297
+    },
+    {
+      "repository": "mstan/MegaManXSNESRecomp",
+      "path": "LICENSE",
+      "git_blob": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+      "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+      "bytes": 3755
+    },
+    {
+      "repository": "mstan/MegaManXSNESRecomp",
+      "path": "README.md",
+      "git_blob": "2278bb340d18bbe6a550f89d5b81ae324b115bc5",
+      "sha256": "e980d5aafb989f9fb9f6d8bc43592fc2c3432e648ba83a19f70a20ae58db1f7d",
+      "bytes": 28478
+    },
+    {
+      "repository": "mstan/MegaManXSNESRecomp",
+      "path": "src/main.c",
+      "git_blob": "8f386d26da14012602869acba7d4622be6ec4d83",
+      "sha256": "abf73a8ea6de77f8ca1389429c73b671bf1e5a11155d8b14b1b6d59de6e54b90",
+      "bytes": 20642
+    },
+    {
+      "repository": "mstan/MegaManXSNESRecomp",
+      "path": "src/mmx_startup.c",
+      "git_blob": "793d8f0d121783fb79b9d9bd4765836437c33f39",
+      "sha256": "ab6eead886769cfe875ace6dc69726f209e715546575667d3dd408cc2bd6bcc4",
+      "bytes": 6789
+    },
+    {
+      "repository": "mstan/MegaManXSNESRecomp",
+      "path": "src/setup_host.c",
+      "git_blob": "1e59cc0e9504c9ae96577f8160f6183ec1e1c301",
+      "sha256": "6c116e891f0514a4fd1ad158f9053e865723630ef0b5dc60df130a3602cf4b6d",
+      "bytes": 681
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "sm.sln",
+      "git_blob": "82a190e630a7fcc9d54d80d48a94bfef1ecc4f03",
+      "sha256": "4666113e2eb9ab1435a604103f4c83bc03c8473d960d0f3a44a0c9f9bbe55a51",
+      "bytes": 1397
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "src/sm_rtl.c",
+      "git_blob": "cea7f4ce0a37f342425b89920df1e98cc5057e75",
+      "sha256": "cafcd12cd98e5797680a1928af23ceaf244a20afea927bf600c122effd899614",
+      "bytes": 20956
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "LICENSE",
+      "git_blob": "6804d6f5cf1a102d5f8ed6dd6fe4df621ecf41f1",
+      "sha256": "b5cb175d55c9f49f0f532aff9d04424444f3354bc274fc4d0d726292701b8dfd",
+      "bytes": 3791
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/desktop/host_main.c",
+      "git_blob": "91ea98ea1a82e3dcbf73c3142980fdd8e91c2a23",
+      "sha256": "6f14c3eb8d6aed380f65fb5f6488498200a44b604b3cd0c6cb58812fb50c514b",
+      "bytes": 216517
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/desktop/host_relaunch.c",
+      "git_blob": "56e3aaf10b1e0bc2f8ef39a2dcd31fcdcf090d90",
+      "sha256": "b06e8bd9469cb46fc9e44c76badb88e37f422cb912dbf788e578a3398ff2a4aa",
+      "bytes": 2741
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/desktop/mmx23_host_main.inc",
+      "git_blob": "e8a4b63093513e642db65bf4d84c53582f7ba04f",
+      "sha256": "4a5fcb36fe9821dd8200b51bc940709506a7272da1a6ccf45783aef2ab03b872",
+      "bytes": 3726
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/desktop/mmx_config.c",
+      "git_blob": "a4ba2598069cbe2f12c66475b20fa97a205cb5fa",
+      "sha256": "74588b83f60772d540d682c46d33ecb570e9a67771700f48ee672a8ee7b363b1",
+      "bytes": 43149
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/host_args.c",
+      "git_blob": "b1c580a68b8760311904045771b72553240eadcb",
+      "sha256": "6241de088ed2ddd282fbedef9fb8347351d83bd50c9c78daffdf59f22d075ddf",
+      "bytes": 6462
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/host_paths.c",
+      "git_blob": "216a8ff13e945dd211d6ca05cc7d39f9df266832",
+      "sha256": "bb68edf79c89da8fb83d9eb98259d980896a0af5e123afe0369bab1025ccdb88",
+      "bytes": 5445
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/launcher.c",
+      "git_blob": "09958c01ce2ba258133ea57ef49e914edba57ccc",
+      "sha256": "e1f2507cf0f4b54f782dcb0dfad9e460def6acc0379ee7a35b1749dc046ea3a6",
+      "bytes": 8118
+    },
+    {
+      "repository": "mstan/snesrecomp",
+      "path": "runner/src/setup_host_dispatch.c",
+      "git_blob": "066355d6851ccd973f3e9204e733766c089053a3",
+      "sha256": "0b5ab725cefb1f79f834010d29a8b97f2b215d468c16458600ffe1adb9b549f0",
+      "bytes": 1822
+    },
+    {
+      "repository": "snesrev/sm",
+      "path": "src/sm.vcxproj",
+      "git_blob": "c7355e7941971b55e68ac98c7c28ec7073b31e73",
+      "sha256": "b8e70e9eca017bacea37a9bb880eb852893f1023f041beb44dc296003ebc79fe",
+      "bytes": 14777
+    }
+  ],
+  "source_binding": "Each decoded blob was verified against its Git blob SHA; pinned complete Git tree responses were retained. No source-to-binary equivalence is asserted.",
+  "evidence_scope": "Source/metadata and maintained authoring observations only. Actual-ID Core fixture and hosted execution results belong to the delivery PR. No ROM, donor, game/helper/compiler/installer or native game was acquired or executed.",
+  "historical_denominators": {
+    "original": 524,
+    "affected_additions": 312,
+    "roadmap_only_joins": 22,
+    "frozen_union": 858,
+    "historical_1422_rows": 317,
+    "historical_1422_identities": 316,
+    "additional_1422_identities": 0
+  },
+  "scope_limits": "Only these two frozen members are assessed here. No complete current Project/readiness inventory or fleet useful-route total is claimed. Six retained compatibility transitions and two actual BStone retail observations remain untouched."
+}

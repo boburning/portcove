@@ -569,6 +569,11 @@ async fn embedded_psx_permitted_players_keep_download_hold_before_network() {
 }
 
 #[tokio::test]
+async fn embedded_mmx_source_player_keeps_package_hold_before_network() {
+    assert_embedded_player_download_holds(&["mega-man-x-snes-recomp"]).await;
+}
+
+#[tokio::test]
 async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
     let (_temporary, mut service, request) = fixture();
     let upstream = GithubFixture::new(archive(), None, None);
