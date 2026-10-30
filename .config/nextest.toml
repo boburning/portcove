@@ -1082,9 +1082,15 @@ success-output = "immediate"
 # exact progressing case in the existing finite60s Windows sibling allowance.
 # Preserve every intermediate observation/assertion, cleanup, resources, two
 # workers, zero retries and product/child deadlines; no speedup claim.
+# CI41092148480/a1 Windows7 job124192415441 cut activated_abort_resume
+# at30.070s after observation14 completed29.859s and observation15 began.
+# The unchanged fixture passed16.279s in41082618949/a1. Continue #4061's
+# exact Windows sibling calibration with finite60s room for this case only.
+# Keep every sequence/assertion, product deadline, cleanup, reservation,
+# worker count and zero retries; completion is not a speedup or causal claim.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::verified_abort_resume$/))'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::verified_abort_resume$/) | test(/^library_move::sequence_tests::activated_abort_resume$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
