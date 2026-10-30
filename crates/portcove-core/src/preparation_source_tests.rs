@@ -1163,8 +1163,12 @@ fn assert_unknown_canonical_data_holds_activation(
     let error = fixture.service.activate_staged(NATIVE_PORT).unwrap_err();
     assert_eq!(error.code, crate::ErrorCode::Conflict);
     assert_eq!(
-        error.failure.known_cause,
-        Some(crate::failure::KnownFailureCause::PortableDataContractChanged)
+        error.presentation().presentation_key,
+        "portable_data_contract_changed"
+    );
+    assert_eq!(
+        error.details.get("path"),
+        Some(&canonical.parent().unwrap().display().to_string())
     );
     let status = fixture.service.status(NATIVE_PORT).unwrap();
     assert!(status.active.is_none());
