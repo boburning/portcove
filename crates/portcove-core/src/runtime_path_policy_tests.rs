@@ -277,7 +277,12 @@ fn adapter_refuses_lossy_runtime_before_creating_or_preparing_data() {
 #[cfg(windows)]
 #[test]
 fn move_previews_check_retained_policy_before_creating_destinations() {
+    let started = std::time::Instant::now();
     for constrained in [false, true] {
+        eprintln!(
+            "retained move policy constrained={constrained}: begin at {:?}",
+            started.elapsed()
+        );
         let temporary = tempfile::tempdir().unwrap();
         let library = crate::Library::open(temporary.path().join("library")).unwrap();
         let (catalog, port_id) = crate::test_fixture::post_client_catalog();
@@ -322,6 +327,10 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
         service.replace_catalog_for_test(
             crate::Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
         );
+        eprintln!(
+            "retained move policy constrained={constrained}: registered at {:?}",
+            started.elapsed()
+        );
         let library_destination = temporary.path().join("moved-ゲーム");
         let library_plan = service.plan_library_move(&library_destination);
         if constrained {
@@ -337,6 +346,10 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
             library_plan.unwrap();
         }
         assert!(!library_destination.exists());
+        eprintln!(
+            "retained move policy constrained={constrained}: library preview complete at {:?}",
+            started.elapsed()
+        );
         let output_destination = temporary.path().join("output-ゲーム");
         let plan = service
             .plan_output_relocation(&port_id, &output_destination)
@@ -350,9 +363,17 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
             );
         }
         assert!(!output_destination.exists());
+        eprintln!(
+            "retained move policy constrained={constrained}: output preview complete at {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             std::fs::read(install.path.join(&install.selected_executable)).unwrap(),
             original
+        );
+        eprintln!(
+            "retained move policy constrained={constrained}: assertions complete at {:?}",
+            started.elapsed()
         );
     }
 }

@@ -34915,10 +34915,9 @@
     {
       "id": "soulcalibur-ii-ring-out",
       "name": "Soulcalibur II / Ring Out",
-      "summary": "Explore Soulcalibur II / Ring Out and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register your already prepared Ring Out Windows runtime with your own Soulcalibur II USA disc data and generated module.",
       "project_url": "https://github.com/jackpoison-prog/RingOut",
       "issue_number": 148,
-      "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/jackpoison-prog/RingOut",
       "artwork": {
@@ -34928,7 +34927,42 @@
         "image_sha256": "cab12016a577512e14d96191bc17f92f08352fa32abea249d0e0f32f37f49adb",
         "game_slug": "soulcalibur-ii--2",
         "match_kind": "underlying-game"
-      }
+      },
+      "original_game_title": "Soulcalibur II",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish upstream preparation first",
+            "instruction": "Use your own permitted Soulcalibur II USA GRSEAF revision 0 disc and complete the supported Ring Out preparation outside Portcove. Establish a working prepared copy first. Keep the original, extracted game and generated module private; Portcove does not extract, compile or authenticate them."
+          },
+          {
+            "title": "Choose the direct runtime",
+            "instruction": "Select bin/moderngekko-run.exe inside the prepared Ring Out folder, with the complete package root as the working directory. Do not select RingOut.exe, RingOut.ps1, setup.ps1, a compiler or tool mode. RingOut.exe can invoke preparation when game/module files are missing."
+          },
+          {
+            "title": "Bind your exact data and module paths",
+            "instruction": "Use six separate literal argument tokens: --user-dir, the absolute path to this copy's userdata directory, --game, its absolute game directory, --module, and its absolute bin/gGRSEAF_recomp.dll path. Preserve spaces within each path token. Replace paths with your actual prepared locations; do not enter placeholders or --extract. The generated DLL is executable code and must be part of your permitted trusted prepared copy."
+          },
+          {
+            "title": "Review, consent and choose Play separately",
+            "instruction": "Review the exact runtime executable, root working directory and all six arguments, then consent to that execution intent. Registration does not start the game. Choose Play separately. Portcove retains the selection across restart and relink and observes the selected runtime process. Re-review and re-consent to every changed path after moving a copy."
+          },
+          {
+            "title": "Preserve the complete copy and keep one update owner",
+            "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement. Close all actual players and preserve originals/data before upstream changes. Removing the registration removes only Portcove metadata and preserves external files."
+          }
+        ],
+        "warnings": [
+          "Use an already permitted prepared copy and comply with its engine and component terms. Engine GPL/source statements do not license original-game files or generated game code. Core validates the selected execution intent; it does not authenticate the disc revision, generated DLL, package/build provenance or every component.",
+          "Explicit --user-dir avoids an unintended shared default profile; without it the runtime can use LOCALAPPDATA/moderngekko, an XDG/HOME profile or a working-directory fallback depending on its build. Explicit --game and --module avoid default-game.txt and module discovery. Keep your actual prior profiles and custom data paths; changing coordinates does not migrate them or prove state compatibility.",
+          "Player startup creates and writes profile directories and settings; diagnostic, replay, texture/mod and configured external paths remain player-owned. Registration provides no sandbox or guarantee that upstream retains every file. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay, save/load, netplay and other platforms remain unqualified.",
+          "The reviewed v1.7 publication is distinct from historical v1.6.1 assets whose bytes changed under one name. It does not repair that old integrity gap. Old package CREDITS/README version and source-bundle instructions are stale; preserve notices and follow the matching upstream source. No binary/source attestation or new distribution right is inferred."
+        ],
+        "help_url": "https://github.com/jackpoison-prog/RingOut#installing"
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",

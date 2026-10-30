@@ -1088,6 +1088,18 @@ mod tests {
     prepared_player_case!(classic_fps_route_1899, "uzdoom-uzdoom");
 
     prepared_player_case!(wiicompiled_route_149, "mario-kart-wii-wiicompiled");
+    prepared_player_case!(
+        ringout_route_148,
+        "soulcalibur-ii-ring-out",
+        [
+            "--user-dir",
+            r"C:\Ring Out\userdata",
+            "--game",
+            r"C:\Ring Out\game",
+            "--module",
+            r"C:\Ring Out\bin\gGRSEAF_recomp.dll"
+        ]
+    );
 
     prepared_player_case!(historical_pc_route_369, "doom-rpg-doomrpg-re");
     prepared_player_case!(historical_pc_route_370, "doom-ii-rpg-doomiirpg-re");
