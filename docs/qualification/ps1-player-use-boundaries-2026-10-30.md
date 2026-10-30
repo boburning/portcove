@@ -83,7 +83,9 @@ that release logging is compiled out is not used to discard those files.
 
 The desktop source enables its upstream self-updater. `InstallAndRelaunch`
 writes an updater script, replaces executable-directory files using upstream's
-archive extraction and starts a replacement after the original exits. That is
+archive extraction, schedules delayed replacement/relaunch and requests the
+current game end. The inspected Windows script delays for three seconds; it does
+not positively wait for the original process to exit. That is
 a concrete conflict with simultaneously promising Core-owned immutable
 replacement. It supports a non-owning existing-player route without requiring
 Portcove to repair the engine or suppress its useful updater.
