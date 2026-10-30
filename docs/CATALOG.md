@@ -1760,16 +1760,23 @@ or another external user-profile directory; such state needs an upstream
 redirect or a separately reviewed ownership capability.
 
 `windows_runtime_path_policy: "printable-ascii-max-path"` declares a verified
-upstream limitation for a Windows-only managed staged-source runtime. Core rejects
+upstream limitation for a Windows-only managed staged-source runtime, or a native
+archive with Windows support and no original-source preparation or setup helpers. Core rejects
 known unsuitable output roots before acquisition, and checks the selected executable
 and its probe filename budget during readiness and again before preparation. The
 requirement is retained with the installation and survives an output-folder move;
 it grants no relocation or adoption permission. Source files may remain in their
 original Unicode locations when the adapter passes a checked relative runtime copy.
 This policy currently excludes external runtimes, setup executables and managed
-build recipes. Independent definition entries must require staged-source template
-version11. Absent policy retains the prior route contract; this is not a blanket
+build recipes. Native archives also check every authenticated package member at
+its final destination; other declared platforms retain their existing behavior.
+Independent definition entries must require staged-source template version11 or
+native-portable version7, respectively. Absent policy retains the prior route contract; this is not a blanket
 ASCII restriction or a claim that every other runtime supports Unicode paths.
+Existing installations use their creating definition: a new catalog declaration
+does not retrofit this guard into retained manifests. Review an existing supported
+move/adoption route separately; never rewrite the historical definition to claim
+that an old installation is protected.
 
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
