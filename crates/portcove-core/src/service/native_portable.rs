@@ -3464,6 +3464,167 @@ mod tests {
         catalog
     }
 
+    #[test]
+    fn mmx2_diagnostic_package_has_exact_source_admission_and_retains_older_bindings() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("mega-man-x2-snes-recomp").unwrap();
+        let release = &port.release.direct[&Platform::WindowsX86_64];
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| {
+                contract.port_id == port.id
+                    && contract.role == crate::source_catalog::PortSourceRole::Game
+            })
+            .unwrap();
+        assert_eq!(release.version, "v0.2.1");
+        assert!(contract.applies_to_release(&release.version, &release.sha256));
+        assert!(!contract.applies_to_release(&release.version, &"a".repeat(64)));
+        assert!(!contract.applies_to_release("unreviewed-version", &release.sha256));
+        for (version, sha256) in [
+            (
+                "v0.1.4",
+                "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+            ),
+            (
+                "v0.1.5",
+                "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d",
+            ),
+        ] {
+            assert!(contract.applies_to_release(version, sha256));
+        }
+        assert!(crate::persistence::requires_fresh_direct_data_guard(port));
+    }
+
+    fn mmx2_diagnostic_fixture(current: bool, original: &[u8]) -> Catalog {
+        // Retain the exact 0.1.5 definition independently of the evolving catalog.
+        // Only source authority is substituted with inert first-party bytes.
+        let mut port: PortDefinition = if current {
+            Catalog::embedded()
+                .unwrap()
+                .port("mega-man-x2-snes-recomp")
+                .unwrap()
+                .clone()
+        } else {
+            serde_json::from_str(include_str!(
+                "../../tests/fixtures/mmx2-015-historical.json"
+            ))
+            .unwrap()
+        };
+        let profile = port.source_profile.clone().unwrap();
+        let hash = hex::encode(Sha256::digest(original));
+        port.runtime_source_hashes
+            .insert("game.sfc".into(), hash.clone());
+        Catalog::from_json(
+            &serde_json::json!({
+                "schema_version": 1,
+                "source_profiles": [{"id": profile, "label": "Mega Man X2 (USA) exact headerless SNES original",
+                    "kind": "file", "accepted_extensions": ["sfc"], "accepted_sha256": [hash]}],
+                "ports": [port]
+            })
+            .to_string(),
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn mmx2_diagnostic_expansion_preserves_empty_source_and_refuses_populated_or_shrinking_scope()
+     {
+        const ID: &str = "mega-man-x2-snes-recomp";
+        let original = b"inert source fixture, never a retail original";
+        for blocked in [
+            None,
+            Some("active-save"),
+            Some("canonical-config"),
+            Some("added-logs"),
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let source = temporary.path().join("fixture.sfc");
+            fs::write(&source, original).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+                "v0.1.5",
+                1,
+                "",
+                "MegaManX2SNESRecomp.exe",
+            ))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(mmx2_diagnostic_fixture(false, original));
+            service
+                .register_source("mega-man-x2-snes-usa", &source)
+                .unwrap();
+            let old = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let old_port = service.installed_port(&old).unwrap();
+            service
+                .prepare_launch_for_install(&old_port, &old, None, None)
+                .unwrap();
+            assert_eq!(fs::read(old.path.join("game.sfc")).unwrap(), original);
+            let manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
+            let retained = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
+            let protected = blocked.map(|case| match case {
+                "active-save" => old.path.join("saves"),
+                "canonical-config" => library.user_dir(ID).join("config.ini"),
+                _ => library.user_dir(ID).join("logs"),
+            });
+            if let Some(path) = &protected {
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                fs::write(path, b"retain exact player bytes").unwrap();
+            }
+            service.replace_catalog_for_test(mmx2_diagnostic_fixture(true, original));
+            let current = service.catalog.port(ID).unwrap().clone();
+            assert_eq!(current.persistent_paths.len(), 9);
+            assert_eq!(
+                &current.persistent_paths[..8],
+                old_port.persistent_paths.as_slice()
+            );
+            assert_eq!(current.persistent_paths[8], "logs");
+            *provider.0.lock().unwrap() =
+                server.release_in_folder("v0.2.1", 2, "", "MegaManX2SNESRecomp.exe");
+            let update = service.update(ID, None, None, true, |_| {}).await;
+            if let Some(path) = protected {
+                assert_eq!(
+                    update.unwrap_err().presentation().presentation_key,
+                    "portable_data_contract_changed"
+                );
+                assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+                assert_eq!(fs::read(path).unwrap(), b"retain exact player bytes");
+                assert_eq!(library.all_installs().unwrap().len(), 1);
+            } else {
+                let next = update.unwrap();
+                assert_eq!(service.status(ID).unwrap().active.unwrap().id, next.id);
+                assert_eq!(fs::read(next.path.join("game.sfc")).unwrap(), original);
+                fs::create_dir_all(next.path.join("logs")).unwrap();
+                fs::write(next.path.join("logs/session.replay"), b"private diagnostic").unwrap();
+                // An ordinary downgrade cannot silently shrink the creating scope.
+                assert!(
+                    service
+                        .require_portable_transition(&next, &old_port)
+                        .is_err()
+                );
+                assert!(
+                    service
+                        .require_portable_rollback_transition(&next, &old)
+                        .is_err()
+                );
+                assert_eq!(
+                    fs::read(next.path.join("logs/session.replay")).unwrap(),
+                    b"private diagnostic"
+                );
+            }
+            assert_eq!(
+                fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+                manifest
+            );
+            assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), retained);
+        }
+    }
+
     fn sonic3k_compatibility_fixture(legacy: bool) -> Catalog {
         // Synthetic package with the historical reader selector, not game data.
         let catalog = ready_persistence_catalog(!legacy, !legacy);

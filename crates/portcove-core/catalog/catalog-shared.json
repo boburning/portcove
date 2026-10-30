@@ -1022,6 +1022,15 @@
         "claim": "Sonic1 descriptor pinned by the v0.7.3 title gitlink requires 512KiB and CRCF9394E97. Existing Core No-Intro exact-stock SHA256 remains independently enforced. This source descriptor supplies no state-size/save/load callbacks and establishes no legacy quickstate compatibility.",
         "immutable_url": "https://github.com/mstan/segagenesisrecomp/blob/ae1c742adef48b6ef6ed5b4c1dd4b64514086edd/sonicthehedgehog/sonic1_spec.c",
         "live_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/sonic1_spec.c"
+      },
+      {
+        "id": "mega-man-x2-snes-recomp-0-2-1-source-contract",
+        "role": "source_contract",
+        "authority": "mstan/MegaManX2Recomp",
+        "authority_ref": "68caca6fe6d96ff423fd26266aedae2132ffb680",
+        "reviewed_at": "2026-10-30",
+        "claim": "Tagged v0.2.1 requires the exact USA headerless 1572864-byte original, CRC947B0355 and SHA256f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed. Official Windows package SHA256334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09 matched actual archive observation. Default logs are retained separately; no native gameplay or retained-state compatibility is inferred.",
+        "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/68caca6fe6d96ff423fd26266aedae2132ffb680/rom_identity.txt"
       }
     ],
     "identities": [
@@ -11512,11 +11521,12 @@
         "evidence_ids": [
           "mega-man-x2-snes-recomp-0-1-4-source-contract",
           "mega-man-x2-snes-usa-no-intro-byte-identity",
-          "mega-man-x2-snes-recomp-0-1-5-source-contract"
+          "mega-man-x2-snes-recomp-0-1-5-source-contract",
+          "mega-man-x2-snes-recomp-0-2-1-source-contract"
         ],
-        "authority_ref": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
-        "reviewed_at": "2026-10-29",
-        "immutable_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/c62a096873fd6b98f197bb06b0b6929432de1bc3/rom_identity.txt",
+        "authority_ref": "68caca6fe6d96ff423fd26266aedae2132ffb680",
+        "reviewed_at": "2026-10-30",
+        "immutable_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/68caca6fe6d96ff423fd26266aedae2132ffb680/rom_identity.txt",
         "live_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/master/rom_identity.txt",
         "evidence_gap": null,
         "applicability": [
@@ -11527,6 +11537,10 @@
           {
             "upstream_ref": "v0.1.5",
             "artifact_sha256": "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d"
+          },
+          {
+            "upstream_ref": "v0.2.1",
+            "artifact_sha256": "334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09"
           }
         ],
         "aliases": [],
