@@ -829,6 +829,11 @@ mod tests {
         assert_listing_only_player_route("mstan-yoshinesrecomp", Some(false));
     }
 
+    #[test]
+    fn rechan_prepared_player_route_348() {
+        assert_listing_only_player_route("jackie-chan-stuntmaster-rechan", Some(false));
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently

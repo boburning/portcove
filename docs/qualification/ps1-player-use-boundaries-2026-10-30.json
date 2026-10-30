@@ -1,0 +1,718 @@
+{
+  "format_version": 1,
+  "kind": "dated three-owner source/package-use and player-operation evidence; not live planning or fleet acceptance",
+  "owners": [2926, 2510, 1422],
+  "source_base_commit": "e293281103644a228eec552f9bf288a5a199dad6",
+  "observation_date": "2026-10-30",
+  "selected_rows": [
+    {
+      "id": "jackie-chan-stuntmaster-rechan",
+      "canonical_issue": 348,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "6c163c348ecabd0334f6484cc1645c1ff777d4ac7c890527cf8559dbf4e158e4",
+      "context_observed_at": "2026-10-30T19:52:02.713Z",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "authored_sha256": "edb7aa1a60ec4e2a32533347c05d75ce8d167d2d5495565e4f80f4424dea905c",
+      "selected_outcome": "existing non-owning Windows prepared-player handoff",
+      "operations_owner": "upstream/player; user-managed-update",
+      "game_native_execution": "not_run",
+      "gameplay_state_installed_protected": "not_evaluated"
+    },
+    {
+      "id": "rage-racer-rage-racer-pc",
+      "canonical_issue": 349,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "c64a21e623a393fa2218aa68fbd4170d36e7c1ef69dcf8d30f736e99140c3137",
+      "context_observed_at": "2026-10-30T19:52:00.581Z",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "authored_sha256": "4437e9947e56959af9776cfd2960fbbaa4b1a87191c901ea4b7f44e98f6900c5",
+      "selected_outcome": "selected-package acquisition condition enforced; integration stays open",
+      "operations_owner": "not newly established",
+      "game_native_execution": "not_run",
+      "gameplay_state_installed_protected": "not_evaluated"
+    },
+    {
+      "id": "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+      "canonical_issue": 356,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "b467730e3c31ee9859335a929b691f3e66a10d8c7bbe6ea5a7ee98affae86fb2",
+      "context_observed_at": "2026-10-30T19:52:01.627Z",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "authored_sha256": "7eb5fe7dc5c04fb7a17e58dee1829103a3477b678769fc3c41a75610ef4582a3",
+      "selected_outcome": "selected-package acquisition condition enforced; integration stays open",
+      "operations_owner": "not newly established",
+      "game_native_execution": "not_run",
+      "gameplay_state_installed_protected": "not_evaluated"
+    }
+  ],
+  "source_observations": {
+    "verified_source_observations": [
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "path": "CMakeLists.txt",
+        "git_blob": "e83bc74a50bd476ec789d13c5dc9c20172b60391",
+        "sha256": "364e43f2ae3ab8b3d99e556972d122715687f7dc77963e4e3666bb26ad01aee6",
+        "bytes": 38461
+      },
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "path": "LICENSE.md",
+        "git_blob": "84aa3e2785a12c2877db817ceff4fa1a6dbbbcff",
+        "sha256": "fdc344b443280d3c60d4e9029a576cbf9221495ecf0ed99ed23c6182bbf8a24f",
+        "bytes": 594
+      },
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "path": "README.md",
+        "git_blob": "24b5738a282e30d0b5a95afce00a5bafa8f9d315",
+        "sha256": "6f7f33b0ad8557a9f450af2d3838ad5b902c7fd03bbd59045e2561a6271156ba",
+        "bytes": 30825
+      },
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "path": "launcher/README.md",
+        "git_blob": "3f8bd8026860033fd4259a82b1c6c13ed5fc03ff",
+        "sha256": "2a6bafdb2bb3981aec35a96cab37e31fa96308725d66fd80419b65a338a55a57",
+        "bytes": 19701
+      },
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "path": "src/port/main.c",
+        "git_blob": "96b69aa3544032b90223eafb0ab2352cec27289c",
+        "sha256": "10b905ab2f615f65383d7ba3d627ede2276ab6677b9d159548a874ea1558bef9",
+        "bytes": 7574
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "path": "README.md",
+        "git_blob": "00f2f02dc14cf2067f649684cd46427a4f561cbb",
+        "sha256": "53b8c73a24e26e78a1493b8bcafa3df0d5e371774cb72e63718a4b42500a6d4e",
+        "bytes": 9865
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "path": "port/README.md",
+        "git_blob": "c025795cb075c9aed9e67cf5368bad40461e360c",
+        "sha256": "157ffc59ab67fd56c7ca4268dfaad2502f0bfa8af33acc30e1dbc611b01dda80",
+        "bytes": 30012
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "LICENSE",
+        "git_blob": "5c533a6cace11830cc390efc8286fbc9def94f08",
+        "sha256": "e7bef93af66f20d333cddbdc592fd714444fc26a56f9995dbfc58d3bfc4c3381",
+        "bytes": 1060
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "README.md",
+        "git_blob": "27a8d7291435a0e98d144507bfed0b4ce27c904a",
+        "sha256": "ef85306aca1a4e7fd3dc423616f979901eed4eedc44007f19e3f3f59897b1caa",
+        "bytes": 4754
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/gen/main.cpp",
+        "git_blob": "7fc0c4b16081810d9f03d79c6108d89c6989c582",
+        "sha256": "5db93096f6332dc0ea5a69439c3a152fb4e4f4e9dc61a1de6f39b832d95d25ce",
+        "bytes": 15602
+      },
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "path": ".gitmodules",
+        "git_blob": "b244d3a682adaa60f57e20a232802f71a31af58a",
+        "sha256": "03ebcd7b3bdc4aaf842b4f40f63991672dbc41da9a3125cafad7b7769dbd6162",
+        "bytes": 239
+      },
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "path": "launcher/package.json",
+        "git_blob": "0c6cf1596d456a9ef6498b8f154927e2c3f5a630",
+        "sha256": "361b71306ea47f4cfed34b00db7a142b9681fdd0bbf0547be59ccf7b56f73d9c",
+        "bytes": 657
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "path": "HANDOFF.md",
+        "git_blob": "7bc6222b8f101dacb4fb990bd4cf1e8aad24d4f4",
+        "sha256": "76833a23bb133087ec5633556b295b5f0fa32dfd0df30c67f85ad7df3f9b09f0",
+        "bytes": 7368
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "path": "port/Program.cs",
+        "git_blob": "f59f7fac74a317a506d187ff7ba27552eaf11947",
+        "sha256": "675e9f6053119b16ff05cb6da190da1a08cf3d96ab1bb4f1c72c1218e072f21c",
+        "bytes": 5612
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "path": "port/XMenMA2.csproj",
+        "git_blob": "a44be5e12aeea28cd3d4fb3816ab626026386047",
+        "sha256": "6671fda3f5c0281bcfc4a301a3b792bd3082870349c15288f3c2baf6cc600b8d",
+        "bytes": 4471
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "path": "port/tools/package.sh",
+        "git_blob": "311cb9bd56e299e0ce4c6df8a151f9f3adb4e14e",
+        "sha256": "eb1b19f31ee25f1ec56a09b6685088390dc4ddb637658dd06164feaa5ff6ad57",
+        "bytes": 4224
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "docs/BUILDING.md",
+        "git_blob": "9973a8c05f0d36bb6d4f0a397bd2eef8d3f64d66",
+        "sha256": "7b686956783c6f5218d8a9f5fa01e72fbf84115b12c7e08fc45d14b7ea0ec24b",
+        "bytes": 2306
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "premake5.lua",
+        "git_blob": "27c780ece0a43a89de4b2aac0a99d9f26be1a675",
+        "sha256": "4aa079452118108303dae4033dfab2f51a449e1ceeaac23549c2bd649b9c6112",
+        "bytes": 4039
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/extra/autoupdater.cpp",
+        "git_blob": "85116c5c080f75f069d9bed290d4c6093041ae85",
+        "sha256": "8accce91ac4dfd13309e417d4cd3f19cc113ba9e0485df881c2dd105b88804f9",
+        "bytes": 14424
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/extra/autoupdater.h",
+        "git_blob": "28bff2fa3685cbe061a727b1b20a3c0cafe0a62e",
+        "sha256": "2406c4e98e9b12074a4487eca19a8e6c1a502426a2f1e8bc70b427cebff63f7f",
+        "bytes": 1960
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/extra/psxdiscextractor.cpp",
+        "git_blob": "a75545b8f763fc2ba3890268a62730ffbb09531b",
+        "sha256": "feca798737d0adec9fa07ead71fe10fa74c12847639e0f12ff13837bf4d89d36",
+        "bytes": 17105
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/gen/config.h",
+        "git_blob": "88c51e3e3b81da7ce9b8d4387981839a1da8938c",
+        "sha256": "b89e9945825abf30faf854160ba4636e3a9bea40b38e6456b46e0f55d5f2e886",
+        "bytes": 3536
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/gen/savegame.cpp",
+        "git_blob": "33c76175985c8f69524743ed7892d48ee9d95da9",
+        "sha256": "bb52a82d9360758d220f8eda7a32085f464289c83966054decaaacd4bba4d6ae",
+        "bytes": 10559
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/pc/apppaths.h",
+        "git_blob": "a89c32f99631cb8ef822714c9d5a64101be538c1",
+        "sha256": "ab2fa72479864a4bd965d46903f75891449bdfa8c9af657a77bf82bbb6c2c4b0",
+        "bytes": 536
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/pc/settings.cpp",
+        "git_blob": "744d1fb26c9c36ec100305b09902b80ce24ae4f8",
+        "sha256": "7dab2590f4e913c4455edb7c7e89e16426fe61018a67eae88e5a62f61148d845",
+        "bytes": 21030
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "vendor/libp3d/p3d/fileio.cpp",
+        "git_blob": "9a96f648511eb9c3067b67577a2a421c23298213",
+        "sha256": "603645b7997f3aec17e92a264f9e9bade19248cd28700817735519411ea3b71c",
+        "bytes": 11674
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "scripts/pack-win64.ps1",
+        "git_blob": "7d14f4de3f076cebbb6826c2aa002040ae38527c",
+        "sha256": "55a0770118934c5cb137966b29c8d51112d944c3cda3e4c747c2fa5be609ea75",
+        "bytes": 979
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/extra/fecustommenumgr.cpp",
+        "git_blob": "bd6f4dc2f11c0fe62b8a3e67d4c5a6a159d8f678",
+        "sha256": "ee0e1db6bea54144ce26649be36495be475e773442c39001f0902c006dc14996",
+        "bytes": 259611
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/gen/game.cpp",
+        "git_blob": "af95e27a8ba0c3109cd4f5b3bd5bbab3be1c4505",
+        "sha256": "e374f72f7f2a0370c0b98d88ef319565b239491bc0a20ebee5723f745b1a9942",
+        "bytes": 81073
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/pc/autotest.cpp",
+        "git_blob": "1b74fcd7afb9fe403d11b6a76c6a8a674c216093",
+        "sha256": "b961dd95aae8bc0fe904866121e6e7c7ce274068751ba14decab82084122fc9e",
+        "bytes": 7568
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/pc/log.cpp",
+        "git_blob": "36644b26ed92c194bff3fa721ce7b3f3a6b5676c",
+        "sha256": "271a3a84c49c178e501ea857b00074659f56b9b8a8a6b93b992d2ab082d5d488",
+        "bytes": 1288
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "vendor/libp3d/vendor/glfw/LICENSE.md",
+        "git_blob": "7494a3f689caf46e268f7ac0b28a07f5416f8c65",
+        "sha256": "149704059b5d0bf551637e50042dd4de9c2cae921021f6636298911e3a5f9462",
+        "bytes": 904
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "vendor/libp3d/vendor/sdl2/LICENSE.txt",
+        "git_blob": "23abb73f2b67d1f5b5b9b4d6c949654d525173bb",
+        "sha256": "97f35b302b361680ec1e891e95d2d52097bb95abff361434916d99dc1305f127",
+        "bytes": 884
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "path": "port/config/xmen.json",
+        "git_blob": "46bb72cca159ee128af15f95f75859afc69ac09c",
+        "sha256": "6f3580aedf0ab4af962e2937db6466f023f08ffa1131e9216c1bef24fc8a1ac8",
+        "bytes": 8835
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/extra/fecustommenumgr.h",
+        "git_blob": "6b9cac21f7551d758bf674e256336c3802b1b795",
+        "sha256": "c08680cc4b2db61177fc2057d918e13086797f42d279c5ea2f24763d95342a47",
+        "bytes": 23397
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/pc/crashreporter.cpp",
+        "git_blob": "658b33f3497d43dad9af3ed00fb31e2e8ff92a3a",
+        "sha256": "fd48f33261b0c95487fe9e2608e9331e857313b6b03e893bc69b8d2b01596b49",
+        "bytes": 16862
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/pc/log.h",
+        "git_blob": "f5fc6484dd852fd094325383d2d4a2722927960a",
+        "sha256": "6ab8b38e7a1fd25c3e2eb9e5af4ce87e3b7f6ea85daa07c1ca3fd1efd91cb4b1",
+        "bytes": 919
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "path": "src/pc/settings.h",
+        "git_blob": "8a72c820af75cc254ffd2c8358b66eb0198639c5",
+        "sha256": "c5963a28b2f69bcb9565abfc7bac506654c16ccf99c7fcdeaa569a5c0147ffcc",
+        "bytes": 252
+      },
+      {
+        "label": "rage-release",
+        "repository": "khasinski/rage-racer-pc",
+        "source_commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+        "path": "LICENSE.md",
+        "git_blob": "84aa3e2785a12c2877db817ceff4fa1a6dbbbcff",
+        "sha256": "fdc344b443280d3c60d4e9029a576cbf9221495ecf0ed99ed23c6182bbf8a24f",
+        "bytes": 594
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "LICENSE",
+        "git_blob": "5c533a6cace11830cc390efc8286fbc9def94f08",
+        "sha256": "e7bef93af66f20d333cddbdc592fd714444fc26a56f9995dbfc58d3bfc4c3381",
+        "bytes": 1060
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "README.md",
+        "git_blob": "27a8d7291435a0e98d144507bfed0b4ce27c904a",
+        "sha256": "ef85306aca1a4e7fd3dc423616f979901eed4eedc44007f19e3f3f59897b1caa",
+        "bytes": 4754
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "premake5.lua",
+        "git_blob": "39e3fdf6557ead3fa012ec34761b614d8bf98f49",
+        "sha256": "f15912c5e73faccfe80ffcf0f6375bd11142991855565b44615b989cf4016ad3",
+        "bytes": 3180
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/extra/autoupdater.cpp",
+        "git_blob": "6bf738964bf2dcf8ecb5070b30341dfa582a2a74",
+        "sha256": "8728a54f81a2a98366183c735798584ede0aca588413714f69d7311b8f5feeaa",
+        "bytes": 15713
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/extra/psxdiscextractor.cpp",
+        "git_blob": "b3b3135287c0e7e056c83334ea1bd9f75a817277",
+        "sha256": "476468b0c821957f5242280367d4451299e1b356383eacae485f18afa9cf178e",
+        "bytes": 17734
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/gen/config.h",
+        "git_blob": "c45637d856cd49022938d06537bbc78e8433ed23",
+        "sha256": "91d5d85137546926ebb70be667348c8ca2ef1ede682e61bd4fe6915205abfbb7",
+        "bytes": 3409
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/gen/game.cpp",
+        "git_blob": "7e37fe3465705d4d3acef879edbc89edb79c91f3",
+        "sha256": "aa7d2b287e7ea2ddbd0337c7b6d5fe532c4888ca91ba863e51a4d7b40c3736e3",
+        "bytes": 79081
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/gen/main.cpp",
+        "git_blob": "4c9fdc3a262aee2e4ce89f003701504636785381",
+        "sha256": "8882b4041b0a4da2ad2255d2f467bbd9aad473d65fa615f4407370f7a37e0753",
+        "bytes": 11650
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/gen/savegame.cpp",
+        "git_blob": "08e53ee584fd86f7f60621dab4cbdc1a3a4777e3",
+        "sha256": "a3f70598180e30e7041a932159753f85c57d8e5019e8f7b91c4d85011cd07f12",
+        "bytes": 10529
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/pc/settings.cpp",
+        "git_blob": "6709a480c555e6b0ae8b06b67bce4dd2b5b13e29",
+        "sha256": "80a696190822dbb4abfcf1432d79f52a195724309cad9b05747395dae32134d5",
+        "bytes": 20471
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "path": "src/pc/settings.h",
+        "git_blob": "1c55e754550f189b65ae901e399f3d25f393bcf4",
+        "sha256": "828adf98ed56e3aca75a0d38e18f5b256c074a7479460b2427ad278d27424fbd",
+        "bytes": 224
+      }
+    ],
+    "complete_pinned_trees": [
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "repository_node_id": "R_kgDOT3x_QQ",
+        "source_commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+        "complete_tree_entries": 1800,
+        "tree_response_sha256": "c35e63489bb7b673554adbc6138ec4e8845d95862bb89278d9f875498b3b182b",
+        "tree_truncated": false
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "repository_node_id": "R_kgDOUA1H0Q",
+        "source_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "complete_tree_entries": 134,
+        "tree_response_sha256": "bdb0dcdcb6c09ff5e0c0dda92ff4613058e907c16f0388d0944482dfb4950f10",
+        "tree_truncated": false
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "repository_node_id": "R_kgDOR0XrNQ",
+        "source_commit": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+        "complete_tree_entries": 2780,
+        "tree_response_sha256": "3262ad80f12ee3036f3323f6ade1177d287bbdd2795920d76b6600361905f2af",
+        "tree_truncated": false
+      },
+      {
+        "label": "rechan-release",
+        "repository": "SilverwireGames/ReChan",
+        "repository_node_id": "R_kgDOR0XrNQ",
+        "source_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "complete_tree_entries": 2750,
+        "tree_response_sha256": "647969ef48f17e3aa1653f09b43fcfcd96b75dabec065e8c07b3a3897bdc19d5",
+        "tree_truncated": false
+      }
+    ],
+    "release_observations": [
+      {
+        "label": "rage",
+        "repository": "khasinski/rage-racer-pc",
+        "release_id": 428490369,
+        "release_url": "https://github.com/khasinski/rage-racer-pc/releases/tag/0.6.13-alpha",
+        "tag_name": "0.6.13-alpha",
+        "published_at": "2026-10-29T23:18:14Z",
+        "target_commitish": "main",
+        "observed_tag_commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+        "source_tree": "6e575a31a9122305b3c8eaa0e3e822d3247a5c05",
+        "raw_release_sha256": "6e74142c3faa2252ea88507726c0071a2d825fc3c1c3de414caf5e3448cc9592",
+        "tag_commit_response_sha256": "376f8ff9aea0c6b76425306ec36c24e7d42197ded8417729848b87ac00811047",
+        "assets": [
+          {
+            "id": 690235338,
+            "name": "Rage-Racer-0.6.13-alpha-linux-x86_64.zip",
+            "size": 3416770,
+            "published_digest": "sha256:e57510fbb2f4f2e56d5266cfffe3bd6d59ad06cc9702e7fab6dfa7b2e85c43d0",
+            "url": "https://github.com/khasinski/rage-racer-pc/releases/download/0.6.13-alpha/Rage-Racer-0.6.13-alpha-linux-x86_64.zip"
+          },
+          {
+            "id": 690241319,
+            "name": "Rage-Racer-0.6.13-alpha-macos-arm64.zip",
+            "size": 3348594,
+            "published_digest": "sha256:bab68a5bdc35b5d9315dc736001371fa6d20e03f46b559b47dbe8d322430c339",
+            "url": "https://github.com/khasinski/rage-racer-pc/releases/download/0.6.13-alpha/Rage-Racer-0.6.13-alpha-macos-arm64.zip"
+          },
+          {
+            "id": 690245237,
+            "name": "Rage-Racer-0.6.13-alpha-windows-x86_64.zip",
+            "size": 2517410,
+            "published_digest": "sha256:059e87c4cf1b841e990314bb9c7c6fded8e7a64e955419c22511871d7f136fea",
+            "url": "https://github.com/khasinski/rage-racer-pc/releases/download/0.6.13-alpha/Rage-Racer-0.6.13-alpha-windows-x86_64.zip"
+          },
+          {
+            "id": 690235342,
+            "name": "Rage-Racer-Editor-0.6.13-alpha-linux-amd64.deb",
+            "size": 100029308,
+            "published_digest": "sha256:d5e05c83d52ccbaec788a09628e6b531854262edf9f13fce557f7cf2e261d319",
+            "url": "https://github.com/khasinski/rage-racer-pc/releases/download/0.6.13-alpha/Rage-Racer-Editor-0.6.13-alpha-linux-amd64.deb"
+          },
+          {
+            "id": 690235340,
+            "name": "Rage-Racer-Editor-0.6.13-alpha-linux-x86_64.zip",
+            "size": 134040565,
+            "published_digest": "sha256:7a1b7a0fd50a38cc90af2fc6bb040b9508ae185e09744240ffddf1822b096ffd",
+            "url": "https://github.com/khasinski/rage-racer-pc/releases/download/0.6.13-alpha/Rage-Racer-Editor-0.6.13-alpha-linux-x86_64.zip"
+          },
+          {
+            "id": 690241322,
+            "name": "Rage-Racer-Editor-0.6.13-alpha-macos-arm64.zip",
+            "size": 135572384,
+            "published_digest": "sha256:3f92b885e16348ac28780f19d43f9dd8812ff2e44dc6d3b992ab6db108546a23",
+            "url": "https://github.com/khasinski/rage-racer-pc/releases/download/0.6.13-alpha/Rage-Racer-Editor-0.6.13-alpha-macos-arm64.zip"
+          },
+          {
+            "id": 690245238,
+            "name": "Rage-Racer-Editor-0.6.13-alpha-windows-x86_64.zip",
+            "size": 171534252,
+            "published_digest": "sha256:0f2ff174fee30911579aeea7e84cc7398626ebfa1226c83c5b7406e16ed5bc3a",
+            "url": "https://github.com/khasinski/rage-racer-pc/releases/download/0.6.13-alpha/Rage-Racer-Editor-0.6.13-alpha-windows-x86_64.zip"
+          }
+        ],
+        "scope": "Selected latest-release metadata and tag readback only; no package body acquired or accepted, no all-release inventory or source-to-binary equivalence."
+      },
+      {
+        "label": "xmen",
+        "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+        "release_id": 385013904,
+        "release_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/releases/tag/v1.1",
+        "tag_name": "v1.1",
+        "published_at": "2026-09-08T19:40:41Z",
+        "target_commitish": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "observed_tag_commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+        "source_tree": "8f55836d1ab57d183c52b03ba84e842c65f0b980",
+        "raw_release_sha256": "10107c9c1fd4ee9c00c28598d78ab48a906f848aea8d24c52757139844f22456",
+        "tag_commit_response_sha256": "c87df234cc66e5e0f0023ceb1f9f55a4a93a90c48ea9120e4e9f2d67df1c28ff",
+        "assets": [
+          {
+            "id": 551176998,
+            "name": "SHA256SUMS.txt",
+            "size": 88,
+            "published_digest": "sha256:7419d69024596a0a5800c45e470ae9637faf830e3329b14379bdd5ae66ba5699",
+            "url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/releases/download/v1.1/SHA256SUMS.txt"
+          },
+          {
+            "id": 551176996,
+            "name": "XMenMA2-portable.zip",
+            "size": 195403142,
+            "published_digest": "sha256:547ac5204095dd546234d2e4fc4b9ce29c3fde41ec15dabaa3e5f6e30313747f",
+            "url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/releases/download/v1.1/XMenMA2-portable.zip"
+          }
+        ],
+        "scope": "Selected latest-release metadata and tag readback only; no package body acquired or accepted, no all-release inventory or source-to-binary equivalence."
+      },
+      {
+        "label": "rechan",
+        "repository": "SilverwireGames/ReChan",
+        "release_id": 353334893,
+        "release_url": "https://github.com/SilverwireGames/ReChan/releases/tag/v1.0.1",
+        "tag_name": "v1.0.1",
+        "published_at": "2026-07-19T08:35:36Z",
+        "target_commitish": "main",
+        "observed_tag_commit": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+        "source_tree": "f2817c29ccd708fec4fcb0a94005aef027ffb3ed",
+        "raw_release_sha256": "9d82eb9d3d5859764da697d35a108711764f2dfbe2ff264d2907c4df8e401cd1",
+        "tag_commit_response_sha256": "7e28fd0e7d716d09496d51d2670bc72ad2904eb0a8b898c30409d0e91d62d3fe",
+        "assets": [
+          {
+            "id": 482233868,
+            "name": "rechan-linux64.tar.gz",
+            "size": 7482742,
+            "published_digest": "sha256:31bdd781bbe0429e8fb334384aea737927a5aba32b8a1afdf2c78214db3eb86b",
+            "url": "https://github.com/SilverwireGames/ReChan/releases/download/v1.0.1/rechan-linux64.tar.gz"
+          },
+          {
+            "id": 482233888,
+            "name": "rechan-win64.zip",
+            "size": 7908907,
+            "published_digest": "sha256:b8cd8ebf2d3b38469e809cf51bf0e50b77a963b3e8d4a6c21d24e68a19e2a026",
+            "url": "https://github.com/SilverwireGames/ReChan/releases/download/v1.0.1/rechan-win64.zip"
+          }
+        ],
+        "scope": "Selected latest-release metadata and tag readback only; no package body acquired or accepted, no all-release inventory or source-to-binary equivalence."
+      }
+    ],
+    "scope": "Pinned source/metadata fit review only. No package, original, helper or game acquired/executed. Project/issue state handled by parent."
+  },
+  "verified_binding_count": 50,
+  "binding_count_scope": "Distinct repository/commit/path/blob observations, not unique content or accepted-route count.",
+  "rechan_version_scope": {
+    "official_version": "v1.0.1",
+    "official_source": "0e8f26a5ce9c00108867b1cbf63a001198b0b8d0",
+    "current_source": "ecd39935559d024992b2049576ea0ecc3b204b8c",
+    "same_named_data_coordinates": "userfiles/jcsSAVE*.sav, jcsAUTOSAVE.sav, game.ini; no cross-build compatibility claim",
+    "official_cwd": "Explicit prepared runtime root containing shipped pc support and extracted original roots; no executable-parent fallback.",
+    "current_cwd": "Working-directory pc first; executable-parent fallback only in current source. Do not apply it to official v1.0.1.",
+    "original": "Own NTSC-U SLUS-00684 BIN/ISO; SYSTEM.CNF serial check, not independently authenticated full-image hash.",
+    "source_to_binary_equivalence": "not_established",
+    "update_owner": "upstream updater replaces files/relaunches; Core owns explicit selected-process registration/Play only"
+  },
+  "evidence_boundary": "50 decoded source bindings and four pinned trees reverified; current release/tag/publisher metadata, not acquired game packages. No upstream package/original/game/helper/compiler acquisition or execution. Actual-ID Core cases and exact-head CI results belong to delivery PR/receipts."
+}

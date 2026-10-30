@@ -594,6 +594,18 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 }
 
 #[tokio::test]
+async fn embedded_ps1_selected_package_permission_holds_refuse_before_network() {
+    assert_embedded_listing_download_holds(
+        &[
+            "rage-racer-rage-racer-pc",
+            "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+        ],
+        false,
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
     let (_temporary, mut service, request) = fixture();
     let upstream = GithubFixture::new(archive(), None, None);

@@ -3,7 +3,7 @@
   "listing": {
     "id": "rage-racer-rage-racer-pc",
     "name": "Rage Racer / rage-racer-pc",
-    "summary": "Explore Rage Racer / rage-racer-pc and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Rage Racer remains discoverable, with current source-only review and selected-package use permission unresolved.",
     "project_url": "https://github.com/khasinski/rage-racer-pc",
     "issue_number": 349,
     "platforms": [],
@@ -16,6 +16,7 @@
       "image_sha256": "216e38aac33db9621d62e2c78ff04fd92edfec104a8922006028c30fdd9012d8",
       "game_slug": "rage-racer",
       "match_kind": "underlying-game"
-    }
+    },
+    "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission."
   }
 }
