@@ -134,6 +134,10 @@
   }
   .discover-covers .collection-art {
     border-radius: 0.375rem;
+    transition:
+      border-color var(--duration-normal),
+      box-shadow var(--duration-normal),
+      transform var(--duration-normal);
   }
 
   .discover-rows {
@@ -416,12 +420,6 @@
   .collection-cover .collection-identity:hover .collection-art,
   .discover-covers .discover-game-identity:hover .collection-art {
     transform: translateY(-2px);
-  }
-  .discover-covers .collection-art {
-    transition:
-      border-color var(--duration-normal),
-      box-shadow var(--duration-normal),
-      transform var(--duration-normal);
   }
   @media (prefers-reduced-motion: reduce) {
     .collection-cover .collection-identity:hover .collection-art,
