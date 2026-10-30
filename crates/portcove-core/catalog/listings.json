@@ -11236,12 +11236,43 @@
     {
       "id": "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
       "name": "Castlevania: Symphony of the Night — PS1 / SymphonyRecomp",
-      "summary": "Explore Castlevania: Symphony of the Night — PS1 / SymphonyRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an already permitted working SymphonyRecomp v0.5.1b Windows player with your own US disc, preserving its existing .NET host, actual profile, cards, mods and upstream updater.",
       "project_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
       "issue_number": 319,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
+      "original_game_title": "Castlevania: Symphony of the Night",
+      "manual_setup": {
+        "help_url": "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/16859f39abbeca905dcd6ab062617f19a7285fe6/README.md",
+        "steps": [
+          {
+            "title": "Use an already permitted working official copy",
+            "instruction": "Use an already permitted official v0.5.1b Windows x64 sotn.exe copy in the scope of the publisher’s explicit released-player invitation and own-original instructions. That narrower context is not a top-level/mod source or redistribution license; RecompOne MIT does not license the whole project/mod package. Keep actual selected-copy use conditions and all applicable notices. This route does not clear the broader existing distribution/source-grant conditions."
+          },
+          {
+            "title": "Keep the existing runtime and native entry",
+            "instruction": "Retain the complete working copy, adjacent DLL/native dependencies and its functioning player-owned .NET10 runtime context. Select sotn.exe, not sotn.dll, system dotnet.exe, a generator or updater staging helper. This release is framework-dependent; Portcove does not install/configure a nested .NET runtime or synthesize DOTNET_ROOT. Finish normal upstream setup outside Core before registration."
+          },
+          {
+            "title": "Bind the actual profile and owned original",
+            "instruction": "Use your own North-American Symphony of the Night SLUS-00067/SLUS_000.67 CHD or CUE with all referenced data/audio BIN tracks. Preserve the complete original set/path for streaming; do not substitute known Japanese/European or Nocturne/XBLA inputs. Select the actual established writable runtime/profile working directory, normally the extracted root, and one literal argument token containing the absolute CHD/CUE path. Preserve spaces inside that token and the creating custom CWD. No --rom/--config/--no-updater or profile environment switch is established."
+          },
+          {
+            "title": "Review intent and choose Play separately",
+            "instruction": "Review and consent to the exact executable, working directory and one original-path argument; registration does not prepare or start the game. Choose Play separately. Ordinary runtime is in the same apphost; upstream self-update stages/replaces/relaunches through successors outside Core’s selected-process observation. Its bounded wait is not proof the original exited or that successor arguments/custom profile are preserved. Let upstream finish and close all actual players before manual changes/relink. Upstream/player retains runtime replacement; Core does not compete with it."
+          },
+          {
+            "title": "Preserve the whole creating profile and custom cards",
+            "instruction": "Keep the full runtime, original and actual CWD-relative settings.json/interface.ini, carda.sav/cardb.sav, all .sav/backup/config files, disc and mods including shipped executable sources/.cache and player edits, diagnostics and all unknown/custom outputs. Preserve absolute CardAPath/CardBPath targets separately; relative cards follow actual CWD. Preserve any upstream-owned external updater/recovery evidence. No new managed mod merge, backup, state migration or cross-build compatibility is granted. Removing registration removes only Core metadata and preserves external bytes."
+          }
+        ],
+        "warnings": [
+          "The inspected upstream boot-identity checks are not full-disc cryptographic authentication. Earlier actual v0.5.1b Windows CHD/window/normal-close observations keep their exact scope; this batch adds no game execution or gameplay/save/load qualification and inherits nothing from another Castlevania port.",
+          "The selected tag uses AutoUpdateEnabled in interface.ini; current-source updater options differ. No CLI/environment disable is established, and non-owning registration need not disable the upstream updater. Managed host provisioning, pre-check updater control, mod ownership/merge and actual lifecycle qualification remain unresolved stronger work.",
+          "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, package/build/source authenticity, exclusive successor-session or sandbox guarantee is offered. Project/mod source and redistribution applicability remain distinct from an already permitted player copy; selection itself grants no rights or Supported/native/installed/protected acceptance."
+        ]
+      },
       "artwork": {
         "game_id": 1128,
         "cover_id": 237968,
@@ -12979,12 +13010,43 @@
     {
       "id": "crash-bandicoot-crashbandicoot-launcher",
       "name": "Crash Bandicoot / CrashBandicoot-Launcher",
-      "summary": "Explore Crash Bandicoot / CrashBandicoot-Launcher and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an already prepared permitted Crash Bandicoot 2.3.1 Windows player, preserving your USA disc, creating runtime, cards, states and generated-game files.",
       "project_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
       "issue_number": 385,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
+      "original_game_title": "Crash Bandicoot",
+      "manual_setup": {
+        "help_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md",
+        "steps": [
+          {
+            "title": "Keep a permitted complete official player",
+            "instruction": "Use an already working permitted official 2.3.1 Windows x64 CrashBandicoot.exe copy under applicable project/component terms and upstream own-original requirements. Root/project MIT is not a blanket original-media or all-component certification. This official entry is self-contained .NET10; retain its established writable installation and upstream-required graphics/VC++ runtime context. Other architectures, APK and Linux products are separate."
+          },
+          {
+            "title": "Finish upstream original-disc preparation first",
+            "instruction": "Use your own Crash Bandicoot USA SCUS-94900 standalone single MODE2/2352-track CUE/BIN or supported CHD, preserving the image/set/path for every run. Complete official selection and initial generation outside Portcove. The upstream product/layout/size/metadata and first-4096-boot-byte checks and short fingerprint are not independent full-disc authentication. Parent-dependent, foreign and multitrack media are not established by this guide. Core-owned source admission, private staging/cancellation/atomic preparation publication remain unresolved and unoffered."
+          },
+          {
+            "title": "Select the normal completed application",
+            "instruction": "Select CrashBandicoot.exe with zero launch arguments and its containing installation root as initial working directory. Normal Windows UI stays in this process: START GAME loads the cached game assembly synchronously and embeds the game window; ending play returns to the launcher, so close the launcher too to end the selected session. Do not select a generated DLL, updater/helper or short smoke mode. Registration itself does not prepare or launch the game."
+          },
+          {
+            "title": "Review intent and keep replacement upstream-owned",
+            "instruction": "Review and consent to the exact native executable, directory and empty arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns preparation, repair and actual replacement. Preserve the current creating version and review a changed executable through fresh relink. The selected Windows path has no evidenced self-downloading replacement/relaunch; opening external links is not a managed update."
+          },
+          {
+            "title": "Preserve all creating runtime and player files",
+            "instruction": "Keep the whole actual copy and original: settings.json/CdPath, interface.ini, save/carda.sav and cardb.sav, save/states/slotN.state and companions, game/<fingerprint> source/DLL/manifest, mods/.cache/custom assets, examples, catalog, captures, logs and every unknown/custom path. Windows roots data beside the real executable, not its single-file extraction TEMP directory; changing initial CWD is not a profile redirect. Upstream may move legacy root cards into save when destination is absent and seed/refresh stock mods; this is not Core migration. Keep old state with its creating runtime. Removing registration removes only metadata and preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Current source and selected 2.3.1 are distinct revisions; this handoff uses the tagged interface. Prior 1.9.1 local package-integrity evidence is not qualification of 2.3.1. Source/publisher metadata and an inert Core probe do not authenticate this game, original, generated code or package.",
+          "No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion is supplied. Existing source-fingerprint/private-stage/atomic-generation and stronger managed conditions are not marked solved by registration. No emulator, old-port or cross-build state compatibility is promised.",
+          "Actual game/native/gameplay/save-load/state/mod compatibility, other-platform, installed-app and protected observations remain unqualified here; no Supported promotion."
+        ]
+      },
       "artwork": {
         "game_id": 1185,
         "cover_id": 239961,
@@ -31943,12 +32005,44 @@
     {
       "id": "rage-racer-rage-racer-pc",
       "name": "Rage Racer / rage-racer-pc",
-      "summary": "Rage Racer remains discoverable, with current source-only review and selected-package use permission unresolved.",
+      "summary": "Register an already permitted Rage Racer 0.6.13-alpha Windows player for your PAL disc, preserving actual profile/cards/config/mod paths; fresh acquisition remains held.",
       "project_url": "https://github.com/khasinski/rage-racer-pc",
       "issue_number": 349,
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/khasinski/rage-racer-pc",
+      "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",
+      "original_game_title": "Rage Racer",
+      "manual_setup": {
+        "help_url": "https://github.com/khasinski/rage-racer-pc/blob/e6b6de9a157094848074c8979c32a33a4f980c2a/README.md",
+        "steps": [
+          {
+            "title": "Use an already permitted completed player",
+            "instruction": "Follow the tagged publisher Running a release instructions only for an already permitted official 0.6.13-alpha Windows x64 Rage-Racer.exe copy and legally obtained original. This narrower personal-player use is not an OSS/source-redistribution or blanket component/package grant. Keep the existing fresh-acquisition condition; user selection does not clear it. Prior 0.6.5 artifact integrity does not qualify this version or arbitrary copies."
+          },
+          {
+            "title": "Keep the exact PAL reference media together",
+            "instruction": "Use your own PAL/Europe SCES-006.50 Rage Racer CUE with referenced BIN tracks, Track01 BIN or supported CHD. Preserve the full original set/path for streamed data/audio; a lone Track01 is not all audio tracks. The native picker/saved disc path selects input and imports renderer assets live in-process/in-memory; no separate launcher, extractor, SDK/.NET/Python or generated game executable is required. Core does not authenticate the full image or other regions/masterings."
+          },
+          {
+            "title": "Select the actual native game and creating context",
+            "instruction": "For normal defaults select Rage-Racer.exe with zero launch arguments and its installation root as initial working directory. Preserve an established supported --config and its absolute file path as separate literal arguments when already required for the creating profile. Preserve an already working custom CWD/config/environment rather than redirecting a profile merely to register. The main process remains through importer/renderer/MainLoop and shutdown. Do not select editor/scenario/source tools or add development/cache/scenario options for ordinary Play. Registration itself does not import or launch anything."
+          },
+          {
+            "title": "Review intent and keep updates player-owned",
+            "instruction": "Review and consent to the exact native executable, directory and literal arguments (empty for defaults, or the established --config and absolute path when required), then choose Play separately. Core observes only the selected process, not an exclusive family/sandbox or full-game qualification. No self-downloading game replacement path was established for this selected entry. Upstream/player owns the copy, repair and actual replacement; close every real instance before changing files and review a replacement through fresh relink."
+          },
+          {
+            "title": "Preserve the real profile, portable cards and custom paths",
+            "instruction": "Keep the whole copy and %APPDATA%/Rage Racer profile/state, actual bu00/bu10 card directories and BESCES-00650 RAGE000/001/002 slots, config files rage-port.ini/rage-input.cfg, disc-cue-path, force-feedback choices, car catalogs/player edits, mods/active.json/manifests/data/packages, diagnostics/logs/captures and every custom/unknown path. An existing nonempty executable-adjacent bu00 directory selects portable cards; an empty directory does not, and config/logs may still be per-user. Preserve explicit custom config, mods.directory, prebuilt developer cache, disc/log overrides and actual resolved paths. Do not create a marker or move state merely to register. Metadata removal preserves all external bytes."
+          }
+        ],
+        "warnings": [
+          "Upstream 0.6.13-alpha explicitly does NOT confirm the reported Windows second-race rendering issue fixed. Keep that scoped known report visible; per-action controller remapping remains INI-based. No gameplay/race stability pass or supported full-game claim is made, and the Windows archive is unsigned.",
+          "Per-user config is checked before executable-adjacent config and CWD fallback. Existing --config/RAGE_CONFIG, RAGE_PORT_DISC_CUE and RAGE_PORT_LOG_PATH are upstream choices; Core intent does not capture per-entry environment. Preserve an already reproducible creating context rather than inventing new settings. Config and portable card storage need not share a root.",
+          "The existing download_block_reason and zero-provider refusal remain. No blanket OSS/source/component/redistribution grant, managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, memory-card-image/state compatibility, actual game/installed/protected qualification or Supported promotion follows from this prepared-copy guide."
+        ]
+      },
       "artwork": {
         "game_id": 18698,
         "cover_id": 387116,
@@ -31956,8 +32050,7 @@
         "image_sha256": "216e38aac33db9621d62e2c78ff04fd92edfec104a8922006028c30fdd9012d8",
         "game_slug": "rage-racer",
         "match_kind": "underlying-game"
-      },
-      "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission."
+      }
     },
     {
       "id": "rages4calm-earthbound-companion",
@@ -41634,7 +41727,7 @@
     {
       "id": "vandal-hearts-vandalhearts-pcport",
       "name": "Vandal Hearts / VandalHearts-PcPort",
-      "summary": "Explore Vandal Hearts / VandalHearts-PcPort and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Vandal Hearts remains discoverable, with upstream-disclosed embedded Konami/Sony component permission outside the limited project GPL grant still unresolved.",
       "project_url": "https://github.com/HalmyLyseas/VandalHearts-PcPort",
       "issue_number": 347,
       "platforms": [],
@@ -41647,7 +41740,8 @@
         "image_sha256": "343a6200670f7336e5203f87c640611d9ae28310dfc254645c42b91246640ac0",
         "game_slug": "vandal-hearts",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "New downloads are waiting for applicable permission covering the selected package’s upstream-disclosed embedded Konami static game data and Sony BIOS-derived kanji. The project GPL grant expressly excludes those inherited/original-derived components. Reconsider an exact attributable permitted package/component route, reviewed asset-clean alternative or lawful owned-input prepared route; a local build or old matching digest alone does not expand that grant."
     },
     {
       "id": "vcmi-vcmi",

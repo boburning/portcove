@@ -595,14 +595,17 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 
 #[tokio::test]
 async fn embedded_ps1_selected_package_permission_holds_refuse_before_network() {
+    assert_embedded_player_download_holds(&["rage-racer-rage-racer-pc"]).await;
     assert_embedded_listing_download_holds(
-        &[
-            "rage-racer-rage-racer-pc",
-            "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
-        ],
+        &["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"],
         false,
     )
     .await;
+}
+
+#[tokio::test]
+async fn embedded_vandal_component_permission_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["vandal-hearts-vandalhearts-pcport"], false).await;
 }
 
 #[tokio::test]

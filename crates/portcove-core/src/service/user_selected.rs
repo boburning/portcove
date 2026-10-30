@@ -844,6 +844,24 @@ mod tests {
         assert_listing_only_player_route("jackie-chan-stuntmaster-rechan", Some(false));
     }
 
+    #[test]
+    fn crash_prepared_player_route_385() {
+        assert_listing_only_player_route("crash-bandicoot-crashbandicoot-launcher", Some(false));
+    }
+
+    #[test]
+    fn symphony_permitted_player_route_319() {
+        assert_listing_only_player_route(
+            "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn rage_permitted_player_route_349() {
+        assert_listing_only_player_route("rage-racer-rage-racer-pc", Some(true));
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently
