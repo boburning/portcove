@@ -125,8 +125,19 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   assert.ok(Array.isArray(runner.options));
   assert.deepEqual(runner.options, ["ubuntu-22.04", "ubuntu-24.04"]);
   assert.ok(typeof runner.description === "string" && runner.description.length);
+  // The retained guest builds only the preparation helper. Keep exactly one
+  // package matrix owner while validating both literal installer consumers.
+  assert.equal(installerSteps(updaterRehearsal).length, 2);
+  assert.equal(
+    installerSteps(updaterRehearsal).filter(
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
+    ).length,
+    1,
+  );
   const packageJobs = Object.values(workflowJobs(updaterRehearsal)).filter(
     (job) =>
+      isRecord(job.strategy) &&
+      isRecord(job.strategy.matrix) &&
       Array.isArray(job.steps) &&
       job.steps.some(
         (step: unknown) =>

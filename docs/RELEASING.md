@@ -234,6 +234,51 @@ replacement. This establishes bounded process-interruption recovery, not
 power-loss/directory-durability or actual reboot behavior. Selecting the fixture
 does not establish that its installed observation completed.
 
+The historical Linux real-data chain also holds one genuine public Core update
+activity before launching the updater-enabled renderer. The Windows real-data
+route opts into the same seam with `-InstalledLibraryBusyHelperPath`, its exact
+`-InstalledLibraryBusyHelperSha256` and `-InstalledLibraryBusyHelperSource`.
+These require the existing hash-bound game-data configuration; public/account
+routes remain separate. Use the compiled `prepare_installed_update` example from
+the existing stripped `controller-tools` profile. Its `describe` command supplies
+Core's actual library schema and lock protocol; the requested description version
+is helper-contract input, not installed-predecessor version or source evidence.
+Record exact helper byte identity and builder source separately from application
+package identities.
+
+Start the holder after normal seed/observer processes exit and before renderer
+startup. The helper verifies the existing active installation and current schema,
+then waits inside the normal public update's Started callback with its genuine
+durable Running activity and continuously held Core activity lock. A temporary
+quiescence-admission lease is not the busy witness. The ordinary enabled Restart
+must produce a fresh canonical Conflict alert, with unchanged verified staging,
+preferences, installed image and original application process, no apply intent
+and no updater/relaunch marker. An already-present alert or disabled button does
+not satisfy this observation.
+
+Only after that refusal, send the nonce/activity-bound cancellation through the
+owned child's stdin. Require Core's cancellation acknowledgement, durable
+Cancelled record, matching Finished event, zero provider acquisition, idle library
+and observed child OS exit 0 before the existing fresh explicit Restart click.
+The helper never executes the game or creates an update row with SQL. Invalid
+release, EOF or its finite wait limit exits 86 without inventing a Core terminal
+result. Retain unresolved activity/output and settle the original owned child
+before another observer or driver teardown; a failed case stays failed even if
+cleanup succeeds. Controller protocol tests use explicitly fake producers and
+do not establish Core or installed acceptance.
+
+Ordinary Linux lifecycle and historical real-data stable targets include spaces
+and Unicode. A separate bounded tmpfs fixture is prepared with `noexec` by the
+existing privileged setup; the copied exact AppImage is tested by the ordinary
+UID with no effective capabilities and mode 0755. The fixed probe verifies the
+actual mount before attempting execution and accepts only kernel EACCES with no
+started process. It retains raw mount/launch outcomes and rechecks the original
+stable file and synthetic lifecycle data. This is mount/noexec refusal, not
+successful application execution, painted guidance, reboot or real-game data
+preservation in that separate fixture. Explicit artifact paths retain these
+reports and the holder/descriptor output without including profiles or credential
+stores. All these selected scenarios still require actual installed receipts.
+
 The fixed Windows OS credential store is not isolated by these private paths;
 credential continuity, gameplay and raw database-preimage claims remain absent.
 The caller must retain the configuration, CLI/package/source custody and all

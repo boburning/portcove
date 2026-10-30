@@ -4,6 +4,7 @@ import {
   observeUpdaterCaller,
   observeLinuxDriver,
   observeHistoricalScope,
+  observeRetainedRebootScope,
 } from "./fixtures/updater-workflow-fixture.mts";
 import { prerequisiteInvocation } from "./fixtures/linux-prerequisites-fixture.mts";
 import { readWorkflow } from "./ci-workflow-fixture.mts";
@@ -1414,4 +1415,73 @@ $stageExit=$LASTEXITCODE
   assert.equal(observed.stage_exit, 0);
   assert.match(text(observed.selection_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
   assert.match(text(observed.stage_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
+});
+
+void test("retained Linux reboot admits only its frozen independent mode and public evidence", async () => {
+  const source = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  const contract = updaterWorkflow(source, releaseLabels(policy));
+  const baseline = {
+    PLATFORM: "linux-x86_64",
+    PROFILE: "legacy-skipped",
+    LINUX_RUNNER: "ubuntu-24.04",
+    HISTORICAL: "false",
+  };
+  assert.equal(observeRetainedRebootScope(contract.retainedReboot.scope.step, baseline), 0);
+  for (const [key, value] of Object.entries({
+    PLATFORM: "all",
+    PROFILE: "adjacent",
+    LINUX_RUNNER: "ubuntu-26.04",
+    HISTORICAL: "true",
+  })) {
+    assert.notEqual(
+      observeRetainedRebootScope(contract.retainedReboot.scope.step, { ...baseline, [key]: value }),
+      0,
+    );
+  }
+  const mutations: ((workflow: Record<string, unknown>) => void)[] = [
+    (w) => {
+      object(object(object(w.on).workflow_dispatch).inputs).retained_reboot_only = {
+        type: "boolean",
+        default: true,
+      };
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).if = "always()";
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).needs = "packages";
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).permissions = {
+        contents: "read",
+        actions: "write",
+      };
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(object(steps[3]).with).ref = "main";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(steps[12]).run = "python3 scripts/qualification/linux-reboot/controller.py";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(steps[13]).if = "success()";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(object(steps[14]).with).path = "work/";
+    },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(contract.workflow);
+    mutate(changed);
+    assert.throws(
+      () => updaterWorkflow(JSON.stringify(changed), releaseLabels(policy)),
+      assert.AssertionError,
+    );
+  }
 });

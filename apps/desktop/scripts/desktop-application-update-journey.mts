@@ -284,6 +284,75 @@ export async function driveInstalledUpdateToRestart(
   return stageInstalledUpdate(browser, actions, candidateVersion);
 }
 
+/** A real externally owned Core activity must reach Tauri's idle guard. A
+ * disabled control or a local Desktop invocation conflict is not this proof.
+ * Callers separately retain native executable/staging/marker identities, then
+ * settle their holder before making a fresh explicit Restart click. */
+export async function driveInstalledBusyRestartRefusal(
+  browser: WebDriver,
+  actions: string[],
+  assertActivityHeld: () => Promise<void>,
+) {
+  const before = await readInstalledUpdateStatus(browser);
+  const preferencesBefore = await readInstalledUpdatePreferences(browser);
+  assert.equal(before.install_eligibility, "eligible");
+  assert.ok(isRecord(before.staged), "A verified candidate must already be staged");
+  assert.equal(before.apply, null);
+  assert.deepEqual(before.recovery_required, []);
+  const message =
+    "The selection changed or another operation is using it. Review its current state.";
+  const conflictAlert = By.xpath(
+    `//article[@aria-labelledby="application-update-settings-title"]//p[@role="alert" and normalize-space(.)="${message}"]`,
+  );
+  assert.equal(
+    (await browser.findElements(conflictAlert)).length,
+    0,
+    "An existing Conflict alert cannot establish a fresh busy refusal",
+  );
+  const restart = By.xpath('//button[normalize-space(.)="Restart to update" and not(@disabled)]');
+  await browser.wait(until.elementLocated(restart), 15_000);
+  await assertActivityHeld();
+  const requestedAt = new Date().toISOString();
+  await browser.findElement(restart).click();
+  actions.push("ordinary-restart-requested-while-real-core-activity-held");
+  const alert = await browser.wait(until.elementLocated(conflictAlert), 30_000);
+  assert.equal(await alert.getText(), message);
+  await browser.wait(until.elementLocated(restart), 15_000);
+  const after = await readInstalledUpdateStatus(browser);
+  assert.equal(after.install_eligibility, before.install_eligibility);
+  assert.deepEqual(after.staged, before.staged);
+  assert.equal(after.apply, null, "Busy refusal must precede any apply intent");
+  assert.deepEqual(after.recovery_required, []);
+  const preferences = await readInstalledUpdatePreferences(browser);
+  assert.deepEqual(preferences, preferencesBefore);
+  await assertActivityHeld();
+  assert.equal(
+    (
+      await browser.findElements(
+        By.xpath(
+          '//section[@aria-labelledby="application-check-title"]//*[contains(.,"Portcove is current")]',
+        ),
+      )
+    ).length,
+    0,
+  );
+  assert.equal(
+    (await browser.findElements(By.xpath('//button[normalize-space(.)="Retry restart to update"]')))
+      .length,
+    0,
+  );
+  actions.push("real-core-busy-restart-refused-without-apply-intent");
+  return {
+    before,
+    after,
+    preferences,
+    requested_at: requestedAt,
+    message,
+    authority: "none" as const,
+    scope: "ordinary UI conflict while independently owned Core activity remains held" as const,
+  };
+}
+
 /** UI staging after an independently captured old-restart refusal. The parent
  * must establish actual installed identity, raw intent and helper settlement;
  * sanitized status and this helper establish none of those predicates. */
