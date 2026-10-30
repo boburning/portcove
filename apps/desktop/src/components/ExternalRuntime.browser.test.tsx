@@ -586,6 +586,7 @@ it("keeps folder repair context after native consent cancellation and permits re
   await click("Change folder");
   expect(changed).not.toHaveBeenCalled();
   expect(document.body.textContent).toContain("C:\\Moved");
+  await captureParityState("external-repair-consent-declined-fixture");
   await click("Change folder");
   expect(apply).toHaveBeenCalledTimes(2);
   expect(pickInstallFolder).toHaveBeenCalledOnce();
@@ -624,6 +625,7 @@ it("retains a reviewed folder after native cancellation and retries without choo
     record.path,
   );
   expect(document.body.textContent).not.toContain("Portcove couldn't use this installation");
+  await captureParityState("external-registration-consent-declined-fixture");
   await click("Use this installation");
   expect(register).toHaveBeenCalledTimes(2);
   expect(register).toHaveBeenLastCalledWith(port.id, record.path, "reviewed-external", 7);
@@ -837,6 +839,7 @@ it("removes only the external registration through the separate reviewed action"
   );
   await click("Stop using this installation");
   expect(document.body.textContent).toContain("The files stay where they are, including");
+  await captureParityState("external-removal-reviewed-fixture");
   await click("Stop using this installation");
   expect(remove).toHaveBeenCalledExactlyOnceWith(port.id, "reviewed-removal", 7);
   expect(managedUninstall).not.toHaveBeenCalled();
@@ -893,6 +896,7 @@ it("does not invent a cause for an unknown external route hold", async () => {
     "Setup status unknown. View details for current requirements.",
   );
   expect(document.body.textContent).not.toContain("future_reason");
+  await captureParityState("external-unknown-route-held-fixture");
 });
 
 const otherPort = { ...port, id: "another-external-port", name: "Another game" };

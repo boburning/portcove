@@ -805,3 +805,106 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 }, 45_000);
+
+it("keeps the confirmed favorite state during a pending and rejected write", async () => {
+  await page.viewport(1024, 800);
+  await mount();
+  let rejectWrite!: (reason: Error) => void;
+  const favorite = vi.spyOn(desktopApi, "setPortFavorite").mockReturnValueOnce(
+    new Promise<void>((_resolve, reject) => {
+      rejectWrite = reject;
+    }),
+  );
+  const toggle = page.getByRole("button", {
+    name: "Favorite Super Mario 64 · sm64-port",
+    exact: true,
+  });
+  await userEvent.hover(toggle.element());
+  expect(toggle.element().matches(":hover")).toBe(true);
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  await captureParityState("library-favorite-hover");
+  await toggle.click();
+  await expect.element(toggle).toBeDisabled();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(favorite).toHaveBeenCalledExactlyOnceWith("collection-0", true, 1);
+  await captureParityState("library-favorite-write-pending");
+  rejectWrite(new Error("Fixture favorite write refused"));
+  await expect
+    .element(page.getByText("Favorite choice could not be confirmed", { exact: true }))
+    .toBeVisible();
+  await expect.element(toggle).toBeEnabled();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
+    .toBeVisible();
+  await captureParityState("library-favorite-write-rejected");
+}, 45_000);
+
+it("sorts actual Library entries by the selected title order without changing their identities", async () => {
+  await page.viewport(1024, 800);
+  await mount();
+  const ids = () =>
+    [...document.querySelectorAll<HTMLElement>(".collection-identity")].map((entry) =>
+      entry.getAttribute("data-detail-game-id")!,
+    );
+  const sort = page.getByRole("combobox", { name: /^Sort / });
+  await sort.click();
+  await expect.element(page.getByRole("option", { name: "Title A–Z", exact: true })).toBeVisible();
+  await captureParityState("library-sort-menu");
+  await page.getByRole("option", { name: "Title A–Z", exact: true }).click();
+  await expect.element(sort).toHaveTextContent("Title A–Z");
+  const ascending = ids();
+  expect(ascending).toHaveLength(12);
+  expect(new Set(ascending).size).toBe(12);
+  await sort.click();
+  await page.getByRole("option", { name: "Title Z–A", exact: true }).click();
+  await expect.element(sort).toHaveTextContent("Title Z–A");
+  const descending = ids();
+  expect(descending).not.toEqual(ascending);
+  expect([...descending].sort((a, b) => a.localeCompare(b))).toEqual(
+    [...ascending].sort((a, b) => a.localeCompare(b)),
+  );
+  const titles = [
+    ...document.querySelectorAll<HTMLElement>(".collection-entry .collection-title"),
+  ].map((title) => title.textContent?.trim() ?? "");
+  expect(titles).toHaveLength(12);
+  expect(titles).toEqual(
+    [...titles].sort((a, b) => b.localeCompare(a, "en", { sensitivity: "base" })),
+  );
+  await captureParityState("library-sort-title-descending");
+}, 45_000);
+
+it("keeps a grouped Discover Save unselected while pending and after a rejected write", async () => {
+  await page.viewport(1024, 800);
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
+  await mount();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
+  let rejectWrite!: (reason: Error) => void;
+  const change = vi.spyOn(desktopApi, "changeOrganization").mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      rejectWrite = reject;
+    }),
+  );
+  const group = discoverGroupForPort("collection-1");
+  const save = page.elementLocator(group.querySelector<HTMLButtonElement>(".collection-save")!);
+  await expect.element(save).toHaveAttribute("aria-pressed", "false");
+  await save.click();
+  await expect.element(save).toBeDisabled();
+  const requested = change.mock.calls[0]![1];
+  if (requested.kind !== "set_saved_group") throw new Error("Expected grouped Save");
+  expect(requested.legacy_port_ids).toEqual(["collection-0", "collection-1"]);
+  expect(requested.saved).toBe(true);
+  await captureParityState("discover-group-save-pending");
+  rejectWrite(new Error("Fixture grouped Save refused"));
+  await expect.element(save).toBeEnabled();
+  await expect.element(save).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .element(
+      page.getByText("These choices could not be saved. Your previous choices were kept.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await captureParityState("discover-group-save-rejected");
+}, 45_000);

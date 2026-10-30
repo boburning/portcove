@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { useState } from "react";
 import { afterEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -17,6 +18,8 @@ it("keeps exactly one theme selected through clicks and composite keyboard navig
   const system = group.getByRole("radio", { name: "Follow system" });
   await system.click();
   await expect.element(system).toHaveAttribute("aria-checked", "true");
+  await expect.element(system).toHaveFocus();
+  await captureParityState("theme-system-selected-focus");
   await system.click();
   await expect.element(system).toHaveAttribute("aria-checked", "true");
   await userEvent.keyboard("{ArrowRight}");
@@ -25,6 +28,7 @@ it("keeps exactly one theme selected through clicks and composite keyboard navig
     .toHaveAttribute("aria-checked", "true");
   await expect.element(group.getByRole("radio", { name: "Dark" })).toHaveFocus();
   expect(group.element().querySelectorAll('[aria-checked="true"]')).toHaveLength(1);
+  await captureParityState("theme-dark-selected-focus");
 });
 
 it("opens the existing diagnostics owner from About and transfers heading focus", async () => {

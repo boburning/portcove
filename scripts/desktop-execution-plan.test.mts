@@ -20,10 +20,7 @@ import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-e
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
-import {
-  OwnedNativeSession,
-  retainNativeCustody as retainOwnedNativeCustody,
-} from "../apps/desktop/scripts/desktop-owned-native-session.mts";
+import { retainNativeCustody as retainOwnedNativeCustody } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
 import baseline from "./desktop-execution-baseline.mts";
 import type { DesktopSelection } from "./desktop-scenarios.mts";
 type KnownGap = DesktopSelection["known_gaps"][number];
@@ -79,140 +76,6 @@ void test("native display identity dependency retains the exact helper consumed 
         }).receiptInputs.filter((input) => input.kind === "file" && input.path === expected).length,
         1,
       );
-});
-
-void test("Windows final custody gate retains failed current exit without fixture or lease release", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const first = source.indexOf("async function releaseNativeResources()");
-  const last = source.indexOf("async function retainNativeCustody(", first);
-  assert.ok(first >= 0 && last > first);
-  assert.match(
-    source.slice(source.lastIndexOf("  } finally {")),
-    /await releaseNativeResources\(\);/,
-  );
-  for (const positive of [false, true]) {
-    const session = new OwnedNativeSession();
-    session.beginLaunch();
-    session.driver = { pid: 2, path: "C:\\fixture\\driver.exe", started_filetime: "200" };
-    session.inventory = "current.json";
-    if (positive)
-      session.cleanup = {
-        stopped: { method: "observed-child-exit", exit_code: 0 },
-        exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
-        snapshot: "current.json",
-      };
-    const calls: string[] = [];
-    const retained = new Error("retained runner");
-    const release = callable(
-      runInNewContext(`${source.slice(first, last)}; releaseNativeResources`, {
-        process: { platform: "win32" },
-        identityBoundSession: true,
-        ownedSession: session,
-        installFixture: {
-          close: async () => {
-            calls.push("install-close");
-          },
-        },
-        originFixture: {
-          close: async () => {
-            calls.push("origin-close");
-          },
-        },
-        nativeLock: {
-          release: async () => {
-            calls.push("release");
-          },
-        },
-        retainNativeCustody: async (error: unknown) => {
-          assert.match(String(error), /Positive current owned/);
-          calls.push("retain");
-          throw retained;
-        },
-      }),
-    );
-    if (positive) {
-      await release();
-      assert.deepEqual(calls, ["install-close", "origin-close", "release"]);
-    } else {
-      await assert.rejects(
-        async () => release(),
-        (error: unknown) => error === retained,
-      );
-      assert.deepEqual(calls, ["retain"]);
-    }
-  }
-});
-
-void test("Windows admission refusal preserves former exit proof until a replacement spawn is attempted", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const first = source.indexOf("async function startDriver(");
-  const last = source.indexOf("async function captureSelectedDriverLaunch(", first);
-  assert.ok(first >= 0 && last > first);
-  for (const admissionRefuses of [true, false]) {
-    const session = new OwnedNativeSession();
-    session.beginLaunch();
-    session.driver = { pid: 2, path: "C:\\fixture\\driver.exe", started_filetime: "200" };
-    session.inventory = "former.json";
-    session.cleanup = {
-      stopped: { method: "observed-child-exit", exit_code: 0 },
-      exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
-      snapshot: "former.json",
-    };
-    const former = session.requireQuiescence();
-    const calls: string[] = [];
-    const refused = new Error("admission refused");
-    const spawnFailure = new Error("replacement spawn failed");
-    const begin = session.beginLaunch.bind(session);
-    session.beginLaunch = () => {
-      calls.push("begin");
-      begin();
-    };
-    const start = callable(
-      runInNewContext(`${source.slice(first, last)}; startDriver`, {
-        assert,
-        linuxPackagedInspector: false,
-        linuxSelectedSession: false,
-        nativeAccount: undefined,
-        admission: {
-          verify: async () => {
-            calls.push("verify");
-          },
-          assertReady: () => {
-            calls.push("admission");
-            if (admissionRefuses) throw refused;
-          },
-        },
-        custody: undefined,
-        ownedSession: session,
-        port: 4444,
-        nativeDriverPath: "/native-driver",
-        driverPath: "/driver",
-        process: { platform: "win32" },
-        driverEnvironment: () => ({}),
-        spawn: () => {
-          calls.push("spawn");
-          throw spawnFailure;
-        },
-      }),
-    );
-    await assert.rejects(
-      async () => start(),
-      (error: unknown) => error === (admissionRefuses ? refused : spawnFailure),
-    );
-    if (admissionRefuses) {
-      assert.deepEqual(calls, ["verify", "admission"]);
-      assert.equal(session.requireQuiescence(), former);
-    } else {
-      assert.deepEqual(calls, ["verify", "admission", "begin", "spawn"]);
-      assert.throws(() => session.requireQuiescence(), /Current owned launch identity/);
-    }
-  }
 });
 
 void test("Windows retained custody keeps its hold even when failure evidence cannot be published", async () => {
@@ -1180,10 +1043,6 @@ function familyMembers(plan: ReturnType<typeof planDesktopExecution>, family: st
   assert(entry?.members);
   return entry.members;
 }
-function callable(value: unknown) {
-  assert(typeof value === "function");
-  return (...args: unknown[]): unknown => Reflect.apply(value, undefined, args);
-}
 
 function receiptFilePath(input: import("./native-helper-dependencies.mts").ReceiptInput) {
   assert(input.kind === "file");
@@ -1275,89 +1134,6 @@ void test("Linux interruption is standalone, production-featured and retains nam
     assert.ok(
       !resolveDesktopSelection({ profile, platform: "linux" }).selected_scenarios.includes(id),
     );
-});
-
-void test("publication repeat callback requires the complete owned native quiescence join", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("async function restartApplication(");
-  const end = source.indexOf("// Interrupt only this harness", start);
-  assert.ok(start >= 0 && end > start);
-  for (const acquisition of [false, true])
-    for (const refusesExit of [false, true]) {
-      const events: string[] = [];
-      const exitFailure = new Error("owned native inventory has not fully exited");
-      const restart = callable(
-        runInNewContext(`${source.slice(start, end)}; restartApplication`, {
-          linuxSelectedSession: false,
-          process: { platform: "win32" },
-          savedLibraryRecoverySession: false,
-          cleanupName: "host-publication",
-          hostPublicationSession: !acquisition,
-          executionPlan: { fixtures: { acquisitionJourney: acquisition } },
-          preferencesRecoverySession: false,
-          assert,
-          required: (value: unknown) => value,
-          output: "/owned/output",
-          path,
-          artifacts: [],
-          browser: {
-            quit: async () => {
-              events.push("quit");
-            },
-          },
-          captureBackupFocusCleanup: () => {
-            events.push("capture");
-            return "/owned/inventory.json";
-          },
-          readFile: async () => "{}",
-          readNativeProcessSnapshot: (value: unknown) => value,
-          validateBackupFocusInventory: () => {
-            events.push("validate");
-          },
-          stopBackupFocusDriver: () => {
-            events.push("stop");
-          },
-          ownedSession: {
-            requireQuiescence: () => {
-              events.push("join");
-              if (refusesExit) throw exitFailure;
-              return {};
-            },
-          },
-          startDriver: async () => {
-            events.push("start");
-          },
-          connect: async () => {
-            events.push("connect");
-          },
-          driverBrowser: () => ({}),
-          writeFile: async () => {},
-        }),
-      );
-      const execute = async () =>
-        restart(acquisition ? "acquisition-2.0.0" : "published-move-repeat", async () => {
-          events.push("callback");
-        });
-      if (refusesExit) {
-        await assert.rejects(execute(), (error) => error === exitFailure);
-        assert.deepEqual(events, ["capture", "validate", "quit", "stop", "join"]);
-      } else {
-        await execute();
-        assert.deepEqual(events, [
-          "capture",
-          "validate",
-          "quit",
-          "stop",
-          "join",
-          "callback",
-          "start",
-          "connect",
-        ]);
-      }
-    }
 });
 
 void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", () => {

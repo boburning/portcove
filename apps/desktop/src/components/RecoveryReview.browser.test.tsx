@@ -73,7 +73,7 @@ it("puts paths behind a collapsed review and omits raw errors and execution cont
   }
 });
 
-it("inspects exact retained facts without deleting, then refreshes the bound plan for separate cleanup", async () => {
+it("inspects retained facts, keeps pending cleanup locked, and retries failure with a fresh plan", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const preview: PreparationCleanupPreview = {
     format_version: 1,
@@ -102,7 +102,16 @@ it("inspects exact retained facts without deleting, then refreshes the bound pla
     preview_sha256: "b".repeat(64),
   };
   const load = vi.spyOn(desktopApi, "previewPreparationCleanup").mockResolvedValue(preview);
-  const cleanup = vi.spyOn(desktopApi, "cleanupPreparation").mockResolvedValue(preview);
+  let rejectCleanup: ((error: Error) => void) | undefined;
+  const cleanup = vi
+    .spyOn(desktopApi, "cleanupPreparation")
+    .mockImplementationOnce(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectCleanup = reject;
+        }),
+    )
+    .mockResolvedValue(preview);
   const changed = vi.fn().mockResolvedValue(undefined);
   const host = document.createElement("div");
   document.body.append(host);
@@ -158,6 +167,31 @@ it("inspects exact retained facts without deleting, then refreshes the bound pla
     );
     await act(async () => apply?.click());
     expect(cleanup).toHaveBeenCalledWith("owned-operation", updated.preview_sha256, 7);
+    expect(document.body.textContent).toContain("Deleting setup working files…");
+    expect(apply?.disabled).toBe(true);
+    expect(changed).not.toHaveBeenCalled();
+    await captureParityState("retained-preparation-cleanup-pending-fixture");
+    await act(async () => rejectCleanup?.(new Error("Cleanup fixture refused changed files")));
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+      "Cleanup fixture refused changed files",
+    );
+    expect(changed).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("Delete setup working files");
+    await captureParityState("retained-preparation-cleanup-failed-fixture");
+    const retried = { ...updated, preview_sha256: "d".repeat(64) };
+    load.mockResolvedValue(retried);
+    await act(async () =>
+      [...document.body.querySelectorAll("button")]
+        .find((button) => button.textContent === "Review again")
+        ?.click(),
+    );
+    expect(load).toHaveBeenCalledTimes(3);
+    await act(async () =>
+      [...document.body.querySelectorAll("button")]
+        .find((button) => button.textContent === "Delete setup working files")
+        ?.click(),
+    );
+    expect(cleanup).toHaveBeenLastCalledWith("owned-operation", retried.preview_sha256, 7);
     expect(changed).toHaveBeenCalledOnce();
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {

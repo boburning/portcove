@@ -1140,6 +1140,7 @@ it("retains a progressive scan across selected game details without starting ano
   expect(button("Scan saved folders").disabled).toBe(true);
   expect(button("Cancel scan")).toBeDefined();
   expect(button("View Game A details")).toBeDefined();
+  await captureParityState("game-files-streamed-scan-running-fixture");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
   await act(async () => {
     vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
@@ -1391,6 +1392,7 @@ it("retains a scan failure that arrives while selected game details are open", a
     "The selected drive disconnected",
   );
   expect(button("Scan saved folders").disabled).toBe(false);
+  await captureParityState("game-files-scan-failed-fixture");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
 });
 
@@ -1466,6 +1468,7 @@ it("preserves a saved root until removal is confirmed", async () => {
   const remove = vi.spyOn(desktopApi, "removeGameFileRoot").mockResolvedValue(true);
   await click("Remove");
   expect(remove).not.toHaveBeenCalled();
+  await captureParityState("game-files-remove-root-reviewed-fixture");
   await click("Keep folder");
   expect(remove).not.toHaveBeenCalled();
   await click("Remove");
@@ -1651,6 +1654,7 @@ it("uses core root mutations for chosen folders and relinks the same root identi
   expect(add).toHaveBeenCalledWith("E:/More Games", 1);
   await click("Relink");
   expect(relink).toHaveBeenCalledWith(saved.id, "E:/More Games", 1);
+  await captureParityState("game-files-root-relinked-fixture");
 });
 
 it("does not offer review from a snapshot whose inputs changed", async () => {

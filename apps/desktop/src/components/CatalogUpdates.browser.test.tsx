@@ -159,6 +159,24 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(technical?.textContent).toContain("1 accepted");
     expect(technical?.textContent).toContain(new Date(plan.expires_at * 1000).toLocaleString());
     expect(technical?.textContent).toContain(plan.envelope_sha256);
+    const trust = document.querySelector(".catalog-publisher-trust")!;
+    const sourceReview = document.querySelector(".catalog-update-source-review")!;
+    expect(
+      sourceReview.getBoundingClientRect().top - trust.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(23);
+    for (const group of [
+      trust,
+      sourceReview,
+      document.querySelector('[aria-label="Catalog update review"]')!,
+    ]) {
+      const children = Array.from(group.children);
+      for (let index = 1; index < children.length; index++) {
+        expect(
+          children[index]!.getBoundingClientRect().top -
+            children[index - 1]!.getBoundingClientRect().bottom,
+        ).toBeGreaterThanOrEqual(11);
+      }
+    }
     await captureParityState("catalog-trust-reviewed-fixture");
     await click("Review update");
     expect(document.body.textContent).toContain("No port information will change.");

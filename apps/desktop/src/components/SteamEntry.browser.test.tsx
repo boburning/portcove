@@ -104,6 +104,20 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     "Add shortcut",
   ])
     expect(document.body.textContent).toContain(value);
+  const fields = document.querySelector(".steam-profile-fields")!;
+  const reviewedChange = document.querySelector('[aria-label="Reviewed Steam shortcut change"]')!;
+  expect(
+    reviewedChange.getBoundingClientRect().top - fields.getBoundingClientRect().bottom,
+  ).toBeGreaterThanOrEqual(23);
+  for (const group of [fields, reviewedChange, reviewedChange.querySelector("dl")!]) {
+    const children = Array.from(group.children);
+    for (let index = 1; index < children.length; index++) {
+      expect(
+        children[index]!.getBoundingClientRect().top -
+          children[index - 1]!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(11);
+    }
+  }
   await captureParityState("steam-singleton-reviewed-fixture");
   await click("Add or repair shortcut");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
@@ -160,6 +174,7 @@ it("selects an explicit discovered profile and clears it when the installation c
   expect(document.body.querySelector<HTMLInputElement>("#steam-profile")?.value).toBe("");
   await click("12345");
   expect(document.body.querySelector<HTMLInputElement>("#steam-profile")?.value).toBe("12345");
+  await captureParityState("steam-discovered-profile-selected-fixture");
   await click("Review shortcut setup");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
     port.id,

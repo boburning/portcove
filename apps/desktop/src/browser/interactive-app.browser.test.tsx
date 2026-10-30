@@ -607,3 +607,18 @@ it.each(parityCases)(
   },
   120_000,
 );
+
+it("keeps category navigation and selected content bounded at the 900px Settings breakpoint", async () => {
+  await startParityScene("library", { theme: "dark", width: 900, height: 800 });
+  await navigateTo("Settings");
+  const navigation = page.getByRole("navigation", { name: "Settings categories", exact: true });
+  const category = navigation.getByRole("button", { name: "Game files", exact: true });
+  await category.click();
+  await expect.element(category).toHaveAttribute("aria-current", "page");
+  await expect.element(document.getElementById("settings-game-files")!).toBeVisible();
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  expect(navigation.element().scrollWidth).toBeLessThanOrEqual(
+    navigation.element().clientWidth + 1,
+  );
+  await captureParityState("settings-category-breakpoint");
+}, 45_000);

@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { runDesktopModuleFixture } from "../../../scripts/fixtures/desktop-module-fixture.mts";
 import { probeOwnedListener } from "./desktop-windows-embedded-session.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -466,3 +467,345 @@ try {
     assert.equal(child.stdout, "controlled-host-connection-and-cleanup");
   },
 );
+
+async function assertFinalCustody(Session: typeof OwnedNativeSession) {
+  for (const positive of [false, true]) {
+    const session = new Session();
+    session.beginLaunch();
+    session.driver = { pid: 2, path: "C:\\fixture\\driver.exe", started_filetime: "200" };
+    session.inventory = "current.json";
+    if (positive)
+      session.cleanup = {
+        stopped: { method: "observed-child-exit", exit_code: 0 },
+        exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
+        snapshot: "current.json",
+      };
+    const calls: string[] = [];
+    const release = () =>
+      session.releaseResources({
+        closeFixtures: async () => {
+          calls.push("install-close", "origin-close");
+        },
+        releaseLock: async () => {
+          calls.push("release");
+        },
+      });
+    if (positive) {
+      await release();
+      assert.deepEqual(
+        calls,
+        ["install-close", "origin-close", "release"],
+        "FIXTURE_BEFORE_LEASE_RELEASE",
+      );
+    } else {
+      await assert.rejects(release, /Positive current owned/, "MISSING_CUSTODY_REFUSAL");
+      assert.deepEqual(calls, [], "Unproven exit cannot close fixtures or release its lease");
+      assert.equal(
+        session.inventory,
+        "current.json",
+        "Failed custody remains retained for the real caller",
+      );
+    }
+  }
+}
+void test("Windows final custody gate retains failed current exit without fixture or lease release", async () => {
+  await assertFinalCustody(OwnedNativeSession);
+});
+
+function assertLaunchAdmission(Session: typeof OwnedNativeSession) {
+  for (const result of ["admission-refused", "factory-refused", "started"] as const) {
+    const session = new Session();
+    session.beginLaunch();
+    session.driver = { pid: 2, path: "C:\\fixture\\driver.exe", started_filetime: "200" };
+    session.inventory = "former.json";
+    session.cleanup = {
+      stopped: { method: "observed-child-exit", exit_code: 0 },
+      exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
+      snapshot: "former.json",
+    };
+    const former = session.requireQuiescence(),
+      calls: string[] = [];
+    const admissionFailure = new Error("admission refused"),
+      factoryFailure = new Error("replacement spawn failed"),
+      created = { exact: "new driver" };
+    const begin = session.beginLaunch.bind(session);
+    session.beginLaunch = () => {
+      calls.push("begin");
+      begin();
+    };
+    const start = () =>
+      session.startLaunch({
+        admit: () => {
+          calls.push("admission");
+          if (result === "admission-refused") throw admissionFailure;
+        },
+        create: () => {
+          calls.push("factory");
+          assert.throws(
+            () => session.requireQuiescence(),
+            /Current owned launch identity/,
+            "INVALIDATE_BEFORE_FACTORY",
+          );
+          if (result === "factory-refused") throw factoryFailure;
+          return created;
+        },
+      });
+    if (result === "started") assert.equal(start(), created, "SYNCHRONOUS_FACTORY_IDENTITY");
+    else
+      assert.throws(
+        start,
+        (error) => error === (result === "admission-refused" ? admissionFailure : factoryFailure),
+        "ADMISSION_FAILURE_IDENTITY",
+      );
+    if (result === "admission-refused") {
+      assert.deepEqual(calls, ["admission"], "ADMISSION_BEFORE_REPLACEMENT");
+      assert.equal(session.requireQuiescence(), former);
+    } else {
+      assert.deepEqual(calls, ["admission", "begin", "factory"]);
+      assert.throws(() => session.requireQuiescence(), /Current owned launch identity/);
+    }
+  }
+}
+void test("Windows admission refusal preserves former exit proof until a replacement spawn is attempted", () => {
+  assertLaunchAdmission(OwnedNativeSession);
+});
+
+async function assertStrictRestart(Session: typeof OwnedNativeSession) {
+  for (const acquisition of [false, true])
+    for (const refusesExit of [true, false]) {
+      const session = new Session();
+      session.beginLaunch();
+      session.driver = { pid: 2, path: process.execPath, started_filetime: "200" };
+      session.inventory = "owned.json";
+      const events: string[] = [];
+      const joined = session.requireQuiescence.bind(session);
+      session.requireQuiescence = () => {
+        events.push("join");
+        return joined();
+      };
+      const reconnected = { exact: "browser" },
+        name = acquisition ? "acquisition-2.0.0" : "published-move-repeat";
+      const execute = () =>
+        session.restart({
+          capture: async () => {
+            events.push("capture", "validate");
+          },
+          close: async () => {
+            events.push("quit");
+          },
+          stop: () => {
+            events.push("stop");
+            if (!refusesExit)
+              session.cleanup = {
+                stopped: { method: "observed-child-exit", exit_code: 0 },
+                exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
+                snapshot: "owned.json",
+              };
+          },
+          publish: async (proof) => {
+            assert.equal(proof, session.cleanup);
+            events.push("publish");
+            assert.ok(name);
+          },
+          prepare: async () => {
+            events.push("callback");
+          },
+          start: async () => {
+            events.push("start");
+          },
+          connect: async () => {
+            events.push("connect");
+          },
+          browser: () => reconnected,
+        });
+      if (refusesExit) {
+        await assert.rejects(execute, /Positive current owned/, "RESTART_REQUIRES_QUIESCENCE");
+        assert.deepEqual(
+          events,
+          ["capture", "validate", "quit", "stop", "join"],
+          "RESTART_STOP_JOIN_ORDER",
+        );
+      } else {
+        assert.equal(await execute(), reconnected, "RESTART_BROWSER_IDENTITY");
+        assert.deepEqual(
+          events,
+          [
+            "capture",
+            "validate",
+            "quit",
+            "stop",
+            "join",
+            "publish",
+            "callback",
+            "start",
+            "connect",
+          ],
+          "RESTART_COMPLETE_ORDER",
+        );
+      }
+    }
+}
+void test("publication repeat callback requires the complete owned native quiescence join", async () => {
+  await assertStrictRestart(OwnedNativeSession);
+});
+
+void test("owned restart preserves each exact phase failure and never starts later work", async () => {
+  for (const withPreparation of [true, false]) {
+    const order = [
+      "capture",
+      "quit",
+      "stop",
+      "join",
+      "publish",
+      "prepare",
+      "start",
+      "connect",
+      "browser",
+    ].filter((phase) => withPreparation || phase !== "prepare");
+    for (const failAt of [...order, undefined]) {
+      const session = new OwnedNativeSession();
+      session.beginLaunch();
+      session.driver = { pid: 2, path: process.execPath, started_filetime: "200" };
+      session.inventory = "current.json";
+      const events: string[] = [],
+        failure = new Error(`exact phase failure: ${failAt}`),
+        result = { exact: "browser" };
+      const phase = (name: string) => {
+        events.push(name);
+        if (name === failAt) throw failure;
+      };
+      const originalJoin = session.requireQuiescence.bind(session);
+      session.requireQuiescence = () => {
+        phase("join");
+        return originalJoin();
+      };
+      const run = () =>
+        session.restart({
+          capture: async () => {
+            phase("capture");
+          },
+          close: async () => {
+            phase("quit");
+          },
+          stop: () => {
+            phase("stop");
+            session.cleanup = {
+              stopped: { method: "observed-child-exit", exit_code: 0 },
+              exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
+              snapshot: "current.json",
+            };
+          },
+          publish: async (proof) => {
+            phase("publish");
+            assert.equal(proof, session.cleanup);
+          },
+          prepare: withPreparation
+            ? async () => {
+                phase("prepare");
+              }
+            : undefined,
+          start: async () => {
+            phase("start");
+          },
+          connect: async () => {
+            phase("connect");
+          },
+          browser: () => {
+            phase("browser");
+            return result;
+          },
+        });
+      if (failAt)
+        await assert.rejects(run, (error) => error === failure, "RESTART_PHASE_FAILURE_IDENTITY");
+      else assert.equal(await run(), result);
+      assert.deepEqual(
+        events,
+        failAt ? order.slice(0, order.indexOf(failAt) + 1) : order,
+        "RESTART_FAIL_CLOSED_PHASE_ORDER",
+      );
+    }
+  }
+});
+
+void test("whole native custody owner rejects removed admission, proof and restart gates", () => {
+  const entry = new URL("./desktop-owned-native-session.mts", import.meta.url);
+  const program = (oracle: (Session: typeof OwnedNativeSession) => unknown, mutation = "") => `
+    const actual = await import(entry); const Subject = class extends actual.OwnedNativeSession {};
+    ${mutation}
+    await (${oracle.toString()})(Subject);
+  `;
+  for (const oracle of [assertFinalCustody, assertLaunchAdmission, assertStrictRestart]) {
+    runDesktopModuleFixture(entry, program(oracle));
+    runDesktopModuleFixture(entry, program(oracle), {
+      exportName: "OwnedNativeSession",
+      variant: "aliased",
+    });
+  }
+  const controls: [
+    typeof assertLaunchAdmission | typeof assertFinalCustody | typeof assertStrictRestart,
+    string,
+    string,
+  ][] = [
+    [
+      assertLaunchAdmission,
+      "Subject.prototype.startLaunch=function({create}){this.beginLaunch();return create();};",
+      "ADMISSION_FAILURE_IDENTITY",
+    ],
+    [
+      assertLaunchAdmission,
+      "Subject.prototype.startLaunch=function({admit,create}){admit();return create();};",
+      "INVALIDATE_BEFORE_FACTORY",
+    ],
+    [
+      assertLaunchAdmission,
+      "Subject.prototype.startLaunch=function({admit,create}){this.beginLaunch();admit();return create();};",
+      "ADMISSION_BEFORE_REPLACEMENT",
+    ],
+    [
+      assertLaunchAdmission,
+      "Subject.prototype.startLaunch=function(input){actual.OwnedNativeSession.prototype.startLaunch.call(this,input);return {};};",
+      "SYNCHRONOUS_FACTORY_IDENTITY",
+    ],
+    [
+      assertFinalCustody,
+      "Subject.prototype.releaseResources=async function({closeFixtures,releaseLock}){await closeFixtures();await releaseLock();};",
+      "MISSING_CUSTODY_REFUSAL",
+    ],
+    [
+      assertFinalCustody,
+      "Subject.prototype.releaseResources=async function({closeFixtures,releaseLock}){this.requireQuiescence();await releaseLock();await closeFixtures();};",
+      "FIXTURE_BEFORE_LEASE_RELEASE",
+    ],
+    [
+      assertStrictRestart,
+      "Subject.prototype.restart=async function(x){await x.capture();await x.close();x.stop();await x.publish(this.cleanup);if(x.prepare)await x.prepare();await x.start();await x.connect();return x.browser();};",
+      "RESTART_REQUIRES_QUIESCENCE",
+    ],
+    [
+      assertStrictRestart,
+      "Subject.prototype.restart=async function(x){await x.capture();await x.close();x.stop();await x.publish(this.cleanup);this.requireQuiescence();if(x.prepare)await x.prepare();await x.start();await x.connect();return x.browser();};",
+      "RESTART_STOP_JOIN_ORDER",
+    ],
+    [
+      assertStrictRestart,
+      "Subject.prototype.restart=function(x){return actual.OwnedNativeSession.prototype.restart.call(this,{...x,publish:async()=>{}});};",
+      "RESTART_COMPLETE_ORDER",
+    ],
+    [
+      assertStrictRestart,
+      "Subject.prototype.restart=function(x){return actual.OwnedNativeSession.prototype.restart.call(this,{...x,connect:async()=>{}});};",
+      "RESTART_COMPLETE_ORDER",
+    ],
+    [
+      assertStrictRestart,
+      "Subject.prototype.restart=async function(x){await actual.OwnedNativeSession.prototype.restart.call(this,x);return {};};",
+      "RESTART_BROWSER_IDENTITY",
+    ],
+  ];
+  for (const [oracle, mutation, marker] of controls)
+    assert.throws(
+      () => runDesktopModuleFixture(entry, program(oracle, mutation)),
+      (error) => error instanceof assert.AssertionError && error.message.includes(marker),
+      marker,
+    );
+});

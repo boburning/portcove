@@ -562,3 +562,35 @@ it("composes quick views with declared filters and clears only quick-view scope 
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(2);
   expect(invoke).not.toHaveBeenCalled();
 });
+
+it("keeps selected filter labels and their popover bounded at 320px with enlarged text", async () => {
+  await page.viewport(320, 844);
+  document.documentElement.dataset.theme = "dark";
+  document.documentElement.style.fontSize = "32px";
+  try {
+    flushSync(() => root.render(<Fixture />));
+    await openAdvancedFilters("Filters (0)");
+    await userEvent.click(await filterChoice("Linux (2)"));
+    await userEvent.click(await filterChoice("Preview (2)"));
+    await closeFilters();
+    const preview = page.getByRole("button", { name: "Remove Preview filter", exact: true });
+    const linux = page.getByRole("button", { name: "Remove Linux filter", exact: true });
+    await expect.element(preview).toHaveTextContent("Release channels: Preview");
+    await expect.element(linux).toHaveTextContent("Target OS: Linux");
+    for (const chip of [preview, linux]) {
+      const element = chip.element();
+      expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1);
+      expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(innerWidth + 1);
+    }
+    await captureParityState("library-selected-chips-narrow-text-200");
+    await openAdvancedFilters("Filters (2)");
+    const panel = page.getByRole("region", { name: "Filter options", exact: true });
+    await expect.element(panel).toBeVisible();
+    expect(panel.element().scrollWidth).toBeLessThanOrEqual(panel.element().clientWidth + 1);
+    await captureParityState("library-selected-popover-narrow-text-200");
+    await closeFilters();
+    await expect.element(button("Filters (2)")).toHaveFocus();
+  } finally {
+    document.documentElement.style.removeProperty("font-size");
+  }
+}, 45_000);

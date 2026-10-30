@@ -189,6 +189,7 @@ describe("ApplicationUpdateSettings", () => {
     await act(async () => pause.click());
     expect(save).not.toHaveBeenCalled();
     expect(reset).not.toHaveBeenCalled();
+    await captureParityState("application-update-unsaved-draft-fixture");
 
     await click("Save application update settings");
     expect(save).toHaveBeenCalledExactlyOnceWith(0, {
@@ -336,6 +337,7 @@ describe("ApplicationUpdateSettings", () => {
         '[aria-label="Application update mode"] button[aria-pressed="true"]',
       )?.textContent,
     ).toBe("Manual");
+    await captureParityState("application-update-preference-conflict-fixture");
 
     await click("Preview");
     await click("Save application update settings");
@@ -613,6 +615,7 @@ describe("ApplicationUpdateSettings", () => {
     await render();
     await click("Check for updates");
     expect(host.textContent).toContain("Its download has not started.");
+    await captureParityState("application-update-download-consent-fixture");
 
     await click("Download and verify update");
 
@@ -624,6 +627,7 @@ describe("ApplicationUpdateSettings", () => {
       expect.any(Function),
     );
     expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and checked");
+    await captureParityState("application-update-download-receipt-fixture");
   });
 
   it("uses a revision-bound automatic result without repeating its check", async () => {
@@ -836,6 +840,7 @@ describe("ApplicationUpdateSettings", () => {
     await click("Cancel check");
     expect(cancel).toHaveBeenCalledOnce();
     expect(sharedOperations.pendingOperations.size).toBe(1);
+    await captureParityState("application-update-exclusive-cancellation-fixture");
     await act(async () =>
       finish(manualCheck({ kind: "no-candidate", candidate: null, reasons: [], staged: false })),
     );

@@ -187,6 +187,7 @@ describe("source intake dialog", () => {
       expect(preview.mock.lastCall).toEqual([profile.id, "D:/Game.z64", "move"]);
     };
     await openMove();
+    await captureParityState("source-move-initial-review-fixture");
     await page.getByRole("button", { name: "Cancel review", exact: true }).click();
     expect(imported).not.toHaveBeenCalled();
 
@@ -215,6 +216,7 @@ describe("source intake dialog", () => {
     // A later Move needs a new reviewed fingerprint and its own native approval.
     await openMove();
     expect(reviewNumber).toBe(2);
+    await captureParityState("source-move-new-approval-required-fixture");
     expect(imported).not.toHaveBeenCalled();
     imported.mockResolvedValueOnce(null);
     await page.getByRole("button", { name: "Move into Portcove", exact: true }).click();
@@ -227,6 +229,7 @@ describe("source intake dialog", () => {
     ]);
     expect(added).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Move cancelled");
+    await captureParityState("source-move-second-consent-declined-fixture");
   });
 
   it("preserves a committed import when its workspace refresh fails", async () => {
@@ -490,10 +493,12 @@ describe("source intake dialog", () => {
     expect(document.body.textContent).toContain("Preparation tool needed");
     expect(document.body.textContent).toContain("Your selected game files remain unchanged.");
     expect(document.body.textContent).not.toContain("Technical ID");
+    await captureParityState("source-tool-needed-fixture");
     await act(async () => button("Locate chdman…")!.click());
     expect(locate).toHaveBeenCalledWith(tool);
     expect(inspect).toHaveBeenNthCalledWith(2, profile.id, ["D:/Game.chd"]);
     expect(button("Copy into Portcove")).toBeDefined();
+    await captureParityState("source-tool-rechecked-fixture");
   });
 
   it("ignores an older inspection and an older error after the selected path changes", async () => {

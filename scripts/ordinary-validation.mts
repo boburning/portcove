@@ -378,6 +378,7 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-readiness.native.test.mts",
       "scripts/desktop-staged-layout.test.mts",
       "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
     ],
   ],
   [
@@ -1682,13 +1683,18 @@ for (const [file, tests] of [
     "scripts/fixtures/desktop-input-observation-baseline.json",
     ["scripts/desktop-input-observation.test.mts"],
   ],
-  ...[
+  [
     "apps/desktop/scripts/desktop-owned-native-session.mts",
+    [
+      "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+    ],
+  ],
+  [
     "apps/desktop/scripts/desktop-real-runtime-test.mts",
-  ].map((file): [string, string[]] => [
-    file,
     ["scripts/desktop-real-runtime.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
-  ]),
+  ],
   [
     "apps/desktop/scripts/desktop-test.mts",
     [
@@ -1703,6 +1709,7 @@ for (const [file, tests] of [
       "scripts/windows-helper-checks.test.mts",
       "scripts/development-evidence.test.mts",
       "scripts/native-session-lock.test.mts",
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
     ],
   ],
   ...[
