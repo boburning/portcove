@@ -82,7 +82,7 @@
         "Effort": "Unknown"
       },
       "context_observed_at": "2026-10-30T21:29:28.601Z",
-      "authored_sha256": "eba02ad09745b9cc3308ee4a1bd20a5edb716d3ad6e5b5047db56fd109986f25",
+      "authored_sha256": "f71d7373bc74a68e360849624ad123b32c6604eff5fc7689759fc93ad23ff894",
       "selected_source": "e6b6de9a157094848074c8979c32a33a4f980c2a",
       "selected_tag": "0.6.13-alpha",
       "completed_entry": "Rage-Racer.exe",

@@ -32030,7 +32030,7 @@
           },
           {
             "title": "Review intent and keep updates player-owned",
-            "instruction": "Review and consent to the exact native executable, directory and empty arguments, then choose Play separately. Core observes only the selected process, not an exclusive family/sandbox or full-game qualification. No self-downloading game replacement path was established for this selected entry. Upstream/player owns the copy, repair and actual replacement; close every real instance before changing files and review a replacement through fresh relink."
+            "instruction": "Review and consent to the exact native executable, directory and literal arguments (empty for defaults, or the established --config and absolute path when required), then choose Play separately. Core observes only the selected process, not an exclusive family/sandbox or full-game qualification. No self-downloading game replacement path was established for this selected entry. Upstream/player owns the copy, repair and actual replacement; close every real instance before changing files and review a replacement through fresh relink."
           },
           {
             "title": "Preserve the real profile, portable cards and custom paths",
