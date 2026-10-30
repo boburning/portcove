@@ -25129,7 +25129,7 @@
     {
       "id": "cps2recomp-alien-vs-predator",
       "name": "Alien vs. Predator (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Alien vs. Predator using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25192,7 +25192,7 @@
     {
       "id": "cps2recomp-cadillacs-and-dinosaurs",
       "name": "Cadillacs and Dinosaurs (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Cadillacs and Dinosaurs using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25263,7 +25263,7 @@
     {
       "id": "cps2recomp-marvel-super-heroes",
       "name": "Marvel Super Heroes (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Marvel Super Heroes using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25334,7 +25334,7 @@
     {
       "id": "cps2recomp-street-fighter-alpha",
       "name": "Street Fighter Alpha: Warriors Dreams (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Street Fighter Alpha: Warriors Dreams using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25397,7 +25397,7 @@
     {
       "id": "cps2recomp-street-fighter-alpha-2",
       "name": "Street Fighter Alpha2 (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Street Fighter Alpha2 using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25460,7 +25460,7 @@
     {
       "id": "cps2recomp-super-gem-fighter-mini-mix",
       "name": "Super Gem Fighter Mini Mix (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Super Gem Fighter Mini Mix using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25523,7 +25523,7 @@
     {
       "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
       "name": "Super Puzzle FighterII Turbo (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Super Puzzle FighterII Turbo using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25586,7 +25586,7 @@
     {
       "id": "cps2recomp-vampire-hunter-2",
       "name": "Vampire Hunter2: Darkstalkers Revenge (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Hunter2: Darkstalkers Revenge using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25649,7 +25649,7 @@
     {
       "id": "cps2recomp-vampire-savior",
       "name": "Vampire Savior: The Lord of Vampire (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior: The Lord of Vampire using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25712,7 +25712,7 @@
     {
       "id": "cps2recomp-vampire-savior-2",
       "name": "Vampire Savior2: The Lord of Vampire (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior2: The Lord of Vampire using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25775,7 +25775,7 @@
     {
       "id": "cps2recomp-vampire-savior-definitive",
       "name": "Vampire Savior Definitive (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior Definitive using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [
@@ -25838,7 +25838,7 @@
     {
       "id": "cps2recomp-x-men-vs-street-fighter",
       "name": "X-Men vs. Street Fighter (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play X-Men vs. Street Fighter using your own matching arcade originals.",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "support_tier": "beta",
       "channels": [

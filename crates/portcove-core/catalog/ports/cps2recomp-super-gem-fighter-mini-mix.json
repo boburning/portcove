@@ -3,7 +3,7 @@
   "listing": {
     "id": "cps2recomp-super-gem-fighter-mini-mix",
     "name": "Super Gem Fighter Mini Mix (CPS-2 Recomp)",
-    "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+    "summary": "Play Super Gem Fighter Mini Mix using your own matching arcade originals.",
     "original_game_title": "Super Gem Fighter Mini Mix",
     "project_url": "https://github.com/tmcleroy/cps2recomp",
     "availability": "packages",

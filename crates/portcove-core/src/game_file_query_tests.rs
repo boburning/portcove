@@ -970,6 +970,8 @@ fn deadline_after_projection_discards_result_before_publication() {
 
 #[test]
 fn cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker() {
+    let synchronization_timeout =
+        std::time::Duration::from_secs(if cfg!(windows) { 60 } else { 10 });
     let (temporary, service, _batch) = service_fixture();
     let record = register_inert_query_source(&service, temporary.path().join("input.z64"));
     let request = managed_request(&service);
@@ -997,15 +999,12 @@ fn cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker() 
             },
             || {
                 entered.send(()).unwrap();
-                held.recv_timeout(std::time::Duration::from_secs(10))
-                    .unwrap();
+                held.recv_timeout(synchronization_timeout).unwrap();
                 Ok(())
             },
         )
     });
-    ready
-        .recv_timeout(std::time::Duration::from_secs(10))
-        .unwrap();
+    ready.recv_timeout(synchronization_timeout).unwrap();
     service.request_cancellation(&activity.id).unwrap();
     assert!(
         !worker.is_finished(),

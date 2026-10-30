@@ -241,6 +241,26 @@ filter = 'package(portcove-core) & test(/^service::runtime_tests::reflectionhle_
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41001466846/a1 source09eba Windows1 retained three harness failures.
+# Catalog matrix completed three statuses by52.682s before60.067s; move
+# copying/resume/resume completed observation9 at29.745s before30.125s.
+# Refresh cancellation hit its10s readiness wait before assertions at16.853s.
+# Give exact Windows cases finite120/60/120s outer room; refresh's test-only
+# channel waits use60s, retaining its30s product fence and every assertion.
+# Preserve original failures, phase evidence, cleanup, two workers and zero
+# retries. Completion under larger budgets is not a causal or speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^game_file_query::tests::cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker$/))'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::sequence_tests::copying_resume_resume$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
 # the complete catalog maintenance matrix and indexed retention lifecycle.
 # Keep all246+ definitions, statuses, durable operations and assertions;

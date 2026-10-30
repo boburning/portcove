@@ -99,3 +99,22 @@ and protected production delivery retain their separately owned requirements.
 No Supported promotion or automatic whole-issue closure follows from this packet.
 The six retained Direct decisions, R.E.L.I.V.E. holds and earlier native original-
 preparation evidence are unchanged. Completed #2494/#254 remain consumed.
+
+## Retained qualification failures
+
+CI41001466846/a1 at `09eba90deefd743fb85bfd5200b44208cd97425d`
+rejected the twelve generic guide-era summaries under the existing catalog
+summary rule. The corrected summaries name each game's user outcome; all input,
+profile, ownership and maturity guidance stays in its structured fields.
+The assertion remains unchanged. Another Windows partition retained three
+harness failures: the catalog maintenance matrix completed three statuses by
+52.682 seconds before its 60.067-second cutoff; copying/resume/resume completed
+observation nine at 29.745 seconds before its 30.125-second cutoff; and refresh
+cancellation expired at its ten-second fixture-readiness wait before assertions.
+Exact Windows outer budgets become 120, 60 and 120 seconds respectively. The
+last case's two test-only channel waits become 60 seconds on Windows (ten
+elsewhere); its 30-second query fence, assertions and cancellation semantics
+remain unchanged. The maintained configuration oracle verifies scope and
+precedence. Cleanup, two workers, zero retries and finite hang detection remain.
+A later pass establishes completion under those budgets, not a causal repair
+or performance improvement. Current-head qualification is still required.

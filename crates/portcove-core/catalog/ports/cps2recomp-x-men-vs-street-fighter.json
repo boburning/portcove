@@ -3,7 +3,7 @@
   "listing": {
     "id": "cps2recomp-x-men-vs-street-fighter",
     "name": "X-Men vs. Street Fighter (CPS-2 Recomp)",
-    "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+    "summary": "Play X-Men vs. Street Fighter using your own matching arcade originals.",
     "original_game_title": "X-Men vs. Street Fighter",
     "project_url": "https://github.com/tmcleroy/cps2recomp",
     "availability": "packages",

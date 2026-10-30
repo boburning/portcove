@@ -423,6 +423,36 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsSelectedPlayerDiagnosticFilter =
+    "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^game_file_query::tests::cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker$/))";
+  const windowsSelectedPlayerDiagnostic = overrideFor(
+    windowsSelectedPlayerDiagnosticFilter,
+    "x86_64-pc-windows-msvc",
+  );
+  assert.deepEqual(windowsSelectedPlayerDiagnostic, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsSelectedPlayerDiagnosticFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 24, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(windowsSelectedPlayerDiagnostic) <
+      overrides.indexOf(
+        overrideFor(
+          "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))",
+          "x86_64-pc-windows-msvc",
+        ),
+      ),
+    "The exact120s catalog identity must precede its60s family",
+  );
+  const windowsCopyingResumeFilter =
+    "package(portcove-core) & test(/^library_move::sequence_tests::copying_resume_resume$/)";
+  assert.deepEqual(overrideFor(windowsCopyingResumeFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsCopyingResumeFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsLifecycleFilters = [
     "package(portcove-core) & test(/^service::tests::unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch$/)",
     "package(portcove-core) & test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/)",
@@ -567,6 +597,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSelectedPlayerDiagnosticFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsCopyingResumeFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },

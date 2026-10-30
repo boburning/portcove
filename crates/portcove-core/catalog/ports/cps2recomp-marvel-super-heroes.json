@@ -3,7 +3,7 @@
   "listing": {
     "id": "cps2recomp-marvel-super-heroes",
     "name": "Marvel Super Heroes (CPS-2 Recomp)",
-    "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+    "summary": "Play Marvel Super Heroes using your own matching arcade originals.",
     "original_game_title": "Marvel Super Heroes",
     "project_url": "https://github.com/tmcleroy/cps2recomp",
     "availability": "packages",

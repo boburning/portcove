@@ -71,7 +71,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "05c70e34d2ab0b8ff80029e5cbc3052def6ee7bfd7e9c567fdc91cc7c77027c4",
-      "record_sha256": "2c1670bf1bb348812d7a22407ead25f61d45d097b324005e079e9637f16e406a",
+      "record_sha256": "d707fe576ae5188196a2b9adbf4c204173da0fd5aa1970f59502112f731d11aa",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -89,7 +89,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "b9689193c976d1c69648e6dea131ed48c9e83c3d7026fe84e61dafc6ad76a47b",
-      "record_sha256": "5a17c9a4477751ec7c5024f8f049d06bda7baa398a51e1f86080eb4fc2a99bdc",
+      "record_sha256": "efeef07bda4ba478f2dfaf5554bf0ff5bff975efa5c4e40e6785c64971da148c",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -107,7 +107,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "3343e7e26e7034873e5fc83ea4193dca6b41fd690a00bd766807e95b32c3351c",
-      "record_sha256": "6cd18e541523a9281d3ccd3a59547df693f4c920cd2189e4fbf5d4932e6966e8",
+      "record_sha256": "7df7851fba65acbe299c47991fd6d0b984e2f2613f2ab38d0a1fa4d0f2ecbbf2",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -125,7 +125,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "9e88762b615115a8c514a01f869e93788403dbb15526a37c0141fbf1ca773805",
-      "record_sha256": "15a7bdea854f2429fe645c115b6ab569182c87b4c37cc4624467f72d084d1cd8",
+      "record_sha256": "cb57b7ef26ace688e4998fd0116c9bed05e91e40c5bd33a4e594c87776d8b594",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -143,7 +143,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "ae79ab0331d2a4bd3cd1578fa3aaac59e8c8be56472612ab1f85b7b7f19a88b4",
-      "record_sha256": "6f005a46d9f92ed4cff3355a7edcf38cca13c6783218f8f4467a7f2477d73e8e",
+      "record_sha256": "ad844510a0373a0eee4767d2e34c61b66c6828a2cb467783d200a332b0cdcd0e",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -161,7 +161,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "a3c351105f1a66b872999340bac4e44f3096cd86a8e6fff9406dfe35f735b30d",
-      "record_sha256": "2a29f5bba1a58c818c65c959a2836b34557e468798a7efd6f623bd96e942b68a",
+      "record_sha256": "fca0f92d639d30ac43fb72235d2100acd5ac2dc628887e6bc6f206135b7c3705",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -179,7 +179,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "cd531126f7e60e213cbf12e97a1c6bd4de744ac5cb3853f7f4a851c85985b63f",
-      "record_sha256": "71ff196d4004ce4f67e4f22d89e2e61de677fc8a77432a5987959bb0ff1fd3ef",
+      "record_sha256": "6b7f25701b333f3d5cce7d2e94075f33a0b4aabb88f3e864bf05b890bbf358a3",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -197,7 +197,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "6d89d2333499472a4054906d689172b3b0a89f6c04280a3c0ace6046301f6411",
-      "record_sha256": "36882eb0d58ad7a0afa84043920d3469d150d7d2e1c483d66cd4552c0ab58874",
+      "record_sha256": "ceea0ef37857f11466433149c0079bbfe8ffd1460e7aed41f543cad0df5e4beb",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -215,7 +215,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "4017818414254b1fc1c0d55fbb1323589352ab9931e52ef523a7fc6df9353408",
-      "record_sha256": "54b325d7a178cc3b1aa86f5d91fe2e72d59dc7cc319f3f68a89f40bdf3c2bd8e",
+      "record_sha256": "07157ba62e84615306828a763fa467ee5e8b6531cbf9b1769c7071a29bf3ee64",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -233,7 +233,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "6e551fb8a9e3b4351b0c54bc5840a47164d6e77fe03daca19416dc3f0ab04f43",
-      "record_sha256": "6e488112f5a086ed7a8b8d701d4a5616d52e7acdd97aecaed6751349e03e874a",
+      "record_sha256": "9a99faeabb216f1410d51a83da09a4c06bed3d38e7602fff9c3a2f6f88207c8d",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -251,7 +251,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "f198c7033b2f8153a793bba1fc077475fa5ee78fae6a90384d9ea8bf9e456127",
-      "record_sha256": "0c4af475c65040fcfaef1fc7669de0665f9dc02a0cea9711593d58c466d70ebb",
+      "record_sha256": "89d2412e19d980ff317ab66f00dbc50624c1c640690a2ff800fe8a5614a6568a",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     },
@@ -269,7 +269,7 @@
       "historical_1422_member": false,
       "frozen_cohort": "affected-312",
       "before_record_sha256": "5ea56ce5df96b8cd86b6343070cd94d3c4a898ed149794d1c9ffe0b1e79c5600",
-      "record_sha256": "cfc5bdaf362d970f27ae3e59da4ad3258f8ca900f576478f2d61565f8bade287",
+      "record_sha256": "147a9a08a4bb89ab785284ae09b56440f01dca68bcb2034076501f2de896d4b4",
       "operations": "explicit consent-bound selected-player registration, retained restart/Play, registration-only removal; no managed files",
       "maintenance": "user-managed-update; upstream owns complete collection and profile"
     }
