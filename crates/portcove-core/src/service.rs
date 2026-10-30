@@ -44,6 +44,7 @@ use crate::AdapterKind;
 mod catalog_download;
 mod native_portable;
 pub(crate) mod package_selection;
+mod retained_direct_compatibility;
 mod setup_discovery;
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
@@ -3145,6 +3146,10 @@ impl PortcoveService {
         if let Some(active) = &status.active {
             self.require_portable_transition(active, port)?;
         }
+        if status.active.is_none() && status.staged.is_none() {
+            self.require_direct_fresh_data(port)?;
+        }
+        crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         let runtime = crate::runtime::required(port, Platform::current()?);
         let active_matches = status
@@ -3991,6 +3996,7 @@ impl PortcoveService {
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
             }
+            crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             crate::native_temp::require_canonical_data(port, &self.library)?;
             let locked_preview = self.preview_adoption(source, selected_port_id)?;
             let target = adoption_authorization_target(source, selected_port_id)?;
@@ -4033,6 +4039,11 @@ impl PortcoveService {
             let copied_executable =
                 crate::install::resolve_declared_executable(&payload_root, &qualification)?;
             let persistent_root = qualification.persistence_root(&payload_root, &copied_executable);
+            crate::preparation::source::require_pristine_adoption(
+                port,
+                &payload_root,
+                &copied_executable,
+            )?;
             for relative in crate::persistence::entries(port, &[&persistent_root])? {
                 let candidate = persistent_root.join(&relative);
                 if candidate.exists() {
@@ -6094,6 +6105,7 @@ impl PortcoveService {
         let install_root = self.managed_install_root(&port.id, install_root)?;
         let user_root = self.library.user_dir(&port.id);
         let persistent_root = self.persistence_root(port, &install_root)?;
+        crate::preparation::source::require_canonical_originals(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         self.require_psx_data_receipt_readable(port, &install_root)?;
         let marker = install_root.join(LAUNCH_MARKER);
@@ -17660,14 +17672,11 @@ fn main() {
     fn forwarded_interrupt_still_finishes_supervision_and_clears_the_session() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        register_launch_probe(&library, "v1", true);
+        let install = register_launch_probe(&library, "v1", true);
         let service = PortcoveService::new(library.clone()).unwrap();
+        let started = temporary.path().join("interrupt-started");
         let arguments = vec![
-            temporary
-                .path()
-                .join("interrupt-started")
-                .display()
-                .to_string(),
+            started.display().to_string(),
             "10000".into(),
             "should-not-be-written".into(),
             "0".into(),
@@ -17684,10 +17693,51 @@ fn main() {
         });
         let child_pid = receiver.recv_timeout(Duration::from_secs(10)).unwrap();
 
-        crate::forward_launch_signal(child_pid, crate::LaunchSignal::Interrupt).unwrap();
-        let outcome = handle.join().unwrap().unwrap();
+        // The callback commits child identity; it does not witness the controlled
+        // child's main entry. Observe its existing marker before sending the signal.
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let readiness = loop {
+            let observed = fs::read(&started);
+            if handle.is_finished() {
+                break Err("launch supervision finished before interruption".to_string());
+            }
+            if observed
+                .as_ref()
+                .is_ok_and(|bytes| bytes.as_slice() == b"started")
+            {
+                break Ok(());
+            }
+            if std::time::Instant::now() >= deadline {
+                break Err(format!(
+                    "launch probe did not reach its entry marker: {observed:?}"
+                ));
+            }
+            thread::sleep(Duration::from_millis(10));
+        };
+        let forwarded = if readiness.is_ok() && !handle.is_finished() {
+            Some(crate::forward_launch_signal(
+                child_pid,
+                crate::LaunchSignal::Interrupt,
+            ))
+        } else {
+            None
+        };
+        // Settle owned supervision even when readiness or forwarding failed.
+        // The existing outer test runner contains a supervisor that cannot join.
+        let completed = handle.join();
+        assert!(readiness.is_ok(), "{readiness:?}; signal: {forwarded:?}");
+        forwarded
+            .expect("launch supervision finished before the signal")
+            .unwrap();
+        let outcome = completed.unwrap().unwrap();
 
         assert!(!outcome.successful);
+        for root in [install.path, library.user_dir("zelda64-recomp")] {
+            match fs::read(root.join("general.json")) {
+                Ok(bytes) => assert_ne!(bytes.as_slice(), b"should-not-be-written"),
+                Err(error) => assert_eq!(error.kind(), std::io::ErrorKind::NotFound, "{error}"),
+            }
+        }
         assert!(library.launch_sessions().unwrap().is_empty());
         assert_eq!(
             library.activities(1).unwrap()[0].status,

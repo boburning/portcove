@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test, { type TestContext } from "node:test";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   mkdtempSync,
   mkdirSync,
@@ -9,17 +10,39 @@ import {
   linkSync,
   symlinkSync,
   rmSync,
+  existsSync,
+  readFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   inspectNativeRuntimeCustody,
+  projectWindowsCustodyFailure,
   recheckNativeRuntimeCustody,
   inspectWindowsSourceSystemCustody,
   recheckWindowsSourceSystemCustody,
   windowsSourceSystemExecutables,
+  windowsCustodyReaderSource,
 } from "./release-native-runtime-custody.mts";
 import { lstatSync } from "node:fs";
+
+void test("pre-import Windows adapter is pinned to the identical fixed custody policy", () => {
+  const body = windowsCustodyReaderSource(),
+    expected = createHash("sha256").update(body).digest("hex"),
+    adapter = readFileSync(
+      new URL("./release-hosted-native-windows-setup.cs.txt", import.meta.url),
+      "utf8",
+    );
+  assert.ok(Buffer.byteLength(body) <= 16384);
+  assert.equal(
+    adapter.split(expected).length,
+    2,
+    "The bounded pre-Node reader must pin this exact unchanged OS policy",
+  );
+  assert.match(adapter, /ReadCustodyBytes\(reader.StandardOutput.BaseStream,1048576/u);
+  assert.match(adapter, /ReadCustodyBytes\(reader.StandardError.BaseStream,16384/u);
+});
 
 const windows = { skip: process.platform !== "win32" };
 
@@ -46,8 +69,8 @@ void test("controlled system-image hardlinks never relax controller inputs or AC
   const code = String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import path from 'node:path';
 Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});process.env.SystemRoot='C:\\Windows';
-let links=2n,foreign=false;const reads=[];
-globalThis.systemPeers={path:path.win32,realpath:value=>value,stat:value=>({isSymbolicLink:()=>false,isFile:()=>value.endsWith('.exe')||value.endsWith('.bin'),isDirectory:()=>!value.endsWith('.exe')&&!value.endsWith('.bin'),nlink:links,dev:1n,ino:BigInt(value.length),mode:448n,birthtimeNs:1n,size:16n,mtimeNs:2n,ctimeNs:3n}),exec:(reader,args,options)=>{assert.equal(reader,'C:\\Program Files\\PowerShell\\7\\pwsh.exe');if(foreign)throw Object.assign(Error('controlled foreign ACL'),{code:'EACCES',stderr:'foreign writer'});const input=JSON.parse(options.input);reads.push(input);return JSON.stringify({schema_version:1,broker_sid:'S-1-5-18',rows:input.map(v=>({path:v.path,owner:'S-1-5-18',sddl:'O:SYD:(A;;FA;;;SY)'}))})}};
+let links=2n,foreign=false,stderr='foreign writer';const reads=[];
+globalThis.systemPeers={path:path.win32,realpath:value=>value,stat:value=>({isSymbolicLink:()=>false,isFile:()=>value.endsWith('.exe')||value.endsWith('.bin'),isDirectory:()=>!value.endsWith('.exe')&&!value.endsWith('.bin'),nlink:links,dev:1n,ino:BigInt(value.length),mode:448n,birthtimeNs:1n,size:16n,mtimeNs:2n,ctimeNs:3n}),exec:(reader,args,options)=>{assert.equal(reader,'C:\\Program Files\\PowerShell\\7\\pwsh.exe');if(foreign)throw Object.assign(Error('controlled foreign ACL'),{code:'EACCES',status:1,stderr});const input=JSON.parse(options.input);reads.push(input);return JSON.stringify({schema_version:1,broker_sid:'S-1-5-18',rows:input.map(v=>({path:v.path,owner:'S-1-5-18',sddl:'O:SYD:(A;;FA;;;SY)'}))})}};
 const routes={'node:fs':'fs','node:path':'path','node:child_process':'exec'};
 registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'system-peer:'+routes[s],shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('system-peer:'))return {format:'module',source:u==='system-peer:fs'?'export const lstatSync=globalThis.systemPeers.stat;export const realpathSync=globalThis.systemPeers.realpath;':u==='system-peer:path'?'export default globalThis.systemPeers.path;':'export const execFileSync=globalThis.systemPeers.exec;',shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)}),paths=Object.values(api.windowsSourceSystemExecutables);
@@ -55,7 +78,15 @@ for(const filename of [...paths,'C:\\owned\\controller.bin'])assert.throws(()=>a
 const original=api.inspectWindowsSourceSystemCustody();api.recheckWindowsSourceSystemCustody(original);
 assert.deepEqual(reads[0].filter(row=>row.file).map(row=>row.path).sort(),paths.sort());
 links=3n;assert.throws(()=>api.recheckWindowsSourceSystemCustody(original),/changed/);links=2n;
-foreign=true;assert.throws(()=>api.inspectWindowsSourceSystemCustody(),/foreign writer/);
+foreign=true;assert.throws(()=>api.inspectWindowsSourceSystemCustody(),error=>error.code==='ERR_WINDOWS_CUSTODY_REFUSED'&&api.projectWindowsCustodyFailure(error).spawn_code==='EACCES');
+const closed={schema_version:1,reason:'writer',phase:'rules',ordinal:0,kind:'file',principal_class:'everyone',rights:16};
+for(const [value,accepted]of [[JSON.stringify(closed),true],['{invalid',false],[JSON.stringify({...closed,raw_path:'private-marker'}),false],[JSON.stringify({...closed,reason:'unknown-private-marker'}),false],[JSON.stringify({...closed,rights:32}),false]]){
+ stderr='portcove-native-custody-failure:'+value+'\n';
+ assert.throws(()=>api.inspectWindowsSourceSystemCustody(),error=>{const detail=api.projectWindowsCustodyFailure(error);assert.equal(detail.reader!==null,accepted);assert.equal(error.message.includes('private-marker'),false);return error.code==='ERR_WINDOWS_CUSTODY_REFUSED';});
+}
+stderr='portcove-native-custody-failure:'+JSON.stringify(closed)+'\nportcove-native-custody-failure:'+JSON.stringify(closed)+'\n';
+assert.throws(()=>api.inspectWindowsSourceSystemCustody(),error=>api.projectWindowsCustodyFailure(error).reader===null);
+
 console.log('controlled fixed system-image custody passed; no actual Windows observations');
 `;
   const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code], {
@@ -171,16 +202,194 @@ void test(
     const original = inspectNativeRuntimeCustody([file]);
     const fileAcl = acl(file, "file-writer");
     try {
-      assert.throws(() => inspectNativeRuntimeCustody([file]), /foreign writer/);
+      assert.throws(
+        () => inspectNativeRuntimeCustody([file]),
+        (error) => projectWindowsCustodyFailure(error)?.reader?.reason === "writer",
+      );
     } finally {
       acl(file, "restore", fileAcl);
     }
     const directoryAcl = acl(directory, "directory-replacer");
     try {
-      assert.throws(() => recheckNativeRuntimeCustody([file], original), /foreign writer/);
+      assert.throws(
+        () => recheckNativeRuntimeCustody([file], original),
+        (error) => projectWindowsCustodyFailure(error)?.reader?.reason === "writer",
+      );
     } finally {
       acl(directory, "restore", directoryAcl);
     }
     inspectNativeRuntimeCustody([file]);
+  },
+);
+
+void test(
+  "Windows custody classifies the real hosted runtime and source before candidate work",
+  { ...windows, timeout: 120000 },
+  (t) => {
+    const { file } = fixture(t);
+    const project = fileURLToPath(new URL("..", import.meta.url));
+    const candidates: [string, string | null][] = [
+      ["fixed-system", null],
+      ["original-node", process.execPath],
+      [
+        "checked-out-policy",
+        fileURLToPath(new URL("./windows-webview-driver-policy.psm1", import.meta.url)),
+      ],
+      [
+        "checked-out-custody",
+        fileURLToPath(new URL("./release-native-runtime-custody.mts", import.meta.url)),
+      ],
+      ["owned-home-control", file],
+      ["cache-state-if-present", path.join(project, "work/tool-bin/tool-state.json")],
+      [
+        "built-verifier-if-present",
+        path.join(project, "target/release/portcove-release-tools.exe"),
+      ],
+    ];
+    const rows: {
+      label: string;
+      status: string;
+      entries?: number;
+      custody?: ReturnType<typeof projectWindowsCustodyFailure>;
+    }[] = [];
+    for (const [label, filename] of candidates) {
+      if (filename && !existsSync(filename)) {
+        rows.push({ label, status: "not-evaluated-absent" });
+        continue;
+      }
+      try {
+        const custody = filename
+          ? inspectNativeRuntimeCustody([filename])
+          : inspectWindowsSourceSystemCustody();
+        rows.push({ label, status: "accepted", entries: custody.size });
+      } catch (error) {
+        rows.push({ label, status: "refused", custody: projectWindowsCustodyFailure(error) });
+      }
+    }
+    const publicRecord = {
+      schema_version: 1,
+      scope: "read-only actual hosted path-role custody classification; no candidate or authority",
+      rows,
+    };
+    assert.ok(Buffer.byteLength(JSON.stringify(publicRecord)) <= 16384);
+    t.diagnostic("Closed hosted custody inventory: " + JSON.stringify(publicRecord));
+    assert.equal(rows.find((row) => row.label === "fixed-system")?.status, "accepted");
+    assert.equal(rows.find((row) => row.label === "owned-home-control")?.status, "accepted");
+    for (const row of rows.filter((row) => row.status === "refused")) {
+      assert.ok(row.custody?.reader, "OS read/query Unknown is not a qualified policy refusal");
+      assert.ok(["writer", "owner"].includes(row.custody.reader.reason));
+      assert.equal(row.custody.child_status, 1);
+    }
+  },
+);
+
+void test(
+  "fixed Windows custody reader preserves trusted principals and closed foreign-rights refusals",
+  { ...windows, timeout: 120000 },
+  () => {
+    const implementation = readFileSync(
+      new URL("./release-native-runtime-custody.mts", import.meta.url),
+      "utf8",
+    );
+    const reader = /const windowsCustodyReader = String[.]raw`([\s\S]+?)`;/u.exec(
+      implementation,
+    )?.[1];
+    assert.ok(reader, "Actual fixed reader body required");
+    const scenarios = [
+      "broker",
+      "system",
+      "administrators",
+      "trusted-installer",
+      "foreign-write",
+      "foreign-delete-child",
+      "inherit-only",
+      "deny",
+      "os-failure",
+      "bad-input",
+    ] as const;
+    for (const scenario of scenarios) {
+      const directory = scenario === "foreign-delete-child" || scenario === "inherit-only";
+      const prefix =
+        `$fixtureScenario='${scenario}';$fixtureDirectory=$${String(directory)};` +
+        String.raw`
+function Get-Item {param($LiteralPath,[switch]$Force) [pscustomobject]@{Attributes=[IO.FileAttributes]::Normal;PSIsContainer=$fixtureDirectory}}
+function Get-Acl {param($LiteralPath)
+ if($fixtureScenario -eq 'os-failure'){throw 'private-custody-control-marker'}
+ $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+ $acl=if($fixtureDirectory){[Security.AccessControl.DirectorySecurity]::new()}else{[Security.AccessControl.FileSecurity]::new()}
+ $acl.SetOwner([Security.Principal.SecurityIdentifier]::new($broker))
+ $sid=switch($fixtureScenario){'system'{'S-1-5-18'};'administrators'{'S-1-5-32-544'};'trusted-installer'{'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'};'broker'{$broker};default{'S-1-1-0'}}
+ $rights=if($fixtureScenario -in @('foreign-delete-child','inherit-only')){'DeleteSubdirectoriesAndFiles'}elseif($fixtureScenario -in @('foreign-write','inherit-only','deny')){'Write'}else{'FullControl'}
+ $propagation=if($fixtureScenario -eq 'inherit-only'){'InheritOnly'}else{'None'}
+ $inheritance=if($fixtureScenario -eq 'inherit-only'){'ObjectInherit'}else{'None'}
+ $type=if($fixtureScenario -eq 'deny'){'Deny'}else{'Allow'}
+ $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($sid),[Security.AccessControl.FileSystemRights]$rights,[Security.AccessControl.InheritanceFlags]$inheritance,[Security.AccessControl.PropagationFlags]$propagation,[Security.AccessControl.AccessControlType]$type))
+ return $acl
+}
+`;
+      const result: SpawnSyncReturns<string> = spawnSync(
+        windowsSourceSystemExecutables.powershell,
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-InputFormat",
+          "Text",
+          "-OutputFormat",
+          "Text",
+          "-EncodedCommand",
+          Buffer.from(prefix + reader, "utf16le").toString("base64"),
+        ],
+        {
+          input: JSON.stringify([
+            scenario === "bad-input"
+              ? { path: "C:\\inert-control", file: false, forbidden: true }
+              : { path: "C:\\inert-control", file: !directory },
+            { path: "C:\\inert-control-second", file: !directory },
+          ]),
+          encoding: "utf8",
+          timeout: 15000,
+          maxBuffer: 65536,
+          windowsHide: true,
+          env: {
+            SystemRoot: process.env.SystemRoot,
+            WINDIR: process.env.SystemRoot,
+            PATH: path.win32.join(process.env.SystemRoot!, "System32"),
+          },
+        },
+      );
+      assert.equal(result.error, undefined, scenario);
+      assert.equal(result.stderr.includes("private-custody-control-marker"), false);
+      if (["foreign-write", "foreign-delete-child", "os-failure", "bad-input"].includes(scenario)) {
+        assert.equal(result.status, 1, scenario);
+        const prefix = "portcove-native-custody-failure:";
+        const lines = result.stderr.trim().split(/\r?\n/u);
+        assert.equal(lines.length, 1);
+        assert.ok(lines[0]!.startsWith(prefix));
+        const detail = JSON.parse(lines[0]!.slice(prefix.length)) as Record<string, unknown>;
+        assert.equal(
+          Object.keys(detail).sort().join(","),
+          "kind,ordinal,phase,principal_class,reason,rights,schema_version",
+        );
+        assert.equal(
+          detail.reason,
+          scenario === "os-failure" ? "os-read" : scenario === "bad-input" ? "input" : "writer",
+        );
+        assert.equal(detail.ordinal, 0);
+        if (scenario === "foreign-write") {
+          assert.equal(detail.kind, "file");
+          assert.ok((Number(detail.rights) & 16) !== 0);
+        }
+        if (scenario === "foreign-delete-child") {
+          assert.equal(detail.kind, "directory");
+          assert.ok((Number(detail.rights) & 2) !== 0);
+        }
+        assert.equal(result.stderr.includes("C:\\inert-control"), false);
+      } else {
+        assert.equal(result.status, 0, scenario);
+        assert.equal(result.stderr, "");
+        assert.equal((JSON.parse(result.stdout) as { schema_version: number }).schema_version, 1);
+      }
+    }
   },
 );

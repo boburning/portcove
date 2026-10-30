@@ -952,6 +952,76 @@
         "claim": "The pinned DAT has SCUS-94426 and SCUS-94426CE serial aliases with identical 605698800-byte raw CTR USA BIN: SHA1 1bb785082def3fe25f6b46be06d4eaf33c5bc772, CRC9a742438. Byte identity is separate from native player/source applicability; no original media acquisition.",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat%2Fredump%2FSony%20-%20PlayStation.dat",
         "live_url": "https://github.com/libretro/libretro-database/blob/master/metadat/redump/Sony%20-%20PlayStation.dat"
+      },
+      {
+        "id": "devilution-owner-original-bytes-2026-10-29",
+        "role": "byte_identity",
+        "authority": "Portcove owner-provided original-game archive",
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "claim": "Exact byte facts from the owner-provided archive: five complete retail/Hellfire MPQs, observed SHA1/SHA256 and sizes. Region/revision remain Unknown; these are not publisher-issued hashes or distribution-rights authentication. SPAWN.MPQ is excluded. Actual title qualification is recorded separately.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json"
+      },
+      {
+        "id": "devilutionx-1-5-5-original-and-path-contract",
+        "role": "upstream_support",
+        "authority": "diasurgical/DevilutionX",
+        "authority_ref": "7223eeac9e8274fbf665b4de86fda26d3b22c52f",
+        "reviewed_at": "2026-10-29",
+        "claim": "Version1.5.5 requires DIABDAT.MPQ for Diablo; Hellfire additionally requires hellfire.mpq,hfmonk.mpq,hfmusic.mpq,hfvoice.mpq. --diablo/--hellfire select mode, and data/save/config path overrides are separate. This upstream source inspection is not gameplay, Portcove lifecycle or save compatibility evidence.",
+        "immutable_url": "https://github.com/diasurgical/DevilutionX/blob/7223eeac9e8274fbf665b4de86fda26d3b22c52f/docs/installing.md",
+        "live_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
+      },
+      {
+        "id": "bstone-e65a6b40-original-file-identities",
+        "role": "byte_identity",
+        "authority": "bibendovsky/bstone",
+        "authority_ref": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+        "reviewed_at": "2026-10-29",
+        "immutable_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
+        "live_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
+        "claim": "Upstream get_aog_full_v1_0_resources, get_aog_full_v2_0_resources, get_aog_full_v2_1_resources, get_aog_full_v3_0_resources and get_ps_resources bind each complete original resource set by filename and SHA1. Each retail AOG set has twelve BS6 members; Planet Strike has ten VSI members. These upstream byte identities do not establish gameplay, Portcove preparation or cross-version player-data compatibility. BS1 shareware sets are distinct and are not admitted by these retail contracts."
+      },
+      {
+        "id": "sonic-3-and-knuckles-recomp-0-6-2-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/Sonic3AndKnucklesRecomp",
+        "authority_ref": "6ce74a70161f0fe42dd8deda5cc9108c4ed0fd90",
+        "reviewed_at": "2026-10-29",
+        "claim": "Tagged combined-game v0.6.2 requires four-MiB original CRC63522553; joins the existing independently admitted exact-stock original identity. Bound only to publisher-matched combined Windows package 16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471. This is source applicability, not native execution or legacy state/data compatibility.",
+        "immutable_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/6ce74a70161f0fe42dd8deda5cc9108c4ed0fd90/game/sonic3k/sonic3k_spec.c",
+        "live_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c"
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-0-7-3-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehogRecomp",
+        "authority_ref": "510679e66abc435f12a29d66c2d6788f4e1008f9",
+        "reviewed_at": "2026-10-29",
+        "claim": "Tagged v0.7.3 joins the ae1c742adef48b6ef6ed5b4c1dd4b64514086edd framework Sonic1 descriptor requiring the existing 512KiB CRCF9394E97 JUE Rev00 original. Official publisher package SHA256082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8. This binds original applicability only; no native execution or legacy state compatibility.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/510679e66abc435f12a29d66c2d6788f4e1008f9/.gitmodules",
+        "live_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/main/.gitmodules"
+      },
+      {
+        "id": "mega-man-x2-snes-recomp-0-1-5-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/MegaManX2Recomp",
+        "authority_ref": "9c3b374c4a0cf0a93748a52a74375d2b4af731a3",
+        "reviewed_at": "2026-10-29",
+        "claim": "Tagged v0.1.5 requires the exact USA headerless 1572864-byte original, CRC947B0355 and SHA256f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed. Official publisher Windows package SHA256dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d. No native execution or retained state compatibility is inferred.",
+        "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/9c3b374c4a0cf0a93748a52a74375d2b4af731a3/rom_identity.txt",
+        "live_url": "https://github.com/mstan/MegaManX2Recomp/blob/main/rom_identity.txt"
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract",
+        "role": "upstream_support",
+        "authority": "mstan/segagenesisrecomp",
+        "authority_ref": "ae1c742adef48b6ef6ed5b4c1dd4b64514086edd",
+        "reviewed_at": "2026-10-29",
+        "claim": "Sonic1 descriptor pinned by the v0.7.3 title gitlink requires 512KiB and CRCF9394E97. Existing Core No-Intro exact-stock SHA256 remains independently enforced. This source descriptor supplies no state-size/save/load callbacks and establishes no legacy quickstate compatibility.",
+        "immutable_url": "https://github.com/mstan/segagenesisrecomp/blob/ae1c742adef48b6ef6ed5b4c1dd4b64514086edd/sonicthehedgehog/sonic1_spec.c",
+        "live_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/sonic1_spec.c"
       }
     ],
     "identities": [
@@ -7147,6 +7217,1437 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "diablo-devilutionx-retail-originals",
+        "label": "Diablo reviewed retail MPQ set",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "owner-provided-2026-10-29",
+            "title": "Owner-provided complete original set; edition not attributed",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-mpq-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "diabdat",
+                    "label": "diabdat.mpq",
+                    "filenames": [
+                      "diabdat.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5cfd971abb25602731fef0c9b43eb7d7447f296e",
+                        "sha256": "63fb47d9c76484024c7640d90ab6b7ec5e13f567a7e1a917b6c03a6631d3f2b0",
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "devilution-owner-original-bytes-2026-10-29"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "devilution-owner-original-bytes-2026-10-29",
+              "devilutionx-1-5-5-original-and-path-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "diablo-hellfire-devilutionx-originals",
+        "label": "Diablo and Hellfire reviewed MPQ set",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "owner-provided-2026-10-29",
+            "title": "Owner-provided complete original set; edition not attributed",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-mpq-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "diabdat",
+                    "label": "diabdat.mpq",
+                    "filenames": [
+                      "diabdat.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5cfd971abb25602731fef0c9b43eb7d7447f296e",
+                        "sha256": "63fb47d9c76484024c7640d90ab6b7ec5e13f567a7e1a917b6c03a6631d3f2b0",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hellfire",
+                    "label": "hellfire.mpq",
+                    "filenames": [
+                      "hellfire.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4852a68a70f7f55a28084281a96e95c2027c5137",
+                        "sha256": "bbbd3e4b09db3c16d72e3f8503058dd09a8aaecccf486c3b6a0fca270cef9ba8",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfmonk",
+                    "label": "hfmonk.mpq",
+                    "filenames": [
+                      "hfmonk.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "47f44845803b05fa243c4733995b08cbaa0dbe37",
+                        "sha256": "5358fa2aa6c7bfdd3bfdd07b0457807d3220a60cfe8b1967a0938b433a9b33c5",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfmusic",
+                    "label": "hfmusic.mpq",
+                    "filenames": [
+                      "hfmusic.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "5d64d26798738c503b0aa1651c1534ff5488291c",
+                        "sha256": "2d719ef13502bf3c68eb4771411391bd37bb420d753eb6239becb063c6918de1",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "hfvoice",
+                    "label": "hfvoice.mpq",
+                    "filenames": [
+                      "hfvoice.mpq"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "04e7fe3a5509013cbf22d0937817e2775226993e",
+                        "sha256": "243fec5f04710ba316b9f61065a257e47c1404b13f63c52541ed4eb714267b72",
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "devilution-owner-original-bytes-2026-10-29"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "devilution-owner-original-bytes-2026-10-29",
+              "devilutionx-1-5-5-original-and-path-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "bstone-aliens-of-gold-originals",
+        "label": "Blake Stone aliens-of-gold complete original files",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "aog-full-v1-0",
+            "title": "aog-full-v1-0",
+            "region": null,
+            "revision": "aog-full-v1-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6f19a144d8985e90f096fc1c67ade58e9051235c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4d00c5f5c843f99a266bd938648192a6eff17b5a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "d4f81ace1701a7338d43ce07723c2adaafdc837c",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "02dc27d4810e3ffa26540b310eac6091f5e16de0",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "639ec9e7a81ad83fc5b5c557cf4fc5fa28b9676b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "0a700732ccbc72f95318a6226a7e1ad78ac713bb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "aog-full-v2-0",
+            "title": "aog-full-v2-0",
+            "region": null,
+            "revision": "aog-full-v2-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e83b690836c9edf9ef60f6189b8384fb2319b735",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "67a679e3b107db8685ba5ff1643a38f9291b00bf",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "48b18caa86151610957b64b207cf2a2977ef7d57",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "aog-full-v2-1",
+            "title": "aog-full-v2-1",
+            "region": null,
+            "revision": "aog-full-v2-1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e4ae3ef9a3ac158a832092b7b5487227337c6f13",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6868e6cc4f8cb9160a218c5bce680a11f64c675a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "1a3864cd12de4b8fd6be023b73d2d79e91b9018d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "aog-full-v3-0",
+            "title": "aog-full-v3-0",
+            "region": null,
+            "revision": "aog-full-v3-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "60da35e506d57753f83cca5f232a76dd1cf074ba",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "001037fafdff124befb5437c563d0b9c613b3c00",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ff165ca5924d738853587a7e4ab1cd239e10e359",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          },
+          {
+            "id": "legacy-projection-union",
+            "title": "Compatibility projection only",
+            "region": null,
+            "revision": "aog-full-v1-0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.BS6",
+                    "filenames": [
+                      "AUDIOHED.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.BS6",
+                    "filenames": [
+                      "AUDIOT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.BS6",
+                    "filenames": [
+                      "EANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "af5af59ad7ed17517d87b3ece3c0cac23ade535b",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ganim",
+                    "label": "GANIM.BS6",
+                    "filenames": [
+                      "GANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "9b2418a1a1f34abdcf6fcd9ed3344a49912c9b5e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.BS6",
+                    "filenames": [
+                      "IANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.BS6",
+                    "filenames": [
+                      "MAPHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6f19a144d8985e90f096fc1c67ade58e9051235c",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "028f624e150f84ffc8336336cb0ecea0932cc22d",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.BS6",
+                    "filenames": [
+                      "MAPTEMP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4d00c5f5c843f99a266bd938648192a6eff17b5a",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "8b48e7eb859382a4c84948c5a62899194288e853",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "sanim",
+                    "label": "SANIM.BS6",
+                    "filenames": [
+                      "SANIM.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.BS6",
+                    "filenames": [
+                      "VGADICT.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "d4f81ace1701a7338d43ce07723c2adaafdc837c",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e83b690836c9edf9ef60f6189b8384fb2319b735",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e4ae3ef9a3ac158a832092b7b5487227337c6f13",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "60da35e506d57753f83cca5f232a76dd1cf074ba",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.BS6",
+                    "filenames": [
+                      "VGAGRAPH.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "02dc27d4810e3ffa26540b310eac6091f5e16de0",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "67a679e3b107db8685ba5ff1643a38f9291b00bf",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6868e6cc4f8cb9160a218c5bce680a11f64c675a",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "001037fafdff124befb5437c563d0b9c613b3c00",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.BS6",
+                    "filenames": [
+                      "VGAHEAD.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "639ec9e7a81ad83fc5b5c557cf4fc5fa28b9676b",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "48b18caa86151610957b64b207cf2a2977ef7d57",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "1a3864cd12de4b8fd6be023b73d2d79e91b9018d",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ff165ca5924d738853587a7e4ab1cd239e10e359",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.BS6",
+                    "filenames": [
+                      "VSWAP.BS6"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "0a700732ccbc72f95318a6226a7e1ad78ac713bb",
+                        "sha256": null,
+                        "crc32": null
+                      },
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "6fcc6e007b02b2e55892cfa7acfd42966ef9c9fb",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ],
+            "legacy_projection_only": true
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "bstone-planet-strike-originals",
+        "label": "Blake Stone planet-strike complete original files",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "ps",
+            "title": "ps",
+            "region": null,
+            "revision": "ps",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "complete-original-files",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "audiohed",
+                    "label": "AUDIOHED.VSI",
+                    "filenames": [
+                      "AUDIOHED.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "2ed9a587926b2b455f8176788f595d03f6359171",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "audiot",
+                    "label": "AUDIOT.VSI",
+                    "filenames": [
+                      "AUDIOT.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ecac8a800c5d021c8b68d170066c8859df9bd79a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "eanim",
+                    "label": "EANIM.VSI",
+                    "filenames": [
+                      "EANIM.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "b668330e56ceb069c1b972cefddd8a3d618a14af",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ianim",
+                    "label": "IANIM.VSI",
+                    "filenames": [
+                      "IANIM.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maphead",
+                    "label": "MAPHEAD.VSI",
+                    "filenames": [
+                      "MAPHEAD.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "c3fb0a9b81e0240d12c952fe5b57b78c1108aa48",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "maptemp",
+                    "label": "MAPTEMP.VSI",
+                    "filenames": [
+                      "MAPTEMP.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "acd03031d526eeaee64072518adf6814f96e2a37",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgadict",
+                    "label": "VGADICT.VSI",
+                    "filenames": [
+                      "VGADICT.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "061692d166f68d7e0b81568725439078cc728f33",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgagraph",
+                    "label": "VGAGRAPH.VSI",
+                    "filenames": [
+                      "VGAGRAPH.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "e619a3e6245f79888da5436df138d63204d2caba",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vgahead",
+                    "label": "VGAHEAD.VSI",
+                    "filenames": [
+                      "VGAHEAD.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "ad5fed9de5d1d82145df3ff2286e4bc62cb80e2a",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "vswap",
+                    "label": "VSWAP.VSI",
+                    "filenames": [
+                      "VSWAP.VSI"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": "4113ce83c42e69dc5cb20de79f41971a100f876e",
+                        "sha256": null,
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "bstone-e65a6b40-original-file-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "bstone-e65a6b40-original-file-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -9802,10 +11303,12 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "sonic-the-hedgehog-recomp-0-6-0-source-contract",
-          "sonic-genesis-jue-rev00-no-intro-byte-identity"
+          "sonic-genesis-jue-rev00-no-intro-byte-identity",
+          "sonic-the-hedgehog-recomp-0-7-3-source-contract",
+          "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract"
         ],
         "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
-        "reviewed_at": "2026-10-18",
+        "reviewed_at": "2026-10-29",
         "immutable_review_url": "https://github.com/mstan/segagenesisrecomp/blob/5c165f6195a88b17d8da4ae619aec2b8f640d84f/sonicthehedgehog/game.toml",
         "live_review_url": "https://github.com/mstan/segagenesisrecomp/blob/main/sonicthehedgehog/game.toml",
         "evidence_gap": null,
@@ -9813,6 +11316,10 @@
           {
             "upstream_ref": "v0.6.0",
             "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40"
+          },
+          {
+            "upstream_ref": "v0.7.3",
+            "artifact_sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8"
           }
         ],
         "aliases": [],
@@ -9887,10 +11394,11 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
-          "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+          "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity",
+          "sonic-3-and-knuckles-recomp-0-6-2-source-contract"
         ],
         "authority_ref": "74e8aeadb5b8b8da7e776beb0d28f915e3efeb85",
-        "reviewed_at": "2026-10-18",
+        "reviewed_at": "2026-10-29",
         "immutable_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/74e8aeadb5b8b8da7e776beb0d28f915e3efeb85/game/sonic3k/sonic3k_spec.c",
         "live_review_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/main/game/sonic3k/sonic3k_spec.c",
         "evidence_gap": null,
@@ -9898,6 +11406,10 @@
           {
             "upstream_ref": "v0.5.3",
             "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+          },
+          {
+            "upstream_ref": "v0.6.2",
+            "artifact_sha256": "16a84a6e536f832e6ed9195f67dcf9ce29f0efa7c1f00fcfd93af7302f3c4471"
           }
         ],
         "aliases": [],
@@ -9999,10 +11511,11 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "mega-man-x2-snes-recomp-0-1-4-source-contract",
-          "mega-man-x2-snes-usa-no-intro-byte-identity"
+          "mega-man-x2-snes-usa-no-intro-byte-identity",
+          "mega-man-x2-snes-recomp-0-1-5-source-contract"
         ],
         "authority_ref": "c62a096873fd6b98f197bb06b0b6929432de1bc3",
-        "reviewed_at": "2026-10-19",
+        "reviewed_at": "2026-10-29",
         "immutable_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/c62a096873fd6b98f197bb06b0b6929432de1bc3/rom_identity.txt",
         "live_review_url": "https://github.com/mstan/MegaManX2Recomp/blob/master/rom_identity.txt",
         "evidence_gap": null,
@@ -10010,6 +11523,10 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07"
+          },
+          {
+            "upstream_ref": "v0.1.5",
+            "artifact_sha256": "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d"
           }
         ],
         "aliases": [],
@@ -10224,6 +11741,119 @@
         "live_review_url": "https://github.com/CTR-tools/ctr-native/blob/master/README.md",
         "evidence_gap": null,
         "applicability": [],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "diablo-devilutionx-game-source",
+        "port_id": "diablo-devilutionx",
+        "role": "game",
+        "profile_id": "diablo-devilutionx-retail-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "owner-provided-2026-10-29"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "devilution-owner-original-bytes-2026-10-29",
+          "devilutionx-1-5-5-original-and-path-contract"
+        ],
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "diablo-hellfire-devilutionx-game-source",
+        "port_id": "diablo-hellfire-devilutionx",
+        "role": "game",
+        "profile_id": "diablo-hellfire-devilutionx-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "owner-provided-2026-10-29"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "devilution-owner-original-bytes-2026-10-29",
+          "devilutionx-1-5-5-original-and-path-contract"
+        ],
+        "authority_ref": "b51cc9294aeb32951f335bdc522abefff60e13e6",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/boburning/portcove/blob/b51cc9294aeb32951f335bdc522abefff60e13e6/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "live_review_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/devilution-managed-originals-fitting-2026-10-29.json",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "blake-stone-aliens-of-gold-bstone-game-source",
+        "port_id": "blake-stone-aliens-of-gold-bstone",
+        "role": "game",
+        "profile_id": "bstone-aliens-of-gold-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "aog-full-v1-0",
+          "aog-full-v2-0",
+          "aog-full-v2-1",
+          "aog-full-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "bstone-e65a6b40-original-file-identities"
+        ],
+        "authority_ref": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
+        "live_review_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.3.4",
+            "artifact_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "blake-stone-planet-strike-bstone-game-source",
+        "port_id": "blake-stone-planet-strike-bstone",
+        "role": "game",
+        "profile_id": "bstone-planet-strike-originals",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "ps"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "bstone-e65a6b40-original-file-identities"
+        ],
+        "authority_ref": "e65a6b40b960a409d7ea840580c2431f56fb6fd4",
+        "reviewed_at": "2026-10-29",
+        "immutable_review_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/src/bstone/src/id_ca.cpp",
+        "live_review_url": "https://github.com/bibendovsky/bstone/blob/master/src/bstone/src/id_ca.cpp",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.3.4",
+            "artifact_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45"
+          }
+        ],
         "aliases": [],
         "tombstones": []
       }
@@ -19838,11 +21468,11 @@
         "provider": "direct-manifest",
         "direct": {
           "windows-x86-64": {
-            "version": "v0.6.0",
-            "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
-            "size": 3776546,
-            "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
-            "published_at": "2026-06-17T05:17:11Z"
+            "version": "v0.7.3",
+            "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.7.3/SonicTheHedgehogRecomp-windows-x64-v0.7.3.zip",
+            "size": 4750567,
+            "sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
+            "published_at": "2026-10-28T16:23:58Z"
           }
         }
       },
@@ -19863,7 +21493,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. This fresh managed route uses the checked official Windows v0.7.3 package and starts the base game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress.",
         "original_game_title": "Sonic the Hedgehog",
         "artwork": {
           "game_id": 3192,
@@ -19881,6 +21511,7 @@
       },
       "windows_runtime_path_policy": "printable-ascii-max-path",
       "launch_arguments": [
+        "--no-launcher",
         "game.bin"
       ],
       "persistent_paths": [
@@ -19895,7 +21526,16 @@
         "native_save_6.bin",
         "native_save_7.bin",
         "native_save_8.bin",
-        "native_save_9.bin"
+        "native_save_9.bin",
+        "native_save_1.bin.thumb",
+        "native_save_2.bin.thumb",
+        "native_save_3.bin.thumb",
+        "native_save_4.bin.thumb",
+        "native_save_5.bin.thumb",
+        "native_save_6.bin.thumb",
+        "native_save_7.bin.thumb",
+        "native_save_8.bin.thumb",
+        "native_save_9.bin.thumb"
       ],
       "runtime_mutable_paths": [
         "framelog_step2.txt",
@@ -19907,7 +21547,19 @@
         "chip_ring.txt",
         "snd_ring.txt",
         "yield_log_native.log",
-        "z80_ram.bin"
+        "z80_ram.bin",
+        "dispatch_misses.toml",
+        "dispatch_misses.toml.tmp",
+        "dispatch_misses.prev.toml",
+        "floor_coverage.toml",
+        "floor_coverage.toml.tmp",
+        "floor_coverage.prev.toml",
+        "interior_label_misses.toml",
+        "interior_label_misses.toml.tmp",
+        "interior_label_misses.prev.toml",
+        "floor_unsafe.toml",
+        "floor_unsafe.toml.tmp",
+        "floor_unsafe.prev.toml"
       ]
     },
     {
@@ -20861,11 +22513,11 @@
         "provider": "direct-manifest",
         "direct": {
           "windows-x86-64": {
-            "version": "v0.1.4",
-            "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
-            "size": 13043789,
-            "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
-            "published_at": "2026-10-18T20:43:48Z"
+            "version": "v0.1.5",
+            "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.5/MegaManX2SNESRecomp-windows-x64-v0.1.5.zip",
+            "size": 13128270,
+            "sha256": "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d",
+            "published_at": "2026-10-27T22:32:18Z"
           }
         }
       },
@@ -20881,6 +22533,7 @@
         "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
       },
       "launch_arguments": [
+        "--no-launcher",
         "game.sfc"
       ],
       "launch_environment": {
@@ -20921,7 +22574,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide the exact unchanged headerless original. Portcove keeps a SHA256-checked game.sfc copy beside the runtime; backups include that ROM copy. Host save states require the same runtime build; preserve guest SRAM before considering upgrades. Keep config.local.ini absent and developer trace, capture and path overrides disabled. Keep packaged executables, libraries, assets, notices and built-in mod manifests unchanged. Extra mods and donor assets need separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included. This managed route stays on its accepted build to keep build-specific quickstates usable. Keep that creating version for those states. A newer upstream copy follows its own setup and save instructions; changing runtime versions does not rewind progress or establish quickstate compatibility.",
+        "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. This fresh managed route uses the checked official Windows v0.1.5 package and starts the game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Keep config.local.ini absent and developer trace, capture, oracle and path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package.",
         "original_game_title": "Mega Man X2",
         "artwork": {
           "game_id": 1742,
@@ -20931,7 +22584,8 @@
           "game_slug": "mega-man-x2",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "resident-evil-gaiden-recomp",
@@ -22182,7 +23836,7 @@
     {
       "id": "blake-stone-aliens-of-gold-bstone",
       "name": "Blake Stone: Aliens of Gold (Bstone)",
-      "summary": "Set up Blake Stone: Aliens of Gold through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Blake Stone: Aliens of Gold through BStone with your matching original game files.",
       "project_url": "https://github.com/bibendovsky/bstone",
       "support_tier": "beta",
       "channels": [
@@ -22191,33 +23845,53 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
         "repository": "bibendovsky/bstone",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "bstone-",
+            "-win64.zip"
+          ]
         }
       },
+      "executable_hints": {
+        "windows-x86-64": [
+          "bstone.exe"
+        ]
+      },
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "launch_arguments": [
+        "--aog",
+        "--data_dir",
+        "originals",
+        "--profile_dir",
+        "profile"
+      ],
+      "persistent_paths": [
+        "profile"
+      ],
       "presentation": {
-        "installation_method": "user-prepared-runtime",
-        "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --aog as a separate argument to choose this game. Use --aog_sw instead when deliberately choosing supported shareware. Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "bstone-aliens-of-gold-originals",
+            "label": "Blake Stone aliens-of-gold complete original files",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select a folder or ZIP containing your complete matching retail BS6 set (versions 1.0, 2.0, 2.1 or 3.0). Portcove verifies the reviewed upstream SHA1 identities as one complete edition, prepares immutable copies in originals and places settings, high scores, saves, screenshots and temporary files in the separate profile folder. Originals are not included. The --aog argument selects this game. Upstream may search recognized outside locations as well; those files stay externally owned and outside Portcove backup. This fresh managed offer does not convert existing registrations or adopt an older Native4 runtime/profile. Older contracts retain their originals directory and root-level persistence; shrinking or remapping that populated data is held. Preserve the creating runtime and profile before changing versions. Backup and preserving removal cover the declared profile; no save conversion or future-version save compatibility is established. BS1 shareware is a separate upstream-owned setup choice; it is not retail BS6 admission. The upstream guide remains the non-owning alternative for other original editions or existing players.",
         "original_game_title": "Blake Stone: Aliens of Gold",
         "manual_setup": {
           "steps": [
+            {
+              "title": "Choose the runtime owner and original edition",
+              "instruction": "This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+            },
             {
               "title": "Use this original game and edition",
               "instruction": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -22246,12 +23920,100 @@
           "game_slug": "blake-stone-aliens-of-gold",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "source_profile": "bstone-aliens-of-gold-originals",
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "AUDIOHED.BS6"
+          ],
+          "destination": "originals/audiohed.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "AUDIOT.BS6"
+          ],
+          "destination": "originals/audiot.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "EANIM.BS6"
+          ],
+          "destination": "originals/eanim.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "GANIM.BS6"
+          ],
+          "destination": "originals/ganim.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "IANIM.BS6"
+          ],
+          "destination": "originals/ianim.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "MAPHEAD.BS6"
+          ],
+          "destination": "originals/maphead.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "MAPTEMP.BS6"
+          ],
+          "destination": "originals/maptemp.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "SANIM.BS6"
+          ],
+          "destination": "originals/sanim.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VGADICT.BS6"
+          ],
+          "destination": "originals/vgadict.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VGAGRAPH.BS6"
+          ],
+          "destination": "originals/vgagraph.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VGAHEAD.BS6"
+          ],
+          "destination": "originals/vgahead.bs6",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VSWAP.BS6"
+          ],
+          "destination": "originals/vswap.bs6",
+          "materialization": "copy"
+        }
+      ],
+      "windows_temp_directory": "profile"
     },
     {
       "id": "blake-stone-planet-strike-bstone",
       "name": "Blake Stone: Planet Strike (Bstone)",
-      "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Blake Stone: Planet Strike through BStone with your matching original game files.",
       "project_url": "https://github.com/bibendovsky/bstone",
       "support_tier": "beta",
       "channels": [
@@ -22260,33 +24022,53 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
         "repository": "bibendovsky/bstone",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "bstone-",
+            "-win64.zip"
+          ]
         }
       },
+      "executable_hints": {
+        "windows-x86-64": [
+          "bstone.exe"
+        ]
+      },
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "launch_arguments": [
+        "--ps",
+        "--data_dir",
+        "originals",
+        "--profile_dir",
+        "profile"
+      ],
+      "persistent_paths": [
+        "profile"
+      ],
       "presentation": {
-        "installation_method": "user-prepared-runtime",
-        "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game. Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "bstone-planet-strike-originals",
+            "label": "Blake Stone planet-strike complete original files",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select a folder or ZIP containing your complete matching Planet Strike VSI set. Portcove verifies the reviewed upstream SHA1 identities as one complete edition, prepares immutable copies in originals and places settings, high scores, saves, screenshots and temporary files in the separate profile folder. Originals are not included. The --ps argument selects this game. Upstream may search recognized outside locations as well; those files stay externally owned and outside Portcove backup. This fresh managed offer does not convert existing registrations or adopt an older Native4 runtime/profile. Older contracts retain their originals directory and root-level persistence; shrinking or remapping that populated data is held. Preserve the creating runtime and profile before changing versions. Backup and preserving removal cover the declared profile; no save conversion or future-version save compatibility is established. The upstream guide remains the non-owning alternative for other original editions or existing players.",
         "original_game_title": "Blake Stone: Planet Strike",
         "manual_setup": {
           "steps": [
+            {
+              "title": "Choose the runtime owner and original edition",
+              "instruction": "This managed offer uses --ps for Planet Strike only. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+            },
             {
               "title": "Use this original game and edition",
               "instruction": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -22315,7 +24097,81 @@
           "game_slug": "blake-stone-planet-strike",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "source_profile": "bstone-planet-strike-originals",
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "AUDIOHED.VSI"
+          ],
+          "destination": "originals/audiohed.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "AUDIOT.VSI"
+          ],
+          "destination": "originals/audiot.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "EANIM.VSI"
+          ],
+          "destination": "originals/eanim.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "IANIM.VSI"
+          ],
+          "destination": "originals/ianim.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "MAPHEAD.VSI"
+          ],
+          "destination": "originals/maphead.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "MAPTEMP.VSI"
+          ],
+          "destination": "originals/maptemp.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VGADICT.VSI"
+          ],
+          "destination": "originals/vgadict.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VGAGRAPH.VSI"
+          ],
+          "destination": "originals/vgagraph.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VGAHEAD.VSI"
+          ],
+          "destination": "originals/vgahead.vsi",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "VSWAP.VSI"
+          ],
+          "destination": "originals/vswap.vsi",
+          "materialization": "copy"
+        }
+      ],
+      "windows_temp_directory": "profile"
     },
     {
       "id": "blizz127-brave-fencer-musashi-decomp-port",
@@ -23612,7 +25468,7 @@
     {
       "id": "diablo-devilutionx",
       "name": "Diablo (DevilutionX)",
-      "summary": "Set up Diablo through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo through DevilutionX with your matching original game files.",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "support_tier": "beta",
       "channels": [
@@ -23621,33 +25477,65 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
         "repository": "diasurgical/DevilutionX",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "devilutionx-windows-x86_64.zip"
+          ]
         }
       },
+      "executable_hints": {
+        "windows-x86-64": [
+          "devilutionx.exe"
+        ]
+      },
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "source_profile": "diablo-devilutionx-retail-originals",
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "diabdat.mpq"
+          ],
+          "destination": "originals/diabdat.mpq",
+          "materialization": "copy"
+        }
+      ],
+      "launch_arguments": [
+        "--diablo",
+        "--data-dir",
+        "originals",
+        "--save-dir",
+        "profile",
+        "--config-dir",
+        "profile"
+      ],
+      "persistent_paths": [
+        "profile"
+      ],
+      "windows_temp_directory": "profile",
       "presentation": {
-        "installation_method": "user-prepared-runtime",
-        "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the complete official Windows x86_64 ZIP and keep devilutionx.exe, devilutionx.mpq and all runtime companions together. A GOG installation may be detected; otherwise supply the matching MPQs beside the player or in the actual data directory described by upstream. Register devilutionx.exe inside its wrapper, using that same folder as working directory. Use the documented single argument --diablo to select this entry’s game even when both games’ files are present. The Windows data/profile location is normally %APPDATA%/diasurgical/devilution, with upstream portable/path overrides depending on the selected setup. Preserve the actual configuration, character saves and MPQ locations as well as the working copy, with all players closed before changing versions. Diablo and Hellfire modes have different original-data and save semantics. No automatic character conversion or cross-version save guarantee is supplied by registration. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "diablo-devilutionx-retail-originals",
+            "label": "Diablo reviewed retail MPQ set",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select a folder or ZIP containing your complete matching DIABDAT.MPQ through the original-file chooser. This managed offer accepts the reviewed complete original set; other editions, the shareware demo and optional class archives use the separate upstream-owned route. Originals are not included. Upstream may also read recognized outside data locations; Core does not own or back up those files. Portcove prepares verified immutable copies under originals beside the player, and keeps settings, characters, stash, screenshots, demos and temporary data under the separate profile folder. Play uses the selected Diablo mode. Keep Diablo and Hellfire in their own entries and profiles; character conversion, cross-mode saves and older-reader compatibility are not established. Do not change this entry’s original set in place. Existing registrations stay externally owned; this offer does not adopt their populated runtime, original files or profile. Use a separate library or independently owned upstream copy for another original set, profile or owner. Preserve the creating runtime and current profile before changing versions. Outside-tree paths and unclaimed inside-tree modifications are outside this managed scope and can hold maintenance. Removal preserves the declared profile and external originals; retained profile data requires its creating contract before reuse.",
         "original_game_title": "Diablo",
         "manual_setup": {
           "steps": [
+            {
+              "title": "Choose the runtime owner and original set",
+              "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+            },
             {
               "title": "Use this original game and edition",
               "instruction": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -23673,7 +25561,7 @@
     {
       "id": "diablo-hellfire-devilutionx",
       "name": "Diablo: Hellfire (DevilutionX)",
-      "summary": "Set up Diablo: Hellfire through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo: Hellfire through DevilutionX with your matching original game files.",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "support_tier": "beta",
       "channels": [
@@ -23682,33 +25570,93 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
         "repository": "diasurgical/DevilutionX",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "devilutionx-windows-x86_64.zip"
+          ]
         }
       },
+      "executable_hints": {
+        "windows-x86-64": [
+          "devilutionx.exe"
+        ]
+      },
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "source_profile": "diablo-hellfire-devilutionx-originals",
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "diabdat.mpq"
+          ],
+          "destination": "originals/diabdat.mpq",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "hellfire.mpq"
+          ],
+          "destination": "originals/hellfire.mpq",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "hfmonk.mpq"
+          ],
+          "destination": "originals/hfmonk.mpq",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "hfmusic.mpq"
+          ],
+          "destination": "originals/hfmusic.mpq",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "hfvoice.mpq"
+          ],
+          "destination": "originals/hfvoice.mpq",
+          "materialization": "copy"
+        }
+      ],
+      "launch_arguments": [
+        "--hellfire",
+        "--data-dir",
+        "originals",
+        "--save-dir",
+        "profile",
+        "--config-dir",
+        "profile"
+      ],
+      "persistent_paths": [
+        "profile"
+      ],
+      "windows_temp_directory": "profile",
       "presentation": {
-        "installation_method": "user-prepared-runtime",
-        "source_requirements": [],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the complete official Windows x86_64 ZIP and keep devilutionx.exe, devilutionx.mpq and all runtime companions together. A GOG installation may be detected; otherwise supply the matching MPQs beside the player or in the actual data directory described by upstream. Register devilutionx.exe inside its wrapper, using that same folder as working directory. Use the documented single argument --hellfire to select this entry’s game even when both games’ files are present. The Windows data/profile location is normally %APPDATA%/diasurgical/devilution, with upstream portable/path overrides depending on the selected setup. Preserve the actual configuration, character saves and MPQ locations as well as the working copy, with all players closed before changing versions. Diablo and Hellfire modes have different original-data and save semantics. No automatic character conversion or cross-version save guarantee is supplied by registration. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "installation_method": "portable-package",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "diablo-hellfire-devilutionx-originals",
+            "label": "Diablo and Hellfire reviewed MPQ set",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select a folder or ZIP containing your complete matching DIABDAT.MPQ plus hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq through the original-file chooser. This managed offer accepts the reviewed complete original set; other editions, the shareware demo and optional class archives use the separate upstream-owned route. Originals are not included. Upstream may also read recognized outside data locations; Core does not own or back up those files. Portcove prepares verified immutable copies under originals beside the player, and keeps settings, characters, stash, screenshots, demos and temporary data under the separate profile folder. Play uses the selected Diablo: Hellfire mode. Keep Diablo and Hellfire in their own entries and profiles; character conversion, cross-mode saves and older-reader compatibility are not established. Do not change this entry’s original set in place. Existing registrations stay externally owned; this offer does not adopt their populated runtime, original files or profile. Use a separate library or independently owned upstream copy for another original set, profile or owner. Preserve the creating runtime and current profile before changing versions. Outside-tree paths and unclaimed inside-tree modifications are outside this managed scope and can hold maintenance. Removal preserves the declared profile and external originals; retained profile data requires its creating contract before reuse.",
         "original_game_title": "Diablo: Hellfire",
         "manual_setup": {
           "steps": [
+            {
+              "title": "Choose the runtime owner and original set",
+              "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+            },
             {
               "title": "Use this original game and edition",
               "instruction": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -27554,7 +29502,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained. Play has not been tested through Portcove on Linux.",
+        "manual_preparation": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required. OpenTyrian normally stores settings, saves and recorded demos in AppData/OpenTyrian, outside Portcove backups. If upstream falls back to the executable folder, declared opentyrian.cfg, tyrian.cfg, tyrian.sav and demorec.* recordings are retained. Runtime rollback carries declared current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Windows startup and a normal exit were observed through the standalone Portcove CLI after moving the isolated library to a short basic-Latin path. Gameplay remains unverified. Retained installations keep their creating definition; this new path declaration does not rewrite their manifests. Linux normally uses $XDG_CONFIG_HOME/opentyrian or ~/.config/opentyrian. The same declared in-folder fallback files and recordings are retained. Play has not been tested through Portcove on Linux.",
         "original_game_title": "Tyrian",
         "manual_setup": {
           "steps": [
@@ -27563,7 +29511,9 @@
               "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
+          ],
           "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
         },
         "artwork": {
@@ -27574,7 +29524,8 @@
           "game_slug": "tyrian",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "perimeter-emperor-s-testament-perimeter-community-engine",

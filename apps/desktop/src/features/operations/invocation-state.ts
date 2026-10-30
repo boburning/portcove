@@ -47,6 +47,22 @@ export function invocationFailure(record: InvocationRecord) {
   return record.failure ?? record.refreshFailure;
 }
 
+/** Settle the current caller after task execution and independent readback. */
+export function settleInvocationResult<T>({
+  isCurrent,
+  options,
+  taskFailure,
+  result,
+}: {
+  isCurrent: () => boolean;
+  options: { propagateFailure?: boolean };
+  taskFailure: { value: unknown } | undefined;
+  result: T | undefined;
+}): T | undefined {
+  if (isCurrent() && options.propagateFailure && taskFailure) throw taskFailure.value;
+  return isCurrent() ? result : undefined;
+}
+
 export function targetInvocationContext(
   action: string,
   target: InvocationContext["target"],

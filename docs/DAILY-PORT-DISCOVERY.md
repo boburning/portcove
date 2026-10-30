@@ -49,7 +49,13 @@ Actions checks complete open/closed issue and active/archived Project coverage,
 authored catalog lineage and immutable primary identity before publishing a
 bot-authored plan on #177. It refreshes complete upstream release/selected-asset
 pagination and pinned README evidence through the maintained investigator. The
-plan contains the exact proposed bodies, primary bindings and `plan_sha256`.
+plan binds the exact proposed bodies, primary bindings and `plan_sha256`.
+New receipts use `plan_encoding: proposal-bound-v1`: each ordered descriptor
+records the candidate index/key, body hash and primary evidence bindings rather
+than repeating the proposal text and rendered body. Reconstruct the body with
+the maintained `hostedBody` renderer from the exact hash-matching proposal;
+the recorded body hash must match before recovery or completion readback.
+Legacy full-plan receipts remain readable and completed receipts are not rewritten.
 The same invocation then applies the bound proposal automatically. Port metadata
 intake requires no separate model reviewer or review attestation. The owner
 confirmed this policy on October 28, 2026. Software changes retain the repository's
@@ -66,6 +72,32 @@ refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify before the
 receipt says `complete`. A logical batch over ten retains its final full doctor.
 Scoped receipts retain `global_health: not_evaluated`.
+The existing Actions job owns bounded continuation; the hosted chat need not
+notice and rerun ordinary temporary holds. It runs at most three joined worker
+passes, each with the existing cold quota/byte/time envelope and fresh queue,
+primary and inventory reads. Only typed inventory movement or budget admission
+holds with no unconfirmed mutation can continue. Each pass preserves its own
+diagnostics. Eligible requests at an exhausted queue tail run first next pass;
+a repeated budget hold without semantic delivery progress stops. Queue collection
+revision drift can restart a read-only pass. Missing/inconsistent reports, killed
+workers, provider/auth/identity/owner conflicts, ambiguous writes and failed
+receipt readbacks stop automatic recovery. Independent requests may still finish;
+any held request keeps the overall job incomplete. The job has a finite 100-minute
+outer timeout; no new workflow, timer, credential scope or API retry is introduced.
+After the bound, report the exact remaining blocker and resume the same receipt
+through the ordinary process entry point. No bounded mechanism guarantees
+eventual completion during continual upstream/owner changes or unavailable APIs.
+Routine hosted intake uses an explicit capability of the maintained inventory:
+complete repository issue bodies and two complete archive-inclusive Project
+membership traversals must agree on exact item/content identities and archive
+state. Unrelated planning fields and dependencies remain Unknown, so ordinary
+field/view edits elsewhere on the board do not invalidate that membership proof.
+Existing recovery targets receive fresh complete direct field reads; missing
+field coverage cannot be interpreted as an unset value. The normal collector
+and inventory-backed doctors still require full coverage. A large batch obtains
+a fresh full inventory for its global doctor; the intake projection cannot
+satisfy that check. Repository revision, membership, provider and budget guards
+continue to hold incomplete intake.
 The shared inventory reader permits one admitted complete replacement for known
 Project revision/count drift per execution batch. It discards the changed view;
 another drift or any provider/integrity failure holds intake within the same budget.

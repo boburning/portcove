@@ -50,8 +50,8 @@ it(
         loading={false}
       />,
     );
-    const finish = page.getByRole("button", { name: /^Review setup:/ });
-    await expect.element(finish).toHaveTextContent("Review setup");
+    const finish = page.getByRole("button", { name: /^Set up:/ });
+    await expect.element(finish).toHaveTextContent("Set up");
     await finish.click();
     expect(select).toHaveBeenCalledWith(port.id, expect.any(String), "files");
   },

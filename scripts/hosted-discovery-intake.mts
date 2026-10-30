@@ -4,10 +4,11 @@ import { fileURLToPath } from "node:url";
 import { runCheckedGit } from "./checked-git.mts";
 import { RoadmapClient, portFieldInitialization, runDoctor, validateConfig } from "./roadmap.mts";
 import { qualificationCatalogObservation } from "./roadmap-qualification.mts";
-import { GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiClient, GitHubApiError, sanitizeOperationError } from "./github-api.mts";
 import {
   collectRoadmapInventory,
   collectRoadmapInventoryWithRecollection,
+  requireRoadmapInventory,
 } from "./roadmap-inventory.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
@@ -193,6 +194,7 @@ export function assertHostedRecovery(
   inventory: RoadmapInventory,
   number: number,
 ) {
+  requireRoadmapInventory(inventory, client.config.repository, client, { planningIssue: number });
   const issue = client.repositoryIssue(number);
   const assignees = object(issue).assignees;
   const rows = [...inventory.items, ...inventory.archivedItems].filter(
@@ -268,13 +270,42 @@ export function hostedPlanHash(requestHash: string, plan: Planned[]) {
   });
 }
 function receiptBody(r: Receipt) {
-  const body = `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(r, null, 2)}\n\`\`\``;
+  // Exact bodies are reconstructed from the hash-bound owner proposal. Do not
+  // repeat its evidence in both candidate and rendered-body copies on the wire.
+  const wire = {
+    ...r,
+    plan_encoding: "proposal-bound-v1",
+    plan: r.plan.map(({ candidate, body: _body, ...binding }, index) => ({
+      ...binding,
+      candidate_index: index,
+      port_key: candidate.port_key,
+    })),
+  };
+  const body = `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
   validateGitHubBody(body);
   if (Buffer.byteLength(body) > 60000)
     throw new Error("Hosted receipt exceeds its bounded comment envelope");
   return body;
 }
 export class HostedIntakeBridge {
+  // Failed mutations remain sticky even if publishing a later diagnostic works.
+  uncertainMutations = 0;
+  mutation<T>(action: () => T): T {
+    this.uncertainMutations++;
+    const result = action();
+    this.uncertainMutations--;
+    return result;
+  }
+  continuation(error: unknown) {
+    return this.uncertainMutations === 0 &&
+      error instanceof GitHubApiError &&
+      ["inventory_changed", "repository_changed", "budget_exhausted"].includes(error.code)
+      ? error.code === "budget_exhausted"
+        ? "budget_exhausted"
+        : "inventory_changed"
+      : null;
+  }
+  planningIssues = new Set<number>();
   inventoryRecollections = 0;
   readonly client: RoadmapClient;
   readonly head: string;
@@ -309,12 +340,21 @@ export class HostedIntakeBridge {
       .map((v) => object(v) as unknown as Comment);
     const after = object(this.client.api.request("GET", `${this.prefix}/177`).body);
     if (
+      typeof before.node_id !== "string" ||
       before.node_id !== after.node_id ||
-      before.comments !== comments.length ||
-      after.comments !== comments.length ||
-      before.updated_at !== after.updated_at
+      !Number.isSafeInteger(before.comments) ||
+      !Number.isSafeInteger(after.comments) ||
+      typeof before.updated_at !== "string" ||
+      typeof after.updated_at !== "string"
     )
       throw new Error("Hosted request comment inventory changed or is incomplete");
+    if (before.comments !== after.comments || before.updated_at !== after.updated_at)
+      throw new GitHubApiError(
+        "inventory_changed",
+        "Hosted request queue changed during collection",
+      );
+    if (after.comments !== comments.length)
+      throw new Error("Hosted request comment inventory is incomplete");
     return comments;
   }
   fresh(c: Comment) {
@@ -335,19 +375,21 @@ export class HostedIntakeBridge {
     this.save(`receipt-${receipt.request_comment}`, receipt);
     const body = receiptBody(receipt);
     if (prior) this.fresh(prior);
-    const got = object(
-      this.client.api.request(
-        prior ? "PATCH" : "POST",
-        prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`,
-        { body },
-      ).body,
-    );
-    const observed = object(
-      this.client.api.request("GET", `${this.prefix}/comments/${positive(got.id)}`).body,
-    );
-    if (observed.body !== body || object(observed.user).login !== "github-actions[bot]")
-      throw new Error("Bot receipt publication/readback is unconfirmed; no further mutation");
-    return observed as unknown as Comment;
+    return this.mutation(() => {
+      const got = object(
+        this.client.api.request(
+          prior ? "PATCH" : "POST",
+          prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`,
+          { body },
+        ).body,
+      );
+      const observed = object(
+        this.client.api.request("GET", `${this.prefix}/comments/${positive(got.id)}`).body,
+      );
+      if (observed.body !== body || object(observed.user).login !== "github-actions[bot]")
+        throw new Error("Bot receipt publication/readback is unconfirmed; no further mutation");
+      return observed as unknown as Comment;
+    });
   }
   diagnostic(request: Comment, error: unknown, all: Comment[]) {
     const marker = `<!-- portcove-hosted-intake-diagnostic:${request.id} -->`;
@@ -407,13 +449,23 @@ export class HostedIntakeBridge {
       primary: identity,
     };
   }
-  inventory(cache?: RoadmapInventory) {
+  inventory(cache?: RoadmapInventory, full = false) {
     this.client._completeProjectContext = undefined;
     this.client._projectContext = undefined;
     let first: ReturnType<typeof sanitizeOperationError> | undefined;
     return collectRoadmapInventoryWithRecollection(
       this.client,
-      () => collectRoadmapInventory(this.client, cache),
+      () =>
+        collectRoadmapInventory(
+          this.client,
+          cache,
+          full
+            ? undefined
+            : {
+                scope: "intake",
+                planningIssues: [...this.planningIssues],
+              },
+        ),
       this,
       {
         before: (error) => {
@@ -462,6 +514,7 @@ export class HostedIntakeBridge {
       throw new Error(`Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`);
   }
   async process(request: Comment, all: Comment[]) {
+    this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
     this.fresh(request);
     const proposal = parseHostedRequest(request.body);
@@ -475,7 +528,34 @@ export class HostedIntakeBridge {
       this.fresh(prior);
       const match = /```json\n([\s\S]+)\n```$/u.exec(prior.body);
       if (!match) throw new Error("Malformed retained hosted receipt");
-      receipt = JSON.parse(match[1]!) as Receipt;
+      const stored = object(JSON.parse(match[1]!));
+      if (stored.plan_encoding !== undefined) {
+        if (
+          stored.plan_encoding !== "proposal-bound-v1" ||
+          !Array.isArray(stored.plan) ||
+          stored.plan.length !== proposal.candidates.length
+        )
+          throw new Error("Unknown or incomplete retained plan encoding");
+        stored.plan = stored.plan.map((raw, index) => {
+          const binding = object(raw);
+          const candidate = proposal.candidates[index]!;
+          const body = hostedBody(candidate, request.id);
+          if (
+            binding.candidate_index !== index ||
+            binding.port_key !== candidate.port_key ||
+            binding.body_sha256 !== observationHash(body)
+          )
+            throw new Error("Retained plan body does not match the exact proposal");
+          return {
+            candidate,
+            body,
+            body_sha256: binding.body_sha256,
+            evidence_sha256: binding.evidence_sha256,
+            primary: binding.primary,
+          };
+        });
+      }
+      receipt = stored as unknown as Receipt;
       if (
         receipt.request_comment !== request.id ||
         receipt.request_sha256 !== observationHash(request.body) ||
@@ -485,6 +565,9 @@ export class HostedIntakeBridge {
       if (receipt.status === "complete") return receipt;
     }
     const plan = proposal.candidates.map((c) => this.primary(c, request.id));
+    this.planningIssues = new Set(
+      receipt?.delivery.flatMap((d) => (d.created_issue ? [d.created_issue] : [])) ?? [],
+    );
     let inventory = this.inventory();
     if (!receipt) {
       for (const p of plan) this.duplicates(inventory, p);
@@ -523,19 +606,36 @@ export class HostedIntakeBridge {
     };
     persist();
     try {
+      this.uncertainMutations++;
       const writeProof = await probeHostedProjectWrite(this.client, 177);
+      this.uncertainMutations--;
       this.save(`write-proof-${request.id}`, writeProof);
-      inventory = this.inventory(inventory);
+      // The same-option owner proof and receipt comments do not change this
+      // projection. Refresh at the next actual mutation, not after no-op proof.
+      let invalidated = false;
       for (const [index, p] of plan.entries()) {
         const d = receipt.delivery[index];
         if (!d) throw new Error("Retained delivery coverage differs");
+        if (
+          d.created_issue &&
+          (invalidated || Date.now() - Date.parse(inventory.observed_at) >= 90000)
+        ) {
+          inventory = this.inventory(inventory);
+          invalidated = false;
+        }
         this.fresh(request);
         const marker = `<!-- portcove-discovery-intake:hosted-${request.id}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
         if (d.created_issue && recovered[0]?.number !== d.created_issue)
           throw new Error("Created issue identity is unavailable");
-        if (!d.created_issue && recovered.length) d.created_issue = Number(recovered[0]!.number);
+        if (!d.created_issue && recovered.length) {
+          d.created_issue = Number(recovered[0]!.number);
+          this.planningIssues.add(d.created_issue);
+          persist();
+          inventory = this.inventory(inventory);
+          invalidated = false;
+        }
         if (!d.created_issue && d.status === "create-attempted")
           throw new Error("Ambiguous issue POST without a confirmed marker; do not recapture");
         this.duplicates(inventory, p, d.created_issue);
@@ -543,19 +643,38 @@ export class HostedIntakeBridge {
           const issue = assertHostedRecovery(this.client, inventory, d.created_issue);
           if (issue.body !== p.body || issue.title !== `[Port] ${p.candidate.title}`)
             throw new Error("Created issue was revised; preserve owner changes and reconcile");
-          const normalized = this.client.normalizePortIssue({
-            number: d.created_issue,
-            catalog: qualificationCatalogObservation(
-              JSON.parse(
-                readFileSync(
-                  new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
-                  "utf8",
+          const member = inventory.items.find((item) => item.content?.id === issue.node_id);
+          const ready =
+            member &&
+            Object.entries(portFieldInitialization(null)).every(
+              ([field, value]) => fieldValue(member, field) === value,
+            ) &&
+            !fieldValue(member, "Release commitment");
+          if (!ready) {
+            // A real normalization consumes a fresh target preimage, even when
+            // the earlier routing observation looked repairable.
+            inventory = this.inventory(inventory);
+            invalidated = false;
+            const latest = assertHostedRecovery(this.client, inventory, d.created_issue);
+            if (latest.body !== p.body || latest.title !== `[Port] ${p.candidate.title}`)
+              throw new Error("Created issue was revised; preserve owner changes and reconcile");
+            const normalized = this.mutation(() =>
+              this.client.normalizePortIssue({
+                number: d.created_issue!,
+                catalog: qualificationCatalogObservation(
+                  JSON.parse(
+                    readFileSync(
+                      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+                      "utf8",
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            inventory,
-          });
-          d.item_id = normalized.itemId;
+                inventory,
+              }),
+            );
+            invalidated = true;
+            d.item_id = normalized.itemId;
+          }
         } else {
           // Persist the attempt before recollection: publishing it advances
           // #177's revision, so the negative inventory must come afterwards.
@@ -563,6 +682,7 @@ export class HostedIntakeBridge {
           persist();
           try {
             inventory = this.inventory(inventory);
+            invalidated = false;
             this.fresh(request);
             this.duplicates(inventory, p);
           } catch (error) {
@@ -570,23 +690,27 @@ export class HostedIntakeBridge {
             persist();
             throw error;
           }
-          discoveryPost(
-            d,
-            () =>
-              this.client.createPortIssue({
-                title: p.candidate.title,
-                upstream: p.candidate.upstream,
-                portKey: p.candidate.port_key,
-                body: p.body,
-                inventory,
-                onIssueCreated: (issue) => {
-                  d.created_issue = issue.number;
-                  d.status = "created";
-                  persist();
-                },
-              }),
-            () => this.save(`receipt-${request.id}`, receipt),
+          this.mutation(() =>
+            discoveryPost(
+              d,
+              () =>
+                this.client.createPortIssue({
+                  title: p.candidate.title,
+                  upstream: p.candidate.upstream,
+                  portKey: p.candidate.port_key,
+                  body: p.body,
+                  inventory,
+                  onIssueCreated: (issue) => {
+                    d.created_issue = issue.number;
+                    this.planningIssues.add(issue.number);
+                    d.status = "created";
+                    persist();
+                  },
+                }),
+              () => this.save(`receipt-${request.id}`, receipt),
+            ),
           );
+          invalidated = true;
         }
         const issue = this.client.repositoryIssue(d.created_issue!);
         const item = this.client.executionIssue(d.created_issue!).item;
@@ -607,7 +731,8 @@ export class HostedIntakeBridge {
         d.doctor = compactDoctor(doctor);
         d.status = "delivered";
         persist();
-        if (index < plan.length - 1 || plan.length > 10) inventory = this.inventory(inventory);
+        if (index === plan.length - 1 && plan.length > 10)
+          inventory = this.inventory(inventory, true);
       }
       if (plan.length > 10) {
         const global = await runDoctor(this.client.config, this.client, {
@@ -628,7 +753,11 @@ export class HostedIntakeBridge {
     } catch (error) {
       receipt.status = "incomplete";
       receipt.error = sanitizeOperationError(error);
-      persist();
+      try {
+        persist();
+      } catch (publication) {
+        this.save(`publication-failure-${request.id}`, sanitizeOperationError(publication));
+      }
       throw error;
     }
     return receipt;
@@ -671,10 +800,30 @@ export async function probeHostedProjectWrite(client: RoadmapClient, issue: numb
 }
 async function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
-  const directory = path.join(root, "work/hosted-discovery-intake");
+  const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
+  if (!/^[123]$/u.test(pass)) throw new Error("Invalid bounded intake pass");
+  const directory = path.join(root, "work/hosted-discovery-intake", `pass-${pass}`);
   mkdirSync(directory, { recursive: true });
-  const save = (name: string, value: unknown) =>
+  const progress = new Map<number, string>();
+  const save = (name: string, value: unknown) => {
+    if (name.startsWith("receipt-") && isRecord(value)) {
+      progress.set(
+        Number(name.slice(8)),
+        observationHash({
+          request: value.request_sha256,
+          plan: value.plan_sha256,
+          delivery: Array.isArray(value.delivery)
+            ? value.delivery.map((raw) => {
+                const d = object(raw);
+                return { status: d.status, issue: d.created_issue, item: d.item_id };
+              })
+            : null,
+          global: value.doctor !== undefined,
+        }),
+      );
+    }
     writeFileSync(path.join(directory, `${name}.json`), JSON.stringify(value, null, 2));
+  };
   const config = validateConfig(
     JSON.parse(readFileSync(path.join(root, ".github/roadmap.json"), "utf8")),
   );
@@ -744,25 +893,82 @@ async function main() {
       }
       return;
     }
-    const comments = bridge.comments();
-    const requests = comments.filter(
+    let comments: Comment[];
+    try {
+      comments = bridge.comments();
+    } catch (error) {
+      if (!(error instanceof GitHubApiError) || error.code !== "inventory_changed") throw error;
+      save("summary", {
+        status: "incomplete",
+        head,
+        requests: 0,
+        outcomes: [],
+        queue_continuation: "inventory_changed",
+      });
+      process.exitCode = 1;
+      return;
+    }
+    const selected: unknown = process.env.HOSTED_INTAKE_REQUESTS
+      ? JSON.parse(process.env.HOSTED_INTAKE_REQUESTS)
+      : null;
+    if (
+      selected !== null &&
+      (!Array.isArray(selected) ||
+        !selected.length ||
+        selected.some((id) => !Number.isSafeInteger(id) || id < 1) ||
+        new Set(selected).size !== selected.length)
+    )
+      throw new Error("Invalid bounded continuation selection");
+    const available = comments.filter(
       (c) => c.user.login === config.owner && c.body.startsWith(hostedRequestMarker),
     );
-    let failed = false;
+    const requests =
+      selected === null
+        ? available
+        : (selected as number[]).map((id) => {
+            const request = available.find((c) => c.id === id);
+            if (!request) throw new Error("Continuation request is no longer available");
+            return request;
+          });
+    const outcomes: {
+      request: number;
+      status: string;
+      continuation: string | null;
+      progress: string | null;
+    }[] = [];
     for (const c of requests) {
       try {
         await bridge.process(c, comments);
+        outcomes.push({
+          request: c.id,
+          status: "complete",
+          continuation: null,
+          progress: progress.get(c.id) ?? null,
+        });
       } catch (error) {
+        let continuation = bridge.continuation(error);
         save(`failure-${c.id}`, sanitizeOperationError(error));
         try {
           bridge.diagnostic(c, error, comments);
         } catch (publication) {
+          continuation = null;
           save(`publication-failure-${c.id}`, sanitizeOperationError(publication));
         }
-        failed = true;
+        outcomes.push({
+          request: c.id,
+          status: "incomplete",
+          continuation,
+          progress: progress.get(c.id) ?? null,
+        });
       }
     }
-    save("summary", { status: failed ? "incomplete" : "passed", head, requests: requests.length });
+    const failed = outcomes.some((o) => o.status !== "complete");
+    save("summary", {
+      status: failed ? "incomplete" : "passed",
+      head,
+      requests: requests.length,
+      outcomes,
+    });
     if (failed) process.exitCode = 1;
   } finally {
     save("api-observations", api.observations);

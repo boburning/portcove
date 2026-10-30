@@ -14,6 +14,7 @@ export function ChoiceSelect<T extends string>({
   triggerId,
   description,
   inline = false,
+  showInlineLabel = true,
 }: {
   label: string;
   value: T;
@@ -26,6 +27,7 @@ export function ChoiceSelect<T extends string>({
   triggerId?: string;
   description?: string;
   inline?: boolean;
+  showInlineLabel?: boolean;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -110,7 +112,7 @@ export function ChoiceSelect<T extends string>({
           aria-labelledby={`${labelId} ${valueId}`}
           className="w-full gap-3"
         >
-          {inline && (
+          {inline && showInlineLabel && (
             <span aria-hidden="true" className="text-pc-muted-foreground">
               {label}
             </span>

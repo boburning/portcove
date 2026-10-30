@@ -2885,7 +2885,12 @@ pub(crate) fn inspect_source_health(
 }
 
 pub(crate) fn aggregate_sha256(hashes: &[String]) -> String {
-    if let [only] = hashes {
+    // Disc observations already contain digests; file sets include member IDs.
+    // A single named member must still produce a digest, not `id:sha256`.
+    if let [only] = hashes
+        && only.len() == 64
+        && only.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
         return only.clone();
     }
     let mut digest = Sha256::new();

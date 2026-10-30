@@ -141,11 +141,13 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("native-portable", 3),
         ("native-portable", 4),
         ("native-portable", 5),
+        ("native-portable", 6),
+        ("native-portable", 7),
     ] {
         assert!(expected.insert(capability));
     }
     let staged_versions = [
-        2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        2, 3, 4, 5, 8, 10, 11, 12, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
     ];
     for version in staged_versions {
         assert!(expected.insert(("staged-source-portable", version)));
@@ -193,12 +195,13 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         (22, true, 22),
         (23, true, 23),
         (24, true, 24),
-        (25, false, 24),
-        (6, false, 24),
-        (7, false, 24),
-        (9, false, 24),
-        (13, false, 24),
-        (14, false, 24),
+        (25, true, 25),
+        (26, false, 25),
+        (6, false, 25),
+        (7, false, 25),
+        (9, false, 25),
+        (13, false, 25),
+        (14, false, 25),
     ] {
         std::fs::write(&requirements, serde_json::to_vec(&json!({
             "capability_contract_schema": 1,

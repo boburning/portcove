@@ -3,7 +3,7 @@
   "listing": {
     "id": "blake-stone-planet-strike-bstone",
     "name": "Blake Stone: Planet Strike (Bstone)",
-    "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+    "summary": "Play Blake Stone: Planet Strike through BStone with your matching original game files.",
     "original_game_title": "Blake Stone: Planet Strike",
     "project_url": "https://github.com/bibendovsky/bstone",
     "issue_number": 2556,
@@ -21,6 +21,10 @@
     "recommended_download_channel": "stable",
     "manual_setup": {
       "steps": [
+        {
+          "title": "Choose the runtime owner and original edition",
+          "instruction": "This managed offer uses --ps for Planet Strike only. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+        },
         {
           "title": "Use this original game and edition",
           "instruction": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -58,30 +62,87 @@
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
-    "adapter": "staged-source-portable",
+    "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "user-prepared",
       "repository": "bibendovsky/bstone",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
+      "asset_hints": {
+        "windows-x86-64": ["bstone-", "-win64.zip"]
       }
     },
+    "executable_hints": {
+      "windows-x86-64": ["bstone.exe"]
+    },
+    "windows_runtime_path_policy": "relative-file-max-path",
+    "launch_arguments": ["--ps", "--data_dir", "originals", "--profile_dir", "profile"],
+    "persistent_paths": ["profile"],
     "presentation": {
-      "installation_method": "user-prepared-runtime",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game. Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
-    }
+      "installation_method": "portable-package",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bstone-planet-strike-originals",
+          "label": "Blake Stone planet-strike complete original files",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select a folder or ZIP containing your complete matching Planet Strike VSI set. Portcove verifies the reviewed upstream SHA1 identities as one complete edition, prepares immutable copies in originals and places settings, high scores, saves, screenshots and temporary files in the separate profile folder. Originals are not included. The --ps argument selects this game. Upstream may search recognized outside locations as well; those files stay externally owned and outside Portcove backup. This fresh managed offer does not convert existing registrations or adopt an older Native4 runtime/profile. Older contracts retain their originals directory and root-level persistence; shrinking or remapping that populated data is held. Preserve the creating runtime and profile before changing versions. Backup and preserving removal cover the declared profile; no save conversion or future-version save compatibility is established. The upstream guide remains the non-owning alternative for other original editions or existing players."
+    },
+    "source_profile": "bstone-planet-strike-originals",
+    "runtime_source_set": [
+      {
+        "source_filenames": ["AUDIOHED.VSI"],
+        "destination": "originals/audiohed.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["AUDIOT.VSI"],
+        "destination": "originals/audiot.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["EANIM.VSI"],
+        "destination": "originals/eanim.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["IANIM.VSI"],
+        "destination": "originals/ianim.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPHEAD.VSI"],
+        "destination": "originals/maphead.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPTEMP.VSI"],
+        "destination": "originals/maptemp.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGADICT.VSI"],
+        "destination": "originals/vgadict.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAGRAPH.VSI"],
+        "destination": "originals/vgagraph.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAHEAD.VSI"],
+        "destination": "originals/vgahead.vsi",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VSWAP.VSI"],
+        "destination": "originals/vswap.vsi",
+        "materialization": "copy"
+      }
+    ],
+    "windows_temp_directory": "profile"
   }
 }

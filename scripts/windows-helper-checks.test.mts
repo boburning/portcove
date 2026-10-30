@@ -24,6 +24,12 @@ void test("every registered Windows helper test selects its maintained helper ro
   for (const file of files) {
     assert.equal(windowsHelperChecksRequired(plan(file)), true, file);
     assert.equal(windowsHelperChecksRequired(plan(file, file, "D")), true, file);
+    for (const selected of [
+      plan(file, file, "A"),
+      plan(file, "docs/moved-helper.md", "R100"),
+      plan("docs/moved-helper.md", file, "R100"),
+    ])
+      assert.ok(selected.mode === "qualification" || windowsHelperChecksRequired(selected), file);
   }
 });
 
@@ -719,7 +725,7 @@ const plan = (oldPath: string, newPath = oldPath, status = "M") =>
         oldPath,
         newPath,
         status,
-        oldMode: "100644",
+        oldMode: status === "A" ? "000000" : "100644",
         newMode: status === "D" ? "000000" : "100644",
       },
     ],
@@ -739,9 +745,13 @@ void test("native tool inputs retain affected Windows proof without frontend ins
     "apps/desktop/scripts/cli-command-shell.native.test.mts",
     "scripts/dev-storage.mts",
     "scripts/tool-cache.mts",
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
   ]) {
     for (const selected of [
       plan(file),
+      plan(file, file, "A"),
+      plan("docs/moved.md", file, "R100"),
       plan(file, "docs/moved.md", "R100"),
       plan(file, file, "D"),
     ]) {
@@ -758,6 +768,10 @@ void test("native tool inputs retain affected Windows proof without frontend ins
 
 void test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
   for (const file of [
+    ".github/workflows/hosted-native-continuity.yml",
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
     "scripts/release-local-worker-accounts.ps1",
     "scripts/release-local-worker-accounts.test.mts",
     "scripts/recover-local-worker-empty-setup.ps1",

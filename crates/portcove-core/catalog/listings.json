@@ -9442,7 +9442,7 @@
     {
       "id": "blake-stone-aliens-of-gold-bstone",
       "name": "Blake Stone: Aliens of Gold (Bstone)",
-      "summary": "Set up Blake Stone: Aliens of Gold through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Blake Stone: Aliens of Gold through BStone with your matching original game files.",
       "original_game_title": "Blake Stone: Aliens of Gold",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2555,
@@ -9460,6 +9460,10 @@
       "recommended_download_channel": "stable",
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original edition",
+            "instruction": "This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -9487,7 +9491,7 @@
     {
       "id": "blake-stone-planet-strike-bstone",
       "name": "Blake Stone: Planet Strike (Bstone)",
-      "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Blake Stone: Planet Strike through BStone with your matching original game files.",
       "original_game_title": "Blake Stone: Planet Strike",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2556,
@@ -9505,6 +9509,10 @@
       "recommended_download_channel": "stable",
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original edition",
+            "instruction": "This managed offer uses --ps for Planet Strike only. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -14301,7 +14309,7 @@
     {
       "id": "diablo-devilutionx",
       "name": "Diablo (DevilutionX)",
-      "summary": "Set up Diablo through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
@@ -14316,6 +14324,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -14343,7 +14355,7 @@
     {
       "id": "diablo-hellfire-devilutionx",
       "name": "Diablo: Hellfire (DevilutionX)",
-      "summary": "Set up Diablo: Hellfire through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo: Hellfire through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo: Hellfire",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
@@ -14366,6 +14378,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -28018,7 +28034,9 @@
             "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
+        ],
         "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
       },
       "original_game_title": "Tyrian",

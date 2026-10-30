@@ -434,7 +434,6 @@ impl Catalog {
                     }));
             if port.adapter == AdapterKind::NativePortable
                 && (!native_archive_release
-                    || port.source_profile.is_some()
                     || port.bios_source_profile.is_some()
                     || !port.bundled_runtime.is_empty()
                     || !port.release.managed_build.is_empty()
@@ -453,6 +452,7 @@ impl Catalog {
                     "native portable packages require a GitHub or exactly pinned archive, reviewed executable/persistence paths and upstream-owned game setup; mutable runtimes and installers use the external route",
                 ));
             }
+            crate::preparation::source::validate_native(self, port)?;
             if port.id.is_empty()
                 || !port.id.chars().all(|character| {
                     character.is_ascii_lowercase() || character.is_ascii_digit() || character == '-'
@@ -1609,6 +1609,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn bstone_original_offers_keep_complete_editions_and_native4_coordinates_separate() {
+        let current = Catalog::embedded().unwrap();
+        let retained = Catalog::from_json(include_str!(
+            "testdata/bstone-retained-native4-2026-10-29.json"
+        ))
+        .unwrap();
+        for (id, profile, count, mode) in [
+            (
+                "blake-stone-aliens-of-gold-bstone",
+                "bstone-aliens-of-gold-originals",
+                12,
+                "--aog",
+            ),
+            (
+                "blake-stone-planet-strike-bstone",
+                "bstone-planet-strike-originals",
+                10,
+                "--ps",
+            ),
+        ] {
+            let fresh = current.port(id).unwrap();
+            let old = retained.port(id).unwrap();
+            assert_eq!(fresh.source_profile.as_deref(), Some(profile));
+            assert_eq!(fresh.runtime_source_set.len(), count);
+            assert_eq!(fresh.persistent_paths, ["profile"]);
+            assert_eq!(fresh.windows_temp_directory.as_deref(), Some("profile"));
+            assert_eq!(
+                fresh.launch_arguments,
+                [mode, "--data_dir", "originals", "--profile_dir", "profile"]
+            );
+            assert_eq!(
+                old.launch_arguments,
+                [mode, "--data_dir", "originals", "--profile_dir", "."]
+            );
+            assert!(old.source_profile.is_none());
+            assert!(old.runtime_source_set.is_empty());
+            assert!(old.persistent_paths.iter().any(|path| path == "originals"));
+            assert!(old.persistent_paths.len() > 20);
+            assert_ne!(fresh.persistent_paths, old.persistent_paths);
+            assert_ne!(fresh.launch_arguments, old.launch_arguments);
+            assert_ne!(fresh.persistent_file_patterns, old.persistent_file_patterns);
+        }
+    }
+
+    #[test]
     fn prepared_source_directory_requires_a_single_reviewed_binding() {
         let input = include_str!("../tests/fixtures/prepared-source-directory.json");
         let catalog = Catalog::from_json(input).unwrap();
@@ -2185,7 +2230,7 @@ mod tests {
             (
                 "sonic-the-hedgehog-recomp",
                 "game.bin",
-                Some("v0.6.0"),
+                Some("v0.7.3"),
                 "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
             ),
             (

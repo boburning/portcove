@@ -15,6 +15,11 @@ import {
 import { RoadmapClient, portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import { observationHash } from "./upstream-observer.mts";
+import {
+  collectRoadmapInventory,
+  requireRoadmapInventory,
+  invalidateRoadmapInventory,
+} from "./roadmap-inventory.mts";
 
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
@@ -172,18 +177,21 @@ function fixture(candidates = [candidate]) {
     };
   };
   client.createPortIssue = (input) => {
+    if (input.inventory)
+      requireRoadmapInventory(input.inventory, config.repository, client, "identity");
     assert.deepEqual(
       lastInventorySnapshot,
       snapshots.at(-1),
       "canonical inventory must follow the last durable receipt write",
     );
+    if (input.inventory) invalidateRoadmapInventory(input.inventory);
     creations++;
     assert(
       snapshots.some((v) => JSON.stringify(v).includes("create-attempted")),
       "attempt receipt must precede POST",
     );
     if (postFailure) throw new Error("Transport result unknown");
-    const number = 199 + creations;
+    const number = Math.max(199, ...issues.map((i) => i.number)) + 1;
     const issue = {
       id: `I${number}`,
       node_id: `I${number}`,
@@ -205,8 +213,13 @@ function fixture(candidates = [candidate]) {
     if (!i) throw new Error("Missing issue");
     return { ...i, number: n };
   };
-  client.normalizePortIssue = ({ number }) => {
+  client.normalizePortIssue = ({ number, inventory }) => {
+    if (inventory) {
+      requireRoadmapInventory(inventory, config.repository, client, { planningIssue: number });
+      invalidateRoadmapInventory(inventory);
+    }
     normalizations++;
+    Object.assign(fields, portFieldInitialization(null));
     return {
       issue: issues.find((i) => i.number === Number(number))!.url,
       bodyChanged: false,
@@ -262,24 +275,73 @@ function fixture(candidates = [candidate]) {
     }),
     () => {},
   );
-  bridge.inventory = () => {
-    lastInventorySnapshot = structuredClone(snapshots.at(-1));
+  client.completeProjectContext = () => ({
+    number: config.project.number,
+    details: {
+      id: "PVT",
+      number: config.project.number,
+      title: config.project.title,
+      url: "https://github.com/users/boburning/projects/1",
+      public: true,
+    },
+    fields: [],
+  });
+  client.itemList = (_number, options) =>
+    issues.map((i) => ({
+      id: `PVTI${i.number}`,
+      isArchived: false,
+      content: { ...i, __typename: "Issue", body: undefined },
+      ...(options?.includeFields === false ? {} : fields),
+    }));
+  client.directProjectItem = (id) => {
+    const issue = issues.find((i) => `PVTI${i.number}` === id);
+    assert(issue);
     return {
-      format: 1,
-      repository: config.repository,
-      repository_node_id: "R",
-      observed_at: new Date().toISOString(),
-      issues,
-      items: issues.map((i) => ({
-        id: `PVTI${i.number}`,
-        isArchived: false,
-        content: { ...i },
-        ...fields,
+      id,
+      isArchived: false,
+      content: { ...issue, __typename: "Issue" },
+      ...fields,
+      fieldValues: Object.entries(fields).map(([name, value]) => ({
+        field: { name },
+        name: value,
       })),
-      archivedItems: [],
-      body_reads: 0,
-      projectId: "PVT",
     };
+  };
+  client.graphql = (query) => {
+    const connection = (nodes: unknown[]) => ({
+      totalCount: issues.length,
+      nodes,
+      pageInfo: { hasNextPage: false, endCursor: null },
+    });
+    if (query.includes("projectRevision"))
+      return {
+        projectRevision: {
+          id: "PVT",
+          updatedAt: "2026-10-28T00:00:00Z",
+          items: { totalCount: issues.length },
+        },
+      };
+    let nodes: unknown[];
+    if (query.includes("RepositoryIssueMarker"))
+      nodes = issues.slice(-1).map(({ id, number }) => ({ id, number }));
+    else if (query.includes("UPDATED_AT"))
+      nodes = issues.slice(-1).map(({ id, updatedAt }) => ({ id, updatedAt }));
+    else if (query.includes("CREATED_AT")) nodes = structuredClone(issues);
+    else throw new Error("Unexpected fixture inventory query");
+    return { repository: { id: "R", nameWithOwner: config.repository, issues: connection(nodes) } };
+  };
+  bridge.inventory = (_cache, full) => {
+    lastInventorySnapshot = structuredClone(snapshots.at(-1));
+    return collectRoadmapInventory(
+      client,
+      undefined,
+      full
+        ? undefined
+        : {
+            scope: "intake",
+            planningIssues: [...bridge.planningIssues],
+          },
+    );
   };
   const all = () => [...comments.values()].map((c) => structuredClone(c));
   return {
@@ -319,6 +381,164 @@ function fixture(candidates = [candidate]) {
   };
 }
 
+async function partialFixture() {
+  const f = fixture(
+    Array.from({ length: 3 }, (_, i) => ({
+      ...candidate,
+      title: `Recovery game ${i}`,
+      game: `Recovery game ${i}`,
+      upstream: `${candidate.upstream}-${i}`,
+      port_key: `${candidate.port_key}-${i}`,
+      repository_id: candidate.repository_id + i,
+    })),
+  );
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = (cache, full) => {
+    const comment = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"));
+    const d = comment
+      ? (
+          JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+            delivery: { status: string }[];
+          }
+        ).delivery
+      : [];
+    if (d[2]?.status === "create-attempted") throw new Error("Unstarted preflight exhausted");
+    return inventory(cache, full);
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Unstarted preflight/u);
+  assert.equal(f.creations, 2);
+  f.bridge.inventory = inventory;
+  return f;
+}
+void test("neutral recovery prefix spends no empty normalization or intermediate whole-inventory reads", async () => {
+  const f = await partialFixture();
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let calls = 0;
+  f.bridge.inventory = (cache, full) => {
+    calls++;
+    return inventory(cache, full);
+  };
+  assert.equal((await f.bridge.process(f.request, f.all()))?.status, "complete");
+  assert.equal(calls, 2, "initial authority and mandatory fresh third-POST preflight only");
+  assert.equal(f.normalizations, 0);
+  assert.equal(f.creations, 3);
+});
+void test("cached-neutral owner drift holds on fresh readback without repair", async () => {
+  const f = await partialFixture();
+  const execution = f.client.executionIssue.bind(f.client);
+  f.client.executionIssue = (number) => {
+    const got = execution(number);
+    if (number === 200) Object.assign(got.item, { Priority: "High" });
+    return got;
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Neutral intake field differs/u);
+  assert.equal(f.normalizations, 0);
+  assert.equal(f.creations, 2);
+});
+void test("needed normalization refreshes and rechecks ownership before writing", async () => {
+  const f = await partialFixture();
+  delete f.fields.Priority;
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let calls = 0;
+  f.bridge.inventory = (cache, full) => {
+    if (++calls === 2) f.fields.Priority = "High";
+    return inventory(cache, full);
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /owner changes/u);
+  assert.equal(calls, 2);
+  assert.equal(f.normalizations, 0);
+  assert.equal(f.creations, 2);
+});
+void test("normalization invalidation refreshes before the next retained target", async () => {
+  const f = await partialFixture();
+  delete f.fields.Priority;
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let calls = 0;
+  f.bridge.inventory = (cache, full) => {
+    calls++;
+    return inventory(cache, full);
+  };
+  assert.equal((await f.bridge.process(f.request, f.all()))?.status, "complete");
+  assert.equal(
+    calls,
+    4,
+    "initial, normalization preimage, invalidated consumer and POST preflight",
+  );
+  assert.equal(f.normalizations, 1);
+});
+void test("a new POST invalidation refreshes before a later retained record", async () => {
+  const candidates = [0, 1].map((i) => ({
+    ...candidate,
+    title: `Mixed ${i}`,
+    game: `Mixed ${i}`,
+    upstream: `${candidate.upstream}-${i}`,
+    port_key: `${candidate.port_key}-${i}`,
+    repository_id: candidate.repository_id + i,
+  }));
+  const f = fixture(candidates);
+  const plan = candidates.map((c) => f.bridge.primary(c, f.request.id));
+  f.issues.push({
+    id: "I201",
+    node_id: "I201",
+    number: 201,
+    title: `[Port] ${candidates[1]!.title}`,
+    body: plan[1]!.body,
+    state: "OPEN",
+    url: "https://github.com/boburning/portcove/issues/201",
+    html_url: "https://github.com/boburning/portcove/issues/201",
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  const hash = observationHash(f.request.body);
+  const prior = {
+    schema_version: 1,
+    request_comment: f.request.id,
+    request_sha256: hash,
+    investigator: proposal.investigator,
+    plan_sha256: hostedPlanHash(hash, plan),
+    plan,
+    delivery: [{ status: "prepared" }, { status: "created", created_issue: 201 }],
+    status: "incomplete",
+    head: f.bridge.head,
+    run: "retained",
+    attempt: "1",
+    plan_origin: { head: f.bridge.head, run: "retained", attempt: "1" },
+  };
+  f.comments.set(999, {
+    id: 999,
+    issue_url: f.request.issue_url,
+    user: { login: "github-actions[bot]" },
+    body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(prior)}\n\`\`\``,
+  });
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let calls = 0;
+  f.bridge.inventory = (cache, full) => {
+    calls++;
+    return inventory(cache, full);
+  };
+  assert.equal((await f.bridge.process(f.request, f.all()))?.status, "complete");
+  assert.equal(calls, 3, "initial, new POST preflight and invalidated retained consumer");
+  assert.equal(f.creations, 1);
+  assert.equal(f.normalizations, 0);
+});
+void test("known expiry refreshes the retained target without extending inventory TTL", async (t) => {
+  const f = await partialFixture();
+  const now = Date.now.bind(Date);
+  const clock = t.mock.method(Date, "now", () => now());
+  const set = f.client.setItemFields.bind(f.client);
+  f.client.setItemFields = (id, values) => {
+    set(id, values);
+    if (id === "PVTICANARY") clock.mock.mockImplementation(() => now() + 95000);
+  };
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let calls = 0;
+  f.bridge.inventory = (cache, full) => {
+    if (++calls === 2) clock.mock.restore();
+    return inventory(cache, full);
+  };
+  assert.equal((await f.bridge.process(f.request, f.all()))?.status, "complete");
+  assert.equal(calls, 3);
+  assert.equal(f.normalizations, 0);
+});
 void test("untrusted actors, wrong repositories/issues and executable payload fields refuse", () => {
   const event = {
     repository: { full_name: "boburning/portcove" },
@@ -348,6 +568,112 @@ void test("generated body retains maintained research and exact identity markers
   assert.match(body, /portcove-research: catalog=unassigned; support=not-granted/u);
   assert.match(body, /portcove-discovery-intake:hosted-100-example-native-game/u);
   assert.match(body, /GitHub repository ID: 987654321/u);
+});
+void test("ten long candidates retain a single compact logical receipt", async () => {
+  const f = fixture(
+    Array.from({ length: 10 }, (_, i) => ({
+      ...candidate,
+      title: `Long game ${i}`,
+      game: `Long game ${i}`,
+      upstream: `${candidate.upstream}-${i}`,
+      repository_id: candidate.repository_id + i,
+      port_key: `${candidate.port_key}-${i}`,
+      evidence: "Dated primary upstream evidence; gameplay remains Unknown. ".repeat(65),
+    })),
+  );
+  await f.prepare();
+  const prior = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
+  assert(Buffer.byteLength(prior.body) < 20000);
+  assert.match(prior.body, /proposal-bound-v1/u);
+  assert.doesNotMatch(prior.body, /Dated primary upstream evidence/u);
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.equal(result.delivery.length, 10);
+  assert.equal(f.creations, 10);
+  assert.equal(
+    [...f.comments.values()].filter((c) => c.user.login === "github-actions[bot]").length,
+    1,
+  );
+});
+void test("compact plan tampering refuses and legacy complete receipts stay byte-identical", async () => {
+  const f = fixture();
+  await f.prepare();
+  const prior = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
+  const wire = JSON.parse(prior.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    plan_encoding?: string;
+    plan: Record<string, unknown>[];
+    status: string;
+  };
+  const original = prior.body;
+  for (const field of ["body_sha256", "candidate_index", "port_key"]) {
+    const altered = structuredClone(wire);
+    altered.plan[0]![field] = "changed";
+    prior.body = original.replace(
+      /```json\n[\s\S]+\n```$/u,
+      `\`\`\`json\n${JSON.stringify(altered)}\n\`\`\``,
+    );
+    await assert.rejects(f.bridge.process(f.request, f.all()), /exact proposal/u);
+    assert.equal(f.creations, 0);
+  }
+  delete wire.plan_encoding;
+  wire.plan = [{ ...f.bridge.primary(candidate, f.request.id) }];
+  wire.status = "complete";
+  prior.body = original.replace(
+    /```json\n[\s\S]+\n```$/u,
+    `\`\`\`json\n${JSON.stringify(wire)}\n\`\`\``,
+  );
+  const legacy = prior.body;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(prior.body, legacy);
+  assert.equal(f.creations, 0);
+});
+void test("safe preflight drift recovers in a fresh pass without duplicate POSTs", async () => {
+  const f = fixture();
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let drift = true;
+  f.bridge.inventory = (...args) => {
+    if (drift) {
+      drift = false;
+      throw new GitHubApiError("inventory_changed", "membership moved");
+    }
+    return inventory(...args);
+  };
+  let error: unknown;
+  try {
+    await f.bridge.process(f.request, f.all());
+  } catch (e) {
+    error = e;
+  }
+  assert.equal(f.bridge.continuation(error), "inventory_changed");
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 1);
+});
+void test("an unconfirmed issue or receipt mutation permanently excludes automatic continuation", async () => {
+  for (const target of ["issue", "receipt"]) {
+    const f = fixture();
+    if (target === "issue") {
+      f.client.createPortIssue = () => {
+        throw new GitHubApiError("budget_exhausted", "POST result unknown");
+      };
+    } else {
+      const request = f.client.api.request.bind(f.client.api);
+      f.client.api.request = (...args) => {
+        const result = request(...args);
+        if (args[0] === "POST")
+          throw new GitHubApiError("budget_exhausted", "receipt POST result unknown");
+        return result;
+      };
+    }
+    let error: unknown;
+    try {
+      await f.bridge.process(f.request, f.all());
+    } catch (e) {
+      error = e;
+    }
+    assert(error);
+    assert.equal(f.bridge.continuation(error), null);
+  }
 });
 void test("a legacy pending plan resumes without a reviewer or a duplicate proposal", async () => {
   const f = fixture();
@@ -532,7 +858,7 @@ void test("authored shared repositories preserve independently catalogable games
   const { original_game_title: _game, ...unknown } = record.listing;
   assert.throws(() => assertHostedCatalogIdentity(candidate, [{ ...record, listing: unknown }]));
 });
-void test("oversized complete receipts refuse before any canonical write", async () => {
+void test("multibyte evidence fits without duplicating proposal text in the receipt", async () => {
   const f = fixture();
   const p = {
     ...proposal,
@@ -546,8 +872,8 @@ void test("oversized complete receipts refuse before any canonical write", async
   };
   f.request.body = encode(p);
   f.comments.set(100, f.request);
-  await assert.rejects(f.bridge.process(f.request, f.all()), /envelope|retain complete/u);
-  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 3);
 });
 void test("denied hosted Project write access prevents issue creation", async () => {
   const f = fixture();

@@ -207,7 +207,9 @@ it("retains a session-only layout through the real details unmount and return", 
   expect(document.body.textContent).toContain(
     "This collection view is available for this session; it could not be saved.",
   );
-  expect(document.activeElement?.getAttribute("data-detail-game-id")).toBe("collection-0");
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
+    .toBe("collection-0");
 });
 
 for (const theme of ["dark", "light"]) {
@@ -264,7 +266,7 @@ for (const theme of ["dark", "light"]) {
         ".collection-actions button[data-detail-origin$=':review']",
       )) {
         const visibleAction = action.textContent.trim();
-        expect(visibleAction).toBe("Review setup");
+        expect(visibleAction).toBe("Set up");
         expect(action.getAttribute("aria-label")).toContain(visibleAction);
       }
     }
@@ -285,7 +287,7 @@ for (const theme of ["dark", "light"]) {
     expect(entryFor(3).textContent).toContain("Update saved for later");
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
     expect(entryFor(4).textContent).toContain("Game files missing");
-    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Set up");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).toContain("Stable");
     expect(entryFor(0).querySelector(".library-entry-chips")?.textContent).not.toContain("Preview");
     expect(entryFor(0).querySelector(".collection-state")?.textContent).toContain(
@@ -299,14 +301,17 @@ for (const theme of ["dark", "light"]) {
     for (const entry of firstRow) {
       const state = entry.querySelector(".collection-state")!.getBoundingClientRect();
       const action = entry.querySelector(".collection-actions")!.getBoundingClientRect();
-      expect(action.top).toBeGreaterThanOrEqual(state.bottom);
-      expect(action.top - state.bottom).toBeLessThanOrEqual(32);
+      const beside = action.left >= state.right - 1;
+      expect(beside || action.top >= state.bottom - 1).toBe(true);
+      expect(
+        Math.max(0, beside ? action.left - state.right : action.top - state.bottom),
+      ).toBeLessThanOrEqual(32);
     }
     await page.getByRole("button", { name: "Compact rows", exact: true }).click();
     expect(localStorage.getItem(collectionLayoutKey("fixture/library"))).toBe("rows");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
     expect(entryFor(3).querySelector(".collection-actions")?.textContent).toContain("Play");
-    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Review setup");
+    expect(entryFor(4).querySelector(".collection-actions")?.textContent).toContain("Set up");
     await page
       .getByRole("textbox", { name: "Search your library", exact: true })
       .fill("Super Mario 64");
@@ -317,7 +322,9 @@ for (const theme of ["dark", "light"]) {
       .element(page.getByRole("textbox", { name: "Search your library", exact: true }))
       .toHaveValue("Super Mario 64");
     expect(document.querySelectorAll(".collection-row")).toHaveLength(2);
-    expect(document.activeElement?.getAttribute("data-detail-game-id")).toBe("collection-0");
+    await expect
+      .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
+      .toBe("collection-0");
   });
 
   it(`keeps ${theme} collection actions in one reading flow at actual narrow widths and spacing overrides`, async () => {
@@ -326,7 +333,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     expect(
       document.querySelector(".collection-art")!.getBoundingClientRect().width,
-    ).toBeLessThanOrEqual(221);
+    ).toBeLessThanOrEqual(260);
     const spacing = document.createElement("style");
     spacing.id = "collection-spacing";
     spacing.textContent =

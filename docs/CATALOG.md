@@ -180,6 +180,34 @@ a range whose lower bound is Native4 cannot authorize the new behavior. Earlier
 definitions omit the field and retain Native1–4 semantics. Complete retained
 projection continues to refuse unknown or discarded fields in older readers.
 
+Native6 supports verified original-file preparation through the existing
+`source_profile` and `runtime_source_set` fields. This opt-in accepts complete
+schema-2 FileSet variants with cryptographic member identities, one enforced game
+source contract covering those variants, and Copy targets only. Original outputs
+are immutable and reserve their first path component apart from mutable
+profile/TEMP paths and filename patterns. Manual
+setup markers, conversion, installers and per-title initialization do not establish
+this completion. No production title is admitted by the generic capability.
+
+The existing SourceOnly planner, authorization, private staging, receipt, manifest
+and publisher own preparation. Fresh packages must leave every original output
+and sidecar vacant, including case aliases. Core resolves the package executable
+and derives its exact parent directory; a wrapper does not move the outer
+installation manifest or preparation receipts. Copied files are hashed against
+the admitted complete source set, and original inputs are checked again before
+publication and registration. The source and complete typed source contract are
+bound to the existing receipt. Launch never repairs or recopies sealed originals.
+
+Reviewed preparation can copy a verified installation into a new private payload.
+Unrecorded or altered immutable inputs refuse preparation. A prepared installation
+cannot silently rebind to another original edition, source registration or member
+mapping; maintenance and retained activation compare their creating contracts and
+sealed source receipts. Unapproved populated adoption and persistence changes stay
+held. Preserving removal retains declared profile data and leaves external
+originals unchanged. Native1–5 definitions and older SourceOnly interpretations
+retain their existing semantics. Fresh and retained indexed entries with native
+source profiles require a Native6 lower bound.
+
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
 contract. For example, the CorsixTH and SDL Sopwith records use the shared route
@@ -1681,6 +1709,22 @@ their original scope. Ordinary contract shrinking, populated additions and
 unproven scope expansion remain refused. Runtime rollback still carries current
 data and does not rewind saves.
 
+The historical Sonic 3K v0.5.3 (#154), Sonic 1 v0.6.0 (#152) and Mega Man X2
+v0.1.4 (#165) reader transitions to newer routes have an additional
+compatibility hold: common declared player data must also be absent in the retained
+runtime, canonical data and actual target. Only separately verified regular original
+bytes are exempt; an empty set of added sidecars proves no save compatibility.
+A fresh newer route cannot initialize unknown canonical player data through collection,
+restore, backup restoration, activation or recovery. The exact legacy reader keeps
+its creating contract. An established target's exact retained contract and matching
+installation/manifest data-restore receipt preserve its administrative restore
+behavior; that receipt does not establish state ABI or authorize legacy adoption.
+A separate empty library remains the fresh creation case. Other ports retain the
+generic common-data preservation rule above. New indexed fresh definitions for
+these newer routes must declare staged-source capability version 25, so readers
+without this behavior refuse them. Retained entries keep their creating reader
+requirements; current runtime checks remain independent of that envelope.
+
 Explicit rollback between two authenticated retained ready-archive copies may use
 that same empty-path proof in either direction when one persistence scope strictly
 contains the other. Both copies keep their original manifests and receipt scope; ordinary restore
@@ -1732,16 +1776,23 @@ or another external user-profile directory; such state needs an upstream
 redirect or a separately reviewed ownership capability.
 
 `windows_runtime_path_policy: "printable-ascii-max-path"` declares a verified
-upstream limitation for a Windows-only managed staged-source runtime. Core rejects
+upstream limitation for a Windows-only managed staged-source runtime, or a native
+archive with Windows support and no original-source preparation or setup helpers. Core rejects
 known unsuitable output roots before acquisition, and checks the selected executable
 and its probe filename budget during readiness and again before preparation. The
 requirement is retained with the installation and survives an output-folder move;
 it grants no relocation or adoption permission. Source files may remain in their
 original Unicode locations when the adapter passes a checked relative runtime copy.
 This policy currently excludes external runtimes, setup executables and managed
-build recipes. Independent definition entries must require staged-source template
-version11. Absent policy retains the prior route contract; this is not a blanket
+build recipes. Native archives also check every authenticated package member at
+its final destination; other declared platforms retain their existing behavior.
+Independent definition entries must require staged-source template version11 or
+native-portable version7, respectively. Absent policy retains the prior route contract; this is not a blanket
 ASCII restriction or a claim that every other runtime supports Unicode paths.
+Existing installations use their creating definition: a new catalog declaration
+does not retrofit this guard into retained manifests. Review an existing supported
+move/adoption route separately; never rewrite the historical definition to claim
+that an old installation is protected.
 
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
@@ -1829,8 +1880,9 @@ Game and edition IDs are maintained explicitly, not inferred from project names,
 artwork mappings or a frozen prototype registry. Unknown editions remain unknown
 until their own upstream evidence has been reviewed.
 
-Optional authored `media` carries at most one `header` and eight `screenshot`
-assets through the same listing and operational presentation projection. Every
+Optional authored `media` carries at most two `header`, two `key_art`, two `logo`
+and eight `screenshot` assets through the same listing and operational presentation
+projection. Identity roles permit one candidate per exact subject. Every
 asset declares its exact port or authored original-game plus source-edition ID,
 caption, digest, dimensions, image/source URLs, attribution, a supported license
 identifier and `rights_url` evidence. Reviewers inspect the source and rights
@@ -1838,7 +1890,12 @@ evidence; metadata admission validates shape and bounds, not a legal grant. A
 parent project license alone is not distribution consent. No third-party files
 are copied merely to fill a gallery.
 
-Directories containing media require format 3. Legacy strict presentation with
+Legacy header/screenshot media requires listing format 3. Game key art/logos,
+IGDB image metadata, explicit `edition_neutral` evidence or a second header require
+format 5; current readers retain formats 1–4. New optional fields preserve old
+records, not old strict readers' ability to consume new fields or enum values.
+Normal audience/reader compatibility review remains required before publication.
+Legacy strict presentation with
 no `media` field may use reviewed directory media for the same exact identity;
 an explicit empty array clears it. An existing local artwork override takes
 precedence for the header, including its unavailable state; screenshots remain
@@ -1846,6 +1903,42 @@ authored read-only media. Image retrieval accepts only pinned raw GitHub commit
 URLs, the IGDB image CDN and Wikimedia Commons, with no redirects, URL queries or
 credentials. Cached `.image` originals share the existing disposable 64 MiB
 artwork cache and bounded decoding work; local overrides remain separate.
+
+Both game details and Continue resolve foreground identity as verified IGDB key
+art, then a suitable IGDB game logo, then the existing appropriate Cover choice,
+then a text heading. Each role prefers the exact port over an accurately matched
+original/edition. An offered original edition is not a selected edition: every
+media role requires actual applicable edition context or explicitly reviewed
+`edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
+resolve independently, and a portrait cover is never stretched into a banner.
+The Desktop currently has no validated binding from Core's source game/variant/
+representation identity to these descriptive original-edition IDs. Production
+original media therefore requires explicitly reviewed edition neutrality; exact
+port media and the existing Cover/text fallback remain available. Offered editions
+or similar ID strings must not manufacture a selection.
+
+Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
+`--hero-media igdb` with the existing identity facts, private credentials and Core
+image validator. It queries `/v4/logos` and `/v4/artworks` through the same paced,
+bounded authenticated transport. Key art requires a positive `image_type.id/name`
+classification; conceptual art and unknown classifications do not qualify. Source
+image-type IDs are observed rather than hard-coded.
+
+The optional image-type inventory uses IGDB's maximum 500-record page and a
+separate one-record overflow query when the page is full. Overflow, malformed
+responses and provider failures remain unknown; they never establish missing key
+art. Role preparation classifies each image using its expanded `image_type.id/name`
+relationship and does not require a separate inventory request.
+Original identity facts bind `source_edition_id` explicitly; optional
+`hero_media_edition_neutral` records reviewed
+applicability. Image records are bound to the verified game ID before download.
+Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
+candidate chains and independent role failures. Exact HTTP410 observations sweep
+all candidate references and prevent batch reselection; failed or incomplete
+requests do not establish absence or withdrawal. Preparation proposes remote URLs,
+provenance, hashes and provider terms; it grants no admission, signing, publication
+or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
+provider access terms, not a permissive copyright license.
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
 `catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.

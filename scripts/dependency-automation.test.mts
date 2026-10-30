@@ -220,6 +220,11 @@ void test("Renovate is the sole conservative routine update authority", async ()
   assert.equal(renovate.minimumReleaseAgeBuffer, "30 minutes");
   assert.equal(renovate.minimumReleaseAgeBehaviour, "timestamp-required");
   assert.equal(renovate.internalChecksFilter, "strict");
+  assert.equal(
+    renovate.packageRules.some((rule) => record(rule).minimumReleaseAgeBehaviour !== undefined),
+    false,
+    "delivered immutable updates leave no package-specific timestamp exception",
+  );
   assert.equal(renovate.prConcurrentLimit, 6);
   assert.equal(renovate.branchConcurrentLimit, 6);
   assert.equal(renovate.prHourlyLimit, 0);
@@ -602,30 +607,6 @@ void test("lock maintenance delegates only its unsupported age calculation to re
   const registry = await read("scripts/lock-maintenance-registry.mts");
   assert.match(registry, /minimumReleaseAgeMs: 86_400_000/u);
   assert.match(registry, /minimumReleaseAgeBufferMs: 1_800_000/u);
-});
-
-void test("Rust digest timestamp workaround retains every exact late-rule boundary", () => {
-  const overrides = renovateConfig.packageRules.filter(
-    (rule) => record(rule).minimumReleaseAgeBehaviour !== undefined,
-  );
-  assert.equal(overrides.length, 1);
-  const rule = record(required(overrides[0]));
-  assert.deepEqual(rule, {
-    description:
-      "Temporary exact Rust digest branch timestamp correction; native strict lookup and 1 day 30 minute eligibility remain authoritative",
-    matchManagers: ["dockerfile"],
-    matchDatasources: ["docker"],
-    matchPackageNames: ["rust"],
-    matchFileNames: ["tools/containers/build/Dockerfile"],
-    matchUpdateTypes: ["digest"],
-    matchCurrentValue: "1.99.1-slim-bookworm",
-    matchNewValue: "1.99.1-slim-bookworm",
-    matchCurrentAge: ">= 1 day 30 minutes",
-    matchJsonata: [
-      "newDigest = 'sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400' and $not($exists(lockedVersion)) and minimumReleaseAge = '1 day' and minimumReleaseAgeBuffer = '30 minutes' and internalChecksFilter = 'strict' and minimumReleaseAgeBehaviour = 'timestamp-required'",
-    ],
-    minimumReleaseAgeBehaviour: "timestamp-optional",
-  });
 });
 
 void test("selective migration intake and security overrides preserve immediate controlled delivery", async () => {

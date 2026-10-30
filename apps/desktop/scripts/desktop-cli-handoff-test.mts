@@ -154,7 +154,7 @@ export async function cliHandoffScenario({
           tab.textContent?.trim(),
         ),
       ),
-      ["Overview", "Game files", "Saves", "Versions & updates", "Manage"],
+      ["Overview", "Game files", "Saves & backups", "Versions & updates", "Manage"],
     );
     await revealDetailSection(browser, "Versions & updates");
     const versionSummary = await browser

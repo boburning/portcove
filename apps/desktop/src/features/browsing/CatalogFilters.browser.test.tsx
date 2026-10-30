@@ -1,4 +1,8 @@
-import { filterChoice, openFilterField as openField } from "../../../test/filter-fields";
+import {
+  closeFilterPanel,
+  filterChoice,
+  openFilterField as openField,
+} from "../../../test/filter-fields";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
@@ -175,8 +179,7 @@ it.each([
   expect(current).toMatchObject({ platforms: ["windows-x86-64"], channels: ["beta"] });
   expect((await control("Windows (1)")).getAttribute("aria-checked")).toBe("true");
   expect((await control("Preview (1)")).getAttribute("aria-checked")).toBe("true");
-  await userEvent.keyboard("{Escape}");
-  await userEvent.keyboard("{Escape}");
+  await closeFilterPanel();
   await expect
     .element(page.getByRole("button", { name: "Filters (2)", exact: true }))
     .toHaveFocus();
@@ -206,8 +209,7 @@ it("uses one inline panel and returns focus from Escape and Done without clearin
   await expect.element(page.getByRole("button", { name: /^Original system:/ })).toBeVisible();
   await expect.element(page.getByRole("button", { name: /^Target OS:/ })).toBeVisible();
   await click("Windows (1)");
-  await userEvent.keyboard("{Escape}");
-  await userEvent.keyboard("{Escape}");
+  await closeFilterPanel();
   await expect
     .element(page.getByRole("button", { name: "Filters (1)", exact: true }))
     .toHaveFocus();

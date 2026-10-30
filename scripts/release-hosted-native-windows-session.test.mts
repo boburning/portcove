@@ -11,6 +11,7 @@ import { runInNewContext } from "node:vm";
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import { projectWindowsCustodyFailure } from "./release-native-runtime-custody.mts";
 import {
   windowsOwnerFiletime,
   windowsOwnerEnvironment,
@@ -479,6 +480,7 @@ void test("diagnostic provider budget uses one bounded public current-job read a
   const budget = await readOrdinaryHostedWindowsDiagnosticDeadline(context, valid);
   assert.equal(calls, 1);
   assert.equal(budget.authority, "none");
+  assert.equal(budget.maximum_provider_milliseconds, 6000000);
   assert.equal(budget.maximum_owner_milliseconds, 570000);
   assert.equal(budget.cleanup_reserve_milliseconds, 30000);
   assert.equal(budget.provider_finalizer_margin_milliseconds, 60000);
@@ -504,7 +506,7 @@ void test("diagnostic provider budget uses one bounded public current-job read a
       if (scenario === "wrong-attempt") row.run_attempt = 2;
       if (scenario === "wrong-runner") row.labels = ["larger-paid-runner"];
       if (scenario === "insufficient")
-        row.started_at = new Date(Date.now() - 89 * 60000).toISOString();
+        row.started_at = new Date(Date.now() - 99 * 60000).toISOString();
       const headers = new Headers({
         date: new Date(Date.now() + (scenario === "future-date" ? 120000 : 0)).toUTCString(),
       });
@@ -538,6 +540,7 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
     );
   for (const scenario of [
     "success",
+    "foreign-prepared-root",
     "foreign-source",
     "dirty-source",
     "private-key",
@@ -550,8 +553,17 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
     "local-runner",
     "observer-only",
   ]) {
-    const project = path.resolve("/fixed-diagnostic-source"),
+    const home = path.resolve("/fixed-diagnostic-home"),
       source = "a".repeat(40),
+      project =
+        scenario === "foreign-prepared-root"
+          ? path.resolve("/foreign-diagnostic-source")
+          : path.join(
+              home,
+              ".pct-connected-123-" + source.slice(0, 12),
+              "windows-source",
+              "source",
+            ),
       tree = "b".repeat(40),
       versions = ["1.0.0-rc.2", "1.0.0"];
     const result = {
@@ -591,6 +603,7 @@ void test("fixed diagnostic acquisition reuses signature verification and refuse
     };
     const identities = new Map<string, number>();
     const acquire = runInNewContext(code + ";readOriginalHostedWindowsDiagnosticInputs", {
+      os: { homedir: () => home },
       assert,
       Buffer,
       JSON,
@@ -1489,6 +1502,7 @@ void test("diagnostic startup errors retain only closed classifications and boun
       Error,
       hash,
       error,
+      projectWindowsCustodyFailure,
       diagnosticStartupSourceSites: [
         {
           script: "diagnostic-inputs",
@@ -1519,6 +1533,47 @@ void test("diagnostic startup errors retain only closed classifications and boun
   assert.equal(classified.message_sha256, hash(Buffer.from(marker)));
   assert.equal(classified.message_disposition, "digest-only");
   assert.equal(JSON.stringify(classified).includes(marker), false);
+  const custodyDetail = {
+    schema_version: 1,
+    child_status: 1,
+    child_signal: null,
+    spawn_code: "unknown",
+    reader: {
+      schema_version: 1,
+      reason: "writer",
+      phase: "rules",
+      ordinal: 3,
+      kind: "directory",
+      principal_class: "authenticated-users",
+      rights: 2,
+    },
+  };
+  const custody = classify(
+    Object.assign(new Error(marker), {
+      code: "ERR_WINDOWS_CUSTODY_REFUSED",
+      windows_custody: custodyDetail,
+    }),
+  );
+  assert.ok(isRecord(custody));
+  assert.equal(custody.code, "ERR_WINDOWS_CUSTODY_REFUSED");
+  assert.equal(JSON.stringify(custody.custody), JSON.stringify(custodyDetail));
+  assert.equal(JSON.stringify(custody).includes(marker), false);
+  for (const unsafe of [
+    { ...custodyDetail, raw_path: marker },
+    { ...custodyDetail, reader: { ...custodyDetail.reader, ordinal: 4096 } },
+    { ...custodyDetail, reader: { ...custodyDetail.reader, principal_class: marker } },
+    { ...custodyDetail, reader: { ...custodyDetail.reader, rights: 32 } },
+  ]) {
+    const projected = classify(
+      Object.assign(new Error(marker), {
+        code: "ERR_WINDOWS_CUSTODY_REFUSED",
+        windows_custody: unsafe,
+      }),
+    );
+    assert.ok(isRecord(projected));
+    assert.equal(projected.custody, null);
+    assert.equal(JSON.stringify(projected).includes(marker), false);
+  }
   const unknown = classify(Object.assign(new Error(marker), { name: marker, code: marker }));
   assert.ok(isRecord(unknown));
   assert.equal(unknown.name, "unclassified");
@@ -1784,4 +1839,201 @@ void test("optional native exit observation never discards final settlement afte
     assert.equal(retained[0]?.original_owner_exited, scenario === "absent" ? true : "Unknown");
     assert.equal(queries, scenario === "expired" ? 0 : 1);
   }
+});
+
+void test("actual preparation completion publishes identical durable create-only records consumed by the launcher", async (t) => {
+  const implementation = await readFile(
+      new URL("./release-hosted-native-windows-diagnostic-preparation.mts", import.meta.url),
+      "utf8",
+    ),
+    start = implementation.lastIndexOf("  const report = {"),
+    ending = implementation.slice(start).trimEnd();
+  assert.ok(start > 0 && ending.endsWith("}"), "Actual producer completion boundary required");
+  const program = stripTypeScriptTypes("(async () => {\n" + ending.slice(0, -1) + "\n})()", {
+    mode: "transform",
+  });
+  const temporary = await mkdtemp(path.join(os.tmpdir(), "pc-preparation-persistence-"));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  for (const scenario of [
+    "success",
+    "expired-before-write",
+    "interrupted-public-write",
+    "retained-public-file",
+    "oversize",
+  ] as const) {
+    const root = path.join(temporary, scenario, "private"),
+      project = path.join(temporary, scenario, "checkout"),
+      privateRecord = path.join(root, "preparation.json"),
+      publicRecord = path.join(
+        project,
+        "work/hosted-continuity-evidence/windows-diagnostic-preparation.json",
+      );
+    await mkdir(root, { recursive: true });
+    await mkdir(path.dirname(publicRecord), { recursive: true });
+    const retained = Buffer.from("retained prior public evidence");
+    if (scenario === "retained-public-file")
+      await writeFile(publicRecord, retained, { flag: "wx" });
+    const events: string[] = [];
+    const invoke = () =>
+      runInNewContext(program, {
+        assert,
+        Buffer,
+        JSON,
+        path,
+        root,
+        project,
+        context: { source: "a".repeat(40), run_id: "123", workflow: "fixed-workflow" },
+        tree: "b".repeat(40),
+        source: path.join(root, "windows-source/source"),
+        runtimeFiles: [path.join(root, "tools/bin/node.exe")],
+        nodeBytes: Buffer.from("inert node bytes"),
+        controllerBytes: Buffer.from("inert controller bytes"),
+        launcherBytes: Buffer.from("inert launcher bytes"),
+        preparedSetupBytes: Buffer.from("inert setup bytes"),
+        process: { env: { RUNNER_TEMP: path.join(root, "public-temp") } },
+        digest: (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex"),
+        scopedPaths: { sharedRoot: path.join(root, "cache") },
+        provider: { job_id: 42, job_started_at: "original-provider-start" },
+        diagnosticPreparationMaximumMilliseconds: 480000,
+        treeBytes: Buffer.from("tree"),
+        graph: { sha256: "c".repeat(64), entries: 1, bytes: 1 },
+        copies: scenario === "oversize" ? [{ inert: "x".repeat(65536) }] : [],
+        imports: [],
+        yamlLink: {},
+        yamlLinkNativeIdentity: "owned fixture",
+        driverCopies: [],
+        recheck: () => {
+          events.push("original-clock-custody");
+          if (scenario === "expired-before-write") throw Error("original clock exhausted");
+        },
+        recheckImports: () => {
+          events.push("import-custody");
+        },
+        active: () => {
+          events.push("original-clock");
+        },
+        inspectNativeRuntimeCustody: (files: string[]) => {
+          assert.deepEqual(Array.from(files), [privateRecord]);
+          events.push("retained-record-custody");
+          return new Map();
+        },
+        recheckNativeRuntimeCustody: () => {
+          events.push("retained-record-recheck");
+        },
+        writeFile: async (
+          filename: string,
+          bytes: Buffer,
+          options: { flag: string; flush: boolean },
+        ) => {
+          assert.equal(options.flag, "wx");
+          assert.equal(options.flush, true);
+          events.push(filename === privateRecord ? "private-write" : "public-write");
+          if (scenario === "interrupted-public-write" && filename === publicRecord)
+            throw Error("controlled interrupted public write");
+          await writeFile(filename, bytes, options);
+        },
+        readControllerToolFile: async (filename: string, maximum: number) => {
+          const bytes = await readFile(filename);
+          assert.ok(bytes.length > 0 && bytes.length <= maximum);
+          return bytes;
+        },
+      }) as Promise<unknown>;
+    if (scenario === "success") {
+      const result = await invoke();
+      assert.ok(isRecord(result));
+      const privateBytes = await readFile(privateRecord),
+        publicBytes = await readFile(publicRecord);
+      assert.ok(privateBytes.length <= 65536 && privateBytes.equals(publicBytes));
+      const consumer: unknown = JSON.parse(publicBytes.toString("utf8"));
+      assert.ok(isRecord(consumer));
+      assert.equal(consumer.source, "a".repeat(40));
+      assert.equal(consumer.root, root);
+      assert.equal(consumer.authority, "none");
+      assert.ok(events.indexOf("original-clock-custody") < events.indexOf("private-write"));
+      assert.ok(events.indexOf("retained-record-custody") < events.indexOf("public-write"));
+      assert.ok(events.includes("retained-record-recheck"));
+      await assert.rejects(invoke(), { code: "EEXIST" });
+      assert.ok((await readFile(privateRecord)).equals(privateBytes));
+      assert.ok((await readFile(publicRecord)).equals(publicBytes));
+    } else {
+      await assert.rejects(invoke());
+      if (scenario === "expired-before-write" || scenario === "oversize") {
+        await assert.rejects(readFile(privateRecord), { code: "ENOENT" });
+        assert.equal(events.includes("private-write"), false);
+      } else {
+        assert.ok(
+          (await readFile(privateRecord)).length > 0,
+          "Interrupted private output remains retained",
+        );
+        if (scenario === "interrupted-public-write")
+          await assert.rejects(readFile(publicRecord), { code: "ENOENT" });
+        else
+          assert.ok(
+            (await readFile(publicRecord)).equals(retained),
+            "Existing evidence cannot be overwritten",
+          );
+      }
+    }
+  }
+});
+
+void test("measured4439-second prefix preserves unchanged preparation and owner reserves only in100-minute envelope", async () => {
+  const {
+    readOrdinaryHostedWindowsDiagnosticDeadline,
+    projectHostedWindowsDiagnosticPreparationReserve,
+  } = await import("./release-hosted-native-windows-diagnostic-source.mts");
+  const { requireHostedWindowsDiagnosticPreparationReserve } =
+    await import("./release-hosted-native-windows-diagnostic-preparation.mts");
+  const source = "a".repeat(40),
+    context = { source, run_id: "123", attempt: "1" };
+  const provider: typeof fetch = async () =>
+    new Response(
+      JSON.stringify({
+        total_count: 1,
+        jobs: [
+          {
+            id: 17,
+            name: "installed-prerequisite",
+            head_sha: source,
+            run_id: 123,
+            run_attempt: 1,
+            status: "in_progress",
+            conclusion: null,
+            started_at: new Date(Date.now() - 4439000).toISOString(),
+            labels: ["windows-2022"],
+          },
+        ],
+      }),
+      { status: 200, headers: { date: new Date().toUTCString() } },
+    );
+  const budget = await readOrdinaryHostedWindowsDiagnosticDeadline(context, provider),
+    remaining = Math.floor(budget.provider_remaining_deadline - performance.now());
+  assert.equal(4439 + 480 + 570 + 60, 5549);
+  assert.equal(6000 - 5549, 451);
+  assert.equal(5400 - 5549, -149);
+  assert.equal(budget.maximum_provider_milliseconds, 6000000);
+  assert.equal(budget.maximum_owner_milliseconds, 570000);
+  assert.ok(remaining >= 1499000 && remaining <= 1503000);
+  requireHostedWindowsDiagnosticPreparationReserve(remaining);
+  let original: unknown;
+  try {
+    requireHostedWindowsDiagnosticPreparationReserve(901000);
+  } catch (error) {
+    original = error;
+  }
+  assert.ok(original instanceof Error);
+  const observed = projectHostedWindowsDiagnosticPreparationReserve(original);
+  assert.ok(observed);
+  assert.equal(observed.observed_remaining_milliseconds, 901000);
+  assert.equal(observed.required_remaining_milliseconds, 1050000);
+  assert.equal(observed.preparation_milliseconds, 480000);
+  assert.equal(observed.owner_milliseconds, 570000);
+  assert.equal(observed.provider_finalizer_milliseconds, 60000);
+  const hostile = new Error("private message never projected");
+  Object.defineProperty(hostile, "diagnostic_preparation_reserve", {
+    get() {
+      throw new Error("private accessor");
+    },
+  });
+  assert.equal(projectHostedWindowsDiagnosticPreparationReserve(hostile), null);
 });

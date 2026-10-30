@@ -658,6 +658,115 @@ void test("invalid execution budgets refuse before admission or filesystem setup
     );
 });
 
+void test("original execution deadlines refuse invalid or expired windows before admission", async () => {
+  for (const executionDeadline of [NaN, Infinity, performance.now() - 1])
+    await assert.rejects(
+      runRustTests(["--guard-command", "never"], {
+        executionTimeoutMilliseconds: 1000,
+        executionDeadline,
+        acquireLock: async () => assert.fail("invalid original clock must not admit"),
+      }),
+      /Original execution deadline/,
+    );
+  await assert.rejects(
+    runRustTests(["--guard-command", "never"], {
+      executionDeadline: performance.now() + 1000,
+      acquireLock: async () => assert.fail("deadline cannot invent a payload budget"),
+    }),
+    /Original execution deadline requires/,
+  );
+});
+
+void test(
+  "original execution deadline exhausted by compiler setup never launches a payload",
+  { timeout: 5000 },
+  async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-original-clock-"));
+    let released = false,
+      compilerRead = false;
+    const until = performance.now() + 1000;
+    try {
+      await assert.rejects(
+        runRustTests(["--guard-command", "never"], {
+          ...supportCacheDoubles(),
+          tempRoot,
+          platform: "win32",
+          executionTimeoutMilliseconds: 10000,
+          executionDeadline: until,
+          acquireLock: async () => ({
+            inherited: false,
+            childEnvironment: {},
+            registerChild: async () => assert.fail("expired setup cannot register a child"),
+            release: async () => {
+              released = true;
+            },
+          }),
+          rustSupportCompilerIdentity: () => {
+            compilerRead = true;
+            Atomics.wait(
+              new Int32Array(new SharedArrayBuffer(4)),
+              0,
+              0,
+              Math.max(1, until - performance.now() + 10),
+            );
+            return testCompilerIdentity;
+          },
+          prepareSupportArtifact: () => assert.fail("expired compiler identity cannot build"),
+          spawn: () => assert.fail("expired compiler setup cannot launch"),
+          writeGate: () => assert.fail("expired compiler setup cannot open a gate"),
+        }),
+        /Original execution deadline exhausted/,
+      );
+      assert.equal(compilerRead, true);
+      assert.equal(released, true);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  },
+);
+
+void test("unsettled pre-gate compiler timeout retains its original reservation and artifacts", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-setup-unknown-"));
+  let released = false;
+  const failure = Object.assign(new Error("controlled compiler settlement Unknown"), {
+    code: "PORTCOVE_SUPPORT_SETUP_UNKNOWN",
+  });
+  try {
+    await assert.rejects(
+      runRustTests(["--guard-command", "never"], {
+        ...supportCacheDoubles(),
+        tempRoot,
+        platform: "win32",
+        executionTimeoutMilliseconds: 1000,
+        acquireLock: async () => ({
+          inherited: false,
+          childEnvironment: {},
+          registerChild: async () => assert.fail("no child registration"),
+          release: async () => {
+            released = true;
+          },
+        }),
+        rustSupportCompilerIdentity: () => {
+          throw failure;
+        },
+        spawn: () => assert.fail("unknown setup must not launch"),
+        writeGate: () => assert.fail("unknown setup must not open gate"),
+      }),
+      (error) => error === failure,
+    );
+    assert.equal(released, false);
+    const retained = await import("node:fs/promises").then(({ readdir }) => readdir(tempRoot));
+    assert.equal(retained.length, 1);
+    const receipt = JSON.parse(
+      await readFile(path.join(tempRoot, retained[0]!, "setup-custody-unknown.json"), "utf8"),
+    ) as { payload_gate_opened: boolean };
+    assert.equal(receipt.payload_gate_opened, false);
+  } finally {
+    // Controlled doubles created no compiler/process; only this owned inert fixture is disposable.
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 void test("inherited non-Linux Unix budgets and output capture refuse before creating an unregistered group", async () => {
   for (const requested of [
     { executionTimeoutMilliseconds: 20 },

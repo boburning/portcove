@@ -394,12 +394,22 @@ impl PortcoveService {
         let port = super::execution_contract(plan, &admitted)?;
         if plan.inputs.options.mode == super::PreparationMode::SourceOnly {
             let catalog = self.installed_catalog(&plan.inputs.install)?;
+            super::source::require_canonical_originals(&port, self.library())?;
             let inputs =
                 super::source::plan(&catalog, &port, &plan.inputs.source, plan.inputs.host)?;
             if inputs.conversion_tool != plan.inputs.conversion_tool {
                 return Err(PortcoveError::verification(
                     "source conversion tool changed after review",
                 ));
+            }
+            if super::source::native(&port) {
+                let qualification =
+                    InstallQualification::from_catalog(&catalog, &port.id, plan.inputs.host)?;
+                let copied = InstallRecord {
+                    path: payload.into(),
+                    ..plan.inputs.install.clone()
+                };
+                Installer::new(self.library().clone())?.verify_critical(&copied, &qualification)?;
             }
             let working = crate::adapter::launch_working_directory(
                 port.adapter,
@@ -416,8 +426,13 @@ impl PortcoveService {
                 &catalog,
                 &port,
                 &inputs,
-                payload,
-                &working,
+                super::source::MaterializationRoot {
+                    payload,
+                    working: &working,
+                    replace_prepared: Installer::new(self.library().clone())?
+                        .retained_preparation_mode(&plan.inputs.install)?
+                        == Some(super::PreparationMode::SourceOnly),
+                },
                 &|| operation.checkpoint(),
                 &quiesced,
             );

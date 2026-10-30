@@ -77,13 +77,15 @@ export async function readArtworkFallback(
 
 export function readArtworkGeometry(browser: Pick<ScenarioContext["browser"], "executeScript">) {
   return executeBrowserScript(browser, () => {
-    const frame = document.querySelector(".detail-cover");
+    const frame = document.querySelector(".game-hero-detail .game-hero-foreground");
     if (!frame) throw new Error("Artwork frame unavailable");
     const image = frame.querySelector("img");
     if (!image) throw new Error("Artwork image unavailable");
     const bounds = frame.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0 || !image.naturalWidth || !image.naturalHeight)
+      throw new Error("Artwork image has no visible decoded footprint");
     return {
-      ratio: bounds.width / bounds.height,
+      ratio: image.naturalWidth / image.naturalHeight,
       fit: getComputedStyle(image).objectFit,
       titleOutsideImage: !frame.contains(document.querySelector("#port-detail-title")),
     };
@@ -187,6 +189,31 @@ export async function artworkScenario({
         assert.equal(actual.palette, actual.expectedPalette);
         assert.equal(actual.background, actual.expectedBackground);
       };
+      const expectHeroText = async () => {
+        const expectedTitle = port.presentation?.original_game_title?.trim() || port.name;
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (expectedTitle) => {
+                const hero = document.querySelector(".game-hero-detail");
+                const heading = hero?.querySelector("#port-detail-title");
+                return (
+                  hero?.getAttribute("data-hero-identity") === "text" &&
+                  !hero.querySelector('[data-loading="true"]') &&
+                  !hero.querySelector(".game-hero-image") &&
+                  heading?.textContent?.trim() === expectedTitle &&
+                  Boolean(
+                    hero.querySelector('.detail-header-actions button[data-variant="primary"]'),
+                  )
+                );
+              },
+              expectedTitle,
+            ),
+          10_000,
+          "Missing cover must retain the real game heading and primary action without a decorative image",
+        );
+      };
       const open = async () => {
         await observations.capture("before-reload");
         await browser.navigate().refresh();
@@ -267,7 +294,7 @@ export async function artworkScenario({
       assert.equal(before.generated_fallback.style_version, 1);
       assert.ok(before.generated_fallback.palette_index >= 0);
       assert.ok(before.generated_fallback.palette_index < 6);
-      await expectFallbackVisual(".detail-cover", before.generated_fallback, true);
+      await expectHeroText();
       const stale = object(
         await invoke("reset_artwork", {
           portId,
@@ -319,7 +346,7 @@ export async function artworkScenario({
         );
       }
       await waitImage(".wide-artwork img");
-      await waitImage(".detail-cover img");
+      await waitImage(".game-hero-detail .game-hero-foreground img");
       const cover = await state("cover"),
         detail = await state("detail");
       assert.equal(cover.choice.revision, before.choice.revision + 1);
@@ -334,7 +361,7 @@ export async function artworkScenario({
       assert.equal(oldChoice.ok, false);
       assert.equal(object(oldChoice.error).code, "conflict");
       const geometry = await readArtworkGeometry(browser);
-      assert.ok(Math.abs(geometry.ratio - 2 / 3) < 0.02);
+      assert.ok(Math.abs(geometry.ratio - bytes.readUInt32BE(16) / bytes.readUInt32BE(20)) < 0.02);
       assert.equal(geometry.fit, "contain");
       assert.equal(geometry.titleOutsideImage, true);
       await executeBrowserScript(browser, () => {
@@ -361,7 +388,7 @@ export async function artworkScenario({
       const reset = await state("cover");
       assert.equal(reset.resolved_source.kind, "generated_fallback");
       assert.deepEqual(reset.generated_fallback, before.generated_fallback);
-      await expectFallbackVisual(".detail-cover", before.generated_fallback, true);
+      await expectHeroText();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);

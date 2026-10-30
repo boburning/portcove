@@ -44,9 +44,9 @@
     grid-template-columns: 54px minmax(0, 1fr) max-content max-content;
     align-items: center;
     gap: 12px 18px;
-    padding: 20px;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
     background: var(--color-bg-elevated);
   }
   .update-center .activity-row[hidden] {
@@ -236,6 +236,60 @@
     }
     .update-center .activity-row {
       border-color: CanvasText;
+    }
+  }
+  .recovery-review {
+    display: grid;
+    min-inline-size: 0;
+    gap: var(--space-3);
+    margin-block: var(--space-5);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+  }
+  .recovery-review-quiet {
+    padding: var(--space-2) 0;
+    border: 0;
+    background: transparent;
+  }
+  .recovery-review-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+  }
+  .recovery-review-heading p {
+    margin: 0;
+  }
+  .recovery-review-list {
+    display: grid;
+    min-inline-size: 0;
+  }
+  .recovery-review-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-3);
+    min-inline-size: 0;
+    padding-block: var(--space-3);
+    border-block-start: 1px solid var(--color-border-subtle);
+    overflow-wrap: anywhere;
+  }
+  .recovery-review-item > details {
+    min-inline-size: 0;
+  }
+  .recovery-review-item > details > summary {
+    padding-block: var(--space-2);
+    font-size: var(--text-sm);
+  }
+  @media (max-width: 30rem) {
+    .recovery-review-item {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .recovery-review-item > button {
+      justify-self: start;
     }
   }
 }

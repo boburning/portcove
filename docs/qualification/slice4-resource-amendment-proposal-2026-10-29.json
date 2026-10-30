@@ -455,13 +455,12 @@
     "Provider availability/account storage headroom",
     "Catalog4minute shared bootstrap fit remains unproven; catalog40 is retained independent allocation, not completion",
     "Complete protected binary-bundle upload/reacquisition and authenticated producer binding; public JSON archives do not establish binary custody",
-    "Current nonproduction native run40821126468/1 private-stage evidence pending at preparation; its separate90minute job does not size protected native35 or ratify policy"
+    "Historical nonproduction run40821126468/1 source1a11fa87 job123273597526 failed after4113 provider seconds before original-C Ready/ACK; canonical owning receipt https://github.com/boburning/portcove/issues/534#issuecomment-6489559941 retains its failure/raw evidence. This separate90minute job does not size protected native35 or ratify policy; protected execution remains unobserved"
   ],
   "engineering_remaining": [
-    "Implement held protected Windows job orchestration with unchanged production admission/receipts",
-    "Implement fixed application12/catalog4 bootstrap timeout branches and purpose-aware complete resource inventory",
-    "Apply proposed ceilings/digests only after explicit ratification; preserve100 until then",
-    "Prove signing readiness fits the original Windows570000ms total owner or separately implement/review/ratify an initial longer lifetime;35minute job ceiling does not fix it"
+    "Review and install the exact prepared workflow/source/resource/configuration only after explicit ratification; preserve effective100 until then",
+    "Qualify actual protected producer/native/publication and recovery under exact admitted identities and authenticated authority; prepared orchestration is not executed production evidence",
+    "Prove signing readiness fits the original Windows570000ms total owner or separately implement/review/ratify an initial longer lifetime if full600000ms readiness plus work is required;35minute job ceiling does not fix it"
   ],
   "stop": "Any enlarged runner/payment/fallback, source or digest mismatch, missing authority, expired original deadline or incomplete cleanup refuses; no automatic retry or budget renewal",
   "windows_owner_constraint": {
@@ -487,8 +486,8 @@
   "revision_date": "2026-10-29",
   "prepared_source": {
     "renderer": "scripts/release-resource-amendment-proposal.mts",
-    "proposed_workflow_sha256": "79685346069e247b0688961d13928589bc1af106e75c9d0b9fc4e8e7eaf773b8",
-    "proposed_resource_digest": "a67a721f50d265734ca1c1a2006d20b5f6bbbeb646ca37c57de5ff25a3e9f048",
+    "proposed_workflow_sha256": "c75172a03542f73a3e17cc9d987653ca6ed8c76c26e641983981561d402e9bad",
+    "proposed_resource_digest": "2c0634836c92354cd5cbeff03871b65417e5b19f9d880b84e6a0259e5166201f",
     "effective_policy_digest": "f91d5eba7d4a0091e44cb35171429ce4743411931b1617970cb6b46bb076c3b6",
     "scope": "Prepared bytes/digests only; no ratification, installation, source activation or execution authority"
   },

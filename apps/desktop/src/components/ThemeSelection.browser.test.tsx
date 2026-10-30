@@ -14,7 +14,7 @@ it("keeps exactly one theme selected through clicks and composite keyboard navig
   }
   await render(<Fixture />);
   const group = page.getByRole("radiogroup", { name: "Color theme" });
-  const system = group.getByRole("radio", { name: "System" });
+  const system = group.getByRole("radio", { name: "Follow system" });
   await system.click();
   await expect.element(system).toHaveAttribute("aria-checked", "true");
   await system.click();
