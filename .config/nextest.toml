@@ -60,6 +60,18 @@ filter = 'package(portcove-core) & test(/^service::tests::authenticated_admissio
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# Windows CI 40985853398/a1 cut published_resume_abort off at 30.081s
+# after observation 15 completed at 29.571s; CI 40913201967/a1 cut
+# published_resume_resume off at 30.063s after observation 16 began at 29.621s.
+# Their identical sequence helper passed both cases in 20.169s/20.313s in
+# 40978222851/a1. Preserve every remaining observation, assertion, cleanup,
+# resource and product deadline with exact 60s room and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::published_resume_abort$/) | test(/^library_move::sequence_tests::published_resume_resume$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40879228847/a1 Windows2 reached observation16 at29.690s before
 # the 30.108s watchdog. The identical test file passed14.404s in
 # CI40876858821/a1 Windows8. Preserve every sequence assertion and resource
