@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Finish the upstream setup package first",
-          "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
+          "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
         },
         {
           "title": "Keep both USA discs and your BIOS",

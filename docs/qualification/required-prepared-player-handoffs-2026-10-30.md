@@ -12,7 +12,7 @@ This batch offers no Core ingestion, source generation, extraction, immutable ge
 
 ## Valkyrie Profile / Alexbeav — #491
 
-Selected v0.1.3 source `6bfa1707d461a9c1c190fbe4709f2c9247b707bb`; current source `069ed835294ec238f0ef1b03bd74b54157fe8c08`. The current upstream retains opaque repository identity `R_kgDOUNATaw` after its move. Preserve PR #3191's already-delivered generic setup-download path; this batch completes the player handoff rather than rebuilding acquisition.
+Selected v0.1.3 source `6bfa1707d461a9c1c190fbe4709f2c9247b707bb`; current source `069ed835294ec238f0ef1b03bd74b54157fe8c08`. The current upstream retains opaque repository identity `R_kgDOUNATaw` after its move. Preserve PR #3191's already-delivered generic setup-download path; this batch completes the player handoff rather than rebuilding acquisition. Existing Linux setup-download guidance and its CMake/Ninja/Python3/C/C++ prerequisites remain explicit; bundled Windows tools do not supply Linux tools. The new Windows product handoff grants no Linux player qualification.
 
 The root executable is a setup host. Finish upstream Generate & Build outside Core using both owned canonical USA discs (SLUS-01156 / SLUS-01179) and an owned SCPH-1001 BIOS. First-track metadata is not full two-disc validation; OpenBIOS remains unqualified. Select completed `build-release/Valkyrie_Profile_Recompiled.exe` or the actual configured product directory. Its normal no-argument game UI stays in the product process; retain actual supported `--game` and other creating literal paths when used.
 
