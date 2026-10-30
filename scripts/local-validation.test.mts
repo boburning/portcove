@@ -4310,6 +4310,9 @@ void test("native runtime owners retain direct behavior and caller contracts on 
       for (const consumer of [
         "scripts/desktop-real-runtime.test.mts",
         "scripts/desktop-boundary-wiring.test.mts",
+        ...(file !== "apps/desktop/scripts/desktop-real-runtime-test.mts"
+          ? ["apps/desktop/scripts/desktop-native-observations.native.test.mts"]
+          : []),
       ]) {
         assert.ok(local.nodeTests.has(consumer), `${file}:${variant}:${consumer}`);
         assert.equal(
