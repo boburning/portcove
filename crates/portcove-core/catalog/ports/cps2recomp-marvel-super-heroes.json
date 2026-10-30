@@ -6,7 +6,6 @@
     "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
     "original_game_title": "Marvel Super Heroes",
     "project_url": "https://github.com/tmcleroy/cps2recomp",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md",
     "artwork": {
@@ -59,5 +58,35 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "tmcleroy/cps2recomp",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own exact arcade ROM set msh (Europe 951024), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+    }
   }
 }

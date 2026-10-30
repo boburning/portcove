@@ -71,7 +71,9 @@ pre-declaration continuation controls remain intact. These probes are not games.
 The four identity additions to the independent compatibility fixture are reviewed
 bookkeeping, not gameplay evidence. All247 previous operational definitions,
 116 source identities, source contracts/validators/qualification and original
-artwork remain unchanged. There are now251 definitions and the same1424 listings;
+artwork remain unchanged. This four-identity component adds four definitions; the combined delivery also
+includes twelve separately evidenced [CPS consumers](cps-selected-player-routes-2026-10-30.md),
+for263 definitions and the same1424 listings;
 those counts are source shape, not accepted playable-route or supported-operation
 totals. Wolf's existing Linux platform and guide remain visible.
 

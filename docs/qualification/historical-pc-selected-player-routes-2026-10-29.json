@@ -34,7 +34,7 @@
   },
   "expected_after": {
     "listing_count": 1424,
-    "operational_definition_count": 251,
+    "operational_definition_count": 263,
     "source_identity_count": 116
   },
   "rows": [
@@ -182,5 +182,13 @@
       "maintenance_declaration": "user-managed-update",
       "acceptance_boundary": "Definition and selected-player operation contract only; no new original preparation, actual game/native/gameplay or managed/protected acceptance. Named canonical remaining conditions stay on the same issue."
     }
-  ]
+  ],
+  "combined_delivery": {
+    "historical_PC_definitions": 4,
+    "CPS_frozen312_definitions": 12,
+    "new_definitions": 16,
+    "historical_1422_identities_affected": 4,
+    "membership_expansion": false,
+    "CPS_evidence": "cps-selected-player-routes-2026-10-30.json"
+  }
 }
