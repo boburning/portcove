@@ -49,6 +49,7 @@ import type {
 } from "../types";
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
+import { CurrentStateSummary } from "./ui/patterns";
 import { useEffect, useId, useRef, useState } from "react";
 import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
@@ -216,6 +217,7 @@ function useUpdateCenter({
     ...installed.map((port) => savedByPort.get(port.id)?.checked_at ?? 0),
   );
   const failed = outcomes.filter((outcome) => !outcome.ok).length;
+  const failedInstalled = installed.filter((port) => byPort.get(port.id)?.ok === false).length;
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
   const renderStatistics = () => (
     <div className="update-stats grid grid-cols-[repeat(4,minmax(78px,1fr))] gap-2">
@@ -285,6 +287,10 @@ function useUpdateCenter({
     savedByPort,
     effectiveCheck,
     checked,
+    available,
+    complete,
+    failed,
+    failedInstalled,
     latestSavedCheck,
     renderStatistics,
   };
@@ -292,6 +298,217 @@ function useUpdateCenter({
 
 export function UpdateCenter(props: Parameters<typeof useUpdateCenter>[0]) {
   return <UpdateCenterView {...useUpdateCenter(props)} />;
+}
+
+type InstalledUpdateRowContext = {
+  model: ReturnType<typeof useUpdateCenter>;
+  port: PortDefinition;
+  status: PortStatus;
+  action: ReturnType<typeof presentPortAction>;
+  outcome: UpdateCheckOutcome | undefined;
+  state: ReturnType<typeof updateState>;
+  failure: ReturnType<typeof failurePresentation>;
+  canReviewUpdate: boolean;
+  canLaunch: boolean;
+};
+
+function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
+  return (
+    <div
+      className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
+      data-focus-group
+    >
+      <CurrentStateSummary
+        title={
+          model.installed.length === 0
+            ? "No managed installations to check"
+            : model.failedInstalled > 0
+              ? "Some update checks failed"
+              : model.checked.length === 0
+                ? "Updates not checked"
+                : `${model.available}${model.complete ? "" : "+"} updates available${model.earlierBatch ? " at last check" : ""}`
+        }
+      >
+        <p className="text-sm text-pc-muted-foreground">
+          {model.checked.length} of {model.installed.length} installed ports have a check result.
+          Unchecked or failed ports may still have updates.
+        </p>
+      </CurrentStateSummary>
+      <UpdateCheckControl
+        busy={model.busy}
+        status={model.batchRead?.status}
+        hasInstalled={model.installed.length > 0}
+        checkAll={model.checkAll}
+      />
+    </div>
+  );
+}
+
+function renderInstalledUpdateRow(model: ReturnType<typeof useUpdateCenter>, port: PortDefinition) {
+  const status = model.statuses.get(port.id)!;
+  const action = presentPortAction(model.operationOwner, port.id, status, "launch", model.busy);
+  const outcome = model.byPort.get(port.id);
+  const savedCheck = model.savedByPort.get(port.id)?.check;
+  const state = updateState(status, outcome, savedCheck, model.earlierBatch);
+  const failure = failurePresentation(outcome?.error);
+  const canReviewUpdate = Boolean(
+    (status.staged || status.acquisition || model.effectiveCheck(port.id)?.update_available) &&
+    model.perform,
+  );
+  const canLaunch = Boolean(
+    model.onLaunch &&
+    status.readiness?.launchable &&
+    !status.readiness.pending_setup &&
+    status.readiness.blockers.length === 0 &&
+    !action.readiness.blocked,
+  );
+  const row = { model, port, status, action, outcome, state, failure, canReviewUpdate, canLaunch };
+  return (
+    <div
+      key={port.id}
+      className="update-entry @container/update-entry grid min-w-0 gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-3"
+    >
+      {renderInstalledUpdateHeader(row)}
+      {renderInstalledUpdateActions(row)}
+      {renderInstalledUpdateDetails(row)}
+      {renderInstalledUpdateFailure(row)}
+    </div>
+  );
+}
+
+function renderInstalledUpdateHeader({ model, port, status, state }: InstalledUpdateRowContext) {
+  return (
+    <button
+      data-focusable
+      data-detail-origin={`updates:installed:${port.id}`}
+      className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
+      onClick={() => model.onSelect(port.id, `updates:installed:${port.id}`)}
+    >
+      <ArtworkImage port={port} quietFallback className="update-artwork" />
+      <div className="update-title min-w-0">
+        <strong className="block text-sm">{gameTitle(port)}</strong>
+        <small className="block text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</small>
+        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+          {releaseChannelPresentation(status.channel).label} · {policyLabel(status.update_policy)}
+        </small>
+      </div>
+      <div className="update-versions min-w-0 text-sm [overflow-wrap:anywhere] text-pc-muted-foreground">
+        <span className="sr-only">Installed version: </span>
+        {status.active?.version || "Unavailable"}
+        {status.active?.version &&
+          model.effectiveCheck(port.id)?.update_available &&
+          model.effectiveCheck(port.id)?.release?.version && (
+            <>
+              <span aria-hidden> → </span>
+              <span className="sr-only">; offered version: </span>
+              {model.effectiveCheck(port.id)?.release?.version}
+            </>
+          )}
+      </div>
+      <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>{state.label}</span>
+    </button>
+  );
+}
+
+function renderInstalledUpdateActions({
+  model,
+  port,
+  status,
+  action,
+  canReviewUpdate,
+  canLaunch,
+}: InstalledUpdateRowContext) {
+  return (
+    (canReviewUpdate || canLaunch) && (
+      <div
+        className="flex flex-wrap items-center gap-2"
+        role="group"
+        aria-label={`Actions for ${gameIdentityLabel(port)}`}
+      >
+        {canReviewUpdate && (
+          <GameUpdateControl
+            key={JSON.stringify([
+              model.generation,
+              port.id,
+              status.active?.id,
+              status.active?.version,
+              status.active?.artifact.sha256,
+              status.staged?.id,
+              status.channel,
+            ])}
+            portId={port.id}
+            generation={model.generation}
+            policy={status.update_policy}
+            busy={Boolean(action.busy)}
+            perform={model.perform}
+            compact
+            gameName={gameIdentityLabel(port)}
+            currentVersion={status.active?.version}
+            status={status}
+            reviewScope={{
+              active: model.reviewingUpdate === port.id,
+              claim: () => {
+                model.updateReviewOwner.current = port.id;
+                model.setReviewingUpdate(port.id);
+              },
+              current: () => model.updateReviewOwner.current === port.id,
+            }}
+          />
+        )}
+        {canLaunch && (
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(action.busy)}
+            focusableWhenDisabled={Boolean(action.busy)}
+            aria-busy={Boolean(action.busy)}
+            title={action.assessment.reason}
+            onClick={() => model.onLaunch?.(port.id)}
+          >
+            {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
+          </Button>
+        )}
+      </div>
+    )
+  );
+}
+
+function renderInstalledUpdateDetails({ model, port, status, outcome }: InstalledUpdateRowContext) {
+  return (
+    <details className="col-span-full text-xs text-pc-muted-foreground">
+      <summary className="cursor-pointer py-1">Update details</summary>
+      <p>
+        Latest eligible{model.earlierBatch ? " at last check" : ""}:{" "}
+        {releaseLabel(model.effectiveCheck(port.id), outcome)}
+      </p>
+      <p>
+        {releaseChannelPresentation(status.channel).label} · {policyLabel(status.update_policy)}
+      </p>
+      {status.staged && <p>Prepared version: {status.staged.version}</p>}
+    </details>
+  );
+}
+
+function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdateRowContext) {
+  return (
+    outcome?.error && (
+      <section
+        aria-label={`Update check failure for ${port.name}`}
+        data-update-check-failure={port.id}
+        className="col-span-full min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
+      >
+        <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
+        {failure && (
+          <FailureDetails
+            key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
+            presentation={failure}
+            code={outcome.error.code}
+            showMutationSummary={false}
+          />
+        )}
+      </section>
+    )
+  );
 }
 
 function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
@@ -325,22 +542,15 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
       </Tabs.List>
       <Tabs.Panel value="updates" keepMounted aria-label="Game updates">
         <h2 className="mb-5 text-lg">Game updates</h2>
-        <div
-          className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
-          data-focus-group
-        >
-          {model.renderStatistics()}
-          <UpdateCheckControl
-            busy={model.busy}
-            status={model.batchRead?.status}
-            hasInstalled={model.installed.length > 0}
-            checkAll={model.checkAll}
-          />
-        </div>
+        {renderUpdateCheckToolbar(model)}
         <UpdateBatchNotice read={model.batchRead} />
+        <details className="mb-4">
+          <summary className="cursor-pointer py-2 text-sm">Update statistics</summary>
+          {model.renderStatistics()}
+        </details>
         <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Checking only looks for updates. Review an available update before downloading or
-          installing it. Play keeps using your current version.
+          Checking does not install. Review an update before downloading or installing; Play uses
+          your current version.
         </p>
         <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
           Looking for Portcove or catalog updates?{" "}
@@ -380,149 +590,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
           />
         ) : (
           <div className="update-list grid max-w-5xl gap-3" data-focus-group>
-            {model.installed.map((port) => {
-              const status = model.statuses.get(port.id)!;
-              const action = presentPortAction(
-                model.operationOwner,
-                port.id,
-                status,
-                "launch",
-                model.busy,
-              );
-              const outcome = model.byPort.get(port.id);
-              const savedCheck = model.savedByPort.get(port.id)?.check;
-              const state = updateState(status, outcome, savedCheck, model.earlierBatch);
-              const failure = failurePresentation(outcome?.error);
-              const canReviewUpdate = Boolean(
-                (status.staged ||
-                  status.acquisition ||
-                  model.effectiveCheck(port.id)?.update_available) &&
-                model.perform,
-              );
-              const canLaunch = Boolean(
-                model.onLaunch &&
-                status.readiness?.launchable &&
-                !status.readiness.pending_setup &&
-                status.readiness.blockers.length === 0 &&
-                !action.readiness.blocked,
-              );
-              const renderActions = () =>
-                (canReviewUpdate || canLaunch) && (
-                  <div
-                    className="flex flex-wrap items-start gap-2 border-t border-pc-border pt-3"
-                    role="group"
-                    aria-label={`Actions for ${gameIdentityLabel(port)}`}
-                  >
-                    {canReviewUpdate && (
-                      <GameUpdateControl
-                        key={JSON.stringify([
-                          model.generation,
-                          port.id,
-                          status.active?.id,
-                          status.active?.version,
-                          status.active?.artifact.sha256,
-                          status.staged?.id,
-                          status.channel,
-                        ])}
-                        portId={port.id}
-                        generation={model.generation}
-                        policy={status.update_policy}
-                        busy={Boolean(action.busy)}
-                        perform={model.perform}
-                        compact
-                        gameName={gameIdentityLabel(port)}
-                        currentVersion={status.active?.version}
-                        status={status}
-                        reviewScope={{
-                          active: model.reviewingUpdate === port.id,
-                          claim: () => {
-                            model.updateReviewOwner.current = port.id;
-                            model.setReviewingUpdate(port.id);
-                          },
-                          current: () => model.updateReviewOwner.current === port.id,
-                        }}
-                      />
-                    )}
-                    {canLaunch && (
-                      <Button
-                        data-focusable
-                        variant="primary"
-                        disabled={Boolean(action.busy)}
-                        focusableWhenDisabled={Boolean(action.busy)}
-                        aria-busy={Boolean(action.busy)}
-                        title={action.assessment.reason}
-                        onClick={() => model.onLaunch?.(port.id)}
-                      >
-                        {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
-                      </Button>
-                    )}
-                  </div>
-                );
-              return (
-                <div
-                  key={port.id}
-                  className="update-entry @container/update-entry grid min-w-0 gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-3"
-                >
-                  <button
-                    data-focusable
-                    data-detail-origin={`updates:installed:${port.id}`}
-                    className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
-                    onClick={() => model.onSelect(port.id, `updates:installed:${port.id}`)}
-                  >
-                    <ArtworkImage port={port} quietFallback className="update-artwork" />
-                    <div className="update-title min-w-0">
-                      <strong className="block text-sm">{gameTitle(port)}</strong>
-                      <small className="block text-xs text-pc-muted-foreground">
-                        {gameProjectLabel(port)}
-                      </small>
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                        {releaseChannelPresentation(status.channel).label} ·{" "}
-                        {policyLabel(status.update_policy)}
-                      </small>
-                    </div>
-                    <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                      <div className="update-version min-w-0">
-                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          Installed
-                        </small>
-                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {status.active?.version}
-                        </span>
-                      </div>
-                      <div className="update-version min-w-0">
-                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          {model.earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
-                        </small>
-                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {releaseLabel(model.effectiveCheck(port.id), outcome)}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
-                      {state.label}
-                    </span>
-                  </button>
-                  {renderActions()}
-                  {outcome?.error && (
-                    <section
-                      aria-label={`Update check failure for ${port.name}`}
-                      data-update-check-failure={port.id}
-                      className="min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
-                    >
-                      <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
-                      {failure && (
-                        <FailureDetails
-                          key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
-                          presentation={failure}
-                          code={outcome.error.code}
-                          showMutationSummary={false}
-                        />
-                      )}
-                    </section>
-                  )}
-                </div>
-              );
-            })}
+            {model.installed.map((port) => renderInstalledUpdateRow(model, port))}
           </div>
         )}
         {model.retainedArchives.length > 0 && (
@@ -793,6 +861,9 @@ function ActivityHistory({
   const attentionIds = new Set([
     ...(activityFeed?.attention_required_activity_ids ?? []),
     ...(activityFeed?.recovery_required_activity_ids ?? []),
+    ...visibleActivities
+      .filter((activity) => activityPresentationState(activity, nowSeconds) === "unfinished")
+      .map((activity) => activity.id),
   ]);
   const inTasks = (activity: ActivityRecord) =>
     protectedIds.has(activity.id) ||
@@ -815,7 +886,8 @@ function ActivityHistory({
     {
       label: "In progress",
       records: visibleActivities.filter(
-        (item) => !attentionIds.has(item.id) && item.status === "running",
+        (item) =>
+          !attentionIds.has(item.id) && activityPresentationState(item, nowSeconds) === "running",
       ),
     },
     {
@@ -834,7 +906,7 @@ function ActivityHistory({
     <section className="activity-history" data-record-view={mode}>
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
-          <h3 className="sr-only">Task records</h3>
+          <h3 className="text-sm">Task records and diagnostics</h3>
         </div>
         <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
@@ -1013,13 +1085,6 @@ function ActivityRow({
         </div>
       )}
       <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
-      {activity.operation === "prepare" && (
-        <ActivityDiagnostic
-          key={`${generation}:${activity.id}`}
-          activityId={activity.id}
-          generation={generation}
-        />
-      )}
       <details className={activityDetailsClass}>
         <summary data-focusable className="cursor-pointer py-1">
           Task details
@@ -1030,6 +1095,13 @@ function ActivityRow({
             <code>{activity.id}</code>
           </dd>
         </dl>
+        {activity.operation === "prepare" && (
+          <ActivityDiagnostic
+            key={`${generation}:${activity.id}`}
+            activityId={activity.id}
+            generation={generation}
+          />
+        )}
       </details>
     </div>
   );
@@ -1053,12 +1125,12 @@ function ActivityFailure({
             target.portId && (
               <Button
                 data-focusable
-                variant="outline"
+                variant="link"
                 size="sm"
                 data-detail-origin={`updates:activity:${activity.id}:review`}
                 onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
               >
-                Review game preparation
+                Review setup
               </Button>
             )}
           <FailureDetails

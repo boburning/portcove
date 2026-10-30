@@ -310,7 +310,7 @@ function ArtworkSlotControl({
   );
 }
 
-function ArtworkSource({
+export function ArtworkSource({
   state,
   renderedSource,
 }: {

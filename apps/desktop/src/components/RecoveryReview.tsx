@@ -70,16 +70,22 @@ export function RecoveryReview({
   const quiet = state === "fresh" && repair?.items.length === 0;
   return (
     <section
-      className={
-        "recovery-review mt-6 flex min-w-0 flex-col gap-2 " +
-        (quiet ? "py-2" : "rounded-pc-lg border border-pc-border bg-pc-surface p-4")
-      }
+      className={"recovery-review" + (quiet ? " recovery-review-quiet" : "")}
       aria-label="Unfinished work and recovery"
       data-diagnostic-state={state}
     >
-      <h2 className={quiet ? "m-0 text-sm font-medium text-pc-muted-foreground" : "m-0 text-lg"}>
-        Unfinished work and recovery
-      </h2>
+      <header className="recovery-review-heading">
+        <h2
+          className={quiet ? "m-0 text-sm font-medium text-pc-muted-foreground" : "m-0 text-base"}
+        >
+          Unfinished work and recovery
+        </h2>
+        {(!stale || repair) && (
+          <p className="mb-0 text-sm text-pc-muted-foreground">
+            {formatCountMessage(repair?.items.length, countMessages)}
+          </p>
+        )}
+      </header>
       {refreshing && (
         <p className="mb-0 text-sm text-pc-secondary-foreground" role="status">
           {repair
@@ -100,11 +106,6 @@ export function RecoveryReview({
             : "Recovery information has not been checked for the current library state."}
         </p>
       )}
-      {(!stale || repair) && (
-        <p className="mb-0 text-sm text-pc-muted-foreground">
-          {formatCountMessage(repair?.items.length, countMessages)}
-        </p>
-      )}
       {(stale || Boolean(failure)) && !refreshing && (
         <Button
           data-focusable
@@ -119,10 +120,9 @@ export function RecoveryReview({
       {!!repair?.items.length && (
         <>
           <p className="mb-0 text-sm text-pc-secondary-foreground">
-            Use Review to open the relevant screen, or expand an item for its recorded location and
-            guidance. These links do not change files.
+            Expand an item for its recorded location and guidance. Review links do not change files.
           </p>
-          <div className="recovery-review-list grid gap-3" data-focus-group>
+          <div className="recovery-review-list" data-focus-group>
             {repair.items.map((item) => {
               const portId = item.port_id;
               const operationId = item.operation_id;
@@ -143,7 +143,7 @@ export function RecoveryReview({
               });
               return (
                 <div
-                  className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-3 break-words"
+                  className="recovery-review-item"
                   key={origin}
                   data-recovery-operation={item.operation_id ?? undefined}
                 >
@@ -192,9 +192,8 @@ export function RecoveryReview({
                     <Button
                       data-focusable
                       data-detail-origin={origin}
-                      variant="outline"
+                      variant={action.label === "View related task record" ? "link" : "outline"}
                       size="sm"
-                      className="mt-2"
                       onClick={action.open}
                     >
                       {action.label}
@@ -238,7 +237,7 @@ function recoveryNavigation(
     case "partial_operation":
     case "cleanup_pending":
       return destinations.activity
-        ? { label: "Review activity", open: destinations.activity }
+        ? { label: "View related task record", open: destinations.activity }
         : game
           ? { label: "Review game details", open: () => game() }
           : storage;

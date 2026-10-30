@@ -149,7 +149,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.ok(isRecord(installer));
   assert.equal(installer.if, linuxFixture.if);
-  assert.equal(installer.uses, "taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037");
+  assert.equal(installer.uses, "taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32");
   assert.deepEqual(installer.with, {
     tool: "${{ steps.linux-diagnostic-test-runner.outputs.spec }}",
   });
@@ -226,6 +226,8 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/desktop-scenarios.test.mts",
     "scripts/native-compatibility.test.mts",
     "scripts/desktop-execution-plan.test.mts",
+    "scripts/native-qualification-inventory.test.mts",
+    "scripts/desktop-staged-layout.test.mts",
     "scripts/desktop-execution-baseline.test.mts",
     "scripts/desktop-real-runtime.test.mts",
     "scripts/desktop-linux-native-session.test.mts",
@@ -255,6 +257,7 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/tool-cache.test.mts",
     "scripts/resource-capacity.test.mts",
     "scripts/resource-command.test.mts",
+    "scripts/ci-windows-helpers.test.mts",
   ]);
 });
 

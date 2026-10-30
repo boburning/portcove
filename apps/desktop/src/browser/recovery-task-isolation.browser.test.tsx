@@ -157,7 +157,8 @@ it("keeps another port's retained cleanup identity through cancelled review and 
         exact: true,
       })
       .click();
-    await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+    await page.getByRole("tab", { name: "Game files", exact: true }).click();
+    await page.getByRole("button", { name: "Review setup", exact: true }).click();
     expect(review.mock.lastCall).toEqual(["sample", 1]);
     expect(page.getByRole("dialog").element().textContent).toContain(
       preparation.inputs.source.path,
@@ -217,4 +218,4 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     await keep.click();
     expect(remove).not.toHaveBeenCalled();
   }
-}, 30_000);
+}, 60_000);

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { comparisonFixture } from "../apps/desktop/src/features/recommendations/comparison-test-fixture.ts";
 import {
   transportValue,
   transportValues,
@@ -67,4 +68,33 @@ void test("Rust schema numeric and enum constraints remain active", () => {
     // @ts-expect-error A foreign schema key is intentionally sent across the runtime boundary.
     return transportValue("unregistered_contract", limits);
   }, /Missing Rust transport schema/);
+});
+
+void test("Rust uint16 recommendation fields preserve integer bounds without coercion", () => {
+  const raw: unknown = comparisonFixture();
+  const base = transportValue("game_comparison", raw);
+  const assessment = base.assessment;
+  assert.ok(assessment, "fixture must exercise actual recommendation dimensions");
+  const withValue = (field: string, scalar: unknown) => ({
+    ...base,
+    assessment: {
+      ...assessment,
+      candidates: assessment.candidates.map((candidate) => ({
+        ...candidate,
+        dimensions: candidate.dimensions.map((dimension) => ({ ...dimension, [field]: scalar })),
+      })),
+    },
+  });
+  for (const field of ["strength_permille", "weight_percent"]) {
+    for (const scalar of [0, 65535]) {
+      const value = withValue(field, scalar);
+      assert.equal(transportValue("game_comparison", value), value);
+    }
+    for (const scalar of [-1, 65536, 1.5, "1000", null]) {
+      const value = withValue(field, scalar);
+      const before = structuredClone(value);
+      assert.throws(() => transportValue("game_comparison", value), /Invalid game_comparison/);
+      assert.deepEqual(value, before);
+    }
+  }
 });

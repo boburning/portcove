@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -271,7 +272,7 @@ async function readOriginalDiagnosticDrivers(version: string, deadline: number) 
  * This is neither an admitted candidate nor authority to execute its bytes.
  * The separately held controller calls it only after the rehearsal has restored
  * the original tracked checkout and removed the disposable private key. */
-export async function readOriginalHostedWindowsDiagnosticInputs() {
+export function requireOriginalHostedWindowsDiagnosticContext() {
   assert.equal(process.platform, "win32");
   assert.equal(process.arch, "x64");
   assert.equal(process.env.GITHUB_EVENT_NAME, "workflow_dispatch");
@@ -291,6 +292,27 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   assert.match(
     workflow ?? "",
     /^boburning\/portcove\/[.]github\/workflows\/hosted-native-continuity[.]yml@refs\/heads\/(?:main|feature\/534-[A-Za-z0-9-]+)$/u,
+  );
+  return { source: source!, workflow: workflow!, run_id: run_id! };
+}
+/** Fixed namespace only; a locator cannot appoint an arbitrary execution root. */
+export function hostedWindowsDiagnosticPreparationRoot(home: string, source: string, run: string) {
+  assert.ok(path.isAbsolute(home));
+  assert.match(source, /^[a-f0-9]{40}$/u);
+  assert.match(run, /^[1-9][0-9]{0,15}$/u);
+  return path.join(home, `.pct-connected-${run}-${source.slice(0, 12)}`);
+}
+
+export async function readOriginalHostedWindowsDiagnosticInputs() {
+  const { source, workflow, run_id } = requireOriginalHostedWindowsDiagnosticContext();
+  assert.equal(
+    path.resolve(project),
+    path.join(
+      hostedWindowsDiagnosticPreparationRoot(os.homedir(), source, run_id),
+      "windows-source",
+      "source",
+    ),
+    "Only the protected prepared diagnostic source can admit connected inputs",
   );
   const routeNames = [
     "GITHUB_SHA",
@@ -430,7 +452,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
       input,
       label: "windows-x86_64",
       publicKey,
-      revision: source!,
+      revision: source,
       version,
       verifier,
     });
@@ -480,7 +502,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   );
   const fixture = inspectDiagnosticFixtureDerivation(
     derivation,
-    { source: source!, tree, run_id: run_id!, workflow: workflow! },
+    { source: source, tree, run_id: run_id, workflow: workflow },
     observed,
   );
   for (const [filename, bytes] of evidence)
@@ -493,10 +515,10 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   assert.equal(checkout(), tree);
   active();
   return {
-    source: source!,
+    source: source,
     tree,
-    run_id: run_id!,
-    workflow: workflow!,
+    run_id: run_id,
+    workflow: workflow,
     stages,
     runtime,
     drivers,
@@ -515,6 +537,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
 
 export const hostedWindowsDiagnosticOwnerMilliseconds = 570000;
 export const hostedWindowsDiagnosticCleanupMilliseconds = 30000;
+export const hostedWindowsDiagnosticProviderMilliseconds = 100 * 60 * 1000;
 /** A single fixed public provider read needs no account or role credential.
  * Provider/local clock disagreement refuses; the anchored monotonic deadline
  * never renews from a later Actions step or a replacement parent process. */
@@ -580,7 +603,7 @@ export async function readOrdinaryHostedWindowsDiagnosticDeadline(
   );
   const jobStart = Date.parse(job.started_at);
   assert.ok(Number.isFinite(jobStart) && jobStart <= serverDate + ageMilliseconds + 1000);
-  const providerDeadline = jobStart + 90 * 60 * 1000;
+  const providerDeadline = jobStart + hostedWindowsDiagnosticProviderMilliseconds;
   // Subtract the entire request elapsed interval and a finalizer margin. A
   // slow read, stale response or clock rollback can only shorten/refuse it.
   const remaining =
@@ -595,6 +618,8 @@ export async function readOrdinaryHostedWindowsDiagnosticDeadline(
     job_started_at: job.started_at,
     provider_observed_at: new Date(serverDate).toISOString(),
     provider_response_bytes: raw.length,
+    provider_remaining_deadline: performance.now() + remaining,
+    maximum_provider_milliseconds: hostedWindowsDiagnosticProviderMilliseconds,
     maximum_owner_milliseconds: hostedWindowsDiagnosticOwnerMilliseconds,
     cleanup_reserve_milliseconds: hostedWindowsDiagnosticCleanupMilliseconds,
     provider_finalizer_margin_milliseconds: 60000,
@@ -639,4 +664,42 @@ export async function readBoundedDiagnosticProviderBody(
     text = raw.toString("utf8");
   assert.ok(Buffer.from(text).equals(raw));
   return raw;
+}
+
+/** Closed observations only. An error record never grants time or execution. */
+export function projectHostedWindowsDiagnosticPreparationReserve(error: unknown) {
+  try {
+    if (!(error instanceof Error)) return null;
+    const value: unknown = Object.getOwnPropertyDescriptor(
+      error,
+      "diagnostic_preparation_reserve",
+    )?.value;
+    if (
+      !isRecord(value) ||
+      Object.keys(value).sort().join(",") !==
+        "maximum_provider_milliseconds,observed_remaining_milliseconds,owner_milliseconds,preparation_milliseconds,provider_finalizer_milliseconds,required_remaining_milliseconds"
+    )
+      return null;
+    const expected = {
+      maximum_provider_milliseconds: hostedWindowsDiagnosticProviderMilliseconds,
+      preparation_milliseconds: 480000,
+      owner_milliseconds: hostedWindowsDiagnosticOwnerMilliseconds,
+      provider_finalizer_milliseconds: 60000,
+      required_remaining_milliseconds: 1050000,
+    };
+    for (const [key, required] of Object.entries(expected))
+      if (value[key] !== required) return null;
+    if (
+      !Number.isSafeInteger(value.observed_remaining_milliseconds) ||
+      Number(value.observed_remaining_milliseconds) < 0 ||
+      Number(value.observed_remaining_milliseconds) > hostedWindowsDiagnosticProviderMilliseconds
+    )
+      return null;
+    return {
+      ...expected,
+      observed_remaining_milliseconds: Number(value.observed_remaining_milliseconds),
+    };
+  } catch {
+    return null;
+  }
 }

@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode, RefObject } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
@@ -7,10 +7,7 @@ export function SettingsRow({ className, ...props }: ComponentProps<"article">) 
   return (
     <article
       data-slot="settings-row"
-      className={cn(
-        "settings-row @container/row grid min-w-0 content-start gap-3 border-t border-pc-border p-4 first:border-t-0 sm:p-6 [&>h2]:text-base [&>h2]:leading-normal [&>p]:max-w-prose [&>p]:text-sm [&>p]:leading-relaxed",
-        className,
-      )}
+      className={cn("settings-row @container/row", className)}
       {...props}
     />
   );
@@ -58,4 +55,72 @@ export function MetadataGrid({ className, ...props }: ComponentProps<"dl">) {
 
 export function ActionRow({ className, ...props }: ComponentProps<"div">) {
   return <div className={cn("flex min-w-0 flex-wrap items-center gap-2", className)} {...props} />;
+}
+
+/** A current observation with caller-owned facts/actions; never derives product state. */
+export function CurrentStateSummary({
+  title,
+  children,
+  action,
+  headingRef,
+  className,
+}: {
+  title: ReactNode;
+  children?: ReactNode;
+  action?: ReactNode;
+  headingRef?: RefObject<HTMLHeadingElement | null> | undefined;
+  className?: string;
+}) {
+  return (
+    <section
+      data-slot="current-state-summary"
+      className={cn(
+        "flex min-w-0 flex-wrap items-start gap-4 rounded-pc-md border border-pc-border bg-pc-surface p-4",
+        className,
+      )}
+    >
+      <div className="grid min-w-0 flex-[1_1_16rem] gap-2">
+        <h3
+          ref={headingRef}
+          tabIndex={headingRef ? -1 : undefined}
+          className="m-0 text-base font-semibold"
+        >
+          {title}
+        </h3>
+        {children}
+      </div>
+      {action && <ActionRow className="ms-auto justify-end">{action}</ActionRow>}
+    </section>
+  );
+}
+
+/** Scannable management layout; operation/review owners remain mounted as children. */
+export function ManagementRow({
+  title,
+  targetId,
+  description,
+  children,
+}: {
+  title: string;
+  targetId?: string;
+  description?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      data-slot="management-row"
+      id={targetId}
+      tabIndex={targetId ? -1 : undefined}
+      aria-label={title}
+      className="flex min-w-0 flex-wrap items-start gap-4 border-b border-pc-border py-4 last:border-b-0"
+    >
+      <div className="min-w-0 flex-[1_1_16rem]">
+        <h3 className="m-0 text-base font-semibold">{title}</h3>
+        {description && (
+          <div className="mt-1 text-sm wrap-anywhere text-pc-muted-foreground">{description}</div>
+        )}
+      </div>
+      <ActionRow className="ms-auto max-w-full justify-end">{children}</ActionRow>
+    </section>
+  );
 }

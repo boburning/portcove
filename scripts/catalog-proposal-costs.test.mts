@@ -2,7 +2,7 @@ import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { isRecord } from "./runtime-values.mts";
 import { authoringRecordFromPort } from "./catalog-authoring.mts";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 function requiredFixture<T>(value: T): NonNullable<T> {
   assert.ok(value !== undefined && value !== null, "Required fixture value missing");
   return value;
@@ -109,6 +110,13 @@ function array(value: unknown): unknown[] {
 }
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+const generatorModules = readFixtureModuleClosure(root, [
+  "scripts/generate-catalog.mts",
+  "scripts/runtime-values.mts",
+  "scripts/catalog-authoring.mts",
+  "scripts/catalog-authoring-inspector.mts",
+  "scripts/upstream-lineage.mts",
+]).modules;
 
 // Fixed declarations and inert validator/provider controls measure the generator,
 // independently of live catalog counts. No upstream executable or network runs.
@@ -123,14 +131,11 @@ function fixture(
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(scripts);
   mkdirSync(catalogs, { recursive: true });
-  for (const name of [
-    "generate-catalog.mts",
-    "runtime-values.mts",
-    "catalog-authoring.mts",
-    "catalog-authoring-inspector.mts",
-    "upstream-lineage.mts",
-  ])
-    copyFileSync(join(root, "scripts", name), join(scripts, name));
+  for (const module of generatorModules) {
+    const destination = join(scratch, module.path);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, module.bytes);
+  }
   const catalog: FixtureCatalog = {
     schema_version: 2,
     ports: [
@@ -198,6 +203,12 @@ function fixture(
       // Simulate provider wait on the controlled monotonic clock.
       globalThis.fixtureClock += 17000000n;
       return {catalog:input,records:[],metrics:{reused:2,original_reused:0}};
+    }
+    export async function prepareCatalogGameMedia() {
+      throw new Error('proposal cost fixtures do not request game media');
+    }
+    export function reconcileCatalogArtworkWithdrawals() {
+      throw new Error('proposal cost fixtures do not reconcile game media');
     }
   `,
   );

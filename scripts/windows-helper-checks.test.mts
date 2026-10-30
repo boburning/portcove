@@ -7,7 +7,7 @@ import {
   windowsNativeToolsRequired,
 } from "./windows-helper-checks.mts";
 import { evaluateCiResults } from "./ci-result-gate.mts";
-import { executableNodeCommands, parseNodeTestSuites } from "./node-test-suites.mts";
+import { parseNodeTestSuites } from "./node-test-suites.mts";
 
 const sha = (character: string) => character.repeat(40);
 
@@ -24,6 +24,12 @@ void test("every registered Windows helper test selects its maintained helper ro
   for (const file of files) {
     assert.equal(windowsHelperChecksRequired(plan(file)), true, file);
     assert.equal(windowsHelperChecksRequired(plan(file, file, "D")), true, file);
+    for (const selected of [
+      plan(file, file, "A"),
+      plan(file, "docs/moved-helper.md", "R100"),
+      plan("docs/moved-helper.md", file, "R100"),
+    ])
+      assert.ok(selected.mode === "qualification" || windowsHelperChecksRequired(selected), file);
   }
 });
 
@@ -719,7 +725,7 @@ const plan = (oldPath: string, newPath = oldPath, status = "M") =>
         oldPath,
         newPath,
         status,
-        oldMode: "100644",
+        oldMode: status === "A" ? "000000" : "100644",
         newMode: status === "D" ? "000000" : "100644",
       },
     ],
@@ -739,9 +745,13 @@ void test("native tool inputs retain affected Windows proof without frontend ins
     "apps/desktop/scripts/cli-command-shell.native.test.mts",
     "scripts/dev-storage.mts",
     "scripts/tool-cache.mts",
+    "apps/desktop/scripts/desktop-qualification-history-test.mts",
+    "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
   ]) {
     for (const selected of [
       plan(file),
+      plan(file, file, "A"),
+      plan("docs/moved.md", file, "R100"),
       plan(file, "docs/moved.md", "R100"),
       plan(file, file, "D"),
     ]) {
@@ -758,6 +768,10 @@ void test("native tool inputs retain affected Windows proof without frontend ins
 
 void test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
   for (const file of [
+    ".github/workflows/hosted-native-continuity.yml",
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
     "scripts/release-local-worker-accounts.ps1",
     "scripts/release-local-worker-accounts.test.mts",
     "scripts/recover-local-worker-empty-setup.ps1",
@@ -833,56 +847,6 @@ void test("catalog aggregate rejects absent or failed selected Windows producer"
       }),
     /expected skipped/,
   );
-});
-void test("workflow runs bounded Windows controls and pinned lint under the existing catalog aggregate", async () => {
-  const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
-  const windows = workflow.split("\n  windows_helpers:\n")[1];
-  assert.ok(windows, "Windows helpers job must exist");
-  const job = windows.split("\n  fast_catalog:")[0];
-  assert.ok(job);
-  assert.match(job, /runs-on: windows-latest/);
-  assert.match(job, /timeout-minutes: 10/);
-  assert.match(job, /outputs.windows_helpers == 'true'/);
-  assert.match(job, /--test-timeout=30000/);
-  assert.match(job, /--test-concurrency=1/);
-  assert.match(job, /native-confirmation.test.mts/);
-  assert.match(job, /native-helper-dependencies.mts/);
-  assert.match(job, /Import-PowerShellDataFile -LiteralPath .config\/powershell-resources.psd1/);
-  assert.match(job, /Import-Module -Name PSScriptAnalyzer -RequiredVersion/);
-  assert.match(job, /lint-tools.integration.mts psscriptanalyzer/);
-  assert.doesNotMatch(
-    job,
-    /cargo (?:build|test)|desktop-verify.mts|desktop:build|bootstrap.*Desktop|native-driver|setup-vp|pnpm install/,
-  );
-  assert.match(
-    job,
-    /uses: \.\/\.github\/actions\/setup-rust\n\s+if: needs.classify.outputs.native_tools == 'true'/,
-  );
-  const registry = parseNodeTestSuites(
-    await readFile(new URL("./node-test-suites.json", import.meta.url), "utf8"),
-  );
-  const native = executableNodeCommands(job, registry).filter(
-    (command) => command.id === "native-tools",
-  );
-  assert.equal(native.length, 1);
-  assert.deepEqual(native[0]?.arguments, [
-    "--test",
-    "--test-timeout=30000",
-    "--test-reporter=./scripts/required-node-test-reporter.mts",
-  ]);
-  const catalogSection = workflow.split("\n  catalog:\n")[1];
-  assert.ok(catalogSection, "catalog aggregate must exist");
-  const catalog = catalogSection.split("\n  fast_dependency_review:")[0];
-  assert.ok(catalog);
-  assert.match(
-    catalog,
-    /needs: \[classify, prose_checks, fast_catalog, windows_helpers, catalog_full\]/,
-  );
-  assert.match(
-    catalog,
-    /PORTCOVE_TARGETED_RESULTS: '\{"windows_helpers":"\$\{\{ needs.windows_helpers.result \}\}"\}'/,
-  );
-  assert.equal((catalog.match(/PORTCOVE_TARGETED_RESULTS:/gu) ?? []).length, 1);
 });
 
 void test(

@@ -290,7 +290,13 @@ void test("actual AppImage observers tolerate refactors and detect removed ident
 void test("actual AppImage entrypoint consumes its observation and reconciliation helpers", async (t) => {
   const entry = new URL("./desktop-appimage-update-test.mts", import.meta.url).href;
   const module = (name: string) => new URL(name, import.meta.url).href;
-  for (const variant of ["original", "aliased", "bypassed-factory", "bypassed-restart"]) {
+  for (const variant of [
+    "original",
+    "aliased",
+    "diagnostic-timeout",
+    "bypassed-factory",
+    "bypassed-restart",
+  ]) {
     const root = await mkdtemp(path.join(os.tmpdir(), "pcv-appimage-caller-"));
     t.after(() => rm(root, { recursive: true, force: true }));
     const program = `
@@ -300,7 +306,7 @@ void test("actual AppImage entrypoint consumes its observation and reconciliatio
       const app=path.join(root,'Portcove.AppImage'),staging=path.join(root,'staging');
       const stageMarker=path.join(root,'stage.json'),relaunchMarker=path.join(root,'relaunch.json'),helperMarker=path.join(root,'helper.json');
       const sentinel='controlled reconciliation observation reached';
-      let factoryCalls=0,restartCalls=0,settled=false,kills=0;
+      let factoryCalls=0,restartCalls=0,settled=false,kills=0,stagingCalls=0;
       const observers=()=>({procIdentity:async(pid)=>settled?null:{pid,start_ticks:'123',command:pid===202?'/owned/portcove-desktop':'/owned/driver'},
         verifiedRelaunchIdentity:async()=>null,verifiedHelperIdentity:async()=>null});
       globalThis.bypassFactory=observers;
@@ -312,20 +318,21 @@ void test("actual AppImage entrypoint consumes its observation and reconciliatio
         hashFile:async()=>({sha256:'b'.repeat(64),bytes:1}),
         startInstalledUpdateDriver:()=>({driver:{pid:101,exitCode:null},log:'controlled'}),
         awaitInstalledUpdateDriver:async(driver,identify)=>identify(driver.pid),
-        connectInstalledUpdateDriver:async()=>({takeScreenshot:async()=>'',findElement:()=>({click:async()=>{}}),quit:async()=>{}}),
-        verifyInstalledUpdateStaging:async()=>({}),
+        connectInstalledUpdateDriver:async()=>({executeScript:async()=>variant==='diagnostic-timeout'?new Promise(()=>{}):({text:'controlled post-click panel',buttons:[]}),takeScreenshot:async()=>'',findElement:()=>({click:async()=>{}}),quit:async()=>{}}),
+        readInstalledUpdateStatus:async()=>variant==='diagnostic-timeout'?new Promise(()=>{}):({install_eligibility:'eligible',staged:{},apply:null,recovery_required:[]}),
+        verifyInstalledUpdateStaging:async()=>{stagingCalls++;return variant==='diagnostic-timeout'&&stagingCalls>1?new Promise(()=>{}):{};},
         readJson:async(file)=>{assert.ok(file===helperMarker||file===relaunchMarker);return {schema_version:1,process_id:303,executable:app};},
         waitFor:async(predicate)=>predicate(),
         recordInstalledUpdateFailure:async(report,error)=>{report.phase='failed';report.failure=error.message;},
       }});
-      mock.module(${JSON.stringify(module("./desktop-application-update-journey.mts"))},{namedExports:{driveInstalledUpdateToRestart:async()=>({})}});
+      mock.module(${JSON.stringify(module("./desktop-application-update-journey.mts"))},{namedExports:{driveInstalledBusyRestartRefusal:async()=>{throw new Error('Busy activity opt-in was not provided');},driveInstalledFeedOutage:async()=>{throw new Error('Feed outage opt-in was not provided');},driveInstalledUpdateToRestart:async()=>({}),driveInstalledStableWaiting:async()=>{throw new Error('Historical waiting must not run in the ordinary entrypoint control');}}});
       mock.module(${JSON.stringify(module("./desktop-linux-webkit-inspector.mts"))},{namedExports:{loadedWebKitLibraries:async()=>({process:{start_ticks:'123'}})}});
       mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
         if(command==='git'){assert.deepEqual(args,['rev-parse','HEAD']);return 'a'.repeat(40);}
         assert.equal(command,'ps');assert.deepEqual(args,['-eo','pid=,ppid=']);return '101 1\\n202 101\\n';
       }}});
       registerHooks({resolve(specifier,context,next){
-        if(specifier==='selenium-webdriver')return {url:'data:text/javascript,export const By={xpath:value=>value}',shortCircuit:true};
+        if(specifier==='selenium-webdriver')return {url:'data:text/javascript,export const By={xpath:value=>value};export const until={}',shortCircuit:true};
         if(!specifier.startsWith('node:')&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))throw new Error('Unexpected package import');
         return next(specifier,context);
       },load(url,context,next){const loaded=next(url,context);if(url!==entry)return loaded;let source=String(loaded.source);
@@ -347,6 +354,15 @@ void test("actual AppImage entrypoint consumes its observation and reconciliatio
       assert.equal(factoryCalls,1,'Actual observation factory must be consumed');
       assert.equal(restartCalls,1,'Actual healthy-restart helper must be consumed');
       assert.equal(kills,0,'The control may not signal a native process');
+      const {readFile}=await import('node:fs/promises');
+      const retained=JSON.parse(await readFile(path.join(root,'output','renderer-update-evidence.json'),'utf8'));
+      assert.equal(retained.failure,sentinel,'Diagnostic observations must preserve the original failure');
+      const diagnostics=retained.restart_failure_observation;
+      assert.equal(diagnostics.per_observation_budget_ms,5000);
+      for(const name of ['panel','status','staging']){
+        if(variant==='diagnostic-timeout')assert.match(diagnostics[name].error,/Failure observation exceeded 5000 ms/);
+        else assert.ok(Object.hasOwn(diagnostics[name],'value'));
+      }
       process.exitCode=0;console.log('PASS actual AppImage entrypoint');
     `;
     const env = { ...process.env };
@@ -360,7 +376,7 @@ void test("actual AppImage entrypoint consumes its observation and reconciliatio
       maxBuffer: 1024 * 1024,
     });
     assert.ifError(result.error);
-    if (variant === "original" || variant === "aliased") {
+    if (variant === "original" || variant === "aliased" || variant === "diagnostic-timeout") {
       assert.equal(result.status, 0, result.stderr);
       assert.match(result.stdout, /PASS actual AppImage entrypoint/u);
     } else {

@@ -2180,6 +2180,914 @@
     "title": "ExternalRuntimeRemovalPreview",
     "type": "object"
   },
+  "game_comparison": {
+    "$defs": {
+      "ComparisonEdition": {
+        "properties": {
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "system": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "system",
+          "evidence_urls"
+        ],
+        "type": "object"
+      },
+      "ComparisonFreshness": {
+        "properties": {
+          "last_attempt_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "last_successful_resolution_at": {
+            "description": "Successful provider resolution may use the provider's existing cache. This\nis deliberately not labelled a fresh network request or upstream change time.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "offered_identity_changed_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/ComparisonReleaseState"
+          }
+        },
+        "required": [
+          "state",
+          "last_successful_resolution_at",
+          "last_attempt_at",
+          "offered_identity_changed_at"
+        ],
+        "type": "object"
+      },
+      "ComparisonPort": {
+        "properties": {
+          "declared_platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "edition_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "followed": {
+            "type": "boolean"
+          },
+          "freshness": {
+            "$ref": "#/$defs/ComparisonFreshness"
+          },
+          "installed": {
+            "type": "boolean"
+          },
+          "launch_ready": {
+            "type": "boolean"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "metadata": {
+            "$ref": "#/$defs/RecommendationMetadataState"
+          },
+          "name": {
+            "type": "string"
+          },
+          "offered_identity": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "offered_release": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ComparisonRelease"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation": {
+            "$ref": "#/$defs/RecommendationOperationEligibility",
+            "description": "Existing Core assessment, not recommendation policy. Never an execution token."
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "project_url": {
+            "type": "string"
+          },
+          "source_health": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_profile_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "update_notice": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ComparisonUpdateNotice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A single current observed change, deduplicated by exact release/artifact identity."
+          }
+        },
+        "required": [
+          "port_id",
+          "name",
+          "project_url",
+          "edition_ids",
+          "declared_platforms",
+          "source_profile_ids",
+          "metadata",
+          "offered_release",
+          "offered_identity",
+          "freshness",
+          "operation",
+          "source_health",
+          "launch_ready",
+          "installed",
+          "followed",
+          "update_notice",
+          "limitations"
+        ],
+        "type": "object"
+      },
+      "ComparisonRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "asset_name": {
+            "type": "string"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "channel",
+          "asset_name",
+          "artifact_sha256",
+          "size",
+          "published_at"
+        ],
+        "type": "object"
+      },
+      "ComparisonReleaseState": {
+        "enum": [
+          "catalog-pinned",
+          "provider-resolved",
+          "collection-failed",
+          "definition-changed",
+          "unobserved",
+          "not-offered"
+        ],
+        "type": "string"
+      },
+      "ComparisonUpdateNotice": {
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "identity": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "identity",
+          "version",
+          "artifact_sha256",
+          "observed_at"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortRecommendationAssessment": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/$defs/RecommendationCandidateAssessment"
+            },
+            "type": "array"
+          },
+          "comparable": {
+            "items": {
+              "$ref": "#/$defs/RecommendationScope"
+            },
+            "type": "array"
+          },
+          "evaluated_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "evidence_snapshot_id": {
+            "type": "string"
+          },
+          "policy_version": {
+            "type": "string"
+          },
+          "recommended": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RecommendationScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retained_regressions": {
+            "description": "Feed this union back through the existing observation store on refresh.\nCorrections do not erase original failure evidence.",
+            "items": {
+              "$ref": "#/$defs/RecommendationRegression"
+            },
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/$defs/PortRecommendationStatus"
+          }
+        },
+        "required": [
+          "policy_version",
+          "evidence_snapshot_id",
+          "evaluated_at",
+          "status",
+          "recommended",
+          "comparable",
+          "candidates",
+          "retained_regressions"
+        ],
+        "type": "object"
+      },
+      "PortRecommendationStatus": {
+        "enum": [
+          "recommended-starting-point",
+          "comparable-alternatives",
+          "assessed-single-candidate",
+          "insufficient-evidence",
+          "no-suitable-candidate"
+        ],
+        "type": "string"
+      },
+      "RecommendationCandidateAssessment": {
+        "properties": {
+          "dimensions": {
+            "items": {
+              "$ref": "#/$defs/RecommendationDimensionAssessment"
+            },
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/RecommendationEvidenceAssessment"
+            },
+            "type": "array"
+          },
+          "evidence_coverage_permille": {
+            "description": "Coverage of this policy's evidence, not probability of successful play.",
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "operation_eligibility": {
+            "$ref": "#/$defs/RecommendationOperationEligibility"
+          },
+          "ranking_score_basis_points": {
+            "description": "Diagnostic 0..10000, never a cross-game public quality score. All-unknown\nevidence is None, not a displayed neutral 50/100.",
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/$defs/RecommendationReason"
+            },
+            "type": "array"
+          },
+          "recommendation_eligible": {
+            "type": "boolean"
+          },
+          "required_capabilities": {
+            "additionalProperties": {
+              "$ref": "#/$defs/RecommendationRequirement"
+            },
+            "type": "object"
+          },
+          "scope": {
+            "$ref": "#/$defs/RecommendationScope"
+          },
+          "unresolved_regression_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "scope",
+          "operation_eligibility",
+          "required_capabilities",
+          "dimensions",
+          "evidence",
+          "ranking_score_basis_points",
+          "evidence_coverage_permille",
+          "recommendation_eligible",
+          "unresolved_regression_ids",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "RecommendationClaim": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "rating",
+                "type": "string"
+              },
+              "value": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RecommendationDimension": {
+        "enum": [
+          "gameplay",
+          "stability",
+          "performance",
+          "controls",
+          "setup",
+          "maintenance"
+        ],
+        "type": "string"
+      },
+      "RecommendationDimensionAssessment": {
+        "properties": {
+          "dimension": {
+            "$ref": "#/$defs/RecommendationDimension"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "rating": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/RecommendationDimensionState"
+          },
+          "strength_permille": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "weight_percent": {
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dimension",
+          "weight_percent",
+          "state",
+          "rating",
+          "strength_permille",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "RecommendationDimensionState": {
+        "enum": [
+          "known",
+          "unknown",
+          "not-applicable",
+          "conflicting"
+        ],
+        "type": "string"
+      },
+      "RecommendationEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "claim": {
+            "$ref": "#/$defs/RecommendationClaim"
+          },
+          "dimension": {
+            "$ref": "#/$defs/RecommendationDimension"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/RecommendationEvidenceKind"
+          },
+          "observed_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "scope": {
+            "$ref": "#/$defs/RecommendationScope"
+          },
+          "source": {
+            "type": "string"
+          },
+          "supersedes": {
+            "description": "Explicit accepted corrections, never implicit latest-report-wins ordering.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "dimension",
+          "kind",
+          "claim",
+          "source",
+          "explanation",
+          "observed_at",
+          "supersedes"
+        ],
+        "type": "object"
+      },
+      "RecommendationEvidenceAssessment": {
+        "properties": {
+          "disposition": {
+            "$ref": "#/$defs/RecommendationEvidenceDisposition"
+          },
+          "evidence": {
+            "$ref": "#/$defs/RecommendationEvidence"
+          }
+        },
+        "required": [
+          "evidence",
+          "disposition"
+        ],
+        "type": "object"
+      },
+      "RecommendationEvidenceDisposition": {
+        "enum": [
+          "current",
+          "historical-scope",
+          "future-observation",
+          "unsupported-observation-kind",
+          "superseded",
+          "invalid"
+        ],
+        "type": "string"
+      },
+      "RecommendationEvidenceKind": {
+        "enum": [
+          "upstream-declared",
+          "artifact-inspected",
+          "setup-observed",
+          "launch-observed",
+          "gameplay-observed",
+          "performance-observed",
+          "maintenance-observed"
+        ],
+        "type": "string"
+      },
+      "RecommendationMetadataState": {
+        "enum": [
+          "available",
+          "missing",
+          "invalid",
+          "unsupported-version"
+        ],
+        "type": "string"
+      },
+      "RecommendationOperationEligibility": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "allowed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "unknown",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "held",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RecommendationReason": {
+        "enum": [
+          "different-game-or-edition",
+          "different-platform-or-environment",
+          "source-not-selected",
+          "operation-unknown",
+          "operation-held",
+          "requirement-unknown",
+          "requirement-unsupported",
+          "invalid-evidence",
+          "conflicting-evidence",
+          "critical-regression",
+          "insufficient-coverage",
+          "gameplay-unobserved",
+          "stability-unobserved",
+          "gameplay-below-default-floor",
+          "stability-below-default-floor",
+          "materially-worse-playing-experience"
+        ],
+        "type": "string"
+      },
+      "RecommendationRegression": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_scope": {
+            "$ref": "#/$defs/RecommendationScope",
+            "description": "Retain the originally affected artifact as provenance. A new artifact does\nnot itself resolve this accepted failure for the same route/environment."
+          },
+          "dimension": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RecommendationDimension"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Missing in legacy history: retain the failure, withhold automatic correction."
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "affected_scope",
+          "dimension",
+          "observed_at",
+          "source",
+          "explanation"
+        ],
+        "type": "object"
+      },
+      "RecommendationRequirement": {
+        "enum": [
+          "satisfied",
+          "unknown",
+          "unsupported"
+        ],
+        "type": "string"
+      },
+      "RecommendationScope": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "description": "Accepted artifact identity, not a mutable tag or download URL.",
+            "type": "string"
+          },
+          "edition_id": {
+            "type": "string"
+          },
+          "environment_id": {
+            "description": "Explicit relevant environment identity; not inferred from the current host.",
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release_id": {
+            "type": "string"
+          },
+          "route_id": {
+            "type": "string"
+          },
+          "source_profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "edition_id",
+          "port_id",
+          "release_id",
+          "artifact_id",
+          "platform",
+          "environment_id",
+          "source_profile_id",
+          "route_id"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "SourceHealth": {
+        "description": "Current relationship between a registered source path and its saved storage identity.\n`Current` means the bytes are unchanged since registration; it does not strengthen the\ncatalog profile's game-revision evidence.\n`NotBaselined` means readable selected bytes have no saved identity baseline.",
+        "enum": [
+          "unregistered",
+          "current",
+          "missing",
+          "unreadable",
+          "changed",
+          "not_checked",
+          "not_baselined"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "assessment": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PortRecommendationAssessment"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "edition_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "editions": {
+        "items": {
+          "$ref": "#/$defs/ComparisonEdition"
+        },
+        "type": "array"
+      },
+      "environment_id": {
+        "type": "string"
+      },
+      "evaluated_at": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "format_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "game_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "input_id": {
+        "type": "string"
+      },
+      "limitations": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "platform": {
+        "$ref": "#/$defs/Platform"
+      },
+      "policy_version": {
+        "type": "string"
+      },
+      "ports": {
+        "items": {
+          "$ref": "#/$defs/ComparisonPort"
+        },
+        "type": "array"
+      },
+      "required_capabilities": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "source_context_is_hypothetical": {
+        "type": "boolean"
+      },
+      "source_profile_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      }
+    },
+    "required": [
+      "format_version",
+      "policy_version",
+      "game_id",
+      "edition_id",
+      "editions",
+      "platform",
+      "environment_id",
+      "source_profile_ids",
+      "source_context_is_hypothetical",
+      "required_capabilities",
+      "evaluated_at",
+      "input_id",
+      "assessment",
+      "ports",
+      "limitations"
+    ],
+    "title": "GameComparison",
+    "type": "object"
+  },
   "game_file_query_snapshot": {
     "$defs": {
       "GameFileQueryReason": {
@@ -3667,6 +4575,26 @@
         "default": {},
         "type": "object"
       },
+      "followed_port_ids": {
+        "default": [],
+        "description": "Explicit opt-in, separate from Saved or Favorites and never automatic installation.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "followed_release_acknowledgments": {
+        "additionalProperties": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "default": {},
+        "type": "object"
+      },
       "hidden_port_ids": {
         "default": [],
         "items": {
@@ -3710,6 +4638,8 @@
       "collections",
       "hidden_port_ids",
       "saved_game_ids",
+      "followed_port_ids",
+      "followed_release_acknowledgments",
       "update_notices",
       "setup_confirmations"
     ],
@@ -4848,6 +5778,13 @@
           "caption": {
             "type": "string"
           },
+          "edition_neutral": {
+            "description": "Reviewed applicability across offered original editions, for any media role.\nAbsence never implies that an offered edition is the selected edition.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "height": {
             "format": "uint32",
             "minimum": 0,
@@ -4855,6 +5792,16 @@
           },
           "id": {
             "type": "string"
+          },
+          "igdb": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbGameImage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "license": {
             "type": "string"
@@ -4902,7 +5849,9 @@
       "CatalogMediaRole": {
         "enum": [
           "header",
-          "screenshot"
+          "screenshot",
+          "logo",
+          "key_art"
         ],
         "type": "string"
       },
@@ -4992,6 +5941,66 @@
         ],
         "type": "string"
       },
+      "IgdbGameImage": {
+        "additionalProperties": false,
+        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "properties": {
+          "alpha_channel": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_type": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "image_type_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/IgdbGameImageKind"
+          },
+          "record_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "game_id",
+          "record_id",
+          "kind",
+          "image_id",
+          "game_slug"
+        ],
+        "type": "object"
+      },
+      "IgdbGameImageKind": {
+        "enum": [
+          "logo",
+          "artwork"
+        ],
+        "type": "string"
+      },
       "ListingAvailability": {
         "description": "A dated discovery fact, not a managed support or artifact admission decision.",
         "enum": [
@@ -5001,6 +6010,214 @@
           "unavailable"
         ],
         "type": "string"
+      },
+      "ListingObservationStatus": {
+        "enum": [
+          "complete",
+          "incomplete",
+          "unavailable",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "ListingObservedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform_hints": {
+            "description": "Descriptive authored filename hints, never execution capabilities.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "description": "Provider-reported claim; this does not verify downloaded bytes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform_hints",
+          "id",
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ListingObservedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedAsset"
+            },
+            "type": "array"
+          },
+          "assets_complete": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_prerelease": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "release_url",
+          "published_at",
+          "provider_prerelease",
+          "assets_complete",
+          "assets"
+        ],
+        "type": "object"
+      },
+      "ListingPinnedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "version",
+          "published_at"
+        ],
+        "type": "object"
+      },
+      "ListingReleaseMaintenance": {
+        "additionalProperties": false,
+        "properties": {
+          "pinned_releases": {
+            "description": "Derived from accepted direct contracts, not independently maintained versions.",
+            "items": {
+              "$ref": "#/$defs/ListingPinnedRelease"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reconsider_when": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "reconsider_when",
+          "pinned_releases"
+        ],
+        "type": "object"
+      },
+      "ListingUpstreamObservation": {
+        "additionalProperties": false,
+        "properties": {
+          "attempted_at": {
+            "type": "string"
+          },
+          "facts_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fresh_until": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "release_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedRelease"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/ListingObservationStatus"
+          }
+        },
+        "required": [
+          "provider",
+          "repository",
+          "repository_id",
+          "status",
+          "attempted_at",
+          "observed_at",
+          "fresh_until",
+          "facts_sha256",
+          "release_limit",
+          "releases"
+        ],
+        "type": "object"
       },
       "ManualSetupGuide": {
         "additionalProperties": false,
@@ -5115,6 +6332,13 @@
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
           },
+          "availability_override_reason": {
+            "description": "Authored exception takes precedence over observations only with this reason.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "download_asset_hints": {
             "additionalProperties": false,
             "description": "Advisory literal filename hints for an upstream-owned download. They do\nnot authenticate a package or grant installation/execution ownership.",
@@ -5221,6 +6445,16 @@
             ],
             "description": "Initial self-service release choice only; never the installed update policy."
           },
+          "release_maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingReleaseMaintenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "release_url": {
             "type": [
               "string",
@@ -5235,6 +6469,17 @@
           },
           "summary": {
             "type": "string"
+          },
+          "upstream_observation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingUpstreamObservation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Accepted descriptive observation, never a package or execution grant."
           },
           "variant_label": {
             "type": [
@@ -9013,6 +10258,14 @@
         ],
         "type": "object"
       },
+      "ActivityLiveness": {
+        "enum": [
+          "active",
+          "interrupted",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "ActivityOperation": {
         "enum": [
           "download_package",
@@ -9077,6 +10330,17 @@
           },
           "id": {
             "type": "string"
+          },
+          "liveness": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ActivityLiveness"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Best-effort ownership observation, not a replacement for terminal results."
           },
           "message": {
             "type": [
@@ -9586,7 +10850,7 @@
       },
       "CatalogListingDocument": {
         "additionalProperties": false,
-        "description": "Independently versioned directory projection. Format 2 can restrict fresh\ndownloads; format 3 adds descriptive game/edition identity. No format grants operations.",
+        "description": "Independently versioned directory projection. Format 2 can restrict fresh\ndownloads; format 3 adds game/edition identity; format 4 adds inert observations\nand reason-bearing display overrides/maintenance. No format grants operations.",
         "properties": {
           "format_version": {
             "format": "uint32",
@@ -9615,6 +10879,13 @@
           "caption": {
             "type": "string"
           },
+          "edition_neutral": {
+            "description": "Reviewed applicability across offered original editions, for any media role.\nAbsence never implies that an offered edition is the selected edition.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "height": {
             "format": "uint32",
             "minimum": 0,
@@ -9622,6 +10893,16 @@
           },
           "id": {
             "type": "string"
+          },
+          "igdb": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbGameImage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "license": {
             "type": "string"
@@ -9669,7 +10950,9 @@
       "CatalogMediaRole": {
         "enum": [
           "header",
-          "screenshot"
+          "screenshot",
+          "logo",
+          "key_art"
         ],
         "type": "string"
       },
@@ -10404,6 +11687,66 @@
         ],
         "type": "string"
       },
+      "IgdbGameImage": {
+        "additionalProperties": false,
+        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "properties": {
+          "alpha_channel": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "game_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "game_slug": {
+            "type": "string"
+          },
+          "image_id": {
+            "type": "string"
+          },
+          "image_type": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "image_type_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/$defs/IgdbGameImageKind"
+          },
+          "record_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "game_id",
+          "record_id",
+          "kind",
+          "image_id",
+          "game_slug"
+        ],
+        "type": "object"
+      },
+      "IgdbGameImageKind": {
+        "enum": [
+          "logo",
+          "artwork"
+        ],
+        "type": "string"
+      },
       "InstallRecord": {
         "properties": {
           "artifact": {
@@ -10559,6 +11902,17 @@
               "null"
             ]
           },
+          "setup_contract": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SetupExplanation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mechanical explanation from the effective (possibly retained) contract."
+          },
           "source": {
             "anyOf": [
               {
@@ -10645,6 +11999,214 @@
           "unavailable"
         ],
         "type": "string"
+      },
+      "ListingObservationStatus": {
+        "enum": [
+          "complete",
+          "incomplete",
+          "unavailable",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "ListingObservedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "platform_hints": {
+            "description": "Descriptive authored filename hints, never execution capabilities.",
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "sha256": {
+            "description": "Provider-reported claim; this does not verify downloaded bytes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform_hints",
+          "id",
+          "name",
+          "url",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "ListingObservedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedAsset"
+            },
+            "type": "array"
+          },
+          "assets_complete": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "provider_prerelease": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": "string"
+          },
+          "release_url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "release_url",
+          "published_at",
+          "provider_prerelease",
+          "assets_complete",
+          "assets"
+        ],
+        "type": "object"
+      },
+      "ListingPinnedRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "version",
+          "published_at"
+        ],
+        "type": "object"
+      },
+      "ListingReleaseMaintenance": {
+        "additionalProperties": false,
+        "properties": {
+          "pinned_releases": {
+            "description": "Derived from accepted direct contracts, not independently maintained versions.",
+            "items": {
+              "$ref": "#/$defs/ListingPinnedRelease"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reconsider_when": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "reconsider_when",
+          "pinned_releases"
+        ],
+        "type": "object"
+      },
+      "ListingUpstreamObservation": {
+        "additionalProperties": false,
+        "properties": {
+          "attempted_at": {
+            "type": "string"
+          },
+          "facts_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fresh_until": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "release_limit": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/ListingObservedRelease"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "status": {
+            "$ref": "#/$defs/ListingObservationStatus"
+          }
+        },
+        "required": [
+          "provider",
+          "repository",
+          "repository_id",
+          "status",
+          "attempted_at",
+          "observed_at",
+          "fresh_until",
+          "facts_sha256",
+          "release_limit",
+          "releases"
+        ],
+        "type": "object"
       },
       "ManagedInitialization": {
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
@@ -11401,6 +12963,13 @@
                 "type": "null"
               }
             ]
+          },
+          "windows_temp_directory": {
+            "description": "Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.\nThe upstream process must preserve the reviewed working directory.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -11458,6 +13027,13 @@
           "availability": {
             "$ref": "#/$defs/ListingAvailability",
             "default": "unknown"
+          },
+          "availability_override_reason": {
+            "description": "Authored exception takes precedence over observations only with this reason.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "download_asset_hints": {
             "additionalProperties": false,
@@ -11565,6 +13141,16 @@
             ],
             "description": "Initial self-service release choice only; never the installed update policy."
           },
+          "release_maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingReleaseMaintenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "release_url": {
             "type": [
               "string",
@@ -11579,6 +13165,17 @@
           },
           "summary": {
             "type": "string"
+          },
+          "upstream_observation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingUpstreamObservation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Accepted descriptive observation, never a package or execution grant."
           },
           "variant_label": {
             "type": [
@@ -11677,6 +13274,9 @@
               "string",
               "null"
             ]
+          },
+          "recommendation": {
+            "description": "Optional inert quality observations. Unknown or malformed recommendation\nschemas are retained for compatible readers but never invalidate operations."
           },
           "saves_and_settings": {
             "$ref": "#/$defs/SavesAndSettingsBehavior"
@@ -12312,6 +13912,89 @@
           "external-user-owned"
         ],
         "type": "string"
+      },
+      "SetupExplanation": {
+        "properties": {
+          "definition_sha256": {
+            "type": "string"
+          },
+          "installation_method": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallationMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "manual_preparation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "persistent_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
+          },
+          "persistent_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "retained": {
+            "type": "boolean"
+          },
+          "saves_and_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SavesAndSettingsBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/SourceRequirementPresentation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "definition_sha256",
+          "retained",
+          "platforms",
+          "installation_method",
+          "source_requirements",
+          "saves_and_settings",
+          "persistent_paths",
+          "persistent_file_patterns",
+          "manual_preparation",
+          "manual_setup"
+        ],
+        "type": "object"
       },
       "SourceAdmission": {
         "oneOf": [

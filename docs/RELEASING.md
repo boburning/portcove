@@ -146,6 +146,144 @@ package for the selected fixture transition: `legacy-adjacent` uses 0.1.0 to
 1.0.0-rc.2 to 1.0.0. Each profile builds only its two endpoints and follows the
 same installed-app selection, staging, replacement and restart path. The default
 remains `legacy-skipped`; choosing a profile is not evidence it passed.
+
+For #225's historical manual-bootstrap observation, select only `linux-x86_64`,
+a legacy transition and `historical_linux_bootstrap: true`. The optional prelude
+uses the pinned published Alpha 2 AppImage and its matching CLI, saves a real
+library choice in an empty private library, then creates its preservation marker
+once. The same installed path, library and preferences continue through ordinary
+Alpha 2 startup/close, manual replacement by the updater-enabled predecessor and
+the existing authenticated Settings journey. Before closing Alpha 2, require its
+settled empty-library view and normal Settings readback of the exact saved library
+choice; inspect the retained screenshots separately. The qualified predecessor
+then performs a fresh Stable no-candidate check with unchanged AppImage bytes
+before explicitly selecting Preview through the shared Settings journey.
+Historical input signatures/feed
+remain explicitly absent. The maintained process-tree supervisor gives this
+consumer a 300-second execution budget after admission/setup, including with an
+inherited lease. Retain failed runs and cleanup settlement; a selected mode is
+not native acceptance. This chain does not create a desktop entry.
+
+After manual replacement, the same opt-in uses the builder-retained matching
+predecessor Core CLI to install the existing OpenTyrian catalog entry normally.
+The retained CLI receipt joins the source, version, binary hash and staged archive
+inventory before use. It then copies exactly three provenance-pinned,
+checksum-valid game-authored save/configuration files into a new private external
+OpenTyrian store; an existing store is refused. Original runtime files, installed
+record/artifact identity, game-update policy and player-file bytes are compared
+before and after authenticated candidate return. Original runtime/player files
+are captured before the additional observer CLI runs; installed records and
+policy are then read back through status. Candidate startup may already reconcile
+Core state, so this does not claim an unreconciled database preimage. The fixture
+does not copy a library database or execute the game. This renderer chain does
+not uninstall; separate lifecycle controls do not prove this dataset survives
+uninstall.
+Its generator provenance and limits live in
+`scripts/fixtures/application-update-game-data/manifest.json`. In-game loading,
+gameplay, personal history, credentials and managed backup coverage of external
+game data remain unclaimed. A selected mode or component pass is not installed
+updater preservation evidence. Production authority and real release-to-release
+acceptance remain with their owning gates.
+
+For a separate Windows real-data observation, the existing disposable renderer
+upgrade accepts `-InstalledGameDataConfigurationPath` and its exact SHA-256.
+It excludes public/account-bound routes and the historical bootstrap prelude;
+those retain their separate receipts. Use a new private case directory containing
+an empty retained-library sibling of `TestBase`, a source/version/hash-bound
+matching Core CLI receipt, and a closed configuration with `schema_version: 1`,
+`cli_receipt`, `cli_source_commit`, `library` and `preferences_path`. Set
+`APPDATA`, `LOCALAPPDATA` and `PORTCOVE_PREFERENCES` to private children of that
+case. Preflight requires both stores empty and host preferences absent before
+any installer or Core mutation.
+
+After the predecessor is verified, normal Core saves the library choice,
+installs OpenTyrian and copies the same three game-authored files once. Existing
+damaged-stage/repair/update controls then run. The empty-library WebView startup
+smoke uses separate new library/preferences paths for either transport and
+restores the original absent/empty/value environment exactly before the real
+updater renderer starts. Its empty-state assertions remain intact; that smoke
+supplies no observation of the populated game library. After uninstall's original
+recursive-library comparison, the observer captures original runtime/player
+files before additional Core status, checks the original installed record/policy
+and exact saved-library preference bytes, and writes retained evidence outside
+the disposable installer run. A selected option is not evidence of completion.
+The Windows real-data route and historical Linux renderer route additionally
+exercise a bounded outage of their owned local `timestamp.json`. They persist
+exact control/preimage identities before driver dispatch, observe an ordinary
+check reporting the sanitized reachability failure without new staging/apply
+state or changed saved updater choices, restore the original timestamp inode
+and bytes, then retry through the ordinary controls. Scheduling failure/retry
+counters may legitimately change. The installed executable/AppImage hash and
+existing data comparisons remain required. Repeated Stable/Manual setup confirms
+an already-saved choice through the shipping read-only preference query instead
+of clicking a correctly disabled, unchanged Save control. An enabled Save still
+uses its normal UI action, and the fresh one-time check remains mandatory.
+This is file-feed reachability
+coverage, not OS-offline, HTTP redirect/rate-limit, production TLS or publication
+acceptance.
+
+The fixture adapter verifies same-filesystem no-replace hardlinks before
+withholding anything and reuses the existing process-identity lock for its
+mutating window. Parent restoration refuses active/unknown mutators, seals out
+late fault writers and refuses foreign files or changed retained preimages.
+Exact controls and originals remain available on failure; resuming restoration
+uses the retained configuration and its original SHA-256 with
+`node apps/desktop/scripts/desktop-installed-feed-outage.mts --phase restore --configuration FILE --sha256 SHA256`.
+Do not recompute an expected digest from altered inputs or overwrite a foreign
+replacement. This establishes bounded process-interruption recovery, not
+power-loss/directory-durability or actual reboot behavior. Selecting the fixture
+does not establish that its installed observation completed.
+
+The historical Linux real-data chain also holds one genuine public Core update
+activity before launching the updater-enabled renderer. The Windows real-data
+route opts into the same seam with `-InstalledLibraryBusyHelperPath`, its exact
+`-InstalledLibraryBusyHelperSha256` and `-InstalledLibraryBusyHelperSource`.
+These require the existing hash-bound game-data configuration; public/account
+routes remain separate. Use the compiled `prepare_installed_update` example from
+the existing stripped `controller-tools` profile. Its `describe` command supplies
+Core's actual library schema and lock protocol; the requested description version
+is helper-contract input, not installed-predecessor version or source evidence.
+Record exact helper byte identity and builder source separately from application
+package identities.
+
+Start the holder after normal seed/observer processes exit and before renderer
+startup. The helper verifies the existing active installation and current schema,
+then waits inside the normal public update's Started callback with its genuine
+durable Running activity and continuously held Core activity lock. A temporary
+quiescence-admission lease is not the busy witness. The ordinary enabled Restart
+must produce a fresh canonical Conflict alert, with unchanged verified staging,
+preferences, installed image and original application process, no apply intent
+and no updater/relaunch marker. An already-present alert or disabled button does
+not satisfy this observation.
+
+Only after that refusal, send the nonce/activity-bound cancellation through the
+owned child's stdin. Require Core's cancellation acknowledgement, durable
+Cancelled record, matching Finished event, zero provider acquisition, idle library
+and observed child OS exit 0 before the existing fresh explicit Restart click.
+The helper never executes the game or creates an update row with SQL. Invalid
+release, EOF or its finite wait limit exits 86 without inventing a Core terminal
+result. Retain unresolved activity/output and settle the original owned child
+before another observer or driver teardown; a failed case stays failed even if
+cleanup succeeds. Controller protocol tests use explicitly fake producers and
+do not establish Core or installed acceptance.
+
+Ordinary Linux lifecycle and historical real-data stable targets include spaces
+and Unicode. A separate bounded tmpfs fixture is prepared with `noexec` by the
+existing privileged setup; the copied exact AppImage is tested by the ordinary
+UID with no effective capabilities and mode 0755. The fixed probe verifies the
+actual mount before attempting execution and accepts only kernel EACCES with no
+started process. It retains raw mount/launch outcomes and rechecks the original
+stable file and synthetic lifecycle data. This is mount/noexec refusal, not
+successful application execution, painted guidance, reboot or real-game data
+preservation in that separate fixture. Explicit artifact paths retain these
+reports and the holder/descriptor output without including profiles or credential
+stores. All these selected scenarios still require actual installed receipts.
+
+The fixed Windows OS credential store is not isolated by these private paths;
+credential continuity, gameplay and raw database-preimage claims remain absent.
+The caller must retain the configuration, CLI/package/source custody and all
+phase reports, including failures. No signing/publication authority is added.
+
 It checks native package versions and
 executable permissions. The Linux job defaults to the approved Ubuntu 24.04
 support environment; `linux_runner` retains Ubuntu 22.04 for scoped diagnostic

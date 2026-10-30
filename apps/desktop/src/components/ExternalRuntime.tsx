@@ -82,11 +82,18 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
 export function AuthoredPreparationGuidance({
   port,
   ownership = "external",
+  setup,
 }: {
   port: CatalogEntry;
   ownership?: "managed" | "external";
+  setup?:
+    | Pick<NonNullable<PortDefinition["presentation"]>, "manual_setup" | "manual_preparation">
+    | null
+    | undefined;
 }) {
-  const guide = port.presentation?.manual_setup;
+  const guide = setup === undefined ? port.presentation?.manual_setup : setup?.manual_setup;
+  const note =
+    setup === undefined ? port.presentation?.manual_preparation : setup?.manual_preparation;
   // A managed definition also offers external registration. Its managed-data
   // instructions cannot grant ownership of that external copy.
   const externalManaged =
@@ -119,12 +126,12 @@ export function AuthoredPreparationGuidance({
           {guide.help_url && (
             <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
           )}
-          {port.presentation?.manual_preparation && !externalManaged && (
+          {note && !externalManaged && (
             <details className="text-xs">
               <summary data-focusable className="cursor-pointer font-medium">
                 Compatibility and technical notes
               </summary>
-              <p className="mt-2">{port.presentation.manual_preparation}</p>
+              <p className="mt-2">{note}</p>
             </details>
           )}
         </>
@@ -132,8 +139,8 @@ export function AuthoredPreparationGuidance({
         port.project_url ? (
           <ExternalLink href={port.project_url}>Upstream setup instructions</ExternalLink>
         ) : null
-      ) : port.presentation?.manual_preparation ? (
-        <p>{port.presentation.manual_preparation}</p>
+      ) : note ? (
+        <p>{note}</p>
       ) : null}
     </>
   );

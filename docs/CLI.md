@@ -254,6 +254,10 @@ version, description, repository and license without opening a library.
 Repeated operational commands do not print banners or artwork.
 
 Human operation progress goes to standard error. An interactive terminal receives an updating inline byte counter. When standard error is redirected, Portcove emits a bounded line for each phase start and its final observed byte count instead of carriage-return updates for every chunk. A partial final count does not imply success; read the command result or retained activity for the authoritative outcome. Machine clients should use `--jsonl` for the full versioned event stream.
+Schema-3 progress events can additionally supply stable `phase_id` and explicit
+`unit` (`bytes`, `items`, `ports`, `indeterminate`). Both human adapters use these
+producer facts. Older events without units display generic counts; display text
+never establishes a unit or terminal success.
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
@@ -486,6 +490,26 @@ breaks; negotiate the selected runtime rather than infer compatibility from its
 product version. Later gaps need their own demonstrated owner and migration.
 
 `doctor` is a local, network-free, read-only host report. Observation commands such as `status`, `activity`, `storage`, and `doctor` do not advance cancellation or lifecycle recovery merely by opening core state. A later mutating command, desktop startup, or explicit desktop orphan-discovery pass performs locked recovery; a repair-plan read can therefore report a retained journal before that pass. It returns the current platform, library capacity, catalog/installation/source counts, one typed entry for each optional host tool Portcove can use, and a repair plan. The repair plan distinguishes retained private preparation from other partial lifecycle operations, cleanup-pending private trees, missing registered install paths, and untracked final directories. It proposes an action but never mutates or deletes files. Tool state is `available`, `missing`, `misconfigured`, or `unsupported`; an available tool includes its resolved path and whether it came from an environment override, saved host preference, or reviewed discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An invalid environment or saved path remains `misconfigured` instead of silently falling back to another executable. `status` and `doctor` never initialize missing per-port settings; their in-memory defaults come from the catalog, choosing stable when offered and otherwise the port's first declared channel. A later policy-only change persists that same catalog default.
+
+`catalog compare PORT_ID` compares explicit game relationships through the same Core
+query as Desktop. Optional `--edition`, `--platform`, `--environment`, repeatable
+`--require` and repeatable `--source-profile` describe the comparison context.
+An explicit source context is hypothetical; an explicit environment is not a
+claim that this device was tested. `--refresh` reuses the configured release
+provider and its normal cache/network policy; `--evaluated-at` pins the Unix-seconds
+replay clock. The default query does not create a new polling or discovery service.
+
+```sh
+portcove --json catalog compare render96ex
+portcove --json catalog compare render96ex --refresh --require multiplayer
+```
+
+Missing optional evidence yields visible alternatives and honest limitations, not
+an invented winner. The response includes scoped observations, per-dimension
+results, eligibility, coverage and diagnostic scores; it never changes an installed
+project, save, source, channel or pin. See the
+[recommendation policy](reference/port-recommendation-policy.md) for evidence,
+freshness, corrections and privacy boundaries.
 
 `catalog list` is a concise port array and `catalog show PORT_ID` retrieves one port. The human detail view includes the catalog-owned installation method, required game/BIOS labels and verification method, saves/settings behavior, and upstream state without exposing adapter IDs. For a user-prepared runtime, it also lists each accepted platform/version, exact package filename, byte count and SHA-256, and executable from the definition. Keep the catalog's manual preparation steps and required player inputs; return with the displayed external-preview command on the matching platform for exact-file review. The runtime remains user-owned and Portcove does not download or update it. These catalog facts describe accepted inputs; registration and current operation eligibility are assessed separately. `catalog export` returns the complete versioned `CatalogDocument`, including every source profile referenced by a port and its optional additive presentation object. External frontends should use that document when they need accepted source extensions, exact multi-file or disc requirements, source labels, or presentation facts instead of copying Portcove's embedded catalog. Older catalogs can omit presentation; consumers must handle that absence explicitly.
 
@@ -1003,7 +1027,17 @@ application updater.
 
 #### Game updates and review
 
-`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` downloads it without switching versions, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target.
+Human task wording follows the [glossary](../GLOSSARY.md) and
+[content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
+compares the full recorded installation manifest; its report names that scope
+and the actual checked-file count. Launch-critical checks are separate.
+**Update saved for later** names a retained staged version, and `activate` applies
+that version. A **saved-data backup** covers its declared player files, which can
+include more than progress saves; it is separate from original game files,
+installed versions and a metadata export. These labels change neither command
+names nor the versioned JSON/JSONL fields.
+
+`ensure` returns the active installation when one exists and installs otherwise. `check` is read-only and resolves the latest checksum-qualified release for the selected channel. Stable selection excludes prereleases; beta selects an eligible prerelease when present and otherwise falls back only to an eligible stable release; rolling selects only its exact configured tag. GitHub and GitLab use this same core rule. `check --all` uses the core batch path, runs at most four provider resolutions concurrently, preserves catalog order in its outcomes, and does not retry a rate-limited item implicitly. `reconcile` applies the stored policy: `notify` reports an available release without mutation, `stage` prepares or keeps the eligible version for later without switching versions, downloading only when needed, and `automatic` installs and activates it. Repeated runs reuse the matching staged version, and an automatic run promotes it transactionally. `activate` explicitly promotes the one staged version and preserves the deactivated version as the rollback target.
 
 Destructive or copying operations require `--yes` under `--non-interactive`; after confirmation, core issues a five-minute, one-use authorization bound to the action, target, and reviewed state and consumes it only under the operation lock. Adoption prints a content-hashed copy plan and every skipped symlink or special entry before confirmation.
 
@@ -1112,6 +1146,19 @@ portcove --library <path> --json plan <port-id> [--channel stable|preview|rollin
 The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.
 
 ### Review and recover preparation
+
+API schema 84 adds optional IGDB game-image metadata, `logo` / `key_art` media roles
+and explicitly reviewed `edition_neutral` applicability. Strict projected listings
+use format 5 when these fields occur; older listing formats retain their readers.
+These descriptive fields confer no launch, installation, rights or publication
+authority. The reference client does not consume game media and preserves its
+existing identity and Core action decisions; event schemas remain 2–3.
+
+API schema 83 adds `catalog.compare` / `game_comparison`, its explicit request and
+optional recommendation-metadata schemas, and local followed-project organization
+state. CLI and Desktop consume the same Core assessment. Missing/future optional
+metadata falls back to ordinary listings; quality never grants executable trust.
+Library and installed-contract versions are unchanged.
 
 API schema 82 adds source-only preparation format 3 and the optional retained
 `LaunchReadiness.preparation_mode` route. For staged originals that
@@ -1486,7 +1533,7 @@ prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
 included in backup/restore. The reference client accepts public API77 and requires
 explicit confirmation before transmitting acknowledgment. The current tested reference
-window extends through API81; unknown API82 and unknown consequential semantics are refused.
+window extends through API84; unknown API85 and unknown consequential semantics are refused.
 
 ### Retired custom source creation
 

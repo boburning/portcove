@@ -7,19 +7,29 @@ export function readStagedLayout(version: string) {
   );
   const panel = detail?.querySelector<HTMLElement>("[role=tabpanel]:not([hidden]):not([inert])");
   const activate = [...(panel?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
-    (item) => item.textContent?.trim() === `Use update · ${version}`,
+    (item) => item.textContent?.trim() === `Apply update · ${version}`,
   );
   const rect = (element: Element) => {
     const { left, right, top, bottom } = element.getBoundingClientRect();
     return { left, right, top, bottom };
   };
+  const visible = (element: Element) => {
+    if (
+      element.closest("[hidden], [inert]") ||
+      element.getClientRects().length === 0 ||
+      getComputedStyle(element).visibility !== "visible"
+    )
+      return false;
+    for (let current: Element | null = element; current; current = current.parentElement) {
+      const style = getComputedStyle(current);
+      if (style.display === "none" || Number(style.opacity) === 0) return false;
+    }
+    return true;
+  };
   const action = (element: HTMLButtonElement) => ({
     ...rect(element),
     enabled: !element.disabled && element.getAttribute("aria-disabled") !== "true",
-    visible:
-      !element.closest("[hidden], [inert]") &&
-      element.getClientRects().length > 0 &&
-      getComputedStyle(element).visibility === "visible",
+    visible: visible(element),
   });
   return {
     play: play && action(play),

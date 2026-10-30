@@ -3,6 +3,7 @@ import type { RustRunDependencies, RustResourceOptions } from "./run-rust-tests.
 import type { ResourceMetadata } from "./resource-capacity.mts";
 interface ResourceCommandOptions {
   executionTimeoutMilliseconds?: number;
+  executionDeadline?: number;
   onExecutionTimeout?: (milliseconds: number) => void;
   output?: { stdout: number; stderr: number };
   environment?: NodeJS.ProcessEnv;
@@ -76,6 +77,9 @@ export async function runResourceCommand(
         : {
             executionTimeoutMilliseconds: options.executionTimeoutMilliseconds,
           }),
+      ...(options.executionDeadline === undefined
+        ? {}
+        : { executionDeadline: options.executionDeadline }),
       ...(options.onExecutionTimeout ? { onExecutionTimeout: options.onExecutionTimeout } : {}),
       ...(options.output ? { output: options.output } : {}),
       cwd: options.cwd ?? process.cwd(),

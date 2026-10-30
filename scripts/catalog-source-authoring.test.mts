@@ -280,7 +280,8 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  assert.equal(projected.directory.format_version, 3);
+  assert.equal(projected.directory.format_version, 4);
+  assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
     projected.directory.listings.find((value) => value.id === "edition-fixture")?.original_game,
@@ -356,6 +357,25 @@ void test("descriptive media projects to format 3 and explicit empty strict medi
   assert.equal(projected.directory.format_version, 3);
   assert.deepEqual(projected.directory.listings[0]?.media, media);
   assert.equal(projected.catalog.ports.length, 0);
+  // New optional fields survive the JS writer verbatim, including explicit null.
+  // Their presence therefore requires format5 even when the semantic value is unknown.
+  for (const optional of [
+    { edition_neutral: null },
+    { edition_neutral: false },
+    { edition_neutral: true },
+    { igdb: null },
+  ]) {
+    const extended = checkedAuthoredPort({
+      ...record,
+      listing: { ...record.listing, media: [{ ...media[0], ...optional }] },
+    });
+    const emitted = fixtureJson(
+      JSON.stringify(assembleCatalogRecords(shared, [extended]).directory),
+    );
+    assert.equal(emitted.format_version, 5);
+    const emittedListing = requiredFixture(fixtureRecords(emitted.listings)[0]);
+    assert.deepEqual(fixtureRecords(emittedListing.media)[0], { ...media[0], ...optional });
+  }
   const integrated = source.records.find((value) => value.integration)!;
   const removal = checkedAuthoredPort({
     ...integrated,
@@ -364,4 +384,25 @@ void test("descriptive media projects to format 3 and explicit empty strict medi
   const removed = assembleCatalogRecords(shared, [removal]);
   assert.deepEqual(removed.catalog.ports[0]?.presentation?.media, []);
   assert.deepEqual(authoringRecordFromPort(removed.catalog.ports[0]).listing.media, []);
+});
+
+void test("optional recommendation observations round-trip as inert presentation without changing the operational route", () => {
+  const source = readCatalogSource(catalogRoot);
+  const original = source.catalog.ports.find((port) => port.id === "fragglet-sdl-sopwith")!;
+  for (const optional of [
+    { format_version: 1, observations: [], capabilities: [] },
+    { format_version: 999, future_observations: ["preserve without interpretation"] },
+    { malformed: "optional interpretation must fail without hiding the ordinary project" },
+  ]) {
+    const port = structuredClone(original);
+    port.presentation = { ...fixtureRecord(port.presentation), recommendation: optional };
+    const record = authoringRecordFromPort(port);
+    const assembled = assembleCatalogRecords(
+      fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json"))),
+      [record],
+    );
+    assert.deepEqual(assembled.catalog.ports[0], port);
+    assert.deepEqual(assembled.catalog.ports[0].release, original.release);
+    assert.deepEqual(assembled.catalog.ports[0].adapter, original.adapter);
+  }
 });

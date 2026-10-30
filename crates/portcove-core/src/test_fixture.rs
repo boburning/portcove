@@ -205,10 +205,14 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port.adapter == crate::AdapterKind::NativePortable
+        let capability_version = if crate::preparation::source::native(port) {
+            6
+        } else if port.windows_temp_directory.is_some() {
+            5
+        } else if port.adapter == crate::AdapterKind::NativePortable
             && port.windows_runtime_path_policy.is_some()
         {
-            4
+            crate::runtime_path_policy::minimum_capability(port)
         } else if port.adapter == crate::AdapterKind::NativePortable
             && port.release.provider == crate::ReleaseSource::DirectManifest
         {
@@ -224,6 +228,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             20
         } else if crate::preparation::has_manual_marker(port) {
             2
+        } else if crate::persistence::requires_fresh_direct_data_guard(port) {
+            25
         } else if port.mod_package_policy.is_some() {
             24
         } else if crate::persistence::ready_staged_archive(port) {

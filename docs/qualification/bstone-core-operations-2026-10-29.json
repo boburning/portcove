@@ -1,0 +1,622 @@
+{
+  "format_version": 1,
+  "kind": "actual-windows-Core-BStone-version-diagnostic-and-owned-data",
+  "observed_on": "2026-10-29",
+  "source_head": "f88b1d1dd6bf1fcd36237168036d5291c86ac0c5",
+  "build_checkout": "93319c0bd8f76ca7341c6b727550efad0acfa2a3",
+  "build_target": "49fb5023e11c74222cb42d44a88cb3a02449e075",
+  "ci": {
+    "run": 40861878055,
+    "attempt": 1,
+    "original_deadline": "2026-10-29T11:59:38Z",
+    "required_contexts": "all five passed",
+    "windows_partitions": 8
+  },
+  "artifact": {
+    "source": "f88b1d1dd6bf1fcd36237168036d5291c86ac0c5",
+    "run": 40861878055,
+    "attempt": 1,
+    "checkout": "93319c0bd8f76ca7341c6b727550efad0acfa2a3",
+    "artifact_id": 12891444666,
+    "artifact_sha256": "a3908623550814d341bbffa098b657b7bd12f702b4f7f915e7084abbcb44d432",
+    "archive_sha256": "5dde34f20168389db30f693a4d0f6eef972928bd68d55e77b963e44174e2154a",
+    "entries": 332,
+    "expanded": 631858141,
+    "binaries": [
+      {
+        "path": "target/debug/portcove.exe",
+        "basename": "portcove.exe",
+        "bytes": 54383104,
+        "sha256": "7a006b4240a0c606c821f0c6f2c3923bed53b0f96fdfb3dab6f4b5000b85170c"
+      },
+      {
+        "path": "target/nextest/libdirs/host/std-3854312d46c17a37.dll",
+        "basename": "std-3854312d46c17a37.dll",
+        "bytes": 864256,
+        "sha256": "b2bf29c515a24c7a2cbd3435edc8882226f75cc926289c684d833f072b421495"
+      }
+    ],
+    "root": "/mnt/c/Users/bobur/pc-bst2-8de454af7437/cli"
+  },
+  "artifact_receipt_sha256": "9803cba1dd8ecd3517632a2c2da6e9a20a71a68992c2d49c2f687a49c104f847",
+  "case_inputs_sha256": "d32e35a5193a5842d04783737a5e5a2bbfa8532ae5f212e11f059beb62fdc710",
+  "protocol_sha256": "526ac74f9e1bf8c565994a725d213c051259634a28f1de026246b9c7908fc23b",
+  "driver_sha256": "bdf2173de31ff74b52c7282b2ddb79df17cd81b6e0d911ee387c7489d3c8bb88",
+  "full_raw_report_sha256": "9be06aad056f111e830377d9559490a4143c1a7f17e35607512d8d740aea2d5a",
+  "full_raw_report_bytes": 86399,
+  "run_id": "2230127d-4222-41ad-8bc3-114ac078a0e5",
+  "prior_failed_attempt": {
+    "sha256": "c99acd251ba9221cec607249ca40b5d30a7e79d5dac362350c8e6d0d981fc516",
+    "run_id": "bbf4c370-c117-46d1-8dfe-09e393f4093b",
+    "completed": false,
+    "scope": "Unmodified failed first attempt; first version dialog normally completed through separate retained-handle rescue"
+  },
+  "separately_rescued_first_diagnostic": {
+    "receipt_sha256": "11d3df0fcfc66ac3ae5d02666d803ba6a38569462643832fa5f383daf99d2045",
+    "receipt": {
+      "kind": "actual normal owned diagnostic completion after harness title refusal",
+      "run_id": "bbf4c370-c117-46d1-8dfe-09e393f4093b",
+      "captured_record_sha256": "0b71081ecf3fdedd22c23cd3378a20e3f8389ad1ed8de86da425886ae796f6e3",
+      "image_sha256": "08636399be8b626566026e640d4697359ef4d1ec0cbfde6c5ca4799ab64b0748",
+      "pid": 20372,
+      "cli_pid": 29204,
+      "executable": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g1\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64\\bstone.exe",
+      "title": "BStone v1.3.4+e65a6b40",
+      "normal_ok_requested": true,
+      "ok_label": "OK",
+      "ok_control_id": 0,
+      "diagnostic_exit": 0,
+      "cli_exit": 0,
+      "completed": true,
+      "quiescence_confirmed": true,
+      "root_drain": {
+        "complete": true,
+        "observed_utc": "2026-10-29T11:52:25.8912506Z",
+        "observed_processes": 420,
+        "scope": "Complete normalized CIM snapshot, exact owned root plus retained Core/player descendant closure",
+        "remaining": []
+      },
+      "error": null,
+      "scope": "Version information only, no original/default-game/edition-dispatch/game-save evidence"
+    },
+    "capture_record_sha256": "0b71081ecf3fdedd22c23cd3378a20e3f8389ad1ed8de86da425886ae796f6e3",
+    "stdout": "Unknown: original failed harness did not save diagnostic stdout; retained normal process exits observed separately"
+  },
+  "continued_diagnostics": [
+    {
+      "id": "blake-stone-aliens-of-gold-bstone",
+      "round": 2,
+      "cli_pid": 32080,
+      "diagnostic_pid": 24680,
+      "started_utc": "2026-10-29T12:18:37.8530395Z",
+      "executable": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g1\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64\\bstone.exe",
+      "command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g1\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64\\bstone.exe\" --aog --data_dir originals --profile_dir . --version",
+      "dialog_class": "#32770",
+      "image": {
+        "path": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\title-resume-blake-stone-aliens-of-gold-bstone-2-version.png",
+        "sha256": "da37ac5a5197906af2a2aee2961ddf509da79cc292de45cad454662359e1b736",
+        "pid": 24680,
+        "title": "BStone v1.3.4+e65a6b40"
+      },
+      "normal_ok_requested": true,
+      "diagnostic_exit": 0,
+      "cli_exit": 0,
+      "scope": "Version information before original discovery; no game/default-edition execution",
+      "ok_control_id": 0,
+      "ok_label": "OK",
+      "stdout": "title-resume-blake-stone-aliens-of-gold-bstone-2-exec.txt",
+      "stderr": "title-resume-blake-stone-aliens-of-gold-bstone-2-exec.err"
+    },
+    {
+      "id": "blake-stone-planet-strike-bstone",
+      "round": 1,
+      "cli_pid": 25156,
+      "diagnostic_pid": 11420,
+      "started_utc": "2026-10-29T12:19:22.6934401Z",
+      "executable": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g2-ü\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64\\bstone.exe",
+      "command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g2-ü\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64\\bstone.exe\" --ps --data_dir originals --profile_dir . --version",
+      "dialog_class": "#32770",
+      "image": {
+        "path": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\title-resume-blake-stone-planet-strike-bstone-1-version.png",
+        "sha256": "da37ac5a5197906af2a2aee2961ddf509da79cc292de45cad454662359e1b736",
+        "pid": 11420,
+        "title": "BStone v1.3.4+e65a6b40"
+      },
+      "normal_ok_requested": true,
+      "diagnostic_exit": 0,
+      "cli_exit": 0,
+      "scope": "Version information before original discovery; no game/default-edition execution",
+      "ok_control_id": 0,
+      "ok_label": "OK",
+      "stdout": "title-resume-blake-stone-planet-strike-bstone-1-exec.txt",
+      "stderr": "title-resume-blake-stone-planet-strike-bstone-1-exec.err"
+    },
+    {
+      "id": "blake-stone-planet-strike-bstone",
+      "round": 2,
+      "cli_pid": 11160,
+      "diagnostic_pid": 27560,
+      "started_utc": "2026-10-29T12:19:43.0319979Z",
+      "executable": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g2-ü\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64\\bstone.exe",
+      "command_line": "\"\\\\?\\C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g2-ü\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64\\bstone.exe\" --ps --data_dir originals --profile_dir . --version",
+      "dialog_class": "#32770",
+      "image": {
+        "path": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\title-resume-blake-stone-planet-strike-bstone-2-version.png",
+        "sha256": "da37ac5a5197906af2a2aee2961ddf509da79cc292de45cad454662359e1b736",
+        "pid": 27560,
+        "title": "BStone v1.3.4+e65a6b40"
+      },
+      "normal_ok_requested": true,
+      "diagnostic_exit": 0,
+      "cli_exit": 0,
+      "scope": "Version information before original discovery; no game/default-edition execution",
+      "ok_control_id": 0,
+      "ok_label": "OK",
+      "stdout": "title-resume-blake-stone-planet-strike-bstone-2-exec.txt",
+      "stderr": "title-resume-blake-stone-planet-strike-bstone-2-exec.err"
+    }
+  ],
+  "compiled_metadata": [
+    {
+      "id": "blake-stone-aliens-of-gold-bstone",
+      "compiled_definition_and_listing_match": true
+    },
+    {
+      "id": "blake-stone-planet-strike-bstone",
+      "compiled_definition_and_listing_match": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "blake-stone-aliens-of-gold-bstone",
+      "canonical_issue": 2555,
+      "working_root": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g1\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\library\\user\\blake-stone-aliens-of-gold-bstone",
+      "package_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+      "package_files": [
+        {
+          "path": "bstone.exe",
+          "bytes": 4996096,
+          "sha256": "ffd7ace7c5565d44d91b8c206589f298e2b340647e82a9a84993f83f10d4745e"
+        },
+        {
+          "path": "bstone_changelog.txt",
+          "bytes": 19045,
+          "sha256": "50fadd590353eef6558096123c6a1c9adeaefafc6f8e0193f7313c83a1b0a549"
+        },
+        {
+          "path": "bstone_license.txt",
+          "bytes": 6895,
+          "sha256": "d32647c581bcc3264177246c6e42c2e5b1bd27fcb4b100aebed1b50194dbe849"
+        },
+        {
+          "path": "bstone_readme.txt",
+          "bytes": 31669,
+          "sha256": "2b332969135d06670dff26794f99f671c82cffd78f249c14283ff7369a6b4ff5"
+        }
+      ],
+      "actual_log": {
+        "path": "bstone_log.txt",
+        "bytes": 4144,
+        "sha256": "bfa8f12e229c315aa9c3afbbb20a6d73afd63f5864cebbfeefe336909dce5cba",
+        "origin": "BStone diagnostic-produced; no config/game-save origin claim"
+      },
+      "synthetic_witnesses": [
+        "originals\\MiXeD-CaSe.source-witness",
+        "bstone_config.txt",
+        "bstone_config.txt.temp",
+        "bstone_aog_full_high_scores",
+        "bstone_aog_full_high_scores.temp",
+        "bstone_aog_full_saved_game_0",
+        "bstone_aog_full_saved_game_0.temp",
+        "bstone_aog_full_saved_game_1",
+        "bstone_aog_full_saved_game_1.temp",
+        "bstone_aog_full_saved_game_2",
+        "bstone_aog_full_saved_game_2.temp",
+        "bstone_aog_full_saved_game_3",
+        "bstone_aog_full_saved_game_3.temp",
+        "bstone_aog_full_saved_game_4",
+        "bstone_aog_full_saved_game_4.temp",
+        "bstone_aog_full_saved_game_5",
+        "bstone_aog_full_saved_game_5.temp",
+        "bstone_aog_full_saved_game_6",
+        "bstone_aog_full_saved_game_6.temp",
+        "bstone_aog_full_saved_game_7",
+        "bstone_aog_full_saved_game_7.temp",
+        "bstone_aog_full_saved_game_8",
+        "bstone_aog_full_saved_game_8.temp",
+        "bstone_aog_full_saved_game_9",
+        "bstone_aog_full_saved_game_9.temp",
+        "bstone_aog_sshot_2030-01-02-03-04-05.png"
+      ],
+      "retained_files": [
+        {
+          "path": "bstone_aog_full_high_scores",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_high_scores.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_0",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_0.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_1",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_1.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_2",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_2.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_3",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_3.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_4",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_4.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_5",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_5.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_6",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_6.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_7",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_7.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_8",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_8.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_9",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_full_saved_game_9.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_aog_sshot_2030-01-02-03-04-05.png",
+          "bytes": 68,
+          "sha256": "a89069255e779c12daffd76c2bfa2f69629a9b505bb442b4bb90bc1285ac375d"
+        },
+        {
+          "path": "bstone_config.txt",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_config.txt.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_log.txt",
+          "bytes": 4144,
+          "sha256": "bfa8f12e229c315aa9c3afbbb20a6d73afd63f5864cebbfeefe336909dce5cba"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        }
+      ],
+      "completed": true,
+      "scope": "Version diagnostics/private log plus synthetic preservation only; no original/game/config/save-format qualification"
+    },
+    {
+      "id": "blake-stone-planet-strike-bstone",
+      "canonical_issue": 2556,
+      "working_root": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\r\\g2-ü\\4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45\\bstone-1.3.4+e65a6b40-win64",
+      "canonical_user_root": "C:\\Users\\bobur\\pc-bst2-8de454af7437\\library\\user\\blake-stone-planet-strike-bstone",
+      "package_sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+      "package_files": [
+        {
+          "path": "bstone.exe",
+          "bytes": 4996096,
+          "sha256": "ffd7ace7c5565d44d91b8c206589f298e2b340647e82a9a84993f83f10d4745e"
+        },
+        {
+          "path": "bstone_changelog.txt",
+          "bytes": 19045,
+          "sha256": "50fadd590353eef6558096123c6a1c9adeaefafc6f8e0193f7313c83a1b0a549"
+        },
+        {
+          "path": "bstone_license.txt",
+          "bytes": 6895,
+          "sha256": "d32647c581bcc3264177246c6e42c2e5b1bd27fcb4b100aebed1b50194dbe849"
+        },
+        {
+          "path": "bstone_readme.txt",
+          "bytes": 31669,
+          "sha256": "2b332969135d06670dff26794f99f671c82cffd78f249c14283ff7369a6b4ff5"
+        }
+      ],
+      "actual_log": {
+        "path": "bstone_log.txt",
+        "bytes": 4144,
+        "sha256": "bfa8f12e229c315aa9c3afbbb20a6d73afd63f5864cebbfeefe336909dce5cba",
+        "origin": "BStone diagnostic-produced; no config/game-save origin claim"
+      },
+      "synthetic_witnesses": [
+        "originals\\MiXeD-CaSe.source-witness",
+        "bstone_config.txt",
+        "bstone_config.txt.temp",
+        "bstone_ps_high_scores",
+        "bstone_ps_high_scores.temp",
+        "bstone_ps_saved_game_0",
+        "bstone_ps_saved_game_0.temp",
+        "bstone_ps_saved_game_1",
+        "bstone_ps_saved_game_1.temp",
+        "bstone_ps_saved_game_2",
+        "bstone_ps_saved_game_2.temp",
+        "bstone_ps_saved_game_3",
+        "bstone_ps_saved_game_3.temp",
+        "bstone_ps_saved_game_4",
+        "bstone_ps_saved_game_4.temp",
+        "bstone_ps_saved_game_5",
+        "bstone_ps_saved_game_5.temp",
+        "bstone_ps_saved_game_6",
+        "bstone_ps_saved_game_6.temp",
+        "bstone_ps_saved_game_7",
+        "bstone_ps_saved_game_7.temp",
+        "bstone_ps_saved_game_8",
+        "bstone_ps_saved_game_8.temp",
+        "bstone_ps_saved_game_9",
+        "bstone_ps_saved_game_9.temp",
+        "bstone_ps_sshot_2030-01-02-03-04-05.png"
+      ],
+      "retained_files": [
+        {
+          "path": "bstone_config.txt",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_config.txt.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_log.txt",
+          "bytes": 4144,
+          "sha256": "bfa8f12e229c315aa9c3afbbb20a6d73afd63f5864cebbfeefe336909dce5cba"
+        },
+        {
+          "path": "bstone_ps_high_scores",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_high_scores.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_0",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_0.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_1",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_1.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_2",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_2.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_3",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_3.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_4",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_4.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_5",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_5.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_6",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_6.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_7",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_7.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_8",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_8.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_9",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_saved_game_9.temp",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        },
+        {
+          "path": "bstone_ps_sshot_2030-01-02-03-04-05.png",
+          "bytes": 68,
+          "sha256": "a89069255e779c12daffd76c2bfa2f69629a9b505bb442b4bb90bc1285ac375d"
+        },
+        {
+          "path": "originals\\MiXeD-CaSe.source-witness",
+          "bytes": 93,
+          "sha256": "deed234054b509ec9e452a0fae8944b24c820a112ddb130fa3ff13f48ab9343e"
+        }
+      ],
+      "completed": true,
+      "scope": "Version diagnostics/private log plus synthetic preservation only; no original/game/config/save-format qualification"
+    }
+  ],
+  "process_drain": {
+    "complete": true,
+    "observed_utc": "2026-10-29T12:20:26.5652511Z",
+    "scope": "complete CIM snapshot; executable paths inside exact owned root plus descendant closure from retained process handles",
+    "remaining": [],
+    "observed_processes": 364,
+    "retained_root_ids": [
+      3740, 32308, 24584, 12500, 12672, 14544, 23132, 32080, 24680, 29256, 16584, 26700, 18620,
+      11076, 17016, 25488, 32200, 31500, 8420, 27908, 14240, 25156, 11420, 11160, 27560, 29468,
+      19268, 18556, 31356, 2872, 24308, 13508
+    ]
+  },
+  "completion": {
+    "completed": true,
+    "new_diagnostics": 3,
+    "separately_rescued_diagnostics": 1,
+    "recorded_core_commands_including_prior_eight": 34,
+    "all_recorded_core_commands_exit_zero": true,
+    "driver_exit": 0,
+    "both_native_leases_released": true
+  },
+  "cleanup_before_continuation": {
+    "receipt_sha256": "a766952c55ea41ae86a7e156f4f0250eaeee55b378d2ef6e2f46dff46b71f05c",
+    "observer_end": "Absent without task signal; exit reason Unknown",
+    "foreign_reused_processes_touched": 0
+  },
+  "operator": {
+    "kind": "agent",
+    "method": "Model viewed each exact owned dialog image; PID/birth/executable and SHA-bound observation gates; normal sole descendant OK; no global input or physical/human acceptance"
+  },
+  "image_files": [
+    {
+      "path": "docs/qualification/bstone-core-2026-10-29/rescued-first-version.png",
+      "sha256": "08636399be8b626566026e640d4697359ef4d1ec0cbfde6c5ca4799ab64b0748"
+    },
+    {
+      "path": "docs/qualification/bstone-core-2026-10-29/continued-version.png",
+      "sha256": "da37ac5a5197906af2a2aee2961ddf509da79cc292de45cad454662359e1b736"
+    }
+  ],
+  "limits": [
+    "Version branch quits before original discovery. No default-game, edition dispatch, original readiness/authentication, actual configuration/game save/screenshot or gameplay qualification.",
+    "26 task-written synthetic declared-name witnesses per title plus one actual diagnostic log: byte preservation only, no game-save ABI or atomic-recovery proof. No engine invocation after synthetic probes.",
+    "Selected publisher bytes and upstream Git source are separately bound; no reproducible-build equivalence claimed.",
+    "Retained old external contracts and fresh non-owning registration remain; no populated adoption or source switch.",
+    "Actual Core/CLI evidence does not establish installed Desktop, physical input, protected acceptance, Supported stage or parent inventory completion."
+  ]
+}

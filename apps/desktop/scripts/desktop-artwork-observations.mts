@@ -75,7 +75,9 @@ export function artworkObservations({
           })),
         })),
         images: [
-          ...document.querySelectorAll<HTMLImageElement>(".wide-artwork img, .detail-cover img"),
+          ...document.querySelectorAll<HTMLImageElement>(
+            ".wide-artwork img, .game-hero-detail .game-hero-image",
+          ),
         ].map((img) => ({
           complete: img.complete,
           width: img.naturalWidth,

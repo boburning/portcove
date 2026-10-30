@@ -1,0 +1,142 @@
+{
+  "schema_version": 2,
+  "source_catalog": {
+    "evidence": [],
+    "identities": [],
+    "contracts": [],
+    "validators": [],
+    "qualification": []
+  },
+  "ports": [
+    {
+      "id": "blake-stone-aliens-of-gold-bstone",
+      "name": "Blake Stone: Aliens of Gold (Bstone)",
+      "summary": "Set up Blake Stone: Aliens of Gold through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/bibendovsky/bstone",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "bibendovsky/bstone",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --aog as a separate argument to choose this game. Use --aog_sw instead when deliberately choosing supported shareware. Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "original_game_title": "Blake Stone: Aliens of Gold",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use this original game and edition",
+              "instruction": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+            },
+            {
+              "title": "Prepare upstream and select the real player",
+              "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --aog as a separate argument to choose this game. Use --aog_sw instead when deliberately choosing supported shareware."
+            },
+            {
+              "title": "Keep the actual original and player data",
+              "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+        },
+        "artwork": {
+          "game_id": 8489,
+          "cover_id": 116133,
+          "image_id": "co2hlx",
+          "image_sha256": "6477f0c464c6d067b0583b3a2c6969bea5be49823e22a4b99a62ac317159a3bf",
+          "game_slug": "blake-stone-aliens-of-gold",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "blake-stone-planet-strike-bstone",
+      "name": "Blake Stone: Planet Strike (Bstone)",
+      "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/bibendovsky/bstone",
+      "support_tier": "beta",
+      "channels": ["stable"],
+      "platforms": ["windows-x86-64"],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "bibendovsky/bstone",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game. Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "original_game_title": "Blake Stone: Planet Strike",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use this original game and edition",
+              "instruction": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+            },
+            {
+              "title": "Prepare upstream and select the real player",
+              "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game."
+            },
+            {
+              "title": "Keep the actual original and player data",
+              "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+        },
+        "artwork": {
+          "game_id": 8490,
+          "cover_id": 95891,
+          "image_id": "co21zn",
+          "image_sha256": "08ea6ddb988d8c4bfce3b29ecf994d7ee9d899dbec6f51c2bc6eed8323c3fdd7",
+          "game_slug": "blake-stone-planet-strike",
+          "match_kind": "underlying-game"
+        }
+      }
+    }
+  ]
+}

@@ -20,6 +20,8 @@ it("does not hide a rebuilt release or mistake an unknown candidate for the skip
 it("keeps setup attestations specific to port, installation identity and ownership", () => {
   const snapshot: LibraryOrganization = {
     revision: 1,
+    followed_port_ids: [],
+    followed_release_acknowledgments: {},
     collections: {},
     hidden_port_ids: [],
     saved_game_ids: [],
@@ -50,6 +52,8 @@ it("Library hiding never removes a port from the searchable Discover union", () 
   const organization = {
     snapshot: {
       revision: 1,
+      followed_port_ids: [],
+      followed_release_acknowledgments: {},
       collections: {},
       hidden_port_ids: [port.id],
       saved_game_ids: [savedGameId(port)],
@@ -85,6 +89,8 @@ it("preserves port-scoped Saved choices when reviewed game identity is added", (
   const organization = {
     snapshot: {
       revision: 1,
+      followed_port_ids: [],
+      followed_release_acknowledgments: {},
       collections: {},
       hidden_port_ids: [],
       saved_game_ids: [`port-${original.id}`],
@@ -99,4 +105,28 @@ it("preserves port-scoped Saved choices when reviewed game identity is added", (
   expect(savedForPort(organization, enriched)).toBe(true);
   expect(organizedPorts([enriched], organization, "saved", true)).toEqual([enriched]);
   expect(organization.snapshot.saved_game_ids).toEqual([`port-${original.id}`]);
+});
+
+it("Followed is an explicit independent-project filter, not an alias for Saved", () => {
+  const port = portDefinition();
+  const other = { ...port, id: "another-project" };
+  const organization = {
+    snapshot: {
+      revision: 1,
+      followed_port_ids: [port.id],
+      followed_release_acknowledgments: {},
+      collections: {},
+      hidden_port_ids: [],
+      saved_game_ids: [],
+      update_notices: {},
+      setup_confirmations: [],
+    },
+    busy: false,
+    failure: undefined,
+    commit: async () => true,
+    refresh: async () => true,
+  };
+  expect(organizedPorts([port, other], organization, "followed", true)).toEqual([port]);
+  expect(organizedPorts([port, other], organization, "saved", true)).toEqual([]);
+  expect(organizedPorts([port, other], undefined, "followed", true)).toEqual([]);
 });

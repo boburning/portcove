@@ -1,23 +1,33 @@
 import { ArrowLeft, ArrowRight, Expand } from "lucide-react";
 import { useRef, useState } from "react";
 import { useArtworkVisibility, useCatalogMedia } from "../artwork";
+import { heroMediaCandidates, type HeroMediaPort, type HeroMediaContext } from "../hero-media";
 import type { CatalogMediaAsset } from "../types";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 
-export function MediaCredit({ media }: { media: CatalogMediaAsset }) {
+export function MediaCredit({ media, port }: { media: CatalogMediaAsset; port?: HeroMediaPort }) {
+  const edition =
+    media.subject.kind === "original"
+      ? port?.presentation?.original_game?.source_editions.find(
+          (edition) =>
+            media.subject.kind === "original" && edition.id === media.subject.source_edition_id,
+        )?.title
+      : undefined;
   return (
     <div className="media-credit flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
       <span>
         {media.subject.kind === "original"
-          ? `Original release · Edition: ${media.subject.source_edition_id}`
+          ? `Original release · ${edition ?? media.subject.source_edition_id}`
           : "Port image"}{" "}
         · {media.attribution}
       </span>
       <ExternalLink href={media.source_url}>Source</ExternalLink>
-      <ExternalLink href={media.rights_url}>{media.license}</ExternalLink>
+      <ExternalLink href={media.rights_url}>
+        {media.license === "LicenseRef-IGDB-Terms" ? "IGDB terms" : media.license}
+      </ExternalLink>
     </div>
   );
 }
@@ -115,13 +125,14 @@ function Screenshot({
 
 /** Only explicitly admitted exact-port or exact-edition images reach this gallery. */
 export function CatalogMediaGallery({
-  portId,
-  media = [],
+  port,
+  context = {},
 }: {
-  portId: string;
-  media?: readonly CatalogMediaAsset[] | null | undefined;
+  port: HeroMediaPort;
+  context?: HeroMediaContext;
 }) {
-  const shots = (media ?? []).filter((asset) => asset.role === "screenshot");
+  const portId = port.id;
+  const shots = heroMediaCandidates(port, context).screenshots;
   const [selected, setSelected] = useState<string>();
   const origin = useRef<HTMLButtonElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);

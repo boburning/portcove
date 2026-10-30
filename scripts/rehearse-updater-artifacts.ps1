@@ -4,6 +4,7 @@ param(
     [string]$PlatformLabel,
     [ValidateSet("legacy-adjacent", "legacy-skipped", "preview-final")]
     [string]$TransitionProfile = "legacy-skipped",
+    [switch]$HistoricalLinuxBootstrap,
     [switch]$DescribeTransition,
     [ValidateSet('.github/workflows/updater-artifact-rehearsal.yml', '.github/workflows/hosted-native-continuity.yml')]
     [string]$EvidenceWorkflow = '.github/workflows/updater-artifact-rehearsal.yml',
@@ -13,6 +14,9 @@ param(
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location -LiteralPath $root
+if ($HistoricalLinuxBootstrap -and ($PlatformLabel -cne 'linux-x86_64' -or $TransitionProfile -ceq 'preview-final')) {
+    throw 'Historical Linux bootstrap requires a Linux legacy transition'
+}
 $transition = [ordered]@{
     profile = $TransitionProfile
     platform = $PlatformLabel
@@ -49,6 +53,11 @@ $revision = (& git rev-parse HEAD | Out-String).Trim()
 $runRoot = Join-Path $root "work/updater-rehearsal"
 if (Test-Path -LiteralPath $runRoot) { throw "Rehearsal evidence directory must be new" }
 New-Item -ItemType Directory -Path $runRoot | Out-Null
+$historicalLinuxManifest = $null
+if ($HistoricalLinuxBootstrap) {
+    $historicalLinuxManifest = (& node (Join-Path $root 'scripts/updater-historical-inputs.mts') prepare $root (Join-Path $runRoot 'historical-linux-bootstrap') | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $historicalLinuxManifest) { throw 'Historical Linux input preparation failed' }
+}
 $metadataPaths = @("Cargo.toml", "Cargo.lock", "apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json")
 $original = @{}
 foreach ($relative in $metadataPaths) { $original[$relative] = [IO.File]::ReadAllBytes((Join-Path $root $relative)) }
@@ -341,6 +350,26 @@ try {
             $native.executable_permissions_verified = $true
         }
         $native | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runRoot "$version-native.json") -Encoding utf8
+        if ($HistoricalLinuxBootstrap -and $version -ceq $predecessorVersion) {
+            # Retain the real matching Core CLI before the candidate build
+            # overwrites Linux's shared target. No second archive extractor.
+            $gameCli = Join-Path $cliTargetRoot 'release/portcove'
+            $observedGameCliVersion = (& $gameCli --version | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0 -or $observedGameCliVersion -cne "portcove $version") { throw 'Matching predecessor game CLI version differs' }
+            $retainedGameCli = Join-Path $runRoot 'historical-linux-predecessor-cli'
+            if (Test-Path -LiteralPath $retainedGameCli) { throw 'Retained predecessor CLI must be new' }
+            Copy-Item -LiteralPath $gameCli -Destination $retainedGameCli
+            Invoke-Checked '/usr/bin/chmod' @('700', '--', $retainedGameCli)
+            $gameInventory = Get-Content -LiteralPath (Join-Path $stage 'updater-inventory.json') -Raw | ConvertFrom-Json
+            if ($gameInventory.source_commit -cne $revision) { throw 'Game CLI inventory source differs' }
+            $gameArchives = @($gameInventory.packages | Where-Object { $_.id -ceq 'cli-linux-x86_64-tar-gz' })
+            if ($gameArchives.Count -ne 1) { throw 'Matching game CLI archive is missing or ambiguous' }
+            $historicalLinuxGameCliManifest = Join-Path $runRoot 'historical-linux-predecessor-cli.json'
+            [ordered]@{schema_version=1;source_commit=$revision;version=$version;
+                cli=[ordered]@{path=$retainedGameCli;bytes=(Get-Item -LiteralPath $retainedGameCli).Length;sha256=(Get-FileHash -LiteralPath $retainedGameCli -Algorithm SHA256).Hash.ToLowerInvariant()};
+                archive=$gameArchives[0]
+            } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $historicalLinuxGameCliManifest -Encoding utf8NoBOM
+        }
         & git diff --binary -- Cargo.toml Cargo.lock apps/desktop/package.json apps/desktop/src-tauri/tauri.conf.json | Set-Content -LiteralPath (Join-Path $runRoot "$version-fixture.patch") -Encoding utf8
         if($captureFixtureDerivation){
             $fixtureAfter=Get-FixtureDerivationState
@@ -446,7 +475,7 @@ try {
         $candidateInventoryPath = Join-Path $candidateStage "updater-inventory.json"
         Copy-Item -LiteralPath $candidateInventoryPath -Destination (Join-Path $inputs "updater-inventory.json")
         Copy-Item -LiteralPath "$candidate.sig" -Destination (Join-Path $inputs "candidate.sig")
-        $contractText = (& cargo run --locked --quiet -p portcove-desktop --example prepare_installed_update -- describe $predecessorVersion | Out-String).Trim()
+        $contractText = (& cargo run --locked --quiet --profile controller-tools -p portcove-desktop --example prepare_installed_update -- describe $predecessorVersion | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw "Could not derive the Linux updater fixture contract" }
         $contract = $contractText | ConvertFrom-Json
         $sourceTree = (& git rev-parse "HEAD^{tree}" | Out-String).Trim()
@@ -616,6 +645,7 @@ try {
         if (-not (Test-Path -LiteralPath $predecessor -PathType Leaf)) {
             throw "The qualified predecessor AppImage was not retained before consumer execution"
         }
+        $qualifiedPredecessorHash = if ($HistoricalLinuxBootstrap) { (Get-FileHash -LiteralPath $predecessor -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
         $linuxHarnessArguments = @(
             "-NoProfile", "-File", (Join-Path $PSScriptRoot "test-linux-appimage-update.ps1"),
             "-PredecessorPath", $predecessor,
@@ -640,12 +670,18 @@ try {
         $rendererInstall = Join-Path $rendererRoot "Applications/Portcove"
         $rendererLibrary = Join-Path $rendererRoot "library"
         New-Item -ItemType Directory -Path $rendererInstall, $rendererLibrary | Out-Null
-        $rendererStable = Join-Path $rendererInstall "Portcove.AppImage"
-        Invoke-Checked "/usr/bin/cp" @("--preserve=mode,timestamps", "--", $predecessor, $rendererStable)
-        Invoke-Checked "/usr/bin/chmod" @("u+rwx,go+rx", "--", $rendererStable)
+        $rendererStableName = if ($HistoricalLinuxBootstrap) { ('Portcove Public beta ' + [char]0x03b2 + '.AppImage') } else { 'Portcove.AppImage' }
+        $rendererStable = Join-Path $rendererInstall $rendererStableName
+        if (-not $HistoricalLinuxBootstrap) {
+            Invoke-Checked "/usr/bin/cp" @("--preserve=mode,timestamps", "--", $predecessor, $rendererStable)
+            Invoke-Checked "/usr/bin/chmod" @("u+rwx,go+rx", "--", $rendererStable)
+        }
         $rendererSentinel = Join-Path $rendererLibrary "update-preservation-marker.txt"
-        [IO.File]::WriteAllText($rendererSentinel, "Installed AppImage renderer update preservation`n")
-        $rendererSentinelHash = (Get-FileHash -LiteralPath $rendererSentinel -Algorithm SHA256).Hash
+        $rendererSentinelHash = $null
+        if (-not $HistoricalLinuxBootstrap) {
+            [IO.File]::WriteAllText($rendererSentinel, "Installed AppImage renderer update preservation`n")
+            $rendererSentinelHash = (Get-FileHash -LiteralPath $rendererSentinel -Algorithm SHA256).Hash
+        }
         $rendererEnvironmentNames = @(
             "APPIMAGE_EXTRACT_AND_RUN", "PORTCOVE_APPLICATION_RUNTIME_LOCK",
             "PORTCOVE_APPLICATION_UPDATE_PREFERENCES", "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
@@ -654,7 +690,10 @@ try {
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
             "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
-            "PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES"
+            "PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES",
+            "HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "TMPDIR",
+            "PORTCOVE_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN", "DBUS_SESSION_BUS_ADDRESS",
+            "GNOME_KEYRING_CONTROL", "GNOME_KEYRING_PID", "SSH_AUTH_SOCK", "GPG_AGENT_INFO", "RUSTUP_HOME"
         )
         $rendererPreviousEnvironment = @{}
         foreach ($name in $rendererEnvironmentNames) {
@@ -674,9 +713,27 @@ try {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = Join-Path $rendererRoot "candidate-startup.json"
             $env:PORTCOVE_LIBRARY = $rendererLibrary
             $env:PORTCOVE_PREFERENCES = Join-Path $rendererRoot "host-preferences.json"
+            if ($HistoricalLinuxBootstrap) {
+                # Compiler/reaper preparation retains its existing trusted tool
+                # cache. The consumer removes tool-cache variables from both
+                # application-driver environments; app HOME stays private.
+                if (-not $rendererPreviousEnvironment['RUSTUP_HOME']) {
+                    $env:RUSTUP_HOME = Join-Path $rendererPreviousEnvironment['HOME'] '.rustup'
+                }
+                foreach ($entry in @(@('HOME','home'), @('XDG_CONFIG_HOME','config'), @('XDG_DATA_HOME','data'), @('XDG_CACHE_HOME','cache'), @('XDG_RUNTIME_DIR','runtime'), @('TMPDIR','tmp'))) {
+                    $directory = Join-Path $rendererRoot $entry[1]
+                    New-Item -ItemType Directory -Path $directory | Out-Null
+                    Invoke-Checked '/usr/bin/chmod' @('700', '--', $directory)
+                    [Environment]::SetEnvironmentVariable($entry[0], $directory, 'Process')
+                }
+                foreach ($name in @('PORTCOVE_LIBRARY','PORTCOVE_GITHUB_TOKEN','GH_TOKEN','GITHUB_TOKEN','DBUS_SESSION_BUS_ADDRESS','GNOME_KEYRING_CONTROL','GNOME_KEYRING_PID','SSH_AUTH_SOCK','GPG_AGENT_INFO')) {
+                    Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+                }
+            }
+            $rendererEntry = if ($HistoricalLinuxBootstrap) { Join-Path $root 'scripts/run-installed-appimage-renderer.mts' } else { Join-Path $root 'apps/desktop/scripts/desktop-appimage-update-test.mts' }
             $rendererArguments = @(
                 "-a", "dbus-run-session", "--", "node",
-                (Join-Path $root "apps/desktop/scripts/desktop-appimage-update-test.mts"),
+                $rendererEntry,
                 "--app", $rendererStable,
                 "--driver", (Get-Command tauri-driver -ErrorAction Stop).Source,
                 "--native-driver", (Get-Command WebKitWebDriver -ErrorAction Stop).Source,
@@ -688,8 +745,78 @@ try {
                 "--candidate-sha", $candidateHash,
                 "--candidate-version", $candidateVersion
             )
-            Invoke-Checked "xvfb-run" $rendererArguments
+            if ($HistoricalLinuxBootstrap) {
+                $rendererArguments += @('--historical-bootstrap-manifest', $historicalLinuxManifest,
+                    '--bootstrap-predecessor', $predecessor,
+                    '--bootstrap-predecessor-sha', $qualifiedPredecessorHash,
+                    '--bootstrap-library', $rendererLibrary,
+                    '--bootstrap-game-cli-manifest', $historicalLinuxGameCliManifest)
+                # This existing example was compiled by the describe call above.
+                # The Node consumer rehashes it, reads the same compiled Core
+                # contract and starts its holder only after seed/observer exit.
+                $libraryBusyHelper = Join-Path $env:CARGO_TARGET_DIR 'controller-tools/examples/prepare_installed_update'
+                if (-not (Test-Path -LiteralPath $libraryBusyHelper -PathType Leaf)) { throw 'Compiled Core qualification helper is unavailable' }
+                $libraryBusyHelperSha = (Get-FileHash -LiteralPath $libraryBusyHelper -Algorithm SHA256).Hash.ToLowerInvariant()
+                $rendererArguments += @('--library-busy-helper', $libraryBusyHelper,
+                    '--library-busy-sha', $libraryBusyHelperSha, '--library-busy-source', $revision)
+            }
+            $feedOutage = $null
+            $feedOutageHelper = Join-Path $root 'apps/desktop/scripts/desktop-installed-feed-outage.mts'
+            if ($HistoricalLinuxBootstrap) {
+                $feedOutageControl = Join-Path $rendererRoot 'feed-outage-control'
+                $feedOutageText = (& node $feedOutageHelper --phase prepare --metadata $metadataDirectory --control $feedOutageControl | Out-String)
+                $feedOutageExit = $LASTEXITCODE
+                [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-preparation-stdout.txt'), $feedOutageText)
+                if ($feedOutageExit -ne 0) { throw 'Installed feed-outage preparation failed before driver dispatch' }
+                $feedOutage = $feedOutageText | ConvertFrom-Json -NoEnumerate
+                $feedOutageConfiguration = Join-Path $feedOutageControl 'configuration.json'
+                if ($feedOutage -isnot [System.Management.Automation.PSCustomObject] -or $feedOutage.phase -cne 'prepare' -or
+                    $feedOutage.configuration -cne $feedOutageConfiguration -or
+                    $feedOutage.sha256 -cne (Get-FileHash -LiteralPath $feedOutageConfiguration -Algorithm SHA256).Hash.ToLowerInvariant()) {
+                    throw 'Installed feed-outage preparation did not return its exact positive control identity'
+                }
+                $feedOutagePreparation = [ordered]@{ preparation=$feedOutage; configuration=(Get-Content -LiteralPath $feedOutageConfiguration -Raw | ConvertFrom-Json); scope='owned local file-feed outage only; no OS-offline, HTTP or production claim' }
+                $feedOutagePreparation | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $rendererRoot 'feed-outage-preparation.json') -Encoding utf8
+                $rendererArguments += @('--feed-outage-configuration', $feedOutage.configuration, '--feed-outage-sha', $feedOutage.sha256)
+            }
+            $rendererFailure = $null
+            try {
+                Invoke-Checked "xvfb-run" $rendererArguments
+            } catch {
+                $rendererFailure = $_.Exception
+                throw
+            } finally {
+                if ($feedOutage) {
+                    try {
+                        $feedRestoreText = (& node $feedOutageHelper --phase restore --configuration $feedOutage.configuration --sha256 $feedOutage.sha256 | Out-String)
+                        $feedRestoreExit = $LASTEXITCODE
+                        [IO.File]::WriteAllText((Join-Path $rendererRoot 'feed-outage-restoration-stdout.txt'), $feedRestoreText)
+                        if ($feedRestoreExit -ne 0) { throw 'Installed feed-outage restoration failed; exact preimage/control retained' }
+                        $feedRestore = $feedRestoreText | ConvertFrom-Json -NoEnumerate
+                        if ($feedRestore -isnot [System.Management.Automation.PSCustomObject] -or $feedRestore.phase -cne 'restored' -or $feedRestore.new_faults_sealed -isnot [bool] -or -not $feedRestore.new_faults_sealed -or
+                            $feedRestore.timestamp_sha256 -cne $feedOutagePreparation.configuration.sha256) {
+                            throw 'Installed feed-outage restoration did not return its exact positive timestamp identity'
+                        }
+                        $feedRestore | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $rendererRoot 'feed-outage-restoration.json') -Encoding utf8
+                    } catch {
+                        if ($rendererFailure) {
+                            throw [AggregateException]::new('Installed renderer and owned-feed restoration both failed; original reports and controls retained', [Exception[]]@($rendererFailure, $_.Exception))
+                        }
+                        throw
+                    }
+                }
+            }
             $rendererReport = Get-Content -LiteralPath (Join-Path $rendererRoot "evidence/renderer-update-evidence.json") -Raw | ConvertFrom-Json
+            if ($feedOutage -and $rendererReport.feed_outage.configuration_sha256 -cne $feedOutage.sha256) {
+                throw 'Installed renderer omitted or changed its configured file-feed outage observation'
+            }
+            if ($HistoricalLinuxBootstrap) {
+                if (-not $rendererReport.historical_bootstrap.normal_close_before_driver_teardown -or
+                    $rendererReport.historical_bootstrap.phase -cne 'complete') {
+                    throw 'Historical AppImage bootstrap did not complete normally'
+                }
+                $rendererSentinelHash = $rendererReport.historical_bootstrap.initial_marker_sha256
+            }
             if ($rendererReport.phase -ne "complete" -or $rendererReport.source_commit -ne $revision -or
                 $rendererReport.restart.stable_sha256 -ne $candidateHash -or
                 (Get-FileHash -LiteralPath $rendererStable -Algorithm SHA256).Hash.ToLowerInvariant() -ne $candidateHash -or
@@ -708,7 +835,8 @@ try {
             } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $rendererRoot "preservation.json") -Encoding utf8
         } finally {
             foreach ($name in $rendererEnvironmentNames) {
-                [Environment]::SetEnvironmentVariable($name, $rendererPreviousEnvironment[$name], "Process")
+                if ($null -eq $rendererPreviousEnvironment[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+                else { [Environment]::SetEnvironmentVariable($name, $rendererPreviousEnvironment[$name], "Process") }
             }
         }
     }
@@ -801,7 +929,10 @@ try {
 } finally {
     $wrongPassword = $null
     foreach ($relative in $metadataPaths) { [IO.File]::WriteAllBytes((Join-Path $root $relative), $original[$relative]) }
-    foreach ($name in $environmentNames) { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
+    foreach ($name in $environmentNames) {
+        if ($null -eq $previousEnvironment[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+        else { [Environment]::SetEnvironmentVariable($name, $previousEnvironment[$name], "Process") }
+    }
     if ([IO.File]::Exists($privateKey)) { [IO.File]::Delete($privateKey) }
     if ([IO.Directory]::Exists($wrongPrivateRoot)) { [IO.Directory]::Delete($wrongPrivateRoot, $true) }
     $fixturePrivate = Join-Path $runRoot "linux-appimage-qualification/private"

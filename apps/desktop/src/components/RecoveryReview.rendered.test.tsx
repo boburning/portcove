@@ -59,9 +59,9 @@ it("keeps unavailable information distinct from an empty recorded repair list", 
   expect(unavailable).toContain("has not been checked for the current library state");
   expect(unavailable).not.toContain("No recovery items");
   expect(empty).toContain("No recovery items were recorded in the last check.");
-  expect(unavailable).toContain("rounded-pc-lg border border-pc-border");
-  expect(empty).toContain("py-2");
-  expect(empty).not.toContain("rounded-pc-lg border");
+  expect(unavailable).not.toContain("recovery-review-quiet");
+  expect(empty).toContain("recovery-review-quiet");
+  expect(empty).toContain('data-diagnostic-state="fresh"');
 });
 
 it.each(["future_kind", "constructor", "__proto__"])("uses a neutral label for %s", (kind) => {

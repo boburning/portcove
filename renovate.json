@@ -12,6 +12,7 @@
   "labels": ["dependencies"],
   "automerge": false,
   "minimumReleaseAge": "1 day",
+  "minimumReleaseAgeBuffer": "30 minutes",
   "minimumReleaseAgeBehaviour": "timestamp-required",
   "internalChecksFilter": "strict",
   "prConcurrentLimit": 6,
@@ -22,7 +23,8 @@
   "rebaseWhen": "conflicted",
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "schedule": ["before 6am on monday"],
+    "minimumReleaseAge": null
   },
   "packageRules": [
     {

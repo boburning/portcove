@@ -14,10 +14,26 @@ import {
   validateValidationPlan,
   validateQualificationBinding,
   validationOwnershipForPath,
+  ordinaryOwnershipForPath,
 } from "./validation-plan.mts";
 import { discoverCiPlan } from "./select-ci-plan.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 const sha = (c: string) => c.repeat(40);
+
+void test("the reviewed RFD closure retains all ordinary groups without admitting other vendors", () => {
+  for (const file of [
+    "vendor/rfd/src/backend/gtk3/message_dialog.rs",
+    "vendor/rfd/Cargo.lock",
+    "vendor/rfd-provenance.json",
+    "vendor/rfd-portcove.patch",
+  ]) {
+    const owned = ordinaryOwnershipForPath(file);
+    assert.equal(owned.unknown, false);
+    assert.deepEqual(owned.groups, [...fastGroups].sort());
+    assert.ok(owned.reasons.includes("vendored-rfd-source-and-provenance"));
+  }
+  assert.equal(ordinaryOwnershipForPath("vendor/unreviewed/src/lib.rs").unknown, true);
+});
 
 void test("opt-in Rust coverage inputs retain hosted contracts across lifecycle and rename edits", () => {
   for (const file of ["scripts/rust-coverage.mts", ".config/rust-coverage.json"]) {

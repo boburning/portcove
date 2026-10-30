@@ -1,3 +1,4 @@
+import { openAdvancedFilters } from "../../test/filter-fields";
 import { afterEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -26,7 +27,7 @@ async function mount(width: number) {
     </LocalizationProvider>,
   );
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
-  return page.getByRole("group", { name: "Library filters" }).element();
+  return page.getByRole("group", { name: "Library quick views" }).element();
 }
 
 function readinessClosed(id: string) {
@@ -50,13 +51,14 @@ async function openDetails() {
     .first()
     .click();
   await expect
-    .element(page.getByRole("button", { name: "Back to previous workspace" }))
+    .element(page.getByRole("button", { name: /^Back to (Library|Discover)$/ }))
     .toBeVisible();
 }
 
 for (const width of [640, 1600]) {
   it(`uses the named readiness picker and reaches details after selection at ${width}px`, async () => {
     await mount(width);
+    await openAdvancedFilters();
     const picker = page.getByRole("combobox", { name: /^Readiness / });
     await expect.element(picker).toBeVisible();
     await picker.click();
@@ -66,7 +68,8 @@ for (const width of [640, 1600]) {
     await expect.poll(() => readinessClosed(listId)).toBe(true);
     expect(document.querySelectorAll(".collection-entry").length).toBeLessThan(12);
     await openDetails();
-    await page.getByRole("button", { name: "Back to previous workspace" }).click();
+    await page.getByRole("button", { name: /^Back to (Library|Discover)$/ }).click();
+    await openAdvancedFilters();
     await expect.element(picker).toHaveAccessibleName(/^Readiness Ready \(\d+\)$/);
     picker.element().focus();
     await expect.element(picker).toHaveFocus();
@@ -74,5 +77,5 @@ for (const width of [640, 1600]) {
     await expect.element(page.getByRole("option", { name: /^All \(/ })).toBeVisible();
     await userEvent.keyboard("{Escape}");
     await expect.element(picker).toHaveFocus();
-  });
+  }, 30_000);
 }

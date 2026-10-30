@@ -1,3 +1,4 @@
+import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -15,6 +16,8 @@ export interface CatalogPort extends NamedRecord {
 }
 
 export interface AuthoredListing extends NamedRecord {
+  upstream_observation?: unknown;
+  availability_override_reason?: string;
   name: string;
   summary: string;
   project_url: string;
@@ -47,6 +50,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   order?: number;
   /** Reviewed provenance; never projected into runtime definitions or listings. */
   upstream_lineage?: UpstreamLineage;
+  release_maintenance?: { reason: string; reconsider_when: string };
 }
 
 export const catalogSourceNames = {
@@ -70,6 +74,8 @@ const listingFields = new Set([
   ...listingPresentationFields,
   "platforms",
   "availability",
+  "upstream_observation",
+  "availability_override_reason",
   "download_block_reason",
   "download_asset_hints",
   "recommended_download_channel",
@@ -140,6 +146,38 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   )
     throw new Error("Unknown listing availability.");
   if (
+    listing.availability_override_reason !== undefined &&
+    (!boundedText(listing.availability_override_reason, 4096) ||
+      !listing.availability ||
+      listing.availability === "unknown")
+  )
+    throw new Error("Availability overrides require an explicit availability and bounded reason");
+  if (
+    listing.upstream_observation !== undefined &&
+    (!isRecord(listing.upstream_observation) ||
+      Buffer.byteLength(JSON.stringify(listing.upstream_observation)) > 128 * 1024)
+  )
+    throw new Error(
+      "Listing observation must be bounded; Core validates its exact accepted metadata",
+    );
+  if (value.release_maintenance !== undefined) {
+    const maintenance = value.release_maintenance;
+    const release =
+      isRecord(value.integration) && isRecord(value.integration.release)
+        ? value.integration.release
+        : undefined;
+    if (
+      !isRecord(maintenance) ||
+      Object.keys(maintenance).some((key) => !["reason", "reconsider_when"].includes(key)) ||
+      !boundedText(maintenance.reason, 4096) ||
+      !boundedText(maintenance.reconsider_when, 4096) ||
+      release?.provider !== "direct-manifest"
+    )
+      throw new Error(
+        "Pin maintenance requires reason, reconsideration condition and an exact direct contract",
+      );
+  }
+  if (
     listing.download_block_reason !== undefined &&
     !boundedText(listing.download_block_reason, 4096)
   )
@@ -149,7 +187,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       !isRecord(listing.download_asset_hints) ||
       Object.entries(listing.download_asset_hints).some(
         ([platform, hints]) =>
-          !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(platform) ||
+          !(platforms as readonly string[]).includes(platform) ||
           !Array.isArray(hints) ||
           hints.length < 1 ||
           hints.length > 8 ||
@@ -172,9 +210,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     (!Array.isArray(listing.platforms) ||
       listing.platforms.length > 32 ||
       listing.platforms.some(
-        (v: unknown) =>
-          typeof v !== "string" ||
-          !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(v),
+        (v: unknown) => typeof v !== "string" || !(platforms as readonly string[]).includes(v),
       ) ||
       new Set(listing.platforms).size !== listing.platforms.length)
   )
@@ -318,16 +354,54 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     ...structuredClone(record.listing),
     platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
     availability: record.listing.availability ?? "unknown",
+    ...(record.release_maintenance
+      ? {
+          release_maintenance: {
+            ...record.release_maintenance,
+            pinned_releases: Object.entries(
+              (record.integration!.release as Record<string, unknown>).direct as Record<
+                string,
+                { version: string; published_at?: string }
+              >,
+            ).map(([platform, pin]) => ({
+              platform,
+              version: pin.version,
+              published_at: pin.published_at ?? null,
+            })),
+          },
+        }
+      : {}),
   }));
-  const format_version = listings.some(
+  const extendedMedia = listings.some(
     (listing) =>
-      listing.original_game !== undefined ||
-      (Array.isArray(listing.media) && listing.media.length > 0),
-  )
-    ? 3
-    : listings.some((listing) => listing.download_block_reason !== undefined)
-      ? 2
-      : 1;
+      Array.isArray(listing.media) &&
+      (listing.media.some(
+        (asset) =>
+          isRecord(asset) &&
+          (["key_art", "logo"].includes(String(asset.role)) ||
+            Object.hasOwn(asset, "edition_neutral") ||
+            Object.hasOwn(asset, "igdb")),
+      ) ||
+        listing.media.filter((asset) => isRecord(asset) && asset.role === "header").length > 1),
+  );
+  const format_version = extendedMedia
+    ? 5
+    : listings.some(
+          (listing) =>
+            listing.upstream_observation !== undefined ||
+            listing.availability_override_reason !== undefined ||
+            "release_maintenance" in listing,
+        )
+      ? 4
+      : listings.some(
+            (listing) =>
+              listing.original_game !== undefined ||
+              (Array.isArray(listing.media) && listing.media.length > 0),
+          )
+        ? 3
+        : listings.some((listing) => listing.download_block_reason !== undefined)
+          ? 2
+          : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

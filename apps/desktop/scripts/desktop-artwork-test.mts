@@ -32,6 +32,66 @@ import {
 } from "./desktop-review-controls.mts";
 import { artworkObservations } from "./desktop-artwork-observations.mts";
 
+export async function readArtworkFallback(
+  browser: Pick<ScenarioContext["browser"], "executeScript">,
+  selector: string,
+  paletteIndex: number,
+  quiet: boolean,
+) {
+  return executeBrowserScript(
+    browser,
+    (selector, paletteIndex, quiet) => {
+      const frame = document.querySelector<HTMLElement>(selector);
+      if (!frame) throw new Error("Artwork frame unavailable");
+      const roles = ["neutral", "yellow", "blue", "indigo", "green", "red"];
+      const role = roles[paletteIndex];
+      if (!role) throw new Error("Unknown generated artwork palette");
+      const token = quiet ? "--color-bg-subtle" : `--color-art-${role}`;
+      const computed = getComputedStyle(frame);
+      const probe = document.createElement("span");
+      probe.style.display = "none";
+      probe.style.backgroundColor = `var(${token})`;
+      document.body.append(probe);
+      let expectedBackground: string;
+      try {
+        expectedBackground = getComputedStyle(probe).backgroundColor;
+      } finally {
+        probe.remove();
+      }
+      return {
+        source: frame.dataset.artworkSource,
+        initials: frame.querySelector(":scope > span")?.textContent?.trim(),
+        images: frame.querySelectorAll("img").length,
+        decorativeIcon: Boolean(frame.querySelector(':scope > span > svg[aria-hidden="true"]')),
+        palette: computed.getPropertyValue("--art-color").trim(),
+        expectedPalette: getComputedStyle(document.documentElement).getPropertyValue(token).trim(),
+        background: computed.backgroundColor,
+        expectedBackground,
+      };
+    },
+    selector,
+    paletteIndex,
+    quiet,
+  );
+}
+
+export function readArtworkGeometry(browser: Pick<ScenarioContext["browser"], "executeScript">) {
+  return executeBrowserScript(browser, () => {
+    const frame = document.querySelector(".game-hero-detail .game-hero-foreground");
+    if (!frame) throw new Error("Artwork frame unavailable");
+    const image = frame.querySelector("img");
+    if (!image) throw new Error("Artwork image unavailable");
+    const bounds = frame.getBoundingClientRect();
+    if (bounds.width <= 0 || bounds.height <= 0 || !image.naturalWidth || !image.naturalHeight)
+      throw new Error("Artwork image has no visible decoded footprint");
+    return {
+      ratio: image.naturalWidth / image.naturalHeight,
+      fit: getComputedStyle(image).objectFit,
+      titleOutsideImage: !frame.contains(document.querySelector("#port-detail-title")),
+    };
+  });
+}
+
 export async function artworkScenario({
   browser,
   invoke,
@@ -82,46 +142,6 @@ export async function artworkScenario({
         });
         return transportValue("artwork_state", success(result));
       };
-      const fallbackVisual = async (selector: string, paletteIndex: number, quiet: boolean) =>
-        executeBrowserScript(
-          browser,
-          (selector, paletteIndex, quiet) => {
-            const frame = document.querySelector<HTMLElement>(selector);
-            if (!frame) throw new Error("Artwork frame unavailable");
-            const roles = ["neutral", "yellow", "blue", "indigo", "green", "red"];
-            const role = roles[paletteIndex];
-            if (!role) throw new Error("Unknown generated artwork palette");
-            const token = quiet ? "--color-bg-subtle" : `--color-art-${role}`;
-            const computed = getComputedStyle(frame);
-            const probe = document.createElement("span");
-            probe.style.display = "none";
-            probe.style.backgroundColor = `var(${token})`;
-            document.body.append(probe);
-            let expectedBackground: string;
-            try {
-              expectedBackground = getComputedStyle(probe).backgroundColor;
-            } finally {
-              probe.remove();
-            }
-            return {
-              source: frame.dataset.artworkSource,
-              initials: frame.querySelector(":scope > span")?.textContent?.trim(),
-              images: frame.querySelectorAll("img").length,
-              decorativeIcon: Boolean(
-                frame.querySelector(':scope > span > svg[aria-hidden="true"]'),
-              ),
-              palette: computed.getPropertyValue("--art-color").trim(),
-              expectedPalette: getComputedStyle(document.documentElement)
-                .getPropertyValue(token)
-                .trim(),
-              background: computed.backgroundColor,
-              expectedBackground,
-            };
-          },
-          selector,
-          paletteIndex,
-          quiet,
-        );
       const expectFallbackVisual = async (
         selector: string,
         fallback: GeneratedArtworkFallback,
@@ -139,7 +159,12 @@ export async function artworkScenario({
         );
         try {
           await browser.wait(async () => {
-            const actual = await fallbackVisual(selector, fallback.palette_index, quiet);
+            const actual = await readArtworkFallback(
+              browser,
+              selector,
+              fallback.palette_index,
+              quiet,
+            );
             return (
               actual.source === expected.source &&
               actual.initials === expected.initials &&
@@ -152,17 +177,42 @@ export async function artworkScenario({
           }, 10_000);
         } catch (error) {
           throw new Error(
-            `Fallback presentation did not settle: ${JSON.stringify(await fallbackVisual(selector, fallback.palette_index, quiet))}`,
+            `Fallback presentation did not settle: ${JSON.stringify(await readArtworkFallback(browser, selector, fallback.palette_index, quiet))}`,
             { cause: error },
           );
         }
-        const actual = await fallbackVisual(selector, fallback.palette_index, quiet);
+        const actual = await readArtworkFallback(browser, selector, fallback.palette_index, quiet);
         assert.deepEqual({ source: actual.source, initials: actual.initials }, expected);
         assert.ok(actual.palette.length > 0);
         assert.equal(actual.images, 0);
         if (quiet) assert.equal(actual.decorativeIcon, true);
         assert.equal(actual.palette, actual.expectedPalette);
         assert.equal(actual.background, actual.expectedBackground);
+      };
+      const expectHeroText = async () => {
+        const expectedTitle = port.presentation?.original_game_title?.trim() || port.name;
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (expectedTitle) => {
+                const hero = document.querySelector(".game-hero-detail");
+                const heading = hero?.querySelector("#port-detail-title");
+                return (
+                  hero?.getAttribute("data-hero-identity") === "text" &&
+                  !hero.querySelector('[data-loading="true"]') &&
+                  !hero.querySelector(".game-hero-image") &&
+                  heading?.textContent?.trim() === expectedTitle &&
+                  Boolean(
+                    hero.querySelector('.detail-header-actions button[data-variant="primary"]'),
+                  )
+                );
+              },
+              expectedTitle,
+            ),
+          10_000,
+          "Missing cover must retain the real game heading and primary action without a decorative image",
+        );
       };
       const open = async () => {
         await observations.capture("before-reload");
@@ -244,7 +294,7 @@ export async function artworkScenario({
       assert.equal(before.generated_fallback.style_version, 1);
       assert.ok(before.generated_fallback.palette_index >= 0);
       assert.ok(before.generated_fallback.palette_index < 6);
-      await expectFallbackVisual(".detail-cover", before.generated_fallback, true);
+      await expectHeroText();
       const stale = object(
         await invoke("reset_artwork", {
           portId,
@@ -296,7 +346,7 @@ export async function artworkScenario({
         );
       }
       await waitImage(".wide-artwork img");
-      await waitImage(".detail-cover img");
+      await waitImage(".game-hero-detail .game-hero-foreground img");
       const cover = await state("cover"),
         detail = await state("detail");
       assert.equal(cover.choice.revision, before.choice.revision + 1);
@@ -310,19 +360,8 @@ export async function artworkScenario({
       );
       assert.equal(oldChoice.ok, false);
       assert.equal(object(oldChoice.error).code, "conflict");
-      const geometry = await executeBrowserScript(browser, () => {
-        const frame = document.querySelector(".detail-cover");
-        if (!frame) throw new Error("Artwork frame unavailable");
-        const image = frame.querySelector("img");
-        if (!image) throw new Error("Artwork image unavailable");
-        const bounds = frame.getBoundingClientRect();
-        return {
-          ratio: bounds.width / bounds.height,
-          fit: getComputedStyle(image).objectFit,
-          titleOutsideImage: !frame.contains(document.querySelector("#port-detail-title")),
-        };
-      });
-      assert.ok(Math.abs(geometry.ratio - 2 / 3) < 0.02);
+      const geometry = await readArtworkGeometry(browser);
+      assert.ok(Math.abs(geometry.ratio - bytes.readUInt32BE(16) / bytes.readUInt32BE(20)) < 0.02);
       assert.equal(geometry.fit, "contain");
       assert.equal(geometry.titleOutsideImage, true);
       await executeBrowserScript(browser, () => {
@@ -349,7 +388,7 @@ export async function artworkScenario({
       const reset = await state("cover");
       assert.equal(reset.resolved_source.kind, "generated_fallback");
       assert.deepEqual(reset.generated_fallback, before.generated_fallback);
-      await expectFallbackVisual(".detail-cover", before.generated_fallback, true);
+      await expectHeroText();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);

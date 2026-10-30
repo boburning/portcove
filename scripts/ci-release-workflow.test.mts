@@ -112,7 +112,7 @@ void test("Windows updater rehearsal adopts manifest-pinned prebuilt tools befor
   assert.equal(reader.id, "windows-quality-pins");
   assert.equal(reader.shell, "pwsh");
   assert.equal(reader.run, "node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT");
-  assert.equal(prebuilt.uses, "taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037");
+  assert.equal(prebuilt.uses, "taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32");
   assert.equal(prebuilt.with.tool, "${{ steps.windows-quality-pins.outputs.required_prebuilt }}");
   assert.equal(prebuilt.with.checksum, undefined);
   assert.equal(prebuilt.with.fallback, undefined);
@@ -546,4 +546,37 @@ void test("ordinary controller tool rebuilds cover Windows driver acquisition an
     ])
       assert.ok(section.paths.includes(file), `${trigger}/${file}`);
   }
+});
+
+void test("installed file-feed outage keeps public preimages and recovery controls in existing rehearsal artifacts", async () => {
+  const workflow = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  const owner = workflowJob("packages", workflow);
+  assert.ok(Array.isArray(owner.steps));
+  const upload: unknown = owner.steps.find(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("actions/upload-artifact@"),
+  );
+  assert.ok(isRecord(upload) && isRecord(upload.with) && typeof upload.with.path === "string");
+  const prefix = "work/updater-rehearsal/linux-appimage-qualification/renderer-qualification/";
+  for (const filename of [
+    "feed-outage-*.json",
+    "feed-outage-*.txt",
+    "feed-outage-control/configuration.json",
+    "feed-outage-control/timestamp-preimage.json",
+    "feed-outage-control/fault-window-closed.json",
+  ])
+    assert.ok(upload.with.path.split(/\r?\n/u).includes(prefix + filename), filename);
+  assert.notEqual(
+    upload.with["include-hidden-files"],
+    true,
+    "Public control retention must not opt private/hidden profile inputs into upload",
+  );
+  assert.ok(
+    !upload.with.path.includes(prefix + "feed-outage-control/**"),
+    "Retain only selected public control inputs",
+  );
 });

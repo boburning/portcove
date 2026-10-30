@@ -3,7 +3,7 @@
   "listing": {
     "id": "blake-stone-aliens-of-gold-bstone",
     "name": "Blake Stone: Aliens of Gold (Bstone)",
-    "summary": "Set up Blake Stone: Aliens of Gold through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+    "summary": "Play Blake Stone: Aliens of Gold through BStone with your matching original game files.",
     "original_game_title": "Blake Stone: Aliens of Gold",
     "project_url": "https://github.com/bibendovsky/bstone",
     "issue_number": 2555,
@@ -21,6 +21,10 @@
     "recommended_download_channel": "stable",
     "manual_setup": {
       "steps": [
+        {
+          "title": "Choose the runtime owner and original edition",
+          "instruction": "This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+        },
         {
           "title": "Use this original game and edition",
           "instruction": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -58,30 +62,97 @@
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
-    "adapter": "staged-source-portable",
+    "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "user-prepared",
       "repository": "bibendovsky/bstone",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
+      "asset_hints": {
+        "windows-x86-64": ["bstone-", "-win64.zip"]
       }
     },
+    "executable_hints": {
+      "windows-x86-64": ["bstone.exe"]
+    },
+    "windows_runtime_path_policy": "relative-file-max-path",
+    "launch_arguments": ["--aog", "--data_dir", "originals", "--profile_dir", "profile"],
+    "persistent_paths": ["profile"],
     "presentation": {
-      "installation_method": "user-prepared-runtime",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --aog as a separate argument to choose this game. Use --aog_sw instead when deliberately choosing supported shareware. Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
-    }
+      "installation_method": "portable-package",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "bstone-aliens-of-gold-originals",
+          "label": "Blake Stone aliens-of-gold complete original files",
+          "verification": "catalog-identity"
+        }
+      ],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Select a folder or ZIP containing your complete matching retail BS6 set (versions 1.0, 2.0, 2.1 or 3.0). Portcove verifies the reviewed upstream SHA1 identities as one complete edition, prepares immutable copies in originals and places settings, high scores, saves, screenshots and temporary files in the separate profile folder. Originals are not included. The --aog argument selects this game. Upstream may search recognized outside locations as well; those files stay externally owned and outside Portcove backup. This fresh managed offer does not convert existing registrations or adopt an older Native4 runtime/profile. Older contracts retain their originals directory and root-level persistence; shrinking or remapping that populated data is held. Preserve the creating runtime and profile before changing versions. Backup and preserving removal cover the declared profile; no save conversion or future-version save compatibility is established. BS1 shareware is a separate upstream-owned setup choice; it is not retail BS6 admission. The upstream guide remains the non-owning alternative for other original editions or existing players."
+    },
+    "source_profile": "bstone-aliens-of-gold-originals",
+    "runtime_source_set": [
+      {
+        "source_filenames": ["AUDIOHED.BS6"],
+        "destination": "originals/audiohed.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["AUDIOT.BS6"],
+        "destination": "originals/audiot.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["EANIM.BS6"],
+        "destination": "originals/eanim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["GANIM.BS6"],
+        "destination": "originals/ganim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["IANIM.BS6"],
+        "destination": "originals/ianim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPHEAD.BS6"],
+        "destination": "originals/maphead.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["MAPTEMP.BS6"],
+        "destination": "originals/maptemp.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["SANIM.BS6"],
+        "destination": "originals/sanim.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGADICT.BS6"],
+        "destination": "originals/vgadict.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAGRAPH.BS6"],
+        "destination": "originals/vgagraph.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VGAHEAD.BS6"],
+        "destination": "originals/vgahead.bs6",
+        "materialization": "copy"
+      },
+      {
+        "source_filenames": ["VSWAP.BS6"],
+        "destination": "originals/vswap.bs6",
+        "materialization": "copy"
+      }
+    ],
+    "windows_temp_directory": "profile"
   }
 }

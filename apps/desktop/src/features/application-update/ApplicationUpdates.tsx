@@ -394,6 +394,11 @@ function ApplicationUpdateStatusPanel({
 
       {status && (
         <>
+          {!status.staged && status.install_eligibility !== "eligible" && (
+            <p className={`${updateSurfaceClass} ${updateMutedCopyClass}`}>
+              {installRestrictionCopy(status)}
+            </p>
+          )}
           <ApplicationUpdateRecoveryItems
             recoveries={status.recovery_required}
             disabled={disabled}
@@ -461,6 +466,7 @@ function performApplicationTask<T>(
     ? perform(action, task, {
         refresh: "none",
         invalidateDiagnostics: false,
+        propagateFailure: true,
         context: {
           action,
           target: { kind: "application", id: "portcove", label: "Portcove" },

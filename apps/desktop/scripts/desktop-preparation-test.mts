@@ -139,7 +139,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   clickVisible,
-  chooseGameUpdateDisposition,
+  reviewGameUpdateDisposition,
   selectPrimaryNavigation,
   selectCatalogPort,
 } from "./desktop-review-controls.mts";
@@ -669,7 +669,8 @@ async function assertReviewedUpdateOutcomes({
   generation: number;
   command: FixtureCommand;
 }) {
-  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) =>
+    By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
   const dialog = By.css("[data-game-update-review]");
   interface CaseObservation extends ReviewObservation, Partial<ProbeCleanup> {
     availability?: string;
@@ -736,8 +737,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
-        await chooseGameUpdateDisposition(browser, "prepare");
-        await clickVisible(browser, await browser.findElement(button("Review game update")));
+        await reviewGameUpdateDisposition(browser, "prepare");
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         await browser.wait(async () => (await review.getText()).includes(explanation), 5_000);
         assert.equal(
@@ -805,8 +805,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
-        await chooseGameUpdateDisposition(browser, "prepare");
-        await clickVisible(browser, await browser.findElement(button("Review game update")));
+        await reviewGameUpdateDisposition(browser, "prepare");
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         const applyAction = await waitForReviewedUpdateAction(
           browser,
@@ -872,8 +871,7 @@ async function assertReviewedUpdateOutcomes({
           path.join(output, `reviewed-update-outcome-${mutation}-accessibility.json`),
           artifacts,
         );
-        await chooseGameUpdateDisposition(browser, "prepare");
-        await clickVisible(browser, await browser.findElement(button("Review game update")));
+        await reviewGameUpdateDisposition(browser, "prepare");
         await browser.wait(until.elementLocated(dialog), 5_000);
         await clickVisible(browser, await browser.findElement(button("Cancel review")));
         await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
@@ -906,8 +904,7 @@ async function assertReviewedUpdateOutcomes({
       assert.equal(observation.channels, 1);
       assert.equal(observation.restored, true);
     }
-    await chooseGameUpdateDisposition(browser, "prepare");
-    await clickVisible(browser, await browser.findElement(button("Review game update")));
+    await reviewGameUpdateDisposition(browser, "prepare");
     await browser.wait(until.elementLocated(dialog), 5_000);
     await clickVisible(browser, await browser.findElement(button("Cancel review")));
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
@@ -1123,7 +1120,8 @@ export async function preparationScenarios({
     seeded.set(portId, { mode, chd, value });
     return value;
   }
-  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const button = (label: string) =>
+    By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
   async function dismissApplicationUpdateChoice() {
     const preferences = await invoke("get_application_update_preferences");
     assert.equal(preferences.ok, true);
@@ -1253,6 +1251,13 @@ export async function preparationScenarios({
     assert.equal(preparationHierarchy.firstAction, "Review game preparation");
     assert.equal(preparationHierarchy.disabledPlaceholder, false);
     assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
+    await revealDetailSection(browser, "Manage");
+    await clickVisible(
+      browser,
+      await browser.findElement(
+        By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'),
+      ),
+    );
     await clickVisible(
       browser,
       await browser.findElement(
@@ -1312,6 +1317,7 @@ export async function preparationScenarios({
       install.id,
       "review must not move versions",
     );
+    await revealDetailSection(browser, "Game files");
     await browser.findElement(button("Review game preparation")).click();
     const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
@@ -2110,7 +2116,7 @@ export async function preparationScenarios({
           await clickVisible(browser, identity);
           await clickVisible(
             browser,
-            await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')),
+            await browser.findElement(By.css("button[data-detail-back]")),
           );
           await browser.wait(
             () =>
@@ -2196,14 +2202,17 @@ export async function preparationScenarios({
             executeBrowserScript(
               browser,
               (expected) => {
-                const frame = document.querySelector<HTMLElement>(".detail-cover.artwork-image");
-                const image = frame?.querySelector("img");
+                const hero = document.querySelector<HTMLElement>(".game-hero-detail");
+                const image = hero?.querySelector<HTMLImageElement>(".game-hero-image");
                 if (image) return image.complete && image.naturalWidth > 0;
                 return (
-                  frame?.dataset.artworkSource === "generated_fallback" &&
-                  Boolean(frame.querySelector(':scope > span > svg[aria-hidden="true"]')) &&
-                  (expected.availability !== "available" ||
-                    frame.textContent?.includes("Image unavailable"))
+                  expected.resolved_source.kind === "generated_fallback" &&
+                  hero?.dataset.heroIdentity === "text" &&
+                  !hero.querySelector('[data-loading="true"]') &&
+                  Boolean(hero.querySelector("#port-detail-title")?.textContent?.trim()) &&
+                  Boolean(
+                    hero.querySelector('.detail-header-actions button[data-variant="primary"]'),
+                  )
                 );
               },
               artwork,
@@ -2264,7 +2273,7 @@ export async function preparationScenarios({
           assert.deepEqual(hierarchy.groups, [
             "Overview",
             "Game files",
-            "Saves",
+            "Saves & backups",
             "Versions & updates",
             "Manage",
           ]);
@@ -2507,11 +2516,11 @@ export async function preparationScenarios({
     );
     assert.equal(
       (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
-      1,
+      0,
     );
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
-    const trigger = await browser.findElement(button("Review game update"));
+    const trigger = await browser.findElement(button("Update now"));
     await clickVisible(browser, trigger);
     const dialog = By.css("[data-game-update-review]");
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
@@ -2522,7 +2531,10 @@ export async function preparationScenarios({
     );
     // The immediate disposition is explicit; changing it requests a new bound plan.
     const initialReviewText = await review.getText();
-    const keepForLater = await review.findElements(button("Review prepare for later"));
+    const keepForLater = [
+      ...(await review.findElements(button("Prepare for later"))),
+      ...(await review.findElements(button("Keep for later"))),
+    ];
     if (keepForLater.length) {
       assert.ok(initialReviewText.includes("Confirm the release"));
       await clickVisible(browser, keepForLater[0]!);
@@ -2540,12 +2552,18 @@ export async function preparationScenarios({
     });
     assert.ok(reviewText.includes("Confirm the release"));
     assert.ok(reviewText.includes(candidate.plan.release.version));
-    if (["download", "use_staged", "reuse_retained"].includes(candidate.plan.action))
+    if (["download", "use_staged", "reuse_retained"].includes(candidate.plan.action)) {
+      assert.equal(
+        keepForLater.length,
+        1,
+        "A usable update must expose its real keep-for-later action",
+      );
       assert.ok(
         reviewText.includes(
           "This keeps the prepared update for later. Your current version stays unchanged.",
         ),
       );
+    }
     assert.ok(
       reviewText.includes("Saved update settings are unchanged") ||
         reviewText.includes("already active") ||
@@ -2570,7 +2588,15 @@ export async function preparationScenarios({
     );
     await browser.wait(
       () =>
-        executeBrowserScript(browser, "return document.activeElement === arguments[0];", trigger),
+        browser
+          .findElement(button("Update now"))
+          .then((currentTrigger) =>
+            executeBrowserScript(
+              browser,
+              "return document.activeElement === arguments[0];",
+              currentTrigger,
+            ),
+          ),
       5_000,
       "Game update review trigger did not regain focus after Escape",
     );
@@ -2691,9 +2717,9 @@ export async function preparationScenarios({
       assert.equal((await browser.findElements(button("Play"))).length, 0);
       assert.equal((await browser.findElements(button("Choose required source"))).length, 0);
       const verify = await browser.findElement(By.css(".primary-actions button"));
-      assert.equal(await verify.getText(), "Verify installation");
+      assert.equal(await verify.getText(), "Check installed files");
       assert.equal(await verify.isEnabled(), true);
-      assert.equal((await browser.findElements(button("Verify installation"))).length, 1);
+      assert.equal((await browser.findElements(button("Check installed files"))).length, 1);
       await clickVisible(browser, verify);
       await browser.wait(
         until.elementLocated(By.css('.error-banner[role="alert"]')),
@@ -3220,7 +3246,7 @@ export async function preparationScenarios({
         // remains running. Perform a real unrelated native UI verification.
         await open(other.port, false);
         await revealDetailSection(browser, "Manage");
-        const verify = await browser.findElement(button("Verify installation"));
+        const verify = await browser.findElement(button("Check installed files"));
         assert.equal(
           await verify.isDisplayed(),
           true,

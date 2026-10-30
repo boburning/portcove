@@ -26,6 +26,9 @@ mod definition_capability_contract;
 #[path = "machine_contract/human_presentation.rs"]
 mod human_presentation;
 
+#[path = "machine_contract/game_comparison.rs"]
+mod game_comparison;
+
 #[path = "machine_contract/update_inventory.rs"]
 mod update_inventory;
 
@@ -181,7 +184,10 @@ fn consequential_help_explains_actions_and_review_arguments() {
     for (args, expected) in [
         (&["ensure", "--help"][..], "required runtime is present"),
         (&["reconcile", "--help"][..], "game update settings"),
-        (&["activate", "--help"][..], "staged release"),
+        (
+            &["activate", "--help"][..],
+            "saved release as the current installed version",
+        ),
         (
             &["rollback", "--help"][..],
             "retained previous installed version",
@@ -2508,7 +2514,10 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 82"));
+    assert!(capabilities.contains(&format!(
+        " capabilities\nSchema: {}",
+        portcove_core::API_SCHEMA_VERSION
+    )));
     assert!(capabilities.contains("\nOperation event schema: 3"));
 }
 

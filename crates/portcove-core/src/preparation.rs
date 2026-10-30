@@ -242,7 +242,7 @@ impl PortcoveService {
             let source_verification = source_only
                 .then(|| installer.verify_source_only_repair(&install, &qualification, port))
                 .transpose()?;
-            let selected = if source_only {
+            let selected = if source_only && !source::native(port) {
                 install.path.join(&install.selected_executable)
             } else {
                 installer.verify_critical(&install, &qualification)?
@@ -258,7 +258,9 @@ impl PortcoveService {
                     && port.runtime_subdirectory.is_some()
                     && working != install.path
                     && working.starts_with(&install.path);
-            if working != install.path && !nested_upstream_runtime {
+            let nested_native_runtime =
+                source::native(port) && selected.parent() == Some(working.as_path());
+            if working != install.path && !nested_upstream_runtime && !nested_native_runtime {
                 return Err(PortcoveError::unsupported(
                     "managed preparation requires a reviewed install-root or nested upstream runtime directory",
                 ));
@@ -280,7 +282,14 @@ impl PortcoveService {
                 PortcoveError::source("register the required source before preparation")
                     .detail("profile_id", profile_id)
             })?;
+            source::require_canonical_originals(port, self.library())?;
             crate::source_inspection::verify_registered(catalog, &source)?;
+            if source::native(port)
+                && installer.retained_preparation_mode(&install)?
+                    == Some(PreparationMode::SourceOnly)
+            {
+                source::validate(self.library(), catalog, port, &install, Some(&source), None)?;
+            }
             if legacy {
                 ghostship::require_source(&source)?;
             }
@@ -344,10 +353,14 @@ impl PortcoveService {
                     .map(|path| tool_identity(path, ChildProcessClass::HostTool))
                     .transpose()?
             };
-            let definition_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
-                port,
-                catalog.source_profile(profile_id)?,
-            ))?);
+            let definition_sha256 = if source_only {
+                source::definition(catalog, port)?
+            } else {
+                crate::signed_catalog::digest(&serde_json::to_vec(&(
+                    port,
+                    catalog.source_profile(profile_id)?,
+                ))?)
+            };
             let copy = crate::library_transfer::reviewed_tree(&install.path)?;
             let mut plan = PreparationPlan {
                 format_version: if source_only {

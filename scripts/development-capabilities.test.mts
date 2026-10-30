@@ -158,6 +158,7 @@ function bootstrapFixture(t: TestContext) {
     "scripts/bootstrap-quality-tools.sh",
     "scripts/bootstrap-quality-tools.ps1",
     "scripts/windows-webview-driver-policy.psm1",
+    "scripts/tool-cache-state.psm1",
     ".node-version",
     "rust-toolchain.toml",
     "package.json",
@@ -242,7 +243,13 @@ process.exit(73);
     project,
     caller: directory,
     marker,
-    run(command: string, args: string[], extra: NodeJS.ProcessEnv = {}, cwd = project) {
+    run(
+      command: string,
+      args: string[],
+      extra: NodeJS.ProcessEnv = {},
+      cwd = project,
+      discoveryTimeoutMs = 5000,
+    ) {
       const environment = {
         ...process.env,
         PATH: bin + path.delimiter + process.env.PATH,
@@ -265,7 +272,10 @@ process.exit(73);
           cwd: project,
           env: environment,
           encoding: "utf8",
-          timeout: 5000,
+          // Full40763883340/a1 Mac frontend reached this real PowerShell
+          // command-discovery probe's5s cutoff. Keep shell probes at5s and
+          // the actual bootstrap command at15s; calibrate only pwsh startup.
+          timeout: discoveryTimeoutMs,
           maxBuffer: 64 * 1024,
         },
       );
@@ -428,15 +438,26 @@ void test(
   },
 );
 
+const powershellAvailability = spawnSync("pwsh", ["-NoProfile", "--version"], {
+  timeout: 20_000,
+  encoding: "utf8",
+});
 void test(
   "PowerShell frontend setup selects dependencies before unrelated tools",
   {
+    timeout: 60_000,
     skip:
-      spawnSync("pwsh", ["--version"], { timeout: 5000 }).status !== 0
+      powershellAvailability.error &&
+      "code" in powershellAvailability.error &&
+      powershellAvailability.error.code === "ENOENT"
         ? "PowerShell executable unavailable"
         : false,
   },
   (t) => {
+    // A cold-start timeout or failing executable is a failure, not evidence
+    // that the intended PowerShell execution route is unavailable.
+    assert.ifError(powershellAvailability.error);
+    assert.equal(powershellAvailability.status, 0, powershellAvailability.stderr);
     const fixture = bootstrapFixture(t);
     const result = fixture.run(
       "pwsh",
@@ -449,6 +470,7 @@ void test(
       ],
       {},
       fixture.caller,
+      20_000,
     );
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");

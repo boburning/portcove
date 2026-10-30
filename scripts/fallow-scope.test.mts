@@ -399,6 +399,10 @@ void test("native-test export credits retain outside consumers without masking o
     );
     const nativeExports = [
       [
+        "scripts/desktop-bootstrap-recovery-test.mts",
+        ["technicalDetailHasSeparation", "observeTechnicalDetails"],
+      ],
+      [
         "scripts/native-linux-driver-http.mts",
         ["privateNativeDriverAgentState", "inspectPrivateNativeDriverRequest"],
       ],
@@ -467,6 +471,23 @@ void test("native-test export credits retain outside consumers without masking o
     );
     assert.ok(text.includes(`apps/desktop/${source}`), `${consumer} no longer imports ${source}`);
   }
+  const technicalDetailsConsumer = readFileSync(
+    path.join(root, "apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts"),
+    "utf8",
+  );
+  assert.ok(
+    technicalDetailsConsumer.includes(
+      'new URL("./desktop-bootstrap-recovery-test.mts", import.meta.url)',
+    ),
+  );
+  assert.ok(
+    technicalDetailsConsumer.includes("const {observeTechnicalDetails} = await import(entry)"),
+  );
+  assert.ok(
+    technicalDetailsConsumer.includes(
+      "await (${String(technicalDetailBehavior)})(observeTechnicalDetails)",
+    ),
+  );
 });
 
 void test("native process member credits preserve unrelated and unconsumed member findings", () => {

@@ -44,6 +44,58 @@ for identified consumers and retirement conditions. Preserve installed runtimes,
 originals, saves, settings, backups and recovery independently of whether the
 builder that created them remains an active feature.
 
+## Port-driven capability selection
+
+Port integration is the product outcome for every console family. Use this
+sequence on the canonical port issue:
+
+1. **Discover:** identify the direct upstream, game, release and applicable platform.
+2. **Evaluate:** select the most useful reasonable installation, preparation and launch route.
+3. **Reuse:** prefer existing Core/adapters, official packages, supported upstream tools and safe non-owning existing-installation registration.
+4. **Identify gaps:** name the exact unsupported operation and why existing or upstream routes do not suffice.
+5. **Prioritize:** weigh known ports unlocked and expected player usefulness, reusable breadth, upstream tooling, implementation/testing complexity, maintenance cost, and source/security/rights/preservation risks.
+6. **Implement when justified:** extend the existing Core or adapter owner. Small per-port integration changes are appropriate when no shared abstraction is justified; preserve one durable lifecycle authority.
+7. **Integrate:** apply the capability to all genuinely fitting selected consumers. One shared change may justify a coherent multi-port batch.
+8. **Validate and deliver:** prove the operations actually offered, preserve installed compatibility and safety, and reconcile canonical issues, catalog evidence and the live Project.
+
+Record the short prioritization rationale with the selected consumers and missing
+operation on the existing owner. Use existing Project Priority, Horizon, Target
+release and Release commitment fields; do not add a score, adapter registry or
+parallel backlog. Many useful consumers can justify shared work ahead of isolated
+integrations; one immature consumer with a costly adapter can justify deferral.
+An adapter is independently valuable only when it serves a demonstrated
+integration need. Do not build universal console frameworks for hypothetical ports.
+
+[#135](https://github.com/boburning/portcove/issues/135),
+[#136](https://github.com/boburning/portcove/issues/136),
+[#137](https://github.com/boburning/portcove/issues/137) and
+[#138](https://github.com/boburning/portcove/issues/138) retain canonical technical
+ownership for demonstrated PS1, NES/SNES/Genesis, GameCube/Wii and Xbox 360 gaps.
+They are demand-driven dependencies of selected ports, not a separate mandatory
+implementation campaign. A port need not wait for a whole-family adapter;
+consume the smallest proven component or a fitting existing route. Broader
+manifest/build/configuration/container/lifecycle work uses the same owner when
+real consumers justify it. Planned does not commit every speculative enhancement.
+
+The existing seven-slice initial-beta plan keeps its numbering. Slice 1 owns port
+adoption, investigations and already-supported integrations through
+[#2510](https://github.com/boburning/portcove/issues/2510),
+[#2926](https://github.com/boburning/portcove/issues/2926) and canonical port issues.
+Former Slice 2, Console-Family Beta Primitives, is not a separate beta or mandatory
+1.0 campaign. New #135–#138 infrastructure does not gate initial Public beta;
+their approved 1.0 / Planned commitments remain non-gating. Other slices and
+independent protected delivery requirements retain their owners.
+
+[#1422](https://github.com/boburning/portcove/issues/1422) preserves its historical
+317 rows / 316 canonical identities, duplicate mapping, accepted routes and prior
+deferrals. For an unavailable route, retain discoverability and record the exact
+missing capability, rejected existing/upstream alternatives, source/rights/
+ownership/safety restrictions, any still-usable operations and reconsideration
+condition. Deferral is not delivery; listing is not Supported. Never delay or
+downgrade a working route because another title in the family needs new machinery.
+Later discoveries retain continuous intake; the existing daily investigation's
+approved metadata/intake scope and scheduling remain unchanged.
+
 ## Managed native portable packages
 
 The `native-portable` adapter offers the existing managed installation, update,
@@ -98,6 +150,63 @@ envelope, not a general Windows long-path fix or a claim about the exact upstrea
 failure threshold. External profiles and arbitrary future save filenames are
 outside the immutable-package check. New and retained independent entries using
 this policy require Native4; Direct-only Native3 retains its meaning.
+
+Native5 additionally supports `windows_temp_directory` for Windows-only native
+archives using `relative-file-max-path`. Its value is one safe ASCII basename,
+at most 64 bytes, declared exactly once in `persistent_paths` and separate from
+other data namespaces. The publisher archive must leave that directory absent.
+Core creates or validates it during existing locked launch preparation and
+rechecks its namespace, case and redirect safety immediately before spawning.
+Read-only launch inspection never creates it.
+
+Core derives relative `TEMP` and `TMP` values from that field. Review the
+upstream working-directory behavior before using it: the process and any
+launched player must preserve the reviewed directory. The relative basename
+keeps temporary filenames relative even when the installation path has Unicode.
+Temporary bytes belong to the existing entry data scope, including backup,
+retained-version and removal preservation; no independent cleanup deletes them.
+Field additions, removals or coordinate changes do not rewrite an installed
+contract. Authored `TEMP`, `TMP` and reviewed host-session overrides remain
+rejected. Renderer hints remain reviewed host-session configuration.
+
+Without an active creating contract, fresh installation refuses an existing
+canonical temporary namespace, including an empty directory or files preserved after removal. Those
+bytes stay held for a reviewed transition; their presence cannot establish the
+new runtime interpretation. Normal active Native5 maintenance retains the exact
+field and existing data authority.
+
+Fresh and retained indexed entries declaring the field require minimum Native5;
+a range whose lower bound is Native4 cannot authorize the new behavior. Earlier
+definitions omit the field and retain Native1–4 semantics. Complete retained
+projection continues to refuse unknown or discarded fields in older readers.
+
+Native6 supports verified original-file preparation through the existing
+`source_profile` and `runtime_source_set` fields. This opt-in accepts complete
+schema-2 FileSet variants with cryptographic member identities, one enforced game
+source contract covering those variants, and Copy targets only. Original outputs
+are immutable and reserve their first path component apart from mutable
+profile/TEMP paths and filename patterns. Manual
+setup markers, conversion, installers and per-title initialization do not establish
+this completion. No production title is admitted by the generic capability.
+
+The existing SourceOnly planner, authorization, private staging, receipt, manifest
+and publisher own preparation. Fresh packages must leave every original output
+and sidecar vacant, including case aliases. Core resolves the package executable
+and derives its exact parent directory; a wrapper does not move the outer
+installation manifest or preparation receipts. Copied files are hashed against
+the admitted complete source set, and original inputs are checked again before
+publication and registration. The source and complete typed source contract are
+bound to the existing receipt. Launch never repairs or recopies sealed originals.
+
+Reviewed preparation can copy a verified installation into a new private payload.
+Unrecorded or altered immutable inputs refuse preparation. A prepared installation
+cannot silently rebind to another original edition, source registration or member
+mapping; maintenance and retained activation compare their creating contracts and
+sealed source receipts. Unapproved populated adoption and persistence changes stay
+held. Preserving removal retains declared profile data and leaves external
+originals unchanged. Native1–5 definitions and older SourceOnly interpretations
+retain their existing semantics. Fresh and retained indexed entries with native
+source profiles require a Native6 lower bound.
 
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
@@ -1150,8 +1259,10 @@ Managed preparation records observed release facts in its receipt and preserves
 authored listing links, including a useful separate upstream launcher. It does
 not add a current-tag listing URL to an otherwise reusable managed definition.
 
-Preparation flags hints containing the observed release version for applicability
-review. Prefer stable discriminating fragments, including the actual package
+Preparation flags delimited dotted release tokens, including older versions absent
+from the observed tag, for applicability review. This advisory is not a numeric
+capability classifier; architecture, ABI and engine-generation fragments remain
+valid selectors. Prefer stable discriminating fragments, including the actual package
 variant. Preserve numeric ABI/engine-generation requirements where intentional.
 Test unchanged rules through the production provider for N, N+1 and a fresh
 installation after N+1, including competing variants, foreign architectures and
@@ -1598,6 +1709,22 @@ their original scope. Ordinary contract shrinking, populated additions and
 unproven scope expansion remain refused. Runtime rollback still carries current
 data and does not rewind saves.
 
+The historical Sonic 3K v0.5.3 (#154), Sonic 1 v0.6.0 (#152) and Mega Man X2
+v0.1.4 (#165) reader transitions to newer routes have an additional
+compatibility hold: common declared player data must also be absent in the retained
+runtime, canonical data and actual target. Only separately verified regular original
+bytes are exempt; an empty set of added sidecars proves no save compatibility.
+A fresh newer route cannot initialize unknown canonical player data through collection,
+restore, backup restoration, activation or recovery. The exact legacy reader keeps
+its creating contract. An established target's exact retained contract and matching
+installation/manifest data-restore receipt preserve its administrative restore
+behavior; that receipt does not establish state ABI or authorize legacy adoption.
+A separate empty library remains the fresh creation case. Other ports retain the
+generic common-data preservation rule above. New indexed fresh definitions for
+these newer routes must declare staged-source capability version 25, so readers
+without this behavior refuse them. Retained entries keep their creating reader
+requirements; current runtime checks remain independent of that envelope.
+
 Explicit rollback between two authenticated retained ready-archive copies may use
 that same empty-path proof in either direction when one persistence scope strictly
 contains the other. Both copies keep their original manifests and receipt scope; ordinary restore
@@ -1649,16 +1776,23 @@ or another external user-profile directory; such state needs an upstream
 redirect or a separately reviewed ownership capability.
 
 `windows_runtime_path_policy: "printable-ascii-max-path"` declares a verified
-upstream limitation for a Windows-only managed staged-source runtime. Core rejects
+upstream limitation for a Windows-only managed staged-source runtime, or a native
+archive with Windows support and no original-source preparation or setup helpers. Core rejects
 known unsuitable output roots before acquisition, and checks the selected executable
 and its probe filename budget during readiness and again before preparation. The
 requirement is retained with the installation and survives an output-folder move;
 it grants no relocation or adoption permission. Source files may remain in their
 original Unicode locations when the adapter passes a checked relative runtime copy.
 This policy currently excludes external runtimes, setup executables and managed
-build recipes. Independent definition entries must require staged-source template
-version11. Absent policy retains the prior route contract; this is not a blanket
+build recipes. Native archives also check every authenticated package member at
+its final destination; other declared platforms retain their existing behavior.
+Independent definition entries must require staged-source template version11 or
+native-portable version7, respectively. Absent policy retains the prior route contract; this is not a blanket
 ASCII restriction or a claim that every other runtime supports Unicode paths.
+Existing installations use their creating definition: a new catalog declaration
+does not retrofit this guard into retained manifests. Review an existing supported
+move/adoption route separately; never rewrite the historical definition to claim
+that an old installation is protected.
 
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
@@ -1746,8 +1880,9 @@ Game and edition IDs are maintained explicitly, not inferred from project names,
 artwork mappings or a frozen prototype registry. Unknown editions remain unknown
 until their own upstream evidence has been reviewed.
 
-Optional authored `media` carries at most one `header` and eight `screenshot`
-assets through the same listing and operational presentation projection. Every
+Optional authored `media` carries at most two `header`, two `key_art`, two `logo`
+and eight `screenshot` assets through the same listing and operational presentation
+projection. Identity roles permit one candidate per exact subject. Every
 asset declares its exact port or authored original-game plus source-edition ID,
 caption, digest, dimensions, image/source URLs, attribution, a supported license
 identifier and `rights_url` evidence. Reviewers inspect the source and rights
@@ -1755,7 +1890,12 @@ evidence; metadata admission validates shape and bounds, not a legal grant. A
 parent project license alone is not distribution consent. No third-party files
 are copied merely to fill a gallery.
 
-Directories containing media require format 3. Legacy strict presentation with
+Legacy header/screenshot media requires listing format 3. Game key art/logos,
+IGDB image metadata, explicit `edition_neutral` evidence or a second header require
+format 5; current readers retain formats 1–4. New optional fields preserve old
+records, not old strict readers' ability to consume new fields or enum values.
+Normal audience/reader compatibility review remains required before publication.
+Legacy strict presentation with
 no `media` field may use reviewed directory media for the same exact identity;
 an explicit empty array clears it. An existing local artwork override takes
 precedence for the header, including its unavailable state; screenshots remain
@@ -1763,6 +1903,42 @@ authored read-only media. Image retrieval accepts only pinned raw GitHub commit
 URLs, the IGDB image CDN and Wikimedia Commons, with no redirects, URL queries or
 credentials. Cached `.image` originals share the existing disposable 64 MiB
 artwork cache and bounded decoding work; local overrides remain separate.
+
+Both game details and Continue resolve foreground identity as verified IGDB key
+art, then a suitable IGDB game logo, then the existing appropriate Cover choice,
+then a text heading. Each role prefers the exact port over an accurately matched
+original/edition. An offered original edition is not a selected edition: every
+media role requires actual applicable edition context or explicitly reviewed
+`edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
+resolve independently, and a portrait cover is never stretched into a banner.
+The Desktop currently has no validated binding from Core's source game/variant/
+representation identity to these descriptive original-edition IDs. Production
+original media therefore requires explicitly reviewed edition neutrality; exact
+port media and the existing Cover/text fallback remain available. Offered editions
+or similar ID strings must not manufacture a selection.
+
+Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
+`--hero-media igdb` with the existing identity facts, private credentials and Core
+image validator. It queries `/v4/logos` and `/v4/artworks` through the same paced,
+bounded authenticated transport. Key art requires a positive `image_type.id/name`
+classification; conceptual art and unknown classifications do not qualify. Source
+image-type IDs are observed rather than hard-coded.
+
+The optional image-type inventory uses IGDB's maximum 500-record page and a
+separate one-record overflow query when the page is full. Overflow, malformed
+responses and provider failures remain unknown; they never establish missing key
+art. Role preparation classifies each image using its expanded `image_type.id/name`
+relationship and does not require a separate inventory request.
+Original identity facts bind `source_edition_id` explicitly; optional
+`hero_media_edition_neutral` records reviewed
+applicability. Image records are bound to the verified game ID before download.
+Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
+candidate chains and independent role failures. Exact HTTP410 observations sweep
+all candidate references and prevent batch reselection; failed or incomplete
+requests do not establish absence or withdrawal. Preparation proposes remote URLs,
+provenance, hashes and provider terms; it grants no admission, signing, publication
+or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
+provider access terms, not a permissive copyright license.
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
 `catalog-current-authoring.json`, the embedded `catalog.json`, and `listings.json`.
@@ -1791,6 +1967,7 @@ to each record. These checks add no runtime inheritance or shared policy registr
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
+node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
 ```
 
 The command accepts a canonical Portcove issue number/URL, a direct public
@@ -1804,6 +1981,19 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+`--listing-observations` consumes a retained source handoff from the existing
+catalog observer. It prepares complete canonical records through the same
+projection, compatibility, Core-inspection and immutable-checkpoint path, without
+provider requests or artwork refresh. Only `listing.upstream_observation` changes;
+authored setup, acquisition restrictions, integration contracts, artwork and pin
+maintenance remain with their existing owners. The handoff must match the current
+declaration and, after any observation has been accepted, its exact observation
+preimage. An older proposal cannot erase a later accepted snapshot. Legacy
+handoffs without preimages work only before the first accepted observation.
+Prepared records remain unsigned proposals for normal catalog review and existing
+protected delivery. The receipt preserves the handoff and its semantic digest;
+Core inspection is reported as pending when no compatible validator is supplied.
 
 When a record names a canonical issue, `canonical_preparation` points to its exact
 retained specification in `files.upstream`, with the observed timestamp and UTF-8
@@ -2232,3 +2422,47 @@ The exact ReGaiden v0.4.1 Windows prepared-runtime route uses this closed
 shared-preference contract. Its [qualification report](qualification/slice6-regaiden-prepared-windows-2026-10-19.md)
 records original/artifact identity, the preserved ImGui failure, corrected
 consent and operation acceptance, and the separate delivery boundaries.
+
+### Accepted descriptive freshness and retained setup explanations
+
+Listing format 4 adds optional inert `upstream_observation`, reason-bearing
+`availability_override_reason`, and `release_maintenance` metadata. Formats 1–3
+refuse these fields; accepted projection/registration paths promote the effective
+format while preserving older serialized documents. Signed listing delivery
+retains the same publisher, revision, integrity, atomic selection and recovery
+boundary. Unsupported or invalid replacement data does not replace last-good
+cached listings or grant managed operations.
+
+Authored availability remains attributable. An explicit availability override
+requires its reason and takes display precedence. Otherwise accepted observations
+show package candidates or release assets with their provenance, original fact
+clock, expiry and complete/incomplete/unavailable/failed attempt state. An empty
+or incomplete bounded window never means source-only, unsupported or unavailable
+upstream. Provider digest claims remain unverified. The renderer does not query
+providers, update action permissions or rewrite acquisition links.
+
+Authored pin reasons and reconsideration conditions have one source; projected
+pin versions/dates come from existing Direct contracts. Listing observations can
+request compatibility reassessment without changing those immutable artifacts.
+Newer external setup guidance can intentionally describe another route.
+
+Core's optional `LaunchReadiness.setup_contract` explains the effective route:
+installation method, source requirements, saves/settings ownership, declared
+persistence and authored guidance. Installed routes derive these facts from their
+retained catalog; invalid retained metadata supplies no substituted new-catalog
+facts. Older clients lacking that projection may still show the authored guide
+under an explicit current-catalog scope; recorded mechanical facts stay unavailable. Existing activity, artifact records, source assessments and action
+assessments retain their own owners. Mechanical explanation does not authorize
+preparation, updates or backups. Marathon's shared authored guide replaces its
+identical duplicated preparation paragraph; game-specific guidance is retained.
+
+## Optional recommendation observations
+
+`presentation.recommendation` is inert optional format-1 metadata. Its named
+outcomes, attributable public sources, explicit observation kinds and complete
+artifact/edition/environment/source/route scopes feed the shared Core query.
+It is not a numeric quality field or executable policy. Missing, malformed and
+future versions preserve ordinary project listings; older catalog readers can
+ignore it. Accepted regression and correction authority remains with the existing
+reviewed catalog inputs, not arbitrary release notes. See the
+[recommendation contract](reference/port-recommendation-policy.md).

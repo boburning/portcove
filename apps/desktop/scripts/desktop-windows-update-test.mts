@@ -20,6 +20,8 @@ import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mts";
 import {
   driveInstalledUpdateToRestart,
   driveInstalledStableWaiting,
+  driveInstalledFeedOutage,
+  driveInstalledBusyRestartRefusal,
 } from "./desktop-application-update-journey.mts";
 import { startEmbeddedInstalledSession } from "./desktop-windows-embedded-session.mts";
 import {
@@ -64,6 +66,13 @@ const updateOptions: NonNullable<ParseArgsConfig["options"]> = {
       "candidate-installer-sha",
       "candidate-executable-sha",
       "candidate-version",
+      "feed-outage-configuration",
+      "feed-outage-sha",
+      "game-data-configuration",
+      "game-data-sha",
+      "library-busy-helper",
+      "library-busy-sha",
+      "library-busy-source",
       "transport",
     ].map((name) => [name, { type: "string" }] as const),
   ),
@@ -96,6 +105,34 @@ assert.ok(
 );
 const drivers = embedded ? null : cachedDesktopDrivers();
 assert.ok(embedded || drivers, "Pinned Tauri and WebView2 drivers are unavailable");
+const busyNames = [
+  "library-busy-helper",
+  "library-busy-sha",
+  "library-busy-source",
+  "game-data-configuration",
+  "game-data-sha",
+];
+const qualifyLibraryBusy = busyNames.some((name) => Boolean(values[name]));
+if (qualifyLibraryBusy) {
+  for (const name of busyNames) requiredOption(name);
+  for (const name of ["library-busy-helper", "game-data-configuration"]) absoluteOption(name);
+  for (const name of ["library-busy-sha", "game-data-sha"])
+    assert.match(requiredOption(name), /^[a-f0-9]{64}$/u);
+  assert.match(requiredOption("library-busy-source"), /^[a-f0-9]{40}$/u);
+}
+const feedOutageConfiguration = values["feed-outage-configuration"],
+  feedOutageSha = values["feed-outage-sha"];
+assert.equal(
+  Boolean(feedOutageConfiguration),
+  Boolean(feedOutageSha),
+  "Feed outage configuration and hash are required together",
+);
+if (feedOutageConfiguration) {
+  assert.ok(
+    typeof feedOutageConfiguration === "string" && path.isAbsolute(feedOutageConfiguration),
+  );
+  assert.ok(typeof feedOutageSha === "string" && /^[a-f0-9]{64}$/u.test(feedOutageSha));
+}
 await mkdir(output, { recursive: false });
 interface MarkedExit {
   capture: MarkedObservation;
@@ -124,6 +161,17 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
     installed_executable_sha256_after: string;
   };
   ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
+  library_busy_descriptor?: unknown;
+  library_activity?: Record<string, unknown>;
+  library_busy_refusal?: Awaited<ReturnType<typeof driveInstalledBusyRestartRefusal>>;
+  library_busy_release?: unknown;
+  library_busy_cleanup?: unknown;
+  library_busy_processes?: { before: NativeProcessSnapshot; after: NativeProcessSnapshot };
+  feed_outage?: Awaited<ReturnType<typeof driveInstalledFeedOutage>> & {
+    installed_file_sha256_before: string;
+    installed_file_sha256_after: string;
+  };
+
   native_processes_before_restart?: NativeProcessSnapshot;
   bootstrap_before_restart?: unknown;
   restart_action_attempted?: boolean;
@@ -175,6 +223,11 @@ const report: WindowsUpdateReport = {
 const evidencePath = path.join(output, "renderer-update-evidence.json");
 const snapshotPath = path.join(output, "native-processes-before-restart.json");
 const driverOnlySnapshotPath = path.join(output, "native-driver-at-failure.json");
+let libraryHolder:
+  | Awaited<
+      ReturnType<typeof import("./desktop-installed-library-busy.mts").startInstalledLibraryBusy>
+    >
+  | undefined;
 const nativeSession = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 const markedProcess = fileURLToPath(new URL("./native-marked-update-process.ps1", import.meta.url));
 const webviewProfile = path.join(output, "webview2-profile");
@@ -294,6 +347,58 @@ async function awaitMarkedProcessExit(
 
 try {
   report.initial_executable_sha256 = (await hashFile(app)).sha256;
+  if (qualifyLibraryBusy) {
+    const { readWindowsInstalledGameDataConfiguration } =
+      await import("../../../scripts/windows-installed-game-data.mts");
+    const { readBoundedPublicBuildInputFile } =
+      await import("../../../scripts/release-public-build-inputs.mts");
+    const admitted = await readWindowsInstalledGameDataConfiguration(
+      absoluteOption("game-data-configuration"),
+      requiredOption("game-data-sha"),
+      process.env.PORTCOVE_LIBRARY ?? "",
+      process.env,
+    );
+    const baseline = object(
+      JSON.parse(
+        (
+          await readBoundedPublicBuildInputFile(
+            admitted.ownedRoot,
+            "game-data-baseline.json",
+            16 * 1024 * 1024,
+          )
+        ).toString(),
+      ),
+    );
+    assert.equal(baseline.configuration_sha256, requiredOption("game-data-sha"));
+    const installed = object(object(object(baseline.prepared).baseline).installed);
+    assert.ok(typeof installed.port_id === "string" && typeof installed.id === "string");
+    const { describeInstalledLibraryBusyHelper, startInstalledLibraryBusy } =
+      await import("./desktop-installed-library-busy.mts");
+    const helperPath = absoluteOption("library-busy-helper");
+    const descriptor = await describeInstalledLibraryBusyHelper({
+      fixtureRoot: admitted.ownedRoot,
+      output: path.join(output, "library-busy-descriptor"),
+      helperRoot: path.dirname(helperPath),
+      helperPath,
+      helperSha256: requiredOption("library-busy-sha"),
+      helperSource: requiredOption("library-busy-source"),
+      version: candidateVersion,
+    });
+    report.library_busy_descriptor = descriptor;
+    libraryHolder = await startInstalledLibraryBusy({
+      fixtureRoot: admitted.ownedRoot,
+      library: String(admitted.config.library),
+      output: path.join(output, "library-busy-activity"),
+      helperRoot: path.dirname(helperPath),
+      helper: descriptor.helper,
+      portId: installed.port_id,
+      installationId: installed.id,
+      writerSchema: descriptor.writerSchema,
+      lockProtocol: descriptor.lockProtocol,
+    });
+    report.library_activity = libraryHolder.evidence;
+    await save();
+  }
   if (embedded) {
     embeddedSession = await startEmbeddedInstalledSession(app, output);
     browser = await embeddedSession.connect();
@@ -326,6 +431,24 @@ try {
     };
     await save();
   }
+  if (feedOutageConfiguration && typeof feedOutageSha === "string") {
+    const before = (await hashFile(app)).sha256;
+    assert.equal(before, report.initial_executable_sha256);
+    const outage = await driveInstalledFeedOutage(
+      browser,
+      report.actions,
+      feedOutageConfiguration,
+      feedOutageSha,
+    );
+    const after = (await hashFile(app)).sha256;
+    assert.equal(after, before);
+    report.feed_outage = {
+      ...outage,
+      installed_file_sha256_before: before,
+      installed_file_sha256_after: after,
+    };
+    await save();
+  }
   report.ordinary_staging = await driveInstalledUpdateToRestart(
     browser,
     report.actions,
@@ -341,6 +464,40 @@ try {
   });
   report.staged = staged;
   report.actions.push("renderer-downloaded-and-verified");
+  if (libraryHolder) {
+    const before = embeddedSession ? embeddedSession.capture() : nativeSessionCommand("Snapshot");
+    report.library_busy_refusal = await driveInstalledBusyRestartRefusal(
+      browser,
+      report.actions,
+      libraryHolder.assertActive,
+    );
+    assert.equal((await hashFile(app)).sha256, report.initial_executable_sha256);
+    assert.deepEqual(
+      await verifyInstalledUpdateStaging({
+        stagingRoot: staging,
+        payloadName: "candidate-installer.exe",
+        candidateSha: installerSha,
+        candidateVersion,
+        application: app,
+        initialSha: report.initial_executable_sha256,
+      }),
+      staged,
+    );
+    await assert.rejects(readJson(helperMarker), { code: "ENOENT" });
+    await assert.rejects(readJson(relaunchMarker), { code: "ENOENT" });
+    const after = embeddedSession ? embeddedSession.capture() : nativeSessionCommand("Snapshot");
+    assert.equal(after.application_pid, before.application_pid);
+    const original = before.processes.find((entry) => entry.pid === before.application_pid);
+    assert.ok(original);
+    assert.deepEqual(
+      after.processes.find((entry) => entry.pid === before.application_pid),
+      original,
+    );
+    report.library_busy_processes = { before, after };
+    report.library_busy_release = await libraryHolder.release();
+    report.actions.push("held-core-activity-cancelled-and-helper-os-exit-observed");
+    await save();
+  }
   await writeFile(path.join(output, "before-restart.png"), await browser.takeScreenshot(), {
     encoding: "base64",
   });
@@ -519,6 +676,16 @@ try {
   await recordInstalledUpdateFailure(report, error, helperMarker);
   process.exitCode = 1;
 } finally {
+  if (libraryHolder) {
+    try {
+      report.library_busy_cleanup = await libraryHolder.settleOwned();
+    } catch (error) {
+      report.phase = "failed";
+      report.failure = `${report.failure ?? "Qualification failed"}; Core holder settlement: ${errorMessage(error)}`;
+      process.exitCode = 1;
+    }
+    await save();
+  }
   if (helperExitObserver) {
     // Settle this read-only child before existing cleanup can stop the helper;
     // forced cleanup must never become a claimed natural OS exit observation.

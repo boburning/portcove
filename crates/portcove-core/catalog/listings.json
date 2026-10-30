@@ -1,5 +1,5 @@
 {
-  "format_version": 3,
+  "format_version": 4,
   "listings": [
     {
       "id": "shipwright",
@@ -2431,7 +2431,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The accepted managed build is retained for build-specific quickstates and its accepted original, launch and persistence contracts. Newer external Preview instructions describe a separately owned route.",
+        "reconsider_when": "Reassess a newly observed Windows package only after exact original/arguments, package companions, SRAM/quickstate preservation, developer options and full process lifetime have a bounded compatible transition.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "v0.3.12",
+            "published_at": "2026-10-17T22:09:41Z"
+          }
+        ]
+      }
     },
     {
       "id": "mega-man-x2-snes-recomp",
@@ -9201,7 +9212,7 @@
     {
       "id": "bio-menace-reflectionhle",
       "name": "Bio Menace (ReflectionHLE)",
-      "summary": "Use Bio Menace with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Bio Menace through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Bio Menace",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -9221,22 +9232,26 @@
         "steps": [
           {
             "title": "Use the matching original DOS edition",
-            "instruction": "Use the complete matching original DOS episode folders with BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE and their corresponding BM1/BM2/BM3 data. The upstream tables distinguish shareware, registered and freeware revisions. Keep companion files; a BioMenace Remastered installation is not established as an interchangeable input. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            "instruction": "Use the complete matching original DOS episode data. Episode1 has separate shareware, registered, freeware and Gold Medallion revisions; episodes2/3 have their own registered/freeware revisions. Most use BMENACE1.EXE, BMENACE2.EXE or BMENACE3.EXE, while Gold Medallion uses BM1GM.EXE. The tagged source also recognizes the BioHazard1992 beta with BHAZARD1.EXE. Keep every companion for that exact revision. The launcher lists supported sets with exact names, sizes and CRCs. BioMenace Remastered is not established as interchangeable. Select legally obtained originals without moving them; a DOS executable is input, while reflectionhle.exe is the Windows player."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -9427,7 +9442,7 @@
     {
       "id": "blake-stone-aliens-of-gold-bstone",
       "name": "Blake Stone: Aliens of Gold (Bstone)",
-      "summary": "Set up Blake Stone: Aliens of Gold through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Blake Stone: Aliens of Gold through BStone with your matching original game files.",
       "original_game_title": "Blake Stone: Aliens of Gold",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2555,
@@ -9445,6 +9460,10 @@
       "recommended_download_channel": "stable",
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original edition",
+            "instruction": "This managed offer uses --aog for retail Aliens of Gold only; shareware remains on the explicit upstream/non-owning route. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your complete original Aliens of Gold BS6 files, including the animations, audio, maps, VGA resources and VSWAP listed by upstream. Supported BS1 shareware supplies its limited Aliens of Gold content only. Planet Strike VSI files are a different game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -9472,7 +9491,7 @@
     {
       "id": "blake-stone-planet-strike-bstone",
       "name": "Blake Stone: Planet Strike (Bstone)",
-      "summary": "Set up Blake Stone: Planet Strike through its upstream bstone player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Blake Stone: Planet Strike through BStone with your matching original game files.",
       "original_game_title": "Blake Stone: Planet Strike",
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2556,
@@ -9490,6 +9509,10 @@
       "recommended_download_channel": "stable",
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original edition",
+            "instruction": "This managed offer uses --ps for Planet Strike only. The managed Windows offer uses the official package and a private profile under its executable parent. The following upstream/external setup steps remain the non-owning alternative, including supported shareware where applicable. Existing registrations are not converted. Use a separate library or upstream-owned copy for another edition or runtime owner; one entry/library cannot contain both simultaneously."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your complete original Planet Strike VSI files, including EANIM, IANIM, audio, maps, VGA resources and VSWAP. Aliens of Gold BS1/BS6 files do not supply Planet Strike. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -11237,7 +11260,7 @@
     {
       "id": "catacomb-3-d-the-descent-reflectionhle",
       "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
-      "summary": "Use Catacomb 3-D: The Descent with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Catacomb 3-D: The Descent through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Catacomb 3-D: The Descent",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -11252,19 +11275,23 @@
             "instruction": "Keep your own complete matching DOS Descent data, including CAT3D.EXE, AUDIO.C3D, EGAGRAPH.C3D and GAMEMAPS.C3D. The upstream tables distinguish v1.00 and v1.22 by sizes and CRCs. Abyss shareware does not provide Descent. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -14282,7 +14309,7 @@
     {
       "id": "diablo-devilutionx",
       "name": "Diablo (DevilutionX)",
-      "summary": "Set up Diablo through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2563,
@@ -14297,6 +14324,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use DIABDAT.MPQ from your own original PC Diablo CD or installation. The documented SPAWN.MPQ shareware provides limited shareware content only. Keep the packaged devilutionx.mpq; optional fonts and voice packs have separate upstream requirements. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -14324,7 +14355,7 @@
     {
       "id": "diablo-hellfire-devilutionx",
       "name": "Diablo: Hellfire (DevilutionX)",
-      "summary": "Set up Diablo: Hellfire through its upstream DevilutionX player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Play Diablo: Hellfire through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo: Hellfire",
       "project_url": "https://github.com/diasurgical/DevilutionX",
       "issue_number": 2564,
@@ -14347,6 +14378,10 @@
       },
       "manual_setup": {
         "steps": [
+          {
+            "title": "Choose the runtime owner and original set",
+            "instruction": "The managed Windows offer prepares only its reviewed complete original-file set and owns its new private runtime/profile. The following upstream setup steps are the non-owning alternative for other permitted original editions or an existing player. Keep its original files and profile separately; existing registrations are not converted. One entry in a library cannot hold both runtime owners concurrently."
+          },
           {
             "title": "Use this original game and edition",
             "instruction": "Use your own full Diablo DIABDAT.MPQ plus Hellfire hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq. Diablo shareware does not supply Hellfire. Keep the packaged devilutionx.mpq and required companions. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
@@ -15214,7 +15249,7 @@
     {
       "id": "doom-ii-crispy-doom-family",
       "name": "Doom II (Crispy Doom family)",
-      "summary": "Use Doom II with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Doom II",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
@@ -15225,23 +15260,26 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Use this game’s original IWAD",
-            "instruction": "Supply DOOM2.WAD from your original PC Doom II copy; the separate French edition uses DOOM2F.WAD. Doom shareware does not provide Doom II. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls."
+            "title": "Supply the matching original game files",
+            "instruction": "Supply DOOM2.WAD from your original PC Doom II copy; the separate French edition uses DOOM2F.WAD. Doom shareware does not provide Doom II. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
           },
           {
-            "title": "Choose the player rather than its setup tool",
-            "instruction": "Extract the official Windows 64-bit crispy-doom ZIP, retaining its DLLs and support files. Use crispy-doom-setup.exe for upstream configuration when needed, then select crispy-doom.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen doom2.wad. Registration does not run setup or start the game; Play is separate."
+            "title": "Use the upstream setup and launch controls",
+            "instruction": "Play opens crispy-doom-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
           },
           {
-            "title": "Keep the actual save and configuration locations",
-            "instruction": "The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established."
+            "title": "Keep the declared private data scope",
+            "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep one runtime owner",
+            "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+          "Core backups exclude external music packs, custom paths and registered external-player data."
+        ],
         "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
       },
       "download_asset_hints": {
@@ -15351,7 +15389,7 @@
     {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
       "name": "Doom / The Ultimate Doom (Crispy Doom family)",
-      "summary": "Use Doom / The Ultimate Doom with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Doom / The Ultimate Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
@@ -15362,23 +15400,26 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Use this game’s original IWAD",
-            "instruction": "Supply DOOM.WAD from your original PC retail/Ultimate Doom copy. DOOM1.WAD provides only the separate shareware episode, not the full game. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls."
+            "title": "Supply the matching original game files",
+            "instruction": "Supply DOOM.WAD from your original PC retail/Ultimate Doom copy. DOOM1.WAD provides only the separate shareware episode, not the full game. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
           },
           {
-            "title": "Choose the player rather than its setup tool",
-            "instruction": "Extract the official Windows 64-bit crispy-doom ZIP, retaining its DLLs and support files. Use crispy-doom-setup.exe for upstream configuration when needed, then select crispy-doom.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen doom.wad. Registration does not run setup or start the game; Play is separate."
+            "title": "Use the upstream setup and launch controls",
+            "instruction": "Play opens crispy-doom-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
           },
           {
-            "title": "Keep the actual save and configuration locations",
-            "instruction": "The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established."
+            "title": "Keep the declared private data scope",
+            "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep one runtime owner",
+            "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+          "Core backups exclude external music packs, custom paths and registered external-player data."
+        ],
         "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
       },
       "download_asset_hints": {
@@ -17516,7 +17557,7 @@
     {
       "id": "final-doom-crispy-doom-family",
       "name": "Final Doom (Crispy Doom family)",
-      "summary": "Use Final Doom with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Final Doom",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
@@ -17527,23 +17568,27 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Use this game’s original IWAD",
-            "instruction": "Supply your original PC TNT.WAD for TNT: Evilution or PLUTONIA.WAD for The Plutonia Experiment. Keep the two campaigns distinct; DOOM2.WAD does not supply Final Doom. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls."
+            "title": "Supply the matching original game files",
+            "instruction": "Supply exactly one original PC Final Doom campaign per entry: TNT.WAD for TNT: Evilution or PLUTONIA.WAD for The Plutonia Experiment. DOOM2.WAD does not supply Final Doom. Keep the campaigns distinct; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy the chosen campaign’s matching IWAD into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
           },
           {
-            "title": "Choose the player rather than its setup tool",
-            "instruction": "Extract the official Windows 64-bit crispy-doom ZIP, retaining its DLLs and support files. Use crispy-doom-setup.exe for upstream configuration when needed, then select crispy-doom.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen tnt.wad. Final Doom can select PLUTONIA.WAD instead of TNT.WAD. Registration does not run setup or start the game; Play is separate."
+            "title": "Use the upstream setup and launch controls",
+            "instruction": "Play opens crispy-doom-setup.exe. Configure controls and use F2 Warp for single-player launch; choose your actual Final Doom campaign there. The chooser can expose other detected IWADs; Core does not lock or attest your campaign selection. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. This entry uses one saves folder and can share save slots if you switch campaigns. Do not switch this entry’s campaign in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for the other campaign or another source variant. No automatic switching or cross-campaign save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
           },
           {
-            "title": "Keep the actual save and configuration locations",
-            "instruction": "The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established."
+            "title": "Keep the declared private data scope",
+            "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep one runtime owner",
+            "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+          "Core backups exclude external music packs, custom paths and registered external-player data.",
+          "Use one Final Doom campaign per entry/library. Switching campaigns can share save slots and is unqualified."
+        ],
         "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
       },
       "download_asset_hints": {
@@ -20270,7 +20315,7 @@
     {
       "id": "heretic-crispy-doom-family",
       "name": "Heretic (Crispy Doom family)",
-      "summary": "Use Heretic with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Install the official Crispy Heretic Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Heretic",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
@@ -20289,23 +20334,26 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Use this game’s original IWAD",
-            "instruction": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls."
+            "title": "Supply the matching original game files",
+            "instruction": "Supply HERETIC.WAD from your original PC Heretic copy. HERETIC1.WAD provides the separate limited shareware edition. Doom IWADs are not Heretic data. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
           },
           {
-            "title": "Choose the player rather than its setup tool",
-            "instruction": "Extract the official Windows 64-bit crispy-heretic ZIP, retaining its DLLs and support files. Use crispy-heretic-setup.exe for upstream configuration when needed, then select crispy-heretic.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen heretic.wad. Registration does not run setup or start the game; Play is separate."
+            "title": "Use the upstream setup and launch controls",
+            "instruction": "Play opens crispy-heretic-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
           },
           {
-            "title": "Keep the actual save and configuration locations",
-            "instruction": "The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established."
+            "title": "Keep the declared private data scope",
+            "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep one runtime owner",
+            "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+          "Core backups exclude external music packs, custom paths and registered external-player data."
+        ],
         "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
       },
       "download_asset_hints": {
@@ -20358,7 +20406,7 @@
     {
       "id": "hexen-crispy-doom-family",
       "name": "Hexen (Crispy Doom family)",
-      "summary": "Use Hexen with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Install the official Crispy Hexen Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Hexen",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
@@ -20369,23 +20417,26 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Use this game’s original IWAD",
-            "instruction": "Supply HEXEN.WAD from your original PC Hexen copy. An expansion alone does not supply the base game, and Heretic is a different original. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls."
+            "title": "Supply the matching original game files",
+            "instruction": "Supply HEXEN.WAD from an original PC Hexen retail v1.1 copy. The offered Crispy7.2 runtime rejects retail v1.0; use the upstream-recommended official upgrade to v1.1 while preserving your original copy. The unsafe -v10override bypass is not offered, and demo/shareware data is not qualified by this managed base-game route. An expansion alone does not supply the base game, and Heretic is a different original. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
           },
           {
-            "title": "Choose the player rather than its setup tool",
-            "instruction": "Extract the official Windows 64-bit crispy-hexen ZIP, retaining its DLLs and support files. Use crispy-hexen-setup.exe for upstream configuration when needed, then select crispy-hexen.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen hexen.wad. Registration does not run setup or start the game; Play is separate."
+            "title": "Use the upstream setup and launch controls",
+            "instruction": "Play opens crispy-hexen-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
           },
           {
-            "title": "Keep the actual save and configuration locations",
-            "instruction": "The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established."
+            "title": "Keep the declared private data scope",
+            "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep one runtime owner",
+            "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+          "Core backups exclude external music packs, custom paths and registered external-player data."
+        ],
         "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
       },
       "download_asset_hints": {
@@ -22104,7 +22155,7 @@
     {
       "id": "keen-dreams-reflectionhle",
       "name": "Keen Dreams (ReflectionHLE)",
-      "summary": "Use Keen Dreams with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Keen Dreams through ReflectionHLE with the matching game files.",
       "original_game_title": "Keen Dreams",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -22124,22 +22175,26 @@
         "steps": [
           {
             "title": "Use the matching original DOS edition",
-            "instruction": "Keep the complete matching DOS edition, including KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and its EGA or CGA graphics. The exact executable and data revision must match one launcher entry; the modern Keen Dreams remaster and Keen 4/5/6 data are separate products. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            "instruction": "Select the complete legally obtained data folder for one supported edition: DOS EGA v1.00/v1.13/v1.20/v1.93, DOS CGA v1.00/v1.05, or Keen Dreams 2015. DOS editions require their matching KDREAMS.EXE, AUDIO.KDR, GAMEMAPS.KDR and EGA/CGA files. The 2015 edition instead uses its complete external data set, including KDREAMS.CGA/CMP/EGA/MAP/SND and required KDR tables; it requires no DOS executable. The launcher lists each exact file, size and CRC requirement. Other remasters and Keen 4/5/6 data are not established as interchangeable. Select the original folder without moving it. Any required DOS executable is input data; reflectionhle.exe is the Windows player."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -23654,7 +23709,7 @@
         "steps": [
           {
             "title": "Play the complete official game package",
-            "instruction": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. This route pins release-20260930; automatic updates are not offered. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
+            "instruction": "The complete official Windows package includes this game’s scenario data and native player; no separately supplied commercial original, ROM or setup helper is required. Keep all package companions. Explicit Play can read and update an existing shared upstream profile. Core does not adopt that profile. Do not copy legacy Prefs or other old-runtime files into this fresh package. This route starts this bundled game; use a separate upstream copy for custom scenarios or extra data-search paths. Upstream owns shared profiles in Documents/AlephOne (saves, quick saves, recordings, screenshots and logs) and LocalAppData/AlephOne (preferences). Existing legacy Prefs in a separately owned upstream copy remain external. Core manages this separate runtime only; its backups do not include those external profiles. Preserve the creating runtime and actual profile before upstream replacement or older-runtime use; no save/state conversion, populated profile adoption or gameplay compatibility is inferred."
           }
         ],
         "warnings": [
@@ -23665,7 +23720,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The accepted package has a release-specific runtime directory and reads upstream-owned shared profiles. A later package must not reinterpret either contract.",
+        "reconsider_when": "Reassess a newly observed official Windows game package against archive layout, executable identity, Windows path limits, profile ownership and retained runtime compatibility.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "release-20260930",
+            "published_at": "2026-10-01T01:46:14Z"
+          }
+        ]
+      }
     },
     {
       "id": "marathon-infinity-aleph-one",
@@ -27968,7 +28034,9 @@
             "instruction": "The official archive includes the freeware Tyrian 2.1 data. Choose Play after installation; no commercial game files or separate setup program are required."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "On Windows, choose a short installation folder using basic Latin characters. The official runtime can fail to find its packaged data in folders with non-ASCII names. This Windows runtime-path requirement does not restrict Linux installation paths."
+        ],
         "help_url": "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md"
       },
       "original_game_title": "Tyrian",
@@ -34926,7 +34994,7 @@
     {
       "id": "spear-of-destiny-reflectionhle",
       "name": "Spear of Destiny (ReflectionHLE)",
-      "summary": "Use Spear of Destiny with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Spear of Destiny through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Spear of Destiny",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -34941,19 +35009,23 @@
             "instruction": "Use your complete matching DOS Spear folder, including SPEAR.EXE and its SOD/SD data. The upstream version tables distinguish the original game and mission packs. Preserve each owned mission and its matching files; Wolfenstein WL6 files are not Spear data. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -35937,7 +36009,7 @@
     {
       "id": "strife-crispy-doom-family",
       "name": "Strife (Crispy Doom family)",
-      "summary": "Use Strife with its upstream crispy-doom Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Install the official Crispy Strife Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Strife",
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
@@ -35956,23 +36028,26 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Use this game’s original IWAD",
-            "instruction": "Supply STRIFE1.WAD from your original PC commercial Strife updated to at least v1.2; the Veteran Edition includes that data. The original demo is unsupported and v1.1 has known issues. Keep VOICES.WAD beside STRIFE1.WAD for speech; do not add it with -file. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Use the upstream setup program to select your actual data and controls."
+            "title": "Supply the matching original game files",
+            "instruction": "Supply STRIFE1.WAD from your original PC commercial Strife updated to at least v1.2; the Veteran Edition includes that data. The original demo is unsupported and v1.1 has known issues. Keep VOICES.WAD beside STRIFE1.WAD for speech; do not add it with -file. Keep your originals and edition identity; renaming another game’s WAD does not convert it. Originals are not included or authenticated by Portcove. Use a recognized upstream installation, or deliberately copy matching files into the originals subfolder (named exactly originals) of this entry’s fresh private data folder; keep your original copies."
           },
           {
-            "title": "Choose the player rather than its setup tool",
-            "instruction": "Extract the official Windows 64-bit crispy-strife ZIP, retaining its DLLs and support files. Use crispy-strife-setup.exe for upstream configuration when needed, then select crispy-strife.exe with the extracted folder as its working directory. The setup and truecolor executables are separate choices. Change launch details can use two argument lines: -iwad, then the absolute path to your chosen strife1.wad. Registration does not run setup or start the game; Play is separate."
+            "title": "Use the upstream setup and launch controls",
+            "instruction": "Play opens crispy-strife-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
           },
           {
-            "title": "Keep the actual save and configuration locations",
-            "instruction": "The reviewed Windows runtime normally keeps configuration and saves beside the player; explicit -config, -extraconfig and -savedir choices can redirect them. Preserve the whole working copy, actual chosen save/config folders, original IWAD and selected mods with all copies closed before replacing upstream files. Entries sharing the same engine folder can share settings and save slots; choose separate copies or explicit separate save/config locations for different games or Final Doom campaigns. Keep the old runtime until its saves work in the replacement. No managed backup or cross-version save compatibility is established."
+            "title": "Keep the declared private data scope",
+            "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep one runtime owner",
+            "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+          "Core backups exclude external music packs, custom paths and registered external-player data."
+        ],
         "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"
       },
       "download_asset_hints": {
@@ -36069,7 +36144,7 @@
     {
       "id": "super-3-d-noah-s-ark-dos-reflectionhle",
       "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
-      "summary": "Use Super 3-D Noah's Ark (DOS) with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Super 3-D Noah's Ark (DOS) through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Super 3-D Noah's Ark (DOS)",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -36092,19 +36167,23 @@
             "instruction": "Use your complete original DOS folder with NOAH3D.EXE or NOAH3DOS.EXE and matching N3D data, including AUDIOHED, AUDIOT, GAMEMAPS, MAPHEAD, VGADICT, VGAGRAPH, VGAHEAD and VSWAP. The upstream table requires exact sizes and CRCs; the SNES original is a different representation. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -37634,7 +37713,7 @@
     {
       "id": "the-catacomb-abyss-reflectionhle",
       "name": "The Catacomb Abyss (ReflectionHLE)",
-      "summary": "Use The Catacomb Abyss with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Abyss through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Abyss",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -37654,22 +37733,26 @@
         "steps": [
           {
             "title": "Use the matching original DOS edition",
-            "instruction": "Use a complete supported DOS Abyss edition, including CATABYSS.EXE and its ABS files. The upstream tables distinguish the shareware and registered revisions and require companion help/shape files. An arbitrary Abyss EXE or another Catacomb game is not a substitute. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
+            "instruction": "Select your complete matching DOS Abyss edition. Version1.13 requires CATABYSS.EXE and DEMOCAT.EXE; version1.24 requires ABYSGAME.EXE and HINTCAT.EXE. Keep matching ABS data and every required help/shape companion. The upstream tables and launcher distinguish editions by exact file sizes and CRCs; another Catacomb game or arbitrary executable is not a substitute. Select the original folder without moving it. Those DOS executables are inputs; reflectionhle.exe is the Windows player."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -37730,7 +37813,7 @@
     {
       "id": "the-catacomb-apocalypse-reflectionhle",
       "name": "The Catacomb Apocalypse (ReflectionHLE)",
-      "summary": "Use The Catacomb Apocalypse with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Apocalypse through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Apocalypse",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -37745,19 +37828,23 @@
             "instruction": "Use your complete matching DOS Apocalypse folder, including APOCGAME.EXE, AUDIO.APC, EGAGRAPH.APC, GAMEMAPS.APC and the required SHP companion files. Abyss shareware does not supply Apocalypse. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -37818,7 +37905,7 @@
     {
       "id": "the-catacomb-armageddon-reflectionhle",
       "name": "The Catacomb Armageddon (ReflectionHLE)",
-      "summary": "Use The Catacomb Armageddon with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Armageddon",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -37833,19 +37920,23 @@
             "instruction": "Use your complete matching DOS Armageddon folder, including ARMGAME.EXE, AUDIO.ARM, EGAGRAPH.ARM, GAMEMAPS.ARM and the required SHP companion files. Abyss shareware does not supply Armageddon. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {
@@ -42419,7 +42510,7 @@
     {
       "id": "wolfenstein-3d-reflectionhle",
       "name": "Wolfenstein 3D (ReflectionHLE)",
-      "summary": "Use Wolfenstein 3D with its upstream ReflectionHLE Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Wolfenstein 3D through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Wolfenstein 3D",
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
@@ -42434,19 +42525,23 @@
             "instruction": "Use your complete original DOS Wolfenstein 3D folder with WOLF3D.EXE and the matching WL1 or WL6 data. Shareware, registered and publisher revisions are separate launcher entries with exact size/CRC checks. Spear of Destiny and remastered/console data are not this game. The ReflectionHLE launcher lists the exact supported versions and required files. Select the real original folder there; its executable is original input, not the Windows player to register. Reuse a recognized installed copy without moving your originals."
           },
           {
-            "title": "Register the upstream Windows player",
-            "instruction": "Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+            "title": "Choose a fresh managed runtime or keep your external player",
+            "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
           },
           {
             "title": "Preserve the shared profile and each game version",
             "instruction": "Windows normally stores ReflectionHLE settings and per-version writable data beneath %APPDATA%/reflectionhle. Preserve that whole profile, your original game folders and any custom data/config/mod locations with all copies closed before changing runtimes. Several game entries share settings; version-specific writable folders remain distinct. Changing a data/config argument redirects storage and does not migrate it. Retain the working runtime for existing saves; no cross-version or cross-engine save compatibility is established."
           },
           {
-            "title": "Keep upstream update ownership",
-            "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+            "title": "Keep new private progress separate from old profiles",
+            "instruction": "The fresh managed runtime stores ReflectionHLE configuration, controller mappings, original-location references and per-version progress in the declared paths beside its player. It imports no AppData, DOS or existing-player saves/configuration and adopts no populated external folder. Core manages that separate runtime and its declared data through the existing install/update, retained-runtime, backup/recovery and reviewed removal contracts. Keep originals and every external profile outside it unchanged. Existing user-selected registrations retain their creating runtime and old external ownership; they are not converted by this offer. Runtime rollback does not certify save compatibility. Preserve the creating runtime and actual progress before older-version use. Customized original/data/config argument overrides require separate upstream/external handling."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
+          "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
+          "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        ],
         "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
       },
       "download_asset_hints": {

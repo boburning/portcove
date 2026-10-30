@@ -1,4 +1,5 @@
 import { useId, useState, useRef, type ReactNode } from "react";
+import { Popover } from "@base-ui/react/popover";
 import { Menu } from "@base-ui/react/menu";
 import { Bookmark, EyeOff, Eye, Check } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -35,6 +36,7 @@ export function organizedPorts(
     if (selected === "hidden") return hidden;
     if (hidden && !discover) return false;
     if (selected === "saved") return savedGroups.has(gameGroupId(port));
+    if (selected === "followed") return snapshot.followed_port_ids.includes(port.id);
     if (selected.startsWith("collection:"))
       return snapshot.collections[selected.slice(11)]?.port_ids.includes(port.id) ?? false;
     return true;
@@ -58,28 +60,34 @@ export function OrganizationControls({
   const allGames = useRef<HTMLButtonElement>(null);
   const inputId = useId();
   const snapshot = organization.snapshot;
-  return (
+  const controls = (
     <div
       className="mb-3 flex basis-full flex-wrap items-center gap-2"
       role="group"
       aria-label={discover ? "Discover collections" : "Library collections"}
     >
-      {[["all", "All games"], ...(discover ? [["saved", "Saved"]] : [["hidden", "Hidden"]])].map(
-        ([id, label]) => (
-          <Button
-            key={id}
-            ref={id === "all" ? allGames : undefined}
-            data-focusable
-            variant={selected === id ? "selected" : "ghost"}
-            size="sm"
-            aria-pressed={selected === id}
-            disabled={!snapshot && id !== "all"}
-            onClick={() => onSelect(id!)}
-          >
-            {label}
-          </Button>
-        ),
-      )}
+      {[
+        ["all", "All games"],
+        ...(discover
+          ? [
+              ["saved", "Saved"],
+              ["followed", "Followed"],
+            ]
+          : [["hidden", "Hidden"]]),
+      ].map(([id, label]) => (
+        <Button
+          key={id}
+          ref={id === "all" ? allGames : undefined}
+          data-focusable
+          variant={selected === id ? "selected" : "ghost"}
+          size="sm"
+          aria-pressed={selected === id}
+          disabled={!snapshot && id !== "all"}
+          onClick={() => onSelect(id!)}
+        >
+          {label}
+        </Button>
+      ))}
       {!discover &&
         snapshot &&
         Object.entries(snapshot.collections).map(([id, collection]) => (
@@ -177,15 +185,44 @@ export function OrganizationControls({
       )}
     </div>
   );
+  if (discover) return controls;
+  const current =
+    selected === "hidden"
+      ? "Hidden"
+      : selected.startsWith("collection:")
+        ? (snapshot?.collections[selected.slice(11)]?.name ?? "Unavailable collection")
+        : "All games";
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        render={<Button variant={selected === "all" ? "outline" : "selected"} size="sm" />}
+      >
+        {selected === "all" ? "Collections" : `Collections · ${current}`}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner sideOffset={8} align="start" className="z-(--layer-floating)">
+          <Popover.Popup
+            data-portcove-focus-scope
+            className="shadow-floating max-h-(--available-height) w-[min(30rem,var(--available-width))] overflow-auto rounded-pc-lg border border-pc-border bg-pc-surface p-4 text-sm text-pc-foreground outline-none"
+          >
+            <Popover.Title className="mb-3 text-base font-semibold">Collections</Popover.Title>
+            {controls}
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
 }
 
 export function SaveGameButton({
   port,
   organization,
   groupPorts = [port],
+  card = false,
 }: {
   port: CatalogEntry;
   groupPorts?: readonly CatalogEntry[];
+  card?: boolean;
   organization?: Organization | undefined;
 }) {
   if (!organization) return null;
@@ -193,7 +230,9 @@ export function SaveGameButton({
   const saved = groupPorts.some((entry) => savedForPort(organization, entry));
   return (
     <Button
-      size="sm"
+      size={card ? "icon-sm" : "sm"}
+      className={card ? "collection-art-action collection-save" : undefined}
+      title={saved ? "Remove saved game" : "Save for later"}
       variant={saved ? "selected" : "ghost"}
       data-focusable
       aria-pressed={saved}
@@ -221,7 +260,7 @@ export function SaveGameButton({
       }}
     >
       <Bookmark aria-hidden="true" />
-      {saved ? "Saved" : "Save"}
+      {!card && (saved ? "Saved" : "Save")}
     </Button>
   );
 }

@@ -14,7 +14,7 @@ import {
   nativeHelperRegistryPath,
   nativeHelperFiles,
 } from "./native-helper-dependencies.mts";
-import { ordinaryOwnershipForPath } from "./validation-plan.mts";
+import { ordinaryOwnershipForPath, isVendoredRfdInput } from "./validation-plan.mts";
 import { spawnCommand } from "./dev-storage.mts";
 import { stagedFileBatches } from "./viteplus-cli.mts";
 export interface LocalChange extends ValidationChangeInput {
@@ -155,6 +155,7 @@ const containmentInputs = new Set([
   "scripts/fallow-source.mts",
   ...containmentContractTests,
   ...containmentContractTests.map((file) => file.replace(/\.test\.([cm]?[jt]s)$/u, ".$1")),
+  "scripts/fixtures/linux-containment-fixture.mts",
   "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
 ]);
@@ -190,10 +191,12 @@ const catalogGeneratorFeatureTests = [
 ];
 export const catalogGeneratorContractTests = [
   "scripts/generate-catalog.test.mts",
+  "scripts/catalog-proposal-costs.test.mts",
   ...catalogGeneratorFeatureTests,
 ];
 const catalogAuthoringContractTests = [
   "scripts/generate-catalog.test.mts",
+  "scripts/catalog-proposal-costs.test.mts",
   "scripts/catalog-source-authoring.test.mts",
   "scripts/catalog-proposal-comparison.test.mts",
   "scripts/catalog-artwork-dispatch.test.mts",
@@ -236,6 +239,7 @@ const rustWorkflowContractTests = [
 ];
 const workflowFeatureTests = [
   "scripts/ci-frontend-workflow.test.mts",
+  "scripts/ci-windows-helpers.test.mts",
   "scripts/ci-native-workflow.test.mts",
   "scripts/ci-release-workflow.test.mts",
   ...rustWorkflowContractTests,
@@ -261,6 +265,22 @@ const platformSkipConsumers = [
 ];
 const explicitNodeTests = new Map<string, readonly string[]>();
 for (const [file, tests] of [
+  ...[
+    "scripts/lock-maintenance-policy.mts",
+    "scripts/lock-maintenance-registry.mts",
+    "scripts/cargo-lock-inventory.py",
+  ].map((file): [string, readonly string[]] => [
+    file,
+    ["scripts/lock-maintenance-policy.test.mts"],
+  ]),
+  [
+    "scripts/dependency-security.mts",
+    ["scripts/dependency-security.test.mts", "scripts/lock-maintenance-policy.test.mts"],
+  ],
+  [
+    "scripts/pnpm-lock-inventory.mts",
+    ["scripts/pnpm-lock-inventory.test.mts", "scripts/lock-maintenance-policy.test.mts"],
+  ],
   [
     "scripts/local-validation.mts",
     [...selectionContractTests, "scripts/repository-settings.test.mts"],
@@ -329,6 +349,13 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/fixtures/native-fetch-probe-fixture.mts",
+    [
+      "apps/desktop/scripts/desktop-readiness.native.test.mts",
+      "apps/desktop/scripts/desktop-install.native.test.mts",
+    ],
+  ],
+  [
     "scripts/fixtures/desktop-module-fixture.mts",
     [
       "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
@@ -338,9 +365,19 @@ for (const [file, tests] of [
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/native-compatibility.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
+      "apps/desktop/scripts/desktop-workspace-refresh.native.test.mts",
+      "apps/desktop/scripts/desktop-artwork.native.test.mts",
+      "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
       "scripts/capture-target.test.mts",
+      "apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts",
+      "apps/desktop/scripts/desktop-install.native.test.mts",
+      "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+      "apps/desktop/scripts/desktop-readiness.native.test.mts",
+      "scripts/desktop-staged-layout.test.mts",
+      "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
     ],
   ],
   [
@@ -641,6 +678,10 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-catalog-site-controller.mts",
+    ["scripts/release-catalog-site-controller.test.mts"],
+  ],
+  [
+    "scripts/fixtures/release-executor-recovery-fixture.mts",
     ["scripts/release-catalog-site-controller.test.mts"],
   ],
   [
@@ -987,6 +1028,7 @@ for (const [file, tests] of [
     "scripts/fixtures/tuf-worker-fixture.mts",
     ["scripts/release-tuf-signing.test.mts", "scripts/release-connected-fixture.test.mts"],
   ],
+  ["scripts/fixtures/tuf-prekey-fixture.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-tuf-signing.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
   [
@@ -1054,6 +1096,14 @@ for (const [file, tests] of [
       "scripts/release-publication-result-artifact.test.mts",
       "scripts/release-controller-transport.test.mts",
     ],
+  ],
+  [
+    "scripts/fixtures/signing-context-artifact-fixture.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
+  [
+    "scripts/fixtures/signing-context-receiver-fixture.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
   ],
   [
     "scripts/release-signing-context-artifact.mts",
@@ -1138,6 +1188,26 @@ for (const [file, tests] of [
     [...selectionContractTests, "scripts/validation-evidence.test.mts", "scripts/audit.test.mts"],
   ],
   [".fallow-tooling.json", ["scripts/fallow-scope.test.mts", "scripts/run-fallow.test.mts"]],
+  [
+    "scripts/fixtures/rust-action-fixture.mts",
+    ["scripts/rust-validation-setup.test.mts", "scripts/updater-artifact-inventory.test.mts"],
+  ],
+  [
+    "scripts/fixtures/updater-workflow-fixture.mts",
+    ["scripts/updater-artifact-inventory.test.mts"],
+  ],
+  [
+    "scripts/fixtures/linux-prerequisites-fixture.mts",
+    [
+      "scripts/container-build.test.mts",
+      "scripts/rust-validation-setup.test.mts",
+      "scripts/updater-artifact-inventory.test.mts",
+    ],
+  ],
+  [
+    "scripts/install-linux-desktop-prerequisites.sh",
+    ["scripts/container-build.test.mts", "scripts/rust-validation-setup.test.mts"],
+  ],
   ...[
     "scripts/container-host.mts",
     "scripts/container-build.mts",
@@ -1213,7 +1283,10 @@ for (const [file, tests] of [
   ]),
   [
     "apps/desktop/scripts/desktop-qualification-history-test.mts",
-    ["scripts/desktop-scenarios.test.mts"],
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+    ],
   ],
   [
     "apps/desktop/scripts/desktop-host-publication-test.mts",
@@ -1228,6 +1301,7 @@ for (const [file, tests] of [
     "scripts/fixtures/disposable-directory.mts",
     [
       "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/desktop-staged-layout.test.mts",
       "scripts/catalog-proposal-costs.test.mts",
       "scripts/fixture-module-closure.test.mts",
       "scripts/node-platform-skips.test.mts",
@@ -1259,6 +1333,10 @@ for (const [file, tests] of [
       "scripts/required-node-test-reporter.test.mts",
       "scripts/test-duration-reporter.test.mts",
       "scripts/ui-test-selection.test.mts",
+      "scripts/updater-historical-inputs.test.mts",
+      "scripts/installed-game-data-fixture.test.mts",
+      "scripts/windows-installed-game-data.test.mts",
+      "scripts/windows-historical-bootstrap.test.mts",
     ],
   ],
   [
@@ -1455,6 +1533,17 @@ for (const [file, tests] of [
     "scripts/pr-delivery-snapshot.mts",
     ["scripts/pr-delivery.test.mts", "scripts/pr-delivery-snapshot.test.mts"],
   ],
+  ...[
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
+  ].map((file): [string, readonly string[]] => [
+    file,
+    [
+      "scripts/release-hosted-native-windows-session.test.mts",
+      "scripts/hosted-native-continuity.test.mts",
+    ],
+  ]),
   [
     "scripts/rehearse-updater-artifacts.ps1",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
@@ -1474,6 +1563,7 @@ for (const [file, tests] of [
     [...upstreamHealthContractTests, "scripts/discovery-checkpoint.test.mts"],
   ],
   ["scripts/catalog-upstream-observer.mts", upstreamHealthContractTests],
+  ["scripts/listing-upstream-observation.mts", upstreamHealthContractTests],
   ["scripts/observe-catalog-upstreams.mts", upstreamHealthContractTests],
   ["scripts/check-catalog-repositories.mts", upstreamHealthContractTests],
   ["scripts/upstream-health-inputs.mts", upstreamHealthContractTests],
@@ -1500,6 +1590,7 @@ for (const [file, tests] of [
   [
     "scripts/test-windows-installer.ps1",
     [
+      "scripts/windows-installed-game-data.test.mts",
       "scripts/repository-skills.test.mts",
       "scripts/native-qualification-account-adapter.test.mts",
       "scripts/desktop-scenarios.test.mts",
@@ -1820,8 +1911,12 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/release-windows-webview-driver.test.mts",
+  "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
   "scripts/renovate-engine-probe.test.mts",
+  "scripts/desktop-staged-layout.test.mts",
+  "scripts/ci-windows-helpers.test.mts",
 ]);
 for (const file of [
   "scripts/report-summary.mts",
@@ -2224,10 +2319,14 @@ function addNodeTest(selection: ValidationSelection, file: string) {
       selection.nodeTests.add(companion);
   // These contracts formerly ran through imports; keep them in focused routes
   // now that each suite has its own explicit execution entry point.
-  if (normalized === "scripts/desktop-scenarios.test.mts")
+  if (normalized === "scripts/desktop-scenarios.test.mts") {
     selection.nodeTests.add("scripts/native-compatibility.test.mts");
-  if (normalized === "scripts/desktop-execution-plan.test.mts")
+    selection.nodeTests.add("scripts/desktop-staged-layout.test.mts");
+  }
+  if (normalized === "scripts/desktop-execution-plan.test.mts") {
     selection.nodeTests.add("scripts/desktop-execution-baseline.test.mts");
+    selection.nodeTests.add("scripts/native-qualification-inventory.test.mts");
+  }
   if (normalized === "scripts/release-workflow.test.mts")
     selection.nodeTests.add("scripts/sign-catalog.test.mts");
 }
@@ -2270,6 +2369,16 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  if (isVendoredRfdInput(file)) {
+    selection.workspaceRust = true;
+    selection.rustfmt = true;
+    selection.ui = true;
+    selection.uiFullTests = true;
+    selection.browser = true;
+    selection.scopes.add("rust-workspace");
+    addNodeTest(selection, "scripts/dependency-automation.test.mts");
+    recognized = true;
+  }
   if (
     /^apps\/desktop\/scripts\/[^/]+\.native\.test\.mts$/u.test(file) ||
     file === "vite.config.ts" ||

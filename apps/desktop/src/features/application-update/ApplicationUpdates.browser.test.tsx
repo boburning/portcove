@@ -3,6 +3,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
+import { failureReport } from "../../test-fixtures";
 import type {
   ApplicationUpdateCheckResult,
   ApplicationUpdateManualCheckResult,
@@ -724,6 +725,58 @@ describe("ApplicationUpdateSettings", () => {
     expect(download).not.toHaveBeenCalled();
   });
 
+  it("keeps Save disabled when the ordinary Stable Manual choice is already saved", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+      ...savedChoice,
+      choice: { channel: "stable", mode: "manual", paused: false },
+    });
+    const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
+    await root.rerender(<OperatingSettingsFixture />);
+    expect(button("Save application update settings").disabled).toBe(true);
+    await click("Stable");
+    await click("Manual");
+    expect(button("Save application update settings").disabled).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("retains the backend reachability failure through shared task settlement and retries normally", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    const failure = failureReport();
+    failure.code = "network";
+    failure.message =
+      "The application update service could not be reached. Check the connection and try again.";
+    failure.presentation = {
+      ...failure.presentation,
+      presentation_key: "connection_failed",
+      summary: "The online request could not be completed.",
+      technical_message: failure.message,
+    };
+    const check = vi
+      .spyOn(desktopApi, "checkApplicationUpdate")
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(
+        manualCheck({ kind: "no-candidate", candidate: null, reasons: [], staged: false }),
+      );
+    const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
+    await root.rerender(<OperatingSettingsFixture />);
+    await click("Check for updates");
+    expect(
+      host.querySelector('[aria-labelledby="application-check-title"] [role="alert"]')?.textContent,
+    ).toBe(failure.presentation.summary);
+    const failed = [...sharedOperations.invocations.values()].at(-1)!;
+    expect(failed.phase).toBe("settled");
+    expect(failed.outcome).toBe("failed");
+    expect(failed.failure).toBe(failure);
+    expect(host.textContent).not.toContain("The request did not complete");
+    await click("Check for updates");
+    expect(check).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain(
+      "No eligible release is published for the selected channel.",
+    );
+    expect([...sharedOperations.invocations.values()].at(-1)?.outcome).toBe("succeeded");
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("offers cancellation while a check is active", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
     let rejectCheck!: (reason: unknown) => void;
@@ -896,6 +949,28 @@ describe("ApplicationUpdateSettings", () => {
     expect(host.textContent).toContain("No verified download is currently available.");
     expect(host.textContent).not.toContain("The verified download remains available.");
   });
+
+  it.each([
+    ["unavailable", "Use a supported package or the documented manual recovery path."],
+    ["not-configured", "Use the documented manual recovery path."],
+    ["package-managed-deb", "Update it through the same package source."],
+    ["package-managed-rpm", "Update it through the same package source."],
+  ] as const)(
+    "explains %s ownership before any update is staged",
+    async (eligibility, guidance) => {
+      vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+      vi.mocked(desktopApi.applicationUpdateStatus).mockResolvedValue({
+        ...idleStatus,
+        install_eligibility: eligibility,
+      });
+      const restart = vi.spyOn(desktopApi, "restartToApplyApplicationUpdate");
+      await render();
+      expect(host.textContent).toContain(guidance);
+      expect(host.textContent).toContain("No verified application update is staged.");
+      expect(host.textContent).not.toContain("Restart to update");
+      expect(restart).not.toHaveBeenCalled();
+    },
+  );
 
   it("restarts only through the explicit staged-update action bound to the current library", async () => {
     vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);

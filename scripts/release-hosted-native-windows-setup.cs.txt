@@ -20,6 +20,88 @@ namespace Portcove.HostedNative {
         [DllImport("userenv.dll", CharSet=CharSet.Unicode)]
         static extern int CreateProfile(string sid, string name, StringBuilder path, uint size);
 
+        // Same native handle-link observation already used by recovery. No path
+        // reopening, ACL mutation or relaxed source-system hardlink exception.
+        [StructLayout(LayoutKind.Sequential)] struct FileInformation {
+            public uint attributes;
+            public System.Runtime.InteropServices.ComTypes.FILETIME creation, access, write;
+            public uint volume, sizeHigh, sizeLow, links, indexHigh, indexLow;
+        }
+        [DllImport("kernel32.dll", SetLastError=true)]
+        static extern bool GetFileInformationByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle handle, out FileInformation info);
+        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+        static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string path,uint access,uint share,IntPtr security,uint creation,uint flags,IntPtr template);
+        public static string LinkIdentity(string path) {
+            using(var handle=CreateFileW(path,0x80,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero)) {
+                if(handle.IsInvalid) throw new Win32Exception();
+                FileInformation info;
+                if(!GetFileInformationByHandle(handle,out info)) throw new Win32Exception();
+                if((info.attributes & 0x410)!=0x410) throw new InvalidOperationException("Original dependency directory link required");
+                return String.Join(":",info.volume.ToString("x8"),info.indexHigh.ToString("x8"),info.indexLow.ToString("x8"),info.creation.dwHighDateTime.ToString("x8"),info.creation.dwLowDateTime.ToString("x8"));
+            }
+        }
+        public static void SingleLinkFile(Microsoft.Win32.SafeHandles.SafeFileHandle handle) {
+            FileInformation info;
+            if (!GetFileInformationByHandle(handle, out info)) throw new Win32Exception();
+            if (info.links != 1 || (info.attributes & 0x410) != 0)
+                throw new InvalidOperationException("Original regular single-link file required");
+        }
+        static async System.Threading.Tasks.Task<byte[]> ReadCustodyBytes(System.IO.Stream stream, int maximum, System.Threading.CancellationToken token) {
+            using (var output = new System.IO.MemoryStream()) {
+                var buffer = new byte[8192];
+                while (true) {
+                    int count = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+                    if (count == 0) return output.ToArray();
+                    if (output.Length + count > maximum) throw new InvalidOperationException("Fixed custody reader output exceeds bound");
+                    output.Write(buffer, 0, count);
+                }
+            }
+        }
+        public static string ReadCustody(string script, string input, string tracking, int maximumMilliseconds) {
+            var utf8 = new UTF8Encoding(false, true);
+            if (maximumMilliseconds < 1 || maximumMilliseconds > 15000 || script == null || input == null || utf8.GetByteCount(input) > 262144 ||
+                tracking == null || tracking.Length < 1 || tracking.Length > 32768 || tracking.IndexOf('\0') >= 0 ||
+                Convert.ToHexString(SHA256.HashData(utf8.GetBytes(script))).ToLowerInvariant() != "09edd587b1a553493a455b1e712ea918cb6fb9b681b9c9a2cb5dd41f5926beb2")
+                throw new InvalidOperationException("Fixed custody reader source/input/tracking required");
+            var info = new System.Diagnostics.ProcessStartInfo("C:\\Program Files\\PowerShell\\7\\pwsh.exe");
+            info.UseShellExecute=false; info.CreateNoWindow=true;
+            foreach (string arg in new[]{"-NoLogo","-NoProfile","-NonInteractive","-InputFormat","Text","-OutputFormat","Text","-EncodedCommand",Convert.ToBase64String(Encoding.Unicode.GetBytes(script))}) info.ArgumentList.Add(arg);
+            info.RedirectStandardInput=true; info.RedirectStandardOutput=true; info.RedirectStandardError=true;
+            info.Environment.Clear(); info.Environment["SystemRoot"]="C:\\Windows"; info.Environment["WINDIR"]="C:\\Windows";
+            info.Environment["PATH"]="C:\\Windows\\System32"; info.Environment["RUNNER_TRACKING_ID"]=tracking;
+            using(var reader=new System.Diagnostics.Process()) using(var cancellation=new System.Threading.CancellationTokenSource(maximumMilliseconds)) {
+                reader.StartInfo=info; bool started=false, settled=false;
+                try {
+                    if(!reader.Start()) throw new InvalidOperationException("Fixed custody reader did not start");
+                    started=true;
+                    var output=ReadCustodyBytes(reader.StandardOutput.BaseStream,1048576,cancellation.Token);
+                    var error=ReadCustodyBytes(reader.StandardError.BaseStream,16384,cancellation.Token);
+                    var sending=reader.StandardInput.WriteAsync(input);
+                    var closed=System.Threading.Tasks.Task.Run(async () => { await sending; reader.StandardInput.Close(); });
+                    System.Threading.Tasks.Task.WhenAll(closed, reader.WaitForExitAsync(cancellation.Token)).WaitAsync(cancellation.Token).GetAwaiter().GetResult(); settled=true;
+                    byte[] bytes=output.GetAwaiter().GetResult(); byte[] failures=error.GetAwaiter().GetResult();
+                    if(reader.ExitCode!=0 || failures.Length!=0) {
+                        var refusal=new InvalidOperationException("Fixed Windows pre-import custody refused");
+                        refusal.Data["custody_reader_status"]=reader.ExitCode;
+                        string text=utf8.GetString(failures), selected=null;
+                        foreach(string line in text.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries))
+                            if(line.StartsWith("portcove-native-custody-failure:",StringComparison.Ordinal)) {
+                                if(selected!=null) { selected=null; break; }
+                                selected=line.Substring("portcove-native-custody-failure:".Length);
+                            }
+                        if(selected!=null && utf8.GetByteCount(selected)<=2048) refusal.Data["closed_custody_reader"]=selected;
+                        throw refusal;
+                    }
+                    return utf8.GetString(bytes);
+                } finally {
+                    if(started && !settled) {
+                        if(!reader.HasExited) reader.Kill();
+                        if(!reader.WaitForExit(5000)) throw new InvalidOperationException("Fixed custody reader cleanup remains Unknown");
+                    }
+                }
+            }
+        }
+
         public static SecureString Password() {
             byte[] bytes = new byte[32]; RandomNumberGenerator.Fill(bytes);
             var value = new SecureString();

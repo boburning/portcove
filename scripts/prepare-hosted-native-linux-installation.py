@@ -366,7 +366,7 @@ def prepare_source_dependencies(plan, settings):
     verify_installed_source(source, plan, check)
     owners = (0, os.getuid())
     metadata = json.loads(read_regular(source / "package.json", 65536, owners, check))
-    need(metadata.get("packageManager") == "pnpm@12.14.0", "native source package-manager pin differs")
+    need(metadata.get("packageManager") == "pnpm@12.16.1", "native source package-manager pin differs")
     workspace_config = read_regular(source / "pnpm-workspace.yaml", 65536, owners, check)
     need(hashlib.sha256(workspace_config).hexdigest() == settings["workspace_sha256"],
          "semantically validated workspace bytes changed")
@@ -405,7 +405,7 @@ def prepare_source_dependencies(plan, settings):
                    "PATH": str(Path(plan["tools"]["node"]["path"]).parent) + ":/usr/bin:/bin",
                    "TMPDIR": str(home), "CI": "true", "COREPACK_ENABLE_NETWORK": "0",
                    "npm_config_userconfig": "/dev/null", "npm_config_globalconfig": "/dev/null"}
-    need(command([str(executable), "--version"], check, environment=environment) == "12.14.0",
+    need(command([str(executable), "--version"], check, environment=environment) == "12.16.1",
          "native package-manager runtime differs")
     last_inventory = 0
     def install_check():
@@ -414,12 +414,23 @@ def prepare_source_dependencies(plan, settings):
         if time.monotonic_ns() - last_inventory < 250_000_000:
             return
         last_inventory = time.monotonic_ns()
-        pending = [home, *(source / p for p in DEPENDENCIES if os.path.lexists(source / p))]
+        inventory_roots = [home, *(source / p for p in DEPENDENCIES if os.path.lexists(source / p))]
+        pending = list(inventory_roots)
         count, total = 0, 0
         while pending:
             check()
             current = pending.pop()
-            with os.scandir(current) as children:
+            try:
+                iterator = os.scandir(current)
+            except FileNotFoundError:
+                # pnpm can remove a queued staging directory after its parent
+                # entry was counted. Keep that conservative count and bytes.
+                # Missing roots and other errors still refuse; settled graph
+                # inspection below remains strict and has no automatic retry.
+                if current in inventory_roots:
+                    raise
+                continue
+            with iterator as children:
                 for child in children:
                     count += 1
                     need(count <= MAX_FILES, "dependency preparation inventory exceeds bound")

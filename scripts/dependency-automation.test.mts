@@ -5,13 +5,19 @@ import desktopPackageManifest from "../apps/desktop/package.json" with { type: "
 import rootPackage from "../package.json" with { type: "json" };
 import qualityManifest from "../.github/quality-tools.json" with { type: "json" };
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, readdir, lstat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseDocument } from "yaml";
+import { parseDocument, parseAllDocuments } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  nativePnpmVersion,
+  nativePnpmArchive,
+  nativeWindowsPnpmArchive,
+} from "./release-pnpm-runtime.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
 
@@ -34,6 +40,31 @@ void test("root lock maintenance retains provider-owned pnpm platform integrity"
   assert.ok(result.artifacts > 1);
 });
 const read = (name: string) => readFile(path.join(root, name), "utf8");
+
+void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
+  assert.equal(rootPackage.packageManager, `pnpm@${nativePnpmVersion}`);
+  const environment = record(parseAllDocuments(await read("pnpm-lock.yaml"))[0]?.toJS());
+  const packages = record(environment.packages);
+  for (const [platform, archive] of [
+    ["linux-x64", nativePnpmArchive],
+    ["win32-x64", nativeWindowsPnpmArchive],
+  ] as const) {
+    assert.equal(
+      archive.url,
+      `https://registry.npmjs.org/@pnpm/exe.${platform}/-/exe.${platform}-${nativePnpmVersion}.tgz`,
+    );
+    assert.equal(
+      record(record(packages[`@pnpm/exe.${platform}@${nativePnpmVersion}`]).resolution).integrity,
+      archive.integrity,
+    );
+  }
+  const linux = await read("scripts/prepare-hosted-native-linux-installation.py");
+  assert.equal(
+    linux.match(/metadata.get\("packageManager"\) == "pnpm@([^"\n]+)"/u)?.[1],
+    nativePnpmVersion,
+  );
+  assert.equal(linux.match(/environment=environment\) == "([^"\n]+)"/u)?.[1], nativePnpmVersion);
+});
 
 void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {
   const quality = qualityManifest;
@@ -186,8 +217,14 @@ void test("Renovate is the sole conservative routine update authority", async ()
   const renovate = renovateConfig;
   assert.equal(renovate.automerge, false);
   assert.equal(renovate.minimumReleaseAge, "1 day");
+  assert.equal(renovate.minimumReleaseAgeBuffer, "30 minutes");
   assert.equal(renovate.minimumReleaseAgeBehaviour, "timestamp-required");
   assert.equal(renovate.internalChecksFilter, "strict");
+  assert.equal(
+    renovate.packageRules.some((rule) => record(rule).minimumReleaseAgeBehaviour !== undefined),
+    false,
+    "delivered immutable updates leave no package-specific timestamp exception",
+  );
   assert.equal(renovate.prConcurrentLimit, 6);
   assert.equal(renovate.branchConcurrentLimit, 6);
   assert.equal(renovate.prHourlyLimit, 0);
@@ -542,6 +579,36 @@ void test("compatibility families override inherited groups without coupling unr
   );
 });
 
+void test("lock maintenance delegates only its unsupported age calculation to required complete enforcement", async () => {
+  const config = renovateConfig;
+  assert.deepEqual(config.lockFileMaintenance, {
+    enabled: true,
+    schedule: ["before 6am on monday"],
+    minimumReleaseAge: null,
+  });
+  assert.equal(config.minimumReleaseAge, "1 day");
+  assert.equal(config.minimumReleaseAgeBuffer, "30 minutes");
+  assert.equal(config.minimumReleaseAgeBehaviour, "timestamp-required");
+  assert.equal(config.internalChecksFilter, "strict");
+  assert.equal(
+    config.packageRules.some((rule) => record(rule).minimumReleaseAge === null),
+    false,
+  );
+  const workflow = record(parseDocument(await read(".github/workflows/ci.yml")).toJS());
+  const review = record(record(workflow.jobs)["dependency-review"]);
+  const steps = required(review.steps);
+  assert.ok(Array.isArray(steps));
+  assert.ok(
+    steps.some(
+      (step: unknown) =>
+        record(step).run === "node scripts/dependency-security.mts maintenance check",
+    ),
+  );
+  const registry = await read("scripts/lock-maintenance-registry.mts");
+  assert.match(registry, /minimumReleaseAgeMs: 86_400_000/u);
+  assert.match(registry, /minimumReleaseAgeBufferMs: 1_800_000/u);
+});
+
 void test("selective migration intake and security overrides preserve immediate controlled delivery", async () => {
   const config = renovateConfig;
   assert.equal(record(config).dependencyDashboardApproval, undefined);
@@ -697,4 +764,51 @@ void test("Node proposals update every maintained isolated pin without rewriting
       }
     }
   }
+});
+
+void test("RFD backport retains the publisher closure and only the reviewed format patch", async () => {
+  const provenance = record(JSON.parse(await read("vendor/rfd-provenance.json")));
+  assert.equal(provenance.version, "0.17.2");
+  assert.equal(provenance.fix_revision, "9eb59f2716738ebf44ff6e9524450c8e703957a8");
+  const originals = record(provenance.original_files);
+  const modified = record(provenance.modified_files);
+  assert.deepEqual(Object.keys(modified), ["src/backend/gtk3/message_dialog.rs"]);
+  const files: string[] = [];
+  async function visit(directory: string, prefix = "") {
+    const info = await lstat(directory);
+    assert.ok(info.isDirectory() && !info.isSymbolicLink());
+    for (const entry of await readdir(directory)) {
+      const relative = `${prefix}${entry}`;
+      const filename = path.join(directory, entry);
+      const stat = await lstat(filename);
+      assert.ok(!stat.isSymbolicLink());
+      if (stat.isDirectory()) await visit(filename, `${relative}/`);
+      else {
+        assert.ok(stat.isFile());
+        files.push(relative);
+      }
+    }
+  }
+  await visit(path.join(root, "vendor/rfd"));
+  assert.deepEqual(files.sort(), Object.keys(originals).sort());
+  for (const name of files) {
+    const expected = modified[name] ?? originals[name];
+    assert.equal(typeof expected, "string");
+    assert.match(String(expected), /^[a-f0-9]{64}$/u);
+    assert.equal(
+      createHash("sha256")
+        .update(await readFile(path.join(root, "vendor/rfd", name)))
+        .digest("hex"),
+      expected,
+      name,
+    );
+  }
+  assert.match(await read("Cargo.toml"), /rfd = \{ path = "vendor\/rfd" \}/u);
+  const rfd = (await read("Cargo.lock"))
+    .split("[[package]]")
+    .find((entry) => /^name = "rfd"$/mu.test(entry));
+  assert.ok(rfd);
+  assert.match(rfd, /^version = "0\.17\.2"$/mu);
+  assert.doesNotMatch(rfd, /^(?:source|checksum) =/mu);
+  assert.match(await read("vendor/rfd/LICENSE"), /Permission is hereby granted/u);
 });

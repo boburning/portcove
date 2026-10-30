@@ -857,7 +857,12 @@ async fn check_installed(
             });
             emit_operation(
                 &app,
-                operation.progress("Checking installed ports", index as u64 + 1, Some(total)),
+                operation.progress_with_unit(
+                    "check_installed",
+                    portcove_core::ProgressUnit::Ports,
+                    index as u64 + 1,
+                    Some(total),
+                ),
             );
         }
         let success = outcomes.iter().all(|outcome| outcome.ok);
@@ -2619,6 +2624,7 @@ pub fn run() -> std::process::ExitCode {
             begin_github_device_login,
             poll_github_device_login,
             get_catalog,
+            catalog::compare_game_ports,
             catalog::get_catalog_status,
             catalog::get_listing_delivery_status,
             catalog::refresh_catalog_listings,

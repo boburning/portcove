@@ -208,9 +208,11 @@ try{if($secret.Length -ne 68 -or -not $secret.IsReadOnly()){throw 'Generated cre
   },
 );
 
+// Retain CI40973981141/a1 helper60s cutoff; this exact inert cleanup case
+// gets90s child/120s outer room without changing production cleanup deadlines.
 void test(
   "hosted account cleanup still disables its exact identity after teardown fails and retains both outcomes",
-  { timeout: 90000 },
+  { timeout: 120000 },
   (t) => {
     const root = mkdtempSync(path.join(homedir(), ".portcove-hosted-cleanup-test-"));
     t.after(() => {
@@ -251,7 +253,7 @@ if($record.disabled -ne (-not $failDisable) -or $record.job_empty -or $record.fa
 }
 'actual cleanup retains failure and independently disables exact account'
 `,
-      60000,
+      90000,
     );
     assert.match(result, /independently disables exact account/u);
   },
@@ -1033,7 +1035,18 @@ $ErrorActionPreference='Stop';$text=[IO.File]::ReadAllText('${launcher.replaceAl
 $start=$text.IndexOf('        public TeardownObservation ReadTeardown(int milliseconds)');$end=$text.IndexOf('        public void Dispose()',$start);$method=$text.Substring($start,$end-$start)
 $start=$text.IndexOf('    public sealed class TeardownObservation');$end=$text.IndexOf('    public sealed class AccountProcessIdentity',$start);$observation=$text.Substring($start,$end-$start)
 $harness=@'
-using System;using System.Diagnostics;using System.Threading;
+namespace __NAMESPACE__ {
+using System;using Stopwatch=ControlledStopwatch;using Thread=ControlledThread;
+// Advance the fixture clock through the production sleep calls. Host scheduling
+// must not turn a valid 40ms timeout into an incidental one-poll failure.
+sealed class ControlledStopwatch {
+ internal static long Elapsed;
+ public static ControlledStopwatch StartNew(){Elapsed=0;return new ControlledStopwatch();}
+ public long ElapsedMilliseconds {get{return Elapsed;}}
+}
+static class ControlledThread {
+ public static void Sleep(int milliseconds){ControlledStopwatch.Elapsed+=milliseconds;}
+}
 __OBSERVATION__
 static class Native {
  internal static int Mode,Queries,Waits;
@@ -1046,28 +1059,79 @@ public class Control {
  IntPtr job=(IntPtr)42,process=(IntPtr)7;uint pid=42;long created=134374669087322706;
  public TeardownObservation LastTeardown;
  __METHOD__
- public static void Run(){
+ public static void Run(int selected){
   for(int mode=0;mode<=5;mode++){
+   if(selected>=0&&mode!=selected)continue;
    Native.Mode=mode;Native.Queries=Native.Waits=0;bool refused=false;TeardownObservation result=null;
    try{result=new Control().ReadTeardown(mode==2?40:200);}catch(InvalidOperationException){refused=true;}
    if(refused!=(mode>=3))throw new Exception("native refusal differs: "+mode);
    if(mode<2&&(!result.RootExited||!result.JobEmpty||Native.Queries<3||result.RootCreatedFileTime!=134374669087322706))throw new Exception("early teardown or identity loss: "+mode);
    if(mode==2&&(result.RootExited||result.JobEmpty||Native.Waits<2))throw new Exception("timeout credited as settlement");
+   if(mode==2&&ControlledStopwatch.Elapsed!=50)throw new Exception("original 40ms budget was not consumed by production polling");
   }
  }
 }
+}
 '@
-Add-Type -TypeDefinition $harness.Replace('__METHOD__',$method).Replace('__OBSERVATION__',$observation)
-[Control]::Run()
-'actual native teardown passed six controlled completion/failure modes; no process launched'
+$identifier='@?[_\p{L}][_\p{L}\p{Nd}]*'
+$gate='if\s*\(\s*(?<members>'+$identifier+')\s*\.\s*Length\s*==\s*0\s*&&\s*(?<root>'+$identifier+')\s*\)\s*break\s*;'
+$budget='(?<clock>'+$identifier+')\s*\.\s*ElapsedMilliseconds\s*<\s*(?<limit>'+$identifier+')'
+$guards=[regex]::Matches($method,$gate);$budgets=[regex]::Matches($method,$budget)
+if($guards.Count -ne 1 -or $budgets.Count -ne 1){throw 'Expected one live settlement gate and timeout comparison'}
+$renamed=$method
+foreach($rename in @(
+ @($guards[0].Groups['members'].Value,'fixtureMembers'),
+ @($guards[0].Groups['root'].Value,'fixtureSettledRoot'),
+ @($budgets[0].Groups['clock'].Value,'fixtureBudgetClock'),
+ @($budgets[0].Groups['limit'].Value,'fixtureLimit')
+)){
+ $renamed=[regex]::Replace($renamed,'(?<![\w@])'+[regex]::Escape($rename[0])+'(?!\w)',$rename[1])
+}
+$layouts=@(
+ @{Name='Original';Method=$method},
+ @{Name='Reformatted';Method=$renamed.Replace(';',';'+[Environment]::NewLine)}
+)
+$variants=@()
+foreach($layout in $layouts){
+ $variants+=@(
+  @{Name=$layout.Name;Method=$layout.Method;Mode=-1;Failure=$null},
+  @{Name=$layout.Name+'MissingRoot';Method=[regex]::Replace($layout.Method,$gate,[System.Text.RegularExpressions.MatchEvaluator]{param($match)'if ('+$match.Groups['members'].Value+'.Length == 0) break;'});Mode=0;Failure='early teardown or identity loss: 0'},
+  @{Name=$layout.Name+'MissingMembership';Method=[regex]::Replace($layout.Method,$gate,[System.Text.RegularExpressions.MatchEvaluator]{param($match)'if ('+$match.Groups['root'].Value+') break;'});Mode=1;Failure='early teardown or identity loss: 1'},
+  @{Name=$layout.Name+'PrematureBudget';Method=[regex]::Replace($layout.Method,$budget,'false');Mode=2;Failure='timeout credited as settlement'}
+ )
+}
+$units=@();$prefix='PortcoveTeardown'+[Guid]::NewGuid().ToString('N')
+foreach($variant in $variants){
+ if($variant.Failure -and ($layouts | Where-Object {$_.Method -ceq $variant.Method})){throw 'Teardown causal mutation did not alter its intended guard'}
+ $namespace=$prefix+$variant.Name
+ $units+=$harness.Replace('__NAMESPACE__',$namespace).Replace('__METHOD__',$variant.Method).Replace('__OBSERVATION__',$observation)
+}
+# Compilation is outside the refusal handler: infrastructure failure cannot
+# count as a rejected causal control.
+Add-Type -TypeDefinition ($units -join [Environment]::NewLine)
+foreach($variant in $variants){
+ $type=($prefix+$variant.Name+'.Control') -as [type]
+ if($null -eq $type){throw 'Compiled teardown fixture type unavailable'}
+ $failure=$null
+ try{$type.GetMethod('Run').Invoke($null,@([int]$variant.Mode))}catch{$failure=$_.Exception.GetBaseException().Message}
+ if($failure -cne $variant.Failure){throw ('Unexpected teardown control result for '+$variant.Name+': '+$failure)}
+ Write-Output ('teardown_control '+([ordered]@{variant=$variant.Name;selected_mode=$variant.Mode;expected_refusal=$variant.Failure;actual_refusal=$failure;outcome='passed'} | ConvertTo-Json -Compress))
+}
+'actual native teardown passed six controlled completion/failure modes, harmless layout and three causal guards under both layouts; no process launched'
 `);
   assert.match(result, /teardown passed six controlled/u);
 });
 
-void test("required-root cleanup keeps account disabling independent of job, observer and unreturned-root failures", (t) => {
-  const root = mkdtempSync(path.join(homedir(), ".portcove-required-root-cleanup-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const result = powershell(String.raw`
+// The same retained job cut this eight-outcome AST fixture at the default15s.
+// Override only this child and case; all other PowerShell defaults stay15s.
+void test(
+  "required-root cleanup keeps account disabling independent of job, observer and unreturned-root failures",
+  { timeout: 90000 },
+  (t) => {
+    const root = mkdtempSync(path.join(homedir(), ".portcove-required-root-cleanup-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const result = powershell(
+      String.raw`
 $ErrorActionPreference='Stop';$tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile('${script.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'Required-root setup parse failed'}
@@ -1098,9 +1162,12 @@ foreach($case in @('settled','stop','root','observer','unreturned-settled','unre
  if($case -ceq 'settled' -and (-not $record.root_exited -or -not $record.job_empty -or -not $record.observer_drained)){throw 'Settled required root not positively read back'}
 }
 'actual required-root cleanup passed eight controlled outcomes; no account or GUI effects'
-`);
-  assert.match(result, /cleanup passed eight controlled outcomes/u);
-});
+`,
+      60000,
+    );
+    assert.match(result, /cleanup passed eight controlled outcomes/u);
+  },
+);
 
 void test(
   "hosted-only access audit preserves SACL labels and rejects unrelated or overbound Security records",

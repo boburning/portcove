@@ -1,6 +1,8 @@
 //! Descriptive directory and actual Library membership without operational definitions.
 use super::*;
 
+mod recommendations;
+
 impl PortcoveService {
     /// Read-only OS handoff eligibility from the same bounded display projection as the workspace.
     pub fn is_reviewed_resource_url(&self, url: &str) -> Result<bool> {
@@ -19,6 +21,10 @@ impl PortcoveService {
         // Retain strict project/artwork links even if a separate directory corrects its own display.
         if self.catalog.ports().iter().any(|port| {
             port.project_url == url
+                || crate::game_recommendations::normalize(port, u64::MAX)
+                    .evidence
+                    .iter()
+                    .any(|record| record.source == url)
                 || port
                     .presentation
                     .as_ref()

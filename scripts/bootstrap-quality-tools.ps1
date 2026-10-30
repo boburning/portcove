@@ -31,6 +31,7 @@ Example:
 }
 
 Import-Module (Join-Path $PSScriptRoot "windows-webview-driver-policy.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "tool-cache-state.psm1") -Force
 $runningOnWindows = $env:OS -eq "Windows_NT"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Push-Location -LiteralPath $projectRoot
@@ -414,17 +415,19 @@ function Install-CachedPowerShellAnalyzer([string]$Version, [string]$Repository)
     else { Write-Information "Using cached PSScriptAnalyzer $Version at $target." -InformationAction Continue }
 }
 
+function Install-BoundedEdgeDriverFiles([string]$Version, [string]$Architecture, [string]$Destination) {
+    & node (Join-Path $PSScriptRoot "release-windows-webview-driver.mts") --prepare-bootstrap $Version $Architecture $Destination | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "Bounded Microsoft driver acquisition refused" }
+}
+
 function Install-DesktopTools {
     if (-not $runningOnWindows) { throw "-Desktop self-provisioning currently supports Windows only" }
     $tauriDriverVersion = [string]$bootstrapManifest.desktop.tauri_driver
     $tauriDriver = Install-CachedTauriDriver $tauriDriverVersion
     $runtimeVersion = Get-WebViewRuntimeVersion
     $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
-    $archiveName = switch ($architecture) {
-        "x64" { "edgedriver_win64.zip" }
-        "arm64" { "edgedriver_arm64.zip" }
-        default { throw "Unsupported Windows architecture for EdgeDriver: $architecture" }
-    }
+    if ($architecture -cnotin @("x64", "arm64")) { throw "Unsupported Windows architecture for EdgeDriver: $architecture" }
+    if ($bootstrapManifest.desktop.edge_driver_base -cne 'https://msedgedriver.microsoft.com') { throw "Fixed official Microsoft driver source required" }
     $driverRoot = Join-Path $sharedRoot "desktop\msedgedriver\$runtimeVersion\$architecture"
     $nativeDriver = Join-Path $driverRoot "msedgedriver.exe"
     $driverReady = $false
@@ -438,10 +441,9 @@ function Install-DesktopTools {
         $stagingRoot = Assert-UnderRoot (Join-Path $sharedRoot ".staging\edge-$([guid]::NewGuid())") $sharedRoot "EdgeDriver staging"
         New-Item -ItemType Directory -Force -Path $stagingRoot | Out-Null
         try {
-            $archive = Join-Path $stagingRoot $archiveName
-            Invoke-WebRequest -UseBasicParsing -Uri "$($bootstrapManifest.desktop.edge_driver_base)/$runtimeVersion/$archiveName" -OutFile $archive
-            Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $stagingRoot "extract")
-            $candidate = Join-Path $stagingRoot "extract\msedgedriver.exe"
+            $extract = Join-Path $stagingRoot "extract"
+            Install-BoundedEdgeDriverFiles $runtimeVersion $architecture $extract
+            $candidate = Join-Path $extract "bin\msedgedriver.exe"
             if (-not (Test-VerifiedEdgeDriver $candidate $runtimeVersion)) {
                 throw "EdgeDriver does not exactly match WebView2 runtime $runtimeVersion"
             }
@@ -540,20 +542,7 @@ try {
             ($existingStateJson | ConvertFrom-Json).desktop
         }
     }
-    $state = [ordered]@{
-        format_version = 1
-        pin_fingerprint = [string]$toolPaths.pins.fingerprint
-        shared_root = $sharedRoot
-        shim_directory = $shimDirectory
-        # A driver-only state records the expected Aqua path without installing it.
-        # Broader doctor profiles still inspect their own actual prerequisites.
-        aqua = if ($wantsAqua) { $resolvedAqua } else { $aquaExecutable }
-        aqua_root = $aquaRoot
-        desktop = $desktopState
-    }
-    $statePath = [string]$toolPaths.statePath
-    $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$statePath.next" -Encoding utf8
-    Move-Item -LiteralPath "$statePath.next" -Destination $statePath -Force
+    Write-PortcoveToolCacheState -StatePath ([string]$toolPaths.statePath) -PinFingerprint ([string]$toolPaths.pins.fingerprint) -SharedRoot $sharedRoot -ShimDirectory $shimDirectory -Aqua $(if ($wantsAqua) { $resolvedAqua } else { $aquaExecutable }) -AquaRoot $aquaRoot -Desktop $desktopState
     }
 }
 finally {

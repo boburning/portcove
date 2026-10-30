@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import {
   addRequiredSource,
   replaceRegisteredSource,
@@ -242,11 +243,14 @@ export function BootstrapRecovery({
   const importRoot = transferRecoveryRoot(error, "import_destination");
   const pending = recoveryPending || transferPending;
   return (
-    <main className="bootstrap-state bootstrap-error m-[0_auto] flex h-dvh w-[min(42rem,_calc(100%_-_2_*_var(--space-4)))] min-w-0 flex-col [justify-content:safe_center] gap-4 overflow-y-auto py-6 wrap-anywhere">
-      <h1>Portcove couldn’t start</h1>
-      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
-        {errorText(error)}
-      </p>
+    <main className="bootstrap-state bootstrap-error startup-recovery">
+      <header className="startup-recovery-heading">
+        <p className="eyebrow">Startup recovery</p>
+        <h1>Portcove couldn’t start</h1>
+        <p className="text-pc-muted-foreground" role="alert">
+          {errorText(error)}
+        </p>
+      </header>
       {error.presentation ? (
         <FailureDetails
           presentation={error.presentation}
@@ -256,20 +260,24 @@ export function BootstrapRecovery({
       ) : (
         <StartupTechnicalDetails error={error} />
       )}
-      {recoveryRoot && (
-        <LibraryMoveRecovery
-          source={recoveryRoot}
-          canKeepOriginal={canKeepOriginal}
-          disabled={pending}
-          onBusyChange={setTransferPending}
-        />
-      )}
-      {importRoot && (
-        <LibraryImportRecovery
-          destination={importRoot}
-          disabled={pending}
-          onBusyChange={setTransferPending}
-        />
+      {(recoveryRoot || importRoot) && (
+        <section className="startup-recovery-resolution" aria-label="Unfinished library change">
+          {recoveryRoot && (
+            <LibraryMoveRecovery
+              source={recoveryRoot}
+              canKeepOriginal={canKeepOriginal}
+              disabled={pending}
+              onBusyChange={setTransferPending}
+            />
+          )}
+          {importRoot && (
+            <LibraryImportRecovery
+              destination={importRoot}
+              disabled={pending}
+              onBusyChange={setTransferPending}
+            />
+          )}
+        </section>
       )}
       <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
         {recoveryRoot || importRoot
@@ -484,6 +492,14 @@ function useWorkspace(props: WorkspaceProps) {
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
   const [addGamesStarted, setAddGamesStarted] = useState(false);
+  const detailBackLabel =
+    addGamesOpen && detailOpening?.originKey?.startsWith("add-games:")
+      ? "Back to Add games"
+      : detailOpening?.originKey?.startsWith("library:")
+        ? "Back to Library"
+        : detailOpening?.originKey?.startsWith("catalog:")
+          ? "Back to Discover"
+          : undefined;
   const addGamesReturn = useRef(0);
   const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
@@ -654,6 +670,7 @@ function useWorkspace(props: WorkspaceProps) {
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
+        backLabel={detailBackLabel}
         libraryRoot={bootstrap.library_root ?? undefined}
         organization={organization}
         openSupport={() => {
@@ -674,6 +691,8 @@ function useWorkspace(props: WorkspaceProps) {
     ) : model.port ? (
       <>
         <SelectedPortPanel
+          backLabel={detailBackLabel}
+          favorites={favorites}
           extraFiles={
             model.entry?.listing &&
             !model.status?.active &&
@@ -1496,12 +1515,57 @@ function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useA
   return (data.catalog?.ports ?? []).filter((port) => model.statusMap.get(port.id)?.active);
 }
 
+function renderSelectedPortFavoriteControl({
+  favorites,
+  favoritePortId,
+  displayPort,
+}: {
+  favorites: ReturnType<typeof useFavorites>;
+  favoritePortId: string;
+  displayPort: Parameters<typeof gameIdentityLabel>[0];
+}) {
+  return (
+    <>
+      <Button
+        data-focusable
+        variant={favorites.ids?.has(favoritePortId) ? "selected" : "outline"}
+        size="icon-lg"
+        aria-label={`Favorite ${gameIdentityLabel(displayPort)}`}
+        aria-pressed={favorites.ids?.has(favoritePortId) ?? false}
+        disabled={!favorites.ids || favorites.busy}
+        focusableWhenDisabled={Boolean(favorites.ids) && favorites.busy}
+        aria-busy={favorites.busy}
+        onClick={() => void favorites.toggle(favoritePortId)}
+      >
+        <Star aria-hidden="true" />
+      </Button>
+      {favorites.failure && (
+        <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">
+          {favorites.failure === "write"
+            ? "The favorite change could not be confirmed. Refresh to reconcile."
+            : "Favorites could not be loaded."}{" "}
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={favorites.busy}
+            onClick={() => void favorites.refresh()}
+          >
+            Refresh favorites
+          </Button>
+        </span>
+      )}
+    </>
+  );
+}
+
 function SelectedPortPanel({
+  favorites,
   organization,
   openSupport,
   extraFiles,
   openActivity,
   opening,
+  backLabel,
   model,
   ui,
   operations,
@@ -1516,11 +1580,13 @@ function SelectedPortPanel({
   openLibraryStorage,
   close,
 }: {
+  favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
   extraFiles?: ReactNode;
   openActivity: () => void;
   opening?: DetailOpening | undefined;
+  backLabel?: string | undefined;
   model: ReturnType<typeof useAppModel>;
   ui: UiState;
   operations: OperationState;
@@ -1536,6 +1602,7 @@ function SelectedPortPanel({
   close: () => void;
 }) {
   if (!model.port) return null;
+  const favoritePortId = model.port.id;
   const pickSource = model.sourceProfile
     ? () => {
         return applyPathChoice(
@@ -1566,6 +1633,12 @@ function SelectedPortPanel({
     : undefined;
   return (
     <DetailPanel
+      backLabel={backLabel}
+      favoriteControl={renderSelectedPortFavoriteControl({
+        favorites,
+        favoritePortId,
+        displayPort: model.entry ?? model.port,
+      })}
       organization={organization}
       openSupport={openSupport}
       extraFiles={extraFiles}

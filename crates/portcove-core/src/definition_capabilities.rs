@@ -39,6 +39,18 @@ impl EngineTemplateCapability {
             contract_version: 4,
         });
         supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 5,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 6,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: 7,
+        });
+        supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
@@ -125,6 +137,10 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 24,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 25,
         });
         supported
     }
@@ -282,6 +298,87 @@ mod tests {
     use super::*;
 
     #[test]
+    fn native7_ascii_paths_exclude_older_readers_and_preserve_versions1_through6() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 7
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 7, 7), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 7, 7))
+                .unwrap()
+                .compatible
+        );
+        for version in 1..=6 {
+            assert!(
+                check_with_inventory(&request("native-portable", version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
+    fn native6_originals_exclude_older_readers_and_keep_prior_contracts() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 6
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 6, 6), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 6, 6))
+                .unwrap()
+                .compatible
+        );
+        for version in 1..=5 {
+            assert!(
+                check_with_inventory(&request("native-portable", version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
+    fn native5_temporary_data_excludes_older_readers_without_changing_native1_through4() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable || entry.contract_version < 5
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("native-portable", 5, 5), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("native-portable", 5, 5))
+                .unwrap()
+                .compatible
+        );
+        for version in 1..=4 {
+            assert!(
+                check_with_inventory(&request("native-portable", version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
     fn native_packaged_paths_exclude_the_previous_direct_only_inventory() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -352,7 +449,7 @@ mod tests {
                 .compatible
         );
         assert!(
-            !check_definition_capabilities(&request("native-portable", 5, 5))
+            !check_definition_capabilities(&request("native-portable", 8, 8))
                 .unwrap()
                 .compatible
         );
@@ -475,6 +572,56 @@ mod tests {
     }
 
     #[test]
+    fn fresh_direct_entry_requires_v25_while_prior_reader_inventory_refuses_it() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "sonic-3-and-knuckles-recomp";
+        let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
+        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+        let entry = bundle
+            .contents
+            .iter()
+            .find_map(|(_, bytes)| {
+                let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+                (value.get("definition_schema").is_some()).then_some(bytes)
+            })
+            .unwrap();
+        assert!(
+            index
+                .inspect_entry("official", id, entry)
+                .unwrap()
+                .capabilities()
+                .compatible
+        );
+        let value: serde_json::Value = serde_json::from_slice(entry).unwrap();
+        let requirement: DefinitionCapabilityRequest = serde_json::from_value(serde_json::json!({
+            "capability_contract_schema":1, "required_capabilities":value["required_capabilities"]
+        }))
+        .unwrap();
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 24
+            })
+            .collect();
+        let refused = check_with_inventory(&requirement, &previous).unwrap();
+        assert!(!refused.compatible);
+        assert_eq!(
+            refused.checks[0].outcome,
+            DefinitionCapabilityOutcome::UnsupportedVersion
+        );
+        assert!(
+            check_definition_capabilities(&requirement)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 23, 24), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn prepared_directory_version_does_not_widen_other_templates() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -496,7 +643,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(4));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 25, 25)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 26, 26)).unwrap();
         assert!(!future.compatible);
     }
 

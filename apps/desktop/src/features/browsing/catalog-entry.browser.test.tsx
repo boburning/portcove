@@ -52,7 +52,7 @@ const header: CatalogMediaAsset = { ...screenshot, id: "original-header", role: 
 const png =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=";
 
-function Fixture({ clearMedia }: { clearMedia: boolean }) {
+function Fixture({ clearMedia, editionNeutral }: { clearMedia: boolean; editionNeutral: boolean }) {
   const [selected, setSelected] = useState<CatalogEntry>();
   const definitions = ["first-project", "second-project"].map((id) => ({
     ...portDefinition(),
@@ -68,7 +68,7 @@ function Fixture({ clearMedia }: { clearMedia: boolean }) {
   }));
   const catalog = { schema_version: 2, ports: definitions };
   const listings = {
-    format_version: 3,
+    format_version: editionNeutral ? 5 : 3,
     listings: definitions.map(({ id, name, summary, project_url, platforms }) => ({
       id,
       name,
@@ -77,7 +77,9 @@ function Fixture({ clearMedia }: { clearMedia: boolean }) {
       platforms,
       availability: "unknown" as const,
       original_game: original,
-      media: [header, screenshot],
+      media: [header, screenshot].map((asset) =>
+        editionNeutral ? { ...asset, edition_neutral: true } : asset,
+      ),
     })),
   };
   const entries = catalogEntries(catalog, listings, [], []);
@@ -110,7 +112,7 @@ function Fixture({ clearMedia }: { clearMedia: boolean }) {
   );
 }
 
-async function openProjectedDetail(clearMedia: boolean) {
+async function openProjectedDetail(clearMedia: boolean, editionNeutral = true) {
   await page.viewport(1280, 900);
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (port, slot) =>
     artworkState(port, slot),
@@ -122,7 +124,7 @@ async function openProjectedDetail(clearMedia: boolean) {
       choice_revision: 0,
       png_base64: png,
     }));
-  await render(<Fixture clearMedia={clearMedia} />);
+  await render(<Fixture clearMedia={clearMedia} editionNeutral={editionNeutral} />);
   expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(1);
   expect(
     JSON.parse(
@@ -146,7 +148,7 @@ it("carries reviewed listing identity and media from grouped old definitions int
   await expect
     .poll(
       () =>
-        document.querySelector<HTMLImageElement>(".detail-header-artwork img")?.naturalWidth ?? 0,
+        document.querySelector<HTMLImageElement>(".game-hero-background img")?.naturalWidth ?? 0,
     )
     .toBeGreaterThan(0);
   expect(read).toHaveBeenCalledWith("first-project", header.id, header.sha256, 7);
@@ -158,7 +160,7 @@ it("carries reviewed listing identity and media from grouped old definitions int
   await expect.element(enlarge).toBeEnabled();
   await enlarge.click();
   const viewer = page.getByRole("dialog");
-  await expect.element(viewer.getByText(/Edition: reviewed-edition/)).toBeVisible();
+  await expect.element(viewer.getByText(/Original release · reviewed-edition/)).toBeVisible();
   await expect
     .element(viewer.getByRole("link", { name: "CC0-1.0", exact: true }))
     .toHaveAttribute("href", screenshot.rights_url);
@@ -169,7 +171,16 @@ it("carries reviewed listing identity and media from grouped old definitions int
 
 it("retains grouping and source edition identity while explicit strict media clears the listing gallery", async () => {
   const read = await openProjectedDetail(true);
-  expect(document.querySelector(".detail-header-artwork")).toBeNull();
+  expect(document.querySelector(".game-hero-background")).toBeNull();
+  await expect
+    .element(page.getByRole("region", { name: "Screenshots", exact: true }))
+    .not.toBeInTheDocument();
+  expect(read).not.toHaveBeenCalled();
+});
+
+it("keeps legacy original-edition media out of details until applicability is reviewed or selected", async () => {
+  const read = await openProjectedDetail(false, false);
+  expect(document.querySelector(".game-hero-background")).toBeNull();
   await expect
     .element(page.getByRole("region", { name: "Screenshots", exact: true }))
     .not.toBeInTheDocument();

@@ -53,10 +53,10 @@ import {
 } from "./desktop-main-webview-boundary.mts";
 import {
   OwnedNativeSession,
+  retainNativeCustody as retainOwnedNativeCustody,
   nativeSessionScript,
   readNativeProcessSnapshot,
   readNativeSessionObservation,
-  assertNativeApplicationInventory,
 } from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
 import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
@@ -484,34 +484,38 @@ async function releaseNativeResources() {
 async function retainNativeCustody(error: unknown): Promise<never> {
   process.exitCode = 1;
   const evidence = path.join(output, `${cleanupName}-unknown-custody.json`);
-  try {
-    await writeFile(
-      evidence,
-      JSON.stringify(
-        {
-          error: errorMessage(error),
-          driver: ownedSession.driver,
-          inventory: ownedSession.inventory,
-          cleanup: ownedSession.cleanup,
-          retained_at: new Date().toISOString(),
-        },
-        null,
-        2,
-      ) + "\n",
-      { flag: "wx" },
-    );
-  } catch (publicationError) {
-    console.error(`Could not publish retained native custody: ${errorMessage(publicationError)}`);
-  } finally {
-    console.error(
-      `Native custody remains unresolved; retained ${output}; runner and any unreleased reservations remain owned: ${errorMessage(error)}`,
-    );
-    // Keep the admitted runner alive even if evidence publication failed. No
-    // PID-only fallback or owner-death reclamation is implied by this failure.
-    setInterval(() => {}, 60_000);
-    await new Promise<never>(() => {});
-  }
-  throw new Error("Retained native custody unexpectedly resumed without a resolution.");
+  return retainOwnedNativeCustody({
+    publish: () =>
+      writeFile(
+        evidence,
+        JSON.stringify(
+          {
+            error: errorMessage(error),
+            driver: ownedSession.driver,
+            inventory: ownedSession.inventory,
+            cleanup: ownedSession.cleanup,
+            retained_at: new Date().toISOString(),
+          },
+          null,
+          2,
+        ) + "\n",
+        { flag: "wx" },
+      ),
+    reportPublicationFailure: (publicationError) => {
+      console.error(`Could not publish retained native custody: ${errorMessage(publicationError)}`);
+    },
+    reportRetained: () => {
+      console.error(
+        `Native custody remains unresolved; retained ${output}; runner and any unreleased reservations remain owned: ${errorMessage(error)}`,
+      );
+    },
+    hold: async () => {
+      // Keep the admitted runner alive even if evidence publication failed. No
+      // PID-only fallback or owner-death reclamation is implied by this failure.
+      setInterval(() => {}, 60_000);
+      return new Promise<never>(() => {});
+    },
+  });
 }
 
 async function stopDriver() {
@@ -670,68 +674,15 @@ function validateBackupFocusInventory(
   requireQualified = false,
   deadline = performance.now() + 10_000,
 ) {
-  if (
-    requireQualified ||
-    savedLibraryRecoverySession ||
-    checks.some(
-      (check) =>
-        [
-          "native-real-prepared-runtime",
-          "native-reviewed-backup-restore-and-delete",
-          "native-reviewed-source-reference-removal",
-          "native-reviewed-steam-batch-add",
-          "native-host-publication-recovery",
-          "native-game-update-review",
-          "native-update-acquisition-lifecycle",
-          "native-selected-setup-completion",
-          "native-preliminary-source-review",
-          "native-retained-contract-repair-state",
-          "native-backup-delete-focus",
-          "native-host-interrupted-preparation",
-          "native-closed-preparation-recovery",
-          "native-minimized-preparation-continuity",
-          "native-normal-package-webview-boundary",
-          "native-startup-library-recovery",
-          "native-library-switch-recovery",
-          "native-late-listener-disposal",
-          "native-rejected-listener-registration",
-        ].includes(check.scenario) && check.outcome === "passed",
-    )
-  ) {
-    if (executionPlan.fixtures.acquisitionJourney) {
-      const connectedApplication = ownedSession.requireApplication(captured);
-      assertNativeApplicationInventory(
-        captured,
-        connectedApplication,
-        ownedSession.game,
-        acquisitionLaunchSessions(deadline),
-        ownedSession.games,
-      );
-    } else {
-      assert.equal(
-        captured.processes.filter(
-          (entry) =>
-            path.resolve(entry.path).toLowerCase() === path.resolve(application).toLowerCase(),
-        ).length,
-        1,
-        "Successful native qualification requires one captured application",
-      );
-    }
-    assert.ok(
-      captured.processes.some(
-        (entry) => path.basename(entry.path).toLowerCase() === "msedgewebview2.exe",
-      ),
-      "Successful native qualification requires actual WebView identities",
-    );
-    assert.equal(
-      captured.processes.filter(
-        (entry) =>
-          path.resolve(entry.path).toLowerCase() === path.resolve(nativeDriverPath).toLowerCase(),
-      ).length,
-      1,
-      "Successful native qualification requires the exact selected native driver identity",
-    );
-  }
+  ownedSession.validateQualificationInventory(captured, {
+    requireQualified,
+    savedLibraryRecoverySession,
+    checks,
+    application,
+    nativeDriverPath,
+    acquisitionJourney: executionPlan.fixtures.acquisitionJourney,
+    acquisitionLaunchSessions: () => acquisitionLaunchSessions(deadline),
+  });
 }
 
 function captureBackupFocusCleanup(evidenceName = cleanupName) {
@@ -943,7 +894,7 @@ async function verifySettingsRows() {
     await browser
       .findElement(
         By.xpath(
-          '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="System"]',
+          '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="Follow system"]',
         ),
       )
       .click();
@@ -998,12 +949,13 @@ async function verifyLongTitleCatalogDetail(theme: string) {
   await browser.wait(
     () =>
       executeBrowserScript(browser, () => {
-        const cover = document.querySelector(".detail-cover.artwork-image");
-        const image = cover?.querySelector("img");
-        const initials = cover?.querySelector(":scope > span")?.textContent;
+        const hero = document.querySelector<HTMLElement>(".game-hero-detail");
+        const image = hero?.querySelector(".game-hero-image");
         return Boolean(
           (image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0) ||
-          (initials && initials !== "PC"),
+          (hero?.dataset.heroIdentity === "text" &&
+            !hero.querySelector('[data-loading="true"]') &&
+            hero.querySelector("#port-detail-title")?.textContent?.trim()),
         );
       }),
     15_000,
@@ -1577,9 +1529,17 @@ async function connect() {
     : selection.prerequisites.includes("design-compatibility-fixture")
       ? ".design-compatibility-fixture"
       : 'nav[aria-label="Primary navigation"]';
-  await browser.wait(until.elementLocated(By.css(readyRoot)), 30_000);
   await browser.wait(
-    async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
+    () =>
+      executeBrowserScript(
+        browser,
+        (selector) => document.querySelector(selector) !== null,
+        readyRoot,
+      ),
+    30_000,
+  );
+  await browser.wait(
+    () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
     30_000,
   );
   if (executionPlan.fixtures.acquisitionJourney) {
@@ -1619,6 +1579,33 @@ async function restartApplication(
     const evidence = path.join(output, `${name}-restart.json`);
     await writeFile(evidence, JSON.stringify(linuxCleanup, null, 2) + "\n", { flag: "wx" });
     artifacts.push(evidence);
+    await startDriver(childEnvironment);
+    await connect();
+    return driverBrowser();
+  }
+  if (process.platform === "linux" && historySession) {
+    const captured = await captureHistorySession(
+      required(required(driver).pid),
+      driverPath,
+      application,
+    );
+    assert.equal(captured.driver.start_ticks, required(historyInventory).driver.start_ticks);
+    const identities = new Map(
+      [...required(historyInventory).processes, ...captured.processes].map((entry) => [
+        `${entry.pid}:${entry.start_ticks}`,
+        entry,
+      ]),
+    );
+    historyInventory = { ...captured, processes: [...identities.values()] };
+    await required(browser).quit();
+    browser = undefined;
+    await stopDriver();
+    const cleanup = await waitHistorySessionExit(historyInventory);
+    driver = undefined;
+    const evidence = path.join(output, `${name}-restart.json`);
+    await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(evidence);
+    if (prepareWhileStopped) await prepareWhileStopped();
     await startDriver(childEnvironment);
     await connect();
     return driverBrowser();
@@ -3494,6 +3481,7 @@ try {
       library,
       restart: restartApplication,
       cacheConditions,
+      coverPortIds: values["cover-port-id"],
     });
   }
   await scenario("keyboard-layout", async () => {
@@ -3825,15 +3813,18 @@ try {
           ?.scrollIntoView({ block: "start", behavior: "instant" });
         const title = document.querySelector("#port-detail-title");
         const action = document.querySelector(".detail-header-actions button");
-        const cover = document.querySelector(".detail-cover");
+        const hero = document.querySelector<HTMLElement>(".game-hero-detail");
+        const cover = hero?.querySelector<HTMLElement>(".game-hero-foreground");
+        const image = cover?.querySelector("img");
         if (
           !(title instanceof HTMLElement) ||
           !(action instanceof HTMLElement) ||
-          !(cover instanceof HTMLElement)
+          !(hero instanceof HTMLElement)
         )
           throw new Error("Detail header is incomplete");
         const bounds = action.getBoundingClientRect();
-        const frame = cover.getBoundingClientRect();
+        const frame = cover?.getBoundingClientRect();
+        const heroBounds = hero.getBoundingClientRect();
         return {
           state: document.querySelector("[data-detail-readiness]")?.textContent?.trim(),
           reason: document.querySelector("[data-detail-reason]")?.textContent?.trim(),
@@ -3847,18 +3838,30 @@ try {
           titleFits: title.scrollWidth <= title.clientWidth + 1,
           actionFits: bounds.left >= 0 && bounds.right <= innerWidth,
           actionVisible: bounds.top >= 0 && bounds.bottom <= innerHeight,
-          artwork: { width: frame.width, height: frame.height },
+          identity: hero.dataset.heroIdentity,
+          hero: { width: heroBounds.width, height: heroBounds.height },
+          artwork:
+            frame && image
+              ? {
+                  width: frame.width,
+                  height: frame.height,
+                  naturalWidth: image.naturalWidth,
+                  naturalHeight: image.naturalHeight,
+                  fit: getComputedStyle(image).objectFit,
+                }
+              : null,
           horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 1,
           futureChoices: Array.from(
             document.querySelectorAll(".future-setup-disclosure"),
             (choice) => ({
               title: choice.querySelector("summary")?.textContent?.trim(),
               open: choice.hasAttribute("open"),
+              visible: choice.getBoundingClientRect().height > 0,
             }),
           ),
         };
       });
-      assert.equal(hierarchy.state, "Game files needed");
+      assert.equal(hierarchy.state, "Needs game files");
       assert.match(
         required(hierarchy.reason),
         /Choose the required game files before reviewing installation/u,
@@ -3867,7 +3870,7 @@ try {
       assert.deepEqual(hierarchy.tabs, [
         "Overview",
         "Game files",
-        "Saves",
+        "Saves & backups",
         "Versions & updates",
         "Manage",
       ]);
@@ -3878,10 +3881,18 @@ try {
       assert.equal(hierarchy.actionFits, true);
       assert.equal(hierarchy.actionVisible, true);
       assert.equal(hierarchy.horizontalOverflow, false);
-      assert.ok([0, 96, 128, 148].includes(hierarchy.artwork.width));
-      assert.equal(hierarchy.artwork.height, hierarchy.artwork.width * 1.5);
+      assert.ok(["key_art", "logo", "cover", "text"].includes(required(hierarchy.identity)));
+      if (hierarchy.artwork) {
+        assert.ok(hierarchy.artwork.width > 0 && hierarchy.artwork.width <= hierarchy.hero.width);
+        assert.ok(
+          hierarchy.artwork.height > 0 && hierarchy.artwork.height <= hierarchy.hero.height,
+        );
+        assert.ok(hierarchy.artwork.naturalWidth > 0 && hierarchy.artwork.naturalHeight > 0);
+        assert.equal(hierarchy.artwork.fit, "contain");
+        assert.notEqual(hierarchy.identity, "text");
+      } else assert.equal(hierarchy.identity, "text");
       assert.deepEqual(hierarchy.futureChoices, [
-        { title: "Folder for a future install", open: false },
+        { title: "Folder for a future install", open: false, visible: false },
       ]);
     };
     await verifyDetailActionHierarchy();
@@ -3890,6 +3901,9 @@ try {
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
     await revealDetailSection(browser, "Manage");
+    await browser
+      .findElement(By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'))
+      .click();
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();

@@ -1314,6 +1314,12 @@ vocabulary and terminal activity reports. CLI and Tauri serialize the same core
 report while preserving original machine error fields. React presents this
 information; it does not infer successful rollback or unchanged files from a
 failed operation or a particular error code. Unannotated outcomes remain Unknown.
+The shared Desktop task handler records and settles each invocation before an
+opt-in current caller receives its original task rejection. Application update
+panels use that result to present the existing Core failure summary and allow a
+fresh retry. Other callers retain the default settled-result behavior; outgoing
+library generations and pre-task conflicts do not publish a task rejection.
+Independent readback failures remain separate from the original task outcome.
 Reviewed-action dialogs retain the structured report through review and execution
 failures and expose its original outcome, phase, code and redacted diagnostics
 through the shared failure-details control. Their review-again controls load only
@@ -3620,3 +3626,26 @@ Add games and Settings reuse saved-folder composition with unique instance IDs,
 scoped focus queries and return origins. Hidden siblings cannot supply focus or
 another instance's heading. Scroll capture/restoration uses the shell's current
 scroll-owner helpers, including document flow at enlarged effective widths.
+
+### Progress semantics and activity ownership observations
+
+Core progress producers supply optional `phase_id` and `unit` (`bytes`, `items`,
+`ports`, `indeterminate`) on the existing schema-3 best-effort event. These
+additive fields preserve older event readers; absent units remain generic
+counts. Display wording cannot determine units or terminal success. The CLI
+and Desktop consume the producer's semantics.
+
+Activity feeds and workspace snapshots attach an optional `liveness` observation.
+For cancellable work, Core probes the existing exact-activity OS lock without
+creating or rewriting it: held means `active`, available means `interrupted`.
+Uncovered producers, missing locks and failed probes remain `unknown`. This
+snapshot is best effort; durable terminal results always win. Desktop uses age
+only for the existing uncertain interruption fallback when ownership is unknown.
+No heartbeat, new durable operation registry or abandonment deadline is added.
+
+Core readiness also supplies a read-only `setup_contract` projection from the
+same effective retained catalog used for launch/source checks. React consumes it
+for requirements, guidance and saved-data explanations; current catalog metadata
+cannot reinterpret an older installation's paths or setup. Missing older fields
+remain unavailable. Existing per-operation assessments and exact artifact records
+continue to supply actions and selected-release identity.

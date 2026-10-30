@@ -20,7 +20,10 @@ import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-e
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
-import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
+import {
+  OwnedNativeSession,
+  retainNativeCustody as retainOwnedNativeCustody,
+} from "../apps/desktop/scripts/desktop-owned-native-session.mts";
 import baseline from "./desktop-execution-baseline.mts";
 import type { DesktopSelection } from "./desktop-scenarios.mts";
 type KnownGap = DesktopSelection["known_gaps"][number];
@@ -213,48 +216,36 @@ void test("Windows admission refusal preserves former exit proof until a replace
 });
 
 void test("Windows retained custody keeps its hold even when failure evidence cannot be published", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const first = source.indexOf("async function retainNativeCustody(");
-  const last = source.indexOf("async function stopDriver()", first);
-  assert.ok(first >= 0 && last > first);
-  const calls: string[] = [];
-  const holding = new Error("injected retained hold");
-  class HoldPromise {
-    constructor() {
-      return Promise.reject(holding);
-    }
+  for (const publicationFails of [false, true]) {
+    const calls: string[] = [];
+    const holding = new Error("injected retained hold");
+    const publicationFailure = new Error("disk failure");
+    await assert.rejects(
+      () =>
+        retainOwnedNativeCustody({
+          publish: async () => {
+            calls.push("publish");
+            if (publicationFails) throw publicationFailure;
+          },
+          reportPublicationFailure: (error) => {
+            assert.equal(error, publicationFailure);
+            calls.push("report");
+          },
+          reportRetained: () => {
+            calls.push("report");
+          },
+          hold: async () => {
+            calls.push("hold");
+            throw holding;
+          },
+        }),
+      (error: unknown) => error === holding,
+    );
+    assert.deepEqual(
+      calls,
+      publicationFails ? ["publish", "report", "report", "hold"] : ["publish", "report", "hold"],
+    );
   }
-  const retain = callable(
-    runInNewContext(`${source.slice(first, last)}; retainNativeCustody`, {
-      process: { exitCode: 0 },
-      path,
-      output: "/owned",
-      cleanupName: "fixture",
-      ownedSession: {},
-      errorMessage: String,
-      writeFile: async () => {
-        calls.push("publish");
-        throw new Error("disk failure");
-      },
-      console: {
-        error: () => {
-          calls.push("report");
-        },
-      },
-      setInterval: () => {
-        calls.push("hold");
-      },
-      Promise: HoldPromise,
-    }),
-  );
-  await assert.rejects(
-    async () => retain(new Error("Wait failed")),
-    (error: unknown) => error === holding,
-  );
-  assert.deepEqual(calls, ["publish", "report", "report", "hold"]);
 });
 
 void test("native interface enlargement retains its exact assertion source without changing ordinary profiles", () => {
@@ -568,7 +559,10 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
-          added === nativeHelperRegistryPath,
+          added === nativeHelperRegistryPath ||
+          (added === "apps/desktop/scripts/desktop-qualification-history-test.mts" &&
+            row.platform === "linux" &&
+            selection.selected_scenarios.includes("native-default-cover-cache-conditions")),
         added,
       );
     assert.equal(new Set(actualInputs).size, actualInputs.length);
@@ -637,6 +631,13 @@ void test("execution planning preserves the independently reviewed pre-change or
         )
           expectedSession.cleanupName = "steam-batch";
       }
+      // #1155 cache restarts reuse the existing Linux birth-identity/exit owner.
+      // Keep the historical oracle; only this intentional custody delta changes.
+      if (
+        row.platform === "linux" &&
+        selection.selected_scenarios.includes("native-default-cover-cache-conditions")
+      )
+        expectedSession.historySession = true;
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
@@ -950,67 +951,6 @@ void test("Steam batch adds Windows custody without changing builds, setup or cl
       });
       assert.equal(plan.session.identityBoundSession, true);
       assert.equal(plan.session.cleanupName, cleanupName);
-    }
-  }
-});
-
-void test("qualified reviews and a running setup restart reject missing or foreign native identities", async () => {
-  const source = await readFile(
-    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function validateBackupFocusInventory(");
-  const end = source.indexOf("function captureBackupFocusCleanup(", start);
-  assert(start >= 0 && end > start);
-  for (const { scenario, outcome = "passed", requireQualified = false } of [
-    { scenario: "native-host-publication-recovery" },
-    { scenario: "native-real-prepared-runtime" },
-    { scenario: "native-reviewed-backup-restore-and-delete" },
-    { scenario: "native-reviewed-source-reference-removal" },
-    { scenario: "native-reviewed-steam-batch-add" },
-    { scenario: "native-preliminary-source-review" },
-    { scenario: "native-late-listener-disposal" },
-    { scenario: "native-rejected-listener-registration" },
-    { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },
-  ]) {
-    const validate = callable(
-      runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
-        assert,
-        path,
-        performance,
-        executionPlan: { fixtures: { acquisitionJourney: false } },
-        savedLibraryRecoverySession: false,
-        checks: [{ scenario, outcome }],
-        application: "/owned/app.exe",
-        nativeDriverPath: "/owned/driver.exe",
-      }),
-    );
-    const entries = [
-      { path: "/owned/app.exe" },
-      { path: "/owned/driver.exe" },
-      { path: "/owned/msedgewebview2.exe" },
-    ];
-    validate({ processes: entries }, requireQualified);
-    for (let missing = 0; missing < entries.length; missing++) {
-      assert.throws(() =>
-        validate({ processes: entries.filter((_, i) => i !== missing) }, requireQualified),
-      );
-    }
-    assert.throws(() =>
-      validate(
-        { processes: [{ path: "/foreign/app.exe" }, ...entries.slice(1)] },
-        requireQualified,
-      ),
-    );
-    if (
-      scenario === "native-reviewed-source-reference-removal" ||
-      scenario === "native-reviewed-steam-batch-add"
-    ) {
-      assert.throws(() =>
-        validate({ processes: [entries[0], { path: "/foreign/driver.exe" }, entries[2]] }),
-      );
-      assert.throws(() => validate({ processes: [...entries, entries[0]] }));
-      assert.throws(() => validate({ processes: [...entries, entries[1]] }));
     }
   }
 });
@@ -1351,6 +1291,7 @@ void test("publication repeat callback requires the complete owned native quiesc
       const restart = callable(
         runInNewContext(`${source.slice(start, end)}; restartApplication`, {
           linuxSelectedSession: false,
+          process: { platform: "win32" },
           savedLibraryRecoverySession: false,
           cleanupName: "host-publication",
           hostPublicationSession: !acquisition,

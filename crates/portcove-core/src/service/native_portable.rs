@@ -84,12 +84,14 @@ impl PortcoveService {
             || retained.mod_package_policy != to.mod_package_policy
             || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.runtime_subdirectory != to.runtime_subdirectory
+            || retained.windows_temp_directory != to.windows_temp_directory
             || retained.launch_from_install_root != to.launch_from_install_root
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)
             || retained.launch_arguments != to.launch_arguments
             || retained.launch_environment != to.launch_environment
             || retained.user_data_environment != to.user_data_environment
             || retained.source_profile != to.source_profile
+            || retained.runtime_source_set != to.runtime_source_set
             || retained.runtime_source_filename != to.runtime_source_filename
             || retained.runtime_source_materialization != to.runtime_source_materialization
             || retained.runtime_source_hashes != to.runtime_source_hashes
@@ -103,6 +105,26 @@ impl PortcoveService {
                     && to.setup_marker.is_none()))
         {
             return Err(portable_data_change());
+        }
+        if crate::preparation::source::native(&retained) {
+            let installer = Installer::new(self.library.clone())?;
+            if installer.retained_preparation_mode(from)?
+                == Some(crate::PreparationMode::SourceOnly)
+            {
+                // Registered originals cannot replace the source authority sealed
+                // into this installation, including a same-profile edition change.
+                crate::preparation::source::require_publication(&self.library, from, None)
+                    .map_err(|_| portable_data_change())?;
+                if let Some(previous) = retained_rollback {
+                    if installer.retained_preparation_mode(previous)?
+                        != Some(crate::PreparationMode::SourceOnly)
+                    {
+                        return Err(portable_data_change());
+                    }
+                    crate::preparation::source::require_publication(&self.library, previous, None)
+                        .map_err(|_| portable_data_change())?;
+                }
+            }
         }
         if retained.persistent_paths != to.persistent_paths {
             if let Some(previous) = retained_rollback
@@ -128,6 +150,18 @@ impl PortcoveService {
         let to = self.installed_port(target)?;
         self.require_portable_transition(from, &to)?;
         let retained = self.installed_port(from)?;
+        if crate::preparation::source::native(&retained)
+            && Installer::new(self.library.clone())?.retained_preparation_mode(from)?
+                == Some(crate::PreparationMode::SourceOnly)
+        {
+            if Installer::new(self.library.clone())?.retained_preparation_mode(target)?
+                != Some(crate::PreparationMode::SourceOnly)
+            {
+                return Err(portable_data_change());
+            }
+            crate::preparation::source::require_publication(&self.library, target, None)
+                .map_err(|_| portable_data_change())?;
+        }
         if crate::persistence::ready_staged_archive(&retained)
             && crate::persistence::ready_staged_archive(&to)
             && retained.persistent_paths != to.persistent_paths
@@ -204,6 +238,7 @@ impl PortcoveService {
             self.persistence_contract_for_install(target)?;
             roots.push(self.persistence_root(target_port, &target.path)?);
         }
+        self.require_direct_empty_expansion(retained, to, &roots)?;
         for path in added {
             for root in &roots {
                 crate::persistence::require_absent_path(root, path).map_err(|error| {
@@ -279,6 +314,7 @@ impl PortcoveService {
 #[cfg(all(test, windows))]
 mod tests {
     use super::*;
+    use crate::Adapter;
     use std::{
         io::{Read, Write},
         net::TcpListener,
@@ -471,6 +507,313 @@ mod tests {
         let mut service = PortcoveService::with_provider(library, provider).unwrap();
         service.catalog = catalog();
         service
+    }
+
+    fn native_temp_catalog() -> Catalog {
+        let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
+        document["ports"][0]["windows_runtime_path_policy"] =
+            serde_json::json!("relative-file-max-path");
+        document["ports"][0]["windows_temp_directory"] = serde_json::json!("temp");
+        document["ports"][0]["persistent_paths"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!("temp"));
+        Catalog::from_json(&document.to_string()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn adoption_preserves_native_temp_interpretation_in_both_directions() {
+        const ID: &str = "portable-fixture";
+        for creating_has_temp in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+            let mut creating =
+                serde_json::to_value(native_temp_catalog().authoritative_document()).unwrap();
+            if !creating_has_temp {
+                creating["ports"][0]["windows_temp_directory"] = serde_json::Value::Null;
+            }
+            let creating = Catalog::from_json(&creating.to_string()).unwrap();
+            service.replace_catalog_for_test(creating.clone());
+            let first = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let external = temporary.path().join("external");
+            fs::create_dir(&external).unwrap();
+            fs::copy(first.path.join("game.exe"), external.join("game.exe")).unwrap();
+            let original = fs::read(external.join("game.exe")).unwrap();
+            let mut changed = serde_json::to_value(creating.authoritative_document()).unwrap();
+            changed["ports"][0]["windows_temp_directory"] = if creating_has_temp {
+                serde_json::Value::Null
+            } else {
+                serde_json::json!("temp")
+            };
+            service.replace_catalog_for_test(Catalog::from_json(&changed.to_string()).unwrap());
+            let preview = service.preview_adoption(&external, Some(ID)).unwrap();
+            let consent = service
+                .authorize_adoption(&external, Some(ID), &preview.plan_sha256)
+                .unwrap();
+            assert!(service.adopt(&external, Some(ID), &consent.token).is_err());
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+            assert_eq!(fs::read(external.join("game.exe")).unwrap(), original);
+            service.replace_catalog_for_test(creating);
+            let preview = service.preview_adoption(&external, Some(ID)).unwrap();
+            let consent = service
+                .authorize_adoption(&external, Some(ID), &preview.plan_sha256)
+                .unwrap();
+            let adopted = service.adopt(&external, Some(ID), &consent.token).unwrap();
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, adopted.id);
+            assert_eq!(fs::read(external.join("game.exe")).unwrap(), original);
+        }
+    }
+
+    #[tokio::test]
+    async fn no_active_native5_activation_rechecks_canonical_data_after_staging() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        service.replace_catalog_for_test(native_temp_catalog());
+        let staged = service
+            .install(ID, None, None, None, false, |_| {})
+            .await
+            .unwrap();
+        assert!(service.status(ID).unwrap().active.is_none());
+        fs::create_dir_all(library.user_dir(ID).join("temp")).unwrap();
+        fs::write(
+            library.user_dir(ID).join("temp/witness.bin"),
+            b"unproven legacy bytes",
+        )
+        .unwrap();
+        assert!(service.activate_staged(ID).is_err());
+        assert!(service.status(ID).unwrap().active.is_none());
+        assert!(staged.path.is_dir());
+        assert!(!staged.path.join("temp").exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"unproven legacy bytes"
+        );
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        let id = Uuid::new_v4().to_string();
+        let mut journal = LifecycleOperation::new(&id, LifecycleOperationKind::Install, ID);
+        journal.install = Some(staged.clone());
+        journal.activate = true;
+        journal.phase = LifecyclePhase::PayloadPublished;
+        journal.paths.staging = Some(library.staging_dir().join(&id));
+        journal.paths.final_path = Some(staged.path.clone());
+        fs::create_dir_all(journal.paths.staging.as_ref().unwrap()).unwrap();
+        let store = OperationStore::new(library.clone());
+        store.put(&mut journal).unwrap();
+        assert!(
+            crate::recovery::recover_published_install(&service, &store, &mut journal).is_err()
+        );
+        assert!(store.get(&id).unwrap().is_some());
+        assert!(service.status(ID).unwrap().active.is_none());
+        drop(service);
+        let mut reopened = PortcoveService::new(library.clone()).unwrap();
+        reopened.replace_catalog_for_test(native_temp_catalog());
+        assert!(
+            crate::recovery::recover_published_install(&reopened, &store, &mut journal).is_err()
+        );
+        assert!(reopened.status(ID).unwrap().active.is_none());
+        assert!(staged.path.is_dir());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"unproven legacy bytes"
+        );
+    }
+
+    #[tokio::test]
+    async fn removed_native4_data_cannot_be_reinterpreted_as_a_new_native5_temp_namespace() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let new = native_temp_catalog();
+        let mut old = serde_json::to_value(new.authoritative_document()).unwrap();
+        old["ports"][0]["windows_temp_directory"] = serde_json::Value::Null;
+        service.replace_catalog_for_test(Catalog::from_json(&old.to_string()).unwrap());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        fs::create_dir(first.path.join("temp")).unwrap();
+        fs::write(
+            first.path.join("temp/witness.bin"),
+            b"old data is not Windows TEMP",
+        )
+        .unwrap();
+        let preview = service.preview_removal(ID).unwrap();
+        let consent = service
+            .authorize_removal(ID, &preview.preview_sha256)
+            .unwrap();
+        service.remove(ID, &consent.token).unwrap();
+        assert!(service.status(ID).unwrap().active.is_none());
+        service.replace_catalog_for_test(new);
+        *provider.0.lock().unwrap() = server.release("v2", 2);
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        assert!(service.status(ID).unwrap().active.is_none());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"old data is not Windows TEMP"
+        );
+    }
+
+    #[tokio::test]
+    async fn native5_temp_bytes_follow_owned_wrapper_update_backup_rollback_and_removal() {
+        const ID: &str = "portable-fixture";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(
+            server.release_in_folder("v1", 1, "Game-v1/", "game.exe"),
+        )));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let catalog = native_temp_catalog();
+        service.replace_catalog_for_test(catalog.clone());
+        let first = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let port = catalog.port(ID).unwrap();
+        let readonly = crate::adapter::standard(AdapterKind::NativePortable)
+            .launch_spec(&library, port, Platform::WindowsX86_64, &first.path, None)
+            .unwrap();
+        assert!(!first.path.join("Game-v1/temp").exists());
+        assert_eq!(readonly.environment["TEMP"], "temp");
+        let prepared = service.prepare_launch(ID, None).unwrap();
+        assert!(prepared.working_directory.join("temp").is_dir());
+        fs::write(
+            prepared.working_directory.join("temp/witness.bin"),
+            b"owned temporary bytes",
+        )
+        .unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        *provider.0.lock().unwrap() = server.release_in_folder("v2", 2, "Game-v2/", "game.exe");
+        service.update(ID, None, None, false, |_| {}).await.unwrap();
+        let second = service.activate_staged(ID).unwrap();
+        assert_eq!(
+            fs::read(second.path.join("Game-v2/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        fs::write(
+            second.path.join("Game-v2/temp/witness.bin"),
+            b"newest temporary bytes",
+        )
+        .unwrap();
+        let previous = service.rollback(ID).unwrap();
+        assert_eq!(previous.id, first.id);
+        assert_eq!(
+            fs::read(previous.path.join("Game-v1/temp/witness.bin")).unwrap(),
+            b"newest temporary bytes"
+        );
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &consent.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(previous.path.join("Game-v1/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        let mut changed = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        changed["ports"][0]["windows_temp_directory"] = serde_json::json!("different-temp");
+        *changed["ports"][0]["persistent_paths"]
+            .as_array_mut()
+            .unwrap()
+            .last_mut()
+            .unwrap() = serde_json::json!("different-temp");
+        service.replace_catalog_for_test(Catalog::from_json(&changed.to_string()).unwrap());
+        *provider.0.lock().unwrap() = server.release("v3", 3);
+        assert!(service.update(ID, None, None, true, |_| {}).await.is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
+        assert_eq!(
+            fs::read(previous.path.join("Game-v1/temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        let preview = service.preview_removal(ID).unwrap();
+        let consent = service
+            .authorize_removal(ID, &preview.preview_sha256)
+            .unwrap();
+        service.remove(ID, &consent.token).unwrap();
+        assert!(!first.path.exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+        // With no active creating contract, preserved bytes alone cannot grant
+        // the new installation authority to interpret this namespace as TEMP.
+        service.replace_catalog_for_test(catalog);
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        assert!(service.status(ID).unwrap().active.is_none());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("temp/witness.bin")).unwrap(),
+            b"owned temporary bytes"
+        );
+    }
+
+    #[tokio::test]
+    async fn native5_rejects_publisher_temp_members_before_runtime_publication() {
+        for member in ["temp/immutable.bin", "TEMP/immutable.bin", "temp"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let release = server.release_with_files(
+                "v1",
+                1,
+                "",
+                "game.exe",
+                &[(member, b"publisher file".as_slice())],
+            );
+            let provider = Arc::new(Provider(Mutex::new(release)));
+            let mut service = PortcoveService::with_provider(library, provider).unwrap();
+            service.replace_catalog_for_test(native_temp_catalog());
+            assert!(
+                service
+                    .install("portable-fixture", None, None, None, true, |_| {})
+                    .await
+                    .is_err(),
+                "{member}"
+            );
+            assert!(service.status("portable-fixture").unwrap().active.is_none());
+        }
     }
 
     #[tokio::test]
@@ -859,6 +1202,7 @@ mod tests {
     #[tokio::test]
     async fn ready_archive_profile_times_survive_update_backup_and_runtime_rollback() {
         const ID: &str = "infinite-undiscovery-doc-haz";
+        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -869,10 +1213,18 @@ mod tests {
             "InfiniteUndiscoveryRecomp.exe",
         ))));
         let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        eprintln!(
+            "Native portable profile fixture ready: {:?}",
+            started.elapsed()
+        );
         let first = service
             .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
             .await
             .unwrap();
+        eprintln!(
+            "Native portable profile initial install complete: {:?}",
+            started.elapsed()
+        );
         let relative = "USA/assets/disc1/owned-original.bin";
         let original = first.path.join(relative);
         fs::create_dir_all(original.parent().unwrap()).unwrap();
@@ -901,6 +1253,10 @@ mod tests {
         .unwrap();
         assert!(!first.path.join(LAUNCH_MARKER).exists());
         let backup = service.create_backup(ID).unwrap();
+        eprintln!(
+            "Native portable profile backup complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::metadata(backup.path.join("data").join(relative))
                 .unwrap()
@@ -912,9 +1268,17 @@ mod tests {
         *provider.0.lock().unwrap() =
             server.release_in_folder("v1.0.0-rc2", 2, "", "InfiniteUndiscoveryRecomp.exe");
         let update = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        eprintln!(
+            "Native portable profile update staged: {:?}",
+            started.elapsed()
+        );
         assert!(update.staged);
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         let second = service.activate_staged(ID).unwrap();
+        eprintln!(
+            "Native portable profile activation complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::read(second.path.join(relative)).unwrap(),
             b"inert owned data, not retail content"
@@ -933,6 +1297,10 @@ mod tests {
         assert!(!second.path.join("USA/shaders/old-cache").exists());
         fs::write(second.path.join("USA/saves/progress"), b"newest progress").unwrap();
         let previous = service.rollback(ID).unwrap();
+        eprintln!(
+            "Native portable profile rollback complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(previous.id, first.id);
         assert_eq!(
             fs::read(previous.path.join("USA/saves/progress")).unwrap(),
@@ -967,12 +1335,20 @@ mod tests {
         );
         // No package executable, original media wizard or game is run.
         assert!(!previous.path.join(LAUNCH_MARKER).exists());
+        eprintln!(
+            "Native portable profile interrupted import refused: {:?}",
+            started.elapsed()
+        );
         let fresh_library = Library::open(temporary.path().join("fresh-library")).unwrap();
         let fresh = PortcoveService::with_provider(fresh_library, provider).unwrap();
         let newest = fresh
             .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
             .await
             .unwrap();
+        eprintln!(
+            "Native portable profile fresh install complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(newest.version, "v1.0.0-rc2");
         assert!(!newest.path.join(relative).exists());
         assert!(!newest.path.join(LAUNCH_MARKER).exists());
@@ -3056,6 +3432,213 @@ mod tests {
             catalog.port("portable-fixture").unwrap()
         ));
         catalog
+    }
+
+    fn sonic3k_compatibility_fixture(legacy: bool) -> Catalog {
+        // Synthetic package with the historical reader selector, not game data.
+        let catalog = ready_persistence_catalog(!legacy, !legacy);
+        let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        document["ports"][0]["id"] = serde_json::json!("sonic-3-and-knuckles-recomp");
+        document["ports"][0]["channels"] = serde_json::json!(["stable"]);
+        if legacy {
+            document["ports"][0]["release"] = serde_json::json!({
+                "provider": "direct-manifest", "direct": { "windows-x86-64": {
+                    "version": "v0.5.3", "url": "https://example.invalid/legacy.zip", "size": 1,
+                    "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+                }}
+            });
+        }
+        Catalog::from_json(&document.to_string()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn sonic3k_expansion_refuses_populated_common_data_and_preserves_legacy_play_contract() {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        for canonical in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(sonic3k_compatibility_fixture(true));
+            let old = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
+            let receipt = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
+            let root = if canonical {
+                library.user_dir(ID)
+            } else {
+                old.path.clone()
+            };
+            fs::create_dir_all(&root).unwrap();
+            fs::write(root.join("settings.ini"), b"preserve common legacy data").unwrap();
+            service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+            *provider.0.lock().unwrap() = server.release("v2", 2);
+            let failure = service
+                .update(ID, None, None, false, |_| {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                failure.presentation().presentation_key,
+                "portable_data_contract_changed"
+            );
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+            assert_eq!(
+                fs::read(root.join("settings.ini")).unwrap(),
+                b"preserve common legacy data"
+            );
+            assert_eq!(
+                fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+                manifest
+            );
+            assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), receipt);
+            assert!(!root.join("campaign.dat").exists());
+            service
+                .require_direct_fresh_data(&service.installed_port(&old).unwrap())
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn sonic3k_fresh_creation_and_recovery_refuse_unproven_canonical_data() {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v2", 2))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"unknown creating runtime",
+        )
+        .unwrap();
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+        fs::remove_file(library.user_dir(ID).join("settings.ini")).unwrap();
+        let staged = service
+            .install(ID, None, None, None, false, |_| {})
+            .await
+            .unwrap();
+        // An attacker or interrupted/manual copy cannot acquire creating-runtime
+        // authority from a launch marker or a new manifest alone.
+        let receipt = staged.path.join(PSX_DATA_RECEIPT);
+        if receipt.exists() {
+            fs::remove_file(&receipt).unwrap();
+        }
+        fs::write(staged.path.join(LAUNCH_MARKER), b"").unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"unknown creating runtime",
+        )
+        .unwrap();
+        assert!(service.prepare_retained_install_data(&staged).is_err());
+        assert!(service.activate_staged(ID).is_err());
+        assert!(!receipt.exists());
+        assert!(!staged.path.join("settings.ini").exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("settings.ini")).unwrap(),
+            b"unknown creating runtime"
+        );
+        assert!(service.status(ID).unwrap().active.is_none());
+    }
+
+    #[tokio::test]
+    async fn sonic3k_backup_restore_cannot_initialize_unknown_data_but_retains_established_restore()
+    {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v2", 2))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+        let current = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let port = service.installed_port(&current).unwrap();
+        service.restore_user_data_to(&port, &current.path).unwrap();
+        let receipt = fs::read(current.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"established bytes",
+        )
+        .unwrap();
+        fs::write(current.path.join("settings.ini"), b"established bytes").unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        fs::write(library.user_dir(ID).join("settings.ini"), b"newer bytes").unwrap();
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &consent.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(current.path.join("settings.ini")).unwrap(),
+            b"established bytes"
+        );
+        assert_eq!(
+            fs::read(current.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        // Remove only the task fixture's initialization authority. The next
+        // restore must refuse BEFORE canonical publication or runtime writes.
+        fs::remove_file(current.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"preserve canonical",
+        )
+        .unwrap();
+        fs::write(current.path.join("settings.ini"), b"preserve runtime").unwrap();
+        assert!(
+            service
+                .require_psx_restore_preflight(ID, &backup.path.join("data"))
+                .is_err()
+        );
+        assert!(service.synchronize_restored_user_data(ID).is_err());
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        assert!(
+            service
+                .restore_backup(ID, &backup.id, &consent.token)
+                .is_err()
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("settings.ini")).unwrap(),
+            b"preserve canonical"
+        );
+        assert_eq!(
+            fs::read(current.path.join("settings.ini")).unwrap(),
+            b"preserve runtime"
+        );
+        assert!(!current.path.join(PSX_DATA_RECEIPT).exists());
     }
 
     #[tokio::test]

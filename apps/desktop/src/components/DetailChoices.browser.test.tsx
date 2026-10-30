@@ -12,6 +12,8 @@ function choices(snapshot: Partial<LibraryOrganization> = {}): DetailOrganizatio
   return {
     snapshot: {
       revision: 1,
+      followed_port_ids: [],
+      followed_release_acknowledgments: {},
       collections: {},
       hidden_port_ids: [],
       saved_game_ids: [],
@@ -73,7 +75,10 @@ it("skips an exact checked artifact while leaving the saved notice policy indepe
   await render(
     <UpdateNoticePreferences portId="sample" status={status} organization={organization} />,
   );
-  await page.getByRole("button", { name: "Skip notice for 2.0", exact: true }).click();
+  await expect
+    .element(page.getByText(/only affect notices for this port in this library/))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Skip this version: 2.0", exact: true }).click();
   expect(organization.commit).toHaveBeenLastCalledWith({
     kind: "set_update_notice",
     port_id: "sample",
@@ -92,7 +97,9 @@ it("does not offer skipping an unverified artifact or saving unreadable choices"
   await render(
     <UpdateNoticePreferences portId="sample" status={portStatus()} organization={organization} />,
   );
-  await expect.element(page.getByRole("button", { name: /Skip notice/ })).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: /Skip this version/ }))
+    .not.toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: "Pause update notices", exact: true }))
     .toBeDisabled();

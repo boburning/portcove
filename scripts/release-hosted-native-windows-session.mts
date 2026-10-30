@@ -24,10 +24,10 @@ import {
   inspectNativeRuntimeCustody,
   recheckNativeRuntimeCustody,
   windowsSourceSystemExecutables,
+  readWindowsNativeProcessFiletime,
   recheckWindowsSourceSystemCustody,
 } from "./release-native-runtime-custody.mts";
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
-import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import {
@@ -52,7 +52,6 @@ import {
 } from "./release-hosted-native-postsign-inputs.mts";
 
 import {
-  windowsOwnerFiletime as filetime,
   windowsOwnerEnvironment as ownerEnvironment,
   captureWindowsOwnerSupervisor as captureOwnerSupervisor,
   writeWindowsOwnerFrame,
@@ -205,7 +204,7 @@ async function recheck(state: State) {
   state.deadline = Math.min(state.deadline, runtime.deadline);
   await requireActualHostedNativeParentSource(state.prepared.parent);
   assert.equal(
-    filetime(readProcessIdentity(state.owner.pid), state.owner.pid),
+    readWindowsNativeProcessFiletime(state.owner.pid, state.deadline),
     state.owner.created,
   );
   recheckNativeRuntimeCustody(state.files, state.custody);
@@ -278,7 +277,7 @@ export async function startActualHostedWindowsSession(installationReceipt: objec
       tools_root: tools.root,
       source_root: prepared.root,
       node_pid: process.pid,
-      node_created_filetime: filetime(readProcessIdentity(process.pid), process.pid),
+      node_created_filetime: readWindowsNativeProcessFiletime(process.pid, parent.deadline),
       run_id: process.env.GITHUB_RUN_ID,
       run_attempt: 1,
       source_commit: parent.configuration.hosted_native["windows-x86_64"].producer.source_commit,
@@ -509,7 +508,7 @@ async function inspectChildLineage(
       Number.isSafeInteger(parent) &&
       parent > 0,
   );
-  assert.equal(filetime(readProcessIdentity(pid), pid), created);
+  assert.equal(readWindowsNativeProcessFiletime(pid, state.deadline), created);
   const script = `$ErrorActionPreference='Stop';$p=Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}' -Property ProcessId,ParentProcessId,ExecutablePath -OperationTimeoutSec 5;if(-not $p){throw 'Original child unavailable'};[ordered]@{pid=[int]$p.ProcessId;parent=[int]$p.ParentProcessId;image=$p.ExecutablePath}|ConvertTo-Json -Compress`;
   const value: unknown = JSON.parse(
     execFileSync(
@@ -539,7 +538,7 @@ async function inspectChildLineage(
       typeof value.image === "string" &&
       value.image.toLowerCase() === image.toLowerCase(),
   );
-  assert.equal(filetime(readProcessIdentity(pid), pid), created);
+  assert.equal(readWindowsNativeProcessFiletime(pid, state.deadline), created);
   recheckWindowsSourceSystemCustody(state.prepared.system_custody);
   active(state);
 }
@@ -1005,9 +1004,9 @@ async function recoverState(state: State) {
   state.signal.emit("SIGTERM");
   // Resolution proves original supervisor settlement; rejection retains Unknown custody.
   await state.running;
-  const observedOwner = readProcessIdentity(state.owner.pid);
+  const observedOwner = readWindowsNativeProcessFiletime(state.owner.pid, state.deadline);
   assert.notEqual(
-    observedOwner && filetime(observedOwner, state.owner.pid),
+    observedOwner,
     state.owner.created,
     "original owner still live; retain without competing recovery",
   );
@@ -1227,12 +1226,8 @@ async function recheckTerminalSettlement(state: State) {
   if (state.postParent) await requireActualHostedNativeParentSource(state.postParent);
   recheckNativeRuntimeCustody(state.files, state.custody);
   current();
-  const identity = readProcessIdentity(state.owner.pid);
-  assert.notEqual(
-    identity && filetime(identity, state.owner.pid),
-    state.owner.created,
-    "Original owner exit unobserved",
-  );
+  const identity = readWindowsNativeProcessFiletime(state.owner.pid, state.deadline);
+  assert.notEqual(identity, state.owner.created, "Original owner exit unobserved");
   current();
 }
 export async function finishActualHostedWindowsSession(receipt: object) {

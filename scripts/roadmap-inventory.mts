@@ -4,6 +4,7 @@ import {
 } from "./repository-issue-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { GitHubApiError } from "./github-api.mts";
 import type { RoadmapClient } from "./roadmap.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 
@@ -15,12 +16,53 @@ export interface InventoryCache {
   issues: RoadmapIssueItem[];
 }
 export interface RoadmapInventory extends InventoryCache {
+  scope?: "intake";
   projectId: string;
   items: RoadmapIssueItem[];
   archivedItems: RoadmapIssueItem[];
   body_reads: number;
 }
-const validated = new WeakMap<RoadmapInventory, { client: RoadmapClient; hash: string }>();
+export function collectRoadmapInventoryWithRecollection(
+  client: RoadmapClient,
+  collect: () => RoadmapInventory,
+  state: { inventoryRecollections: number },
+  hooks: {
+    before: (error: GitHubApiError) => void;
+    after: (status: "complete" | "failed", error: unknown) => void;
+  },
+): RoadmapInventory {
+  try {
+    return collect();
+  } catch (error) {
+    if (
+      !(error instanceof GitHubApiError) ||
+      error.code !== "inventory_changed" ||
+      state.inventoryRecollections !== 0
+    )
+      throw error;
+    state.inventoryRecollections++;
+    let status: "complete" | "failed" = "failed";
+    let failure: unknown;
+    try {
+      hooks.before(error);
+      client._completeProjectContext = undefined;
+      client._projectContext = undefined;
+      const result = collect();
+      status = "complete";
+      return result;
+    } catch (second) {
+      failure = second;
+      throw second;
+    } finally {
+      hooks.after(status, failure);
+    }
+  }
+}
+type InventoryRequirement = "full" | "identity" | { planningIssue: number };
+const validated = new WeakMap<
+  RoadmapInventory,
+  { client: RoadmapClient; hash: string; planningIssues?: ReadonlySet<number> }
+>();
 export function invalidateRoadmapInventory(value: RoadmapInventory) {
   validated.delete(value);
 }
@@ -28,6 +70,7 @@ export function requireRoadmapInventory(
   value: RoadmapInventory,
   repository: string,
   client?: unknown,
+  requirement: InventoryRequirement = "full",
 ) {
   const binding = validated.get(value);
   if (
@@ -38,6 +81,12 @@ export function requireRoadmapInventory(
     Date.now() - Date.parse(value.observed_at) > 120000
   )
     throw new Error("A complete collector-validated Roadmap inventory is required");
+  if (
+    binding.planningIssues &&
+    (requirement === "full" ||
+      (typeof requirement === "object" && !binding.planningIssues.has(requirement.planningIssue)))
+  )
+    throw new Error("Roadmap inventory lacks the required planning/dependency coverage");
   return value;
 }
 const object = (v: unknown): Record<string, unknown> => {
@@ -62,7 +111,9 @@ function connection(
 export function collectRoadmapInventory(
   client: RoadmapClient,
   cache?: InventoryCache,
+  options?: { scope: "intake"; planningIssues: readonly number[] },
 ): RoadmapInventory {
+  const intake = options?.scope === "intake";
   const repository = client.config.repository;
   const [owner, name] = repository.split("/");
   if (!owner || !name) throw new Error("Invalid repository binding");
@@ -241,13 +292,63 @@ export function collectRoadmapInventory(
     const before = projectMarker();
     const items = client.itemList(client.config.project.number, {
       includeBodies: false,
-      includeDependencies: true,
+      includeDependencies: !intake,
+      includeFields: !intake,
       details: context.details,
       includeArchived: true,
       pageSize: 100,
     });
     if (items.length !== object(before.items).totalCount)
       throw new Error("Project inventory count mismatch with independent revision observation");
+    if (intake) {
+      const confirmation = client.itemList(client.config.project.number, {
+        includeBodies: false,
+        includeDependencies: false,
+        includeFields: false,
+        details: context.details,
+        includeArchived: true,
+        pageSize: 100,
+      });
+      const membership = (rows: RoadmapIssueItem[]) =>
+        rows
+          .map((item) => {
+            const content = item.content;
+            if (
+              !content ||
+              typeof item.id !== "string" ||
+              !item.id ||
+              typeof content.id !== "string" ||
+              !content.id ||
+              !["Issue", "PullRequest", "DraftIssue"].includes(
+                String(content.type ?? content.__typename),
+              ) ||
+              typeof item.isArchived !== "boolean"
+            )
+              throw new Error("Incomplete Project membership identity/archive coverage");
+            return [
+              item.id,
+              item.isArchived,
+              content.id,
+              content.type ?? content.__typename,
+              content.number ?? null,
+              content.url ?? null,
+            ];
+          })
+          .sort((a, b) => (String(a[0]) < String(b[0]) ? -1 : String(a[0]) > String(b[0]) ? 1 : 0));
+      const final = projectMarker();
+      if (
+        confirmation.length !== object(final.items).totalCount ||
+        object(before.items).totalCount !== object(final.items).totalCount ||
+        observationHash(membership(items)) !== observationHash(membership(confirmation))
+      )
+        throw new GitHubApiError(
+          "inventory_changed",
+          "Project membership changed during intake collection",
+        );
+      // Field/view edits are outside this projection. Confirm every membership
+      // instead of treating the Project-wide timestamp as its revision.
+      items.splice(0, items.length, ...confirmation);
+    }
     const byId = new Map(rows.map((row) => [row.id, row]));
     for (const item of items) {
       if (typeof item.isArchived !== "boolean") throw new Error("Unknown Project archive scope");
@@ -279,12 +380,29 @@ export function collectRoadmapInventory(
     }
     // Keep foreign content within the same Project revision bracket too.
     const ids = new Set(rows.map((row) => row.id));
-    hydrate(
-      items.flatMap((item) => (ids.has(item.content!.id) ? [] : [item.content!])),
-      reconcileForeign,
-    );
-    if (observationHash(projectMarker()) !== observationHash(before))
-      throw new Error("Project changed during inventory collection");
+    if (!intake)
+      hydrate(
+        items.flatMap((item) => (ids.has(item.content!.id) ? [] : [item.content!])),
+        reconcileForeign,
+      );
+    const after = projectMarker();
+    if (intake && object(after.items).totalCount !== items.length)
+      throw new GitHubApiError(
+        "inventory_changed",
+        "Project membership count changed after confirmation",
+      );
+    if (!intake && observationHash(after) !== observationHash(before)) {
+      const revision = (value: Record<string, unknown>) => ({
+        id: value.id,
+        updatedAt: value.updatedAt,
+        totalCount: object(value.items).totalCount,
+      });
+      throw new GitHubApiError(
+        "inventory_changed",
+        `Project changed during inventory collection: ${JSON.stringify({ before: revision(before), after: revision(after) })}`,
+        { operation: "collect Roadmap Project revision" },
+      );
+    }
     return { items, projectId: context.details.id };
   };
   let project = collectProject(true);
@@ -326,14 +444,18 @@ export function collectRoadmapInventory(
     }
     hydrate(changed);
     if (observationHash(marker()) !== observationHash(stableMarker))
-      throw new Error(
+      throw new GitHubApiError(
+        "repository_changed",
         "Repository changed during the single inventory reconciliation; resume on a later run",
       );
     rows = refreshed;
     // Discard the entire first Project observation, including dependencies and fields.
     project = collectProject();
     if (observationHash(marker()) !== observationHash(stableMarker))
-      throw new Error("Repository changed during inventory collection");
+      throw new GitHubApiError(
+        "repository_changed",
+        "Repository changed during inventory collection",
+      );
   }
   const { items: allItems, projectId } = project;
   const byId = new Map(rows.map((i) => [i.id, i]));
@@ -361,7 +483,34 @@ export function collectRoadmapInventory(
     row.html_url = row.url;
     row.body_sha256 = observationHash(row.body);
   }
+  const planningIssues = intake ? new Set(options.planningIssues) : undefined;
+  for (const number of planningIssues ?? []) {
+    const issue = rows.find((row) => row.number === number);
+    if (!Number.isSafeInteger(number) || number < 1 || !issue)
+      throw new Error("Intake planning target identity is unavailable");
+    const matches = allItems.filter((item) => item.content?.id === issue.id);
+    if (matches.length > 1 || matches.some((item) => item.isArchived !== false))
+      throw new Error("Intake planning target has ambiguous or archived membership");
+    if (!matches.length) continue; // Complete membership proves attachment absent.
+    const item = matches[0]!;
+    if (typeof item.id !== "string")
+      throw new Error("Intake planning item identity is unavailable");
+    const fresh = client.directProjectItem(item.id);
+    if (
+      !fresh.content ||
+      !Array.isArray(fresh.fieldValues) ||
+      fresh.id !== item.id ||
+      fresh.content?.id !== issue.id ||
+      !sameRevision(issue, fresh.content) ||
+      fresh.content.body !== issue.body
+    )
+      throw new Error("Intake planning target changed during field hydration");
+    allItems[allItems.indexOf(item)] = { ...item, ...fresh, content: item.content! };
+  }
+  if (intake && observationHash(marker()) !== observationHash(stableMarker))
+    throw new Error("Repository changed during intake planning hydration");
   const result: RoadmapInventory = {
+    ...(intake ? { scope: "intake" as const } : {}),
     format: 1,
     repository,
     repository_node_id: before.id,
@@ -374,6 +523,10 @@ export function collectRoadmapInventory(
   };
   if (result.items.length + result.archivedItems.length !== allItems.length)
     throw new Error("Unknown Project archive scope");
-  validated.set(result, { client, hash: observationHash(result) });
+  validated.set(result, {
+    client,
+    hash: observationHash(result),
+    ...(planningIssues ? { planningIssues } : {}),
+  });
   return result;
 }

@@ -113,6 +113,9 @@ export function isolatedGenerator() {
     "maintainer-config.mts",
   ])
     copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
+  const inventory = join(scratch, "apps", "desktop", "src", "catalog-values.generated.ts");
+  mkdirSync(dirname(inventory), { recursive: true });
+  copyFileSync(join(root, "apps", "desktop", "src", "catalog-values.generated.ts"), inventory);
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });
   for (const name of [
@@ -177,7 +180,7 @@ export function proposalDecoderFixture(
   writeFileSync(
     helper,
     `
-    export { readArtworkJson, readArtworkInput } from './real-artwork.mts';
+    export { readArtworkJson, readArtworkInput, reconcileCatalogArtworkWithdrawals } from './real-artwork.mts';
     import { createCoreImageValidator as actualValidator } from './real-artwork.mts';
     import { appendFileSync, readFileSync } from 'node:fs';
     import { createHash } from 'node:crypto';
@@ -190,13 +193,16 @@ export function proposalDecoderFixture(
     export function createIgdbInspector(_credentials, validateImage) {
       return {validateImage,providerMetrics:{authentication_requests:0,game_requests:0,image_requests:0}};
     }
+    export async function prepareCatalogGameMedia() {
+      throw new Error('Game-media acquisition is not modeled by this decoder-only fixture.');
+    }
     export async function prepareCatalogArtwork(input, {validateImage}) {
       const records=[];
       for(let i=0;i<Number(process.env.FIXTURE_IMAGES);i++) {
         try { records.push(validateImage(Buffer.from('inert image '+i))); }
         catch { records.push({failure:true}); }
       }
-      return {catalog:input,records,metrics:{}};
+      return {catalog:input,records,metrics:{},gone_image_ids:[]};
     }
   `,
   );

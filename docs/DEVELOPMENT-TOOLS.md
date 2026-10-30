@@ -796,6 +796,17 @@ Cargo's executable artifacts; native Desktop parity retains its separate feature
 build. The required `rust` result waits for the build, all workers and transport
 validation. Qualification profiles and jobs retain their separate coverage.
 
+Intel qualification artifacts also retain `intel-host.txt` (logical/physical
+cores and CPU model) and `intel-resource-usage.txt`, produced in the C locale by
+macOS's bundled `/usr/bin/time -lp` around the unchanged hash qualification command.
+Their source, run, attempt and worker attribution comes from the existing result
+artifact and request receipt. Elapsed/user/system times, context switches and
+block I/O operation counts describe the complete command, including setup and
+reporting; block counts are not byte throughput or device utilization. Retain
+queue, cache, archive, discovery, testing and cleanup phases separately. These
+observations establish neither per-family independence nor a measured speedup,
+CPU/I/O cause, or native acceptance.
+
 Inventory/build, archive creation, transfer/setup, partition execution and
 transport build/run phases must be included when assessing total feedback time.
 Retain queue delay, cache state and summed runner time separately from elapsed
@@ -1089,7 +1100,16 @@ mirror list. A pass establishes completion, not a measured mirror performance
 improvement.
 The hosted native prerequisite selects `native-drivers` to avoid provisioning unrelated
 development tools. It preserves driver pin/hash receipts, Microsoft Authenticode-before-execution,
-actual runtime matching, cache promotion and the selected doctor's readback. Its
+actual runtime matching, cache promotion and the selected doctor's readback. EdgeDriver
+acquisition for x64 and arm64 uses the same bounded Microsoft downloader and ZIP
+inspector as the source builder: a 30-second, 32MiB HTTPS response with no redirect
+or content encoding, then complete fixed binary/license inventory, 96MiB expanded
+limit, CRC and path/link checks before create-only extraction. The ordinary
+bootstrap still verifies Microsoft Authenticode before executing the driver's
+version probe and owns cache promotion; archive integrity grants no execution or
+production authority. Tauri driver cache/receipt reuse and its existing optional
+cargo-binstall or Cargo install route retain their original outer supervision;
+these EdgeDriver bounds do not describe that separate acquisition. Its
 checkout state records the expected Aqua location without claiming that Aqua is installed.
 
 Native setup remains platform-scoped: the PowerShell route provisions existing
@@ -2198,6 +2218,32 @@ driver uses the following port; choose unused ports. The new output directory
 contains an isolated library, host and application-update state files, WebView2 profile on Windows,
 screenshots, bounded driver logs, accessibility results and `evidence.json`.
 Never reuse a failed run directory or point this harness at an existing library.
+
+Default-cover display/cache observations can use repeated `--cover-port-id ID`
+arguments for at most 16 unique accepted mapped ports. Omission retains the full
+mapped-catalog observation. Unknown or unmapped IDs refuse the selection;
+cache observations must include `dkr-r` for the existing missing-cache negative
+control. Selected ports receive detail observations as well as card observations.
+The report records the requested/observed IDs, selection scope and available
+mapped denominator. A focused result is not whole-catalog evidence. This option
+requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
+it does not change image acceptance, cache policy or the frozen cohort's fallback
+credit.
+Linux cache restarts reuse the existing driver birth-identity and descendant-exit
+observations. Cache fixture changes and replacement startup wait for the complete
+captured process set to exit, so a surviving server cannot supply a session with
+the previous environment. Unknown exit refuses the restart and preserves failure.
+Reconnect readiness polls root presence and loading state as booleans inside the
+webview, retaining the separate 30-second waits without transporting DOM handles.
+Matching-birth Linux zombies count as exited execution and are retained as exact
+`unreaped_terminal` observations with `all_reaped: false`. They cannot serve the
+old session. Reaping remains a separate outer-supervisor cleanup observation;
+these restart receipts do not claim complete process disappearance.
+Full-catalog cache observations require zero rejected image-host requests before
+the missing-cache control. Explicit selections instead record the aggregate
+host baseline alongside selected cache digests and rendered images. The control
+requires fresh rejected traffic and the withheld DKR image's honest fallback;
+host-level counts do not attribute a request to an individual image.
 
 The native harness opens application windows, takes focus and sends keyboard
 input in the current desktop session. Its isolated files do not isolate the

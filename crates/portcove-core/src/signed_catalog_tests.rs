@@ -621,24 +621,32 @@ async fn publication_is_offline_snapshot_bound_and_replay_protected() {
 
 #[tokio::test]
 async fn rollback_keeps_the_replay_floor() {
+    let started = std::time::Instant::now();
+    eprintln!("catalog rollback: fixture begin {:?}", started.elapsed());
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path().join("library")).unwrap();
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
-    eprintln!("catalog rollback: first publication");
+    eprintln!(
+        "catalog rollback: first publication {:?}",
+        started.elapsed()
+    );
     publish(&service, &write_candidate(root.path(), 1)).await;
     // Snapshot refresh belongs to publication_is_offline_snapshot_bound_and_replay_protected.
     // This case tests two publications and rollback on the same durable library.
-    eprintln!("catalog rollback: second publication");
+    eprintln!(
+        "catalog rollback: second publication {:?}",
+        started.elapsed()
+    );
     let second = write_candidate(root.path(), 2);
     let two = publish(&service, &second).await;
     assert!(two.can_rollback);
-    eprintln!("catalog rollback: roll back");
+    eprintln!("catalog rollback: roll back {:?}", started.elapsed());
     let rollback = library.rollback_catalog(&two.state_sha256).unwrap();
     assert_eq!(rollback.highest_sequence, 2);
     assert_eq!(rollback.provenance.sequence, Some(1));
     assert!(!rollback.can_rollback);
-    eprintln!("catalog rollback: reject replay");
+    eprintln!("catalog rollback: reject replay {:?}", started.elapsed());
     assert!(service.plan_catalog_update(&second).await.is_err());
     assert!(
         library
@@ -646,6 +654,10 @@ async fn rollback_keeps_the_replay_floor() {
             .unwrap()
             .iter()
             .all(|entry| entry.status == ActivityStatus::Succeeded)
+    );
+    eprintln!(
+        "catalog rollback: assertions complete {:?}",
+        started.elapsed()
     );
 }
 
@@ -721,15 +733,28 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
 
 #[tokio::test]
 async fn catalog_status_verifies_each_cached_candidate_once_per_snapshot() {
+    let observed_at = std::time::Instant::now();
+    let phase = |label: &str| {
+        eprintln!(
+            "cached candidate snapshot phase={label} elapsed={:?}",
+            observed_at.elapsed()
+        );
+    };
+    phase("fixture begin");
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path().join("library")).unwrap();
     trusted(&library);
     let service = PortcoveService::new(library.clone()).unwrap();
+    phase("fixture complete; first publication begin");
     publish(&service, &write_candidate(root.path(), 1)).await;
+    phase("first publication complete; second publication begin");
     publish(&service, &write_candidate(root.path(), 2)).await;
+    phase("second publication complete");
 
     signed_catalog::reset_verify_invocations();
+    phase("active snapshot begin");
     let current = library.catalog_status().unwrap();
+    phase("active snapshot complete");
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(current.provenance.origin, CatalogOrigin::SignedActive);
     assert_eq!(current.provenance.sequence, Some(2));
@@ -745,7 +770,9 @@ async fn catalog_status_verifies_each_cached_candidate_once_per_snapshot() {
         )
         .unwrap();
     signed_catalog::reset_verify_invocations();
+    phase("replay-floor snapshot begin");
     let replay_bounded = library.catalog_status().unwrap();
+    phase("replay-floor snapshot complete");
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(
         replay_bounded.provenance.origin,
@@ -756,6 +783,7 @@ async fn catalog_status_verifies_each_cached_candidate_once_per_snapshot() {
         replay_bounded.provenance.fallback_reasons,
         vec!["cached catalog exceeds the recorded replay floor"]
     );
+    phase("assertions complete");
 }
 
 #[test]

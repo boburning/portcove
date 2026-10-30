@@ -1,3 +1,4 @@
+import { listingUpdatesForReport } from "./listing-upstream-observation.mts";
 import {
   acceptedObservationPosition,
   acceptedObservationAdvanced,
@@ -131,7 +132,19 @@ export async function runCatalogUpstreams(
     path.join(root, "crates/portcove-core/catalog/catalog.json"),
     4 * 1024 * 1024,
   );
-  const catalog: unknown = JSON.parse(catalogInput.bytes.toString("utf8"));
+  const operational: unknown = JSON.parse(catalogInput.bytes.toString("utf8"));
+  const listingInput = await readBoundedEvidenceFile(
+    path.join(root, "crates/portcove-core/catalog/listings.json"),
+    8 * 1024 * 1024,
+  );
+  const listingDirectory: unknown = JSON.parse(listingInput.bytes.toString("utf8"));
+  if (
+    !isRecord(operational) ||
+    !isRecord(listingDirectory) ||
+    !Array.isArray(listingDirectory.listings)
+  )
+    throw new Error("A reviewed catalog and descriptive listing directory are required");
+  const catalog = { ...operational, listings: listingDirectory.listings };
   const directory = (config: ObserverConfig) =>
     path.join(root, "work/upstream-observer", observationHash(config));
   const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
@@ -367,12 +380,27 @@ export async function runCatalogUpstreams(
           },
           source_port_ids: source.ports.map((port) => port.id),
           catalog_policies: policies,
+          descriptive_listing_candidates: listingUpdatesForReport(
+            policies,
+            observation.report,
+            new Date(now()).toISOString(),
+            source,
+          ),
+          descriptive_listing_preimages: Object.fromEntries(
+            source.ports.flatMap((consumer) =>
+              consumer.listing
+                ? [[consumer.id, observationHash(consumer.listing.upstream_observation ?? null)]]
+                : [],
+            ),
+          ),
+          descriptive_candidate_scope:
+            "Unaccepted descriptive corrections only; existing protected acceptance and signed listing delivery are required. No managed eligibility is granted.",
           unassessed_current_port_ids: observation.report.exception
             ? source.ports.map((port) => port.id)
             : [],
           catalog_policies_scope: observation.report.exception
             ? "last-complete-historical-fallback; current state unknown"
-            : "complete-current-Core-projections",
+            : "complete-current-consumer-projections; managed eligibility remains Core-only",
         };
         if (legacy)
           await atomicJson(path.join(directory(sourceConfig), "report.json"), {
@@ -473,8 +501,14 @@ export async function runCatalogOpportunity(
         path.join(root, "crates/portcove-core/catalog/catalog.json"),
         4 * 1024 * 1024,
       ),
+      readBoundedEvidenceFile(
+        path.join(root, "crates/portcove-core/catalog/listings.json"),
+        8 * 1024 * 1024,
+      ),
     ]);
-    return createHash("sha256").update(values[0].bytes).update(values[1].bytes).digest("hex");
+    const hash = createHash("sha256");
+    for (const value of values) hash.update(value.bytes);
+    return hash.digest("hex");
   };
   const identity = await inputs(),
     entry = await lstat(cli, { bigint: true });

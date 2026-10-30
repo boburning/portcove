@@ -1,3 +1,16 @@
+import {
+  rustAction,
+  compactActionExpression,
+  rustTemporaryStorage,
+  powerShellAvailable,
+  observeToolchainReaders,
+  actionEnvironment,
+  observeRustIdentity,
+} from "./fixtures/rust-action-fixture.mts";
+import {
+  prerequisiteInvocation,
+  prerequisiteOperations,
+} from "./fixtures/linux-prerequisites-fixture.mts";
 import { workflowJobs } from "./qualification-coverage.mts";
 import { readWorkflow } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
@@ -34,10 +47,7 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   const packageOwnershipRehearsal = await readWorkflow(
     new URL("../.github/workflows/linux-package-ownership-rehearsal.yml", import.meta.url),
   );
-  const installer = await readFile(
-    new URL("./install-linux-desktop-prerequisites.sh", import.meta.url),
-    "utf8",
-  );
+
   const installerSteps = (source: string) =>
     Object.values(workflowJobs(source))
       .flatMap((job): unknown[] => (Array.isArray(job.steps) ? job.steps : []))
@@ -45,55 +55,59 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
         (step: unknown): step is Record<string, unknown> & { run: string } =>
           isRecord(step) &&
           typeof step.run === "string" &&
-          step.run.startsWith("./scripts/install-linux-desktop-prerequisites.sh"),
+          /(?:^|[\s"'])\.\/scripts\/install-linux-desktop-prerequisites\.sh(?:[\s"']|$)/u.test(
+            step.run,
+          ),
       );
-  const defaultInstall = "./scripts/install-linux-desktop-prerequisites.sh";
+  const invocation = (step: { run: string }, expected: string[]) =>
+    assert.deepEqual(prerequisiteInvocation(step.run).toSorted(), expected.toSorted());
   assert.equal(installerSteps(workflow).length, 3);
   assert.equal(
     installerSteps(workflow).filter(
-      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
     ).length,
     0,
   );
-  const schemaInstall: Record<string, unknown> & { run: string } = workflowStep(
-    "rust_quality_full",
-    "Install Linux desktop schema-export prerequisites",
-  );
+  const installedBy = (jobId: string) => {
+    const job = workflowJobs(workflow)[jobId];
+    assert.ok(job && Array.isArray(job.steps));
+    const selected = job.steps.filter(
+      (step): step is Record<string, unknown> & { run: string } =>
+        isRecord(step) &&
+        typeof step.run === "string" &&
+        step.run.includes("./scripts/install-linux-desktop-prerequisites.sh"),
+    );
+    assert.equal(selected.length, 1);
+    return requiredFixture(selected[0]);
+  };
+  const schemaInstall = installedBy("rust_quality_full");
   assert.equal(schemaInstall["timeout-minutes"], 30);
-  assert.equal(
-    schemaInstall.run,
-    "./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600",
-  );
-  const nativeInstall: Record<string, unknown> & { run: string } = workflowStep(
-    "native_rust",
-    "Install Linux desktop prerequisites",
-  );
+  invocation(schemaInstall, ["--prefer-archive-mirror", "--install-timeout-seconds=600"]);
+  const nativeInstall = installedBy("native_rust");
   assert.equal(nativeInstall["timeout-minutes"], 30);
-  assert.equal(nativeInstall.run, schemaInstall.run);
-  const docsInstall: Record<string, unknown> & { run: string } = workflowStep(
-    "rust_docs",
-    "Install Linux desktop prerequisites",
-  );
+  invocation(nativeInstall, ["--prefer-archive-mirror", "--install-timeout-seconds=600"]);
+  const docsInstall = installedBy("rust_docs");
   assert.equal(docsInstall["timeout-minutes"], 30);
-  assert.equal(docsInstall.run, schemaInstall.run);
+  invocation(docsInstall, ["--prefer-archive-mirror", "--install-timeout-seconds=600"]);
   assert.equal(
     installerSteps(deepQuality).filter(
-      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
     ).length,
-    1,
+    2,
   );
   assert.equal(
     installerSteps(release).filter(
-      (step) => step.run === defaultInstall && step["timeout-minutes"] === 15,
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
     ).length,
     2,
   );
   assert.equal(
     installerSteps(updaterRehearsal).filter(
       (step) =>
-        step.run ===
-          defaultInstall + " --include-rpm --include-appimage-runtime --include-webdriver" &&
-        step["timeout-minutes"] === 15,
+        JSON.stringify(prerequisiteInvocation(step.run).toSorted()) ===
+          JSON.stringify(
+            ["--include-rpm", "--include-appimage-runtime", "--include-webdriver"].toSorted(),
+          ) && step["timeout-minutes"] === 15,
     ).length,
     1,
   );
@@ -108,19 +122,76 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   assert.ok(isRecord(runner));
   assert.equal(runner.type, "choice");
   assert.equal(runner.default, "ubuntu-24.04");
+  assert.ok(Array.isArray(runner.options));
   assert.deepEqual(runner.options, ["ubuntu-22.04", "ubuntu-24.04"]);
   assert.ok(typeof runner.description === "string" && runner.description.length);
-  assert.match(
-    updaterRehearsal,
-    /runs-on: \$\{\{ matrix\.label == 'linux-x86_64' && inputs\.linux_runner \|\| fromJSON\('[^']+'\)\[matrix\.label\] \}\}/,
+  // The retained guest builds only the preparation helper. Keep exactly one
+  // package matrix owner while validating both literal installer consumers.
+  assert.equal(installerSteps(updaterRehearsal).length, 2);
+  assert.equal(
+    installerSteps(updaterRehearsal).filter(
+      (step) => prerequisiteInvocation(step.run).length === 0 && step["timeout-minutes"] === 15,
+    ).length,
+    1,
   );
+  const packageJobs = Object.values(workflowJobs(updaterRehearsal)).filter(
+    (job) =>
+      isRecord(job.strategy) &&
+      isRecord(job.strategy.matrix) &&
+      Array.isArray(job.steps) &&
+      job.steps.some(
+        (step: unknown) =>
+          isRecord(step) &&
+          typeof step.run === "string" &&
+          step.run.includes("./scripts/install-linux-desktop-prerequisites.sh"),
+      ),
+  );
+  assert.equal(packageJobs.length, 1);
+  const packageJob = requiredFixture(packageJobs[0]);
+  assert.equal(typeof packageJob["runs-on"], "string");
+  // Collapse only expression whitespace; preserve the JSON string verbatim.
+  const expression = compactActionExpression(packageJob["runs-on"]);
+  const selection = expression.match(
+    /^\$\{\{matrix\.([\w-]+)=='linux-x86_64'&&inputs\.linux_runner\|\|fromJSON\('([^']+)'\)\[matrix\.\1\]\}\}$/u,
+  );
+  assert.ok(selection, "UPDATER_RUNNER_SELECTION");
+  assert.ok(isRecord(packageJob.strategy) && isRecord(packageJob.strategy.matrix));
+  assert.equal(typeof packageJob.strategy.matrix[requiredFixture(selection[1])], "string");
+  const fallback: unknown = JSON.parse(requiredFixture(selection[2]));
+  assert.ok(isRecord(fallback));
+  const platforms = settings.on.workflow_dispatch.inputs.platform;
+  assert.ok(isRecord(platforms) && Array.isArray(platforms.options));
+  const labels: unknown[] = platforms.options;
+  assert.ok(labels.every((label): label is string => typeof label === "string"));
+  assert.deepEqual(
+    Object.keys(fallback).toSorted(),
+    labels.filter((label) => label !== "all" && label !== "linux-x86_64").toSorted(),
+  );
+  for (const label of labels) {
+    if (label === "all") continue;
+    if (label === "linux-x86_64") {
+      for (const selected of runner.options)
+        assert.match(String(selected), /^ubuntu-(?:22|24)\.04$/u);
+    } else {
+      assert.equal(typeof fallback[label], "string");
+      assert.ok(
+        String(fallback[label]).startsWith(label.startsWith("windows-") ? "windows-" : "macos-"),
+      );
+    }
+  }
   assert.match(updaterRehearsal, /work\/updater-rehearsal\/linux-host-baseline\.txt/g);
   assert.equal(
     installerSteps(packageOwnershipRehearsal).filter(
       (step) =>
-        step.run ===
-          defaultInstall + " --include-rpm --install-timeout-seconds=600 --prefer-archive-mirror" &&
-        step["timeout-minutes"] === 30,
+        JSON.stringify(prerequisiteInvocation(step.run).toSorted()) ===
+          JSON.stringify(
+            [
+              "--include-rpm",
+              "--include-dialog-tests",
+              "--install-timeout-seconds=600",
+              "--prefer-archive-mirror",
+            ].toSorted(),
+          ) && step["timeout-minutes"] === 30,
     ).length,
     1,
   );
@@ -133,65 +204,107 @@ void test("Linux desktop prerequisite installation is shared, bounded, and retry
   ]) {
     assert.doesNotMatch(hostedWorkflow, /sudo apt-get/);
   }
-  for (const packageName of [
+  // Production operations are exercised with inert command boundaries in
+  // container-build.test.mts; no source spelling establishes their behavior.
+  const planned = prerequisiteOperations(`
+plan_desktop_prerequisites ubuntu 24.04 --include-appimage-runtime --include-rpm
+printf '%s\\0' "\${packages[@]}"
+`);
+  assert.equal(planned.status, 0, planned.stderr);
+  assert.deepEqual(planned.stdout.slice(0, -1).split("\0"), [
     "libwebkit2gtk-4.1-dev",
     "libappindicator3-dev",
     "librsvg2-dev",
     "patchelf",
-    "libfuse2",
+    "libfuse2t64",
     "xvfb",
     "dbus-x11",
     "at-spi2-core",
     "util-linux",
-  ]) {
-    assert.ok(installer.includes(packageName), `${packageName} is missing`);
-  }
-  assert.match(installer, /Acquire::http::Timeout=30/);
-  assert.match(installer, /Acquire::https::Timeout=30/);
-  assert.match(installer, /Acquire::Retries=3/);
-  assert.match(installer, /DPkg::Lock::Timeout=60/);
-  assert.match(installer, /archive\.ubuntu\.com\/ubuntu/);
-  assert.match(installer, /Dir::Etc::sourceparts=-/);
-  assert.match(installer, /DEBIAN_FRONTEND=noninteractive/);
-  assert.match(installer, /timeout --kill-after=10s/);
-  assert.match(installer, /sudo -n true/);
-  assert.match(installer, /privilege=\(sudo -n\)/);
-  assert.match(installer, /"\$\{privilege\[@\]\}" timeout --kill-after=10s "\$deadline" env/);
-  assert.doesNotMatch(installer, /timeout[^\n]*"\$\{privilege\[@\]\}"/);
-  assert.match(installer, /install_deadline=3m/);
-  assert.match(installer, /fallback_install_deadline=5m/);
-  assert.match(
-    installer,
-    /install_from_current_mirror "the runner-configured mirror" 2m "\$install_deadline"/,
-  );
-  assert.match(
-    installer,
-    /install_from_current_mirror "the archive mirror fallback" 4m "\$fallback_install_deadline"/,
-  );
-  assert.ok(
-    installer.indexOf('if install_from_current_mirror "the runner-configured mirror"') <
-      installer.indexOf('echo "Retrying Linux desktop prerequisites'),
-  );
-  assert.match(installer, /--include-rpm\) packages\+=\(rpm\)/);
-  assert.match(installer, /VERSION_ID:-} == 24\.04[\s\S]*fuse_package=libfuse2t64/);
-  assert.match(installer, /--include-appimage-runtime\) packages\+=\("\$fuse_package"/);
-  assert.match(installer, /usage: \$0 \[--include-rpm\]/);
+    "rpm",
+  ]);
 });
 
 void test("repository Rust setup provisions components before ordinary identity probes", async () => {
   const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
   );
-  assert.match(setup, /components: \$\{\{ steps\.repository-toolchain\.outputs\.components \}\}/);
-  assert.match(
-    setup,
-    /PORTCOVE_COMPONENTS: \$\{\{ steps\.repository-toolchain\.outputs\.components \}\}/,
-  );
-  const installed = setup.indexOf(
-    "& rustup component list --toolchain $env:PORTCOVE_TOOLCHAIN --installed",
-  );
-  assert.ok(installed >= 0 && installed < setup.indexOf("& rustc --version --verbose"));
+  rustAction(setup);
   assert.doesNotMatch(setup, /RUSTUP_TOOLCHAIN|& (?:rustc|cargo) \+/);
+});
+
+void test("Rust action records consumed toolchain context and stops at each failed probe", async (t) => {
+  const setup = await readWorkflow(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+  );
+  const action = rustAction(setup);
+  if (!powerShellAvailable()) {
+    t.skip("PowerShell unavailable; required Windows job executes this contract");
+    return;
+  }
+  const config = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
+  const observed = requiredFixture(observeToolchainReaders(action, [config])[0]);
+  assert.equal(observed.accepted, true);
+  const pin = observed.outputs[action.toolchain.field],
+    components = observed.outputs[action.components.field];
+  assert.ok(pin && components);
+  for (const target of ["", "wasm32-unknown-unknown"]) {
+    const bound = actionEnvironment(action, observed.outputs, {
+      "inputs.targets": target,
+      "runner.os": "fixtureOS",
+      "runner.arch": "fixtureArch",
+      "github.job": "fixture-job",
+      "github.run_attempt": "7",
+      "github.sha": "b".repeat(40),
+    });
+    const result = observeRustIdentity(action, bound);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(
+      result.calls.map((call) => call.command),
+      ["rustup", "rustc", "cargo"],
+      "RUST_PROBE_ORDER",
+    );
+    assert.deepEqual(result.calls[0]?.arguments.slice(0, 2), ["component", "list"]);
+    const options = requiredFixture(result.calls[0]).arguments.slice(2);
+    const toolchainOption = options.indexOf("--toolchain");
+    assert.ok(toolchainOption >= 0);
+    assert.equal(options[toolchainOption + 1], pin);
+    assert.equal(options.filter((value) => value === "--installed").length, 1);
+    assert.equal(options.length, 3);
+    assert.deepEqual(result.calls[1]?.arguments.toSorted(), ["--verbose", "--version"]);
+    assert.deepEqual(result.calls[2]?.arguments, ["--version"]);
+    for (const value of [
+      pin,
+      components,
+      "fixture-clippy,fixture-rustfmt,fixture-rust-analyzer",
+      "fixture rustc\\|version<br>fixture verbose identity",
+      "fixture Cargo version",
+      "fixtureOS-fixtureArch",
+      "fixture-job",
+      "7",
+      "b".repeat(40),
+      target || "host only",
+    ])
+      assert.ok(result.summary.includes(value), `RUST_CONTEXT_VALUE: ${value}`);
+  }
+  const bound = actionEnvironment(action, observed.outputs, {
+    "inputs.targets": "",
+    "runner.os": "fixtureOS",
+    "runner.arch": "fixtureArch",
+    "github.job": "fixture-job",
+    "github.run_attempt": "7",
+    "github.sha": "b".repeat(40),
+  });
+  for (const [index, failure] of (["rustup", "rustc", "cargo"] as const).entries()) {
+    const result = observeRustIdentity(action, bound, failure);
+    assert.equal(result.status, 37 + index, `RUST_PROBE_FAILURE: ${failure}: ${result.stderr}`);
+    assert.deepEqual(
+      result.calls.map((call) => call.command),
+      ["rustup", "rustc", "cargo"].slice(0, index + 1),
+      "RUST_PROBE_FAILURE_DRAIN",
+    );
+    assert.equal(result.summary, "", "RUST_PROBE_PARTIAL_SUMMARY");
+  }
 });
 
 void test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async () => {
@@ -199,7 +312,7 @@ void test("Rust setup installs the repository pin instead of an unrelated stable
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
   );
   assert.match(setup, /Get-Content rust-toolchain\.toml -Raw/);
-  assert.match(setup, /toolchain: \$\{\{ steps\.repository-toolchain\.outputs\.channel \}\}/);
+  rustAction(setup);
   assert.match(setup, /targets: \$\{\{ inputs\.targets \}\}/);
   assert.doesNotMatch(workflow, /uses: dtolnay\/rust-toolchain/);
   for (const section of [
@@ -215,19 +328,47 @@ void test("Rust setup installs the repository pin instead of an unrelated stable
     assert.match(section, /uses: \.\/\.github\/actions\/setup-rust/);
   }
   assert.match(setup, /node scripts\/run-rust-tests\.mts --prepare-only/);
-  assert.match(setup, /Record exact Rust toolchain and job context/);
   assert.match(setup, /rustc --version --verbose/);
   assert.match(setup, /cargo --version/);
   assert.match(setup, /github\.run_attempt/);
   assert.match(setup, /github\.sha/);
-  assert.match(setup, /IsNullOrWhiteSpace\(\$env:PORTCOVE_TARGETS\)/);
-  assert.match(setup, /host only/);
-  assert.match(setup, /Cache state is not inferred from the attempt number/);
   for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelTests, rustQuality]) {
     assert.match(section, /test-fixtures: true/);
   }
   const recipes = await readFile(new URL("../justfile", import.meta.url), "utf8");
   assert.match(recipes, /node scripts\/run-rust-tests\.mts --locked --workspace/);
+});
+
+void test("Rust pin reader consumes the repository TOML and refuses malformed inputs without partial outputs", async (t) => {
+  const setup = await readWorkflow(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+  );
+  const action = rustAction(setup);
+  if (!powerShellAvailable()) {
+    t.skip("PowerShell unavailable; required Windows job executes this contract");
+    return;
+  }
+  const config = await readFile(new URL("../rust-toolchain.toml", import.meta.url), "utf8");
+  const channel = requiredFixture(config.match(/^channel\s*=\s*"([^"]+)"/mu)?.[1]);
+  const components: unknown = JSON.parse(
+    requiredFixture(config.match(/^components\s*=\s*(\[[^\n]+\])/mu)?.[1]),
+  );
+  assert.ok(Array.isArray(components));
+  const invalid = [
+    config.replace(/^channel[^\n]*\n/mu, ""),
+    config.replace(/^components[^\n]*\n/mu, ""),
+    config.replace(/^components[^\n]*/mu, "components = []"),
+    config.replace(/^components[^\n]*/mu, "components = [7]"),
+    config.replace(/^components[^\n]*/mu, 'components = ["invalid component"]'),
+  ];
+  const [accepted, ...rejected] = observeToolchainReaders(action, [config, ...invalid]);
+  assert.ok(accepted?.accepted);
+  assert.equal(accepted.outputs[action.toolchain.field], channel);
+  assert.equal(accepted.outputs[action.components.field], components.join(","));
+  for (const observation of rejected) {
+    assert.equal(observation.accepted, false, "RUST_PIN_REJECTS_INVALID_INPUT");
+    assert.equal(observation.outputText, "", "RUST_PIN_PARTIAL_OUTPUT");
+  }
 });
 
 void test("release, rehearsal and deep audit Rust callers preserve repository pin, components, targets and caches", async (t) => {
@@ -243,7 +384,7 @@ void test("release, rehearsal and deep audit Rust callers preserve repository pi
   assert.ok(componentValues.every((value): value is string => typeof value === "string"));
   assert.deepEqual(componentValues.toSorted(), ["clippy", "rust-analyzer", "rustfmt"]);
   assert.match(setup, /Get-Content rust-toolchain\.toml -Raw/);
-  assert.match(setup, /toolchain: \$\{\{ steps\.repository-toolchain\.outputs\.channel \}\}/);
+  rustAction(setup);
   assert.match(setup, /targets: \$\{\{ inputs\.targets \}\}/);
   // Ordinary shims honor the TOML's component requirements before reporting identity.
   assert.match(setup, /& rustc --version --verbose/);
@@ -461,27 +602,54 @@ function node {
   }
 });
 
+function windowsTemporaryStorageStep(setup: string) {
+  const action = rustAction(setup);
+  const step = rustTemporaryStorage(action);
+  return { action, step };
+}
 function windowsTemporaryStorageScript(setup: string) {
-  const action: unknown = parseDocument(setup).toJS();
-  assert.ok(isRecord(action) && isRecord(action.runs) && Array.isArray(action.runs.steps));
-  const steps: unknown[] = action.runs.steps;
-  const step = steps.find(
-    (value: unknown) => isRecord(value) && value.name === "Select Windows test temporary storage",
-  );
-  assert.ok(isRecord(step) && typeof step.run === "string");
-  return step.run;
+  return String(windowsTemporaryStorageStep(setup).step.run);
 }
 
 void test("Windows fixture setup selects runner-owned temporary storage before compilation", async () => {
   const setup = await readWorkflow(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
   );
-  const selection = setup.indexOf("name: Select Windows test temporary storage");
-  assert.ok(selection >= 0 && selection < setup.indexOf("name: Read repository toolchain"));
-  assert.match(setup, /if: runner\.os == 'Windows' && inputs\.test-fixtures == 'true'/);
-  const script = windowsTemporaryStorageScript(setup);
-  assert.match(script, /RUNNER_TEMP/);
-  assert.match(script, /GITHUB_ENV/);
+  const { action, step } = windowsTemporaryStorageStep(setup);
+  const withCondition = (condition: string) => ({
+    ...action,
+    steps: action.steps.map((candidate) =>
+      candidate === step ? { ...step, if: condition } : candidate,
+    ),
+  });
+  for (const condition of [
+    "runner.os  ==  'Windows' && inputs.test-fixtures == 'true'",
+    "${{ runner.os == 'Windows' && inputs.test-fixtures == 'true' }}",
+  ])
+    rustTemporaryStorage(withCondition(condition));
+  for (const condition of [
+    "runner.os == 'Win dows' && inputs.test-fixtures == 'true'",
+    "runner.os == 'Windows' && inputs.test-fixtures == 'tr ue'",
+    "runner.os == 'Linux' && inputs.test-fixtures == 'true'",
+  ])
+    assert.throws(
+      () => rustTemporaryStorage(withCondition(condition)),
+      (error: unknown) =>
+        error instanceof assert.AssertionError &&
+        error.message.includes("WINDOWS_TEMP_FIXTURE_CONDITION"),
+    );
+  const selected = action.steps.indexOf(step);
+  const compilers = action.steps.filter(
+    (candidate) =>
+      candidate === action.installer ||
+      (typeof candidate.run === "string" &&
+        candidate.run.includes("node scripts/run-rust-tests.mts --prepare-only")),
+  );
+  assert.equal(compilers.length, 2);
+  assert.ok(
+    compilers.every((candidate) => selected < action.steps.indexOf(candidate)),
+    "WINDOWS_TEMP_BEFORE_COMPILATION",
+  );
   assert.match(windowsStorage, /scripts\/ci-workflow\.test\.mts/);
 });
 

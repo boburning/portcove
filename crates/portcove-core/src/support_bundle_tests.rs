@@ -48,6 +48,7 @@ fn doctor_fixture() -> DoctorReport {
 
 fn activity_fixture() -> ActivityRecord {
     ActivityRecord {
+        liveness: None,
         id: "activity-1".into(),
         operation: ActivityOperation::Prepare,
         target_kind: ActivityTargetKind::Source,

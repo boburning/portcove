@@ -20,8 +20,8 @@
   .identity-chip[style] {
     --identity-ink: color-mix(in srgb, var(--identity-base) 45%, white);
 
-    border-color: color-mix(in srgb, var(--identity-base) 40%, var(--color-border));
-    background: color-mix(in srgb, var(--identity-base) 12%, var(--color-bg-elevated));
+    border-color: color-mix(in srgb, var(--identity-base) 25%, var(--color-border));
+    background: color-mix(in srgb, var(--identity-base) 9%, var(--color-bg-elevated));
   }
 
   :root[data-theme="light"] .identity-chip[style] {
@@ -52,9 +52,20 @@
   }
   .catalog-filter-groups {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-    gap: var(--space-5);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
     margin-block: var(--space-4);
+  }
+
+  @container library-query (max-width: 48em) {
+    .catalog-filter-groups {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @container library-query (max-width: 32em) {
+    .catalog-filter-groups {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   @media (forced-colors: active) {

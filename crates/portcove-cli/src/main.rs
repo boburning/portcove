@@ -3614,21 +3614,29 @@ mod tests {
         let mut output = String::new();
         for event in [
             OperationEventKind::Progress {
+                phase_id: None,
+                unit: Some(portcove_core::ProgressUnit::Bytes),
                 phase: "download".into(),
                 completed: 0,
                 total: Some(100),
             },
             OperationEventKind::Progress {
+                phase_id: None,
+                unit: Some(portcove_core::ProgressUnit::Bytes),
                 phase: "download".into(),
                 completed: 10,
                 total: Some(100),
             },
             OperationEventKind::Progress {
+                phase_id: None,
+                unit: Some(portcove_core::ProgressUnit::Bytes),
                 phase: "download".into(),
                 completed: 100,
                 total: Some(100),
             },
             OperationEventKind::Progress {
+                phase_id: None,
+                unit: None,
                 phase: "verify".into(),
                 completed: 5,
                 total: Some(10),
@@ -3650,6 +3658,8 @@ mod tests {
     fn interactive_human_progress_keeps_inline_updates_but_ends_the_line() {
         let mut renderer = HumanProgress::new(true);
         let first = renderer.render(&progress_event(OperationEventKind::Progress {
+            phase_id: None,
+            unit: Some(portcove_core::ProgressUnit::Bytes),
             phase: "download".into(),
             completed: 10,
             total: Some(100),

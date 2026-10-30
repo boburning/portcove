@@ -80,11 +80,15 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed.adapter == crate::AdapterKind::NativePortable
+    let version = if crate::preparation::source::native(&typed) {
+        6
+    } else if typed.windows_temp_directory.is_some() {
+        5
+    } else if typed.adapter == crate::AdapterKind::NativePortable
         && typed.release.provider == crate::ReleaseSource::DirectManifest
     {
         if typed.windows_runtime_path_policy.is_some() {
-            4
+            crate::runtime_path_policy::minimum_capability(&typed)
         } else {
             3
         }
@@ -99,6 +103,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
+    } else if crate::persistence::requires_fresh_direct_data_guard(&typed) {
+        25
     } else if typed.mod_package_policy.is_some() {
         24
     } else if crate::persistence::ready_staged_archive(&typed) {
@@ -418,9 +424,12 @@ fn interpreted_semantics_survive_existing_manifest_capture() {
 
 #[test]
 fn legacy_schema_one_keeps_its_original_source_profiles() {
-    let mut catalog = Catalog::embedded().unwrap().document().clone();
-    catalog.schema_version = 1;
-    catalog.source_catalog = None;
+    // Exercise the actual legacy authority; modern Native6 source contracts
+    // cannot be represented by deleting schema-2 authority from today's catalog.
+    let catalog = Catalog::from_json(include_str!("../catalog/catalog-schema1-fixture.json"))
+        .unwrap()
+        .document()
+        .clone();
     let document =
         json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog});
     let contract = serde_json::to_vec(&document).unwrap();

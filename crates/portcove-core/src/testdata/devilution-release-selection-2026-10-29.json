@@ -1,0 +1,203 @@
+{
+  "format_version": 1,
+  "kind": "primary release-metadata observation; controlled N+1 tests are synthetic",
+  "repository": "diasurgical/DevilutionX",
+  "observed_at": "2026-10-29",
+  "release": {
+    "tag_name": "1.5.5",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2025-10-30T17:00:17Z",
+    "assets": [
+      {
+        "id": 310600140,
+        "name": "devilutionx-3ds.3dsx",
+        "size": 13942660,
+        "digest": "sha256:13550e71c8c3d0cc11d37bfcaead96b9b5477f3455d3b16f3cd2a761da49055c",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-3ds.3dsx"
+      },
+      {
+        "id": 310600144,
+        "name": "devilutionx-3ds.cia",
+        "size": 13210560,
+        "digest": "sha256:884dfcc81e7119ea879492136a7fbb9e38aa71da954ca8a7fac866dccb4d62b2",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-3ds.cia"
+      },
+      {
+        "id": 310600010,
+        "name": "devilutionx-amiga-m68k",
+        "size": 3183704,
+        "digest": "sha256:04fc0621054015fd34c9aa22c26e5b29a6be5dc5c78dcc38d695cc72d58600d9",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-amiga-m68k"
+      },
+      {
+        "id": 310804777,
+        "name": "devilutionx-android.apk",
+        "size": 18840504,
+        "digest": "sha256:c5a53ff35223e367eba75ef8ed2caa31ea8e78792d8aff00f2cee51a0566b28f",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-android.apk"
+      },
+      {
+        "id": 310601867,
+        "name": "devilutionx-iOS.ipa",
+        "size": 8603944,
+        "digest": "sha256:161a37578efeab924775a32e143c3e554e74f85d05024eaf308262d8e75c6d70",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-iOS.ipa"
+      },
+      {
+        "id": 310600313,
+        "name": "devilutionx-lepus.opk",
+        "size": 6844416,
+        "digest": "sha256:bf8a9f8ed11b9674d64455550dbc7c7ecb8aefb3dadb96692e02b796e77a222b",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-lepus.opk"
+      },
+      {
+        "id": 316238322,
+        "name": "devilutionx-linux-aarch64.tar.xz",
+        "size": 21826732,
+        "digest": "sha256:71f34342cd750dc6dec1effefa250e90a5fe0f127e79d4c9c66f4d07706c3442",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-linux-aarch64.tar.xz"
+      },
+      {
+        "id": 310600343,
+        "name": "devilutionx-linux-i386.tar.xz",
+        "size": 22506424,
+        "digest": "sha256:a6a8aec11d09b85bbb6a98f59941da663e97da8065b55a82da9402e9d9cc9cea",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-linux-i386.tar.xz"
+      },
+      {
+        "id": 310600314,
+        "name": "devilutionx-linux-x86_64.appimage",
+        "size": 14158328,
+        "digest": "sha256:38a88b3e1f127ec8436949a1766937838ba6596a15686773c69c7e0482816c61",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-linux-x86_64.appimage"
+      },
+      {
+        "id": 310600306,
+        "name": "devilutionx-linux-x86_64.tar.xz",
+        "size": 28549676,
+        "digest": "sha256:3c0a79afad682054c4d11a91728887617b9f5dfbd8b6810dbb9226c380474432",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-linux-x86_64.tar.xz"
+      },
+      {
+        "id": 314864962,
+        "name": "devilutionx-macOS-10.4-tiger-ppc.dmg",
+        "size": 6745467,
+        "digest": "sha256:a047a5f78b21bb5716f958cdf97376faea26079d0dde6c1d4218a46ef0d3a722",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-macOS-10.4-tiger-ppc.dmg"
+      },
+      {
+        "id": 316595839,
+        "name": "devilutionx-macOS-intel-x86.dmg",
+        "size": 6682539,
+        "digest": "sha256:6a84fb71e5216d74f6d31bac536c63934580bd24f1010405f56d11a602fbd301",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-macOS-intel-x86.dmg"
+      },
+      {
+        "id": 311100910,
+        "name": "devilutionx-macOS-universal.dmg",
+        "size": 26642310,
+        "digest": "sha256:10ecd55caf4239d087bc91bce7538943705399b0b2abcff71c347ddbf01d30c6",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-macOS-universal.dmg"
+      },
+      {
+        "id": 310600066,
+        "name": "devilutionx-miyoo-mini-miniui.zip",
+        "size": 5980172,
+        "digest": "sha256:a278fa67892e1d1835236ae4f4375800786bb876f483634ea946701e8694de2d",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-miyoo-mini-miniui.zip"
+      },
+      {
+        "id": 310600064,
+        "name": "devilutionx-miyoo-mini-onion-os.zip",
+        "size": 6587896,
+        "digest": "sha256:ba701cf1142c80b3f39db97da35de4b698d8f3f5b064c780d97e132a6ec7d375",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-miyoo-mini-onion-os.zip"
+      },
+      {
+        "id": 310600895,
+        "name": "devilutionx-ps4.pkg",
+        "size": 14614528,
+        "digest": "sha256:33e5d47f45c594ff071a52987d6be937d0123509a4d67022e20b3d5cb75713be",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-ps4.pkg"
+      },
+      {
+        "id": 310600099,
+        "name": "devilutionx-retrofw.opk",
+        "size": 6086656,
+        "digest": "sha256:6fd7df995d133646333a899cdc43850d4b6e266b38b61a9bf46393680f7f9ada",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-retrofw.opk"
+      },
+      {
+        "id": 310600252,
+        "name": "devilutionx-rg350.opk",
+        "size": 6897664,
+        "digest": "sha256:8186df4f6d29a0437b41b7a381f82be70db2ccbbed8920324f307c4357fa20bd",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-rg350.opk"
+      },
+      {
+        "id": 310600145,
+        "name": "devilutionx-src-fully-vendored.tar.xz",
+        "size": 34660480,
+        "digest": "sha256:f42379cdf098a351a2020d9e6de1840c76e09113c792f73c6df34dec26818b04",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-src-fully-vendored.tar.xz"
+      },
+      {
+        "id": 310599677,
+        "name": "devilutionx-src.tar.xz",
+        "size": 22561696,
+        "digest": "sha256:dfe7894dd4dfa5fd2375d708aaa6837eef3986ccac248345a7988059a507de6a",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-src.tar.xz"
+      },
+      {
+        "id": 516201576,
+        "name": "devilutionx-switch.nro",
+        "size": 20887823,
+        "digest": "sha256:4f9f06540f43f83d01d5b7b82e8848c6591681907f423990604b42731097c504",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-switch.nro"
+      },
+      {
+        "id": 310601451,
+        "name": "devilutionx-vita.vpk",
+        "size": 7599439,
+        "digest": "sha256:1378fd61bffde123c8afe660d0e551b10267506d9a51871a4febe9fa06109175",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-vita.vpk"
+      },
+      {
+        "id": 310821742,
+        "name": "devilutionx-windows-i386.zip",
+        "size": 10442606,
+        "digest": "sha256:aa2c7051495cb53a8aaf7ac1f65d3537e6f52538f96797be38aa06a4aaa90d15",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-windows-i386.zip"
+      },
+      {
+        "id": 310816827,
+        "name": "devilutionx-windows-x86_64.zip",
+        "size": 10482049,
+        "digest": "sha256:a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-windows-x86_64.zip"
+      },
+      {
+        "id": 310600208,
+        "name": "devilutionx-windows-xp-32bit.zip",
+        "size": 8523155,
+        "digest": "sha256:fce6b3fd2fb381e101b5d8b72e08a47ef9dcfb372c7543ea6bd49318cec80e88",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-windows-xp-32bit.zip"
+      },
+      {
+        "id": 310602996,
+        "name": "devilutionx-xbox-one-series.zip",
+        "size": 8430484,
+        "digest": "sha256:84adcc90a3f01064bddd85e7794244cee132321550fc54b67f4fc20d72a6a4e5",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-xbox-one-series.zip"
+      },
+      {
+        "id": 310599924,
+        "name": "devilutionx-xbox.zip",
+        "size": 6635056,
+        "digest": "sha256:8d65637de7afe2be3543f9daa4b1d3b7d2d0b400e110a1c7cb448e47613c9ab3",
+        "browser_download_url": "https://github.com/diasurgical/DevilutionX/releases/download/1.5.5/devilutionx-xbox.zip"
+      }
+    ]
+  }
+}

@@ -154,7 +154,7 @@ it("retains manual selection across refreshes and reevaluates a new opening", as
 
 it.each([
   ["updates", "versions", "Versions & updates"],
-  ["saves", "saves", "Saves"],
+  ["saves", "saves", "Saves & backups"],
 ] as const)(
   "reveals incoming %s before focusing its heading",
   async (destination, initial, heading) => {
@@ -167,7 +167,9 @@ it.each([
 it("reveals an internal backup destination before focusing it", async () => {
   await render(<Fixture />);
   await page.getByRole("button", { name: "Inspect backups" }).click();
-  await expect.element(page.getByRole("heading", { name: "Saves", exact: true })).toHaveFocus();
+  await expect
+    .element(page.getByRole("heading", { name: "Saves & backups", exact: true }))
+    .toHaveFocus();
   await expect.element(page.getByRole("button", { name: "Restore selected backup" })).toBeVisible();
 });
 
@@ -242,7 +244,7 @@ it("keeps unknown original systems explicit and shows every offered release chan
   await expect
     .element(page.getByRole("tab", { name: "Manage", exact: true }))
     .not.toBeInTheDocument();
-  expect(document.querySelector(".detail-header-artwork")).toBeNull();
+  expect(document.querySelector(".game-hero-background")).toBeNull();
 });
 
 it("composes About beside authored requirements and support without reserving absent media", async () => {
@@ -282,5 +284,5 @@ it("composes About beside authored requirements and support without reserving ab
   await expect.element(page.getByRole("link", { name: "Open upstream project" })).toBeVisible();
   await expect.element(page.getByRole("button", { name: "Create support report" })).toBeVisible();
   expect(document.querySelector(".media-gallery")).toBeNull();
-  expect(document.querySelector(".detail-header-artwork")).toBeNull();
+  expect(document.querySelector(".game-hero-background")).toBeNull();
 });
