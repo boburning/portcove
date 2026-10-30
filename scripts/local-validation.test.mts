@@ -3385,6 +3385,10 @@ void test("isolated signing fixtures retain local and hosted signer/getter cover
       "scripts/release-signing-context-artifact.test.mts",
     ],
     ["scripts/fixtures/tuf-prekey-fixture.mts", "scripts/release-tuf-signing.test.mts"],
+    [
+      "scripts/fixtures/tuf-controller-guard-fixture.mts",
+      "scripts/release-tuf-controller.test.mts",
+    ],
   ] as const) {
     const { baselineContractTests } = await import("./ci-baseline.mts");
     for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
