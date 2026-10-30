@@ -3701,9 +3701,13 @@ try {
       5_000,
       "Game updates heading did not receive focus",
     );
+    const updateCheckDetails = await browser.findElement(By.css(".update-check-details"));
+    if ((await updateCheckDetails.getAttribute("open")) === null)
+      await updateCheckDetails.findElement(By.css("summary")).click();
     const applicationUpdatesLink = await browser.findElement(
       By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
     );
+    await browser.wait(until.elementIsVisible(applicationUpdatesLink), 5_000);
     await executeBrowserScript(
       browser,
       (element) => element.scrollIntoView({ block: "center" }),
