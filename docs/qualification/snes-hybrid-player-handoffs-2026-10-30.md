@@ -56,7 +56,7 @@ ROM-derived assets; no whole-component/package grant is inferred.
 Rolling Windows asset `arwing.exe` is an **installer**. Complete official install,
 ROM picker and a working normal launch externally, then select installed
 **Project Arwing (2).exe**, zero arguments, containing installation-root initial CWD.
-Selected installer source writes that literal filename; `arwing2.exe` is its App Paths alias/build name, not the installed file to select.
+Selected installer source writes that literal filename; `arwing2.exe` is its App Paths alias, not the installed file to select.
 The installer defaults under the user's local Programs folder and records its
 actual installation location; no hard-coded path is required by Core. The native
 Windows application changes into `%APPDATA%/Project Arwing (2)` and owns its game

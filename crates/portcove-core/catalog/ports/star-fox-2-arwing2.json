@@ -30,7 +30,7 @@
         },
         {
           "title": "Select the installed long-lived native application",
-          "instruction": "Select installed Project Arwing (2).exe, zero arguments (arwing2.exe is an App Paths alias/build name, not the installed filename), and its actual containing installation directory as initial CWD. The Windows application changes to the creating %APPDATA%/Project Arwing (2) profile and runs its game/UI in this process. Do not select downloaded arwing.exe, an uninstaller, build script, headless --frames/coverage or force-interpreter diagnostic mode. Registration itself does not install, prepare or launch anything."
+          "instruction": "Select installed Project Arwing (2).exe, zero arguments (arwing2.exe is an App Paths alias, not the installed filename), and its actual containing installation directory as initial CWD. The Windows application changes to the creating %APPDATA%/Project Arwing (2) profile and runs its game/UI in this process. Do not select downloaded arwing.exe, an uninstaller, build script, headless --frames/coverage or force-interpreter diagnostic mode. Registration itself does not install, prepare or launch anything."
         },
         {
           "title": "Keep updater and profile mutation upstream-owned",
