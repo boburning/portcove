@@ -26,7 +26,7 @@
         "Port stage": "Watchlist",
         "Effort": "Unknown"
       },
-      "authored_sha256": "c38e1f00ff844a7ce2a78893b21a2515a44b7053e65860e4774030d24e07af72",
+      "authored_sha256": "41702e4fd33b16b02c516f5946bc0e1971da9617176c89a2626692ec5375d834",
       "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
       "original_serial": "SLUS-00158",
       "original_representation": "CUE with referenced BIN set, or upstream supported-codec CHD; serial/selected-file checks, no independently authenticated full-disc digest",
@@ -67,7 +67,7 @@
         "Port stage": "Watchlist",
         "Effort": "Unknown"
       },
-      "authored_sha256": "94290639ee5ef4dd6942e139db975eb5fe75addac5997f58b9d7a6fecea39810",
+      "authored_sha256": "e251e1fa4d1781eca67fb9358b068987a29b08426e25afe8daa083d10ac2aee4",
       "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
       "original_serial": "SLUS-00255",
       "original_representation": "CUE with referenced BIN set, or upstream supported-codec CHD; serial/selected-file checks, no independently authenticated full-disc digest",
@@ -1198,6 +1198,42 @@
         "sha256": "cf54144cde6ab3e9d6ca6eb657c64c5cbacad37c66cd384c744ed62fa9dc91b6",
         "bytes": 5329,
         "retained_record_name": "AssetPack.cs"
+      },
+      {
+        "label": "verdite2",
+        "repository": "Voicedrew11/verdite2",
+        "source_commit": "15c54b244d592f92d85f11f3f20c3d929193f0db",
+        "path": "tools/verdite-core/src/Game.cs",
+        "git_blob": "308d9a67d9b54b54056f13a5ce8fbc90fb1289e1",
+        "sha256": "a87f152612fbc625c40e193b10eff6b4ca397359922420a36c033f665d96f22b",
+        "bytes": 685,
+        "raw_blob_response_sha256": "0e5c7106cf42592d07cb08e04427364ebee223af40a0bf30ff634796e7e4b2b9",
+        "configure_binding": {
+          "path": "Program.cs",
+          "existing_manifest_binding": true,
+          "configured_tag": "KF2",
+          "exact_statement": "Verdite.Core.Game.Configure(tag: \"KF2\");"
+        },
+        "actual_icon_opt_out": "KF2_ICON_INSTALL=0 or off",
+        "retained_record_name": "Game.cs"
+      },
+      {
+        "label": "verdite3",
+        "repository": "Voicedrew11/verdite3",
+        "source_commit": "ebc307bc42669519af736c6d29cd5d1cba06881a",
+        "path": "tools/verdite-core/src/Game.cs",
+        "git_blob": "308d9a67d9b54b54056f13a5ce8fbc90fb1289e1",
+        "sha256": "a87f152612fbc625c40e193b10eff6b4ca397359922420a36c033f665d96f22b",
+        "bytes": 685,
+        "raw_blob_response_sha256": "e5cfa63ad5b89b024abe625ebfccbeccf1757148701632423c72e3ef01620e32",
+        "configure_binding": {
+          "path": "Program.cs",
+          "existing_manifest_binding": true,
+          "configured_tag": "KF3",
+          "exact_statement": "Verdite.Core.Game.Configure(tag: \"KF3\");"
+        },
+        "actual_icon_opt_out": "KF3_ICON_INSTALL=0 or off",
+        "retained_record_name": "Game.cs"
       }
     ],
     "raw_api_observations": [
@@ -1260,13 +1296,28 @@
         "bytes": 5657,
         "sha256": "6ce2cb100e6f1d3f7b08059abc674b2f349ab5b283efa66b686ad5b3661aadfc",
         "retained_record_name": "verdite3-repo.json"
+      },
+      {
+        "bytes": 1233,
+        "sha256": "0e5c7106cf42592d07cb08e04427364ebee223af40a0bf30ff634796e7e4b2b9",
+        "retained_record_name": "verdite2-env-prefix-blob-response.json"
+      },
+      {
+        "bytes": 1233,
+        "sha256": "e5cfa63ad5b89b024abe625ebfccbeccf1757148701632423c72e3ef01620e32",
+        "retained_record_name": "verdite3-env-prefix-blob-response.json"
       }
     ],
-    "scope": "Textual source/API observations only. No release asset, executable, game data or helper acquired or executed. Current/release tree labels share two exact commits; 100 title-bound textual bindings are not 100 unique blobs. No reproducible artifact or gameplay attestation."
+    "scope": "Textual source/API only:102distinct title-bound bindings,64unique blobs,two distinct trees withfourreference roles. Original manifest preserved; no package/game execution or qualification.",
+    "review_correction": {
+      "original_manifest_sha256": "bb067d022c7f738690af15cf9d1fffa1f7a451f798fd8dcfea8a5bb519c01aec",
+      "env_prefix_manifest_sha256": "8eee68fa24b63af50908dc2d04dcfdef32bef45e6609fabef065d10f09bceeec",
+      "scope": "Original100bindings retained; two Game.Env bindings resolve actual KF2_ICON_INSTALL/KF3_ICON_INSTALL, distinct from launcher VERDITE2_DATA/VERDITE3_DATA."
+    }
   },
   "counts": {
-    "distinct_title_bound_repo_commit_path_blob_bindings": 100,
-    "unique_content_blobs": 63,
+    "distinct_title_bound_repo_commit_path_blob_bindings": 102,
+    "unique_content_blobs": 64,
     "tree_reference_roles": 4,
     "distinct_complete_trees": 2
   },

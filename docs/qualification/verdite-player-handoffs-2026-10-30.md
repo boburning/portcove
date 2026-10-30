@@ -19,8 +19,8 @@ Full #2510/#2926 acceptance and every other stronger condition remain open.
 
 ## Exact source, grants and publisher observations
 
-The [source packet](verdite-player-handoffs-2026-10-30.json) records 100 distinct
-title-bound repository/commit/path/blob bindings and 63 unique content blobs.
+The [source packet](verdite-player-handoffs-2026-10-30.json) records 102 distinct
+title-bound repository/commit/path/blob bindings and 64 unique content blobs.
 Four current/release tree-reference roles describe **two distinct complete
 trees**, not four independent trees. Current and latest tags match for each
 project. Decoded source bytes, raw API responses and complete nontruncated tree
@@ -98,8 +98,8 @@ setting merely to register. Preserve an already reproducible creating context.
 
 Keep the whole actual runtime, original and profile, including settings.json
 (CdPath, CardAPath, CardBPath), interface.ini, carda.sav/cardb.sav and backup or
-damaged companions, mods/ and .cache/.mods-seeded, builds/<key>/KingsField2.dll
-or KingsField3.dll, build.log, update.json, icon.png/icon.ico, crashes and optional
+damaged companions, mods/ including mods/.cache, profile-root .mods-seeded, builds/<key>/KingsField2.dll
+or KingsField3.dll, profile-root build.log, update.json, icon.png/icon.ico, crashes and optional
 dump/diagnostic output. Custom relative card paths resolve under the profile CWD;
 absolute card paths can remain elsewhere and also need preservation. Existing
 mods can write additional data. Keep every unknown/custom path and each creating
@@ -108,8 +108,9 @@ builds and crash dumps do not establish save-state or cross-build compatibility.
 Registration removal never adopts or deletes those external bytes.
 
 Windows upstream code may refresh matching Desktop, Start Menu and pinned-taskbar
-shortcut icons to the profile icon.ico. ICON_INSTALL=0/off is its environment
-opt-out; these are upstream effects, not Core shortcut/profile ownership. Normal
+shortcut icons to the profile icon.ico. KF2_ICON_INSTALL=0/off and KF3_ICON_INSTALL=0/off are the respective environment
+opt-outs; these are upstream effects, not Core shortcut/profile ownership. The core Game.Env helper prefixes keys with
+the configured KF2/KF3 tag; unprefixed ICON_INSTALL is not that opt-out. Normal
 closing writes settings and runs runtime shutdown. No actual cleanup durability,
 profile mutation, save-load, gameplay or physical observation was performed here.
 
