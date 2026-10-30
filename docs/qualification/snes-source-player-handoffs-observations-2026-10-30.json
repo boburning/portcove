@@ -1,7 +1,11 @@
 {
   "format_version": 1,
   "kind": "dated exact-source two-player handoff evidence; not a live status authority",
-  "owners": [2926, 2510, 1422],
+  "owners": [
+    2926,
+    2510,
+    1422
+  ],
   "source_base_commit": "fd55947a8e8c7003b968c8733396d9a787c5123d",
   "observation_date": "2026-10-30",
   "selected_rows": [
@@ -277,13 +281,6 @@
       "git_blob": "066355d6851ccd973f3e9204e733766c089053a3",
       "sha256": "0b5ab725cefb1f79f834010d29a8b97f2b215d468c16458600ffe1adb9b549f0",
       "bytes": 1822
-    },
-    {
-      "repository": "snesrev/sm",
-      "path": "src/sm.vcxproj",
-      "git_blob": "c7355e7941971b55e68ac98c7c28ec7073b31e73",
-      "sha256": "b8e70e9eca017bacea37a9bb880eb852893f1023f041beb44dc296003ebc79fe",
-      "bytes": 14777
     }
   ],
   "source_binding": "Each decoded blob was verified against its Git blob SHA; pinned complete Git tree responses were retained. No source-to-binary equivalence is asserted.",

@@ -21,7 +21,7 @@ promised. Managed suitability remains separate from this useful route.
 ## Exact sources and permission
 
 The [observation packet](snes-source-player-handoffs-observations-2026-10-30.json)
-retains26 Git-blob-verified source identities, complete pinned-tree observations,
+retains25 Git-blob-verified source identities, complete pinned-tree observations,
 canonical body hashes, pickup Project fields and the exact two-member crosswalk.
 Source base is `fd55947a8e8c7003b968c8733396d9a787c5123d`. Project fields are dated
 observations, never a second planning authority. Current canonical owners and
