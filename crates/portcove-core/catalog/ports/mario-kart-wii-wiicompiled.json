@@ -3,10 +3,9 @@
   "listing": {
     "id": "mario-kart-wii-wiicompiled",
     "name": "Mario Kart Wii / WiiCompiled",
-    "summary": "Explore Mario Kart Wii / WiiCompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register your already prepared vanilla WiiCompiled Windows player after upstream setup with your own Mario Kart Wii disc.",
     "project_url": "https://github.com/patchzyy/Wiicompiled",
     "issue_number": 149,
-    "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/patchzyy/Wiicompiled",
     "artwork": {
@@ -16,6 +15,67 @@
       "image_sha256": "99649b10acf61fded11decddbd2ad02ddb1b91e2ebbc92123b1a5242029cf9e9",
       "game_slug": "mario-kart-wii",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Mario Kart Wii",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish upstream setup first",
+          "instruction": "Use the official WiiCompiled setup through Wheel Wizard with your own clean, supported Mario Kart Wii disc. The reviewed route uses the resolved PAL RMCP01 source identity. Complete upstream preparation and establish a working vanilla player before registration; Portcove does not extract, translate, compile, repair or validate game data."
+        },
+        {
+          "title": "Select the prepared game player",
+          "instruction": "Choose Base/WiiCompiled.exe inside the existing installation, with that Base folder as the working directory and no arguments. Keep the complete installation and its configured GameAssets together. Do not select WiiCompiled-Setup.exe, Wheel Wizard or a compiler as the player. This route covers the vanilla game, not Retro Rewind."
+        },
+        {
+          "title": "Confirm and choose Play separately",
+          "instruction": "Review the selected executable, folder and literal arguments and consent to that execution intent. Registration does not start the game. Choose Play separately when ready. Portcove retains the selection for restart or relink and observes the selected player process."
+        },
+        {
+          "title": "Preserve your actual profiles and originals",
+          "instruction": "Keep the whole portable folder, portable.txt marker and UserData together. Otherwise the normal Windows profile is LocalAppData/WiiCompiled; if that known folder is unavailable upstream can use WiiCompiled under the working directory. Preserve Config.toml, NAND saves/settings, Cache, Logs and all original disc files and game assets. Configured relative NAND and DVD paths resolve from the Config.toml folder; preserve every actual custom path too."
+        },
+        {
+          "title": "Keep one update owner",
+          "instruction": "Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files."
+        }
+      ],
+      "warnings": [
+        "Do not move the Base folder alone or add/remove portable.txt to change profile locations. Different installations may share LocalAppData/WiiCompiled. Portcove registration does not authenticate the game disc, setup package, generated player or source/build provenance.",
+        "The upstream runtime writes its profile, may seed missing files in a configured NAND and prunes entries older than four days in its Logs folder. Preserve diagnostic evidence before Play when needed. External files remain upstream/player owned; Portcove cannot guarantee their retention by the game.",
+        "Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. No original-game redistribution, Retro Rewind compatibility, gameplay/save-load or other-platform qualification is implied."
+      ],
+      "help_url": "https://github.com/patchzyy/Wiicompiled#installing"
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "patchzyy/Wiicompiled",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the official WiiCompiled setup through Wheel Wizard with your own clean, supported Mario Kart Wii disc. The reviewed route uses the resolved PAL RMCP01 source identity. Complete upstream preparation and establish a working vanilla player before registration; Portcove does not extract, translate, compile, repair or validate game data. Choose Base/WiiCompiled.exe inside the existing installation, with that Base folder as the working directory and no arguments. Keep the complete installation and its configured GameAssets together. Do not select WiiCompiled-Setup.exe, Wheel Wizard or a compiler as the player. This route covers the vanilla game, not Retro Rewind. Review the selected executable, folder and literal arguments and consent to that execution intent. Registration does not start the game. Choose Play separately when ready. Portcove retains the selection for restart or relink and observes the selected player process. Keep the whole portable folder, portable.txt marker and UserData together. Otherwise the normal Windows profile is LocalAppData/WiiCompiled; if that known folder is unavailable upstream can use WiiCompiled under the working directory. Preserve Config.toml, NAND saves/settings, Cache, Logs and all original disc files and game assets. Configured relative NAND and DVD paths resolve from the Config.toml folder; preserve every actual custom path too. Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files. Do not move the Base folder alone or add/remove portable.txt to change profile locations. Different installations may share LocalAppData/WiiCompiled. Portcove registration does not authenticate the game disc, setup package, generated player or source/build provenance. The upstream runtime writes its profile, may seed missing files in a configured NAND and prunes entries older than four days in its Logs folder. Preserve diagnostic evidence before Play when needed. External files remain upstream/player owned; Portcove cannot guarantee their retention by the game. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. No original-game redistribution, Retro Rewind compatibility, gameplay/save-load or other-platform qualification is implied."
     }
   }
 }
