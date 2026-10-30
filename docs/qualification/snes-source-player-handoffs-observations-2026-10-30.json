@@ -1,11 +1,7 @@
 {
   "format_version": 1,
   "kind": "dated exact-source two-player handoff evidence; not a live status authority",
-  "owners": [
-    2926,
-    2510,
-    1422
-  ],
+  "owners": [2926, 2510, 1422],
   "source_base_commit": "fd55947a8e8c7003b968c8733396d9a787c5123d",
   "observation_date": "2026-10-30",
   "selected_rows": [
