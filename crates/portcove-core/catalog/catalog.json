@@ -33186,11 +33186,6 @@
           "game_slug": "soulcalibur-ii--2",
           "match_kind": "underlying-game"
         }
-      },
-      "executable_hints": {
-        "windows-x86-64": [
-          "moderngekko-run.exe"
-        ]
       }
     },
     {
