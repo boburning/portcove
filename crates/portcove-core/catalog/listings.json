@@ -24891,7 +24891,7 @@
           },
           {
             "title": "Finish upstream restarts and replacement separately",
-            "instruction": "The optional launcher and in-game updater belong to upstream. A backend/settings restart or update can start a successor process; complete those operations upstream before selecting or relinking the working player and choosing Play again. Portcove supervises the selected native process and does not adopt an updater successor or own runtime replacement. Online Slippi accounts, controller/adapter setup, mods, crash-report sharing and optional DLSS model downloads are separate choices, not automatic Portcove setup."
+            "instruction": "In the inspected v0.9.81 source, release checks and package installation are called by the separate optional launcher, not the direct Static Recomp player. Select that exact direct-player route; this does not qualify older players or the other engine. The game still offers an explicit DLSS model download that can write a DLL for the next restart, and backend/settings changes can start a successor. Complete those optional upstream changes separately before relinking the working player and choosing Play again. Portcove supervises the selected native process and does not adopt successors, install optional model files or own runtime replacement. This route does not disable every network feature or external write. Online Slippi accounts, controller/adapter setup, mods, crash-report sharing and optional DLSS model downloads are separate choices, not automatic Portcove setup."
           },
           {
             "title": "Preserve all engine and shared player data",
