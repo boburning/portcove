@@ -1,0 +1,252 @@
+{
+  "format_version": 1,
+  "kind": "dated source and offered-operation qualification packet; canonical issues/Project retain live ownership",
+  "date": "2026-10-30",
+  "owners": [120, 1132, 2510, 2926, 1422],
+  "base_commit": "659dad3a7f17e1be96340bc8cbdaa6d1f2ab2786",
+  "contract": "Existing listing-based user-selected registration; retained whole-listing envelope and reader fence. No strict operational definition, new adapter, production Core change or authoring-policy relaxation.",
+  "offered_operations": [
+    "Explicit native executable/CWD/literal-argument intent and consent",
+    "Registration/relink retaining creating metadata and execution intent across restart",
+    "Separate selected-process Play",
+    "Registration-only removal preserving all external files"
+  ],
+  "replacement_owner": "Player/upstream; user-managed-update. Close all actual players and preserve complete working copies and every actual data location before upstream changes.",
+  "unoffered_operations": [
+    "Fresh package acquisition",
+    "Core original authentication/preparation",
+    "Managed Install/Update/Backup/Rollback/migration",
+    "External deletion",
+    "Game/save ABI compatibility",
+    "Other-platform qualification"
+  ],
+  "why_listing_route": "Core projects strict raw catalogs into default listings without download_block_reason. The unchanged authoring guard refuses strict integrations alongside the held listing. The existing listing-based route retains the complete restricted listing in its durable user-selected envelope; use that supported path rather than add a definition that could lose the condition during standalone delivery.",
+  "rows": [
+    {
+      "id": "cannonball-outrun",
+      "canonical_issue": 120,
+      "frozen_membership": {
+        "cohort": "original-524",
+        "historical_1422_member": true,
+        "new_identity": false
+      },
+      "repository": "djyt/cannonball",
+      "repository_id": 5940101,
+      "tag": "v0.34",
+      "commit": "0f3fabcb80682c34487eb68cbf91ec6d8884b54d",
+      "tree_entries": 147,
+      "tree_truncated": false,
+      "verified_source_blobs": [
+        {
+          "path": "README.md",
+          "git_blob_sha": "0c4fb82e666cd395afdaa06a53bedcc3e773a6ce",
+          "bytes": 3532
+        },
+        {
+          "path": "cmake/CMakeLists.txt",
+          "git_blob_sha": "d73b4f813f2b1eea1fe93d86c68f39fc0765533a",
+          "bytes": 8729
+        },
+        {
+          "path": "docs/license.txt",
+          "git_blob_sha": "094b8c703b6afa742710f9ad0de2f6597eed8183",
+          "bytes": 1947
+        },
+        {
+          "path": "roms/roms.txt",
+          "git_blob_sha": "c09cbc20ca3f47ebbb2f80851e5439e64b34b20f",
+          "bytes": 1385
+        },
+        {
+          "path": "src/main/frontend/config.cpp",
+          "git_blob_sha": "d873255ae36d95c15bf18891dc02d2a426392161",
+          "bytes": 22556
+        },
+        {
+          "path": "src/main/main.cpp",
+          "git_blob_sha": "6151457d4993b6caf005966fe4e6fe06306dfce6",
+          "bytes": 9855
+        },
+        {
+          "path": "src/main/romloader.cpp",
+          "git_blob_sha": "97fa8077f9b1deb61800501b3fcdce8549d9098a",
+          "bytes": 7055
+        },
+        {
+          "path": "src/main/roms.cpp",
+          "git_blob_sha": "8399e8b11b564e4c5bade54848bc6f88a219046e",
+          "bytes": 7152
+        }
+      ],
+      "selected_executable": "cannonball.exe",
+      "working_directory": "Complete existing player folder, with config.xml and configured ROM/resource/save/music paths preserved",
+      "arguments": [],
+      "current_release_asset_metadata": {
+        "id": 35837019,
+        "name": "cannonball-v034-w64.zip",
+        "size": 790148,
+        "digest": null,
+        "browser_download_url": "https://github.com/djyt/cannonball/releases/download/v0.34/cannonball-v034-w64.zip"
+      },
+      "actual_artifact_observation": {
+        "scope": "No held payload acquired; source and release metadata only. Actual package headers/contents and independently expected digest remain unestablished."
+      },
+      "engine_permission": "Current docs/license.txt expressly grants conditional use and redistribution; retain noncommercial, notice and modified-source conditions plus all separately applicable component terms. Already-permitted noncommercial working copy only. No permission for arbitrary copies, bundled ROMs or fresh distribution inferred.",
+      "original_data": "Own lawful matching OutRun Revision B loose ROMs as documented by roms/roms.txt and component expected-length/CRC32 loading tables in roms.cpp/romloader.cpp. DX also supports suitable merged ZIP by component CRC32/expected length; original v0.34 does not inherit DX ZIP support. Original data remains local and user/upstream owned; no Core authentication or game-data acquisition. These are upstream loading checks, not complete-file identity or ownership authentication.",
+      "data": "config.xml normally in CWD, roms/ and res/ defaults; data.savepath normally CWD with named hiscores files. Preserve actual custom configuration, ROM, resource, music and score paths as well as the whole working copy.",
+      "upstream_specific_writes": "Original v0.34 writes config.xml and score XML names under configured save_path; all remain external.",
+      "lifetime": "Reviewed native main runs the ordinary game loop in the selected process; no detached normal launcher handoff was identified. Source fitting is not binary/source attestation or an actual game run.",
+      "download_restriction_preserved": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered.",
+      "route_case": "cannonball_route_120",
+      "record_before_sha256": "5aa1f0487675e924dc1a3e76db0f656ef7251af7a7325ae6f37b15d75f5e1793",
+      "record_after_sha256": "f53679c97e21c501ff062205f22e7179e985ff0a7e3c49a618b48b3715fc42a6"
+    },
+    {
+      "id": "cannonball-dx-outrun",
+      "canonical_issue": 1132,
+      "frozen_membership": {
+        "cohort": "original-524",
+        "historical_1422_member": true,
+        "new_identity": false
+      },
+      "repository": "Endprodukt/cannonball-dx",
+      "repository_id": 1338639045,
+      "tag": "1.04",
+      "commit": "afbe061c50ad1aa50795daa98e4ab689a4d3ca46",
+      "tree_entries": 219,
+      "tree_truncated": false,
+      "verified_source_blobs": [
+        {
+          "path": "CMakeLists.txt",
+          "git_blob_sha": "3f2688b2be41bba61c4b06031963b78be30c17bd",
+          "bytes": 27044
+        },
+        {
+          "path": "README.md",
+          "git_blob_sha": "b69d6d6d2fb77f02aa59068e9d413664d4875a90",
+          "bytes": 24153
+        },
+        {
+          "path": "README.txt",
+          "git_blob_sha": "6bec8c321b7da669ef0138dc81e5f0141199770b",
+          "bytes": 16085
+        },
+        {
+          "path": "docs/CannonBall-SE-license.txt",
+          "git_blob_sha": "7685146c3347575223fec4b810c6d88561e4ab4a",
+          "bytes": 1045
+        },
+        {
+          "path": "docs/THIRD-PARTY-NOTICES.md",
+          "git_blob_sha": "3a045bb19b476feee4fca7b51e5ab930d8f4c618",
+          "bytes": 2173
+        },
+        {
+          "path": "docs/license.txt",
+          "git_blob_sha": "094b8c703b6afa742710f9ad0de2f6597eed8183",
+          "bytes": 1947
+        },
+        {
+          "path": "roms/roms.txt",
+          "git_blob_sha": "2a4c35337160a39ed864ead3567e66b8a3f70ad7",
+          "bytes": 2831
+        },
+        {
+          "path": "src/main/frontend/config.cpp",
+          "git_blob_sha": "38d8006b85803e12e2876fa2eba63efd5c2afc87",
+          "bytes": 31650
+        },
+        {
+          "path": "src/main/frontend/config_base.cpp",
+          "git_blob_sha": "9d35abf183c4727ab5f89975658be83b34445e8f",
+          "bytes": 38431
+        },
+        {
+          "path": "src/main/frontend/highscore_storage.hpp",
+          "git_blob_sha": "819ad7b6fb089fe2db7d49fbbbb1073b6085a691",
+          "bytes": 9015
+        },
+        {
+          "path": "src/main/frontend/xml_parser.h",
+          "git_blob_sha": "48168a4b9df778e5a232032a8112a599144a61e2",
+          "bytes": 25460
+        },
+        {
+          "path": "src/main/main.cpp",
+          "git_blob_sha": "02655f81491db32295606383f079895b27165c6c",
+          "bytes": 43909
+        },
+        {
+          "path": "src/main/romloader.cpp",
+          "git_blob_sha": "01c9247e8cc7c1a42f3b138949eb37cc682fb14e",
+          "bytes": 13851
+        },
+        {
+          "path": "src/main/roms.cpp",
+          "git_blob_sha": "aee2d1c0cca7d6b54742b5e9eb461767b24185e7",
+          "bytes": 17176
+        }
+      ],
+      "selected_executable": "cannonball-dx.exe",
+      "working_directory": "Complete existing player folder, with config.xml and configured ROM/resource/save/music paths preserved",
+      "arguments": [],
+      "current_release_asset_metadata": {
+        "id": 597661428,
+        "name": "CannonballDX_1.04.zip",
+        "size": 6548824,
+        "digest": "sha256:d5104e1a886213994fdcdd5dc781753145f7e9ac33e87b4ae15cde485dc9a362",
+        "browser_download_url": "https://github.com/Endprodukt/cannonball-dx/releases/download/1.04/CannonballDX_1.04.zip"
+      },
+      "actual_artifact_observation": {
+        "observed": "2026-10-24",
+        "release": "1.04",
+        "artifact": "https://github.com/Endprodukt/cannonball-dx/releases/download/1.04/CannonballDX_1.04.zip",
+        "expected": "sha256:d5104e1a886213994fdcdd5dc781753145f7e9ac33e87b4ae15cde485dc9a362",
+        "observed_sha256": "d5104e1a886213994fdcdd5dc781753145f7e9ac33e87b4ae15cde485dc9a362",
+        "current_expected_digest_unchanged": true,
+        "scope": "Retained bounded static inspection; no reacquisition of held package and no executable/game/original input execution."
+      },
+      "engine_permission": "Current docs/license.txt expressly grants conditional use and redistribution; retain noncommercial, notice and modified-source conditions plus all separately applicable component terms. Already-permitted noncommercial working copy only. No permission for arbitrary copies, bundled ROMs or fresh distribution inferred.",
+      "original_data": "Own lawful matching OutRun Revision B loose ROMs as documented by roms/roms.txt and component expected-length/CRC32 loading tables in roms.cpp/romloader.cpp. DX also supports suitable merged ZIP by component CRC32/expected length; original v0.34 does not inherit DX ZIP support. Original data remains local and user/upstream owned; no Core authentication or game-data acquisition. These are upstream loading checks, not complete-file identity or ownership authentication.",
+      "data": "config.xml normally in CWD, roms/ and res/ defaults; data.savepath normally CWD with named hiscores files. Preserve actual custom configuration, ROM, resource, music and score paths as well as the whole working copy.",
+      "upstream_specific_writes": "DX 1.04 imports eight legacy hiscores*.xml selectors into highscores.xml; valid combined content is required before upstream removes legacy files. Back up both combined and legacy files and all actual custom save paths before Play with a changed copy; no Core migration, compatibility or retention guarantee.",
+      "lifetime": "Reviewed native main runs the ordinary game loop in the selected process; no detached normal launcher handoff was identified. Source fitting is not binary/source attestation or an actual game run.",
+      "download_restriction_preserved": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data.",
+      "route_case": "cannonball_route_1132",
+      "record_before_sha256": "8be814afa621037fc1a8ae852c5afa1da8505bca89019e18606de74b2509c4fe",
+      "record_after_sha256": "6eb2076c027f3775d35a20d86049f604def35846172f533eff61278fcca8cca6"
+    }
+  ],
+  "acceptance_selected": {
+    "useful_routes": 2,
+    "canonical_criteria": 6,
+    "definition_additions": 0,
+    "new_listing_or_source_identities": 0,
+    "historical_cohort_expansion": 0
+  },
+  "preservation": {
+    "entire_strict_catalog_bytes_unchanged": true,
+    "prior_operational_definitions_unchanged": 271,
+    "source_authority_unchanged": true,
+    "identity_bookkeeping_fixture_unchanged": true,
+    "prior_guide_prefixes_and_download_reasons_unchanged": true
+  },
+  "qualification": {
+    "new_cases": [
+      "cannonball_route_120",
+      "cannonball_route_1132",
+      "embedded_cannonball_listing_routes_keep_download_hold_before_network"
+    ],
+    "existing_helper": "Old listing-only registration/relink/restart/launch/removal controls remain with their original case; the actual-ID wrappers use the same helper plus complete retained-listing equality. Other strict-definition cases/helper unchanged.",
+    "acquisition_regression": "Both actual IDs refuse options, preview and mutation with their exact held reason, no provider requests, no destination files or pending setup publication.",
+    "exact_head_ci": "Pending delivery; receipts belong on PR/canonical issues. No pass claimed here.",
+    "actual_game_startup_gameplay_save_load": "not_run",
+    "actual_package_execution": "not_run",
+    "installed_desktop_protected_delivery": "not_evaluated"
+  },
+  "project_scope": "Status and Port stage are independent. No strict catalog.json ID is added; do not use Cataloged/Supported to imply a strict definition. Source contract known truthfully summarizes the documented source/use/input/output boundary for this completed narrow route. Preserve all other planning except truthful Windows scope.",
+  "known_fresh_conditions": {
+    "120": "Expected publisher integrity, exact acquired-package/component applicability and original-data permission remain prerequisites for any fresh acquisition or managed route.",
+    "1132": "The retained October24 inspected published 1.04 ZIP contains original ROM data despite README saying not included; exact same asset/digest metadata does not establish permission. Resume fresh acquisition only with asset-free player package or attributable included-data permission."
+  }
+}

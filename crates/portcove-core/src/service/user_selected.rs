@@ -647,21 +647,30 @@ mod tests {
             .unwrap();
     }
 
-    #[test]
-    fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
-        let (temporary, mut service, executable, working) = fixture("listing-only");
-        listing_only(&mut service);
-        assert!(service.catalog.port("listing-only").is_err());
-        let initial = service.listing_status("listing-only").unwrap();
+    // The listing-based contract retains its acquisition restriction without
+    // promoting the descriptive identity into a strict managed definition.
+    fn assert_listing_only_player_route(id: &str, embedded: bool) {
+        let (temporary, mut service, executable, working) = fixture(id);
+        if embedded {
+            service.catalog = Catalog::embedded().unwrap();
+            let listing = service.catalog.listing(id).unwrap();
+            assert!(listing.manual_setup.is_some());
+            assert!(listing.download_block_reason.is_some());
+        } else {
+            listing_only(&mut service);
+        }
+        let expected_listing = service.catalog.listing(id).unwrap().clone();
+        assert!(service.catalog.port(id).is_err());
+        let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action
                 == crate::ListingAction::AttachExisting
                 && action.allowed)
         );
-        let record = register(&service, "listing-only", &executable, &working);
+        let record = register(&service, id, &executable, &working);
         assert!(
             service
-                .preview_user_selected_runtime("listing-only", &executable, &working, &[])
+                .preview_user_selected_runtime(id, &executable, &working, &[])
                 .is_err()
         );
 
@@ -672,7 +681,7 @@ mod tests {
         let arguments = vec!["--help".into()];
         let preview = service
             .preview_user_selected_runtime_relink(
-                "listing-only",
+                id,
                 &replacement_executable,
                 &replacement,
                 &arguments,
@@ -681,7 +690,7 @@ mod tests {
         assert!(
             service
                 .authorize_user_selected_runtime_relink(
-                    "listing-only",
+                    id,
                     &replacement_executable,
                     &replacement,
                     &[],
@@ -691,7 +700,7 @@ mod tests {
         );
         let authorization = service
             .authorize_user_selected_runtime_relink(
-                "listing-only",
+                id,
                 &replacement_executable,
                 &replacement,
                 &arguments,
@@ -703,7 +712,7 @@ mod tests {
         fs::remove_file(&executable).unwrap();
         let relinked = service
             .relink_user_selected_runtime(
-                "listing-only",
+                id,
                 &replacement_executable,
                 &replacement,
                 &arguments,
@@ -715,7 +724,7 @@ mod tests {
         assert!(
             service
                 .relink_user_selected_runtime(
-                    "listing-only",
+                    id,
                     &replacement_executable,
                     &replacement,
                     &arguments,
@@ -731,6 +740,16 @@ mod tests {
         let root = service.library.root().to_path_buf();
         drop(service);
         let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        let (_, retained) = service
+            .library
+            .external_runtime_with_port(id)
+            .unwrap()
+            .unwrap();
+        assert!(retained.is_user_selected_listing(id));
+        assert_eq!(
+            serde_json::to_value(retained.listing(id).unwrap()).unwrap(),
+            serde_json::to_value(&expected_listing).unwrap()
+        );
         let workspace = service.workspace_snapshot(10).unwrap();
         assert!(
             workspace
@@ -738,41 +757,46 @@ mod tests {
                 .unwrap()
                 .listings
                 .iter()
-                .any(|listing| listing.id == "listing-only")
+                .any(|listing| listing.id == id)
         );
         assert!(
             workspace
                 .listing_statuses
                 .iter()
-                .any(|listing| listing.port_id == "listing-only"
-                    && listing.status.external_runtime.is_some())
+                .any(|listing| listing.port_id == id && listing.status.external_runtime.is_some())
         );
+        assert!(service.status(id).unwrap().readiness.unwrap().launchable);
         assert!(
             service
-                .status("listing-only")
-                .unwrap()
-                .readiness
-                .unwrap()
-                .launchable
-        );
-        assert!(
-            service
-                .supervise_launch("listing-only", None, &[], LaunchStdio::Null, |_| {})
+                .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
                 .unwrap()
                 .successful
         );
-        let removal = service.preview_external_removal("listing-only").unwrap();
+        let removal = service.preview_external_removal(id).unwrap();
         let consent = service
-            .authorize_external_removal("listing-only", &removal.preview_sha256)
+            .authorize_external_removal(id, &removal.preview_sha256)
             .unwrap();
-        service
-            .remove_external_runtime("listing-only", &consent.token)
-            .unwrap();
+        service.remove_external_runtime(id, &consent.token).unwrap();
         assert!(replacement_executable.is_file());
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
         );
+    }
+
+    #[test]
+    fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
+        assert_listing_only_player_route("listing-only", false);
+    }
+
+    #[test]
+    fn cannonball_route_120() {
+        assert_listing_only_player_route("cannonball-outrun", true);
+    }
+
+    #[test]
+    fn cannonball_route_1132() {
+        assert_listing_only_player_route("cannonball-dx-outrun", true);
     }
 
     // Bind the real embedded identities to Core's offered operations with an
