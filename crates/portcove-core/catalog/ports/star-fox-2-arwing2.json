@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Keep a permitted installed Star Fox 2 player",
-          "instruction": "Use an already permitted working Windows x64 Project Arwing (2) copy, with its installed arwing2.exe and complete dependencies. The downloaded arwing.exe is an installer, not this game entry. Finish official installation, own-ROM selection and a normal working launch outside Core. This is Star Fox 2, not Star Fox Enhanced or the original Star Fox. Project MIT covers tools/runtime/installer, not Nintendo disassembly, ROM-derived assets or blanket package/component rights."
+          "instruction": "Use an already permitted working Windows x64 Project Arwing (2) copy, with its installed Project Arwing (2).exe and complete dependencies. The downloaded arwing.exe is an installer, not this game entry. Finish official installation, own-ROM selection and a normal working launch outside Core. This is Star Fox 2, not Star Fox Enhanced or the original Star Fox. Project MIT covers tools/runtime/installer, not Nintendo disassembly, ROM-derived assets or blanket package/component rights."
         },
         {
           "title": "Preserve the exact owned retail original",
@@ -30,7 +30,7 @@
         },
         {
           "title": "Select the installed long-lived native application",
-          "instruction": "Select installed arwing2.exe, zero arguments, and its actual containing installation directory as initial CWD. The Windows application changes to the creating %APPDATA%/Project Arwing (2) profile and runs its game/UI in this process. Do not select downloaded arwing.exe, an uninstaller, build script, headless --frames/coverage or force-interpreter diagnostic mode. Registration itself does not install, prepare or launch anything."
+          "instruction": "Select installed Project Arwing (2).exe, zero arguments (arwing2.exe is an App Paths alias/build name, not the installed filename), and its actual containing installation directory as initial CWD. The Windows application changes to the creating %APPDATA%/Project Arwing (2) profile and runs its game/UI in this process. Do not select downloaded arwing.exe, an uninstaller, build script, headless --frames/coverage or force-interpreter diagnostic mode. Registration itself does not install, prepare or launch anything."
         },
         {
           "title": "Keep updater and profile mutation upstream-owned",
@@ -42,7 +42,7 @@
         }
       ],
       "warnings": [
-        "This is a hybrid static 65816/SuperFX recompilation with interpreter/hardware fallback, not an emulation-free or full-equivalence qualification. Upstream sampled dispatch/hash, audio and HD claims retain their scoped limitations; no Portcove native game/gameplay/save/audio/hardware pass is made.",
+        "This is a hybrid static 65816/SuperFX recompilation with interpreter/hardware fallback, not an emulation-free or full-equivalence qualification. Upstream sampled dispatch/hash, audio and HD claims retain their scoped limitations; no Portcove native game/gameplay/save/audio/hardware pass is made. Upstream documents no true widescreen and only partial HD sub-pixel recovery (approximately 66–90% of vertices); these are upstream limits, not a Portcove measurement.",
         "No Core-managed acquisition/installer/preparation/Update/Backup/Rollback/migration/deletion or protected/installed/human/other-platform acceptance. The selected rolling source is frozen here; later moving-tag packages need their own identity and review."
       ]
     }

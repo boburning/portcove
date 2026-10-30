@@ -55,7 +55,8 @@ ROM-derived assets; no whole-component/package grant is inferred.
 
 Rolling Windows asset `arwing.exe` is an **installer**. Complete official install,
 ROM picker and a working normal launch externally, then select installed
-**arwing2.exe**, zero arguments, containing installation-root initial CWD.
+**Project Arwing (2).exe**, zero arguments, containing installation-root initial CWD.
+Selected installer source writes that literal filename; `arwing2.exe` is its App Paths alias/build name, not the installed file to select.
 The installer defaults under the user's local Programs folder and records its
 actual installation location; no hard-coded path is required by Core. The native
 Windows application changes into `%APPDATA%/Project Arwing (2)` and owns its game
@@ -72,7 +73,7 @@ application nor deletes profiles.
 
 Native 65816/SuperFX translated code coexists with hardware/interpreter fallback.
 Upstream dispatch/hash coverage is sampled; audio/hardware comparison, subpixel
-recovery and aspect limitations remain. No emulation-free, exhaustive equivalence,
+recovery and aspect limitations remain. The selected README explicitly states no true widescreen and partial HD sub-pixel recovery for approximately66–90% of vertices; these are attributed upstream limits, not our measurement. No emulation-free, exhaustive equivalence,
 Portcove native/gameplay/save/audio or other-platform claim. Diagnostic
 `--interp`, coverage/headless/frame/script modes are not the selected player.
 
