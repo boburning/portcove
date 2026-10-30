@@ -1,0 +1,20 @@
+{
+  "policy_schema": 4,
+  "namespace": "official",
+  "stable_id": "chameleon-twist-jp-recompiled",
+  "policy_revision": 1,
+  "grant_id": "managed-github-v1-chameleon-jp-proposal",
+  "decision": {
+    "status": "managed_github",
+    "definition_revision": 1,
+    "index_sha256": "fd4e815436c5a473d1a51c7ef363bf8875b2c2608d720aa3c88932b32360c88d",
+    "definition_sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
+    "template": "n64-recomp-portable",
+    "repository_id": 803577244,
+    "artifact_hosts": ["github.com", "release-assets.githubusercontent.com"],
+    "max_redirects": 1,
+    "operations": ["install", "update", "prepare", "launch"],
+    "scoped_launch_checks": 1,
+    "curated_acquisition_checks": 1
+  }
+}
