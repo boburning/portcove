@@ -545,7 +545,7 @@ interface LinuxCapture {
   identity: string;
 }
 type LinuxMode =
-  | "legacy-sibling-red"
+  | "legacy-sibling-adopted"
   | "natural"
   | "adopted-exit"
   | "gate-refusal"
@@ -903,7 +903,7 @@ async function linuxInnerCase(
       siblingCompletion = closed(sibling);
       siblingIdentity = identity(positive(sibling.pid));
     }
-    if (mode === "legacy-sibling-red") {
+    if (mode === "legacy-sibling-adopted") {
       managed = spawn(
         process.execPath,
         [supervisor, gate, status, receipt, process.execPath, "-e", payload],
@@ -967,7 +967,7 @@ async function linuxInnerCase(
       assert.equal(existsSync(started), false);
     } else {
       let node;
-      if (mode === "legacy-sibling-red" || mode === "root-complete-reaper-loss")
+      if (mode === "legacy-sibling-adopted" || mode === "root-complete-reaper-loss")
         node = required(captured[0]);
       else {
         await wait(() => existsSync(registration));
@@ -1036,7 +1036,7 @@ async function linuxInnerCase(
           required(managed?.stdin).end();
         }
         if (mode === "cancel-pipe") required(managed?.stdin).end();
-        if (mode === "supervisor-loss" || mode === "legacy-sibling-red") {
+        if (mode === "supervisor-loss" || mode === "legacy-sibling-adopted") {
           assert.equal(identity(node.pid).start, node.start);
           assert.equal(identity(node.pid).group, node.pid);
           process.kill(-node.pid, "SIGKILL");
@@ -1051,23 +1051,28 @@ async function linuxInnerCase(
             () =>
               (mode === "root-complete-reaper-loss"
                 ? !existsSync(`/proc/${node.pid}`)
-                : identity(node.pid).state === "Z") && identity(child.pid).state === "Z",
+                : !existsSync(`/proc/${node.pid}`) || identity(node.pid).state === "Z") &&
+              (!existsSync(`/proc/${child.pid}`) || identity(child.pid).state === "Z"),
           );
           assert.equal(existsSync(receipt), false, "lost reaper manufactured a receipt");
         }
       }
       if (mode !== "reaper-loss" && mode !== "root-complete-reaper-loss") {
-        // The old sibling cleaner retains its existing 5s
-        // cleanup deadline; the enclosing Node test retains its unchanged 30s guard.
-        await wait(() => existsSync(receipt), mode === "legacy-sibling-red" ? 6_000 : 5_000);
+        // The old sibling topology now settles under this enclosing active adopter.
+        // Keep its original 5s cleanup deadline and the enclosing 30s guard.
+        await wait(() => existsSync(receipt), mode === "legacy-sibling-adopted" ? 6_000 : 5_000);
         const outcome = json(readFileSync(receipt, "utf8")).outcome;
-        if (mode === "legacy-sibling-red") {
+        if (mode === "legacy-sibling-adopted") {
           assert.equal(
             outcome,
-            "failed:timeout",
-            "old sibling topology did not reproduce its orphan defect",
+            "quiescent",
+            "enclosing adopter did not settle the old sibling topology",
           );
-          assert.equal(identity(Number(readFileSync(descendant, "utf8"))).state, "Z");
+          assert.equal(
+            existsSync(`/proc/${Number(readFileSync(descendant, "utf8"))}`),
+            false,
+            "enclosing adopter retained an exited orphan",
+          );
           await completion;
         } else if (mode === "receipt-refusal") {
           assert.equal((await required(completion)).code, 1);
@@ -1115,7 +1120,7 @@ function linuxFixtureProgram(
 
 let linuxEvidenceHeld = false;
 for (const mode of [
-  "legacy-sibling-red",
+  "legacy-sibling-adopted",
   "natural",
   "adopted-exit",
   "gate-refusal",
