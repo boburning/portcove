@@ -2779,6 +2779,20 @@ a timely result can start the writer; late preparation is discarded without
 starting a writer or installing a subscriber. There is no automatic retry.
 Logging initialization failure never changes an otherwise valid startup outcome.
 
+Positive-sink qualification fixtures use the diagnostics crate's nondefault
+`qualification-fixtures` feature and an exact child-only
+`PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED=1` opt-in. They reuse actual location
+resolution, session allocation and writers with filesystem preparation outside
+the product bootstrap deadline. CLI's test dependency enables that feature for
+its real subprocess fixtures; ordinary release dependencies do not. Feature-off
+builds ignore the flag, and feature-enabled ordinary/unavailable cases clear it.
+Prepared construction reports its actual mode and emits a fixed
+boolean `qualification_prepared` startup observation; arbitrary text remains
+refused by the shared projection policy. These receipts prove owned sink,
+record and lease behavior, not production bootstrap availability or latency.
+The separate blocked-bootstrap and ordinary unavailable cases retain the 250 ms
+contract, no-late-writer behavior and finite subprocess cleanup.
+
 File filtering defaults to application INFO and dependency WARN. Exactly
 `PORTCOVE_DIAGNOSTICS_DEBUG=1`, or CLI `-vv`, enables application DEBUG for that
 process without saving a preference. Later sessions use defaults unless opted in
