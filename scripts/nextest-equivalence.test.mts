@@ -278,11 +278,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     });
   }
   const windowsPreparationAndDriftFilter =
-    "(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/))";
+    "(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/)))";
   const windowsDiagnosticsFilter =
     "package(portcove-cli) & binary(runtime_diagnostics) & test(/^runtime_diagnostics_correlates_real_install_update_prepare_and_launch$/)";
   const windowsRelocationRecoveryFilter =
-    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine)_intent$/)";
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine|original_paths)_intent$/)";
   const linuxRelocationRecoveryFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_relocation_intent$/)";
   const linuxRelocationRecovery = overrideFor(
@@ -421,6 +421,36 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     platform: "x86_64-pc-windows-msvc",
     filter: windowsRestoreSynchronizedFilter,
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const windowsSelectedPlayerDiagnosticFilter =
+    "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^game_file_query::tests::cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker$/))";
+  const windowsSelectedPlayerDiagnostic = overrideFor(
+    windowsSelectedPlayerDiagnosticFilter,
+    "x86_64-pc-windows-msvc",
+  );
+  assert.deepEqual(windowsSelectedPlayerDiagnostic, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsSelectedPlayerDiagnosticFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 24, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(windowsSelectedPlayerDiagnostic) <
+      overrides.indexOf(
+        overrideFor(
+          "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))",
+          "x86_64-pc-windows-msvc",
+        ),
+      ),
+    "The exact120s catalog identity must precede its60s family",
+  );
+  const windowsCopyingResumeFilter =
+    "package(portcove-core) & test(/^library_move::sequence_tests::copying_resume_resume$/)";
+  assert.deepEqual(overrideFor(windowsCopyingResumeFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsCopyingResumeFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
   const windowsLifecycleFilters = [
@@ -567,6 +597,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSelectedPlayerDiagnosticFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsCopyingResumeFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },

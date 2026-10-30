@@ -241,6 +241,26 @@ filter = 'package(portcove-core) & test(/^service::runtime_tests::reflectionhle_
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41001466846/a1 source09eba Windows1 retained three harness failures.
+# Catalog matrix completed three statuses by52.682s before60.067s; move
+# copying/resume/resume completed observation9 at29.745s before30.125s.
+# Refresh cancellation hit its10s readiness wait before assertions at16.853s.
+# Give exact Windows cases finite120/60/120s outer room; refresh's test-only
+# channel waits use60s, retaining its30s product fence and every assertion.
+# Preserve original failures, phase evidence, cleanup, two workers and zero
+# retries. Completion under larger budgets is not a causal or speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^game_file_query::tests::cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker$/))'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::sequence_tests::copying_resume_resume$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
 # the complete catalog maintenance matrix and indexed retention lifecycle.
 # Keep all246+ definitions, statuses, durable operations and assertions;
@@ -256,9 +276,11 @@ success-output = "immediate"
 # only these Windows cases the existing full-lifecycle90s safeguard. The
 # query's inner30s behavioral fence, child deadlines, cleanup, concurrency
 # and zero retries remain unchanged; budgeted success is not a speedup claim.
+# CI41003906042/a1 Windows4 CHD preparation completed27.600s and fresh
+# status29.573s before30.060s at launch observation. Match ISO90s room.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = '(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/))'
+filter = '(package(portcove-core) & test(/^game_file_query::tests::late_channel_or_instance_drift_discards_the_private_refresh_result$/)) | (package(portcove-cli) & binary(machine_contract) & (test(/^preparation_contract::reusable_preparation_qualification_runs_real_cli_iso_case$/) | test(/^preparation_contract::reusable_preparation_qualification_uses_same_sequence_for_another_port_and_chd$/)))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
@@ -347,12 +369,14 @@ success-output = "immediate"
 # quarantine phases and began Adopt/CleanupPending at59.056s before60.410s
 # cutoff. Extend only this exact Windows fixture to the existing90s rule.
 # Preserve assertions, product/child deadlines, worker counts and zero retries.
+# CI41003906042/a1 source621a Windows5 completed seven original-paths
+# scenarios by59.674s before60.204s; include only that identity in90s.
 # CI40797975365/a1 job123202480906 completed seven of eight relocation
 # recovery scenarios at51.885s before the60.279s cutoff. Give only this
 # identity finite90s room, before the broader60s family override below.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine)_intent$/)'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|quarantine|original_paths)_intent$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 

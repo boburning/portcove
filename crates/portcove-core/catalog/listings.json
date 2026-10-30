@@ -12326,12 +12326,9 @@
     {
       "id": "cps2recomp-alien-vs-predator",
       "name": "Alien vs. Predator (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Alien vs. Predator using your own matching arcade originals.",
       "original_game_title": "Alien vs. Predator",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
       "issue_number": 2769,
@@ -12365,17 +12362,17 @@
           "This is upstream beta software. Upstream reports only scripted first-stage play and no human play observation for this newer beat-em-up."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-cadillacs-and-dinosaurs",
       "name": "Cadillacs and Dinosaurs (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Cadillacs and Dinosaurs using your own matching arcade originals.",
       "original_game_title": "Cadillacs and Dinosaurs",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md",
       "artwork": {
@@ -12417,17 +12414,17 @@
           "This is upstream beta software. Upstream reports only scripted first-stage play and no human play/audio observation for this newer beat-em-up."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-marvel-super-heroes",
       "name": "Marvel Super Heroes (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Marvel Super Heroes using your own matching arcade originals.",
       "original_game_title": "Marvel Super Heroes",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md",
       "artwork": {
@@ -12469,17 +12466,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-street-fighter-alpha",
       "name": "Street Fighter Alpha: Warriors Dreams (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Street Fighter Alpha: Warriors Dreams using your own matching arcade originals.",
       "original_game_title": "Street Fighter Alpha: Warriors Dreams",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
       "issue_number": 2762,
@@ -12513,17 +12510,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-street-fighter-alpha-2",
       "name": "Street Fighter Alpha2 (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Street Fighter Alpha2 using your own matching arcade originals.",
       "original_game_title": "Street Fighter Alpha2",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
       "issue_number": 2763,
@@ -12557,17 +12554,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-super-gem-fighter-mini-mix",
       "name": "Super Gem Fighter Mini Mix (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Super Gem Fighter Mini Mix using your own matching arcade originals.",
       "original_game_title": "Super Gem Fighter Mini Mix",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md",
       "issue_number": 2780,
@@ -12601,17 +12598,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
       "name": "Super Puzzle FighterII Turbo (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Super Puzzle FighterII Turbo using your own matching arcade originals.",
       "original_game_title": "Super Puzzle FighterII Turbo",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md",
       "issue_number": 2765,
@@ -12645,17 +12642,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-hunter-2",
       "name": "Vampire Hunter2: Darkstalkers Revenge (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Hunter2: Darkstalkers Revenge using your own matching arcade originals.",
       "original_game_title": "Vampire Hunter2: Darkstalkers Revenge",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
       "issue_number": 2782,
@@ -12689,17 +12686,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-savior",
       "name": "Vampire Savior: The Lord of Vampire (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior: The Lord of Vampire using your own matching arcade originals.",
       "original_game_title": "Vampire Savior: The Lord of Vampire",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
       "issue_number": 2766,
@@ -12733,17 +12730,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-savior-2",
       "name": "Vampire Savior2: The Lord of Vampire (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior2: The Lord of Vampire using your own matching arcade originals.",
       "original_game_title": "Vampire Savior2: The Lord of Vampire",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
       "issue_number": 2767,
@@ -12777,17 +12774,17 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-vampire-savior-definitive",
       "name": "Vampire Savior Definitive (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play Vampire Savior Definitive using your own matching arcade originals.",
       "original_game_title": "Vampire Savior Definitive",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
       "issue_number": 2768,
@@ -12821,17 +12818,17 @@
           "This is upstream beta software. Upstream says the three imported characters have not been played by hand and lists missing Donovan stage/music."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "cps2recomp-x-men-vs-street-fighter",
       "name": "X-Men vs. Street Fighter (CPS-2 Recomp)",
-      "summary": "Prepare this exact arcade set with the shared CPS-2 Recomp launcher. Runtime updates and profiles stay upstream-owned; this beta game has its own limits.",
+      "summary": "Play X-Men vs. Street Fighter using your own matching arcade originals.",
       "original_game_title": "X-Men vs. Street Fighter",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md",
       "artwork": {
@@ -12873,7 +12870,10 @@
           "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
         ],
         "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md"
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "crackdown-crackdown-recompiled",
@@ -15298,9 +15298,6 @@
       "summary": "Play Doom II RPG with the upstream Windows player and your original iOS game package.",
       "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
       "issue_number": 370,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Erick194/DoomIIRPG-RE#readme",
       "artwork": {
@@ -15324,6 +15321,10 @@
           {
             "title": "Select the player and keep your saves",
             "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
@@ -15336,7 +15337,10 @@
           ".zip"
         ]
       },
-      "original_game_title": "Doom II RPG"
+      "original_game_title": "Doom II RPG",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-rpg-doomrpg-re",
@@ -15344,9 +15348,6 @@
       "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
       "project_url": "https://github.com/Erick194/DoomRPG-RE",
       "issue_number": 369,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Erick194/DoomRPG-RE#readme",
       "artwork": {
@@ -15370,6 +15371,10 @@
           {
             "title": "Keep progress when updating",
             "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [
@@ -15384,7 +15389,10 @@
           ".zip"
         ]
       },
-      "original_game_title": "Doom RPG"
+      "original_game_title": "Doom RPG",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
@@ -27657,7 +27665,6 @@
       "summary": "Use your own Jedi Knight game files with OpenJKDF2’s first-launch setup and upstream updater.",
       "project_url": "https://github.com/shinyquagsire23/OpenJKDF2",
       "issue_number": 725,
-      "platforms": [],
       "availability": "packages",
       "setup_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
       "artwork": {
@@ -27677,6 +27684,10 @@
           {
             "title": "Keep updates and data with the working copy",
             "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
@@ -27689,7 +27700,10 @@
       },
       "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
       "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases",
-      "recommended_download_channel": "beta"
+      "recommended_download_channel": "beta",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
@@ -42579,10 +42593,6 @@
       "summary": "Play Wolfenstein RPG with your own matching original iOS game data.",
       "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
       "issue_number": 371,
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
       "artwork": {
@@ -42622,12 +42632,20 @@
           {
             "title": "Preserve the writable game folder when updating",
             "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+          },
+          {
+            "title": "Keep external ownership and deliberate Play",
+            "instruction": "Register the real Windows player or already working Linux AppImage/native player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
           }
         ],
         "warnings": [],
         "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md"
       },
-      "original_game_title": "Wolfenstein RPG"
+      "original_game_title": "Wolfenstein RPG",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "woody-woodpecker-woodyre",

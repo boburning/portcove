@@ -25127,6 +25127,786 @@
       }
     },
     {
+      "id": "cps2recomp-alien-vs-predator",
+      "name": "Alien vs. Predator (CPS-2 Recomp)",
+      "summary": "Play Alien vs. Predator using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set avspu (USA 940520), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream reports only scripted first-stage play and no human play observation for this newer beat-em-up.",
+        "original_game_title": "Alien vs. Predator",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set avspu (USA 940520), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream reports only scripted first-stage play and no human play observation for this newer beat-em-up."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-cadillacs-and-dinosaurs",
+      "name": "Cadillacs and Dinosaurs (CPS-2 Recomp)",
+      "summary": "Play Cadillacs and Dinosaurs using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own Cadillacs and Dinosaurs CPS-1/QSound arcade set dino (World 930201), from a board you own. This set has no separate key file; upstream derives its sound-program key from the supplied original. Other revisions and CPS-2 keys do not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream reports only scripted first-stage play and no human play/audio observation for this newer beat-em-up.",
+        "original_game_title": "Cadillacs and Dinosaurs",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own Cadillacs and Dinosaurs CPS-1/QSound arcade set dino (World 930201), from a board you own. This set has no separate key file; upstream derives its sound-program key from the supplied original. Other revisions and CPS-2 keys do not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream reports only scripted first-stage play and no human play/audio observation for this newer beat-em-up."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md"
+        },
+        "artwork": {
+          "game_id": 5368,
+          "cover_id": 114664,
+          "image_id": "co2gh4",
+          "image_sha256": "3de4b6df40fad40ebc1700b060eed1eaa9dcf5e3c4e92be2a6a380bd4939d560",
+          "game_slug": "cadillacs-and-dinosaurs",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-marvel-super-heroes",
+      "name": "Marvel Super Heroes (CPS-2 Recomp)",
+      "summary": "Play Marvel Super Heroes using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set msh (Europe 951024), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Marvel Super Heroes",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set msh (Europe 951024), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md"
+        },
+        "artwork": {
+          "game_id": 27890,
+          "cover_id": 393313,
+          "image_id": "co8fhd",
+          "image_sha256": "d73248d9ec6f349745c21bb48b66c257fb1501a40637ec1f04c01f9cd576fb41",
+          "game_slug": "marvel-super-heroes",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-street-fighter-alpha",
+      "name": "Street Fighter Alpha: Warriors Dreams (CPS-2 Recomp)",
+      "summary": "Play Street Fighter Alpha: Warriors Dreams using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set sfa (Europe 950727), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Street Fighter Alpha: Warriors Dreams",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set sfa (Europe 950727), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-street-fighter-alpha-2",
+      "name": "Street Fighter Alpha2 (CPS-2 Recomp)",
+      "summary": "Play Street Fighter Alpha2 using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set sfa2u (USA 960430), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Street Fighter Alpha2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set sfa2u (USA 960430), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-super-gem-fighter-mini-mix",
+      "name": "Super Gem Fighter Mini Mix (CPS-2 Recomp)",
+      "summary": "Play Super Gem Fighter Mini Mix using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set sgemf (USA 970904), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Super Gem Fighter Mini Mix",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set sgemf (USA 970904), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
+      "name": "Super Puzzle FighterII Turbo (CPS-2 Recomp)",
+      "summary": "Play Super Puzzle FighterII Turbo using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set spf2t (Europe 960529), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Super Puzzle FighterII Turbo",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set spf2t (Europe 960529), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-hunter-2",
+      "name": "Vampire Hunter2: Darkstalkers Revenge (CPS-2 Recomp)",
+      "summary": "Play Vampire Hunter2: Darkstalkers Revenge using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set vhunt2 (Japan 970929), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Vampire Hunter2: Darkstalkers Revenge",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set vhunt2 (Japan 970929), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-savior",
+      "name": "Vampire Savior: The Lord of Vampire (CPS-2 Recomp)",
+      "summary": "Play Vampire Savior: The Lord of Vampire using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set vsavj (Japan 970519), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Vampire Savior: The Lord of Vampire",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set vsavj (Japan 970519), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-savior-2",
+      "name": "Vampire Savior2: The Lord of Vampire (CPS-2 Recomp)",
+      "summary": "Play Vampire Savior2: The Lord of Vampire using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set vsav2 (Japan 970913), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "Vampire Savior2: The Lord of Vampire",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set vsav2 (Japan 970913), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-vampire-savior-definitive",
+      "name": "Vampire Savior Definitive (CPS-2 Recomp)",
+      "summary": "Play Vampire Savior Definitive using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use both of your own arcade sets, vsavj (Vampire Savior, Japan 970519) and vsav2 (Vampire Savior 2, Japan 970913), each with its key file, from boards you own. Configure vsavj on Definitive’s page and vsav2 on Vampire Savior 2’s page. One game alone does not supply this composite version. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream says the three imported characters have not been played by hand and lists missing Donovan stage/music.",
+        "original_game_title": "Vampire Savior Definitive",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use both of your own arcade sets, vsavj (Vampire Savior, Japan 970519) and vsav2 (Vampire Savior 2, Japan 970913), each with its key file, from boards you own. Configure vsavj on Definitive’s page and vsav2 on Vampire Savior 2’s page. One game alone does not supply this composite version. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream says the three imported characters have not been played by hand and lists missing Donovan stage/music."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md"
+        }
+      }
+    },
+    {
+      "id": "cps2recomp-x-men-vs-street-fighter",
+      "name": "X-Men vs. Street Fighter (CPS-2 Recomp)",
+      "summary": "Play X-Men vs. Street Fighter using your own matching arcade originals.",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "tmcleroy/cps2recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own exact arcade ROM set xmvsf (Europe 961004), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files. Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable. Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied. The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow. Upstream limits: This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification.",
+        "original_game_title": "X-Men vs. Street Fighter",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use the exact original arcade set",
+              "instruction": "Use your own exact arcade ROM set xmvsf (Europe 961004), including its game key file, from a board you own. Another region or revision does not substitute for it. Keep originals separate and unchanged. The launcher accepts the set ZIP or its files folder and checks the files by checksum; when shared files are split, keep the matching parent ZIP beside it. Portcove registration does not authenticate the set or supply copyrighted game files."
+            },
+            {
+              "title": "Prepare the shared launcher and this game",
+              "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            },
+            {
+              "title": "Preserve the actual game and launcher data",
+              "instruction": "Use the launcher’s Your files / Show controls to find the actual launcher and per-game folders. Normal Windows game data is under the user profile (%APPDATA%/<Game>/); portable.txt beside the launcher selects CPS2Recomp/user/ with separate launcher/game subfolders. Preserve actual settings, save states, board memory, custom colours, scores, soundtrack files and logs with all games and launchers closed. The first portable-mode copy is an explicit upstream choice and never a Portcove migration. Removing portable.txt redirects future use without moving existing data. Keep both roots and the creating runtime until a replacement works; no state compatibility or populated-data adoption is implied."
+            },
+            {
+              "title": "Keep upstream runtime ownership and explicit Play",
+              "instruction": "The shared upstream launcher checks for updates and can replace the collection after the games close. It owns runtime replacement and its preparation. Use its update controls deliberately after preserving your working runtime and profile. Portcove saves a non-owning external entry: Play is separate and explicit, and removing the registration preserves the external package, originals and profiles. Managed Update, Backup, Rollback, migration and deletion are unavailable for these files. Other platforms require their own supported upstream package and application flow."
+            }
+          ],
+          "warnings": [
+            "This is upstream beta software. Upstream’s fighting-game and scripted checks are its own claims; they do not establish Portcove native, gameplay or save qualification."
+          ],
+          "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md"
+        },
+        "artwork": {
+          "game_id": 8244,
+          "cover_id": 406531,
+          "image_id": "co8poj",
+          "image_sha256": "c4e2b56969df7bfbd58e3058daa51c07fc70a2d5368147eab20fa1a92953c67d",
+          "game_slug": "x-men-vs-street-fighter",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "craigshaw-fzerorecomp",
       "name": "F-Zero / F-Zero Recomp (craigshaw)",
       "summary": "Explore F-Zero / F-Zero Recomp (craigshaw) and follow the upstream project for requirements, downloads and setup.",
@@ -26283,6 +27063,146 @@
         "DOOMWADDIR": "originals"
       },
       "windows_temp_directory": "temp"
+    },
+    {
+      "id": "doom-ii-rpg-doomiirpg-re",
+      "name": "Doom II RPG / DoomIIRPG-RE",
+      "summary": "Play Doom II RPG with the upstream Windows player and your original iOS game package.",
+      "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "Erick194/DoomIIRPG-RE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Keep your permitted original Doom 2 RPG.ipa beside DoomIIRPG.exe, using that exact filename. This player reads the iOS package; BREW/J2ME rendering or cheat descriptions do not establish alternate game-data support. Extract the complete Windows ZIP into a separate working folder. Upstream requires OpenAL 1.1 on Windows; use its documented runtime installation if it is missing. Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Doom II RPG",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Supply the original iOS package",
+              "instruction": "Keep your permitted original Doom 2 RPG.ipa beside DoomIIRPG.exe, using that exact filename. This player reads the iOS package; BREW/J2ME rendering or cheat descriptions do not establish alternate game-data support."
+            },
+            {
+              "title": "Complete the Windows prerequisites",
+              "instruction": "Extract the complete Windows ZIP into a separate working folder. Upstream requires OpenAL 1.1 on Windows; use its documented runtime installation if it is missing."
+            },
+            {
+              "title": "Select the player and keep your saves",
+              "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme"
+        },
+        "artwork": {
+          "game_id": 101031,
+          "cover_id": 139770,
+          "image_id": "co2zui",
+          "image_sha256": "cba5f5ca6ebf630c36205d21c20d2d58c4def25c69503ab268ecfb83abdfc107",
+          "game_slug": "doom-ii-rpg",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "doom-rpg-doomrpg-re",
+      "name": "Doom RPG / DoomRPG-RE",
+      "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
+      "project_url": "https://github.com/Erick194/DoomRPG-RE",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "Erick194/DoomRPG-RE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The player requires a prepared DoomRPG.zip beside DoomRPG.exe. Follow upstream’s supported preparation for your permitted original Doom RPG data. The included BarToZip.exe converts compatible BREW data; it is a manual preparation tool, not the game player. Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player. Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Doom RPG",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original game data",
+              "instruction": "The player requires a prepared DoomRPG.zip beside DoomRPG.exe. Follow upstream’s supported preparation for your permitted original Doom RPG data. The included BarToZip.exe converts compatible BREW data; it is a manual preparation tool, not the game player."
+            },
+            {
+              "title": "Select the game player",
+              "instruction": "Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player."
+            },
+            {
+              "title": "Keep progress when updating",
+              "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [
+            "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both."
+          ],
+          "help_url": "https://github.com/Erick194/DoomRPG-RE#readme"
+        },
+        "artwork": {
+          "game_id": 101029,
+          "cover_id": 419952,
+          "image_id": "co901c",
+          "image_sha256": "cc08e314298f0cb0e877d0f6483b3d4b830feace20b3b36258c2300b82c068d2",
+          "game_slug": "doom-rpg",
+          "match_kind": "underlying-game"
+        }
+      }
     },
     {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
@@ -29296,6 +30216,71 @@
           "image_id": "co2g7i",
           "image_sha256": "c0abeae6419dafca83fec6b39ec5dcee2bf5bcf8b48d718e6e835e7dd7a5d254",
           "game_slug": "x-com-apocalypse",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "openjkdf2-jedi-knight-dark-forces-ii",
+      "name": "OpenJKDF2",
+      "summary": "Use your own Jedi Knight game files with OpenJKDF2’s first-launch setup and upstream updater.",
+      "project_url": "https://github.com/shinyquagsire23/OpenJKDF2",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "shinyquagsire23/OpenJKDF2",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater. You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Complete original-game setup in OpenJKDF2",
+              "instruction": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater."
+            },
+            {
+              "title": "Keep updates and data with the working copy",
+              "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md"
+        },
+        "artwork": {
+          "game_id": 150,
+          "cover_id": 101009,
+          "image_id": "co25xt",
+          "image_sha256": "0a4eb3217216c14d88b1ef97a38cab2ad6166c110f11ea081575a580dcd8230c",
+          "game_slug": "star-wars-jedi-knight-dark-forces-ii",
           "match_kind": "underlying-game"
         }
       }
@@ -33887,6 +34872,90 @@
             "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
           ],
           "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
+        }
+      }
+    },
+    {
+      "id": "wolfenstein-rpg-wolfensteinrpg-re",
+      "name": "Wolfenstein RPG / WolfensteinRPG-RE",
+      "summary": "Play Wolfenstein RPG with your own matching original iOS game data.",
+      "project_url": "https://github.com/Erick194/WolfensteinRPG-RE",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "Erick194/WolfensteinRPG-RE",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "The Windows release ZIP contains the 32-bit WolfensteinRPG.exe, SDL2.dll, zlib.dll and its README. Keep them together in a writable folder; Windows x64 can use the Win32 player. If OpenAL is missing, follow the packaged README’s official OpenAL 1.1 Windows Installer link and install it yourself. Portcove does not run that installer during discovery or registration. Linux has a separate x86-64 AppImage and an upstream CMake build route. Put your own matching original iOS archive, named Wolfenstein RPG.ipa, in the player’s working folder. This player expects Payload/Wolf...RPG.app/Packages/ and its sounds/ subfolder inside the archive. J2ME, BREW and other iOS bundle layouts are not substitutes. Keep your original archive intact and use upstream’s matching-data preparation; this guide supplies no game data or extraction workaround. On Windows, add WolfensteinRPG.exe with the folder containing your IPA as its working directory. For the Linux AppImage or a user-prepared native WolfensteinRPG binary, use a writable working directory containing that same required archive. Read-only discovery never runs the player or a helper; Play is a separate choice. The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file. Register the real Windows player or already working Linux AppImage/native player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable.",
+        "original_game_title": "Wolfenstein RPG",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Keep the player and required libraries together",
+              "instruction": "The Windows release ZIP contains the 32-bit WolfensteinRPG.exe, SDL2.dll, zlib.dll and its README. Keep them together in a writable folder; Windows x64 can use the Win32 player. If OpenAL is missing, follow the packaged README’s official OpenAL 1.1 Windows Installer link and install it yourself. Portcove does not run that installer during discovery or registration. Linux has a separate x86-64 AppImage and an upstream CMake build route."
+            },
+            {
+              "title": "Supply your matching original iOS archive",
+              "instruction": "Put your own matching original iOS archive, named Wolfenstein RPG.ipa, in the player’s working folder. This player expects Payload/Wolf...RPG.app/Packages/ and its sounds/ subfolder inside the archive. J2ME, BREW and other iOS bundle layouts are not substitutes. Keep your original archive intact and use upstream’s matching-data preparation; this guide supplies no game data or extraction workaround."
+            },
+            {
+              "title": "Register the player, then choose Play",
+              "instruction": "On Windows, add WolfensteinRPG.exe with the folder containing your IPA as its working directory. For the Linux AppImage or a user-prepared native WolfensteinRPG binary, use a writable working directory containing that same required archive. Read-only discovery never runs the player or a helper; Play is a separate choice."
+            },
+            {
+              "title": "Preserve the writable game folder when updating",
+              "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+            },
+            {
+              "title": "Keep external ownership and deliberate Play",
+              "instruction": "Register the real Windows player or already working Linux AppImage/native player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md"
+        },
+        "artwork": {
+          "game_id": 67744,
+          "cover_id": 199174,
+          "image_id": "co49om",
+          "image_sha256": "31cefd47414a8bafd8da34018c6d5af038ce19cd9b1c898324e9b9276dd4b331",
+          "game_slug": "wolfenstein-rpg",
+          "match_kind": "underlying-game"
         }
       }
     },
