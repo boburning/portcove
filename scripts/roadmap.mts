@@ -1287,8 +1287,9 @@ export function parseArguments(argv: readonly string[]) {
       positionals.push(token);
       continue;
     }
-    const [name, inline] = token.split("=", 2);
-    if (name === undefined) throw new Error("argument name is unavailable");
+    const separator = token.indexOf("=");
+    const name = separator < 0 ? token : token.slice(0, separator);
+    const inline = separator < 0 ? undefined : token.slice(separator + 1);
     if (
       ["--apply", "--json", "--summary", "--help", "--linux-beta-706"].includes(name) &&
       inline === undefined
