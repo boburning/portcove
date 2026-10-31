@@ -3,13 +3,43 @@
   "listing": {
     "id": "prince-of-persia-dos-sdlpop",
     "name": "Prince of Persia (DOS) (SDLPoP)",
-    "summary": "Research listing. Upstream route: Native disassembly-derived port; official README links desktop builds externally. Limits: Review complete package contents and lawful original-data handling before managed admission. Upstream platforms: Official external desktop builds and documented Windows/Unix/macOS source compilation. Selected package CPU architectures unknown in frozen research. Original data: Original-data/package contract remains Unknown for this SDLPoP route: establish whether the selected distribution already includes necessary Prince of Persia DOS data and which original v1.0/modified DAT set is accepted. Retained README supports original/mod DAT files and MIDISND*.DAT music, but does not establish a separate player-owned executable/ROM requirement. Do not impose one without evidence; asset permission review remains separate. Portcove setup/gameplay not verified.",
+    "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Core offers nonowning registration/Play while upstream owns setup, actual state roots and replacement.",
     "original_game_title": "Prince of Persia (DOS)",
     "project_url": "https://github.com/NagyD/SDLPoP",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/NagyD/SDLPoP",
-    "issue_number": 2892
+    "issue_number": 2892,
+    "manual_setup": {
+      "help_url": "https://github.com/NagyD/SDLPoP/tree/3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+      "steps": [
+        {
+          "title": "Use only an already permitted working native copy",
+          "instruction": "Use a complete SDLPoP Windows copy that you are already permitted to use, with its actual working data/libraries/resources. Select the modern native prince.exe, not the same-named DOS original, a download helper or installer. Selected current source enters pop_main in the game process, but does not certify an external binary. Official README links desktop builds externally; no selected GitHub release does not mean there is no distribution."
+        },
+        {
+          "title": "Keep the unresolved asset condition explicit",
+          "instruction": "Fresh managed-package admission remains unavailable while exact official distribution contents, accepted original/mod DAT set and applicable original asset permissions are unresolved. README supports original/mod DAT and MIDISND data but does not establish a separate player-owned original EXE or ROM requirement; do not invent one. The engine GPL/disassembly classification does not grant proprietary asset rights. This conditional existing-copy route neither downloads assets nor resolves that open permission/data question."
+        },
+        {
+          "title": "Keep the creating working directory and options",
+          "instruction": "Complete upstream preparation and a normal start/quit before registration. Select the actual prepared working directory and established supported literal arguments/mod choices. Keep SDLPoP.ini and actual resource/levelset setup; do not substitute a replay-validator/headless/helper invocation for the normal player. Review exact intent/consent and choose Play separately. No Core environment injection or forced profile migration is supplied."
+        },
+        {
+          "title": "Preserve all actual save, mod and replay roots",
+          "instruction": "On Windows normal PRINCE.SAV/QUICKSAVE.SAV/PRINCE.HOF writes can use the actual working directory. Existing SDLPOP_SAVE_PATH redirects save/HOF output, including a levelset subdirectory; without it a custom levelset can use its actual mod_data_path. Preserve all those roots, full runtime/DAT/MIDISND/mod data, SDLPoP.ini, configured replays_folder and recordings, legacy and unknown files. Keep the old creating runtime/data/config tuple before updates; no save/replay/mod compatibility or isolated profile is certified."
+        },
+        {
+          "title": "Keep replacement and removal ownership clear",
+          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+        }
+      ],
+      "warnings": [
+        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

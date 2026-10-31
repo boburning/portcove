@@ -1679,6 +1679,46 @@ mod tests {
     }
 
     #[test]
+    fn vkquake_prepared_player_route_2697() {
+        assert_listing_only_player_route("quake-vkquake", Some(false));
+    }
+
+    #[test]
+    fn ironwail_prepared_player_route_2698() {
+        assert_listing_only_player_route("quake-ironwail", Some(false));
+    }
+
+    #[test]
+    fn fallout1_ce_prepared_player_route_2573() {
+        assert_listing_only_player_route("fallout-fallout-community-edition", Some(false));
+    }
+
+    #[test]
+    fn fallout2_ce_prepared_player_route_2574() {
+        assert_listing_only_player_route("fallout-2-fallout-2-community-edition", Some(false));
+    }
+
+    #[test]
+    fn arx_libertatis_prepared_player_route_2554() {
+        assert_listing_only_player_route("arx-fatalis-arx-libertatis", Some(false));
+    }
+
+    #[test]
+    fn iortcw_sp_prepared_player_route_2706() {
+        assert_listing_only_player_route("return-to-castle-wolfenstein-iortcw", Some(false));
+    }
+
+    #[test]
+    fn yamagi_direct_player_route_2700() {
+        assert_listing_only_player_route("quake-ii-yamagi-quake-ii", Some(false));
+    }
+
+    #[test]
+    fn sdlpop_permitted_player_route_2892() {
+        assert_listing_only_player_route("prince-of-persia-dos-sdlpop", Some(false));
+    }
+
+    #[test]
     fn accepted_user_selected_definition_preserves_creation_and_public_status_contract() {
         let (_temporary, mut service, executable, working) = fixture("legacy-description");
         let mut document = serde_json::to_value(service.catalog.authoritative_document()).unwrap();
