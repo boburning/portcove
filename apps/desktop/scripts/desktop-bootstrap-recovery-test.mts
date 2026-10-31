@@ -329,7 +329,7 @@ export async function bootstrapRecoveryScenario({
   await chooseOwnedLibrary("Choose Portcove library", "Cancel", "Folder", "startup-picker-cancel");
   await browser.wait(
     async () => {
-      const row = await browser.findElement(By.css(".bootstrap-error .button-row"));
+      const row = await browser.findElement(choose).findElement(By.xpath("parent::*[@aria-busy]"));
       return (
         (await row.getAttribute("aria-busy")) === "false" &&
         (await browser.findElement(choose).isEnabled()) &&
