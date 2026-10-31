@@ -147,11 +147,15 @@ fn transfer_desktop_library<T, F>(
 where
     F: FnOnce(&Path) -> portcove_core::Result<T>,
 {
-    let root = {
+    let (root, outgoing_root) = {
         let mut initialization = state.initialization.lock().map_err(|_| {
             DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
         })?;
         require_no_library_handoff(&initialization)?;
+        let outgoing_root = initialization
+            .as_ref()
+            .ok()
+            .map(|ready| ready.library.root().to_path_buf());
         let root = if let Some(root) = recovery_root {
             root
         } else {
@@ -162,15 +166,19 @@ where
                 .root()
                 .to_path_buf()
         };
-        // Release the adapter's providers and library lease. Previously dispatched work
-        // keeps its own leases, causing core's exclusive operation to fail safely.
+        // Stop new readers and release cached leases before waiting for short
+        // dispatched reads. Core still owns the subsequent exclusive operation.
         *initialization = Err(PortcoveError::conflict("library transfer is in progress")
             .detail("transfer_in_progress", "true")
             .detail("retained_source", root.display().to_string())
             .into());
-        root
+        (root, outgoing_root)
     };
-    let result = operation(&root).map_err(DesktopError::from);
+    // Probe only the formerly selected, validated root. An explicit recovery
+    // path must reach Core's validation without a host-created lease directory.
+    let drained = outgoing_root.as_deref().map_or(Ok(()),
+        crate::library_selection::wait_for_outgoing_library);
+    let result = drained.and_then(|()| operation(&root)).map_err(DesktopError::from);
     let active_root = result.as_ref().map_or_else(|_| root.clone(), active_root);
     let reopened = initialize_desktop_at(Some(active_root)).map_err(|mut error| {
         if !error.details.contains_key("import_destination") {
@@ -289,6 +297,78 @@ mod tests {
             fs::canonicalize(destination).unwrap()
         );
     }
+    #[test]
+    fn transfer_waits_for_a_previously_dispatched_read_to_finish() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop_at(
+                Some(source.clone()),
+            ))),
+            preferences: portcove_core::HostPreferenceStore::new(
+                temporary.path().join("preferences.json"),
+            )
+            .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let plan = service(&state).unwrap().plan_library_move(&destination).unwrap();
+        let held = service(&state).unwrap();
+        let reader = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            drop(held);
+        });
+        let moved = transfer_desktop_library(
+            &state,
+            None,
+            |root| PortcoveService::move_library(root, &destination, &plan.plan_sha256),
+            |result| result.active_root.clone(),
+        );
+        reader.join().unwrap();
+        let moved = moved.expect("a short outgoing read must settle before exclusive transfer");
+        assert!(moved.completed);
+        let reopened = bootstrap_status(&state);
+        assert!(reopened.ready);
+        assert_eq!(reopened.generation, 2);
+        assert_eq!(reopened.library_root.unwrap(), fs::canonicalize(destination).unwrap());
+        assert!(crate::service_at_generation(&state, 1).is_err());
+        assert!(crate::service_at_generation(&state, 2).is_ok());
+    }
+
+    #[test]
+    fn transfer_does_not_preflight_an_unvalidated_recovery_root() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let recovery = temporary.path().join("unvalidated-recovery");
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop_at(
+                Some(source),
+            ))),
+            preferences: portcove_core::HostPreferenceStore::new(
+                temporary.path().join("preferences.json"),
+            )
+            .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let called = std::cell::Cell::new(false);
+        let result: DesktopResult<()> = transfer_desktop_library(
+            &state,
+            Some(recovery.clone()),
+            |root| {
+                called.set(true);
+                assert_eq!(root, recovery);
+                assert!(!root.exists(), "host drain must not create an unvalidated recovery path");
+                Err(PortcoveError::state("injected Core recovery refusal"))
+            },
+            |_| unreachable!("the operation refused recovery"),
+        );
+        assert!(called.get());
+        assert!(result.is_err());
+        assert_eq!(bootstrap_status(&state).generation, 2);
+    }
+
     #[test]
     fn failed_transfer_after_publication_reopens_destination_and_expires_reviews() {
         let temporary = tempfile::tempdir().unwrap();

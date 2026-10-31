@@ -1196,7 +1196,13 @@ guards remain authoritative.
 
 Library selection and transfer share the same adapter initialization lock. Either
 in-flight handoff excludes another switch, move, import or recovery transfer before
-it can replace the active adapter state. Bootstrap captures the library and its
+it can replace the active adapter state. After blocking new adapter readers and
+dropping cached leases, both wait up to two seconds for previously dispatched reads
+of the actual outgoing library to settle. Explicit recovery paths are not probed
+before Core validates them. A transfer's failed wait still follows its existing
+reopening and generation invalidation; the subsequent Core operation independently acquires its
+exclusive lease and revalidates its plan or recovery state. This wait neither reserves authority nor
+retries a mutation. Bootstrap captures the library and its
 generation under that same lock; successful selection and every attempted transfer
 publish the reopened state and new generation together. A transfer error can follow
 committed changes or reopening through a relocation receipt, so it also expires
