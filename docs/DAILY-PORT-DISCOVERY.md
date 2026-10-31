@@ -133,7 +133,25 @@ membership traversals must agree on exact item/content identities and archive
 state. Unrelated planning fields and dependencies remain Unknown, so ordinary
 field/view edits elsewhere on the board do not invalidate that membership proof.
 Existing recovery targets receive fresh complete direct field reads; missing
-field coverage cannot be interpreted as an unset value. The normal collector
+field coverage cannot be interpreted as an unset value.
+Repository comment activity also moves issue `updatedAt`. Intake keeps the complete
+all-state issue/body baseline, then enumerates every updated issue through
+[GitHub's inclusive `since` filter](https://docs.github.com/en/graphql/reference/issues#issuefilters),
+starting at the initial server issue watermark, including its equal-second rows.
+Every filtered page, opaque ID and total must verify under the same repository
+identity; the short read is bracketed by an unchanged latest-update marker and
+repository count. All returned full bodies, titles, states, URLs and issue
+identities must exactly match the baseline. Missing boundary/latest records,
+regressing timestamps, membership changes or real semantic edits fail closed.
+Only independently proved timestamp-only changes are accepted; no body or owner
+change is ignored. Selected targets still require fresh exact full bodies and
+complete fields. Full/global inventory retains its strict revision contract.
+Warm hosted preflight admits the existing thin inventory plus a conservative
+whole-corpus delta envelope and bounded diagnostic headroom before reading it.
+This preserves capacity to restore a prepared intent when the existing budget
+cannot fit confirmation. Actual delta reads remain charged; no retry, larger
+physical budget or extra worker pass is introduced.
+The normal collector
 and inventory-backed doctors still require full coverage. A large batch obtains
 a fresh full inventory for its global doctor; the intake projection cannot
 satisfy that check. Repository revision, membership, provider and budget guards
