@@ -1,0 +1,1009 @@
+{
+  "format_version": 1,
+  "kind": "dated three-Required Windows route-continuity evidence; not live planning or fleet acceptance",
+  "observation_date": "2026-10-30",
+  "owners": [2510, 2926, 1422],
+  "implementation_base": "e93c30b5974c608cf63d9d69588949d3fdf3477d",
+  "rows": [
+    {
+      "canonical_issue": 56,
+      "id": "re-blue",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Blocked",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "L"
+      },
+      "context_observed_at": "2026-10-31T01:42:31.912Z",
+      "canonical_body_sha256_at_pickup": "190f461326b51abd34b0f3f547ba01a66546c18070e9b057239b0395acf5b1b7",
+      "authored_sha256": "dba06ea78f1b636a7bcae8c9ea2e2482c78581ad1c9c3835e05bbe8571777a8e",
+      "offered_operation": "Conditional already-permitted fully upstream-prepared Windows existing native player; original three-disc assembly/admission and managed replacement unoffered.",
+      "applicable_existing_or_new_case": "reblue_prepared_player_preserves_strict_definition_route_56",
+      "new_game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 143,
+      "id": "revelations-persona-recompiled",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Validating",
+        "Priority": "High",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Automated qualification",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-31T01:42:33.271Z",
+      "canonical_body_sha256_at_pickup": "34e732914382c3f2195335db296af6eb2715e52574045e036c47afe9ca00b5d0",
+      "authored_sha256": "5638b40c5b9bbed0a4f7058137a17ab813e1b3fb1f35f9c1f648ad29f83e7196",
+      "offered_operation": "Existing exact v0.1.1 Windows managed PSX route; historical actual lifecycle/native evidence retained at original identities, current deterministic scope/selection controls reused.",
+      "applicable_existing_or_new_case": "catalog::tests::persona_v011_has_exact_bounded_windows_qualification",
+      "new_game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 317,
+      "id": "driver-2-redriver2",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Researching",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-31T01:42:34.581Z",
+      "canonical_body_sha256_at_pickup": "a701f812701c4d1af2d731549b7c58ae68a811ddebd371e913ec82924f81fbd5",
+      "authored_sha256": "28a05eb4ed694a3d365427a6e4dd49eaf088257e05f6969c339c1fb621719ca4",
+      "offered_operation": "Previously delivered exact standard preview8.0 Win32 player on Windows x64; supported upstream private preparation and nonowning native registration/Play/preserving metadata removal.",
+      "applicable_existing_or_new_case": "redriver2_prepared_player_route_317",
+      "new_game_package_original_execution": "not_run"
+    }
+  ],
+  "counts": {
+    "distinct_upstream_repository_commit_path_blob_bindings": 53,
+    "unique_upstream_content_blobs": 53,
+    "complete_upstream_tree_reference_roles": 3,
+    "unique_upstream_root_tree_objects": 2
+  },
+  "source_bindings": [
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "generated/rexglue.cmake",
+      "blob": "b10a9798abb0e81ee8008ab9b3e7b191eb1e4163",
+      "bytes": 5903,
+      "sha256": "08d0acf4c73d7f2bde68a4937a71d6be768925dba5c6d20cfeb92f5e523c6a18",
+      "retained_source_name": "reblue-tag--generated__rexglue.cmake"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": ".github/workflows/_resolve.yml",
+      "blob": "d02931fa06abfd1a6cd6d89e56f717bda91065cf",
+      "bytes": 2027,
+      "sha256": "a5d6a45318e1525c16b4e4df7aba94a82ac9ab3f450e911d5ba1538947325c71",
+      "retained_source_name": "reblue-tag--.github__workflows___resolve.yml"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": ".github/workflows/_build-windows.yml",
+      "blob": "0912d190585b0bb87e6802d58108b43b659cc7dd",
+      "bytes": 3350,
+      "sha256": "ec34693ec63b344a3e724fe6e17bf4241f2de1c6a668d325c52778269c1cdb04",
+      "retained_source_name": "reblue-tag--.github__workflows___build-windows.yml"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": ".github/workflows/release.yml",
+      "blob": "32f28c80e3771d487646690e0f01b809318b5c13",
+      "bytes": 4607,
+      "sha256": "090977d2179130d94390de628a5cd00d2aaea50dc6d9eb74060b352eadf7832f",
+      "retained_source_name": "reblue-tag--.github__workflows__release.yml"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "reblue_manifest.toml",
+      "blob": "ecd4e3bbf19a017ac01d919b38ebea466734ef72",
+      "bytes": 1202,
+      "sha256": "18079543cc7f98c06e7842d499468563fcab610c088588dff85560937dd9811d",
+      "retained_source_name": "reblue-tag--reblue_manifest.toml"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "README.md",
+      "blob": "07bd40574d9b20adb3125d7c9e32d5002f18c7df",
+      "bytes": 8540,
+      "sha256": "cb3fbf5fb0bc314ac3dbdf9acaf3792546c5997cd70fc86f2c15ab724840a697",
+      "retained_source_name": "reblue-tag--README.md"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "LICENSE",
+      "blob": "75c00a3e099cf7daa49ec0ef14a2581f9d5d9d13",
+      "bytes": 1494,
+      "sha256": "f8c7147eba0225be836dd7f701bd9e254b76386271fe0a57955ee479864b1c97",
+      "retained_source_name": "reblue-tag--LICENSE"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": ".gitmodules",
+      "blob": "edd449152f0dac97199980f8a8be1317eaf495ff",
+      "bytes": 336,
+      "sha256": "df3301470922bf2c9514bf17519d196986e74783c2e4b154d31c2f13152c6990",
+      "retained_source_name": "reblue-tag--.gitmodules"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "CMakeLists.txt",
+      "blob": "80ad37c362d4bf84526741712bede4ac77be7661",
+      "bytes": 12477,
+      "sha256": "132ca13497760a7ae5ae0511f2fd9a510f8bcb2130e8b7b983e9511de4217c65",
+      "retained_source_name": "reblue-tag--CMakeLists.txt"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/CMakeLists.txt",
+      "blob": "7e7f48b7318c00a8b7abce43a6fd1f9730c85500",
+      "bytes": 1377,
+      "sha256": "938d06d697625c4f772d0ebacd160baa997418fd9cc7f0d32a27ce4148714d3d",
+      "retained_source_name": "reblue-tag--src__CMakeLists.txt"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/main.cpp",
+      "blob": "027352dedbf58dab4316d1dc5e11bebc3db59717",
+      "bytes": 419,
+      "sha256": "523526046530fe167b0a4771b6cada81def920e857b2530a985df6710044a804",
+      "retained_source_name": "reblue-tag--src__main.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/reblue_app.cpp",
+      "blob": "20930ebf1128914a332409b5e75cfe45b598f1e1",
+      "bytes": 38067,
+      "sha256": "f0149f8c7ce6d435af02760df9e25f0969eab4dacf205aa0805c1dc12591692e",
+      "retained_source_name": "reblue-tag--src__reblue_app.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/reblue_app.h",
+      "blob": "042c5cebd2fc0b61da592bb406439b6909640257",
+      "bytes": 5442,
+      "sha256": "af6b8beec372ec78c1e4eff9feaf584c0edcf1d53ba34368404d3d31d8d4539b",
+      "retained_source_name": "reblue-tag--src__reblue_app.h"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/app_root.cpp",
+      "blob": "381d3216f96df8d1fd3fcb37162c11cc796c482b",
+      "bytes": 2810,
+      "sha256": "96f3ac15c8a7ae28d9c5936da69e77eacef243f4d4b823fbdaef1697c837da16",
+      "retained_source_name": "reblue-tag--src__core__app_root.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/app_root.h",
+      "blob": "e31069e8c22d3cc91c039eee0919b28443fa2dd7",
+      "bytes": 1495,
+      "sha256": "e905f7ec4c6c7c004ac417e3fc294bc72db701bc47a0992d9b9fd07927a635a0",
+      "retained_source_name": "reblue-tag--src__core__app_root.h"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/settings.cpp",
+      "blob": "7a267eeff1eafca9f0b2ef123c09e175bc3d4a18",
+      "bytes": 7655,
+      "sha256": "700cc1da5aa53367fe0b38b6064d88af3e5d885d59ca3e3d801af6aa1129b53d",
+      "retained_source_name": "reblue-tag--src__core__settings.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/settings.h",
+      "blob": "9d2e7031ac4dbded6532f59d3db3588ad2534e47",
+      "bytes": 4110,
+      "sha256": "9ce496e882ee4d94c85b103b4686e583bfcf81a0cfc8af05a1dcf144cd1f43a1",
+      "retained_source_name": "reblue-tag--src__core__settings.h"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/settings_model.cpp",
+      "blob": "88fb79bb51e435c4ab8eb29e4024bf5bdc4a823d",
+      "bytes": 31874,
+      "sha256": "a3bfe584d007ee196e67b5304d610d87d5f80e1e839cd7f7ca79f00d993c7e84",
+      "retained_source_name": "reblue-tag--src__core__settings_model.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/settings_migration.cpp",
+      "blob": "307bc150b0bf112a12bb1ed64918f24bc8903830",
+      "bytes": 2433,
+      "sha256": "024fef958779b04d658383d71ffa31a26b0485b6dd87518ee0fa5fa154919bb3",
+      "retained_source_name": "reblue-tag--src__core__settings_migration.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/shutdown.cpp",
+      "blob": "e0b73ad1567ff10208f401cb88406971bef074c9",
+      "bytes": 5883,
+      "sha256": "154852353de9e4f4ca39686b319468933e5983157d26fdf6150db0578b1d5a17",
+      "retained_source_name": "reblue-tag--src__core__shutdown.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/core/xcontent.cpp",
+      "blob": "7b6f2a5834b09166da5f6b7ce2f10f3df09d3651",
+      "bytes": 2365,
+      "sha256": "64ae525c1c8139509b67150ba78defc0e8ddc4e33a47f9880552f46ac465c613",
+      "retained_source_name": "reblue-tag--src__core__xcontent.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/platform/updates.cpp",
+      "blob": "c49a0bbac381f8c1a3a762f106975778f2607030",
+      "bytes": 21196,
+      "sha256": "b5ead53d5b9e5a3fad25b38f570f367bd789b69e2d74d04c34edfe78f2bef795",
+      "retained_source_name": "reblue-tag--src__platform__updates.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/platform/updates.h",
+      "blob": "f5a8cf0c4cdb11675a71fe01358611580473f2b1",
+      "bytes": 4949,
+      "sha256": "62f57688f0cb264db0b7bb5c0a61971f9da909ba0389706281722209f9eaa9e0",
+      "retained_source_name": "reblue-tag--src__platform__updates.h"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/platform/reboot.cpp",
+      "blob": "816a66d312b884a0962a1a200ee1efb4bc8eceeb",
+      "bytes": 8020,
+      "sha256": "480c9daeca85f8d71c50086eb194183a8fce58f09b4df22ccbae4a69a7ee3a03",
+      "retained_source_name": "reblue-tag--src__platform__reboot.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/platform/reboot.h",
+      "blob": "984c06c1137cb7c53b06f0537e0dbd5f68d82e42",
+      "bytes": 2511,
+      "sha256": "e5ffdd9298bc1d41ba906224fc74cfbb2ac0c557bec543fb1368151685cc33d7",
+      "retained_source_name": "reblue-tag--src__platform__reboot.h"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/installer/self_install.cpp",
+      "blob": "ddaf7e1d46f569baf3bfc0d01793353fe71d0c64",
+      "bytes": 1234,
+      "sha256": "fdb2bd684e03d3f11b13d939366fe05ed46f26340b606dac530842a978d6e5c2",
+      "retained_source_name": "reblue-tag--src__installer__self_install.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/installer/install_registry.cpp",
+      "blob": "2bd2d1acf97516ba36bf78705ffdaab9f91383b1",
+      "bytes": 9823,
+      "sha256": "54ebb85c166926cdaeb3cb1908ba0a51c4680bfb06fdac938e6c2d6a493a25c5",
+      "retained_source_name": "reblue-tag--src__installer__install_registry.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/installer/disc_install.cpp",
+      "blob": "235b6214b2ea79c773142f850d1b3daf3030d669",
+      "bytes": 20977,
+      "sha256": "09034b3fa0d73c54c7fdfdf8d24f9ba9249c9abf468faa470d86e7148449ce55",
+      "retained_source_name": "reblue-tag--src__installer__disc_install.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/installer/installer_wizard.cpp",
+      "blob": "3c7e9b7eeb3181ba4191a0a4388cd979bdc42122",
+      "bytes": 36914,
+      "sha256": "f0b7a537f7d52dbc5fbabbc0b8867bad49e22c5c8ae1582d83202d964100d1bb",
+      "retained_source_name": "reblue-tag--src__installer__installer_wizard.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/installer/upgrade_prompt.cpp",
+      "blob": "7454e061949c789178337813ab51bf2be987b1fd",
+      "bytes": 2682,
+      "sha256": "52b8057a8b3252e4e20d6cfcbbd92bb17bff3e1b713ff8cbc45bb79080e65a40",
+      "retained_source_name": "reblue-tag--src__installer__upgrade_prompt.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/platform/package.cpp",
+      "blob": "2986c5aa943b451f044c4d6128cfc800d759bc35",
+      "bytes": 2476,
+      "sha256": "db25a9a6857a880fa821172298899c0388e890f55ffc8fd01557dcdd29c6483b",
+      "retained_source_name": "reblue-tag--src__platform__package.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/platform/content_sync.cpp",
+      "blob": "5cc951bf98d622a2041d91721ee0296910c27e0c",
+      "bytes": 5600,
+      "sha256": "f811b807e31c626cceafeae4babb7e9bd9286b1e23ae43e5c32bf1700fdc4f65",
+      "retained_source_name": "reblue-tag--src__platform__content_sync.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/vfs/settings.cpp",
+      "blob": "fb561b4e73daa84b1629913d3e1158595cb778e9",
+      "bytes": 2568,
+      "sha256": "0fe9c9c27b318a42ff1414bc8299b855fdc002d506dcf74dafbf8502acf0ab70",
+      "retained_source_name": "reblue-tag--src__vfs__settings.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/vfs/file_system.cpp",
+      "blob": "1f1cc5bc0c6424d04e5530c5e91839cf0e29ec4c",
+      "bytes": 11834,
+      "sha256": "7a1253dec0f4d523d1026a86b72a524f74790a66feb2479b28c27ba03aa67ee1",
+      "retained_source_name": "reblue-tag--src__vfs__file_system.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/engine/save/save_hooks.cpp",
+      "blob": "8deafe39b473964abbc8afe23f18c19503f19331",
+      "bytes": 6699,
+      "sha256": "c94a15e27f57d8181e76429a9bfbcce0ac7936c54a0431415fe2b444ec231f25",
+      "retained_source_name": "reblue-tag--src__engine__save__save_hooks.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/engine/save/save_store.cpp",
+      "blob": "70e8a4b5a95ef945afc9cf859c1f55a457404a14",
+      "bytes": 3304,
+      "sha256": "104d1650747bd310945dd05565740ac69c2bae9537c485971862710ae057ef3e",
+      "retained_source_name": "reblue-tag--src__engine__save__save_store.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/engine/save/save_store.h",
+      "blob": "f6c94626a29392eda1d15f48271e8b38fee604b1",
+      "bytes": 1481,
+      "sha256": "a77d69bea3acf0a7435cea7783bb8af48f9db9a79029c693c2fd70c0859424ed",
+      "retained_source_name": "reblue-tag--src__engine__save__save_store.h"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/ui/update_prompt_dialog.cpp",
+      "blob": "8eb96affde64149cb88d1f62a74fdb861ab7628c",
+      "bytes": 3533,
+      "sha256": "b4aff5d83eb15f91f7f0e4e4a3afa6b658b8740a8c8f269d38fb1371fa193a15",
+      "retained_source_name": "reblue-tag--src__ui__update_prompt_dialog.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/ui/update_status.cpp",
+      "blob": "48697cd36d70ac111631bcdd648e8e3770adf04c",
+      "bytes": 2014,
+      "sha256": "6d328e84c883766090594d9c3947397b892f7c963b1842db1297f1e6761d8004",
+      "retained_source_name": "reblue-tag--src__ui__update_status.cpp"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "config/hooks/save.toml",
+      "blob": "a53f54fdc30378a1cb8047aad20f0b93b92124f6",
+      "bytes": 557,
+      "sha256": "0a678486b994b67578f6e61011c909a2767ad79e2c2d1cf5c4f4188b111950d7",
+      "retained_source_name": "reblue-tag--config__hooks__save.toml"
+    },
+    {
+      "repository": "zolaware/reblue",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "path": "src/installer/install_registry.h",
+      "blob": "9adc8f726e901fc055445c875669916d1ebc1d66",
+      "bytes": 2150,
+      "sha256": "0ec77e6a3b3c4cb42a12a8a5aef25469624b57fa85d1257fd67709180c1cde52",
+      "retained_source_name": "reblue-tag--src__installer__install_registry.h"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "LICENSE",
+      "blob": "989af8778ded5b67521da99f4ed0a71960ac9caa",
+      "bytes": 1659,
+      "sha256": "8e065be1da2ff9a16b1f063d4636d8b67e6a654bb90583ea4332e66ac421bb18",
+      "retained_source_name": "reblue-sdk--LICENSE"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "include/rex/rex_app.h",
+      "blob": "9672d33106ee0a7838572ea6b84d114553f44411",
+      "bytes": 13290,
+      "sha256": "4b4c31154f2bf82e86fe4729f7574e021fc4ab314aa0b86a4da19f44b207edff",
+      "retained_source_name": "reblue-sdk--include__rex__rex_app.h"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "include/rex/cvar_cli.h",
+      "blob": "c81b39d7543de17a8911f7b76fb13894accd75e4",
+      "bytes": 1887,
+      "sha256": "9d83fafc7eed3ba7e9c03ba480d3358af1364f52450419ca3c9e6f14fe8f27df",
+      "retained_source_name": "reblue-sdk--include__rex__cvar_cli.h"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "include/rex/ui/windowed_app.h",
+      "blob": "50638d63fc3fbfc6b7b0fdbf6fdaaa87877d7bf1",
+      "bytes": 7450,
+      "sha256": "88be2c3058ff3169c945f96d72a776b4d4ab66a2ae740608fb15fead53a41bd6",
+      "retained_source_name": "reblue-sdk--include__rex__ui__windowed_app.h"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "include/rex/ui/windowed_app_context.h",
+      "blob": "02d3bcae80866b18e1600904f282e300f88176cc",
+      "bytes": 9674,
+      "sha256": "191793f542abd19c822a9037988fafc56dc3b1edcaedf67eeb21445ef844faf9",
+      "retained_source_name": "reblue-sdk--include__rex__ui__windowed_app_context.h"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "src/ui/rex_app.cpp",
+      "blob": "9ff54e823b3bf8783ab289d92f82667f857f1c27",
+      "bytes": 21343,
+      "sha256": "a466b29230b0ca7ef36b9b241228dbe17667e287768ac450e7195002de8a93de",
+      "retained_source_name": "reblue-sdk--src__ui__rex_app.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "src/ui/windowed_app.cpp",
+      "blob": "ab9950e4a7e2263dfdaf7320289d82ae112bd59a",
+      "bytes": 991,
+      "sha256": "105bd85c98374e82683803f73b82b08c24104c03b4ad794dbae23468f1852c77",
+      "retained_source_name": "reblue-sdk--src__ui__windowed_app.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "src/ui/windowed_app_context.cpp",
+      "blob": "2a2583861219670e7db9d666055269b3e38a8c83",
+      "bytes": 8559,
+      "sha256": "5fcc1b8bccf18082f323ccc6d55a98419b5a5bb34618dd2d36516f0bc8d15a10",
+      "retained_source_name": "reblue-sdk--src__ui__windowed_app_context.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "src/ui/windowed_app_context_sdl.cpp",
+      "blob": "dc0b4c2ead4c0b61a160f2f59329ccc19ee3a07a",
+      "bytes": 6974,
+      "sha256": "e580ca9dd75aedf46a64f019f11bcee4f6fa25dc51d44f858f3e37a7b5a377d1",
+      "retained_source_name": "reblue-sdk--src__ui__windowed_app_context_sdl.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "src/ui/windowed_app_main_sdl.cpp",
+      "blob": "77bb1dc202ee1ae78649f9701c7a1ad408e85c5c",
+      "bytes": 3479,
+      "sha256": "49c1fe205eb4802967896791fe8883c10daad0a7bc0efa5f8e60ec4ecc4aabf7",
+      "retained_source_name": "reblue-sdk--src__ui__windowed_app_main_sdl.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "src/ui/CMakeLists.txt",
+      "blob": "5bd3dc55ea3024e69422356e99f560042892d238",
+      "bytes": 4615,
+      "sha256": "96e13ce0b2a76c253171cf65cbe59d071756d09fe8149428579bd4ca0e859955",
+      "retained_source_name": "reblue-sdk--src__ui__CMakeLists.txt"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "path": "src/core/cvar.cpp",
+      "blob": "228728deaa02a0d5835047157f4c855cf3afaa0c",
+      "bytes": 21421,
+      "sha256": "b50af1e97e3118d3a59effb851b994b30a60737b5276099272dbec3dce63ebc4",
+      "retained_source_name": "reblue-sdk--src__core__cvar.cpp"
+    }
+  ],
+  "complete_upstream_trees": [
+    {
+      "role": "reblue-selected-tag",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "tree": "409ad9e05daa4ae971d50ec79902daa3a77f6034",
+      "entries": 591,
+      "truncated": false,
+      "response_sha256": "6bc4ee1a55e7db70f0187c9825b7d26f3f576c6c7914160def17697903a6102c",
+      "gitlinks": [
+        {
+          "path": "thirdparty/XenosRecomp",
+          "sha": "339af41df2c23dbe3256c1c377716b81a0e0fe6b"
+        },
+        {
+          "path": "thirdparty/picosha2",
+          "sha": "161cb3fc4170fa7a3eca9e582cebd27cc4d1fe29"
+        },
+        {
+          "path": "thirdparty/plume",
+          "sha": "e0c8871b930dc1a6544bf457f2348c456b9d7e13"
+        }
+      ]
+    },
+    {
+      "role": "reblue-current",
+      "commit": "85aae686489dff775890fb8100ab525d7b7427b0",
+      "tree": "409ad9e05daa4ae971d50ec79902daa3a77f6034",
+      "entries": 591,
+      "truncated": false,
+      "response_sha256": "6bc4ee1a55e7db70f0187c9825b7d26f3f576c6c7914160def17697903a6102c",
+      "gitlinks": [
+        {
+          "path": "thirdparty/XenosRecomp",
+          "sha": "339af41df2c23dbe3256c1c377716b81a0e0fe6b"
+        },
+        {
+          "path": "thirdparty/picosha2",
+          "sha": "161cb3fc4170fa7a3eca9e582cebd27cc4d1fe29"
+        },
+        {
+          "path": "thirdparty/plume",
+          "sha": "e0c8871b930dc1a6544bf457f2348c456b9d7e13"
+        }
+      ]
+    },
+    {
+      "role": "published-release-sdk",
+      "commit": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+      "tree": "b67f4b79b21386c1962c883b56ec41aab68e8507",
+      "entries": 1474,
+      "truncated": false,
+      "response_sha256": "28150f1133d3095ee3903696e8938f0b16afc23f3196c6a98d728fc93946be9c",
+      "gitlinks": [
+        {
+          "path": "thirdparty/FFmpeg",
+          "sha": "0604b464c7cb4ebc94940cf1f324a3b26b87717c"
+        },
+        {
+          "path": "thirdparty/catch2",
+          "sha": "88abf9bf325c798c33f54f6b9220ef885b267f4f"
+        },
+        {
+          "path": "thirdparty/cli11",
+          "sha": "bfffd37e1f804ca4fae1caae106935791696b6a9"
+        },
+        {
+          "path": "thirdparty/fmt",
+          "sha": "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f"
+        },
+        {
+          "path": "thirdparty/glslang",
+          "sha": "f4f1d8a352ca1908943aea2ad8c54b39b4879080"
+        },
+        {
+          "path": "thirdparty/imgui",
+          "sha": "6d910d5487d11ca567b61c7824b0c78c569d62f0"
+        },
+        {
+          "path": "thirdparty/inja",
+          "sha": "7d1b4600b68595085a949743331c2e5673f511ea"
+        },
+        {
+          "path": "thirdparty/libmspack",
+          "sha": "305907723a4e7ab2018e58040059ffb5e77db837"
+        },
+        {
+          "path": "thirdparty/moltenvk",
+          "sha": "701747d61a0484e91c205e081a24ca592ffa12b4"
+        },
+        {
+          "path": "thirdparty/o1heap",
+          "sha": "388a73fd9007300e5130c5fe352d9ce3288b6dde"
+        },
+        {
+          "path": "thirdparty/sdl3",
+          "sha": "147a8ee32dbf9ac02f3794964490687b6bbda1bc"
+        },
+        {
+          "path": "thirdparty/simde",
+          "sha": "71fd833d9666141edcd1d3c109a80e228303d8d7"
+        },
+        {
+          "path": "thirdparty/spdlog",
+          "sha": "79524ddd08a4ec981b7fea76afd08ee05f83755d"
+        },
+        {
+          "path": "thirdparty/spirv-headers",
+          "sha": "29981f65241605e08b0ede4cfeb999fe3b723c6a"
+        },
+        {
+          "path": "thirdparty/spirv-tools",
+          "sha": "9a49b0883b9b635689a85b5647dbfcb223268151"
+        },
+        {
+          "path": "thirdparty/tomlplusplus",
+          "sha": "30172438cee64926dc41fdd9c11fb3ba5b2ba9de"
+        },
+        {
+          "path": "thirdparty/tracy",
+          "sha": "05cceee0df3b8d7c6fa87e9638af311dbabc63cb"
+        },
+        {
+          "path": "thirdparty/utfcpp",
+          "sha": "63d64de49fd6b829f7c8694df5ab2ee625cb7134"
+        },
+        {
+          "path": "thirdparty/vulkan-headers",
+          "sha": "e3b1eec08173d6b825cd3ac88c885a63b621504a"
+        },
+        {
+          "path": "thirdparty/vulkan-loader",
+          "sha": "5f157b62e333c63260d05d81bf66faa216ab0fb8"
+        },
+        {
+          "path": "thirdparty/vulkan-memory-allocator",
+          "sha": "1d8f600fd424278486eade7ed3e877c99f0846b1"
+        },
+        {
+          "path": "thirdparty/xxHash",
+          "sha": "e626a72bc2321cd320e953a0ccf1584cad60f363"
+        }
+      ]
+    }
+  ],
+  "reblue_published_build_binding": {
+    "upstream_release": "v1.3.1",
+    "source": "85aae686489dff775890fb8100ab525d7b7427b0",
+    "release_run": 37321044275,
+    "resolve_job": 111799895750,
+    "windows_job": 111800013198,
+    "sdk_tag": "nightly-20261002-bd833a2a",
+    "sdk_source": "bd833a2ab69d305f99ddf57418fc38ffec8af93d",
+    "observed_windows_cmake_sdk": "0.10.0.24-dev.gbd833a2",
+    "resolve_log_sha256": "b5973728ff4e90f26ac9cf7e728d6e27f143f16dc477afd4c9915b3f99cb27bf",
+    "windows_log_sha256": "71d900f803313ecd178709dcb6804148705666c4ffb9f92ac620dcf9e42cb9b3",
+    "scope": "Actual published resolver/Windows build parameter and CMake observations bind selected SDK source interface; no acquired package bytes or complete source-to-binary/transitive certification."
+  },
+  "reblue_selected_interface_facts": [
+    "Installed Windows reblue.exe with explicit --game_data_root=ABS_ROOT/game and --profile=actualname is distinct from wizard/setup copy; --no-bd_update_check is supported by exact SDK CLI/no-form and command-line priority. Windows normal entry invokes the same-process application/message loop.",
+    "InstallConfig::game_data_path and installer producer use root/game; base in a downstream error string is stale. Explicit game_data_root must name the actual prepared directory directly beneath the same creating installed root (normally root/game), so its parent matches the executable/profile/cache root. Preserve any established supported custom direct-child tree; do not rename or select unrelated external data. This avoids shared registry lookup and bypasses wizard/version-write path after default.xex presence, not complete three-disc or private-output identity. All3own supported GlobalUS/EU discs and completed upstream preparation remain external prerequisites.",
+    "Startup ClearReplacedFiles/InstallStagedUpdate may replace/relaunch before update-check settings; settle pending.update/recovery upstream, never delete staging to simulate readiness. BeginCheck false stops its update/content request path, not all networking or user/UI reenabling. Backend/warm-reboot successors remain unadopted.",
+    "Title routing overrides generic SDK user_data_root/cache_root. Preserve actual install/profiles/name plus bd_saves_path/bd_cache_path, root/game/mods/DLC/logs/private outputs, legacy paths, .reblue_install and HKCU/Software/Zolaware/reblue/Install history. No new marker/registry rewrite or relocation is offered.",
+    "Normal DLC/profile/cache writes and migration remain upstream-owned; default1.5second forced-exit watchdog is not clean-save certification."
+  ],
+  "persona_exact_continuity": {
+    "historical_encoding_merge": "178fc34a01a485cf67fb2f394d3dd798e075e41f",
+    "upstream_tag": "v0.1.1",
+    "upstream_tag_source": "38fa6f4cf49a9a03244a64d2a12762074ed23348",
+    "operational_definition_equal_after_removing_only_two_added_presentation_fields": [
+      "original_game_title",
+      "artwork"
+    ],
+    "operational_definition_canonical_sha256": "9e6de4b88e28da84c3fab68811d27b6d463beabe8b0cc73962b8dc303bf3d493",
+    "identical_source_collections": [
+      {
+        "collection": "evidence",
+        "records": 2,
+        "canonical_json_sha256": "5e4adb59aaf4b16a8d3634faf0ef70c3da4a7aed85e5f6a14d85bc9fa38fc2ab",
+        "current_equals_846_merge": true
+      },
+      {
+        "collection": "identities",
+        "records": 1,
+        "canonical_json_sha256": "cc3f3d594aecfcbe0e97ee4e3d14e1fbd101d227a6d9fa4806c6bbf3d40ac248",
+        "current_equals_846_merge": true
+      },
+      {
+        "collection": "contracts",
+        "records": 1,
+        "canonical_json_sha256": "64ce7a3ac9343e74ec43b38df7446fdb61fa4cdab3cf09e540264ef615321f9f",
+        "current_equals_846_merge": true
+      },
+      {
+        "collection": "qualification",
+        "records": 3,
+        "canonical_json_sha256": "89f6d2054f5d15251a9148c38f6a5cf19d845726746da03b46b46afe9f24b127",
+        "current_equals_846_merge": true
+      }
+    ],
+    "existing_regression_controls": [
+      "catalog::tests::persona_v011_has_exact_bounded_windows_qualification",
+      "release::observation_tests::persona_owned_input_selection_preserves_complete_versioned_inventory",
+      "release::observation_tests::persona_owned_input_selection_refuses_missing_ambiguous_or_unhashed_kit",
+      "release::observation_tests::persona_owned_input_requirement_does_not_redefine_unrelated_asset_hints"
+    ],
+    "historical_evidence_scope": "829 encodes exact structural/update/noop/rollback/reactivation/persistence/backup plus repaired native launcher/animated intro/normal close;846 separately encodes removal/new-id reinstall/config restoration and responsive launcher-only native scope. No new combined native tuple, current custody, gameplay or future release pass is manufactured. Old v0.1.0 lookup/template failures remain failed at their original scope.",
+    "current_live_asset_metadata": "Selected complete9asset inventory/name/size/digest agrees with original accepted v0.1.1 owned-input kit; actual bytes not reacquired/rehashed. Latest stable stillv0.1.1. No competing ordinary Windows ZIP substitution."
+  },
+  "redriver2_exact_continuity": {
+    "prior_delivery_pr": 3741,
+    "prior_source": "665768ab192e2034acfba06a50cee07028a27a7c",
+    "prior_merge": "7bdafbd3cda885a44ea49c32443fda5cff3ba0ba",
+    "selected_upstream_tag": "8.0",
+    "selected_tag_source": "b2d8857426f815007486def9bd23f9a6007a2c64",
+    "selected_asset_id": 464072054,
+    "selected_asset_sha256": "ddc0106858ad91c36cce8d305d0547c5601a57f6d8f0e82d71ef5a76b4b84e05",
+    "current_selected_asset_count": 4,
+    "scope": "Existing chosen8.0preview and standardWin32ZIP metadata are unchanged; GitHub stable/latest7.4-rc2 is a different choice, not this candidate or a newly qualified successor. Prior read-only acquired archive/source observation remains exact and historical. No new archive/original/JAR/player execution."
+  },
+  "catalog_and_test_invariants": {
+    "strict_port_identity_count": 272,
+    "all_source_catalog_records_unchanged": true,
+    "all_operational_definition_fields_unchanged": true,
+    "strict_catalog_byte_identity": false,
+    "only_generated_strict_delta": "re-blue.presentation.manual_setup, mirrored in catalog-current-authoring/catalog/listings through maintained generator",
+    "all_authored_artwork_lineage_identity_integration_fields_unchanged": true,
+    "production_user_selected_source_prefix_unchanged": true,
+    "old_complete_lifecycle_suffix_sha256": "61541ecf51937c224b0a026f04d76039678b5f1a6a35ff7122a0780d1cf7737b",
+    "oracle_source": "3ea120eaea638cf66a7a5950840927180baee784",
+    "oracle_kind": "Exact inert native lifecycle source and separately observed prior CI at same bytes; reviewed before extraction. Not game/native-title qualification.",
+    "old_suffix_byte_identical_after_stripping_only_three_added_definition_preservation_assertions": true,
+    "old_listing_only_prefix_manual_hold_and_strict_absence_checks_retained": true,
+    "new_reblue_case": "Current strictGeneratedCache/nonUserPrepared/source-profile definition remains identical through native registration/relink/restart/removal; retained external record is listing-only. No strict contract conversion or source validation waiver."
+  },
+  "retained_metadata_manifest": [
+    {
+      "name": "context-143-pickup.json",
+      "bytes": 20236,
+      "sha256": "eaabd4817e98bf189efdae14bd09d9e4eaace170a3cac91a8575effd9f77e7b4"
+    },
+    {
+      "name": "context-317-pickup.json",
+      "bytes": 14783,
+      "sha256": "2c3e8c92c71fc0e39d3d36a048f2cf34ae2d52de85c4dcbe736451818d17aaad"
+    },
+    {
+      "name": "context-56-pickup.json",
+      "bytes": 15819,
+      "sha256": "b5f511132dce1868300143e80a0e05e3d3a8b73c9295477767ea34ed12762224"
+    },
+    {
+      "name": "issue-143-pickup.json",
+      "bytes": 20331,
+      "sha256": "4c4be7a9667051e796dc44354e9531ddf5448d800bdaf3f19bc8cc4c1a9e4f13"
+    },
+    {
+      "name": "issue-317-pickup.json",
+      "bytes": 14871,
+      "sha256": "c5d332be000b9b7781a698dfadfa78b9d55fff5623dec280a37c2797cab9705f"
+    },
+    {
+      "name": "issue-56-pickup.json",
+      "bytes": 15885,
+      "sha256": "8973c136dce5a2d889c7b34d27be87f65f426b1199c0f61b15b2e0ba85974d87"
+    },
+    {
+      "name": "persona-5691704845.json",
+      "bytes": 2735,
+      "sha256": "74a83159d735df8d7198ecd8be02960a9d55a7a035cf869758d4ac24caffbb85"
+    },
+    {
+      "name": "persona-5691841223.json",
+      "bytes": 3726,
+      "sha256": "e2cc4a1b2d9d8f1bb82d46bc66227b312bf111d03bbda6df79bd9e09bd37d3c8"
+    },
+    {
+      "name": "persona-assets-page-1.json",
+      "bytes": 14110,
+      "sha256": "ea1caf6857a17ecff37ef891c202e65968bcb1ae00f910f83fa89184388f454a"
+    },
+    {
+      "name": "persona-latest-release.json",
+      "bytes": 17289,
+      "sha256": "b1a0fb9b071d01d1e8fa55eddda7d3238768604d873271f15103ecb45be79ac5"
+    },
+    {
+      "name": "persona-selected-assets-complete.json",
+      "bytes": 16335,
+      "sha256": "1bfb20d0a941269eff570ded327940940655f4329837dad3527acad6f7fc4982"
+    },
+    {
+      "name": "persona-selected-release.json",
+      "bytes": 17289,
+      "sha256": "b1a0fb9b071d01d1e8fa55eddda7d3238768604d873271f15103ecb45be79ac5"
+    },
+    {
+      "name": "persona-selected-tag.json",
+      "bytes": 8916,
+      "sha256": "3ac0f5588feb4c01c2326afcc7b97054f5bbc38944a59a9ea4a95bb5ae9547cc"
+    },
+    {
+      "name": "pr-3741.json",
+      "bytes": 24030,
+      "sha256": "71cb50d448f745fd1993a5d6a6fef04de6032a0b0d9e6e1f20d25a4388f96020"
+    },
+    {
+      "name": "pr-829.json",
+      "bytes": 22124,
+      "sha256": "6adedd152e5d2467e00683a4391fb98ec21b6f8eb758e453b198cd5466cd8590"
+    },
+    {
+      "name": "pr-846.json",
+      "bytes": 21115,
+      "sha256": "3732d7e6f9a9a302a277a43ff096417ffdf19b2a9255ee1895c5e3a720b3c7a3"
+    },
+    {
+      "name": "prechange-helper-oracle.json",
+      "bytes": 770,
+      "sha256": "26f24d10962d8cda6d57b402a5c419b1b6b36fef2b88fce0929a80989a98d70f"
+    },
+    {
+      "name": "reblue-current-tree.json",
+      "bytes": 137235,
+      "sha256": "6bc4ee1a55e7db70f0187c9825b7d26f3f576c6c7914160def17697903a6102c"
+    },
+    {
+      "name": "reblue-current.json",
+      "bytes": 3985,
+      "sha256": "ee4b6ca16f34ea0e360a1704272a79eba604a96ea06e17437f31c5aad68f7d8c"
+    },
+    {
+      "name": "reblue-release-jobs.json",
+      "bytes": 16632,
+      "sha256": "6b1e0232d9f3ff8bd8450f7882c4c609f3ee9096a591346f975f4d4816a54a9f"
+    },
+    {
+      "name": "reblue-release.json",
+      "bytes": 10434,
+      "sha256": "0c65774eae0e4907054e372da35732e3c83a4647553326af8d32fec6a5eb1de8"
+    },
+    {
+      "name": "reblue-repository.json",
+      "bytes": 6161,
+      "sha256": "6a690c0362580302bc651ccde66c209ca61faa3559737b184dcc154b54092f74"
+    },
+    {
+      "name": "reblue-sdk-bound.json",
+      "bytes": 5301,
+      "sha256": "44fdd5fc4efc061b3fc9b6ba6585e3681b9caa45cac3a54e4ed80aa1c6ae6e84"
+    },
+    {
+      "name": "reblue-sdk-manifest.json",
+      "bytes": 4815,
+      "sha256": "ca6d50995dc7613467eda2b68caadc7c15b9607876058e2cfb0aff7bca018b67"
+    },
+    {
+      "name": "reblue-sdk-tree.json",
+      "bytes": 360988,
+      "sha256": "28150f1133d3095ee3903696e8938f0b16afc23f3196c6a98d728fc93946be9c"
+    },
+    {
+      "name": "reblue-source-manifest.json",
+      "bytes": 16195,
+      "sha256": "009d6964c7342b03f27a595bbdb7bc11d0522e998636b43f999ae4c4c0a24354"
+    },
+    {
+      "name": "reblue-source-runs.json",
+      "bytes": 335150,
+      "sha256": "aabdf8a5b3511eb5daa37e99f9baa909cff8315312a8d0a0a6b635907eb96aba"
+    },
+    {
+      "name": "reblue-tag-tree.json",
+      "bytes": 137235,
+      "sha256": "6bc4ee1a55e7db70f0187c9825b7d26f3f576c6c7914160def17697903a6102c"
+    },
+    {
+      "name": "reblue-tag.json",
+      "bytes": 3985,
+      "sha256": "ee4b6ca16f34ea0e360a1704272a79eba604a96ea06e17437f31c5aad68f7d8c"
+    },
+    {
+      "name": "record-56-pickup.json",
+      "bytes": 1862,
+      "sha256": "465ad314aaf760bceecedd1fdb5dffff29b374426bae42fc9b6b3c416440149f"
+    },
+    {
+      "name": "redriver2-assets-page-1.json",
+      "bytes": 6006,
+      "sha256": "0990e239186c1cbb43f9396daa45d0679ccfce470d49d06bc92511f438341206"
+    },
+    {
+      "name": "redriver2-latest-release.json",
+      "bytes": 9924,
+      "sha256": "0c9c87b4778265a4c9ea7621aa120697d9668539e924e07b95abe32a67d4248c"
+    },
+    {
+      "name": "redriver2-selected-assets-complete.json",
+      "bytes": 6996,
+      "sha256": "087ddeb0465eded45ca1a53167cc6ec8d00af5950852d391982de7536cee6a62"
+    },
+    {
+      "name": "redriver2-selected-release.json",
+      "bytes": 9094,
+      "sha256": "c77128cecbf705c7ca67449cb1bcedeae6794848705f3c73ef5aec98e527da19"
+    },
+    {
+      "name": "redriver2-selected-tag.json",
+      "bytes": 179848,
+      "sha256": "442d6dc0195581720fa5b84dc5351fbaf829b1c72a9a62853719b01288aafaa2"
+    }
+  ],
+  "limits": [
+    "No new game package/original/private save/compiler/installer/upstream helper/game acquired or executed. Inert native probes/current deterministic controls are not real game/save/DLC/mod/network/installed Desktop/physical/human/other-platform/protected acceptance.",
+    "Current historical Persona and REDRIVER2 observations keep exact old binary/source/CLI/package/check provenance and retained failure limits; this batch does not establish present private evidence custody or supply a genuine new N/N+1 Steam fixture.",
+    "No Source catalog/original identity/managed preparation/runtime-replacement/backup/rollback/migration/deletion or signing/publication authority change. Existing Core API routes and per-port historical qualification stages/RequiredPublicbeta commitments remain separate from finite source/operation closure."
+  ],
+  "delivery_authority": "Final PR/individual receipts bind exact source/base/current-target composition, separate full review, five exact-head contexts with actual selected/executed cases/artifacts, guarded merge/readback and exact canonical dispositions.",
+  "retained_hosted_harness_failure": {
+    "source": "3f57b15058658a392d0ee2961f9dff6a5f0db9bb",
+    "checkout": "80328d9afac6962716a63fe0eaf1bcb09dba69d6",
+    "run": 41158481794,
+    "attempt": 1,
+    "job": 124411739147,
+    "case": "service::tests::successor_staged_and_rollback_versions_keep_exact_contracts",
+    "platform": "x86_64-pc-windows-msvc",
+    "old_limit_seconds": 60,
+    "observed_duration_ms": 60214.6728,
+    "phases": [
+      "start: 400ns",
+      "library-opened: 85.0946ms",
+      "catalog-authenticated: 1.2615565s",
+      "three-versions-registered: 6.0817757s",
+      "service-opened: 6.7529354s",
+      "changed-catalog-loaded: 7.0951235s",
+      "retained-install-verified: 18.5556877s",
+      "retained-launch-prepared: 33.2866527s",
+      "rollback-finished: 45.7194621s"
+    ],
+    "original_log_sha256": "68e61eb6ab8b559e540b4a6a06e1b6de3549c524d4d02e443873e0c229cfcca9",
+    "proposed_limit_seconds": 90,
+    "scope": "exact Windows test harness only; preserve source test, assertions, two workers, zero retries, finite termination and product deadlines",
+    "diagnosis": "Sequential setup/verify/launch/rollback progressed through rollback-finished45.719s; the outer cutoff preceded activation-finished and final retained-contract observations. activate_staged is called after that last marker, so the exact in-flight operation is unknown; no product assertion or inner behavioral deadline failure reported; no causal performance claim."
+  }
+}

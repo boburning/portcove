@@ -273,6 +273,17 @@ filter = 'package(portcove-core) & test(/^library_move::sequence_tests::copying_
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41158481794/a1 Windows4 cut the indexed retained-contract lifecycle at
+# 60.215s after verification18.556s, launch preparation33.287s and completed
+# rollback45.719s. Keep activation/final contract assertions and source intact;
+# only this Windows harness gains finite90s room before its old60s family.
+# Two workers, zero retries, cleanup and product deadlines remain unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
 # the complete catalog maintenance matrix and indexed retention lifecycle.
 # Keep all246+ definitions, statuses, durable operations and assertions;

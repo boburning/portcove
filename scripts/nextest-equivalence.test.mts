@@ -448,6 +448,28 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsIndexedRetentionFilter =
+    "package(portcove-core) & test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/)";
+  const windowsIndexedRetention = overrideFor(
+    windowsIndexedRetentionFilter,
+    "x86_64-pc-windows-msvc",
+  );
+  assert.deepEqual(windowsIndexedRetention, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsIndexedRetentionFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(windowsIndexedRetention) <
+      overrides.indexOf(
+        overrideFor(
+          "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))",
+          "x86_64-pc-windows-msvc",
+        ),
+      ),
+    "The exact90s Windows indexed-retention identity must precede its60s family",
+  );
   const windowsSelectedPlayerDiagnosticFilter =
     "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^game_file_query::tests::cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker$/))";
   const windowsSelectedPlayerDiagnostic = overrideFor(
@@ -643,6 +665,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsIndexedRetentionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSelectedPlayerDiagnosticFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsCopyingResumeFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
