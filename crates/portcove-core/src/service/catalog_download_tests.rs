@@ -614,6 +614,11 @@ async fn embedded_kameo_linked_binary_permission_hold_refuses_before_network() {
 }
 
 #[tokio::test]
+async fn embedded_ackman_translation_component_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["go-go-ackman-go-go-ackman-recompiled"], true).await;
+}
+
+#[tokio::test]
 async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
     let (_temporary, mut service, request) = fixture();
     let upstream = GithubFixture::new(archive(), None, None);

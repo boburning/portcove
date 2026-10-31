@@ -678,36 +678,47 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         let destination = temporary.path().join("destination");
-        let library = Library::open(&source).unwrap();
+        let library = crate::test_fixture::phase("successor move: open source", || {
+            Library::open(&source).unwrap()
+        });
         let (post_client, port_id) = crate::test_fixture::post_client_catalog();
         let catalog = crate::test_fixture::admitted_indexed_catalog(&post_client, &port_id);
-        crate::test_fixture::register_qualification_install(&library, &catalog, &port_id);
+        crate::test_fixture::phase("successor move: register admitted fixture", || {
+            crate::test_fixture::register_qualification_install(&library, &catalog, &port_id)
+        });
         let service = PortcoveService::new(library).unwrap();
-        let plan = service.plan_library_move(&destination).unwrap();
+        let plan = crate::test_fixture::phase("successor move: plan", || {
+            service.plan_library_move(&destination).unwrap()
+        });
         drop(service);
 
-        start_move(&source, &destination, &plan.plan_sha256, &|phase| {
-            if phase == TransferPhase::Verified {
-                Err(PortcoveError::state(
-                    "synthetic successor move interruption",
-                ))
-            } else {
-                Ok(())
-            }
+        crate::test_fixture::phase("successor move: interrupted transfer", || {
+            start_move(&source, &destination, &plan.plan_sha256, &|phase| {
+                if phase == TransferPhase::Verified {
+                    Err(PortcoveError::state(
+                        "synthetic successor move interruption",
+                    ))
+                } else {
+                    Ok(())
+                }
+            })
         })
         .unwrap_err();
         assert!(
-            PortcoveService::resume_library_move(&source)
-                .unwrap()
-                .completed
+            crate::test_fixture::phase("successor move: resume", || {
+                PortcoveService::resume_library_move(&source).unwrap()
+            })
+            .completed
         );
         assert!(
-            Library::open(&destination)
-                .unwrap()
-                .status(&port_id, ReleaseChannel::Stable)
-                .unwrap()
-                .active
-                .is_some()
+            crate::test_fixture::phase("successor move: destination status", || {
+                Library::open(&destination)
+                    .unwrap()
+                    .status(&port_id, ReleaseChannel::Stable)
+                    .unwrap()
+            })
+            .active
+            .is_some()
         );
     }
 
