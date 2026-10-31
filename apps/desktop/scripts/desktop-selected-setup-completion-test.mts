@@ -839,6 +839,28 @@ export async function selectedSetupCompletionScenario({
 
       async function reviewSetupWithController() {
         await openInstall();
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              () => document.activeElement === document.getElementById("install-review-title"),
+            ),
+          5_000,
+          "The installation review must initially focus its heading",
+        );
+        // Enter the first action through native keyboard navigation before the
+        // existing action-to-action controller probe; never assign focus in JS.
+        await browser.actions().sendKeys(Key.TAB).perform();
+        await browser.wait(
+          async () =>
+            executeBrowserScript(
+              browser,
+              (control) => document.activeElement === control,
+              await browser.findElement(install),
+            ),
+          5_000,
+          "Tab from the review heading must reach the actual Install control",
+        );
         report.observations.controller_review = object(
           await browser.executeAsyncScript(
             async (
@@ -909,7 +931,9 @@ export async function selectedSetupCompletionScenario({
                 await frames(2);
                 const beforeDirection = document.activeElement;
                 if (beforeDirection !== installControl || !review.contains(installControl))
-                  throw new Error("Actual primary Install control must own initial review focus");
+                  throw new Error(
+                    "Actual primary Install control must retain keyboard entry focus",
+                  );
                 const from = installControl.getBoundingClientRect();
                 const to = cancelControl.getBoundingClientRect();
                 if (
