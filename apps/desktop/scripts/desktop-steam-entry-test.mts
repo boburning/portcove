@@ -447,31 +447,37 @@ export async function steamEntryScenario(context: SteamEntryContext) {
       15_000,
     );
     const { button, click } = reviewControls(browser);
-    await click(By.xpath('//nav//button[contains(., "Library")]'));
-    await click(By.xpath('//summary[normalize-space(.)="Collection commands"]'));
+    await selectPrimaryNavigation(browser, "Settings");
+    await click(
+      By.xpath(
+        '//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Integrations"]',
+      ),
+    );
     await click(button("Choose games for Steam…"));
     const dialog = By.css('[aria-labelledby="steam-batch-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
     const boxes = await browser.findElements(
-      By.css('[aria-labelledby="steam-batch-title"] input[type="checkbox"]'),
+      By.css('[aria-labelledby="steam-batch-title"] [role="checkbox"]'),
     );
     assert.ok(boxes.length >= 2, "fixture should offer both installed target games");
     assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
     const firstBox = await browser.findElement(
       By.xpath(
-        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${first.port.name}"]/input[@type="checkbox"]`,
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${first.port.name}"]//*[@role="checkbox"]`,
       ),
     );
     const secondBox = await browser.findElement(
       By.xpath(
-        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${second.port.name}"]/input[@type="checkbox"]`,
+        `//div[@aria-labelledby="steam-batch-title"]//label[normalize-space(.)="${second.port.name}"]//*[@role="checkbox"]`,
       ),
     );
     await firstBox.click();
     assert.equal(await browser.findElement(button("Review selected shortcuts")).isEnabled(), false);
     await secondBox.click();
     assert.equal(
-      (await Promise.all(boxes.map((box) => box.isSelected()))).filter(Boolean).length,
+      (await Promise.all(boxes.map((box) => box.getAttribute("aria-checked")))).filter(
+        (checked) => checked === "true",
+      ).length,
       2,
     );
     await browser.findElement(By.id("steam-batch-installation")).sendKeys(steamRoot);

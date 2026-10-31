@@ -206,7 +206,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     borderWidth: "1px",
     backgroundColor: "rgb(1, 1, 1)",
     dialogBackgroundColor: "rgb(2, 2, 2)",
-    labelFontWeight: "700",
+    labelFontWeight: "600",
   };
   const field = {},
     label = {},
@@ -226,7 +226,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     ["borderWidth", "0px"],
     ["backgroundColor", "rgba(0, 0, 0, 0)"],
     ["backgroundColor", valid.dialogBackgroundColor],
-    ["labelFontWeight", "699"],
+    ["labelFontWeight", "599"],
   ] as const) {
     observation = { ...valid, [key]: value };
     await assert.rejects(Promise.resolve(invokePresentation(browser, field, label, dialog)));
