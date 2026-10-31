@@ -34660,7 +34660,37 @@
         "image_sha256": "e84385a528e45088c81dca74d06e182e7db89bba0453d0de94eddda37c439bca",
         "game_slug": "skate-3",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Start from a permitted, fully prepared Windows copy",
+            "instruction": "Use an already-permitted working v2.0.2 Skate 3 Recomp copy prepared through its supported upstream flow with your own legally obtained Xbox 360 base game and required Title Update 3. Fresh package use/component/notices acceptance remains held separately. Finish original extraction, TU3 staging and one successful normal startup outside Portcove before adding it. Core does not ingest the disc/TU package, run code generation or authenticate the whole prepared tuple. Do not treat a filename or size as complete original identity."
+          },
+          {
+            "title": "Keep title-update readiness and DLC ownership explicit",
+            "instruction": "This build executes TU3 code. Upstream rechecks its two TU payloads at normal startup and can return to its setup wizard if they are missing or changed; finish upstream recovery again before Core Play or relink. Upstream defaults skate3_auto_install_dlc to true and may import owned DLC found in executable-side, game-side or user-data dlc folders into the profile. Complete desired owned-DLC handling upstream and preserve those folders and the actual setting; configure it off upstream if you do not want that import. Portcove does not authorize DLC acquisition or perform this preparation."
+          },
+          {
+            "title": "Select the actual prepared native game",
+            "instruction": "Select skate3.exe with the actual working copy’s creating working directory and literal arguments. A prepared copy can use normal zero arguments; retain the supported --game_data_root path form used by your working launch when required. Keep actual --user_data_root and --cache_path overrides when used; cache_path is this SDK’s option, not an invented cache_root argument. Without an explicit game root, upstream can resolve game below the working directory or configuration directory, so changing CWD can select other data. Save launch details, then choose Play separately."
+          },
+          {
+            "title": "Preserve the creating profile and portable choices",
+            "instruction": "The normal Windows user root is APPDATA/skate3, with its actual Documents fallback/history and explicit user-root choices preserved. Existing portable.txt beside the executable takes precedence for the whole user root; an explicitly custom cache can remain separate. A pre-existing saves directory beside the executable redirects saved-game content only and does not migrate earlier saves. Do not create/remove portable markers or switch profiles as part of registration. Keep the whole runtime, game/TU3/originals, DLC/imported content, settings/profile files, saves, caches, mods, logs, unknowns, old histories and all custom paths before upstream changes."
+          },
+          {
+            "title": "Leave replacement, restart and data management upstream",
+            "instruction": "Upstream owns runtime and player-data mutation. Backend Apply & Restart can start a successor and close the selected process; complete that separately before relinking and choosing Play again. Core supervises the selected native process, not every successor. The SDK has a ten-second forced-exit shutdown watchdog, so an exit code is not proof of graceful saving or clean shutdown. Registration offers no managed update, backup, rollback, migration or external-file deletion. Removing registration preserves all external files."
+          }
+        ],
+        "warnings": [
+          "The native renderer is early and upstream has not tested the whole game. Retain known texture/asset pop-in, skater-customization, Hall of Meat and park-editor rendering limitations; upstream performance claims are not Portcove measurements or a gameplay/save pass.",
+          "The root project has no inspected complete project/package license or notices; the pinned SDK BSD terms and an own-copy play invitation do not grant original/component/redistribution rights. This is a conditional existing-copy handoff, not completion of #150’s permission/base/TU/package acceptance or a Supported promotion. Other platforms remain independently qualified."
+        ],
+        "help_url": "https://github.com/mchughalex/skate3recomp#readme"
+      },
+      "download_block_reason": "The selected Skate 3 package/component use and redistribution basis and complete notices remain unresolved under canonical issue #150. Fresh acquisition stays held until attributable operation-specific rights/notices or a reviewed permitted asset-clean or non-distributive owned-input route establishes the selected package/source contract. Upstream own-copy play instructions do not certify unacquired package contents or grant all third-party rights. This condition does not prohibit an already-permitted private prepared copy or make new Xbox-family infrastructure a prerequisite."
     },
     {
       "id": "skies-of-arcadia-legends-skies-of-arcadia-legends-recompiled",

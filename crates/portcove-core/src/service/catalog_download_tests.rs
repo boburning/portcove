@@ -609,6 +609,11 @@ async fn embedded_vandal_component_permission_hold_refuses_before_network() {
 }
 
 #[tokio::test]
+async fn embedded_skate3_package_use_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["skate-3-recomp"], true).await;
+}
+
+#[tokio::test]
 async fn embedded_dprecomp_shader_component_hold_refuses_before_network() {
     assert_embedded_listing_download_holds(&["deadly-premonition-dprecomp"], true).await;
 }

@@ -901,6 +901,11 @@ mod tests {
     }
 
     #[test]
+    fn skate3_permitted_prepared_player_route_150() {
+        assert_listing_only_player_route("skate-3-recomp", Some(true));
+    }
+
+    #[test]
     fn budokai3_prepared_player_route_366() {
         assert_listing_only_player_route(
             "dragon-ball-z-budokai-3-hd-budokai-3-hd-collection-recomp",

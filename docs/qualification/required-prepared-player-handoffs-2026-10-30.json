@@ -1,14 +1,14 @@
 {
   "format_version": 1,
-  "kind": "dated four Required prepared-player source/use observation; not live planning, package contents certification or full acceptance ledger",
+  "kind": "dated five Required prepared-player source/use observation; not live planning, package contents certification or full acceptance ledger",
   "observation_date": "2026-10-30",
   "owners": [2510, 2926, 1422],
   "local_stack_parent_source": "ebd22eb5bd06840030fb80cc1e3ec36e5f50338d",
   "counts": {
-    "distinct_repository_commit_path_blob_bindings": 379,
-    "unique_content_blobs": 371,
-    "complete_tree_reference_roles": 10,
-    "distinct_commit_root_tree_bindings": 8
+    "distinct_repository_commit_path_blob_bindings": 398,
+    "unique_content_blobs": 390,
+    "complete_tree_reference_roles": 13,
+    "distinct_commit_root_tree_bindings": 10
   },
   "selected_rows": [
     {
@@ -231,6 +231,56 @@
         }
       ],
       "acquisition_hold_present": false,
+      "offered_route": "already permitted fully upstream-prepared working Windows native copy; explicit creating CWD and literal arguments; intent/consent/register/relink/restart/separate selected-process Play/metadata-only preserving removal",
+      "native_game_original_package_private_save_execution_this_batch": "not_run",
+      "installed_protected_gameplay_save_qualification_this_batch": "not_evaluated"
+    },
+    {
+      "canonical_issue": 150,
+      "id": "skate-3-recomp",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Blocked",
+        "Priority": "High",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T22:49:11.842Z",
+      "canonical_body_sha256_at_pickup": "4be749efb4bb48e3f6ea8cf46f3c340f0897adad39df6ac8e271f0b067de238d",
+      "authored_sha256": "267ebe2689fad64556aaac95d5a7ee017486aa3647e75f447c9d28cf42cf0d94",
+      "changed_listing_fields": ["download_block_reason", "manual_setup"],
+      "selected_tag": "v2.0.2",
+      "selected_source": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+      "current_source": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+      "repository_node_id": "R_kgDOSxZ7wQ",
+      "publisher_assets": [
+        {
+          "id": 488835767,
+          "name": "Skate3Recomp-Linux.zip",
+          "bytes": 32647483,
+          "digest": "sha256:b1a5710e1467d3d750b73c106801815a8e2bc8b6ea860980f6db252eb1ffc07f"
+        },
+        {
+          "id": 488835628,
+          "name": "Skate3Recomp-macOS.zip",
+          "bytes": 36614228,
+          "digest": "sha256:0db19031ce06ef6d891e964c54e4d32da6dc0f78125146193a51d78cc36590cf"
+        },
+        {
+          "id": 488835902,
+          "name": "Skate3Recomp-Windows.zip",
+          "bytes": 30292532,
+          "digest": "sha256:b9785b9f3ba6f8180268dc5ea26ed2ec7b64af46a4c04219a33236c64bc65a17"
+        }
+      ],
+      "acquisition_hold_present": true,
       "offered_route": "already permitted fully upstream-prepared working Windows native copy; explicit creating CWD and literal arguments; intent/consent/register/relink/restart/separate selected-process Play/metadata-only preserving removal",
       "native_game_original_package_private_save_execution_this_batch": "not_run",
       "installed_protected_gameplay_save_qualification_this_batch": "not_evaluated"
@@ -4033,6 +4083,365 @@
           "sha256": "d37f441c68ccceb5d957a86b1f96fe78f88e74f4f6625bd0cc3a58fc1c28b14c"
         }
       ]
+    },
+    {
+      "canonical_issue": 150,
+      "source_bindings": [
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "README.md",
+          "blob": "2994c4be31f73c24a87352a760f6fb7449cc609a",
+          "bytes": 13397,
+          "sha256": "c9a8774eb929cc33a55fbff0e7de760669aee73d25f8f8a75d762e75396ac031",
+          "retained_source_name": "tag--README.md"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "CMakeLists.txt",
+          "blob": "07972e0a023f8b675c92adb34c9dee5a017507cf",
+          "bytes": 15996,
+          "sha256": "16257e0b21bb479784df4dadd773bfeab0e90749f68bfcd9f37e1cf8a996c40e",
+          "retained_source_name": "tag--CMakeLists.txt"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": ".gitmodules",
+          "blob": "139a8846b7326e995b0f248b57ab41460236c96c",
+          "bytes": 155,
+          "sha256": "6f93b77efb06d33e0a6a9f6a9d741f12b1e32b9b2bd9e8fa935584e807a1aaf1",
+          "retained_source_name": "tag--.gitmodules"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "src/main.cpp",
+          "blob": "eb3f991c3b16b579f1d9fdf46be79ef090b5b7eb",
+          "bytes": 1483,
+          "sha256": "f3ce8c2b07009371153d54682c22ebcb7047aefcc9105cfd970baa6a505ea693",
+          "retained_source_name": "tag--src__main.cpp"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "src/skate3_app_common.cpp",
+          "blob": "a9126bfb2035de2030db8d170f5bea724a356995",
+          "bytes": 50377,
+          "sha256": "13af06184eac7bc08e015f3231f17c2b1a37c00f676b8bb13e6a8f55cbcc7033",
+          "retained_source_name": "tag--src__skate3_app_common.cpp"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "src/skate3_app_common.h",
+          "blob": "f93a082c46c405fd84943983fc2f65a04ce4c70d",
+          "bytes": 1997,
+          "sha256": "fa6f309fd22e963de8d8579c70abc0b2913fac83c12af33a3b78e1ae872b8bf7",
+          "retained_source_name": "tag--src__skate3_app_common.h"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "src/skate3_user_settings.cpp",
+          "blob": "8a93f237dca08818716c88c391296d041b765553",
+          "bytes": 6858,
+          "sha256": "e977e2ea38fe6c0bdfda5719da058ecd3eb7d8a2a4dc66aab046bfd643ae4177",
+          "retained_source_name": "tag--src__skate3_user_settings.cpp"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "src/skate3_iso_installer.cpp",
+          "blob": "a893a3a91370fe54aa63d01dbf417545b4948ef5",
+          "bytes": 16002,
+          "sha256": "c38f21e9b0e000b6bae29cd74abe090ca43b87c5fff641099881f07e62a5107a",
+          "retained_source_name": "tag--src__skate3_iso_installer.cpp"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "src/skate3_title_update_installer.cpp",
+          "blob": "e457794de7e71edd500db547761ff50d34d7afa6",
+          "bytes": 32192,
+          "sha256": "9f1042ff89242c93e462709e014dbca1cb9090e48a36be11ef411708ce06b089",
+          "retained_source_name": "tag--src__skate3_title_update_installer.cpp"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "CMakePresets.json",
+          "blob": "38d072d24dfd6ca43d1902ee015e264832c1d759",
+          "bytes": 3282,
+          "sha256": "22a493548fd172a210b3999928a920709e4ecec32ecc3339d38f485330d04095",
+          "retained_source_name": "tag--CMakePresets.json"
+        },
+        {
+          "repository": "mchughalex/skate3recomp",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "path": "cmake/RexGlue.cmake",
+          "blob": "99df1f998867d63441b31b4173ee878f1e4b68a6",
+          "bytes": 763,
+          "sha256": "3ece7684a2b20a00c79cf933075d1389965743945727af188f367d6e802ed1b6",
+          "retained_source_name": "tag--cmake__RexGlue.cmake"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "LICENSE",
+          "blob": "989af8778ded5b67521da99f4ed0a71960ac9caa",
+          "bytes": 1659,
+          "sha256": "8e065be1da2ff9a16b1f063d4636d8b67e6a654bb90583ea4332e66ac421bb18",
+          "retained_source_name": "sdk--LICENSE"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "include/rex/rex_app.h",
+          "blob": "2a2ec905dd16bf82a01f2a1cea988be6d20ae543",
+          "bytes": 9188,
+          "sha256": "644e90531f8861f13d24e6f3631423b889b2acd7e3b764bdaea0c33b5f4e9f6a",
+          "retained_source_name": "sdk--include__rex__rex_app.h"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "src/ui/rex_app.cpp",
+          "blob": "30ac56f912815bab69b509c50ca5b80b9e19f5de",
+          "bytes": 30563,
+          "sha256": "da7c735cd5cee1f4fac484522d22054fb2923a011593e373d674e9c4a4533dab",
+          "retained_source_name": "sdk--src__ui__rex_app.cpp"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "include/rex/ui/windowed_app.h",
+          "blob": "50638d63fc3fbfc6b7b0fdbf6fdaaa87877d7bf1",
+          "bytes": 7450,
+          "sha256": "88be2c3058ff3169c945f96d72a776b4d4ab66a2ae740608fb15fead53a41bd6",
+          "retained_source_name": "sdk--include__rex__ui__windowed_app.h"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "src/ui/windowed_app.cpp",
+          "blob": "ab9950e4a7e2263dfdaf7320289d82ae112bd59a",
+          "bytes": 991,
+          "sha256": "105bd85c98374e82683803f73b82b08c24104c03b4ad794dbae23468f1852c77",
+          "retained_source_name": "sdk--src__ui__windowed_app.cpp"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "src/ui/windowed_app_main_win.cpp",
+          "blob": "b717e82e53d6957cbfd2d0408d5e08deac254c27",
+          "bytes": 6024,
+          "sha256": "e9ba00194fdf75d6f950c0f33bec62a2a658929dd2f47472e9bfa842d0b4cdc9",
+          "retained_source_name": "sdk--src__ui__windowed_app_main_win.cpp"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "src/ui/windowed_app_context_win.cpp",
+          "blob": "d18820d9865a77c949a3696edf47d4ceeeeda140",
+          "bytes": 6475,
+          "sha256": "8bb7807d9b285893f33eb36b0263d9a209abb338a9eb99ee73f2f44351b56e98",
+          "retained_source_name": "sdk--src__ui__windowed_app_context_win.cpp"
+        },
+        {
+          "repository": "mchughalex/rexglue-skate3",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "path": "src/core/filesystem_win.cpp",
+          "blob": "7f3252ca7606bdebd62368f48e0d9415901cf79d",
+          "bytes": 8500,
+          "sha256": "b6395e47a566b64c545d6d18ae3852180763b27bffac0cdbda74422d9638707f",
+          "retained_source_name": "sdk--src__core__filesystem_win.cpp"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "root_tree": "1ccdb51bf28cace9ee9ece928e47f43a938bc438",
+          "entries": 93,
+          "truncated": false,
+          "sha256": "3e35145e91c1c1a6e11b655426236729174d7751dcc5a97a20dc82dcc57cdc41",
+          "retained_name": "current-tree.json",
+          "gitlinks": [
+            {
+              "path": "third_party/rexglue-sdk",
+              "sha": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea"
+            }
+          ]
+        },
+        {
+          "role": "tag",
+          "commit": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",
+          "root_tree": "1ccdb51bf28cace9ee9ece928e47f43a938bc438",
+          "entries": 93,
+          "truncated": false,
+          "sha256": "3e35145e91c1c1a6e11b655426236729174d7751dcc5a97a20dc82dcc57cdc41",
+          "retained_name": "tag-tree.json",
+          "gitlinks": [
+            {
+              "path": "third_party/rexglue-sdk",
+              "sha": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea"
+            }
+          ]
+        },
+        {
+          "role": "sdk",
+          "commit": "7eb0faf7787f5e01333c228b8e3f03c32f7295ea",
+          "root_tree": "70080ed29377a18d38474aa035c6bc0f76245fd9",
+          "entries": 1480,
+          "truncated": false,
+          "sha256": "5a94b04d1ee0cefb450b7a994d0a274c4afba22ebd783af39df52397d25c3673",
+          "retained_name": "sdk-tree.json",
+          "gitlinks": [
+            {
+              "path": "thirdparty/FFmpeg",
+              "sha": "0604b464c7cb4ebc94940cf1f324a3b26b87717c"
+            },
+            {
+              "path": "thirdparty/catch2",
+              "sha": "88abf9bf325c798c33f54f6b9220ef885b267f4f"
+            },
+            {
+              "path": "thirdparty/cli11",
+              "sha": "bfffd37e1f804ca4fae1caae106935791696b6a9"
+            },
+            {
+              "path": "thirdparty/fmt",
+              "sha": "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f"
+            },
+            {
+              "path": "thirdparty/glslang",
+              "sha": "f4f1d8a352ca1908943aea2ad8c54b39b4879080"
+            },
+            {
+              "path": "thirdparty/imgui",
+              "sha": "cdda62349d6068e906c2e0ee340d6ec31eedbb9c"
+            },
+            {
+              "path": "thirdparty/inja",
+              "sha": "7d1b4600b68595085a949743331c2e5673f511ea"
+            },
+            {
+              "path": "thirdparty/libmspack",
+              "sha": "305907723a4e7ab2018e58040059ffb5e77db837"
+            },
+            {
+              "path": "thirdparty/o1heap",
+              "sha": "388a73fd9007300e5130c5fe352d9ce3288b6dde"
+            },
+            {
+              "path": "thirdparty/sdl3",
+              "sha": "8bf3b7215ad9fc3deb583c6a3a37c6c67f2e24e4"
+            },
+            {
+              "path": "thirdparty/simde",
+              "sha": "71fd833d9666141edcd1d3c109a80e228303d8d7"
+            },
+            {
+              "path": "thirdparty/snappy",
+              "sha": "6af9287fbdb913f0794d0148c6aa43b58e63c8e3"
+            },
+            {
+              "path": "thirdparty/spdlog",
+              "sha": "79524ddd08a4ec981b7fea76afd08ee05f83755d"
+            },
+            {
+              "path": "thirdparty/spirv-headers",
+              "sha": "04f10f650d514df88b76d25e83db360142c7b174"
+            },
+            {
+              "path": "thirdparty/spirv-tools",
+              "sha": "04d0b166dcd62e29509bf2aac3ca0c5ccdcb6929"
+            },
+            {
+              "path": "thirdparty/tomlplusplus",
+              "sha": "30172438cee64926dc41fdd9c11fb3ba5b2ba9de"
+            },
+            {
+              "path": "thirdparty/tracy",
+              "sha": "05cceee0df3b8d7c6fa87e9638af311dbabc63cb"
+            },
+            {
+              "path": "thirdparty/utfcpp",
+              "sha": "63d64de49fd6b829f7c8694df5ab2ee625cb7134"
+            },
+            {
+              "path": "thirdparty/volk",
+              "sha": "0b17a763ba5643e32da1b2152f8140461b3b7345"
+            },
+            {
+              "path": "thirdparty/vulkan-headers",
+              "sha": "49f1a381e2aec33ef32adf4a377b5a39ec016ec4"
+            },
+            {
+              "path": "thirdparty/vulkan-memory-allocator",
+              "sha": "1d8f600fd424278486eade7ed3e877c99f0846b1"
+            },
+            {
+              "path": "thirdparty/xxHash",
+              "sha": "e626a72bc2321cd320e953a0ccf1584cad60f363"
+            }
+          ]
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 22424,
+          "sha256": "3e35145e91c1c1a6e11b655426236729174d7751dcc5a97a20dc82dcc57cdc41"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 6264,
+          "sha256": "0b40b4fee46ca63fb6887e23744989bfef5dcef48a7f60c8e3e2f52f77d18bb0"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 7496,
+          "sha256": "33f9bf7328f078a3ca1e0f7ed6df7c0a1c3657d707ec8138facd5f8f8b2f6986"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5418,
+          "sha256": "af5ac34360dc64e8ca393a236b4862ee94c78110dc258ad0d72ec6c4ea2f0256"
+        },
+        {
+          "retained_name": "sdk-tree.json",
+          "bytes": 388556,
+          "sha256": "5a94b04d1ee0cefb450b7a994d0a274c4afba22ebd783af39df52397d25c3673"
+        },
+        {
+          "retained_name": "sdk.json",
+          "bytes": 5642,
+          "sha256": "8882048989a4f22248cf467e5389c1d7e81492ffced8b98d424e999f1d0693d4"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 7828,
+          "sha256": "32faa3692345a1bd3cc948b4c27732a18b1710ac9237eba99e8dd9c86c1df5f4"
+        },
+        {
+          "retained_name": "tag--CMakePresets.json",
+          "bytes": 3282,
+          "sha256": "22a493548fd172a210b3999928a920709e4ecec32ecc3339d38f485330d04095"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 22424,
+          "sha256": "3e35145e91c1c1a6e11b655426236729174d7751dcc5a97a20dc82dcc57cdc41"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 6264,
+          "sha256": "0b40b4fee46ca63fb6887e23744989bfef5dcef48a7f60c8e3e2f52f77d18bb0"
+        }
+      ]
     }
   ],
   "melee_updater_source_scan": {
@@ -4046,6 +4455,7 @@
     "binary_or_transitive_qualification": false
   },
   "consequential_conditions": [
+    "150 conditionalalreadypermittedfullyprepared v2.0.2 Windowsnativecopy only; canonicalpermission/baseTU/packageacceptance remainsopenBlockedRequired. ExactSDK7eb0faf sourceentry/lifecycle/flags bound; selectedrootnoLICENSE/NOTICE and SDK BSD/Xenia are notwholepackagegrant orprivateuseban. Preservefreshacquisitioncondition; currentREADMEowncopyplayinvitation supportsconditionalexistinguse only, not completeuse/redistribution/originalauthority. RuntimechecksTU3payloads/reenterswizardonmissing/mismatch, normalstartup canimportownedDLCdefaulttrue;finish/recoverupstreambeforeCorePlay. Actualcache_path, CWDgamefallback, portablewholeuserroot/customcache and saves-onlyoverride/noautomaticmigration retained.10secondforcedexitwatchdog and backendrestartsuccessors are notclean-save/familysupervisionproof. Wholeexternaldata/customroots preserved, noCoregameTUassembly/sourceauth/managedreplacement/upload/delete ornew138infrastructure.",
     "491 preserves existing PR3191 generic setup download. Complete upstream private Generate & Build before native selection; root setup host forwarding is not selected. Exact framework/UI gitlinks bind inspected product entry/paths, not future rebuilding or measured gameplay. First-track metadata is not complete both-disc acceptance; project GPL and framework PolyForm noncommercial and UI MIT/component terms are separate from original/generated/BIOS rights.",
     "812 selects prepared regional native entry instead of detaching launcher or installer. Keep launcher sharing explicitly No/off; its default-Yes prompt and shader microcode upload are outside Core authority. Separately hold fresh acquisition on selected package/component applicability plus attributable permission or reviewed asset-clean/owned-input route for release-bundled disc-derived shader storage. No acquired-archive content certificate, assumed xpso infringement, private-use ban or broad source-code prohibition.",
     "812 selected README binds SDK only as0.10nightly development plus local patches; no exact linked SDK/source-to-binary identity was established. Downstream RuntimePaths overrides and launcher/installer source are inspected; arbitrary current SDK defaults and whole-process closure are not certified. Conditional already-working selected-native use does not assert immutable or transitive tuple admission.",
