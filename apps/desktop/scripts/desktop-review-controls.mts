@@ -9,6 +9,20 @@ import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 
+/** Reveal the retained log through its real enclosing disclosure. */
+export async function preparationLogControl(browser: WebDriver, row: WebElement) {
+  const taskDetails = await row.findElement(
+    By.xpath('.//summary[normalize-space(.)="Task details"]'),
+  );
+  const details = await taskDetails.findElement(By.xpath(".."));
+  if ((await details.getAttribute("open")) === null) await clickVisible(browser, taskDetails);
+  const log = await row.findElement(
+    By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
+  );
+  await browser.wait(until.elementIsVisible(log), 5_000);
+  return log;
+}
+
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,

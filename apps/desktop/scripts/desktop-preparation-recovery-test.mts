@@ -78,6 +78,7 @@ import {
   captureAccessibilityReport,
   clickVisible,
   reviewControls,
+  preparationLogControl,
 } from "./desktop-review-controls.mts";
 
 function insertOwnedRow(
@@ -378,10 +379,8 @@ export async function interruptedPreparationScenario({
       "Failed preparation must remain discoverable after navigating away and returning",
     );
     assert.ok(beforeRestart);
-    const beforeRestartLog = await beforeRestart.findElement(
-      By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
-    );
-    await beforeRestartLog.click();
+    const beforeRestartLog = await preparationLogControl(browser, beforeRestart);
+    await clickVisible(browser, beforeRestartLog);
     const beforeRestartText = await browser.wait(async () => {
       const text = await beforeRestart.getText();
       return text.includes("Only the output saved before the last observation is available.")
@@ -431,10 +430,8 @@ export async function interruptedPreparationScenario({
       const text = await candidate.getText();
       assert.match(text, /Review setup/);
       assert.doesNotMatch(text, /No files were changed|The operation was cancelled/);
-      const log = await candidate.findElement(
-        By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
-      );
-      await log.click();
+      const log = await preparationLogControl(browser, candidate);
+      await clickVisible(browser, log);
       const loadedText = await browser.wait(async () => {
         const current = await candidate.getText();
         return current.includes("Reading the retained log")

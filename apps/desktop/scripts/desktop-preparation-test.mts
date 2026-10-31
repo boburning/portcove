@@ -144,6 +144,7 @@ import {
   selectPrimaryNavigation,
   selectCatalogPort,
   openCatalogFilters,
+  preparationLogControl,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
@@ -3562,14 +3563,7 @@ export async function preparationScenarios({
       assert.match(await row.getText(), /An earlier attempt left unfinished work/);
       assert.doesNotMatch(await row.getText(), /No files were changed/);
       await clickVisible(browser, await row.findElement(By.css(".failure-details summary")));
-      const taskDetails = await row.findElement(
-        By.xpath('.//summary[normalize-space(.)="Task details"]'),
-      );
-      await clickVisible(browser, taskDetails);
-      const preparationLog = await row.findElement(
-        By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
-      );
-      await browser.wait(until.elementIsVisible(preparationLog), 5_000);
+      const preparationLog = await preparationLogControl(browser, row);
       const generation = (await read("desktop_bootstrap_status", "get_bootstrap_status"))
         .generation;
       const retained = await read("activity_diagnostic", "get_activity_diagnostic", {

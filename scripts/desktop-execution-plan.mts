@@ -84,6 +84,8 @@ export function planDesktopExecution(
         selection.selected_scenarios[0] === "native-interface-size"));
   const identityBoundSession =
     presentationSession ||
+    (platform === "win32" &&
+      selection.selected_scenarios.includes("native-interrupted-preparation-recovery")) ||
     organizationRestart ||
     acquisitionJourney ||
     selection.selected_scenarios.includes("native-host-publication-recovery") ||
@@ -183,11 +185,15 @@ export function planDesktopExecution(
                                                   ? "steam-batch"
                                                   : "backup-focus";
   const cleanupName =
-    organizationRestart && !backupFocusSession && preferredCleanupName === "backup-focus"
-      ? "organization-restart"
-      : presentationSession && preferredCleanupName === "backup-focus"
-        ? "presentation"
-        : preferredCleanupName;
+    platform === "win32" &&
+    selection.selected_scenarios.includes("native-interrupted-preparation-recovery") &&
+    preferredCleanupName === "backup-focus"
+      ? "preparation-recovery"
+      : organizationRestart && !backupFocusSession && preferredCleanupName === "backup-focus"
+        ? "organization-restart"
+        : presentationSession && preferredCleanupName === "backup-focus"
+          ? "presentation"
+          : preferredCleanupName;
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,

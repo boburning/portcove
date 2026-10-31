@@ -433,6 +433,16 @@ void test("execution planning preserves the independently reviewed pre-change or
 
     if (!row.harness_admission.error) {
       const expectedSession = structuredClone(row.harness_admission);
+      // Retain the historical oracle while making interrupted recovery use the
+      // existing Windows identity capture and positive-exit custody owner.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-interrupted-preparation-recovery")
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "preparation-recovery";
+      }
       // Keep the historical oracle; fixed Windows presentation/size acceptance
       // now selects the existing identity-bound capture and positive-exit owner.
       if (
@@ -1396,4 +1406,24 @@ void test("fixed Windows presentation and sizing retain normal builds with posit
     planDesktopExecution(singleKeyboard, { platform: "win32" }).session.identityBoundSession,
     false,
   );
+});
+
+void test("Windows interrupted preparation uses positive exit custody without qualification builds", () => {
+  for (const scenarios of [
+    ["native-interrupted-preparation-recovery"],
+    ["native-preparation-cancellation", "native-interrupted-preparation-recovery"],
+  ]) {
+    const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+      platform: "win32",
+    });
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(plan.session.cleanupName, "preparation-recovery");
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+    assert.equal(plan.fixtures.steam, false);
+  }
+  const cancellationOnly = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: ["native-preparation-cancellation"], platform: "win32" }),
+    { platform: "win32" },
+  );
+  assert.equal(cancellationOnly.session.identityBoundSession, false);
 });

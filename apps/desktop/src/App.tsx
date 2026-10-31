@@ -1504,7 +1504,11 @@ function CurrentSettingsView({
             const path = await pickMetadataExportPath();
             return path ? desktopApi.exportLibraryMetadata(path) : undefined;
           },
-          { refresh: "none", invalidateDiagnostics: false },
+          {
+            refresh: "none",
+            invalidateDiagnostics: false,
+            cancelledResult: (result) => result === undefined,
+          },
         )
       }
       sourceOutcomes={sourceHealth.outcomes}

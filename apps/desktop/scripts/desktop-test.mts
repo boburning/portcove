@@ -288,6 +288,9 @@ const {
   cleanupName,
 } = executionPlan.session;
 const identityBoundSession = plannedIdentityBoundSession || Boolean(nativeAccount);
+const interruptedPreparationSession =
+  process.platform === "win32" &&
+  selection.selected_scenarios.includes("native-interrupted-preparation-recovery");
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 const hostPublicationSession = selection.selected_scenarios.includes(
@@ -696,7 +699,9 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
   const suffix =
-    cleanupName === "presentation" || cleanupName === "organization-restart"
+    cleanupName === "presentation" ||
+    cleanupName === "organization-restart" ||
+    interruptedPreparationSession
       ? `-${++cleanupCaptureSequence}-${driver.pid}`
       : hostInterruptionSession ||
           ordinaryCloseSession ||
@@ -1659,7 +1664,12 @@ async function restartApplication(
     acquisitionRestart ||
     (process.platform === "win32" && identityBoundSession)
   ) {
-    if (!preferencesRecoverySession && !hostPublicationSession && !acquisitionRestart)
+    if (
+      !preferencesRecoverySession &&
+      !hostPublicationSession &&
+      !acquisitionRestart &&
+      !(interruptedPreparationSession && name === "interrupted-preparation-fixture")
+    )
       assert.equal(
         prepareWhileStopped,
         undefined,
@@ -1668,7 +1678,9 @@ async function restartApplication(
     return await ownedSession.restart({
       capture: async () => {
         const inventory = captureBackupFocusCleanup(
-          selectedSetupRestart || acquisitionRestart ? name : cleanupName,
+          selectedSetupRestart || acquisitionRestart || interruptedPreparationSession
+            ? name
+            : cleanupName,
         );
         validateBackupFocusInventory(
           readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
