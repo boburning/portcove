@@ -212,6 +212,12 @@ export async function artworkScenario({
         assert.equal(actual.background, actual.expectedBackground);
       };
       const expectHeroText = async () => {
+        const hero = await browser.wait(until.elementLocated(By.css(".game-hero-detail")), 10_000);
+        await executeBrowserScript(
+          browser,
+          (element) => element.scrollIntoView({ block: "center" }),
+          hero,
+        );
         const expectedTitle = port.presentation?.original_game_title?.trim() || port.name;
         await browser.wait(
           () =>
@@ -367,25 +373,53 @@ export async function artworkScenario({
       assert.ok(Math.abs(geometry.ratio - bytes.readUInt32BE(16) / bytes.readUInt32BE(20)) < 0.02);
       assert.equal(geometry.fit, "contain");
       assert.equal(geometry.titleOutsideImage, true);
-      await executeBrowserScript(browser, () => {
+      const originalTitle = await executeBrowserScript(browser, () => {
         const title = document.querySelector("#port-detail-title");
         if (!title) throw new Error("Port detail title unavailable");
+        const original = title.textContent;
         title.textContent =
           "Owned long-title layout fixture with a deliberately lengthy game name and edition description";
+        return original;
       });
-      await assertCompactReview(browser, ".detail-panel");
-      await executeBrowserScript(
-        browser,
-        'document.querySelector(".detail-hero").scrollIntoView({ block: "start" });',
-      );
-      const screenshot = path.join(output, "native-artwork-letterboxed-compact.png");
-      await writeFile(screenshot, await browser.takeScreenshot(), {
-        encoding: "base64",
-        flag: "wx",
-      });
-      artifacts.push(screenshot);
-      const report = path.join(output, "artwork-accessibility.json");
-      await captureAccessibilityReport(browser, report, artifacts);
+      let layoutFailed = false;
+      let titleRestoreFailure: { error: unknown } | undefined;
+      try {
+        await assertCompactReview(browser, ".detail-panel");
+        await executeBrowserScript(
+          browser,
+          'document.querySelector(".detail-hero").scrollIntoView({ block: "start" });',
+        );
+        const screenshot = path.join(output, "native-artwork-letterboxed-compact.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+        const report = path.join(output, "artwork-accessibility.json");
+        await captureAccessibilityReport(browser, report, artifacts);
+      } catch (error) {
+        layoutFailed = true;
+        throw error;
+      } finally {
+        try {
+          await executeBrowserScript(
+            browser,
+            (original) => {
+              const title = document.querySelector("#port-detail-title");
+              if (!title?.isConnected)
+                throw new Error("Port detail title unavailable for restoration");
+              title.textContent = original;
+            },
+            originalTitle,
+          );
+        } catch (error) {
+          titleRestoreFailure = { error };
+          // Keep the original layout failure; retain any secondary restore error.
+          if (layoutFailed)
+            console.error("Artwork title restoration also failed:", errorMessage(error));
+        }
+      }
+      if (titleRestoreFailure) throw titleRestoreFailure.error;
       await click(control("cover", "Reset to default"));
       await browser.wait(async () => (await state("cover")).choice.asset_sha256 === null, 10_000);
       const reset = await state("cover");
@@ -440,7 +474,7 @@ export async function artworkScenario({
             cancelled_without_mutation: true,
             stale_generation_rejected: true,
             stale_revision_rejected: true,
-            restart_and_cache_rebuild: true,
+            renderer_reload_and_cache_rebuild: true,
             original_source_unchanged: true,
           },
           null,
