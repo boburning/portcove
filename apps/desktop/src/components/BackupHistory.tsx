@@ -299,6 +299,18 @@ export function BackupHistory({
               </small>
             </details>
             <span className="backup-actions flex flex-none gap-[6px]">
+              <Button
+                data-focusable
+                data-backup-action="restore"
+                variant="outline"
+                disabled={Boolean(busy) || state === "recovery_required" || !restoreAllowed}
+                onClick={(event) =>
+                  setSelection({ backup, action: "restore", opener: event.currentTarget, index })
+                }
+              >
+                <Icon glyph={RotateCcw} />
+                Restore
+              </Button>
               {backup.port_id === "ghostship" && recoverGhostshipLegacy && (
                 <GhostshipLegacyRecovery
                   key={`${backup.id}:${generation}`}
@@ -312,18 +324,6 @@ export function BackupHistory({
                   }
                 />
               )}
-              <Button
-                data-focusable
-                data-backup-action="restore"
-                variant="outline"
-                disabled={Boolean(busy) || state === "recovery_required" || !restoreAllowed}
-                onClick={(event) =>
-                  setSelection({ backup, action: "restore", opener: event.currentTarget, index })
-                }
-              >
-                <Icon glyph={RotateCcw} />
-                Restore
-              </Button>
               <Button
                 data-focusable
                 data-backup-action="delete"

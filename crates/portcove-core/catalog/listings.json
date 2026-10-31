@@ -2606,6 +2606,31 @@
         ],
         "source_editions": []
       },
+      "manual_setup": {
+        "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533",
+        "steps": [
+          {
+            "title": "Prepare the working copy upstream",
+            "instruction": "Use an existing permitted Windows native Render96 installation prepared through upstream instructions with your own matching Super Mario 64 original. Finish extraction, compilation and a working normal start and quit upstream before adding it. Portcove does not run the build or import the original. Optional model and texture packs have separate content requirements and are not required for registration."
+          },
+          {
+            "title": "Choose the actual native player",
+            "instruction": "Select the executable produced by your working build, not its compiler, build script or a detached launcher. The inspected standard Windows build normally produces build/us_pc/sm64.us.exe for the US flavor; region and renderer options can change its name. Keep its complete resources and companions. Preserve the working directory and literal arguments from that working installation, then save launch details and choose Play separately."
+          },
+          {
+            "title": "Keep the creating save and configuration paths",
+            "instruction": "Keep your existing profile choices. The inspected SDL2 build uses the sm64ex preferences folder by default and can copy an older sm64pc save/configuration into it when the newer save is absent. Another executable folder does not guarantee independent saves. Preserve actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Retain established --savepath, --configfile and --gamedir arguments only where supported by your working build; ! in the supported save path expands to the executable directory. Do not redirect or migrate a profile merely to register it."
+          },
+          {
+            "title": "Leave runtime and data management with upstream",
+            "instruction": "You or upstream own replacement, optional packs, resource preparation and recovery. Keep the complete working runtime, originals, resources, dynos/packs, modifications, saves, settings and unknown files before changing it. Portcove supervises the selected process and removes only its registration; it does not manage replacement, backup, rollback, migration or deletion of this external copy. Older Portcove-built installations retain their original contracts."
+          }
+        ],
+        "warnings": [
+          "Use only originals, prepared copies and optional packs that you are permitted to use. Registration does not authenticate the entire prepared package or grant content rights.",
+          "The source guidance describes the inspected build. Keep the actual paths and behavior of your working copy; other build options and platforms need separate assessment."
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],

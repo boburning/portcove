@@ -28,31 +28,54 @@ pub(crate) async fn recover_ghostship_legacy_data(
     generation: u64,
 ) -> DesktopResult<Option<GhostshipRecoveryResult>> {
     let plan = plan_ghostship_legacy_recovery(state.clone(), backup_id.clone(), generation).await?;
-    validate_review(&plan, &expected_plan)?;
-    if !confirm_destructive(
-        &app,
-        "Confirm Ghostship legacy recovery",
-        recovery_consent(&plan),
-        "Recover legacy installation and data",
+    let state = state.inner().clone();
+    let reviewed_fingerprint = expected_plan.clone();
+    reviewed_recovery(
+        &plan,
+        &reviewed_fingerprint,
+        |message| async move {
+            confirm_destructive(
+                &app,
+                "Confirm Ghostship legacy recovery",
+                message,
+                "Recover legacy installation and data",
+            )
+            .await
+        },
+        || async move {
+            blocking_worker(move || {
+                let service = service_at_generation(&state, generation)?;
+                // Dialog time grants no authority over changed data, installs or a new library.
+                let current = service.plan_ghostship_legacy_recovery(&backup_id)?;
+                validate_review(&current, &expected_plan)?;
+                let authorization =
+                    service.authorize_ghostship_legacy_recovery(&backup_id, &expected_plan)?;
+                service
+                    .recover_ghostship_legacy_data(&backup_id, &authorization.token)
+                    .map_err(Into::into)
+            })
+            .await
+        },
     )
     .await
-    {
+}
+
+// Only host presentation sequencing; Core still creates and consumes all authority.
+async fn reviewed_recovery<T, C, A>(
+    plan: &GhostshipRecoveryPlan,
+    expected: &str,
+    confirm: impl FnOnce(String) -> C,
+    apply: impl FnOnce() -> A,
+) -> DesktopResult<Option<T>>
+where
+    C: std::future::Future<Output = bool>,
+    A: std::future::Future<Output = DesktopResult<T>>,
+{
+    validate_review(plan, expected)?;
+    if !confirm(recovery_consent(plan)).await {
         return Ok(None);
     }
-    let state = state.inner().clone();
-    blocking_worker(move || {
-        let service = service_at_generation(&state, generation)?;
-        // Dialog time grants no authority over changed data, installs or a new library.
-        let current = service.plan_ghostship_legacy_recovery(&backup_id)?;
-        validate_review(&current, &expected_plan)?;
-        let authorization =
-            service.authorize_ghostship_legacy_recovery(&backup_id, &expected_plan)?;
-        service
-            .recover_ghostship_legacy_data(&backup_id, &authorization.token)
-            .map(Some)
-            .map_err(Into::into)
-    })
-    .await
+    apply().await.map(Some)
 }
 
 fn validate_review(plan: &GhostshipRecoveryPlan, expected: &str) -> DesktopResult<()> {
@@ -137,5 +160,81 @@ mod tests {
         ] {
             assert!(message.contains(required), "missing disclosure: {required}");
         }
+    }
+
+    #[tokio::test]
+    async fn stale_review_never_opens_native_consent_or_applies() {
+        let confirmed = std::cell::Cell::new(false);
+        let applied = std::cell::Cell::new(false);
+        let result = reviewed_recovery(
+            &plan(),
+            "changed",
+            |_| async {
+                confirmed.set(true);
+                true
+            },
+            || async {
+                applied.set(true);
+                Ok(())
+            },
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(!confirmed.get());
+        assert!(!applied.get());
+    }
+
+    #[tokio::test]
+    async fn native_decline_never_reaches_authorization_and_apply_callback() {
+        let applied = std::cell::Cell::new(false);
+        let reviewed = plan();
+        let result = reviewed_recovery(
+            &reviewed,
+            &reviewed.plan_sha256,
+            |_| async { false },
+            || async {
+                applied.set(true);
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+        assert!(result.is_none());
+        assert!(!applied.get());
+    }
+
+    #[tokio::test]
+    async fn accepted_consent_reaches_apply_once_and_preserves_its_result() {
+        let calls = std::cell::Cell::new(0);
+        let reviewed = plan();
+        let result = reviewed_recovery(
+            &reviewed,
+            &reviewed.plan_sha256,
+            |message| async move {
+                assert!(message.contains("fresh derivative"));
+                true
+            },
+            || async {
+                calls.set(calls.get() + 1);
+                Ok("core result")
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(result, Some("core result"));
+        assert_eq!(calls.get(), 1);
+    }
+
+    #[tokio::test]
+    async fn held_apply_after_consent_remains_a_failure_not_native_cancellation() {
+        let reviewed = plan();
+        let result: DesktopResult<Option<()>> = reviewed_recovery(
+            &reviewed,
+            &reviewed.plan_sha256,
+            |_| async { true },
+            || async { Err(PortcoveError::conflict("inputs changed during consent").into()) },
+        )
+        .await;
+        assert!(result.is_err());
     }
 }
