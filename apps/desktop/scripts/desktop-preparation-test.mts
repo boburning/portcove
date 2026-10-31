@@ -4008,19 +4008,24 @@ export async function preparationScenarios({
     };
     const more = () => By.xpath(`//button[@data-detail-origin="library:card-more:${port.id}"]`);
     const favorite = () => By.xpath(`//button[@aria-label="Favorite ${gameIdentityLabel(port)}"]`);
-    const closeMembershipMenu = async () => {
-      // Checkbox membership intentionally keeps the modal menu open.
-      await browser.actions().sendKeys(Key.ESCAPE).perform();
+    const closeMembershipMenu = async (allowRemovedTrigger = false) => {
+      const menu = By.xpath(
+        `//*[@role="menu" and @aria-label="More actions for ${gameIdentityLabel(port)}"]`,
+      );
+      // Checkbox membership keeps the menu open unless the selected collection
+      // loses this card. Do not send workspace Escape after that owned unmount.
+      if ((await browser.findElements(menu)).length > 0)
+        await browser.actions().sendKeys(Key.ESCAPE).perform();
       await browser.wait(
-        async () =>
-          (await browser.findElement(more()).getAttribute("aria-expanded")) === "false" &&
-          (
-            await browser.findElements(
-              By.xpath(
-                `//*[@role="menu" and @aria-label="More actions for ${gameIdentityLabel(port)}"]`,
-              ),
-            )
-          ).length === 0,
+        async () => {
+          const triggers = await browser.findElements(more());
+          return (
+            (await browser.findElements(menu)).length === 0 &&
+            ((allowRemovedTrigger && triggers.length === 0) ||
+              (triggers.length === 1 &&
+                (await required(triggers[0]).getAttribute("aria-expanded")) === "false"))
+          );
+        },
         5_000,
         "Collection membership menu must close before another workspace control is used",
       );
@@ -4085,7 +4090,7 @@ export async function preparationScenarios({
         async () => (await organization()).collections[collectionId]?.port_ids.length === 0,
         15_000,
       );
-      await closeMembershipMenu();
+      await closeMembershipMenu(true);
       await manageCollections();
       await click(button("All games"));
       await click(
