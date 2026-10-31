@@ -40,6 +40,8 @@ const browserProject = {
       "lucide-react",
       "i18next",
       "react-i18next",
+      "selenium-webdriver/lib/atoms/get-attribute.js",
+      "selenium-webdriver/lib/atoms/is-displayed.js",
     ],
     exclude: ["vitest-browser-react", "vitest-browser-react/pure"],
   },
