@@ -1763,6 +1763,21 @@
             "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
             "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
           ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned complete-custody release-tools binary/source, qualified public age cache and repository-pinned Tauri CLI; disposable keys only",
+          "reason": "Actual complete-snapshot crypto qualification is opt-in and does not establish production credential creation or custody.",
+          "intended_route": "scripts/initial-key-custody.test.mts; bounded Linux x64 disposable complete-custody recovery qualification",
+          "cases": [
+            "actual complete vault reprojects a disposable Tauri payload and restores all sixteen roles without primary keys"
+          ],
+          "required_environment": [
+            "PORTCOVE_COMPLETE_CUSTODY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
+          ]
         }
       ]
     },

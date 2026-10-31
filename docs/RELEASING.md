@@ -768,6 +768,54 @@ existing catalog profile and `catalog.age` wire format remain unchanged. Both
 profiles require the separate actual custody grant and local unrecorded passphrase
 entry; fixture or initial-backup success supplies no Root or publication authority.
 
+Complete release custody has the separate
+`complete-release-owner-passphrase-tty-v1` CLI profile. It retains the same
+inventory/inspector pins, explicit private paths, vault engine and terminal
+settlement. Its `complete-release-key-custody-v1` inventory retains the thirteen
+TUF and two App appointments, changes `payload_credential` to `"covered"`, and
+adds exactly one `application-payload` appointment through:
+
+```json
+{
+  "payload": {
+    "profile": "tauri-minisign-empty-password-v1",
+    "public_key_base64": "EXACT_TAURI_PUBLIC_FILE_CONTENT",
+    "public_key_sha256": "SHA256_OF_THAT_FILE",
+    "ed25519_public_key": "RAW_32_BYTE_PUBLIC_KEY_AS_64_LOWERCASE_HEX"
+  }
+}
+```
+
+This is the additional inventory fragment, not a complete configuration. The
+payload role ID uses the existing registry identity over decoded public-file
+bytes; `public_key_sha256` independently pins the outer file bytes. Public
+encoding, identity and distinctness from all TUF keys are checked before custody
+reads. `inspect-existing-payload-key CONFIG` then consumes the same bounded
+offline input reader and a strict schema-1 configuration with `profile`,
+`private_key` and `expected_public_key: { path, sha256, ed25519_public_key }`.
+It validates the appointed public input first, accepts only the pinned Minisign
+box algorithms and default 1,048,576-operation/32-MiB KDF parameters before
+decryption, and never prompts. A private process-local random sign/verify
+challenge establishes seed/public-key correspondence; extracting an embedded
+public half alone is insufficient. It exports only public identity, never the
+challenge, signature or private key, and writes no files.
+
+The empty inner-password profile covers only that explicit payload format.
+Actual key creation retains the existing approved interactive Tauri
+`signer generate -w NEW_PRIVATE_PATH` ceremony: no `--ci`, `--force`, password
+argument or inherited password variable. An owner may deliberately select empty
+inner input in the unrecorded terminal; this choice does not remove the separate
+retained outer age recovery phrase. Password-protected payload keys and other
+KDF settings are outside this profile. Delivery of this adapter never grants key
+creation, signing or publication.
+
+The complete create-only output is `complete-custody.age`; authenticated restore
+reprojects all sixteen private/public identities before writing any quarantine
+key. Catalog-only, initial pre-payload and complete plans/wire contexts refuse
+each other. Existing snapshots remain immutable and retain their original scope;
+complete custody still requires its own actual encrypted backup, ciphertext-only
+backup and verified restore. No restored key becomes an installed signer.
+
 For that explicitly selected profile, `top_level_targets_profile:
 "online-unchanged-authority-v1"` permits separately isolated Targets signing only
 after a real authenticated prior repository exists. Its fixed body derivation

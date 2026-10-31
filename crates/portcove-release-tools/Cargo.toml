@@ -14,6 +14,7 @@ base64 = "0.23.1"
 futures-util.workspace = true
 hex.workspace = true
 jiff = "0.2.38"
+minisign = "0.10.0"
 minisign-verify = "0.3.0"
 serde.workspace = true
 serde_json.workspace = true
@@ -26,6 +27,3 @@ url.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows-sys.workspace = true
-
-[dev-dependencies]
-minisign = "0.10.0"

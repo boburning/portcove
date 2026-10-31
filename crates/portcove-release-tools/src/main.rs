@@ -70,6 +70,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string(&report)?);
             return Ok(());
         }
+        if command == "inspect-existing-payload-key" {
+            let report = portcove_release_tools::tuf_repository::payload_key::inspect_existing_key(
+                Path::new(config),
+            )?;
+            println!("{}", serde_json::to_string(&report)?);
+            return Ok(());
+        }
         if command == "inspect-existing-tuf-key" {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -200,7 +207,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     let [command, artifact, signature, public_key, sha256, bytes] = arguments.as_slice() else {
         return Err(
-            "usage: portcove-release-tools verify ARTIFACT SIGNATURE PUBLIC_KEY SHA256 BYTES\n       portcove-release-tools build-tuf CONFIG\n       portcove-release-tools sign-tuf-role releases|preview|stable|snapshot|timestamp CONFIG\n       portcove-release-tools assemble-tuf CONFIG\n       portcove-release-tools prepare-tuf-renewal CONFIG\n       portcove-release-tools inspect-tuf-bootstrap CONTEXT\n       portcove-release-tools create-offline-key CONFIG\n       portcove-release-tools inspect-existing-tuf-key CONFIG\n       portcove-release-tools inspect-catalog-key-inventory CONFIG\n       portcove-release-tools prepare-offline-root CONFIG\n       portcove-release-tools sign-offline-root CONFIG\n       portcove-release-tools finalize-offline-root CONFIG\n       portcove-release-tools sign-offline-targets CONFIG"
+            "usage: portcove-release-tools verify ARTIFACT SIGNATURE PUBLIC_KEY SHA256 BYTES\n       portcove-release-tools build-tuf CONFIG\n       portcove-release-tools sign-tuf-role releases|preview|stable|snapshot|timestamp CONFIG\n       portcove-release-tools assemble-tuf CONFIG\n       portcove-release-tools prepare-tuf-renewal CONFIG\n       portcove-release-tools inspect-tuf-bootstrap CONTEXT\n       portcove-release-tools create-offline-key CONFIG\n       portcove-release-tools inspect-existing-tuf-key CONFIG\n       portcove-release-tools inspect-existing-payload-key CONFIG\n       portcove-release-tools inspect-catalog-key-inventory CONFIG\n       portcove-release-tools prepare-offline-root CONFIG\n       portcove-release-tools sign-offline-root CONFIG\n       portcove-release-tools finalize-offline-root CONFIG\n       portcove-release-tools sign-offline-targets CONFIG"
                 .into(),
         );
     };

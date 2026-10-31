@@ -212,6 +212,7 @@ pub mod isolated;
 pub mod offline;
 pub mod offline_key;
 mod online;
+pub mod payload_key;
 mod validation;
 
 use validation::*;
