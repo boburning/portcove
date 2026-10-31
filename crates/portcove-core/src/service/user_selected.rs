@@ -2287,4 +2287,44 @@ mod tests {
         changed["ports"][0]["launch_environment"] = json!({"SECRET":"value"});
         assert!(Catalog::from_json(&changed.to_string()).is_err());
     }
+
+    #[test]
+    fn dune_ii_opendune_prepared_player_route_2674() {
+        assert_listing_only_player_route("dune-ii-opendune", Some(false));
+    }
+
+    #[test]
+    fn dune_ii_dune_dynasty_prepared_player_route_2569() {
+        assert_listing_only_player_route("dune-ii-dune-dynasty", Some(false));
+    }
+
+    #[test]
+    fn might_and_magic_vii_openenroth_prepared_player_route_2885() {
+        assert_listing_only_player_route("might-and-magic-vii-openenroth", Some(false));
+    }
+
+    #[test]
+    fn gothic_ii_night_of_the_raven_opengothic_prepared_player_route_2578() {
+        assert_listing_only_player_route("gothic-ii-night-of-the-raven-opengothic", Some(false));
+    }
+
+    #[test]
+    fn jazz_jackrabbit_2_jazz2_resurrection_prepared_player_route_2682() {
+        assert_listing_only_player_route("jazz-jackrabbit-2-jazz2-resurrection", Some(false));
+    }
+
+    #[test]
+    fn heroes_of_might_and_magic_ii_fheroes2_prepared_player_route_2582() {
+        assert_listing_only_player_route("heroes-of-might-and-magic-ii-fheroes2", Some(false));
+    }
+
+    #[test]
+    fn transport_tycoon_deluxe_openttd_upstream_prepared_player_route_2716() {
+        assert_listing_only_player_route("transport-tycoon-deluxe-openttd-upstream", Some(false));
+    }
+
+    #[test]
+    fn half_life_xash3d_fwgs_prepared_player_route_2678() {
+        assert_listing_only_player_route("half-life-xash3d-fwgs", Some(false));
+    }
 }
