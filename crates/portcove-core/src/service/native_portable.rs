@@ -5579,4 +5579,153 @@ mod tests {
         )
         .await;
     }
+
+    // Inert packages verify the actual definition, not the upstream player or ROM.
+    #[tokio::test]
+    async fn power_dozer_managed_progression_preserves_data_across_versioned_wrappers_2557() {
+        let id = "blast-corps-power-dozer";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let release = |version: &str, revision| {
+            let folder = format!("power-dozer-{version}-windows-x86_64/");
+            let mut release =
+                server.release_in_folder(version, revision, &folder, "power-dozer.exe");
+            release.asset.name = format!("power-dozer-{version}-windows-x86_64.zip");
+            release
+        };
+        let provider = Arc::new(Provider(Mutex::new(release("v0.84", 1))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
+        let launch = |record: &InstallRecord| {
+            let retained = service.installed_port(record).unwrap();
+            assert_eq!(serde_json::to_value(&retained).unwrap(), definition);
+            assert!(retained.source_profile.is_none());
+            assert!(retained.source_environment.is_none());
+            assert!(retained.user_data_environment.is_none());
+            assert!(retained.setup_marker.is_none());
+            assert_eq!(retained.persistent_paths, ["data"]);
+            let spec = crate::adapter::standard(AdapterKind::NativePortable)
+                .launch_spec(
+                    &library,
+                    &retained,
+                    Platform::WindowsX86_64,
+                    &record.path,
+                    None,
+                )
+                .unwrap();
+            assert_eq!(
+                spec.executable.file_name(),
+                Some(std::ffi::OsStr::new("power-dozer.exe"))
+            );
+            assert_eq!(
+                spec.executable.parent(),
+                Some(spec.working_directory.as_path())
+            );
+            assert!(spec.arguments.is_empty());
+            assert_eq!(spec.environment["BLASTCORPS_DATA_DIR"], "data");
+            let process = spec.process_spec();
+            let command = crate::ChildProcessPolicy::game_command(&process, &[]).unwrap();
+            // A concrete explicit entry is applied after inherited environment by
+            // the shared process owner; do not change global env in parallel tests.
+            assert_eq!(
+                command
+                    .get_envs()
+                    .find(|(key, _)| *key == "BLASTCORPS_DATA_DIR")
+                    .unwrap()
+                    .1,
+                Some(std::ffi::OsStr::new("data"))
+            );
+            assert_eq!(
+                command.get_current_dir(),
+                Some(spec.working_directory.as_path())
+            );
+            spec.working_directory
+        };
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let first_root = launch(&first);
+        let files = [
+            "cache/rom.z64",
+            "eeprom.bin",
+            "controller-pak.bin",
+            "settings.json",
+            "controls.json",
+            "settings.json.bak",
+            "unfinished.tmp",
+            "import-staging/player.dat",
+        ];
+        for relative in files {
+            let path = first_root.join("data").join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, format!("synthetic latest {relative}")).unwrap();
+        }
+        *provider.0.lock().unwrap() = release("v0.85", 2);
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        let second_root = launch(&second);
+        assert_eq!(second.version, "v0.85");
+        assert_ne!(first.id, second.id);
+        assert_ne!(first_root.file_name(), second_root.file_name());
+        for relative in files {
+            assert_eq!(
+                fs::read(second_root.join("data").join(relative)).unwrap(),
+                format!("synthetic latest {relative}").as_bytes()
+            );
+        }
+        fs::write(
+            second_root.join("data/eeprom.bin"),
+            b"latest synthetic committed EEPROM",
+        )
+        .unwrap();
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        let previous_root = launch(&previous);
+        assert_eq!(
+            fs::read(previous_root.join("data/eeprom.bin")).unwrap(),
+            b"latest synthetic committed EEPROM"
+        );
+        for relative in files.into_iter().filter(|path| *path != "eeprom.bin") {
+            assert_eq!(
+                fs::read(previous_root.join("data").join(relative)).unwrap(),
+                format!("synthetic latest {relative}").as_bytes()
+            );
+        }
+        let preview = service.preview_removal(id).unwrap();
+        let consent = service
+            .authorize_removal(id, &preview.preview_sha256)
+            .unwrap();
+        fs::write(
+            previous_root.join("unexpected-runtime.dll"),
+            b"unowned change",
+        )
+        .unwrap();
+        assert_eq!(
+            service
+                .update(id, None, None, true, |_| {})
+                .await
+                .unwrap_err()
+                .presentation()
+                .presentation_key,
+            "portable_runtime_modified"
+        );
+        assert_eq!(
+            service
+                .remove(id, &consent.token)
+                .unwrap_err()
+                .presentation()
+                .presentation_key,
+            "portable_runtime_modified"
+        );
+        assert_eq!(
+            fs::read(previous_root.join("unexpected-runtime.dll")).unwrap(),
+            b"unowned change"
+        );
+        assert_eq!(
+            fs::read(previous_root.join("data/eeprom.bin")).unwrap(),
+            b"latest synthetic committed EEPROM"
+        );
+        assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+    }
 }

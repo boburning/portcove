@@ -1799,3 +1799,8 @@ async fn cdlewis_snowboardkids_recomp_remaining_component_hold_before_network_18
 async fn vidanox_banjotooierecompiled_remaining_component_hold_before_network_1795() {
     assert_embedded_player_download_holds(&["vidanox-banjotooierecompiled"]).await;
 }
+
+#[tokio::test]
+async fn blast_corps_recompiled_font_hold_before_network_2558() {
+    assert_embedded_player_download_holds(&["blast-corps-blastcorps-recompiled"]).await;
+}
