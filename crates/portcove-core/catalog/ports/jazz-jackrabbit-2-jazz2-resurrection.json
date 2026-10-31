@@ -17,7 +17,36 @@
       "game_slug": "jazz-jackrabbit-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2682
+    "issue_number": 2682,
+    "manual_setup": {
+      "help_url": "https://github.com/deathkiller/jazz2-native/tree/81f315f1f62d1716c489df349e5ebfdc017603da",
+      "steps": [
+        {
+          "title": "Prepare the official desktop variant and your own Source data",
+          "instruction": "The source project links official desktop packages from deathkiller/jazz2. Use a permitted complete Windows package for your CPU and chosen renderer, including its companion DLLs and Content directory. The 3.9.0 archive has separate x64, x86 and ARM64 trees; select the actual working tree’s normal Jazz2.exe, not Jazz2.Server.exe or a different renderer/CPU by filename alone. Follow upstream’s instructions to copy your permitted supported Jazz Jackrabbit 2 original/shareware data into that tree’s Source directory before running."
+        },
+        {
+          "title": "Complete preparation without replacing your state",
+          "instruction": "Keep the selected tree as working directory so Content, Source and Cache resolve together. Missing Anims.j2a/AnimsSw.j2a does not produce a playable installation. With originals present, upstream converts data during startup, can replace converted cache contents, and records its own binary Source.idx; that is not a Portcove setup receipt. Preserve the full original Source, custom Content, complete Cache and unknown files before changing versions. The package-owned Source/_Readme.txt does not make the entire Source directory disposable."
+        },
+        {
+          "title": "Keep the creating settings and progress location",
+          "instruction": "Retain an existing working-directory Jazz2.config or the actual per-user Jazz² Resurrection settings directory used by the copy. If already configured, preserve the literal /config argument and its actual path; it is /config, not --config. Do not create a portable config or use /reset-config just to attach the game. Preserve the full selected config/user directory, progress, resume state and runtime/cache trees, including shader/download/custom content, before upstream updates. Another renderer or runtime folder can still use the same user profile."
+        },
+        {
+          "title": "Check the working copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
