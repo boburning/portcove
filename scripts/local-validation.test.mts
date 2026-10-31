@@ -4030,6 +4030,21 @@ void test("native transport producers retain their actual Node consumers across 
   const { windowsHelperChecksRequired, windowsNativeToolsRequired } =
     await import("./windows-helper-checks.mts");
   const consumers: [string, string[]][] = [
+    [
+      "scripts/desktop-linux-media.mts",
+      [
+        "scripts/desktop-linux-native-session.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+        "apps/desktop/scripts/desktop-harness.native.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/desktop-test.mts",
+      [
+        "scripts/desktop-boundary-wiring.test.mts",
+        "apps/desktop/scripts/desktop-harness.native.test.mts",
+      ],
+    ],
     ...[
       "apps/desktop/scripts/desktop-installed-update-harness.mts",
       "apps/desktop/scripts/desktop-windows-update-test.mts",
@@ -4116,6 +4131,7 @@ void test("native transport producers retain their actual Node consumers across 
     [
       "scripts/fixtures/desktop-module-fixture.mts",
       [
+        "apps/desktop/scripts/desktop-harness.native.test.mts",
         "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
         "apps/desktop/scripts/desktop-default-cover.native.test.mts",
         "apps/desktop/scripts/desktop-reload.native.test.mts",

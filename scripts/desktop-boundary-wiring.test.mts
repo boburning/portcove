@@ -5367,3 +5367,285 @@ void test("actual driver startup and identity restart consume the imported nativ
   );
   reject(original.fixtureCloses[0], "Promise.resolve()", "REAL_FIXTURE_CLOSES");
 });
+
+void test("Linux inspector transfers its real connection into media validation and final browser custody", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url), "utf8"),
+    { mode: "strip" },
+  );
+  const member = (value: unknown, name: string) =>
+    isRecord(value) &&
+    value.type === "MemberExpression" &&
+    (identifier(value.property) ?? literal(value.property)) === name;
+  function inspect(code: string) {
+    const m = indexDesktopCaller(code);
+    const mediaImports = m.all.filter(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.init) &&
+        node.init.type === "AwaitExpression" &&
+        isRecord(node.init.argument) &&
+        node.init.argument.type === "ImportExpression" &&
+        literal(node.init.argument.source) === "../../../scripts/desktop-linux-media.mts",
+    );
+    const binding = (name: string, within?: Record<string, unknown>, consumedWithin?: unknown) => {
+      for (const declaration of mediaImports) {
+        if (within && m.owner(declaration) !== within) continue;
+        if (!isRecord(declaration.id) || !Array.isArray(declaration.id.properties)) continue;
+        const property = declaration.id.properties
+          .filter(isRecord)
+          .find((node) => (identifier(node.key) ?? literal(node.key)) === name);
+        if (property) {
+          const name = identifier(property.value);
+          const used = activeNativeSyntax(consumedWithin ?? m.owner(declaration)?.body).some(
+            (node) => node.type === "CallExpression" && identifier(node.callee) === name,
+          );
+          if (used) return { declaration, property, name };
+        }
+      }
+      assert.fail(
+        name === "verifyConnectedApplicationMedia"
+          ? "CONSUMED_MEDIA_OWNER_IMPORT"
+          : "CONSUMED_MEDIA_READINESS_IMPORT",
+      );
+    };
+    const verify = binding("verifyConnectedApplicationMedia");
+    const owner = m.owner(verify.declaration);
+    assert.ok(owner && m.calls(owner).length > 0, "LIVE_OBSERVED_CONNECTION_OWNER");
+    const active = activeNativeSyntax(owner.body);
+    const call = active.find(
+      (node) => node.type === "CallExpression" && identifier(node.callee) === verify.name,
+    );
+    assert.ok(call && m.parent(call)?.type === "AwaitExpression", "AWAIT_REAL_MEDIA_OWNER");
+    const options = m.slots(call);
+    const connected = active.find(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        identifier(node.id) === identifier(options.get("inspector")),
+    );
+    const connection = connected && awaited(connected.init);
+    assert.ok(
+      connected &&
+        connection &&
+        m
+          .imports("./desktop-linux-webkit-inspector.mts", "connectLinuxInspector")
+          .has(identifier(connection.callee)),
+      "TRANSFER_REAL_CONNECTED_INSPECTOR",
+    );
+    assert.ok(range(connection).end < range(call).start, "CONNECT_BEFORE_MEDIA_TRANSFER");
+    const callback = (value: unknown, at: unknown) => {
+      const fn =
+        isRecord(value) &&
+        ["ArrowFunctionExpression", "FunctionExpression"].includes(String(value.type))
+          ? value
+          : m.resolve(identifier(value), at);
+      assert.ok(fn, "REAL_MEDIA_CALLBACK");
+      return fn;
+    };
+    const retain = callback(options.get("retain"), call);
+    assert.ok(!retain.async, "SYNCHRONOUS_MEDIA_CUSTODY");
+    assert.ok(Array.isArray(retain.params));
+    const retainParameter: unknown = retain.params[0];
+    const assignment = activeNativeSyntax(retain.body).find(
+      (node) =>
+        node.type === "AssignmentExpression" &&
+        identifier(node.right) === identifier(retainParameter),
+    );
+    assert.ok(assignment && identifier(assignment.left), "RETAIN_REAL_CONNECTED_BROWSER");
+    const browser = identifier(assignment.left);
+    const final = activeNativeSyntax(m.ast).find((node) => {
+      if (
+        node.type !== "CallExpression" ||
+        !member(node.callee, "quit") ||
+        !isRecord(node.callee) ||
+        identifier(node.callee.object) !== browser
+      )
+        return false;
+      let current = m.parent(node);
+      while (current) {
+        const parent = m.parent(current);
+        if (parent?.type === "TryStatement" && parent.finalizer === current) return true;
+        current = parent;
+      }
+      return false;
+    });
+    assert.ok(final, "FINAL_CLEANUP_CONSUMES_RETAINED_BROWSER");
+    const captured = m.all.find(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        isRecord(node.id) &&
+        node.id.type === "ObjectPattern" &&
+        Array.isArray(node.id.properties) &&
+        node.id.properties
+          .filter(isRecord)
+          .some(
+            (entry) =>
+              identifier(entry.key) === "inputs" &&
+              identifier(entry.value) === identifier(options.get("inputs")),
+          ) &&
+        awaited(node.init) &&
+        m
+          .imports("../../../scripts/native-helper-dependencies.mts", "observeDesktopHarnessInputs")
+          .has(identifier(awaited(node.init)?.callee)),
+    );
+    assert.ok(captured, "FORWARD_CAPTURED_MEDIA_INPUTS");
+    const admission = m.all.find(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        identifier(node.id) === identifier(options.get("admission")) &&
+        isRecord(node.init) &&
+        node.init.type === "CallExpression" &&
+        m
+          .imports("../../../scripts/retained-evidence.mts", "executionAdmission")
+          .has(identifier(node.init.callee)),
+    );
+    assert.ok(admission, "FORWARD_REAL_MEDIA_ADMISSION");
+    const before = callback(m.slots(connection).get("beforeConnect"), connection);
+    const readiness = binding("awaitApplicationMediaReadiness", owner, before.body);
+    const acquired = activeNativeSyntax(before.body).find(
+      (node) =>
+        node.type === "AssignmentExpression" &&
+        identifier(node.left) === identifier(options.get("readiness")) &&
+        awaited(node.right) &&
+        identifier(awaited(node.right)?.callee) === readiness.name,
+    );
+    assert.ok(acquired, "FORWARD_ACTUAL_MEDIA_READINESS");
+    assert.ok(Array.isArray(before.params));
+    const wait = awaited(acquired.right)!;
+    assert.equal(
+      identifier(args(wait)[1]),
+      identifier(m.slots(connection).get("launch")),
+      "ACTUAL_MEDIA_READINESS_LAUNCH",
+    );
+    const evidence = m.all.find(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        identifier(node.id) === identifier(args(wait)[0]) &&
+        isRecord(node.init) &&
+        node.init.type === "CallExpression" &&
+        member(node.init.callee, "join") &&
+        literal(args(node.init)[1]) === "linux-app-media-readiness.json",
+    );
+    const connectionEvidence = active.find(
+      (node) =>
+        node.type === "VariableDeclarator" &&
+        identifier(node.id) === identifier(m.slots(connection).get("evidence")),
+    );
+    assert.ok(
+      evidence &&
+        isRecord(evidence.init) &&
+        connectionEvidence &&
+        isRecord(connectionEvidence.init) &&
+        identifier(args(evidence.init)[0]) === identifier(args(connectionEvidence.init)[0]),
+      "ACTUAL_MEDIA_READINESS_EVIDENCE",
+    );
+    assert.equal(
+      identifier(args(wait)[2]),
+      identifier(before.params[0]),
+      "KEEP_INSPECTOR_CONNECTION_DEADLINE",
+    );
+    return {
+      m,
+      call,
+      options,
+      retain,
+      assignment,
+      connected,
+      connection,
+      final,
+      acquired,
+      wait,
+      readiness,
+      verify,
+      owner,
+    };
+  }
+  const original = inspect(source);
+  inspect(source.replaceAll("\n", "\r\n\n"));
+  const importStatement = original.m.parent(original.verify.declaration);
+  assert.ok(importStatement);
+  const unused =
+    'const {verifyConnectedApplicationMedia:unusedMediaGate,awaitApplicationMediaReadiness:unusedReadiness}=await import("../../../scripts/desktop-linux-media.mts");';
+  inspect(
+    edit(source, [
+      { start: range(importStatement).start, end: range(importStatement).start, text: unused },
+    ]),
+  );
+  inspect(
+    edit(source, [
+      {
+        ...range(importStatement),
+        text:
+          `const {"verifyConnectedApplicationMedia":${original.verify.name}}=await import("../../../scripts/desktop-linux-media.mts");` +
+          `const {"awaitApplicationMediaReadiness":${original.readiness.name}}=await import("../../../scripts/desktop-linux-media.mts");`,
+      },
+    ]),
+  );
+  // Function hoisting and an export-local alias preserve the same capabilities.
+  const callbackText = source.slice(
+    range(original.retain.body).start,
+    range(original.retain.body).end,
+  );
+  const callbackParameter = identifier(
+    Array.isArray(original.retain.params) ? original.retain.params[0] : undefined,
+  );
+  const at = range(original.owner.body).end - 1;
+  inspect(
+    edit(source, [
+      { ...range(original.retain), text: "retainMediaConnection" },
+      {
+        start: at,
+        end: at,
+        text: `function retainMediaConnection(${callbackParameter})${callbackText}`,
+      },
+    ]),
+  );
+  assert.ok(isRecord(original.verify.property.key));
+  const alias = "$mediaVerify";
+  inspect(
+    edit(source, [
+      { ...range(original.verify.property), text: `verifyConnectedApplicationMedia:${alias}` },
+      { ...range(original.call.callee), text: alias },
+    ]),
+  );
+  const reject = (node: unknown, text: string, marker: string) => {
+    const parent = original.m.parent(node);
+    const changed = edit(source, [
+      parent?.type === "Property" && parent.shorthand
+        ? { ...range(parent), text: `${identifier(parent.key)}:${text}` }
+        : { ...range(node), text },
+    ]);
+    parseAst(changed);
+    assert.throws(
+      () => inspect(changed),
+      (error) => error instanceof assert.AssertionError && error.message.includes(marker),
+    );
+  };
+  reject(original.call.callee, "unusedMediaOwner", "CONSUMED_MEDIA_OWNER_IMPORT");
+  reject(
+    original.options.get("inspector"),
+    "foreignInspector",
+    "TRANSFER_REAL_CONNECTED_INSPECTOR",
+  );
+  reject(original.options.get("retain"), "()=>{}", "RETAIN_REAL_CONNECTED_BROWSER");
+  reject(
+    original.retain,
+    `async(${callbackParameter})=>{await Promise.resolve();${callbackText.slice(1, -1)}}`,
+    "SYNCHRONOUS_MEDIA_CUSTODY",
+  );
+  reject(
+    args(original.wait)[0],
+    '"foreign-media-readiness.json"',
+    "ACTUAL_MEDIA_READINESS_EVIDENCE",
+  );
+  reject(args(original.wait)[1], "foreignLaunch", "ACTUAL_MEDIA_READINESS_LAUNCH");
+  reject(original.assignment.left, "foreignBrowser", "FINAL_CLEANUP_CONSUMES_RETAINED_BROWSER");
+  reject(original.options.get("inputs"), "[]", "FORWARD_CAPTURED_MEDIA_INPUTS");
+  reject(original.options.get("admission"), "foreignAdmission", "FORWARD_REAL_MEDIA_ADMISSION");
+  reject(original.options.get("readiness"), "foreignReadiness", "FORWARD_ACTUAL_MEDIA_READINESS");
+  const statement = original.m.parent(original.m.parent(original.call));
+  assert.ok(statement);
+  const callText = source.slice(range(statement).start, range(statement).end);
+  for (const text of [`if(false){${callText}}`, `{return;${callText}}`])
+    reject(statement, text, "CONSUMED_MEDIA_OWNER_IMPORT");
+});

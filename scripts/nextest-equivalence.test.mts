@@ -501,6 +501,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "success-output": "immediate",
   });
   const windowsLifecycleFilters = [
+    "package(portcove-core) & test(/^service::tests::staged_and_rollback_tamper_leave_install_pointers_unchanged$/)",
     "package(portcove-core) & test(/^service::tests::unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch$/)",
     "package(portcove-core) & test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/)",
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_foreign_install_and_adoption_owners_in_every_phase$/)",

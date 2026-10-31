@@ -1034,6 +1034,16 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^source_import::tests::(changed_original_after_publication_registers_destination_and_retains_original|receipt_cleanup_failure_is_retained_and_retried_before_registration|prepared_import_refuses_cancellation_and_completes_move|recovers_before_publication_ownership_recorded_without_deleting_unverified_bytes|recovers_original_quarantined_without_deleting_unverified_bytes|recovers_publication_prepared_without_deleting_unverified_bytes|recovers_published_without_deleting_unverified_bytes|recovers_registered_without_deleting_unverified_bytes|same_content_late_destination_with_different_identity_is_still_a_collision)$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
+# CI41221704578/a1 Windows3 job124598866804 retained this exact 30.213s
+# cutoff without phase output. Preserve both tamper/refusal/recovery sequences
+# and every assertion; add phase diagnostics and finite Windows-only 60s room.
+# The original failure remains retained; no causal slowdown or speedup is known.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::staged_and_rollback_tamper_leave_install_pointers_unchanged$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Standard hosted Windows runners use four slots. Explicit exclusive families
 # reserve every slot above; local/default execution retains its two-slot limit.
 [profile.hosted-windows]
