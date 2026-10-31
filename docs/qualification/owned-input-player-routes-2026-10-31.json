@@ -1,0 +1,1682 @@
+{
+  "format_version": 1,
+  "kind": "dated source/static-package and existing non-owning operation evidence",
+  "source_base": "1e91e8fb1cf3c3445e09ec1e927dbb24bc46ca90",
+  "owning_issues": [2510, 2926, 1422],
+  "counts": {
+    "guides": 4,
+    "unchanged_records": 4,
+    "strict_definitions": 285,
+    "listing_identities": 1424,
+    "source_bindings": 99,
+    "unique_source_contents": 82,
+    "tree_contexts": 18
+  },
+  "routes": [
+    {
+      "issue": 160,
+      "id": "naughty-bear-gold-edition-restuff",
+      "authored_path": "crates/portcove-core/catalog/ports/naughty-bear-gold-edition-restuff.json",
+      "decision": "prepared-copy",
+      "prior_record_sha256": "f2a9b0dea5f9b549233e6c064116e97a5b1723448baa70febad741f3ac3de43a",
+      "record_sha256": "a3f494c1eda077956399c27808e546dd6b8d3a048c75a816d1808e386d8de2ae",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::naughty_bear_gold_edition_restuff_prepared_player_route_160"
+    },
+    {
+      "issue": 162,
+      "id": "lollipop-chainsaw-re-cherry",
+      "authored_path": "crates/portcove-core/catalog/ports/lollipop-chainsaw-re-cherry.json",
+      "decision": "conditional-prepared-copy-open",
+      "prior_record_sha256": "f6b2dd976c0681afe6dafbb18aa44653036114d941f0f0724aa781068a13b551",
+      "record_sha256": "39d842bcbd70236a1c6e5a4f1ea2accf05981f3df118fb56f4ae08bfa74a3ae7",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::lollipop_chainsaw_re_cherry_prepared_player_route_162"
+    },
+    {
+      "issue": 163,
+      "id": "goldeneye-007-xbla-recomp",
+      "authored_path": "crates/portcove-core/catalog/ports/goldeneye-007-xbla-recomp.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "4def20a5da20f3bf06cf51e758371a6c4323bc7a62d56e1a498652452c9f469a",
+      "record_sha256": "4def20a5da20f3bf06cf51e758371a6c4323bc7a62d56e1a498652452c9f469a",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": null
+    },
+    {
+      "issue": 169,
+      "id": "tomba-2-recompiled",
+      "authored_path": "crates/portcove-core/catalog/ports/tomba-2-recompiled.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "abab16ca964e8afb09f426f007444d0d284a08bf03413db3ff3751f2950ac49d",
+      "record_sha256": "abab16ca964e8afb09f426f007444d0d284a08bf03413db3ff3751f2950ac49d",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": null
+    },
+    {
+      "issue": 171,
+      "id": "sly-cooper-and-the-thievius-raccoonus-recomp",
+      "authored_path": "crates/portcove-core/catalog/ports/sly-cooper-and-the-thievius-raccoonus-recomp.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "cb838fd45125841ffcbbfcc3778e1ca883d814ed10dbc5dd88883845b3420529",
+      "record_sha256": "cb838fd45125841ffcbbfcc3778e1ca883d814ed10dbc5dd88883845b3420529",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": null
+    },
+    {
+      "issue": 324,
+      "id": "kileak-the-dna-imperative-ktdir",
+      "authored_path": "crates/portcove-core/catalog/ports/kileak-the-dna-imperative-ktdir.json",
+      "decision": "prepared-copy",
+      "prior_record_sha256": "0c611e39f3c5dbe9700873bdfb807e31e974b1c1557d4a09ae0f16f81d3d436a",
+      "record_sha256": "ec8336d6cf54872782eb0a050d6c3164c4db33a32a9286f9d236b614b363a82a",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::kileak_the_dna_imperative_ktdir_prepared_player_route_324"
+    },
+    {
+      "issue": 325,
+      "id": "sexy-parodius-sexyparorecomp",
+      "authored_path": "crates/portcove-core/catalog/ports/sexy-parodius-sexyparorecomp.json",
+      "decision": "prepared-copy",
+      "prior_record_sha256": "3f63f4468621936c003422be713593450b7c7cb30781af73f94bf46c245fd781",
+      "record_sha256": "7dff492110a36669025e61446aeaedba57e035d874e1545300931acef0fdae5b",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::sexy_parodius_sexyparorecomp_prepared_player_route_325"
+    },
+    {
+      "issue": 326,
+      "id": "valkyrie-profile-valkyrierecomp",
+      "authored_path": "crates/portcove-core/catalog/ports/valkyrie-profile-valkyrierecomp.json",
+      "decision": "approved-product-deferral-retained",
+      "prior_record_sha256": "318d0080e331631471d0d5318820fab1a369ea2e06d04169b18d4487badb0d07",
+      "record_sha256": "318d0080e331631471d0d5318820fab1a369ea2e06d04169b18d4487badb0d07",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": null
+    }
+  ],
+  "source_bindings": [
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "f2a3b9be82ff85c47bff139d16809e274338bc09",
+      "path": "LICENSE",
+      "blob": "bb43759dce58708f103779981ed41998b0c16075",
+      "bytes": 3892,
+      "sha256": "133629d3a7fa3543e96e27cc8c03c27dd6cd6c395e0a02fc1eda307d1d206cc6",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/f2a3b9be82ff85c47bff139d16809e274338bc09/LICENSE"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "f2a3b9be82ff85c47bff139d16809e274338bc09",
+      "path": "runtime/src/main.cpp",
+      "blob": "83d4494a2ad72d29345e60b03bb9d354b4bbe5dd",
+      "bytes": 904347,
+      "sha256": "96564962cd12d6098d1052e5b7e35abb9ca6af84520b3edc7b4ff2e70925bd67",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/f2a3b9be82ff85c47bff139d16809e274338bc09/runtime/src/main.cpp"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "f2a3b9be82ff85c47bff139d16809e274338bc09",
+      "path": "runtime/src/mod_runtime.cpp",
+      "blob": "ecefdffad4c808086c55092b1bd3929bb560a5fc",
+      "bytes": 103591,
+      "sha256": "0db743005ab648091680bc1842d1007d09033d2dc587eb4197e56140171d580f",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/f2a3b9be82ff85c47bff139d16809e274338bc09/runtime/src/mod_runtime.cpp"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "f2a3b9be82ff85c47bff139d16809e274338bc09",
+      "path": "tools/package_setup_host.sh",
+      "blob": "7dac95649632f2d940dff0d1e86614617cbc69dc",
+      "bytes": 26039,
+      "sha256": "73bac59055c0baa464833ac6487502ab6bd2ef7a29a39103027f4454b96d4984",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/f2a3b9be82ff85c47bff139d16809e274338bc09/tools/package_setup_host.sh"
+    },
+    {
+      "repository": "NJH-1001/psxrecomp",
+      "commit": "594ded65fecc7f32a4f639666a603a9d0d531633",
+      "path": "LICENSE",
+      "blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+      "bytes": 3852,
+      "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2",
+      "url": "https://github.com/NJH-1001/psxrecomp/blob/594ded65fecc7f32a4f639666a603a9d0d531633/LICENSE"
+    },
+    {
+      "repository": "NJH-1001/psxrecomp",
+      "commit": "594ded65fecc7f32a4f639666a603a9d0d531633",
+      "path": "runtime/src/main.cpp",
+      "blob": "0ce0f54e4458922ac4e714e8d8f7d7e08c28c76c",
+      "bytes": 703380,
+      "sha256": "71afdd947928f7bac8272758486d4d33d506769c338155455c352a7ce1bf456f",
+      "url": "https://github.com/NJH-1001/psxrecomp/blob/594ded65fecc7f32a4f639666a603a9d0d531633/runtime/src/main.cpp"
+    },
+    {
+      "repository": "NJH-1001/psxrecomp",
+      "commit": "594ded65fecc7f32a4f639666a603a9d0d531633",
+      "path": "runtime/src/mod_runtime.cpp",
+      "blob": "3f8b57656cb829d9e0b470f33d6822534e55ddd0",
+      "bytes": 60002,
+      "sha256": "f29a256c42ce9161ccad16fe89dd637bcaa4750a7361b093c77cd66b35164508",
+      "url": "https://github.com/NJH-1001/psxrecomp/blob/594ded65fecc7f32a4f639666a603a9d0d531633/runtime/src/mod_runtime.cpp"
+    },
+    {
+      "repository": "NJH-1001/psxrecomp",
+      "commit": "594ded65fecc7f32a4f639666a603a9d0d531633",
+      "path": "tools/package_setup_host.sh",
+      "blob": "8dc70cbca232094e057af9003dfaec12d8265a9d",
+      "bytes": 24363,
+      "sha256": "9a3b2eabbe8af1820475a6ba568bf45e5c4cd6c3c543eb53f92b1ceafe029c18",
+      "url": "https://github.com/NJH-1001/psxrecomp/blob/594ded65fecc7f32a4f639666a603a9d0d531633/tools/package_setup_host.sh"
+    },
+    {
+      "repository": "NJH-1001/psxrecomp",
+      "commit": "594ded65fecc7f32a4f639666a603a9d0d531633",
+      "path": "host/psxrecomp_codegen_host.c",
+      "blob": "b24d28a868cfe6472efa261f423d05f03fb177df",
+      "bytes": 162469,
+      "sha256": "87b1492fdbb8df4769e2592ebc9e476c422ffa9c765d2e489dc64c5e665eff3a",
+      "url": "https://github.com/NJH-1001/psxrecomp/blob/594ded65fecc7f32a4f639666a603a9d0d531633/host/psxrecomp_codegen_host.c"
+    },
+    {
+      "repository": "NJH-1001/psxrecomp",
+      "commit": "594ded65fecc7f32a4f639666a603a9d0d531633",
+      "path": "host/psxrecomp_codegen_host.h",
+      "blob": "03aae3eb380bb0166d9e62c9971e48a2b828ebe8",
+      "bytes": 2345,
+      "sha256": "80edf27f923b665c1c9e809c9d199e19c281227df9fa97ea77c716d07474064c",
+      "url": "https://github.com/NJH-1001/psxrecomp/blob/594ded65fecc7f32a4f639666a603a9d0d531633/host/psxrecomp_codegen_host.h"
+    },
+    {
+      "repository": "Ed1z19/psxrecomp",
+      "commit": "8c26d19c3700a64f24845fee2a452f47007e91f7",
+      "path": "LICENSE",
+      "blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+      "bytes": 3852,
+      "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2",
+      "url": "https://github.com/Ed1z19/psxrecomp/blob/8c26d19c3700a64f24845fee2a452f47007e91f7/LICENSE"
+    },
+    {
+      "repository": "Ed1z19/psxrecomp",
+      "commit": "8c26d19c3700a64f24845fee2a452f47007e91f7",
+      "path": "runtime/src/main.cpp",
+      "blob": "008347e1417b3e9189d8dcf9aa8bbf3c36c50a07",
+      "bytes": 705371,
+      "sha256": "6c05e88253cd21cae4c6f9b7e76c41d11a9fa35f5fec6b106a9682e583088755",
+      "url": "https://github.com/Ed1z19/psxrecomp/blob/8c26d19c3700a64f24845fee2a452f47007e91f7/runtime/src/main.cpp"
+    },
+    {
+      "repository": "Ed1z19/psxrecomp",
+      "commit": "8c26d19c3700a64f24845fee2a452f47007e91f7",
+      "path": "runtime/src/mod_runtime.cpp",
+      "blob": "3f8b57656cb829d9e0b470f33d6822534e55ddd0",
+      "bytes": 60002,
+      "sha256": "f29a256c42ce9161ccad16fe89dd637bcaa4750a7361b093c77cd66b35164508",
+      "url": "https://github.com/Ed1z19/psxrecomp/blob/8c26d19c3700a64f24845fee2a452f47007e91f7/runtime/src/mod_runtime.cpp"
+    },
+    {
+      "repository": "Ed1z19/psxrecomp",
+      "commit": "8c26d19c3700a64f24845fee2a452f47007e91f7",
+      "path": "tools/package_setup_host.sh",
+      "blob": "977802e3a2dce045b9826c54f32c6d71a7d99993",
+      "bytes": 23522,
+      "sha256": "e33d69df4686f98f407c80ac39ea29860c62482d92b3bc2e4ba4c60b295e181d",
+      "url": "https://github.com/Ed1z19/psxrecomp/blob/8c26d19c3700a64f24845fee2a452f47007e91f7/tools/package_setup_host.sh"
+    },
+    {
+      "repository": "Ed1z19/psxrecomp",
+      "commit": "8c26d19c3700a64f24845fee2a452f47007e91f7",
+      "path": "host/psxrecomp_codegen_host.c",
+      "blob": "b24d28a868cfe6472efa261f423d05f03fb177df",
+      "bytes": 162469,
+      "sha256": "87b1492fdbb8df4769e2592ebc9e476c422ffa9c765d2e489dc64c5e665eff3a",
+      "url": "https://github.com/Ed1z19/psxrecomp/blob/8c26d19c3700a64f24845fee2a452f47007e91f7/host/psxrecomp_codegen_host.c"
+    },
+    {
+      "repository": "Ed1z19/psxrecomp",
+      "commit": "8c26d19c3700a64f24845fee2a452f47007e91f7",
+      "path": "host/psxrecomp_codegen_host.h",
+      "blob": "03aae3eb380bb0166d9e62c9971e48a2b828ebe8",
+      "bytes": 2345,
+      "sha256": "80edf27f923b665c1c9e809c9d199e19c281227df9fa97ea77c716d07474064c",
+      "url": "https://github.com/Ed1z19/psxrecomp/blob/8c26d19c3700a64f24845fee2a452f47007e91f7/host/psxrecomp_codegen_host.h"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "8dadea63d5ccbd92e4c340c76af587d0cc251250",
+      "path": "LICENSE",
+      "blob": "989af8778ded5b67521da99f4ed0a71960ac9caa",
+      "bytes": 1659,
+      "sha256": "8e065be1da2ff9a16b1f063d4636d8b67e6a654bb90583ea4332e66ac421bb18",
+      "url": "https://github.com/rexglue/rexglue-sdk/blob/8dadea63d5ccbd92e4c340c76af587d0cc251250/LICENSE"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "8dadea63d5ccbd92e4c340c76af587d0cc251250",
+      "path": "include/rex/rex_app.h",
+      "blob": "14dbc5313e29165418c12670b6a019494032b45a",
+      "bytes": 12703,
+      "sha256": "3b5b447cca544bf1fb1bd1cb54a61b861fe2c0b5c92c93f220fec07af95d524c",
+      "url": "https://github.com/rexglue/rexglue-sdk/blob/8dadea63d5ccbd92e4c340c76af587d0cc251250/include/rex/rex_app.h"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "8dadea63d5ccbd92e4c340c76af587d0cc251250",
+      "path": "src/ui/rex_app.cpp",
+      "blob": "25976b4011c4b574d670fc464da88ff147ec620e",
+      "bytes": 19955,
+      "sha256": "834065c5bd252b99422d77e89b5c936efa6f2652244152e71bbf9721beb5e814",
+      "url": "https://github.com/rexglue/rexglue-sdk/blob/8dadea63d5ccbd92e4c340c76af587d0cc251250/src/ui/rex_app.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "8dadea63d5ccbd92e4c340c76af587d0cc251250",
+      "path": "src/core/filesystem_win.cpp",
+      "blob": "c5a2c5d125f38fd3653ee490fd091c8a294f21b6",
+      "bytes": 8205,
+      "sha256": "4b8b3e0becd17d631d11693b9ccf264a20268e8286dbeb48b95bc03a33effb74",
+      "url": "https://github.com/rexglue/rexglue-sdk/blob/8dadea63d5ccbd92e4c340c76af587d0cc251250/src/core/filesystem_win.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "8dadea63d5ccbd92e4c340c76af587d0cc251250",
+      "path": "src/ui/windowed_app_main_sdl.cpp",
+      "blob": "77bb1dc202ee1ae78649f9701c7a1ad408e85c5c",
+      "bytes": 3479,
+      "sha256": "49c1fe205eb4802967896791fe8883c10daad0a7bc0efa5f8e60ec4ecc4aabf7",
+      "url": "https://github.com/rexglue/rexglue-sdk/blob/8dadea63d5ccbd92e4c340c76af587d0cc251250/src/ui/windowed_app_main_sdl.cpp"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "commit": "8dadea63d5ccbd92e4c340c76af587d0cc251250",
+      "path": "src/ui/windowed_app_context.cpp",
+      "blob": "2a2583861219670e7db9d666055269b3e38a8c83",
+      "bytes": 8559,
+      "sha256": "5fcc1b8bccf18082f323ccc6d55a98419b5a5bb34618dd2d36516f0bc8d15a10",
+      "url": "https://github.com/rexglue/rexglue-sdk/blob/8dadea63d5ccbd92e4c340c76af587d0cc251250/src/ui/windowed_app_context.cpp"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "964bdeb3e80d0dd1f5e306490ee3788866cbdd1b",
+      "path": "runtime/src/host_overlay.c",
+      "blob": "9f630f99eac6262a4e5333a2130372bb54d84905",
+      "bytes": 12655,
+      "sha256": "7ce2453d18564421034efb72c0f9db0ee76c78767ccf51f1b680bcc52df364b1",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/964bdeb3e80d0dd1f5e306490ee3788866cbdd1b/runtime/src/host_overlay.c"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "964bdeb3e80d0dd1f5e306490ee3788866cbdd1b",
+      "path": "runtime/src/main.cpp",
+      "blob": "20c207afaf59db307d038bf527b33872f47551c5",
+      "bytes": 1086302,
+      "sha256": "5243aded7ff25128747e1c65c88e22ad2d89470209c9cb806f5b75d6b38117b5",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/964bdeb3e80d0dd1f5e306490ee3788866cbdd1b/runtime/src/main.cpp"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "964bdeb3e80d0dd1f5e306490ee3788866cbdd1b",
+      "path": "runtime/CMakeLists.txt",
+      "blob": "92557c4c3ce25c01836728cc2bfbd835d9af5148",
+      "bytes": 148536,
+      "sha256": "88df7012b51c58d93466caabf4748631f330afa1d0df3a2949669761c1cc7dea",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/964bdeb3e80d0dd1f5e306490ee3788866cbdd1b/runtime/CMakeLists.txt"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "2bfd2587dd917a9ba235505f038a5a70acaa61b1",
+      "path": "CMakeLists.txt",
+      "blob": "56b851071b932a85da2f6f07434c1e2bd2e50b32",
+      "bytes": 10618,
+      "sha256": "af09c75655b501347b3d724816d2dc536508bb03b4d1d40d984b427928364206",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/2bfd2587dd917a9ba235505f038a5a70acaa61b1/CMakeLists.txt"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "2bfd2587dd917a9ba235505f038a5a70acaa61b1",
+      "path": "game.toml",
+      "blob": "46883d5dfdf98716abb62a4d7bd1b55cb0b3443a",
+      "bytes": 16836,
+      "sha256": "262d30113fe734fbde7217a0f80354e12408bd42b1273f8a09ffd996172233fc",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/2bfd2587dd917a9ba235505f038a5a70acaa61b1/game.toml"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "2bfd2587dd917a9ba235505f038a5a70acaa61b1",
+      "path": "packaging/release/game.toml",
+      "blob": "6d817f02dcfc1acbe1914e25b8e8ef3f045e13c5",
+      "bytes": 15246,
+      "sha256": "79db0059392e6a53e9f614989f323a4da9999ce19a372b5dccce3afa3bb1ae94",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/2bfd2587dd917a9ba235505f038a5a70acaa61b1/packaging/release/game.toml"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "2bfd2587dd917a9ba235505f038a5a70acaa61b1",
+      "path": "DISC.md",
+      "blob": "61d0ca776bd20a117f8bb859626a24e61127a6d1",
+      "bytes": 1287,
+      "sha256": "717b3b74d6788a36cd4ca5f9b1db2754ff7df8149bbf405cb485b455e72ff2a0",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/2bfd2587dd917a9ba235505f038a5a70acaa61b1/DISC.md"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "2bfd2587dd917a9ba235505f038a5a70acaa61b1",
+      "path": "LICENSE",
+      "blob": "a500e83ec305e078bf8602134f4cc8e5c6e38977",
+      "bytes": 3855,
+      "sha256": "5299c743afb90ac7c82a662f3c2e1eafc9adaced7f8d89158566d66668e55f19",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/2bfd2587dd917a9ba235505f038a5a70acaa61b1/LICENSE"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "aa77d50e8df1eb65a516f49534eee56d2554ddc8",
+      "path": "CMakeLists.txt",
+      "blob": "f3194049fe6311303cb30dc9de6eebbf615efa32",
+      "bytes": 9416,
+      "sha256": "0d6c091fb3cc5b4eaf80e5765471ef09737ea5362f0b06da6be7ca91d9937ebd",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/aa77d50e8df1eb65a516f49534eee56d2554ddc8/CMakeLists.txt"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "aa77d50e8df1eb65a516f49534eee56d2554ddc8",
+      "path": "README.md",
+      "blob": "05696dff5cb87708712a779866ff12d408b6d1c9",
+      "bytes": 1465,
+      "sha256": "a510906d7123cbdc15ee6a58a234495b463f205da37eac4ebe22669be0b6b116",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/aa77d50e8df1eb65a516f49534eee56d2554ddc8/README.md"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "CMakeLists.txt",
+      "blob": "f3194049fe6311303cb30dc9de6eebbf615efa32",
+      "bytes": 9416,
+      "sha256": "0d6c091fb3cc5b4eaf80e5765471ef09737ea5362f0b06da6be7ca91d9937ebd",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/CMakeLists.txt"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "README.md",
+      "blob": "639d836f871c488db605d1b3481e62b53a779eb0",
+      "bytes": 1417,
+      "sha256": "ce484e16a8927af4e2b8755dcae30c67c9e495d773f1b3841ca57d022baffd18",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/README.md"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "restuff_manifest.toml",
+      "blob": "9f25db9a55925c9969c2bf39ca7dcb03933d478c",
+      "bytes": 10156,
+      "sha256": "5783ff3fccdcfa7b9be21e6247ff4d6470a64e8d81ccc5a2ed989311d2b206b6",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/restuff_manifest.toml"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "src/main.cpp",
+      "blob": "f46cf7db5728ae2cb8a3601de39a1f9fdda697c3",
+      "bytes": 1660,
+      "sha256": "32b097a4aefe5f31383b09bebdffda801c555cfc7b1b8129886a56299adcfdad",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/src/main.cpp"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "src/restuff_app.h",
+      "blob": "da75adae6eb7be2caa3ad54562e90c40fef3e4db",
+      "bytes": 11345,
+      "sha256": "dfa35db6faeec2da7f20098949ceeb242794bf4cad1b78151765dce99a8e6efd",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/src/restuff_app.h"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "src/renderer/shader_pipeline.cpp",
+      "blob": "7f890dd68cbeaf5a55d723b8b2d209a7d59727ed",
+      "bytes": 18348,
+      "sha256": "effdfa31916700b5ea673855a0bc257705d9b7c56f38246cb909ece1d8f75634",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/src/renderer/shader_pipeline.cpp"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "src/renderer/texture_mods.cpp",
+      "blob": "51b551785542b0a417455a6b76c37f94d7544ce5",
+      "bytes": 21185,
+      "sha256": "37ae9258d31232f32d366436c022615cb031e1420b009c6a2a68456b8a2f230f",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/src/renderer/texture_mods.cpp"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "src/native_vk.cpp",
+      "blob": "ef75774a998c5f30759e34909e9a687280b2d2d8",
+      "bytes": 590063,
+      "sha256": "09ceaef54e993d119fd44ff1b1697dfd2d3edd11fa5c0db49564e016782825b8",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/src/native_vk.cpp"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "src/hooks.cpp",
+      "blob": "0d86bde910cecb53f0a7bc47582c8801572d342d",
+      "bytes": 394138,
+      "sha256": "7174ecf4fefaaae7cd7ba8459dc1442c199eaf4fa297ae67011aa2eb7f6d758c",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/src/hooks.cpp"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "src/video_player.h",
+      "blob": "1bf08af6432210106c58629b4eb946bbd4bb43b4",
+      "bytes": 15302,
+      "sha256": "518faf1a3794950c4a7f720fad1d7f3a9f1d0aafa5fda35b8ae4f29e3c38a3dc",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/src/video_player.h"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "path": "restuff.toml",
+      "blob": "c0f32188131c4d22258e7025f126149202d907be",
+      "bytes": 164,
+      "sha256": "b1a01021717c8b7b27fc8009b894e17fcbe0d0d1cb6a38530312d348a757673b",
+      "url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/blob/6b269c1728f77a843201c6cff505998b5b79ef87/restuff.toml"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "4f8f82028c02e25a32402b4de96f9c23e2f3b7c5",
+      "path": "CMakeLists.txt",
+      "blob": "24d16475d129f75745246e70b6a2de2021b6db18",
+      "bytes": 599,
+      "sha256": "fee7f525202851be8a92d5fa95f2e05775b79f4c3d638705d3d38064fb5c00ca",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/4f8f82028c02e25a32402b4de96f9c23e2f3b7c5/CMakeLists.txt"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "4f8f82028c02e25a32402b4de96f9c23e2f3b7c5",
+      "path": "README.md",
+      "blob": "25b3cfcf176a48a13fc2526aa65726c26c5b1d6e",
+      "bytes": 2463,
+      "sha256": "4896025ffc229f90c2879bbdf6e8dadef02ee6da1cdf80e7f67541e7ebab47a5",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/4f8f82028c02e25a32402b4de96f9c23e2f3b7c5/README.md"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "path": ".gitmodules",
+      "blob": "8f3ddd64ddd3fee88a6bc2f655536a7dad169e12",
+      "bytes": 222,
+      "sha256": "9bc97fd5cb385455572b22e1d7032f2b361e67ab251982d396e8d5be361e22b8",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/1cb843ccd0076e3702ff03f9265cf24df0b237f5/.gitmodules"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "path": "CMakeLists.txt",
+      "blob": "5534161d1842f38afd418eecf42d61a9934b6418",
+      "bytes": 3763,
+      "sha256": "87aba86016e61c49f734efa1f404e3cbabd79e8eed714d32450c6f52b5c3e2b7",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/1cb843ccd0076e3702ff03f9265cf24df0b237f5/CMakeLists.txt"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "path": "README.md",
+      "blob": "4b36527511ae5a96802e99c5937161431b582cf4",
+      "bytes": 3632,
+      "sha256": "d757c0fb55b6471b64be14dbfd7aa9b15486866788930ca3113e8e7ede564ac2",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/1cb843ccd0076e3702ff03f9265cf24df0b237f5/README.md"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "path": "re_cherry_manifest.toml",
+      "blob": "1282cb8700a404da9724561f2b107b7fee131ed8",
+      "bytes": 314,
+      "sha256": "9750b430d04d5764ee06ba7bc3ab5079576190cd189613bea8a63e3012a67889",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/1cb843ccd0076e3702ff03f9265cf24df0b237f5/re_cherry_manifest.toml"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "path": "src/main.cpp",
+      "blob": "1a616b9de9cddb17677bd76ec2853184955153f9",
+      "bytes": 98,
+      "sha256": "f3aea9cf64f8d88ef835d04434e63d92a335b904cf1d29b79b4087f2d845ebdb",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/1cb843ccd0076e3702ff03f9265cf24df0b237f5/src/main.cpp"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "path": "src/app/app.cpp",
+      "blob": "c9775fb41fbf797c8a791d75e02d9ff35bd95d1f",
+      "bytes": 3766,
+      "sha256": "6d47e19933c541bf6f34382663e0f2ac73d40484e455f07169d26c820bf0ea0d",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/1cb843ccd0076e3702ff03f9265cf24df0b237f5/src/app/app.cpp"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "path": "src/app/app.h",
+      "blob": "f33a352104b9bc1bec98d7385c33bf6edbabe2f1",
+      "bytes": 1044,
+      "sha256": "966a5c30749882a7a990b0ba4304091975fc6c72cb79cf9091a3eb6f9cba8f53",
+      "url": "https://github.com/MaxDeadBear/Re-Cherry/blob/1cb843ccd0076e3702ff03f9265cf24df0b237f5/src/app/app.h"
+    },
+    {
+      "repository": "SunJaycy/GoldenEye-Recomp",
+      "commit": "fdee4d1f750aff4c3b5c6ba3d60f20281c21447d",
+      "path": "CMakeLists.txt",
+      "blob": "1d2c1bd4f19bbdd9f6e369dbf185e43bb0810f6e",
+      "bytes": 1117,
+      "sha256": "1b211c7c4a27e42ae52fbfaea0134c8334dbae0e28dc6d480c1a90ff6f3887d1",
+      "url": "https://github.com/SunJaycy/GoldenEye-Recomp/blob/fdee4d1f750aff4c3b5c6ba3d60f20281c21447d/CMakeLists.txt"
+    },
+    {
+      "repository": "SunJaycy/GoldenEye-Recomp",
+      "commit": "fdee4d1f750aff4c3b5c6ba3d60f20281c21447d",
+      "path": "LICENSE",
+      "blob": "fdddb29aa445bf3d6a5d843d6dd77e10a9f99657",
+      "bytes": 1211,
+      "sha256": "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e",
+      "url": "https://github.com/SunJaycy/GoldenEye-Recomp/blob/fdee4d1f750aff4c3b5c6ba3d60f20281c21447d/LICENSE"
+    },
+    {
+      "repository": "SunJaycy/GoldenEye-Recomp",
+      "commit": "fdee4d1f750aff4c3b5c6ba3d60f20281c21447d",
+      "path": "README.md",
+      "blob": "90e3032b7ef4a7f742392cd729a8d070afd809ea",
+      "bytes": 2039,
+      "sha256": "e56e231fb9ef787a3f6641ce7be3af374cddbc6a71cdbcdb52f971fa9ad4223e",
+      "url": "https://github.com/SunJaycy/GoldenEye-Recomp/blob/fdee4d1f750aff4c3b5c6ba3d60f20281c21447d/README.md"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "97709516d657480ea66cbe2473d9fbae5986ca81",
+      "path": ".gitmodules",
+      "blob": "d3a3dd2509b71b3831ed18a1a1d68dcab87b92a7",
+      "bytes": 182,
+      "sha256": "1695798dcd09d2cbc124c43b254608aa10e1001932a342b2eeae7005c450819b",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/97709516d657480ea66cbe2473d9fbae5986ca81/.gitmodules"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "97709516d657480ea66cbe2473d9fbae5986ca81",
+      "path": "CMakeLists.txt",
+      "blob": "56b851071b932a85da2f6f07434c1e2bd2e50b32",
+      "bytes": 10618,
+      "sha256": "af09c75655b501347b3d724816d2dc536508bb03b4d1d40d984b427928364206",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/97709516d657480ea66cbe2473d9fbae5986ca81/CMakeLists.txt"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "97709516d657480ea66cbe2473d9fbae5986ca81",
+      "path": "LICENSE",
+      "blob": "a500e83ec305e078bf8602134f4cc8e5c6e38977",
+      "bytes": 3855,
+      "sha256": "5299c743afb90ac7c82a662f3c2e1eafc9adaced7f8d89158566d66668e55f19",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/97709516d657480ea66cbe2473d9fbae5986ca81/LICENSE"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "97709516d657480ea66cbe2473d9fbae5986ca81",
+      "path": "README.md",
+      "blob": "1f0044c23a9ab53466b8b2b6d340d34f12f565dd",
+      "bytes": 5945,
+      "sha256": "fbae98bb117f6deedc2cd233ccf166d28fc3f626ebb7795f3eda9614b39a6662",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/97709516d657480ea66cbe2473d9fbae5986ca81/README.md"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "path": ".gitmodules",
+      "blob": "d3a3dd2509b71b3831ed18a1a1d68dcab87b92a7",
+      "bytes": 182,
+      "sha256": "1695798dcd09d2cbc124c43b254608aa10e1001932a342b2eeae7005c450819b",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/d8ae95d4381ed095bb24b8273c3198e01c55bb74/.gitmodules"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "path": "CMakeLists.txt",
+      "blob": "886664b80286d2d8dea677a893fc1a065a6ad04b",
+      "bytes": 9393,
+      "sha256": "5abae2dd55f059cbb6d04907c81e315e9e7481cb186e8df1a1c56f766e64c230",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/d8ae95d4381ed095bb24b8273c3198e01c55bb74/CMakeLists.txt"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "path": "LICENSE",
+      "blob": "a500e83ec305e078bf8602134f4cc8e5c6e38977",
+      "bytes": 3855,
+      "sha256": "5299c743afb90ac7c82a662f3c2e1eafc9adaced7f8d89158566d66668e55f19",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/d8ae95d4381ed095bb24b8273c3198e01c55bb74/LICENSE"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "path": "README.md",
+      "blob": "1537b32d641039faa6c29c3a4c6f1d366c41c256",
+      "bytes": 5428,
+      "sha256": "2eb72c5737c59f9b0dea19782ed1a13ce9beabbd14a6363af42195fab04538a7",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/d8ae95d4381ed095bb24b8273c3198e01c55bb74/README.md"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "path": "game.toml",
+      "blob": "25522efcfccc2f6966c1278632d710c98035de3a",
+      "bytes": 15828,
+      "sha256": "96e19336a9a878b1d632801cfe44c73eac9cfdd7cbff49c68b143af0609e80c1",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/d8ae95d4381ed095bb24b8273c3198e01c55bb74/game.toml"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "path": "packaging/release/game.toml",
+      "blob": "f80061e6218364ace27dafc540c35d7a89f116bc",
+      "bytes": 14238,
+      "sha256": "a8d6274d865fd83e4a94418564ae60cc43acc7ed2e3a77d73bcc8c5eb8429ccc",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/d8ae95d4381ed095bb24b8273c3198e01c55bb74/packaging/release/game.toml"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "path": "packaging/release/START_HERE.txt",
+      "blob": "2be66bb95e4e2f97507403f6f91b8f7238a4ae5e",
+      "bytes": 1925,
+      "sha256": "ca7126eaf281336b65ebbf672de4e3f311f68b038d73134ce23cfb9893c4a4bb",
+      "url": "https://github.com/mstan/Tomba2Recomp/blob/d8ae95d4381ed095bb24b8273c3198e01c55bb74/packaging/release/START_HERE.txt"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "path": "CMakeLists.txt",
+      "blob": "3ecdac53a7287cf73486b73342f58286ca0ca002",
+      "bytes": 3441,
+      "sha256": "d25f6fadcc5b5fb31d3f6eff0c7e39f0d2afe09807d6b6e92247d39863b43b11",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/36cbac558cd4dd8735508295d2c4d1421600ff85/CMakeLists.txt"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "path": "README.md",
+      "blob": "8b9a602cab2e3b8ccc39dfa533d5b02bcf69da9d",
+      "bytes": 3992,
+      "sha256": "0b3c4032aefff49205031fe6a43fda216d93a202f4cfbbab134aeb25979f365f",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/36cbac558cd4dd8735508295d2c4d1421600ff85/README.md"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "CMakeLists.txt",
+      "blob": "3ecdac53a7287cf73486b73342f58286ca0ca002",
+      "bytes": 3441,
+      "sha256": "d25f6fadcc5b5fb31d3f6eff0c7e39f0d2afe09807d6b6e92247d39863b43b11",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/CMakeLists.txt"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "README.md",
+      "blob": "8b9a602cab2e3b8ccc39dfa533d5b02bcf69da9d",
+      "bytes": 3992,
+      "sha256": "0b3c4032aefff49205031fe6a43fda216d93a202f4cfbbab134aeb25979f365f",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/README.md"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "game.toml",
+      "blob": "ad3453084bb61807980e75a190b27960f2c7542a",
+      "bytes": 2449,
+      "sha256": "aa577c07197e1aa30294d57275edb79f838accafa8d29d6f812534fe296e3f13",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/game.toml"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "psxrecomp/LICENSE",
+      "blob": "ad85577e44af92cedfdeae3c81dcc5ad34aa8b1f",
+      "bytes": 3752,
+      "sha256": "265faba0468f73bd44cbd156e072fe32f77ba6e372df2733b3a7595f440973cb",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/psxrecomp/LICENSE"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "psxrecomp/runtime/src/main.cpp",
+      "blob": "93104b40c8b8569613a5bd353d94a11c54a0f251",
+      "bytes": 693919,
+      "sha256": "8b4463be1d94b4dde826c46c8896aec891a22da6b0b61405f044c4a7c268d881",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/psxrecomp/runtime/src/main.cpp"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "psxrecomp/docs/config_schema.md",
+      "blob": "759bbf0b46b63f0b5c57879f950b85ed4479a017",
+      "bytes": 25460,
+      "sha256": "08fc7c86fc657bdc423108cb59f8912e191eacdbff5023f5074de7e18163269e",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/psxrecomp/docs/config_schema.md"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "recomp-ui/LICENSE",
+      "blob": "a4e60e1cc9c426120561d3ab85b58fcc9201a3ef",
+      "bytes": 1072,
+      "sha256": "676252c9efb0849cc08cdba279318b4d62ae144c19a52a0aa7ab5ca845ae5ddc",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/recomp-ui/LICENSE"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "recomp-ui/src/recomp_launcher.h",
+      "blob": "7208b191b65e00fc1a2712ad834bd7c08dbc3ad0",
+      "bytes": 75710,
+      "sha256": "183cd9c7799dea1f122d91538667d596b575e2d733a43f6b7e6a5ef4c0aae3ad",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/recomp-ui/src/recomp_launcher.h"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "codegen_setup.c",
+      "blob": "2c5e457ab1b755601abb011092e15b31f091986c",
+      "bytes": 1741,
+      "sha256": "bdb5540c5b95fe6ee92b7e8dbe4ff0dd29796890f3985b3cfb7393050f5a9c2e",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/codegen_setup.c"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "THIRD_PARTY_NOTICES.md",
+      "blob": "32a02f6c2a2069b772ffdfe02bfe502436b57c94",
+      "bytes": 749,
+      "sha256": "5b5346b582364a890272a8a7b138fe17e4b37ba13191659a754085d93b498a85",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "psxrecomp/host/psxrecomp_codegen_host.c",
+      "blob": "f774969249894c70076b6b7d6e67158d3bf6799b",
+      "bytes": 152834,
+      "sha256": "4a3198ad4ca8188e3a75a697f07a3cd640997fa28442a1be17283e035ad9c010",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/psxrecomp/host/psxrecomp_codegen_host.c"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "path": "psxrecomp/host/psxrecomp_codegen_host.h",
+      "blob": "03aae3eb380bb0166d9e62c9971e48a2b828ebe8",
+      "bytes": 2345,
+      "sha256": "80edf27f923b665c1c9e809c9d199e19c281227df9fa97ea77c716d07474064c",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/9d0d77f884e0890b0480cbe327183ef924ad670d/psxrecomp/host/psxrecomp_codegen_host.h"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "path": "game.toml",
+      "blob": "c8ded18281f45baf2c7da5c12f83b4d3464a5684",
+      "bytes": 2487,
+      "sha256": "fd11b3659267ee2f1a282f498285569a18fdb094cc5e610a0084d1d4dfd6daf2",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/36cbac558cd4dd8735508295d2c4d1421600ff85/game.toml"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "path": "psxrecomp/runtime/runtime.cmake",
+      "blob": "d72acd036885dea01c32e9d67ab7dce7fa3bb27a",
+      "bytes": 102739,
+      "sha256": "f0dd9b4cdb1d2538f1b23e19b538c9df9bfa1ae263fdb60a51789d312c444a00",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/36cbac558cd4dd8735508295d2c4d1421600ff85/psxrecomp/runtime/runtime.cmake"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "path": "psxrecomp/runtime/src/main.cpp",
+      "blob": "93104b40c8b8569613a5bd353d94a11c54a0f251",
+      "bytes": 693919,
+      "sha256": "8b4463be1d94b4dde826c46c8896aec891a22da6b0b61405f044c4a7c268d881",
+      "url": "https://github.com/NJH-1001/KTDIR/blob/36cbac558cd4dd8735508295d2c4d1421600ff85/psxrecomp/runtime/src/main.cpp"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "d4c7817bd75612c043e3f4633d89ac6d303816d7",
+      "path": ".gitmodules",
+      "blob": "3588e7829ca262d2bb729d85f7c287bfee703773",
+      "bytes": 219,
+      "sha256": "7512a9475398a09549dcbf3998dffb38c3392d16c28c3962b2508e4dd3639bd6",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/d4c7817bd75612c043e3f4633d89ac6d303816d7/.gitmodules"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "d4c7817bd75612c043e3f4633d89ac6d303816d7",
+      "path": "CMakeLists.txt",
+      "blob": "94a73850e1f9722fee64677ec7ba1fffe9f53fc3",
+      "bytes": 4688,
+      "sha256": "3e1cb5d2498226d6f19efb69cab15d3f6b8fbf1feb5fc38ccce645f1755b2f48",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/d4c7817bd75612c043e3f4633d89ac6d303816d7/CMakeLists.txt"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "d4c7817bd75612c043e3f4633d89ac6d303816d7",
+      "path": "README.md",
+      "blob": "70507026241e9a2c919382da5c7917185a30f0d3",
+      "bytes": 5473,
+      "sha256": "112c3f4686c34b763db70ade5bee3a74dd45ea0a54b9a3950b91651294b06436",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/d4c7817bd75612c043e3f4633d89ac6d303816d7/README.md"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "c89c915e23b5ca37586f5345f31549a0c70a3fce",
+      "path": ".gitmodules",
+      "blob": "3588e7829ca262d2bb729d85f7c287bfee703773",
+      "bytes": 219,
+      "sha256": "7512a9475398a09549dcbf3998dffb38c3392d16c28c3962b2508e4dd3639bd6",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/c89c915e23b5ca37586f5345f31549a0c70a3fce/.gitmodules"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "c89c915e23b5ca37586f5345f31549a0c70a3fce",
+      "path": "CMakeLists.txt",
+      "blob": "94a73850e1f9722fee64677ec7ba1fffe9f53fc3",
+      "bytes": 4688,
+      "sha256": "3e1cb5d2498226d6f19efb69cab15d3f6b8fbf1feb5fc38ccce645f1755b2f48",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/c89c915e23b5ca37586f5345f31549a0c70a3fce/CMakeLists.txt"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "c89c915e23b5ca37586f5345f31549a0c70a3fce",
+      "path": "README.md",
+      "blob": "d66ab5bcd95f8be28241f3e7182c712860e8a39c",
+      "bytes": 5127,
+      "sha256": "f085ee4bcb6a369e8dd242995d5ffb0c0f046c0a8eb4b4e4675a9b756c006adb",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/c89c915e23b5ca37586f5345f31549a0c70a3fce/README.md"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "c89c915e23b5ca37586f5345f31549a0c70a3fce",
+      "path": "game.toml",
+      "blob": "ddb005995614b73be6742880433736f266939730",
+      "bytes": 1305,
+      "sha256": "790c5e4dd473790be35ffb951cde17cae2f933329d8b4792b36b079b7649b09a",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/c89c915e23b5ca37586f5345f31549a0c70a3fce/game.toml"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "commit": "c89c915e23b5ca37586f5345f31549a0c70a3fce",
+      "path": "codegen_setup.c",
+      "blob": "d24888184e1cdae766ce8a18043d116264f56fca",
+      "bytes": 1869,
+      "sha256": "ecdaaa94e7c562aac51a578438668c01ec865e962040d8e0f1f9feb3ff3d4c8c",
+      "url": "https://github.com/NJH-1001/SexyParoRecomp/blob/c89c915e23b5ca37586f5345f31549a0c70a3fce/codegen_setup.c"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "3894f4acbe0c92e4148b1c736fc3773a149f9a86",
+      "path": ".gitmodules",
+      "blob": "3ea70221b7e404dc6278275e472b106bb6780944",
+      "bytes": 212,
+      "sha256": "2f12f4cba53ae91aab0d0439c0b4ce41e27a2291bedd0859a367af1960a24c70",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/3894f4acbe0c92e4148b1c736fc3773a149f9a86/.gitmodules"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "3894f4acbe0c92e4148b1c736fc3773a149f9a86",
+      "path": "CMakeLists.txt",
+      "blob": "08a7afc18e8dea5f171d49a3a68bee77f1930ecf",
+      "bytes": 3132,
+      "sha256": "b6e6c96b74e93f6d07a1beb9a4827eba0e59f63bb2d0d3f0df21c116a8e40a64",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/3894f4acbe0c92e4148b1c736fc3773a149f9a86/CMakeLists.txt"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "3894f4acbe0c92e4148b1c736fc3773a149f9a86",
+      "path": "README.md",
+      "blob": "c96839ab0897653f376f97569afb7f2df3062204",
+      "bytes": 3414,
+      "sha256": "ff56b433aed656c5b428ba03d2623e8ed4f3468aa5c728a65ca8db72dbe5ecd1",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/3894f4acbe0c92e4148b1c736fc3773a149f9a86/README.md"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "200a7a15c4718740c2a573e44535657f662d004b",
+      "path": ".gitmodules",
+      "blob": "3ea70221b7e404dc6278275e472b106bb6780944",
+      "bytes": 212,
+      "sha256": "2f12f4cba53ae91aab0d0439c0b4ce41e27a2291bedd0859a367af1960a24c70",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/.gitmodules"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "200a7a15c4718740c2a573e44535657f662d004b",
+      "path": "CMakeLists.txt",
+      "blob": "08a7afc18e8dea5f171d49a3a68bee77f1930ecf",
+      "bytes": 3132,
+      "sha256": "b6e6c96b74e93f6d07a1beb9a4827eba0e59f63bb2d0d3f0df21c116a8e40a64",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/CMakeLists.txt"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "200a7a15c4718740c2a573e44535657f662d004b",
+      "path": "README.md",
+      "blob": "bc3f800710bf05f4342fa09312b17634e7d9f1c8",
+      "bytes": 3030,
+      "sha256": "50696f865231f85825bd4e23ca4a649ec695ac31a46749e98d88e87a4538c2e1",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/README.md"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "200a7a15c4718740c2a573e44535657f662d004b",
+      "path": "game.toml",
+      "blob": "3c01aef12325458d062eb7af034c5028b16bd51a",
+      "bytes": 2037,
+      "sha256": "f62ef9bd8a3946c49627dcf749be34df187b99231d2c39771454ce4f37517702",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/game.toml"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "commit": "200a7a15c4718740c2a573e44535657f662d004b",
+      "path": "codegen_setup.c",
+      "blob": "c20af6696e9543bbbb021f368321c41a0c24bf68",
+      "bytes": 1911,
+      "sha256": "e4b59a694283d54efd599f0ce48be14e3d478d6b22e089cb7c79935172d58920",
+      "url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/codegen_setup.c"
+    }
+  ],
+  "complete_tree_contexts": [
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "repository_id": 1172059725,
+      "role": "pinned",
+      "commit": "f2a3b9be82ff85c47bff139d16809e274338bc09",
+      "tree": "285ff3bb3c7c6605a7e71462a91ef1400a1a8399",
+      "entries": 2531,
+      "complete_tree_inventory_sha256": "c2fcecbb56fd2647cb9dc53f65b9f83a082927b7766dd78ccd4dccb2491083d5",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "NJH-1001/psxrecomp",
+      "repository_id": 1356535350,
+      "role": "pinned",
+      "commit": "594ded65fecc7f32a4f639666a603a9d0d531633",
+      "tree": "5df696abe6cd423ec73f1d6b5c4299bca1c98fa6",
+      "entries": 1672,
+      "complete_tree_inventory_sha256": "789233169c19315a04afe3ae35c5118a2c98b6b7adeb2b9f9bbabd3d61c2616d",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "Ed1z19/psxrecomp",
+      "repository_id": 1352973778,
+      "role": "pinned",
+      "commit": "8c26d19c3700a64f24845fee2a452f47007e91f7",
+      "tree": "0585bb9e5bd5670000b98c3728e32f214c78070b",
+      "entries": 1664,
+      "complete_tree_inventory_sha256": "8fcf06887df67c0d7afcf56e4b3ceb7d90e5c79be9c47daaa57578d02f9db9b2",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "rexglue/rexglue-sdk",
+      "repository_id": 1140131683,
+      "role": "pinned",
+      "commit": "8dadea63d5ccbd92e4c340c76af587d0cc251250",
+      "tree": "df9025443b3764463a732b29304e18cc93073904",
+      "entries": 1449,
+      "complete_tree_inventory_sha256": "3e6b64ae6e0e9183e6101a39290171635979def6de534d43330e39e23767056d",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "repository_id": 1204396376,
+      "role": "current",
+      "commit": "aa77d50e8df1eb65a516f49534eee56d2554ddc8",
+      "tree": "348fa432630009806f1f839cc85bd5089b3c0069",
+      "entries": 132,
+      "complete_tree_inventory_sha256": "e779683251572ec506a3c8198ed03ad6cf0eff8fa477b2daa3e42378233e2978",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "MaxDeadBear/NaughtyBear_ReStuff",
+      "repository_id": 1204396376,
+      "role": "tag",
+      "commit": "6b269c1728f77a843201c6cff505998b5b79ef87",
+      "tree": "2df0fb7f1c609b4937768a369f1d7c36cc562e33",
+      "entries": 132,
+      "complete_tree_inventory_sha256": "111b8f406a9ba9ea1a6d2c6132a5d18b3b2f8b3b5612a026a98a1eb421c6fed7",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "repository_id": 1192329097,
+      "role": "current",
+      "commit": "4f8f82028c02e25a32402b4de96f9c23e2f3b7c5",
+      "tree": "20d66ffa0ec7df6de008fcdc6a1777dc710fd410",
+      "entries": 25,
+      "complete_tree_inventory_sha256": "57ab835f2ae8ed34f3be4f40c73ad11b5444180c74e5500622481e4de08ab053",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "MaxDeadBear/Re-Cherry",
+      "repository_id": 1192329097,
+      "role": "tag",
+      "commit": "1cb843ccd0076e3702ff03f9265cf24df0b237f5",
+      "tree": "fd415379dc0cd660418816ad11f5f799d1db2f84",
+      "entries": 197,
+      "complete_tree_inventory_sha256": "709f2701f743c1b31f8e6020ce7a8e6adc95dbe024f23ab3632a37ae24350fc3",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "SunJaycy/GoldenEye-Recomp",
+      "repository_id": 1267525341,
+      "role": "current",
+      "commit": "fdee4d1f750aff4c3b5c6ba3d60f20281c21447d",
+      "tree": "959ca05b2f3bd8ea88d04105c0a146bac2a848f2",
+      "entries": 33,
+      "complete_tree_inventory_sha256": "32a6d2da5516eb2c5e4dcd51200446d8572d0dcf218fa135b23027e8c4cf5d42",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "SunJaycy/GoldenEye-Recomp",
+      "repository_id": 1267525341,
+      "role": "tag",
+      "commit": "fdee4d1f750aff4c3b5c6ba3d60f20281c21447d",
+      "tree": "959ca05b2f3bd8ea88d04105c0a146bac2a848f2",
+      "entries": 33,
+      "complete_tree_inventory_sha256": "32a6d2da5516eb2c5e4dcd51200446d8572d0dcf218fa135b23027e8c4cf5d42",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "repository_id": 1288617659,
+      "role": "current",
+      "commit": "97709516d657480ea66cbe2473d9fbae5986ca81",
+      "tree": "948bd03c05e3c7c6506468489caddadc3e82ccf0",
+      "entries": 188,
+      "complete_tree_inventory_sha256": "7be9a4a04ed62032a2dc8e3ef4254445c291e211186b27caa34b7eb10564bb6a",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "mstan/Tomba2Recomp",
+      "repository_id": 1288617659,
+      "role": "tag",
+      "commit": "d8ae95d4381ed095bb24b8273c3198e01c55bb74",
+      "tree": "6e99433760573cf0f1b62d3e562833c9b235e4b4",
+      "entries": 147,
+      "complete_tree_inventory_sha256": "6780426758ec316ca69ceb7e78f4924e5e68fe220ee5083fe71b8d68459571cc",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "repository_id": 1354022682,
+      "role": "current",
+      "commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "tree": "b9a8e35e7be06c3b24503363ad58e0834fb83b8f",
+      "entries": 1859,
+      "complete_tree_inventory_sha256": "58c82590b83649a96ac5b537f7039d7c291ce8ebae8e90d38039291f79170007",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "NJH-1001/KTDIR",
+      "repository_id": 1354022682,
+      "role": "tag",
+      "commit": "9d0d77f884e0890b0480cbe327183ef924ad670d",
+      "tree": "56883480778907da7b5948f2dc760e220c91aaf4",
+      "entries": 1859,
+      "complete_tree_inventory_sha256": "ba8187df42bd49060c2ad62e81b695d46ecb2cba5c0178fa21cd9bd9089278eb",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "repository_id": 1356535916,
+      "role": "current",
+      "commit": "d4c7817bd75612c043e3f4633d89ac6d303816d7",
+      "tree": "b3c9c2984c609838b8e2102af0b37ba90dfc1ba5",
+      "entries": 37,
+      "complete_tree_inventory_sha256": "fe41b8711d73269d356e7f24a6883d728e36298db3450da7268afd4bd2b3daaa",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "NJH-1001/SexyParoRecomp",
+      "repository_id": 1356535916,
+      "role": "tag",
+      "commit": "c89c915e23b5ca37586f5345f31549a0c70a3fce",
+      "tree": "b3de1d3b164d18a4c628dda8a019aa2b7d95bd4f",
+      "entries": 34,
+      "complete_tree_inventory_sha256": "147baf7145dd8242f55429e2734d519bc6fed3679131c15b10b35768165a4898",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "repository_id": 1351781645,
+      "role": "current",
+      "commit": "3894f4acbe0c92e4148b1c736fc3773a149f9a86",
+      "tree": "f95dc8f8df45eb602678dc86bf4b379b3ecb38f7",
+      "entries": 38,
+      "complete_tree_inventory_sha256": "e3ed4d1153d5d865824f77edc24312ba329879f795ccfce15bf6418dc1c81540",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    },
+    {
+      "repository": "Ed1z19/ValkyrieRecomp",
+      "repository_id": 1351781645,
+      "role": "tag",
+      "commit": "200a7a15c4718740c2a573e44535657f662d004b",
+      "tree": "5b1cb05568e14903807b4182d723e37cee3903b7",
+      "entries": 37,
+      "complete_tree_inventory_sha256": "69de58979b46bff1d528e5f4058f93242bea4d690be39e42872d8c6b1ab8c80f",
+      "scope": "complete untruncated repository tree only; not complete transitive or binary certification"
+    }
+  ],
+  "static_public_package_observations": [
+    {
+      "observed_at": "2026-10-31T15:53:45.725153+00:00",
+      "release_id": 386652306,
+      "tag": "release_v1.5.1",
+      "asset_id": 555906288,
+      "asset": "restuff-win-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "7eb58407a34e603ce1b23c3733f21ee3262d7915460e4cdf228464dfacd438d1",
+      "observed_sha256": "7eb58407a34e603ce1b23c3733f21ee3262d7915460e4cdf228464dfacd438d1",
+      "bytes": 37346843,
+      "raw_preparser_bounds": {
+        "records": 11,
+        "central_bytes": 691,
+        "declared_expanded_bytes": 132542303
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "TracyClientrd.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "restuff.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "rexgpu-xenosrd.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "rexruntimerd.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "shaderc_shared.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 160,
+      "asset_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/releases/download/release_v1.5.1/restuff-win-x64.zip",
+      "release_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/releases/tag/release_v1.5.1",
+      "private_full_inventory_sha256": "f921620d19bba67b077eb0567640b26bb8a346461c98b3951c3b12a089b3ea60",
+      "members": 11
+    },
+    {
+      "observed_at": "2026-10-31T15:59:12.069794+00:00",
+      "release_id": 380898963,
+      "tag": "v0.1.1",
+      "asset_id": 541900460,
+      "asset": "KTDIR-setup-0.1.1-windows-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "observed_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 25808185,
+      "raw_preparser_bounds": {
+        "records": 2039,
+        "central_bytes": 240228,
+        "declared_expanded_bytes": 73686536
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "Kileak__The_DNA_Imperative_Recompiled.exe",
+          "machine": "0x8664",
+          "sections": 19,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libgcc_s_seh-1.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libstdc++-6.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-bios.exe",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-game.exe",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 324,
+      "asset_url": "https://github.com/NJH-1001/KTDIR/releases/download/v0.1.1/KTDIR-setup-0.1.1-windows-x64.zip",
+      "release_url": "https://github.com/NJH-1001/KTDIR/releases/tag/v0.1.1",
+      "private_full_inventory_sha256": "5089c0539e94eeddb554673bcb00ebd630a6e795d4a984f5a0dfae2b1d9af23f",
+      "members": 2039
+    },
+    {
+      "observed_at": "2026-10-31T15:59:11.772870+00:00",
+      "release_id": 382396154,
+      "tag": "v0.2.0",
+      "asset_id": 543508865,
+      "asset": "sexyparo-0.2.0-windows-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "observed_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "bytes": 29814869,
+      "raw_preparser_bounds": {
+        "records": 2046,
+        "central_bytes": 244706,
+        "declared_expanded_bytes": 75886909
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "psxrecomp/recompiler/build/libgcc_s_seh-1.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libstdc++-6.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-bios.exe",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-game.exe",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Sexy_Parodius_Recompiled.exe",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 325,
+      "asset_url": "https://github.com/NJH-1001/SexyParoRecomp/releases/download/v0.2.0/sexyparo-0.2.0-windows-x64.zip",
+      "release_url": "https://github.com/NJH-1001/SexyParoRecomp/releases/tag/v0.2.0",
+      "private_full_inventory_sha256": "45dc18512c7aa3542a4574b374c68653ce84e003c1ff8d9d3fac1aa39295eab5",
+      "members": 2046
+    }
+  ],
+  "actual_shipped_source_observations": [
+    {
+      "member": "game.toml",
+      "asset_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 2531,
+      "sha256": "226ec0efd88df30aff9c224603dc32cf5a513ad0c413abf56615bd2d6bbff739",
+      "source_commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "source_blob": "c8ded18281f45baf2c7da5c12f83b4d3464a5684",
+      "exact_current_source": false,
+      "LF_normalized_equal": true
+    },
+    {
+      "member": "psxrecomp/runtime/runtime.cmake",
+      "asset_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 104786,
+      "sha256": "da29a4498b2a0f1416d89f7087dd89eb506cf5a8cb2811f7d606ab765ab35320",
+      "source_commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "source_blob": "d72acd036885dea01c32e9d67ab7dce7fa3bb27a",
+      "exact_current_source": false,
+      "LF_normalized_equal": true
+    },
+    {
+      "member": "psxrecomp/runtime/src/main.cpp",
+      "asset_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 708638,
+      "sha256": "eccffb3f2926f773c30f80502f8ca948d109abd3e75b5fef7c24cfc3c7cbb807",
+      "source_commit": "36cbac558cd4dd8735508295d2c4d1421600ff85",
+      "source_blob": "93104b40c8b8569613a5bd353d94a11c54a0f251",
+      "exact_current_source": false,
+      "LF_normalized_equal": true
+    },
+    {
+      "archive": "sexyparo-0.2.0-windows-x64.zip",
+      "archive_independent_expected_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "member": "psxrecomp/LICENSE",
+      "bytes": 3852,
+      "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2",
+      "raw_git_blob_sha1": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+      "declared_base_repository": "NJH-1001/psxrecomp",
+      "declared_base_commit": "2da25c18d9e395ccc81091a77c375c637d573b14",
+      "base_member_exact": true,
+      "difference": null,
+      "scope": "Actual shipped source bytes from independently digested/prebounded archive; base claim and patches kept separate. Not an attestation of user build or executable reproduction."
+    },
+    {
+      "archive": "sexyparo-0.2.0-windows-x64.zip",
+      "archive_independent_expected_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "member": "psxrecomp/runtime/src/main.cpp",
+      "bytes": 718351,
+      "sha256": "872865b5d8ce3afc2386001b64251b00702a35a0b2eb9d6ee2a559a9560f6ca6",
+      "raw_git_blob_sha1": "bb3908b6c0ca36c6001e5a55e8f282c6fd12558c",
+      "declared_base_repository": "NJH-1001/psxrecomp",
+      "declared_base_commit": "2da25c18d9e395ccc81091a77c375c637d573b14",
+      "base_member_exact": false,
+      "difference": {
+        "base_git_blob": "022b1baa7826f6ca7a00142463867db2f0daf2c3",
+        "raw_equals_base": false,
+        "LF_normalized_equals_base": false,
+        "diff_lines": 81,
+        "diff_sha256": "30991ba8b919f831182ad3ce0b15ab92e6321dc086f81ddbe791e7cf0f65078a"
+      },
+      "scope": "Actual shipped source bytes from independently digested/prebounded archive; base claim and patches kept separate. Not an attestation of user build or executable reproduction."
+    },
+    {
+      "archive": "sexyparo-0.2.0-windows-x64.zip",
+      "archive_independent_expected_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "member": "psxrecomp/runtime/src/mod_runtime.cpp",
+      "bytes": 61534,
+      "sha256": "117f4fa33f6d1337d98abd8f7fc3067272b16c33764cde48af0d4a2a132d6432",
+      "raw_git_blob_sha1": "05f4f8a570d7619adf013398158226286c4c86d9",
+      "declared_base_repository": "NJH-1001/psxrecomp",
+      "declared_base_commit": "2da25c18d9e395ccc81091a77c375c637d573b14",
+      "base_member_exact": false,
+      "difference": {
+        "base_git_blob": "3f8b57656cb829d9e0b470f33d6822534e55ddd0",
+        "raw_equals_base": false,
+        "LF_normalized_equals_base": true,
+        "diff_lines": 1,
+        "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      "scope": "Actual shipped source bytes from independently digested/prebounded archive; base claim and patches kept separate. Not an attestation of user build or executable reproduction."
+    },
+    {
+      "archive": "sexyparo-0.2.0-windows-x64.zip",
+      "archive_independent_expected_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "member": "psxrecomp/runtime/runtime.cmake",
+      "bytes": 126970,
+      "sha256": "1e91a845d9726625f60af65f2cc0bc66edd508e2d999eaeae7639d2b957e8b5a",
+      "raw_git_blob_sha1": "980ac95b5c5423f7742f3008c960ac1a5a409a56",
+      "declared_base_repository": "NJH-1001/psxrecomp",
+      "declared_base_commit": "2da25c18d9e395ccc81091a77c375c637d573b14",
+      "base_member_exact": false,
+      "difference": {
+        "base_git_blob": "96be1f856c764489a35a733ce13eb0f5ef906117",
+        "raw_equals_base": false,
+        "LF_normalized_equals_base": false,
+        "diff_lines": 34,
+        "diff_sha256": "6cca1305b051581f13b3d19b816b599aaf7a85f7e0a7612108e45abf54f274d1"
+      },
+      "scope": "Actual shipped source bytes from independently digested/prebounded archive; base claim and patches kept separate. Not an attestation of user build or executable reproduction."
+    },
+    {
+      "archive": "sexyparo-0.2.0-windows-x64.zip",
+      "archive_independent_expected_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "member": "psxrecomp/host/psxrecomp_codegen_host.c",
+      "bytes": 167018,
+      "sha256": "b78d4e95c1cbe354d9d142fc7f6829e853e08500b82c0f9acc489e678fbf3638",
+      "raw_git_blob_sha1": "b02f076ba824b2533344a912e5222d0df4e6bb66",
+      "declared_base_repository": "NJH-1001/psxrecomp",
+      "declared_base_commit": "2da25c18d9e395ccc81091a77c375c637d573b14",
+      "base_member_exact": false,
+      "difference": {
+        "base_git_blob": "b24d28a868cfe6472efa261f423d05f03fb177df",
+        "raw_equals_base": false,
+        "LF_normalized_equals_base": true,
+        "diff_lines": 1,
+        "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      "scope": "Actual shipped source bytes from independently digested/prebounded archive; base claim and patches kept separate. Not an attestation of user build or executable reproduction."
+    },
+    {
+      "archive": "sexyparo-0.2.0-windows-x64.zip",
+      "archive_independent_expected_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "member": "psxrecomp/host/psxrecomp_codegen_host.h",
+      "bytes": 2407,
+      "sha256": "9bb0bb2acfe2d511fb707e99a826e05396e871ddfe8ebe151966e28a147760ea",
+      "raw_git_blob_sha1": "c2354982deb88a70b85a0ebf7145c8cca500e68b",
+      "declared_base_repository": "NJH-1001/psxrecomp",
+      "declared_base_commit": "2da25c18d9e395ccc81091a77c375c637d573b14",
+      "base_member_exact": false,
+      "difference": {
+        "base_git_blob": "03aae3eb380bb0166d9e62c9971e48a2b828ebe8",
+        "raw_equals_base": false,
+        "LF_normalized_equals_base": true,
+        "diff_lines": 1,
+        "diff_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      "scope": "Actual shipped source bytes from independently digested/prebounded archive; base claim and patches kept separate. Not an attestation of user build or executable reproduction."
+    },
+    {
+      "member": "psxrecomp/recompiler/src/config_loader.h",
+      "asset_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 84176,
+      "sha256": "fa4310274fb1b66cbac70419f813d174aba42a5adba85190b073a613d2e83d54"
+    },
+    {
+      "member": "psxrecomp/runtime/src/psx_keybinds.c",
+      "asset_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 21924,
+      "sha256": "0a1c1f570b1f7eeb416482c0645cd740916080d2dae1b674f4a87cae943ca3e7"
+    },
+    {
+      "member": "psxrecomp/runtime/src/savestate.c",
+      "asset_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 33309,
+      "sha256": "0381ac01246f59bda8387140c8acb8a1d713ff898e4d893b3e74639828ef2cb2"
+    },
+    {
+      "member": "psxrecomp/recompiler/src/config_loader.cpp",
+      "asset_sha256": "d42640e12ae76ebd06cc3bc1eb40a5b65e5d9af3da2e9bac0abff7f7da9f87a6",
+      "bytes": 138939,
+      "sha256": "27c53582631b76e517fc9ffa6e8306d6fb571916165d04f38b021df111fc9794"
+    },
+    {
+      "member": "psxrecomp/recompiler/src/config_loader.h",
+      "asset_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "bytes": 84620,
+      "sha256": "341bcc9a63ba42b6af96bf9ef1f19c2968f464aacac32aa8de4b9a38667f4a99"
+    },
+    {
+      "member": "psxrecomp/runtime/src/psx_keybinds.c",
+      "asset_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "bytes": 21924,
+      "sha256": "0a1c1f570b1f7eeb416482c0645cd740916080d2dae1b674f4a87cae943ca3e7"
+    },
+    {
+      "member": "psxrecomp/runtime/src/savestate.c",
+      "asset_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "bytes": 33309,
+      "sha256": "0381ac01246f59bda8387140c8acb8a1d713ff898e4d893b3e74639828ef2cb2"
+    },
+    {
+      "member": "psxrecomp/recompiler/src/config_loader.cpp",
+      "asset_sha256": "baea9d43fc65de9f135e2ea831a245e47a5032d169290c3b877dc2052a9cb940",
+      "bytes": 138933,
+      "sha256": "7d939953f356aa7c6a7b9637983683d42a30e7c8c0a6b0113c9a4c90f4f00639"
+    }
+  ],
+  "core_inspection": {
+    "ports": 285,
+    "listings": 1424,
+    "port_input_sha256": "9e3c2965c8ec105f4eb52ef087857ae74941b07a9c90386b0ede05bb69816c51",
+    "listing_input_sha256": "56a78e39d37965ce82727c3ee3def3b8a53fbf7ebdd1e650c768728579134c99",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "f3fa9cada8bfdbaf3c960742e8bd50feaaf6ee1244b71fcf4245d08e1b903b06",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 285,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    }
+  },
+  "historical_private_decision_snapshot": {
+    "base": "1e91e8fb1cf3c3445e09ec1e927dbb24bc46ca90",
+    "status": "private source-bound proposals, not prepared/applied/qualified",
+    "guides": [160, 162, 324, 325],
+    "potential_finite_closures": [160, 324, 325],
+    "retained_OPEN_partial_guide": [162],
+    "unchanged_OPEN_owners": [163, 169, 171, 326],
+    "existing_approved_1_0_deferrals": [160, 162, 324, 326],
+    "deferral_authority": "Existing Oct14 owner approval1422/comment6174397048, supersedes only old beta deadline; do not reinstate or call technical infeasibility. All existing Target release/commitment/priority/horizon remain.",
+    "stage_preservation": "If160finite minimum earns completion, retain its existing Release integrity qualified stage instead of downgrading it to Source contract known.324/325mayearn Source contract known;162andfourunmodifiedowners retain ALLfields. No Supported.",
+    "ReStuff_ownership_review": "Actual current official standalone native package and public SDK8dadea63 exist. Proposed already-prepared upstream-owned minimum avoids assuming an unqualified fresh original-data/write/default/mutable-GPU-cache management contract. Existing staged-source-ready can represent reviewed version-owned GPU caches; manual setup, external profiles, SDKs or absence of source-to-binary reproduction are not inherent management bans. This is not a declaration managedReStuff impossible. Independently assess whether currently complete actual evidence already requires/permits a managed offering; preserve minimum and identify concrete missing scope, not speculative architecture.",
+    "PSX_ownership": "Owned-input build kits generate native game code and can download/build toolchains; Core takes no build/cache or replacement authority. Supported already completed direct product with known project CWD/--launcher avoids initial root setup forward/exit; preserve full creating tuple and normal settings. Do not select an unsupported private executable, disable useful settings or manufacture full-session proof. Deliberate upstream Generate/Rebuild remains separate maintenance.",
+    "known_unchanged_conditions": {
+      "163": "Cancelled XBLA exact permitted-input/use condition remains; no new route or RARdownload.",
+      "169": "Explicit managed-first ordinary Windows settings-successor gap remains on newest0.3.3Preview package source claim; separate independent maintenance review CLEAR; no substitute nonowning guide.",
+      "171": "Named upstream remains404 without attributable restored/successor usable runtime; not global impossibility.",
+      "326": "Existing approved1.0 product-priority deferral requires useful mid-session USA Disc2/added value beyond retained491. Current source says mid-session switch not implemented. Do not duplicate a Disc1-only guide or close it."
+    },
+    "all_prior_strict_source_artwork_lineage_preserved": true,
+    "no_new_family_or_beta_scope": true,
+    "no_upstream_helper_compiler_game_GUI_execution": true
+  },
+  "profile_decisions": {
+    "scope": "actual checksum-bound shipped source; not binary reproduction or native observation",
+    "324": {
+      "package_source": "game.toml/runtime.cmake/main.cpp LF-normalized equal current36cbac; raw hashes distinct; original9d0 tag controller config differs",
+      "direct_product": "titleCMake stages configs/mods/DLLs next to completed target; PSX_HAS_GAME_DISPATCH in runtime.cmake guards initial host forward",
+      "profiles": "settings/input/keybinds next to actual exe; config-derived saves relative discovered project root up8marker parents then configparent; settings may supply literal relative paths tied to established CWD; CLI memcard-dir uses exe anchor; cards/states/game options and all overrides retained"
+    },
+    "325": {
+      "package_source": "literal shipped source differs from claimed2da SDK base by CRT main/mod sources and PowerA/CRT CMake updates, plus line endings; tag594d not substituted",
+      "direct_product": "normal completed game-dispatch target, supported --launcher and established project root; no speculative private bypass",
+      "profiles": "same path families observed in actual shipped config_loader/main/keybinds/savestate, preserving full creating tuple instead of importing external profiles"
+    },
+    "failures_retained": [
+      "Initial shell python unavailable; no code ran",
+      "Raw current324 game.toml equality assert refused; actual differing line endings subsequently measured LF-equal, not raw-equal",
+      "Two guessed config source paths unavailable; actual archive paths subsequently identified from inventory, no inferred equality"
+    ],
+    "no_upstream_code_helper_compiler_game_or_GUI_execution": true
+  },
+  "offered_operation_tests": {
+    "status": "Not run at source checkpoint; fresh exact-head hosted CI required",
+    "cases": "Four actual-ID unchanged complete non-owning attachment lifecycle helpers and one actual-ID guide-present zero-provider acquisition-hold helper",
+    "not_evidence_of": "upstream preparation/compiler/game, native/full-session/forced-exit, original/save compatibility, rights, installed/protected acceptance"
+  },
+  "preservation": "All old strict/source/compatibility inputs, artwork/lineage, existing helper/assertion bytes and four unchanged authored records retained. Existing owner-approved1.0 scheduling preserved; no family gate or managed replacement authority added.",
+  "overall_B1_complete": false
+}

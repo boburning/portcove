@@ -16,6 +16,30 @@
       "image_sha256": "3ff4e67c5834bd7ffcb8f87696001633bd9bf0c45d9be1719d9fa0d5c10baf70",
       "game_slug": "naughty-bear-gold-edition",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/releases/tag/release_v1.5.1",
+      "steps": [
+        {
+          "title": "Prepare your own Gold Edition data upstream",
+          "instruction": "Use your legally obtained Naughty Bear: Gold Edition Xbox 360 data. The inspected release_v1.5.1 Windows package’s own README supports a standalone setup: extract the complete disc contents directly into assets beside restuff.exe so assets/Default.xex exists. Keep the files together rather than inside an extra nested folder. Core does not acquire, extract or authenticate the game. The older repository README also describes Goopie extraction/installation; a completed standalone copy need not run through that general launcher."
+        },
+        {
+          "title": "Use the actual standalone Windows player",
+          "instruction": "Keep restuff.exe, restuff.toml, all SDK/GPU/shader DLLs and packaged data together. Use restuff.exe with its established executable-directory working coordinates. prewarm_shaders.bat is an optional GPU-cache helper, not the normal game entry; do not attach or run it through this guide. Normal first launch performs its own shader/pipeline warming, so prior helper execution is not an added requirement."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+        },
+        {
+          "title": "Preserve all source, profile, cache and customization roots",
+          "instruction": "Retain the complete creating runtime, own extracted assets/Default.xex tree, restuff.toml, texture_mods, optional texture_dump/glsl_dump, shader_spv.bin, pipeline_cache.bin, pipeline_prewarm.bin and their temporary/build-ID companions. The selected public SDK source defaults Windows user data to the redirected Documents/restuff folder and cache beneath it; user_data_root, cache_root, update_data_root and metadata_root can select other effective roots. If Windows known-folder resolution fails, preserve any actual relative fallback location too. Keep existing original, game_data_root and all custom/environment paths. Normal SDK config is executable-local restuff.toml; diagnostic paths include its configured restuff_dbg.log and the source’s /tmp/restuff_drive location or CWD restuff_mergelog fallback, with optional per-process names. Data/paths from another SDK version are not imputed to your copy. Preserve every effective root and old runtime before deliberate compatible upstream replacement; review package defaults instead of assuming extraction over old settings is lossless. Core does not migrate saves or claim that a previous version can read newer profiles. GPU cache/source observations do not qualify native rendering, driver behavior or actual progress."
+        }
+      ],
+      "warnings": [
+        "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+      ]
     }
   }
 }

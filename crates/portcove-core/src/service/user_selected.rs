@@ -2470,4 +2470,24 @@ mod tests {
     fn odrannnn_metroidprimeport_prepared_player_route_1846() {
         assert_listing_only_player_route("odrannnn-metroidprimeport", Some(true));
     }
+
+    #[test]
+    fn naughty_bear_gold_edition_restuff_prepared_player_route_160() {
+        assert_listing_only_player_route("naughty-bear-gold-edition-restuff", Some(false));
+    }
+
+    #[test]
+    fn lollipop_chainsaw_re_cherry_prepared_player_route_162() {
+        assert_listing_only_player_route("lollipop-chainsaw-re-cherry", Some(true));
+    }
+
+    #[test]
+    fn kileak_the_dna_imperative_ktdir_prepared_player_route_324() {
+        assert_listing_only_player_route("kileak-the-dna-imperative-ktdir", Some(false));
+    }
+
+    #[test]
+    fn sexy_parodius_sexyparorecomp_prepared_player_route_325() {
+        assert_listing_only_player_route("sexy-parodius-sexyparorecomp", Some(false));
+    }
 }

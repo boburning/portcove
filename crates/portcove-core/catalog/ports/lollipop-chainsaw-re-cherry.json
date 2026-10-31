@@ -16,6 +16,32 @@
       "image_sha256": "df0c33bcf2e824cd8b53ee21229a8b3899fc9254578202299d1ec99d1eeaafd2",
       "game_slug": "lollipop-chainsaw",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/MaxDeadBear/Re-Cherry/releases/tag/beta",
+      "steps": [
+        {
+          "title": "Prepare only a permitted completed Re-Cherry copy",
+          "instruction": "This conditional guide applies only where you are already permitted to use the actual runtime and components. The canonical applicable grant/notices and exact source/runtime/configuration condition remains unresolved; a new Beta ZIP or checksum does not supply that basis. For a permitted completed copy, upstream’s current Beta instructions use your own extracted Lollipop Chainsaw Xbox 360 ISO: assets/default.xex plus the AshGame folder. Keep the complete data tree; another game or unestablished retail variant is not certified by a matching filename. Core acquires/extracts/authenticates no original and performs no runtime/DLL assembly or build."
+        },
+        {
+          "title": "Keep the actual native player and package together",
+          "instruction": "The selected public source and Beta release instructions identify re_cherry.exe with its companion runtime/renderer files, requiring a suitable Direct3D 12 or Vulkan GPU. Complete upstream setup outside Portcove, then keep the existing configuration and supported native player together. Source uses an explicit game_data_root when present, otherwise searches executable ancestors for assets/default.xex. This source observation is not an inspected executable payload or full backend/companion certification."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+        },
+        {
+          "title": "Retain the complete creating source/configuration/profile tuple",
+          "instruction": "Preserve the whole runtime/package, own original and extracted assets, AshGame, assets/SkinMods, re_cherry.toml, actual SDK user/profile/save/account/cache roots, logs and every custom/override path. Public title code puts shader_dump beside the game-data root and pipelines.bin beside its effective config; actual SDK roots remain those belonging to your completed copy. Do not substitute ReStuff’s SDK defaults or guess a profile location. Renderer changes may require restart; close actual processes before deliberate upstream changes and relink/review changed selected bytes. No private access, online login, compiler, mod download, capture/upload, profile migration or original-data operation is authorized by this attachment guide."
+        }
+      ],
+      "warnings": [
+        "The existing applicable component/grant/notices and exact source/runtime/configuration condition remains unresolved. This conditional guide supplies no permission and does not remove that hold.",
+        "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+      ]
+    },
+    "download_block_reason": "The canonical selected-runtime/component use/grant/notices and exact source/runtime/configuration condition remains unresolved. Fresh self-service acquisition resumes after an attributable applicable basis and the exact selected assembly/mapping are reviewed, or a reviewed clean alternative resolves that condition. This supplies no permission for another copy and does not rewrite permitted existing-use contracts."
   }
 }
