@@ -1740,6 +1740,33 @@
       ]
     },
     {
+      "file": "scripts/initial-key-custody.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11945],
+        ["release-check", 14145]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned release-tools binary and qualified public age cache; disposable keys only",
+          "reason": "Actual initial-snapshot crypto and private-terminal observations are opt-in and do not establish production custody.",
+          "intended_route": "scripts/initial-key-custody.test.mts; bounded local disposable recovery qualification",
+          "cases": [
+            "actual shared vault engine restores the complete disposable initial set and refuses wrong keys and purpose"
+          ],
+          "required_environment": [
+            "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
+          ]
+        }
+      ]
+    },
+    {
       "file": "scripts/recovery-tools.test.mts",
       "memberships": [
         ["catalog-full-2", 11950],
