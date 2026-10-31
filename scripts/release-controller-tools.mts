@@ -130,50 +130,58 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 export async function readControllerToolFile(
   filename: string,
   maximum = 128 * 1024 ** 2,
-  expected?: { dev: number; ino: number; uid: number; nlink: number },
+  expected?: {
+    dev: number | bigint;
+    ino: number | bigint;
+    uid: number | bigint;
+    nlink: number | bigint;
+  },
 ) {
+  const identityFields = ["dev", "ino", "uid", "nlink"] as const;
+  // Preserve exact fs identities. An old rounded numeric descriptor cannot be
+  // repaired by coercion: only safe numbers or original bigint values qualify.
+  const identities = expected
+    ? identityFields.map((key) => {
+        const value = expected[key];
+        if (typeof value === "bigint") return value;
+        if (!Number.isSafeInteger(value)) throw new Error("tool file held identity differs");
+        return BigInt(value);
+      })
+    : undefined;
   const file = await open(
     filename,
     constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
   );
   try {
-    const before = await file.stat();
-    if (!before.isFile() || before.size < 1 || before.size > maximum)
-      throw new Error("tool file exceeds regular-file bound");
-    const identityFields = ["dev", "ino", "uid", "nlink"] as const;
+    const before = await file.stat({ bigint: true });
     if (
-      expected &&
-      identityFields.some(
-        (key) =>
-          !Number.isSafeInteger(expected[key]) ||
-          !Number.isSafeInteger(before[key]) ||
-          before[key] !== expected[key],
-      )
+      !Number.isSafeInteger(maximum) ||
+      maximum < 1 ||
+      !before.isFile() ||
+      before.size < 1n ||
+      before.size > BigInt(maximum)
     )
+      throw new Error("tool file exceeds regular-file bound");
+    if (identities && identityFields.some((key, index) => before[key] !== identities[index]))
       throw new Error("tool file held identity differs");
-    const output = Buffer.alloc(before.size + 1);
+    const output = Buffer.alloc(Number(before.size) + 1);
     let length = 0;
     while (length < output.length) {
       const next = await file.read(output, length, output.length - length);
       if (!next.bytesRead) break;
       length += next.bytesRead;
     }
-    const after = await file.stat();
+    const after = await file.stat({ bigint: true });
     if (
-      length !== before.size ||
+      BigInt(length) !== before.size ||
       before.size !== after.size ||
       before.dev !== after.dev ||
       before.ino !== after.ino ||
-      before.mtimeMs !== after.mtimeMs ||
-      before.ctimeMs !== after.ctimeMs
+      before.mtimeNs !== after.mtimeNs ||
+      before.ctimeNs !== after.ctimeNs
     )
       throw new Error("tool file changed during acquisition");
-    if (
-      expected &&
-      identityFields.some(
-        (key) => !Number.isSafeInteger(after[key]) || after[key] !== expected[key],
-      )
-    )
+    if (identities && identityFields.some((key, index) => after[key] !== identities[index]))
       throw new Error("tool file held identity changed");
     return output.subarray(0, length);
   } finally {

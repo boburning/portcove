@@ -733,6 +733,12 @@ single-link/canonical read, retained digest and age authentication remain requir
 while Linux 0700/0600 custody requirements apply only to plaintext working and
 quarantine material. This adapter does not provision or copy to that storage.
 
+Ciphertext transport and held-file reads preserve filesystem identities as exact
+bigints, including NTFS/DrvFS inode values above JavaScript's safe integer range.
+Existing safe numeric identity descriptors remain accepted; unsafe numeric
+descriptors refuse rather than guessing the original identity. This does not
+change private custody appointment schemas or grant signing authority.
+
 Initial setup can back up the existing application and catalog keys together
 before signed Root/Targets metadata exists. The separate
 `initial-pre-payload-owner-passphrase-tty-v1` CLI profile uses the same vault

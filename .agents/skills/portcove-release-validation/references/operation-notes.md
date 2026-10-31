@@ -4,6 +4,17 @@ Use only the paragraphs relevant to the explicitly selected operation. The
 entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
 old blanket document-load and local-check wording below does not add a gate.
 
+For shared-volume recovery transport, establish the actual filesystem rather
+than inferring it from the host OS. Preserve exact 64-bit file identities through
+held reads; never reinterpret an unsafe recorded JavaScript number as an exact
+identity. Keep ciphertext transport separate from private custody appointments.
+
+For owner passphrase ceremonies, age can generate and display a phrase after
+empty input. Obtain a nonsecret acknowledgement that the owner retained the
+phrase before clearing its display. Keep phrases in age's private terminal;
+encrypted output alone does not qualify recovery without authenticated restore,
+private/public identity reprojection and an incorrect-input refusal observation.
+
 For restricted reviewer preflights, launch/readiness exclusion and captured
 helper custody, use the shared [native boundary checks](../../portcove-desktop-verification/references/qualification-boundaries.md#platform-preflight-and-input-custody).
 

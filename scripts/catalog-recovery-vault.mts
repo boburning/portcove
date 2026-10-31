@@ -459,6 +459,11 @@ async function readRecoveryFile(
     ctimeMs: number;
   },
 ) {
+  if (!privateFile) {
+    if (expected !== undefined)
+      throw new Error("ciphertext transport cannot reinterpret a private custody appointment");
+    return await readRecoveryCiphertext(filename, bound);
+  }
   const before = await lstat(filename);
   if (
     !before.isFile() ||
@@ -487,6 +492,29 @@ async function readRecoveryFile(
     after.mtimeMs !== before.mtimeMs ||
     after.mode !== before.mode ||
     after.nlink !== 1 ||
+    (await realpath(filename)) !== filename
+  )
+    throw new Error("recovery file changed during acquisition");
+  return bytes;
+}
+/** Shared ciphertext storage can expose original 64-bit NTFS identities. Keep
+ * those exact across pathname and held-handle checks; no private-file numeric
+ * appointment is reinterpreted or widened by this transport reader. */
+export async function readRecoveryCiphertext(filename: string, bound: number) {
+  const before = await lstat(filename, { bigint: true });
+  if (
+    !before.isFile() ||
+    before.isSymbolicLink() ||
+    before.nlink !== 1n ||
+    (await realpath(filename)) !== filename
+  )
+    throw new Error("bounded canonical single-link recovery file required");
+  const bytes = await readControllerToolFile(filename, bound, before);
+  const after = await lstat(filename, { bigint: true });
+  if (
+    (["dev", "ino", "uid", "nlink", "size", "mode", "mtimeNs", "ctimeNs"] as const).some(
+      (key) => after[key] !== before[key],
+    ) ||
     (await realpath(filename)) !== filename
   )
     throw new Error("recovery file changed during acquisition");
