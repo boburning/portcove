@@ -1004,6 +1004,6 @@
     "original_log_sha256": "68e61eb6ab8b559e540b4a6a06e1b6de3549c524d4d02e443873e0c229cfcca9",
     "proposed_limit_seconds": 90,
     "scope": "exact Windows test harness only; preserve source test, assertions, two workers, zero retries, finite termination and product deadlines",
-    "diagnosis": "sequential setup/verify/launch/rollback progressed through45.719s; outer limit interrupted before activation and full retained-contract assertions; no product assertion or inner behavioral deadline failure reported; no performance causal claim"
+    "diagnosis": "Sequential setup/verify/launch/rollback progressed through rollback-finished45.719s; the outer cutoff preceded activation-finished and final retained-contract observations. activate_staged is called after that last marker, so the exact in-flight operation is unknown; no product assertion or inner behavioral deadline failure reported; no causal performance claim."
   }
 }
