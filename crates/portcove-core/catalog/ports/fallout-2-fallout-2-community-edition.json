@@ -35,7 +35,7 @@
         },
         {
           "title": "Preserve every actual player-data root",
-          "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual system.master_patches_path/data root and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
+          "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
         },
         {
           "title": "Retain the engine license and original rights separately",
