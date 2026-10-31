@@ -3561,7 +3561,15 @@ export async function preparationScenarios({
       const row = await browser.findElement(By.css(".activity-row.cancelled"));
       assert.match(await row.getText(), /An earlier attempt left unfinished work/);
       assert.doesNotMatch(await row.getText(), /No files were changed/);
-      await row.findElement(By.css("summary")).click();
+      await clickVisible(browser, await row.findElement(By.css(".failure-details summary")));
+      const taskDetails = await row.findElement(
+        By.xpath('.//summary[normalize-space(.)="Task details"]'),
+      );
+      await clickVisible(browser, taskDetails);
+      const preparationLog = await row.findElement(
+        By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
+      );
+      await browser.wait(until.elementIsVisible(preparationLog), 5_000);
       const generation = (await read("desktop_bootstrap_status", "get_bootstrap_status"))
         .generation;
       const retained = await read("activity_diagnostic", "get_activity_diagnostic", {
@@ -3586,9 +3594,7 @@ export async function preparationScenarios({
       });
       assert.equal(staleLog.ok, false);
       assert.equal(object(staleLog.error).code, "conflict");
-      await row
-        .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
-        .click();
+      await clickVisible(browser, preparationLog);
       await browser.wait(
         async () => (await row.getText()).includes("owned setup diagnostic on stderr"),
         15_000,
