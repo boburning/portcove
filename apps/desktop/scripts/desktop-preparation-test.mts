@@ -263,18 +263,20 @@ const updateReviewWindows = [
 
 async function openUpdateTheme(browser: WebDriver, theme: string) {
   await selectPrimaryNavigation(browser, "Settings");
-  await browser
-    .findElement(
+  await clickVisible(
+    browser,
+    await browser.findElement(
       By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]'),
-    )
-    .click();
-  await browser
-    .findElement(
+    ),
+  );
+  await clickVisible(
+    browser,
+    await browser.findElement(
       By.xpath(
         `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
       ),
-    )
-    .click();
+    ),
+  );
   assert.equal(
     await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
     theme,
@@ -1713,7 +1715,7 @@ export async function preparationScenarios({
       play: "Try launch",
       play_disabled: false,
       play_slot: "button",
-      play_variant: "primary",
+      play_variant: "outline",
       more_label: `More actions for Jak and Daxter: The Precursor Legacy · ${port.name}`,
       more_popup: "menu",
       workspace_horizontal_overflow: false,
