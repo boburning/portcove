@@ -1804,3 +1804,18 @@ async fn vidanox_banjotooierecompiled_remaining_component_hold_before_network_17
 async fn blast_corps_recompiled_font_hold_before_network_2558() {
     assert_embedded_player_download_holds(&["blast-corps-blastcorps-recompiled"]).await;
 }
+
+#[tokio::test]
+async fn final_fantasy_tactics_finfantacrecomp_component_hold_before_network_327() {
+    assert_embedded_player_download_holds(&["final-fantasy-tactics-finfantacrecomp"]).await;
+}
+
+#[tokio::test]
+async fn silent_hill_silent_hill_decomp_pc_branch_component_hold_before_network_351() {
+    assert_embedded_player_download_holds(&["silent-hill-silent-hill-decomp-pc-branch"]).await;
+}
+
+#[tokio::test]
+async fn tenchu_stealth_assassins_tenchu_sa_recomp_component_hold_before_network_353() {
+    assert_embedded_player_download_holds(&["tenchu-stealth-assassins-tenchu-sa-recomp"]).await;
+}

@@ -3,11 +3,11 @@
   "listing": {
     "id": "final-fantasy-tactics-finfantacrecomp",
     "name": "Final Fantasy Tactics / FinFanTacRecomp",
-    "summary": "Explore Final Fantasy Tactics / FinFanTacRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an upstream-prepared Final Fantasy Tactics Windows player for your own supported USA disc. Upstream owns local generation and runtime replacement; Portcove can register the completed player.",
     "project_url": "https://github.com/NJH-1001/FinFanTacRecomp",
     "issue_number": 327,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/NJH-1001/FinFanTacRecomp",
     "artwork": {
       "game_id": 428,
@@ -16,6 +16,36 @@
       "image_sha256": "3650dc7805fd36ace8f43d3ed2e4ef31e35b46a52c22305cc3cb85a8be9a9956",
       "game_slug": "final-fantasy-tactics",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/NJH-1001/FinFanTacRecomp/releases/tag/v0.1.0",
+    "manual_setup": {
+      "help_url": "https://github.com/NJH-1001/FinFanTacRecomp/releases/tag/v0.1.0",
+      "steps": [
+        {
+          "title": "Keep only an independently permitted completed copy",
+          "instruction": "Fresh acquisition remains held on the separate project-code permission condition. The framework’s licence applies to its own components, not the title’s separately modified code. Continue only with an actual copy and components you are independently permitted to use."
+        },
+        {
+          "title": "Complete the owned-input preparation upstream",
+          "instruction": "Use your own USA Final Fantasy Tactics PlayStation disc, SCUS-94221, as its CUE and every referenced BIN. The official Windows setup ZIP is a local build kit, not a ready game: it supplies no original disc, retail BIOS or generated game code. Complete upstream’s supported Generate & rebuild flow with its Python/toolchain outside Portcove. OpenBIOS is generated locally by default; an optional retail BIOS must be your own permitted copy. Keep the actual working disc and BIOS selections. This guide runs no compiler/helper and imports no original through Core."
+        },
+        {
+          "title": "Attach the completed product",
+          "instruction": "After successful upstream preparation, select build-release/Final_Fantasy_Tactics_Recompiled.exe, the completed executable’s parent directory as working directory and the supported --launcher literal argument. Keep its staged game.toml and matching resources in place. The root setup executable starts a replacement product and exits on Windows, so select the completed product instead. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; an intentional rebuild can end or replace the process."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the whole creating project and effective player data",
+          "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+      ]
+    },
+    "download_block_reason": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy."
   }
 }

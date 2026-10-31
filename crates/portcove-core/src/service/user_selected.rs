@@ -2533,4 +2533,28 @@ mod tests {
     fn blast_corps_recompiled_permitted_player_route_2558() {
         assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(true));
     }
+    #[test]
+    fn final_fantasy_tactics_finfantacrecomp_prepared_player_route_327() {
+        assert_listing_only_player_route("final-fantasy-tactics-finfantacrecomp", Some(true));
+    }
+
+    #[test]
+    fn einhander_einhander_recompiled_prepared_player_route_350() {
+        assert_listing_only_player_route("einhander-einhander-recompiled", Some(false));
+    }
+
+    #[test]
+    fn syphon_filter_sf_pc_port_prepared_player_route_344() {
+        assert_listing_only_player_route("syphon-filter-sf-pc-port", Some(false));
+    }
+
+    #[test]
+    fn silent_hill_silent_hill_decomp_pc_branch_prepared_player_route_351() {
+        assert_listing_only_player_route("silent-hill-silent-hill-decomp-pc-branch", Some(true));
+    }
+
+    #[test]
+    fn tenchu_stealth_assassins_tenchu_sa_recomp_prepared_player_route_353() {
+        assert_listing_only_player_route("tenchu-stealth-assassins-tenchu-sa-recomp", Some(true));
+    }
 }
