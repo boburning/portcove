@@ -893,6 +893,29 @@ mod tests {
         assert_listing_only_player_route("triaevum-ocarina-of-time-3d", Some(false));
     }
 
+    #[test]
+    fn arwing2_installed_player_route_1946() {
+        assert_listing_only_player_route("star-fox-2-arwing2", Some(false));
+    }
+
+    #[test]
+    fn ackman_permitted_player_route_2881() {
+        assert_listing_only_player_route("go-go-ackman-go-go-ackman-recompiled", Some(true));
+    }
+
+    #[test]
+    fn strike_gunner_prepared_player_route_2713() {
+        assert_listing_only_player_route(
+            "strike-gunner-s-t-g-strike-gunner-stg-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn top_gear_direct_player_route_2905() {
+        assert_listing_only_player_route("top-gear-snes-top-gear-for-windows", Some(false));
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently
