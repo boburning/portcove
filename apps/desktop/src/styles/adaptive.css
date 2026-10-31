@@ -16,6 +16,12 @@
   .sidebar .nav-item[aria-current="page"] {
     box-shadow: inset 3px 0 0 var(--color-interactive-border);
   }
+  @media (forced-colors: active) {
+    .sidebar .nav-item[aria-current="page"],
+    .settings-section-index button[aria-current="page"] {
+      border-inline-start: 4px solid Highlight;
+    }
+  }
   .browse-navigation:has(
     :is([aria-label="Library quick views"], [aria-label="Discover collections"])
   ) {

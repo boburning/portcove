@@ -8,10 +8,12 @@ export function OperationProgress({
   operation,
   busy,
   embedded = false,
+  announcePhase = true,
 }: {
   operation?: OperationEvent | undefined;
   busy: string;
   embedded?: boolean;
+  announcePhase?: boolean;
 }) {
   const { label, detail, range } = progressPresentation(operation, busy);
   return (
@@ -27,9 +29,9 @@ export function OperationProgress({
       <div className="min-w-0 break-words">
         <strong
           className="block font-medium text-pc-foreground"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
+          role={announcePhase ? "status" : undefined}
+          aria-live={announcePhase ? "polite" : undefined}
+          aria-atomic={announcePhase ? "true" : undefined}
         >
           {label}
         </strong>

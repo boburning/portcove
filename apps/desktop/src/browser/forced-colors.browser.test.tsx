@@ -5,12 +5,58 @@ import { cleanup, render } from "vitest-browser-react";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
 import { ChoiceSelect } from "../components/ChoiceSelect";
+import { Sidebar, SettingsView } from "../components/Chrome";
 
 afterEach(async () => {
   await cleanup();
   document.documentElement.removeAttribute("data-theme");
 });
 for (const theme of ["dark", "light"]) {
+  it(`keeps ${theme} current navigation distinct from keyboard focus in forced colors`, async () => {
+    expect(matchMedia("(forced-colors: active)").matches).toBe(true);
+    document.documentElement.dataset.theme = theme;
+    await page.viewport(1280, 800);
+    await render(
+      <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)]">
+        <Sidebar
+          view="settings"
+          setView={() => {}}
+          installedCount={0}
+          updateCount={0}
+          activities={[]}
+        />
+        <main className="min-h-0 overflow-auto">
+          <SettingsView category="library-storage" />
+        </main>
+      </div>,
+    );
+    const pairs = [
+      [page.getByRole("navigation", { name: "Primary navigation" }), "Settings", /^Library/],
+      [
+        page.getByRole("navigation", { name: "Settings categories" }),
+        "Library and storage",
+        "Appearance",
+      ],
+    ] as const;
+    for (const [navigation, currentName, otherName] of pairs) {
+      const current = navigation.getByRole("button", { name: currentName, exact: true }).element();
+      const other = navigation.getByRole("button", { name: otherName }).element();
+      expect(current.getAttribute("aria-current")).toBe("page");
+      const marker = getComputedStyle(current);
+      expect(marker.borderInlineStartStyle).toBe("solid");
+      expect(parseFloat(marker.borderInlineStartWidth)).toBeGreaterThan(
+        parseFloat(getComputedStyle(other).borderInlineStartWidth),
+      );
+      expect(marker.borderInlineStartColor).not.toBe(marker.backgroundColor);
+      other.focus();
+      expect(parseFloat(getComputedStyle(current).borderInlineStartWidth)).toBe(
+        parseFloat(marker.borderInlineStartWidth),
+      );
+      expect(current).not.toBe(document.activeElement);
+    }
+    await captureParityState("forced-colors-current-navigation");
+  });
+
   it(`distinguishes ${theme} selection from focus in forced colors`, async () => {
     document.documentElement.dataset.theme = theme;
     await render(

@@ -3,6 +3,7 @@ import {
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { OperationProgress } from "./OperationProgress";
+import { InvocationAnnouncements } from "./InvocationAnnouncements";
 import { cn } from "cn";
 import { RadioGroup } from "@base-ui/react/radio-group";
 import { Radio } from "@base-ui/react/radio";
@@ -77,6 +78,7 @@ import {
   formatBytes,
   formatCountMessage,
   navigationActivityState,
+  progressPresentation,
   type NavigationActivityState,
   type SourceRequirement,
   type View,
@@ -517,6 +519,14 @@ export function StatusLayer({
   }, [invocations]);
   return (
     <>
+      {invocations && (
+        <InvocationAnnouncements
+          messages={[...invocations.values()].flatMap((record) => {
+            const text = invocationAnnouncement(record, operationEvents);
+            return text === undefined ? [] : [{ id: record.id, text }];
+          })}
+        />
+      )}
       {invocations
         ? [...invocations.values()].map((record) => (
             <div
@@ -539,6 +549,7 @@ export function StatusLayer({
                   reviewPreparation={preparationRecovery?.(record)}
                   reviewCurrentState={reviewCurrentState}
                   invocation={record}
+                  announceNeutral={false}
                   openActivity={openActivity}
                 />
               )}
@@ -556,6 +567,7 @@ export function StatusLayer({
                         : undefined
                     }
                     busy={record.outcome ? "refresh current state" : record.name}
+                    announcePhase={false}
                   />
                   {openActivity && (
                     <Button
@@ -571,7 +583,7 @@ export function StatusLayer({
                 invocationFailure(record) === undefined &&
                 (record.id === latestSuccess ? (
                   <Notice intent="success" className="mb-0 items-center">
-                    <p data-slot="notice-body" role="status">
+                    <p data-slot="notice-body">
                       {record.context.action} · {record.context.target.label}: finished.
                     </p>
                     <div data-slot="notice-actions">
@@ -597,7 +609,7 @@ export function StatusLayer({
                     </div>
                   </Notice>
                 ) : record.outcome === "cancelled" ? (
-                  <p role="status" className="sr-only">
+                  <p className="sr-only">
                     {record.context.action} · {record.context.target.label}: cancelled.
                   </p>
                 ) : null)
@@ -623,6 +635,32 @@ export function StatusLayer({
   );
 }
 
+function invocationAnnouncement(
+  record: InvocationRecord,
+  events: ReadonlyMap<string, OperationEvent> | undefined,
+) {
+  const identity = `${record.context.action} · ${record.context.target.label}`;
+  const failure = invocationFailure(record);
+  if (failure !== undefined) {
+    const { neutral, summary } = noticePresentation(failure, record);
+    // Real failures retain their independently attributed assertive notice.
+    if (!neutral) return undefined;
+    const detail = summary === "The operation was cancelled." ? "" : ` ${summary}`;
+    const readback =
+      record.refreshFailure === undefined
+        ? ""
+        : ` Refreshing the current state also failed: ${errorText(record.refreshFailure)}. The original action result is retained.`;
+    return `${identity}: cancelled.${detail}${readback}`;
+  }
+  const outcome = record.outcome === "succeeded" ? "finished" : record.outcome;
+  if (record.phase === "pending") {
+    if (outcome) return `${identity}: ${outcome}; refreshing current state.`;
+    const event = record.context.activityId ? events?.get(record.context.activityId) : undefined;
+    return `${identity}: ${progressPresentation(event, record.name).label}.`;
+  }
+  return outcome ? `${identity}: ${outcome}.` : undefined;
+}
+
 function ErrorNotice({
   error,
   clearError,
@@ -630,6 +668,7 @@ function ErrorNotice({
   reviewCurrentState,
   invocation,
   openActivity,
+  announceNeutral = true,
 }: {
   error: unknown;
   clearError: () => void;
@@ -637,6 +676,7 @@ function ErrorNotice({
   reviewCurrentState?: (() => unknown) | undefined;
   invocation?: InvocationRecord | undefined;
   openActivity?: ((id?: string) => void) | undefined;
+  announceNeutral?: boolean;
 }) {
   const { presentation, committed, neutral, summary, code, cancelled, readbackOnly } =
     noticePresentation(error, invocation);
@@ -682,7 +722,7 @@ function ErrorNotice({
     <Notice
       intent={neutral ? "neutral" : "danger"}
       className=""
-      role={neutral ? "status" : "alert"}
+      role={neutral ? (announceNeutral ? "status" : undefined) : "alert"}
     >
       <span
         data-slot="notice-icon"
