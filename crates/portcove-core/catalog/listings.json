@@ -8670,7 +8670,7 @@
     {
       "id": "atlantis-the-lost-tales-atlantis-native",
       "name": "Atlantis: The Lost Tales (Atlantis Native)",
-      "summary": "Research listing. Upstream route: Native Rust port, no game data included, current desktop release packages. Limits: New native implementation with broad original-edition data support; completion claims remain upstream-only. Upstream platforms: Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route. Original data: Supply owned Atlantis: The Lost Tales game files: a supported GOG installation or CD-derived folder with atlantis.exe and BIGCD1.BIG through BIGCD4.BIG (or the supported four disc images). Retained README accepts English 1997/2001, French May/August 1997, German August 1997, Dutch/Swedish June 1997, Spanish August 1997, Italian July 1997, patched 1.01/1999 and specified 1998 Traditional/1999 Simplified Chinese editions; preserve the selected release/language. Portcove setup/gameplay not verified.",
+      "summary": "A native engine for Atlantis: The Lost Tales using your own original game data.",
       "original_game_title": "Atlantis: The Lost Tales",
       "project_url": "https://github.com/ripleyXLR8/atlantis-native",
       "setup_url": "https://github.com/ripleyXLR8/atlantis-native",
@@ -37102,7 +37102,7 @@
     {
       "id": "star-wars-x-wing-alliance-openxwa",
       "name": "Star Wars: X-Wing Alliance (OpenXWA)",
-      "summary": "Research listing. Upstream route: Native desktop releases using original retail installation. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Upstream says nonmultiplayer functions reimplemented; multiplayer explicitly absent. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Multiplayer explicitly not implemented; active development, do not claim feature parity. | Complete X-Wing Alliance install, GOG/Steam layout supported Portcove setup/gameplay not verified.",
+      "summary": "A native engine for X-Wing Alliance using your own original game data.",
       "original_game_title": "Star Wars: X-Wing Alliance",
       "project_url": "https://github.com/elyosh/OpenXWA",
       "setup_url": "https://github.com/elyosh/OpenXWA",
@@ -37123,7 +37123,7 @@
     {
       "id": "star-wars-x-wing-openxw",
       "name": "Star Wars: X-Wing (OpenXW)",
-      "summary": "Research listing. Upstream route: Native Win/Linux/macOS releases; supports 1994 Collector's CD and 1998 Windows data. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Active native reimplementation; edition combinations/data/save behavior remain integration work. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Newer implementation; edition combination and save/data behavior need checking. | Complete 1994 Collector's CD-ROM or 1998 Windows install; both for combined modes Portcove setup/gameplay not verified.",
+      "summary": "A native engine for Star Wars: X-Wing using your own original game data.",
       "original_game_title": "Star Wars: X-Wing",
       "project_url": "https://github.com/elyosh/OpenXW",
       "setup_url": "https://github.com/elyosh/OpenXW",
@@ -37144,7 +37144,7 @@
     {
       "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
       "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
-      "summary": "Research listing. Upstream route: Native desktop releases using original retail installation. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Active native reimplementation with upstream eight-player multiplayer claim; Balance of Power data mandatory. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Active development with possible differences; requires Balance of Power data as well. | Complete X-Wing vs. TIE Fighter installation with Balance of Power Portcove setup/gameplay not verified.",
+      "summary": "A native engine for X-Wing vs. TIE Fighter with your own Balance of Power game data.",
       "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
       "project_url": "https://github.com/elyosh/OpenXvT",
       "setup_url": "https://github.com/elyosh/OpenXvT",

@@ -196,7 +196,7 @@
           "sha256": "b5497ecabad0e825cd339aa5cb452e9952fcb435a74b789e213cc83bd41b6ae5"
         }
       ],
-      "record_sha256": "959b20dd314cfd73d8d3ce662d2898c3990a28e1323f1e4694345b95f5cb7946",
+      "record_sha256": "8ea42b842d3753f7c7733748efcbabd461872d749f17af4562e3f8670a45d72e",
       "prior_record_sha256": "5bd922871467953e084f700ea85e72d57b0db7d187286d580772464dc88b238d"
     },
     {
@@ -714,7 +714,7 @@
           "sha256": "e51a17fb033f08206ec63816458f526c403052d2a50d51e21b8666d496eaf336"
         }
       ],
-      "record_sha256": "170fa343a2d1ff663a6d4e14c767679ed6de6d56c0f11d4d24cb9c82416c1f38",
+      "record_sha256": "c0ce5158e12745f12ee6ad7a7cdd29f5a60cabf30b17b2b7a26f25b7261adead",
       "prior_record_sha256": "71f21ec89b4b67b623a5f0c8d8356a161b48e291ed6f8cce6dd994633969ece6"
     },
     {
@@ -868,7 +868,7 @@
           "sha256": "0bc8c6fdca5c4b560fc0b3742c70f8ca58801daf5a4115fd9c50848a800dabe5"
         }
       ],
-      "record_sha256": "bab9364d7d6c696dcbb38ea7918b00b03d68e0ef75adf5cea2bde4ac681ca0db",
+      "record_sha256": "d4399b06ca421613223c21919f1e684e4050fca5c24082bea683cd62468403c3",
       "prior_record_sha256": "2c4f97eae7a008d27e35b174d4676d7d539944a79d684cf76397d02dc3102e87"
     },
     {
@@ -1038,7 +1038,7 @@
           "sha256": "78f5e97c80b26c3066aad25aa9c1d1da59bfd130155fe4e75784a87e21fc1557"
         }
       ],
-      "record_sha256": "1ee78f50374a45c183654424af7cec74bd7e1f66c6f1b68a09f1a281d9fee1ac",
+      "record_sha256": "e22d12a067042d5cf92dca69080520b811f391cdbc39a3f3d5c171489ba4d059",
       "prior_record_sha256": "b26f57bad831b0978e02fcff6d2912106a1f652babed11261b7059cf1c93ad80"
     },
     {
@@ -6213,8 +6213,8 @@
   "core_authoring_validation": {
     "ports": 277,
     "listings": 1424,
-    "port_input_sha256": "fad21db43244af562aa76897ccd51b913165d116472ccd07ece50bbdc300705b",
-    "listing_input_sha256": "b0c80a5ac073402459f6d67270647792d3903770f264d7d1fb305451e854363f",
+    "port_input_sha256": "b5a3bf972a478f5cf9e37e9693e1fbeb719b320f9cd52737b51685edbd454655",
+    "listing_input_sha256": "42c66d63e9399fb76df98d64f19f3103ac5abdb284fdd7558cb051b16f91773c",
     "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
     "compatibility": {
       "status": "matched",
@@ -6252,5 +6252,28 @@
     "compatibility_prior_ordered_prefix_exact": true,
     "source_profile_ids_exact": true
   },
-  "fault_boundary": "Normal writable per-user SDL profiles remain external and user-owned. Failed lookup can write arbitrary pilot/cache/temp bytes into engine CWD. Those unclaimed files are modified-runtime data: existing update/removal/retained-switch guards preserve them and refuse destructive maintenance. Declared local config backup is not their backup. Preserve whole creating runtime and all effective profiles before reviewed recovery. No new wildcard persistence or automatic migration."
+  "fault_boundary": "Normal writable per-user SDL profiles remain external and user-owned. Failed lookup can write arbitrary pilot/cache/temp bytes into engine CWD. Those unclaimed files are modified-runtime data: existing update/removal/retained-switch guards preserve them and refuse destructive maintenance. Declared local config backup is not their backup. Preserve whole creating runtime and all effective profiles before reviewed recovery. No new wildcard persistence or automatic migration.",
+  "retained_failed_qualification": {
+    "source": "2e97b6a2c0438508e3245f2a43db005ae83f26d8",
+    "run": 41184847305,
+    "attempt": 1,
+    "watch_process": 60645,
+    "watch_terminal_exit": 1,
+    "failed_leaf": 124490757858,
+    "aggregate": 124492842506,
+    "failed_case": "catalog::tests::embedded_summaries_leave_structured_facts_to_structured_fields",
+    "cause": "Four newly strict records retained research-style summaries. Existing predicate rejects structured/maturity terms in operational summaries; Atlantis is first encountered.",
+    "repair": "Four concise listing.summary outcomes only; retain all detailed structured setup evidence and existing test. Fresh source/review/CI, not retry-until-green.",
+    "other_failed_or_cancelled_producers": [],
+    "required_contexts_other_four": "passed",
+    "scope": "Failed exact-source run retained. No full qualification pass or title/native result."
+  },
+  "reviewed_authored_fields": {
+    "new_managed": [
+      "integration",
+      "listing.summary outcome repair",
+      "redundant listing.platforms/availability removed"
+    ],
+    "prepared_copy": ["listing.manual_setup"]
+  }
 }

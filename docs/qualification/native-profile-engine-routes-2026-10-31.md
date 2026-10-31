@@ -114,3 +114,16 @@ installed Desktop, real-save round trip, multiplayer, physical/human, Supported
 or protected-publication acceptance is claimed. Complete primary evidence and
 retained failures remain in the delivery checkpoint; current planning stays on
 its canonical issues and GitHub Project.
+
+## Retained qualification failure and repair
+
+Initial source `2e97b6a2c0438508e3245f2a43db005ae83f26d8` failed Rust
+on CI 41184847305/a1: the existing
+`catalog::tests::embedded_summaries_leave_structured_facts_to_structured_fields`
+rejected the new Atlantis record's retained research summary. All four newly
+strict records now use concise outcome summaries, with detailed operation facts
+retained in structured presentation and this source packet. Existing tests,
+assertions, ownership and lifecycle contracts are unchanged. The failed run,
+all producer logs and observations remain retained; its partial passing cases
+are not a complete source qualification. Replacement source requires fresh
+review and all five exact-head CI contexts.

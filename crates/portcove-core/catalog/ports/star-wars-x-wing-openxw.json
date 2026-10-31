@@ -3,7 +3,7 @@
   "listing": {
     "id": "star-wars-x-wing-openxw",
     "name": "Star Wars: X-Wing (OpenXW)",
-    "summary": "Research listing. Upstream route: Native Win/Linux/macOS releases; supports 1994 Collector's CD and 1998 Windows data. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Active native reimplementation; edition combinations/data/save behavior remain integration work. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Newer implementation; edition combination and save/data behavior need checking. | Complete 1994 Collector's CD-ROM or 1998 Windows install; both for combined modes Portcove setup/gameplay not verified.",
+    "summary": "A native engine for Star Wars: X-Wing using your own original game data.",
     "original_game_title": "Star Wars: X-Wing",
     "project_url": "https://github.com/elyosh/OpenXW",
     "setup_url": "https://github.com/elyosh/OpenXW",
