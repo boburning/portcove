@@ -125,7 +125,7 @@ export function evaluateCiResults({
     requireResults(fast, "skipped", "qualification");
     if (Object.keys(targeted ?? {}).length)
       requireResults(targeted, "skipped", "qualification targeted-platform");
-    if (plan.release_profile === "initial-beta-win-linux" && group === "rust") {
+    if (plan.release_profile !== undefined && group === "rust") {
       const required = [
         "intel_build",
         "intel_tests",
@@ -143,7 +143,13 @@ export function evaluateCiResults({
       )
         throw new Error("release qualification requires every applicable Rust producer result");
       for (const [name, result] of Object.entries(qualification)) {
-        const expected = name === "intel_build" || name === "intel_tests" ? "skipped" : "success";
+        const unselected =
+          ((name === "intel_build" || name === "intel_tests") &&
+            !plan.platforms.includes("macos-x86_64")) ||
+          (name === "native_rust" &&
+            !plan.platforms.includes("linux-x86_64") &&
+            !plan.platforms.includes("macos-aarch64"));
+        const expected = unselected ? "skipped" : "success";
         if (result !== expected)
           throw resultFailure(
             `${name} was ${result || "missing"}, expected ${expected} for release qualification`,

@@ -15,6 +15,33 @@ const input = {
   remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
   dispatch_actor_id: "1234",
 };
+void test("prepared transport preserves the explicit Windows profile and rejects widening or alias before provider calls", async () => {
+  const p = provider();
+  const profile = "initial-beta-windows-x86_64-v1";
+  const result = await dispatchPreparedReleaseCandidate(
+    { ...input, release_profile: profile },
+    "inert-fixture-token",
+    async () => {},
+    p.transport,
+  );
+  assert.equal(result.evidence.release_profile, profile);
+  assert.deepEqual(p.calls.find((call) => call.method === "POST")?.body, {
+    ref: "portcove-fixture-prepared/v0.19.0-preview.1",
+    inputs: { release_profile: profile },
+  });
+  for (const invalid of ["full", "initial-beta-windows", "windows-x86_64"]) {
+    const refused = provider();
+    await assert.rejects(
+      dispatchPreparedReleaseCandidate(
+        { ...input, release_profile: invalid },
+        "inert-fixture-token",
+        async () => {},
+        refused.transport,
+      ),
+    );
+    assert.equal(refused.calls.length, 0);
+  }
+});
 void test("dispatch phase deadline refuses expired reads and a late guard before any POST", async (t) => {
   let clock = 1000;
   t.mock.method(performance, "now", () => clock);

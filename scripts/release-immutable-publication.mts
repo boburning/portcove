@@ -1,3 +1,5 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { inspectReleaseEffectExpectation } from "./release-effect-contract.mts";
 import { requireActualCandidatePhaseAdvance } from "./release-candidate-progress.mts";
 import { materializePublicationUpdaterRoots } from "./release-publication-inputs.mts";
@@ -438,7 +440,7 @@ export async function prepareImmutableReleasePublication(
       candidateHasRetainedPromotion(before.input.active_candidate);
     const { descriptor, accepted } = await requireReservation(request.descriptor, before);
     if (
-      accepted.release_profile !== "initial-beta-win-linux" ||
+      !isInitialBetaReleaseProfile(accepted.release_profile) ||
       !accepted.public_build_inputs ||
       capacityDigest(request.aggregate.candidate) !== capacityDigest(descriptor.assembly) ||
       !Array.isArray(descriptor.archives) ||
@@ -498,9 +500,8 @@ export async function prepareImmutableReleasePublication(
         : request.updater_roots),
     ].sort((a, b) => a.platform.localeCompare(b.platform));
     if (
-      updaterRoots.length !== 2 ||
-      updaterRoots[0]?.platform !== "linux-x86_64" ||
-      updaterRoots[1]?.platform !== "windows-x86_64"
+      JSON.stringify(updaterRoots.map((root) => root.platform)) !==
+      JSON.stringify([...nativePlatformsForReleaseProfile(accepted.release_profile)].sort())
     )
       throw new Error("both selected updater signer outputs are required");
     const signatures: { filename: string; bytes: Buffer }[] = [];

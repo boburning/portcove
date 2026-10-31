@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Integrity-only native request/capture contracts. No execution, issuer access,
  * acceptance receipt or imported report authority is created by this module. */
 import {
@@ -121,7 +122,7 @@ export function prepareHostedNativeStageRequest(
       const windows = platform === "windows-x86_64";
       if (host.account.kind !== (windows ? "windows-sid" : "linux-uid"))
         throw new Error("hosted native account platform differs");
-      const selected = authorities.hosted_native[platform];
+      const selected = selectedHostedNativePlatform(authorities, platform);
       return {
         producer: selected.producer,
         host: { ...host, minimum_platform: selected.minimum_platform, engine: selected.engine },

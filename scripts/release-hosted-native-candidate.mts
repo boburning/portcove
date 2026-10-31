@@ -1,3 +1,6 @@
+import { applicationPublicBuildInputs } from "./release-authority-configuration.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { applicationReleaseProfile } from "./release-authority-configuration.mts";
 /** Original hosted-parent candidate custody. This selects bytes through the
  * existing collector; it cannot supply a native receipt or admission result. */
 import { spawnSync } from "node:child_process";
@@ -149,6 +152,7 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
 export async function acquireActualHostedNativeCandidate(parentReceipt: object) {
   const acquisitionDeadline = performance.now() + 15 * 60 * 1000;
   const parent = await requireActualHostedNativeParentSource(parentReceipt);
+  const publicInputs = applicationPublicBuildInputs(parent.configuration);
   if (parent.stage !== "payload-signing" || attempted.has(parentReceipt))
     throw new Error(
       "one original pre-sign hosted native acquisition required; retain and reconcile",
@@ -178,9 +182,10 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
             parentReceipt,
             directory,
             {
-              schema_version: 2,
+              schema_version: publicInputs ? 3 : 2,
               namespace: parent.configuration.journal.namespace,
-              release_profile: "initial-beta-win-linux",
+              release_profile: applicationReleaseProfile(parent.configuration),
+              ...(publicInputs ? { public_build_inputs: publicInputs } : {}),
             },
             {
               api,
@@ -696,7 +701,7 @@ export async function readActualHostedNativePostSignJourney(inputsReceipt: objec
       if (typeof inputs.publication.repository_sha256 !== "string")
         throw new Error("original signed repository digest absent");
       const signedContextSha256 = inputs.publication.repository_sha256;
-      const platforms = ["windows-x86_64", "linux-x86_64"] as const;
+      const platforms = nativePlatformsForReleaseProfile(applicationReleaseProfile(configuration));
       const journeys = await withCoordinatorDeadline(deadline, () =>
         deriveHostedNativePublicationJourneys(
           {
@@ -716,8 +721,10 @@ export async function readActualHostedNativePostSignJourney(inputsReceipt: objec
         ),
       );
       active();
-      if (journeys.length !== 2) throw new Error("complete hosted journey platform pair required");
-      const journey = journeys[platforms.indexOf(parent.platform_label)];
+      if (journeys.length !== platforms.length)
+        throw new Error("complete hosted journey platform pair required");
+      const journey =
+        journeys[platforms.findIndex((platform) => platform === parent.platform_label)];
       if (!isRecord(journey)) throw new Error("original platform journey absent");
       let predecessorRecord: Record<string, unknown> | null = null;
       if (isRecord(journey.predecessor)) {

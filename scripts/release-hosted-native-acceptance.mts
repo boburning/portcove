@@ -1,3 +1,5 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Actual hosted transport authentication. Wire parsing is deliberately separate
  * from this private, same-process receipt. No imported or injected proof can
  * acquire a native admission brand. This does not execute the native producer. */
@@ -484,12 +486,15 @@ async function readActiveBoundHostedNativeQualification(bound: Retained) {
 export async function prepareHostedNativeCustody(rawReceipts: readonly object[]) {
   const pair = (value: unknown): value is readonly object[] =>
     Array.isArray(value) &&
-    value.length === 2 &&
+    [1, 2].includes(value.length) &&
     value.every((entry: unknown) => typeof entry === "object" && entry !== null);
-  if (!pair(rawReceipts) || rawReceipts[0] === rawReceipts[1])
+  if (!pair(rawReceipts) || new Set(rawReceipts).size !== rawReceipts.length)
     throw new Error("actual separate hosted native pair required for custody");
   const captured = [...rawReceipts];
-  const proofs = [];
+  const proofs: {
+    report: VerifiedHostedNativeQualification;
+    bound: NonNullable<ReturnType<typeof receipts.get>>;
+  }[] = [];
   for (const receipt of captured) {
     const report = await verifiedHostedNativeReleaseQualification(receipt),
       bound = receipts.get(receipt);
@@ -498,7 +503,14 @@ export async function prepareHostedNativeCustody(rawReceipts: readonly object[])
     proofs.push({ report, bound });
   }
   proofs.sort((a, b) => a.report.platform_label.localeCompare(b.report.platform_label));
-  if (!isDeepStrictEqual(proofs[0]!.bound.authorities, proofs[1]!.bound.authorities))
+  if (
+    proofs.length !==
+      nativePlatformsForReleaseProfile(applicationReleaseProfile(proofs[0]!.bound.authorities))
+        .length ||
+    proofs.some(
+      (proof) => !isDeepStrictEqual(proofs[0]!.bound.authorities, proof.bound.authorities),
+    )
+  )
     throw new Error("hosted native custody configuration pair differs");
   const bytes = Buffer.from(
     JSON.stringify({
