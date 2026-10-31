@@ -472,6 +472,23 @@ void test("snapshot output is confined to docs/releases", () => {
       },
     );
     assert.throws(() => parseArguments(["readiness", "--release-profile"]), /requires a value/);
+    for (const suffix of ["=refused", "=", "=full=refused"]) {
+      const parsed = parseArguments([
+        "readiness",
+        "--release",
+        "Public beta",
+        `--release-profile=${windowsProfile}${suffix}`,
+      ]);
+      assert.equal(parsed.options["--release-profile"], `${windowsProfile}${suffix}`);
+      assert.throws(
+        () => inspectReadinessReleaseProfile(parsed.options["--release-profile"], "Public beta"),
+        /profile/,
+      );
+    }
+    assert.equal(
+      parseArguments(["context", "--runner=literal=value"]).options["--runner"],
+      "literal=value",
+    );
     for (const profile of [
       "unknown",
       "initial-beta-windows",
