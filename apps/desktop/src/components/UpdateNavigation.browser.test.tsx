@@ -202,16 +202,24 @@ describe("update destination links", () => {
       const updates = host.querySelector<HTMLElement>('[aria-label="Game updates"]')!;
       expect(tasks.hidden).toBe(false);
       expect(updates.hidden).toBe(true);
-      expect(
-        [...host.querySelectorAll('[aria-label="Activity sections"] [role="tab"]')].map(
-          (tab) => tab.textContent,
-        ),
-      ).toEqual(["Tasks", "Game updates", "History"]);
-      const section = [
-        ...host.querySelectorAll<HTMLButtonElement>(
-          '[role="tablist"][aria-label="Activity sections"] [role="tab"]',
-        ),
-      ].find((button) => button.textContent === "Game updates")!;
+      const tabs = [
+        ...host.querySelectorAll<HTMLElement>('[aria-label="Activity sections"] [role="tab"]'),
+      ];
+      expect(tabs).toHaveLength(3);
+      const descriptions = [
+        "No task count is established by the loaded activity records.",
+        "Update coverage is incomplete. 0 known updates available at last check.",
+        "No history count is established by the loaded activity records.",
+      ];
+      for (const [index, label] of ["Tasks", "Game updates", "History"].entries()) {
+        const tab = tabs[index]!;
+        await expect.element(tab).toHaveAccessibleName(label);
+        await expect.element(tab).toHaveAccessibleDescription(descriptions[index]);
+        const count = tab.querySelector(".activity-tab-count")!;
+        expect(count.textContent).toBe("—");
+        expect(count.getAttribute("aria-hidden")).toBe("true");
+      }
+      const section = page.getByRole("tab", { name: "Game updates", exact: true }).element();
       await page.getByRole("tab", { name: "Game updates", exact: true }).click();
       await expect.poll(() => section.getAttribute("aria-selected")).toBe("true");
       // Base UI settles the outgoing panel's hidden state after its animation
@@ -224,6 +232,7 @@ describe("update destination links", () => {
         (button) => button.textContent === "Open Portcove update settings",
       );
       expect(link?.closest(".update-center")).not.toBeNull();
+      await page.getByText("About update checks", { exact: true }).click();
       await page
         .getByRole("button", { name: "Open Portcove update settings", exact: true })
         .click();

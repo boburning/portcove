@@ -310,11 +310,12 @@ mod tests {
 
     #[test]
     fn release_requires_complete_exact_control() {
+        let library = tempfile::tempdir().unwrap();
         let ready = Ready {
             schema_version: 1,
             phase: "ready",
             process_id: 1,
-            library: Path::new("/fixture"),
+            library: library.path(),
             port_id: "fixture",
             installation_id: None,
             activity_id: "held",

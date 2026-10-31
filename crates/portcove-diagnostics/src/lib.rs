@@ -92,6 +92,7 @@ pub struct HostDiagnostics {
     sessions: SessionReport,
     fallback: bool,
     bootstrap_timed_out: bool,
+    qualification_prepared: bool,
 }
 
 struct Prepared {
@@ -107,26 +108,54 @@ impl HostDiagnostics {
     /// reading a preference store. A bad location falls back to the OS per-user
     /// configuration directory; a failure after choosing a root never switches it.
     pub fn start(surface: Surface, debug: bool) -> (Self, Option<writer::Guard>) {
+        #[cfg(feature = "qualification-fixtures")]
+        if Self::qualification_preparation_requested(
+            std::env::var("PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED")
+                .ok()
+                .as_deref(),
+        ) {
+            let (configured, platform) = Self::configured_locations();
+            return Self::start_with_locations(
+                configured.as_deref(),
+                platform.as_deref(),
+                surface,
+                debug,
+            );
+        }
         Self::bootstrap(surface, debug, |session, surface| {
-            let configured = std::env::var_os("PORTCOVE_PREFERENCES")
-                .filter(|path| !path.is_empty())
-                .map(PathBuf::from);
-            let platform = portcove_core::HostPreferenceStore::default_path().ok();
+            let (configured, platform) = Self::configured_locations();
             Self::prepare_locations(configured.as_deref(), platform.as_deref(), session, surface)
         })
     }
 
-    #[cfg(test)]
+    fn configured_locations() -> (Option<PathBuf>, Option<PathBuf>) {
+        let configured = std::env::var_os("PORTCOVE_PREFERENCES")
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from);
+        let platform = portcove_core::HostPreferenceStore::default_path().ok();
+        (configured, platform)
+    }
+
+    #[cfg(any(test, feature = "qualification-fixtures"))]
+    fn qualification_preparation_requested(value: Option<&str>) -> bool {
+        cfg!(feature = "qualification-fixtures") && value == Some("1")
+    }
+
+    #[cfg(any(test, feature = "qualification-fixtures"))]
     fn start_with_locations(
         configured: Option<&Path>,
         platform: Option<&Path>,
         surface: Surface,
         debug: bool,
     ) -> (Self, Option<writer::Guard>) {
-        // Location/capacity fixtures own prepared sessions, not the production
-        // best-effort startup deadline. The blocked-bootstrap test separately
-        // retains the real 250ms timeout and no-late-writer contract.
+        // Available-sink fixtures own prepared sessions, not the production
+        // deadline. Ordinary construction and blocked-bootstrap coverage retain
+        // the real 250ms timeout and no-late-writer contract.
         let host = Self::disabled(surface, debug);
+        let host = Self {
+            qualification_prepared: true,
+            ..host
+        };
         let Some(prepared) =
             Self::prepare_locations(configured, platform, host.session_id, surface)
         else {
@@ -177,6 +206,25 @@ impl HostDiagnostics {
         surface: Surface,
         debug: bool,
     ) -> (Self, Option<writer::Guard>) {
+        #[cfg(feature = "qualification-fixtures")]
+        if Self::qualification_preparation_requested(
+            std::env::var("PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED")
+                .ok()
+                .as_deref(),
+        ) {
+            let host = Self {
+                qualification_prepared: true,
+                ..Self::disabled(surface, debug)
+            };
+            if !directory.is_absolute() {
+                return (host, None);
+            }
+            let Ok(directory) = portcove_core::prepare_support_log_directory(directory) else {
+                return (host, None);
+            };
+            let prepared = Self::prepare_session(directory, host.session_id, surface);
+            return host.start_prepared(prepared);
+        }
         let directory = directory.to_owned();
         Self::bootstrap(surface, debug, move |session, surface| {
             if !directory.is_absolute() {
@@ -235,6 +283,7 @@ impl HostDiagnostics {
             sessions: SessionReport::default(),
             fallback: false,
             bootstrap_timed_out: false,
+            qualification_prepared: false,
         }
     }
 
@@ -261,6 +310,12 @@ impl HostDiagnostics {
             || {
                 tracing::info!(target: "portcove_diagnostics", component = "startup", phase = "start",
                 message = "host diagnostic session started");
+                #[cfg(feature = "qualification-fixtures")]
+                if host.qualification_prepared {
+                    tracing::info!(target: "portcove_diagnostics", component = "startup",
+                        phase = "start", qualification_prepared = true,
+                        message = "owned qualification prepared diagnostics; excludes production bootstrap availability and latency");
+                }
                 for session in previous {
                     tracing::warn!(target: "portcove_diagnostics", component = "startup",
                     phase = "unclean_session", previous_session_id = session.as_str(),
@@ -293,6 +348,10 @@ impl HostDiagnostics {
     }
     pub fn used_fallback(&self) -> bool {
         self.fallback
+    }
+    /// Actual qualification-only constructor selection, never a latency claim.
+    pub fn qualification_prepared(&self) -> bool {
+        self.qualification_prepared
     }
     pub fn bootstrap_timed_out(&self) -> bool {
         self.bootstrap_timed_out

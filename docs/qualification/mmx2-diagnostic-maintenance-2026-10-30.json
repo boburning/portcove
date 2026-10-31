@@ -1,0 +1,268 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-10-30",
+  "canonical_issue": 165,
+  "selected_operation_rows": 1,
+  "new_identities": 0,
+  "new_strict_definitions": 0,
+  "release": {
+    "id": 428647159,
+    "tag_name": "v0.2.1",
+    "published_at": "2026-10-30T04:14:58Z",
+    "html_url": "https://github.com/mstan/MegaManX2Recomp/releases/tag/v0.2.1"
+  },
+  "asset": {
+    "id": 690890018,
+    "name": "MegaManX2SNESRecomp-windows-x64-v0.2.1.zip",
+    "size": 13139404,
+    "digest": "sha256:334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09",
+    "browser_download_url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.2.1/MegaManX2SNESRecomp-windows-x64-v0.2.1.zip"
+  },
+  "observed_archive": {
+    "zip_sha256": "334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09",
+    "bytes": 13139404,
+    "entries": [
+      {
+        "name": "assets/fonts/LatoLatin-Bold.ttf",
+        "size": 146156,
+        "compressed": 73940,
+        "mode": 0
+      },
+      {
+        "name": "assets/fonts/LatoLatin-Regular.ttf",
+        "size": 148540,
+        "compressed": 74148,
+        "mode": 0
+      },
+      {
+        "name": "assets/fonts/NotoSansSymbols2-Regular.ttf",
+        "size": 671568,
+        "compressed": 304203,
+        "mode": 0
+      },
+      {
+        "name": "assets/fonts/OpenMoji-black-glyf.ttf",
+        "size": 1434276,
+        "compressed": 768211,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/boxart.tga",
+        "size": 298286,
+        "compressed": 213933,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/brand_mark.tga",
+        "size": 704364,
+        "compressed": 12456,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/flags.png",
+        "size": 220794,
+        "compressed": 219244,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/pad.tga",
+        "size": 64793,
+        "compressed": 26054,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/verdict_bad.tga",
+        "size": 40018,
+        "compressed": 1965,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/verdict_none.tga",
+        "size": 40018,
+        "compressed": 1703,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/verdict_ok.tga",
+        "size": 40018,
+        "compressed": 1963,
+        "mode": 0
+      },
+      {
+        "name": "assets/img/verdict_warn.tga",
+        "size": 40018,
+        "compressed": 1858,
+        "mode": 0
+      },
+      {
+        "name": "docs/COVERAGE_2026-10-18.md",
+        "size": 2608,
+        "compressed": 1450,
+        "mode": 0
+      },
+      {
+        "name": "docs/CX4.md",
+        "size": 4167,
+        "compressed": 2194,
+        "mode": 0
+      },
+      {
+        "name": "docs/DIAGNOSTICS.md",
+        "size": 3020,
+        "compressed": 1536,
+        "mode": 0
+      },
+      {
+        "name": "docs/SAVE_STATES.md",
+        "size": 1833,
+        "compressed": 1024,
+        "mode": 0
+      },
+      {
+        "name": "docs/WIDESCREEN.md",
+        "size": 20489,
+        "compressed": 9222,
+        "mode": 0
+      },
+      {
+        "name": "libiconv-2.dll",
+        "size": 1136529,
+        "compressed": 762418,
+        "mode": 0
+      },
+      {
+        "name": "LICENSE",
+        "size": 3755,
+        "compressed": 1601,
+        "mode": 0
+      },
+      {
+        "name": "logging.ini",
+        "size": 106,
+        "compressed": 93,
+        "mode": 0
+      },
+      {
+        "name": "MegaManX2SNESRecomp.exe",
+        "size": 28583896,
+        "compressed": 8969315,
+        "mode": 0
+      },
+      {
+        "name": "mods/preloaded/packages/megaman-x2.enhancement.widescreen/1.0.0/manifest.toml",
+        "size": 782,
+        "compressed": 448,
+        "mode": 0
+      },
+      {
+        "name": "README.md",
+        "size": 6522,
+        "compressed": 3425,
+        "mode": 0
+      },
+      {
+        "name": "SDL3.dll",
+        "size": 4046729,
+        "compressed": 1681454,
+        "mode": 0
+      },
+      {
+        "name": "tools/replay_diagnostic.py",
+        "size": 6716,
+        "compressed": 2424,
+        "mode": 0
+      }
+    ],
+    "exe_headers": [
+      {
+        "name": "MegaManX2SNESRecomp.exe",
+        "machine": "0x8664",
+        "size": 28583896
+      }
+    ]
+  },
+  "source_commits": {
+    "title": "68caca6fe6d96ff423fd26266aedae2132ffb680",
+    "framework": "05786e50bca11dff1f09f76c0e7ac9d48072c440"
+  },
+  "source_blobs": [
+    {
+      "file": "DIAGNOSTICS.md",
+      "git_blob": "ee7321aaf7131047363846d682b3e75d842b176a",
+      "sha256": "1345e63b9141be8f00600cc78b5b365c15f05d8b4948dc41ea622a39cb346bd7"
+    },
+    {
+      "file": "host_main.c",
+      "git_blob": "91ea98ea1a82e3dcbf73c3142980fdd8e91c2a23",
+      "sha256": "6f14c3eb8d6aed380f65fb5f6488498200a44b604b3cd0c6cb58812fb50c514b"
+    },
+    {
+      "file": "host_paths.c",
+      "git_blob": "216a8ff13e945dd211d6ca05cc7d39f9df266832",
+      "sha256": "bb68edf79c89da8fb83d9eb98259d980896a0af5e123afe0369bab1025ccdb88"
+    },
+    {
+      "file": "host_relaunch.c",
+      "git_blob": "56e3aaf10b1e0bc2f8ef39a2dcd31fcdcf090d90",
+      "sha256": "b06e8bd9469cb46fc9e44c76badb88e37f422cb912dbf788e578a3398ff2a4aa"
+    },
+    {
+      "file": "host_report.c",
+      "git_blob": "b00663d8195977aa672b8453153125958ca5879b",
+      "sha256": "9fc7b258d06bc5cab3d8d45842de554b582df5e45568770bcb214351b7b1a5ab"
+    },
+    {
+      "file": "logging.ini",
+      "git_blob": "bc537960f8afd7a259bbf0364b3134bc9ed06553",
+      "sha256": "5450a0c42782bbd783669ed1f1eedac3d6963229512b70da08171ad2c367fbd3"
+    },
+    {
+      "file": "main.c",
+      "git_blob": "b8287f5d788e4f2c67b43d5b9fe7730f131e753a",
+      "sha256": "55cc8798b08f70164103b5ef0f1ca3c86f42be43d3a991ae81a2fcc0127c5f18"
+    },
+    {
+      "file": "mmx23_host_main.inc",
+      "git_blob": "e8a4b63093513e642db65bf4d84c53582f7ba04f",
+      "sha256": "4a5fcb36fe9821dd8200b51bc940709506a7272da1a6ccf45783aef2ab03b872"
+    },
+    {
+      "file": "mmx_diagnostics_host.h",
+      "git_blob": "6488c29c4d52558d1b8a0a3242b49674e96193de",
+      "sha256": "de4e638f0fcbeb1211645a8259ed6d7748141e3440b794d58f3fc796edf1492d"
+    },
+    {
+      "file": "mmx_replay.c",
+      "git_blob": "34bc548f32bbe4ddfa6e67b0a0586e44c4b16ecd",
+      "sha256": "6d1361235b04402ac01609f5b8a24972c385f7945e9af19e60780fbefdb3ec5d"
+    },
+    {
+      "file": "mmx_replay.h",
+      "git_blob": "d7df009893b18c8cbd49370d64ed0aa0ecab669a",
+      "sha256": "1742991400e2fa817a97d1ec3688c886ec66b9c2e02e9e5296e904e9c9e71012"
+    },
+    {
+      "file": "mmx_startup.c",
+      "git_blob": "b5456485af036941153724f9883625aa967aeb13",
+      "sha256": "c6a2c4afdd18da823337fd3cf768a0bd9456b1d45d618eac4ec713185ea3051c"
+    },
+    {
+      "file": "replay_writer.c",
+      "git_blob": "f7ad009302321d0cbcb2d50b98f996f6bc14559e",
+      "sha256": "708cadb0ff21729186920ae83b1d34e114b8f4778c9b205f95f1c6f8fd0181fd"
+    },
+    {
+      "file": "trace_writer.c",
+      "git_blob": "48ebea4daf5381c3fdd12522b4a9f312c5c9b761",
+      "sha256": "d9dc44737dae45d777acebcc15f00097fe0653115b9bf7578fd15ef899d6076c"
+    },
+    {
+      "file": "rom_identity.txt",
+      "git_blob": "236e23b2d1c2272fb7207e52d3860255c849b24f",
+      "sha256": "1241ecd4988b16a1b222f887ff6099dd0bcbebbf626a203676004353df557e28"
+    }
+  ],
+  "native_gameplay": "not_evaluated",
+  "protected_client_delivery": "not_evaluated",
+  "retained_legacy_transition": "held"
+}

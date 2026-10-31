@@ -52,6 +52,8 @@ Extend the existing frontend `Perform` options with invocation context: action, 
 - Core locks, freshness checks and execution-time refusal remain authoritative. An enabled control never proves that another process holds no lock.
 - Preserve operation IDs, parent relationships, sequence handling and exact-ID retirement against durable Activity records.
 - Attribute early failures using invocation context. Provide an exact Activity link only when its identity is actually known; otherwise provide a general Activity link.
+- Ordinary managed installation forwards its owned event channel to the invocation; global events cannot assign that identity. Batch update checks remain indeterminate until Core returns the completed collection.
+- Classify declined nullable removal, restore and backup-deletion consent before invocation settlement. Other null results keep their command-specific meaning. Declined shared-preferences install/update returns cancellation before authorization; committed outcomes and independent readback failures remain distinct.
 - Never correlate requests and events by “latest,” timestamp or matching names. Add no scheduler, durable queue or parallel job database.
 
 ### Source removal and recovery authority

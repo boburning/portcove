@@ -1,3 +1,4 @@
+import { inspectReleaseProfile, isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
@@ -25,6 +26,7 @@ type Candidate = {
   remote_configuration: unknown;
   dispatch_actor_id: string;
   report_repair_sha256?: string;
+  release_profile?: string;
 };
 export async function dispatchPreparedReleaseCandidate(
   raw: Candidate,
@@ -83,7 +85,7 @@ async function observePreparedReleaseCandidate(
   const input = structuredClone(raw);
   if (
     Object.keys(input).sort().join(",") !==
-      `dispatch_actor_id,prepared_commit,remote_configuration,${input.report_repair_sha256 === undefined ? "" : "report_repair_sha256,"}version` ||
+      `dispatch_actor_id,prepared_commit,${input.release_profile === undefined ? "" : "release_profile,"}remote_configuration,${input.report_repair_sha256 === undefined ? "" : "report_repair_sha256,"}version` ||
     (input.report_repair_sha256 !== undefined &&
       !/^[a-f0-9]{64}$/u.test(input.report_repair_sha256)) ||
     !/^[a-f0-9]{40}$/u.test(input.prepared_commit) ||
@@ -95,6 +97,9 @@ async function observePreparedReleaseCandidate(
     /\s/u.test(credential)
   )
     throw new Error("prepared dispatch requires exact identities and dedicated credential");
+  const profile = inspectReleaseProfile(input.release_profile ?? "initial-beta-win-linux");
+  if (!isInitialBetaReleaseProfile(profile))
+    throw new Error("exact prepared initial beta profile required");
   const namespace = inspectCoordinatorRemoteNamespace(input.remote_configuration);
   const version = classifyApplicationVersion(input.version).version;
   const ref = `refs/tags/${namespace}-prepared/v${version}`;
@@ -175,7 +180,7 @@ async function observePreparedReleaseCandidate(
       const acknowledgment = await request("POST", `${workflowEndpoint}/dispatches`, {
         ref: ref.slice("refs/tags/".length),
         inputs: {
-          release_profile: "initial-beta-win-linux",
+          release_profile: profile,
           ...(input.report_repair_sha256 === undefined
             ? {}
             : { report_only_repair: true, report_repair_sha256: input.report_repair_sha256 }),
@@ -298,7 +303,7 @@ async function observePreparedReleaseCandidate(
       repository_id: repositoryId,
       workflow_id: workflow.id,
       workflow: ".github/workflows/release.yml",
-      release_profile: "initial-beta-win-linux",
+      release_profile: profile,
       ref,
       prepared_commit: input.prepared_commit,
       actor_id: input.dispatch_actor_id,

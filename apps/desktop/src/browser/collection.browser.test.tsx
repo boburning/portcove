@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -71,6 +72,7 @@ it.each(["Covers", "Compact rows"])(
     play.click();
     await userEvent.keyboard("{Enter}");
     expect(launch).toHaveBeenCalledOnce();
+    await captureParityState(`library-launch-pending-${layout === "Covers" ? "covers" : "rows"}`);
     finish({ processId: null, sessionId: "fixture-return-focus" });
     await expect
       .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
@@ -179,6 +181,7 @@ it.each([
   );
   const state = document.querySelector<HTMLElement>(loading ? ".loading-state" : ".empty-state")!;
   expect(state.scrollWidth).toBeLessThanOrEqual(state.clientWidth + 1);
+  await captureParityState(loading ? "library-loading-narrow" : "library-empty-narrow");
 });
 
 it("retains a session-only layout through the real details unmount and return", async () => {
@@ -210,6 +213,7 @@ it("retains a session-only layout through the real details unmount and return", 
   await expect
     .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
     .toBe("collection-0");
+  await captureParityState("library-session-only-layout");
 });
 
 for (const theme of ["dark", "light"]) {

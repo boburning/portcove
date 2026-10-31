@@ -123,6 +123,36 @@ function Screenshot({
   );
 }
 
+function ScreenshotChoice({
+  portId,
+  media,
+  index,
+  selected,
+  onSelect,
+}: {
+  portId: string;
+  media: CatalogMediaAsset;
+  index: number;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { display } = useCatalogMedia(portId, media, true);
+  return (
+    <Button
+      variant="ghost"
+      className="rounded-md border-2 p-0.5 aria-pressed:border-pc-interactive forced-colors:aria-pressed:border-[Highlight]"
+      aria-label={`Show screenshot ${index + 1}: ${media.caption}`}
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      {display.image && (
+        <img src={display.image} alt="" decoding="async" onError={display.onImageError} />
+      )}
+      <span aria-hidden="true">{index + 1}</span>
+    </Button>
+  );
+}
+
 /** Only explicitly admitted exact-port or exact-edition images reach this gallery. */
 export function CatalogMediaGallery({
   port,
@@ -192,6 +222,18 @@ export function CatalogMediaGallery({
               </DialogDescription>
               <div className="media-viewer-stage mt-4">
                 <MediaPreview portId={portId} media={active} visible />
+              </div>
+              <div className="media-filmstrip" role="group" aria-label="Choose a screenshot">
+                {shots.map((asset, position) => (
+                  <ScreenshotChoice
+                    key={`${asset.id}:${asset.sha256}`}
+                    portId={portId}
+                    media={asset}
+                    index={position}
+                    selected={position === index}
+                    onSelect={() => setSelected(asset.id)}
+                  />
+                ))}
               </div>
               <div className="mt-4">
                 <MediaCredit media={active} />

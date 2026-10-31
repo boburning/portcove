@@ -6,7 +6,6 @@
     "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
     "project_url": "https://github.com/Erick194/DoomRPG-RE",
     "issue_number": 369,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Erick194/DoomRPG-RE#readme",
     "artwork": {
@@ -30,6 +29,10 @@
         {
           "title": "Keep progress when updating",
           "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
       "warnings": [
@@ -42,5 +45,35 @@
       "windows-x86-64": ["DoomRPG_Port.", ".zip"]
     },
     "original_game_title": "Doom RPG"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "Erick194/DoomRPG-RE",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "The player requires a prepared DoomRPG.zip beside DoomRPG.exe. Follow upstream’s supported preparation for your permitted original Doom RPG data. The included BarToZip.exe converts compatible BREW data; it is a manual preparation tool, not the game player. Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player. Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+    }
   }
 }

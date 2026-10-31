@@ -61,6 +61,8 @@ import type {
   ApplicationUpdateProductionTransitionResult,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
+  GhostshipRecoveryPlan,
+  GhostshipRecoveryResult,
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
@@ -511,6 +513,14 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
+  planGhostshipLegacyRecovery: (backupId: string, generation: number) =>
+    invoke<GhostshipRecoveryPlan>("plan_ghostship_legacy_recovery", { backupId, generation }),
+  recoverGhostshipLegacyData: (backupId: string, expectedPlan: string, generation: number) =>
+    invoke<GhostshipRecoveryResult | null>("recover_ghostship_legacy_data", {
+      backupId,
+      expectedPlan,
+      generation,
+    }),
   deleteBackup: (portId: string, backupId: string, expectedPreview: string, generation: number) =>
     invoke<BackupRecord | null>("delete_backup", {
       portId,
@@ -689,8 +699,12 @@ export const desktopApi = {
     bios: string,
     stage: boolean,
     generation: number,
-  ) =>
-    invoke<InstallRecord>("install_port", {
+    onEvent?: (event: OperationEvent) => void,
+  ) => {
+    const eventChannel = new Channel<OperationEvent>();
+    eventChannel.onmessage = (event) => onEvent?.(event);
+    return invoke<InstallRecord>("install_port", {
+      onEvent: eventChannel,
       generation,
       input: {
         portId,
@@ -699,7 +713,8 @@ export const desktopApi = {
         bios: bios || null,
         stage,
       } satisfies InstallInput,
-    }),
+    });
+  },
   verify: (portId: string, generation: number) => invoke("verify_port", { portId, generation }),
   activate: (
     portId: string,

@@ -108,7 +108,9 @@ for (const theme of ["dark", "light"]) {
       expect(cover.right).toBeLessThanOrEqual(innerWidth);
       expect(cover.height).toBeGreaterThan(cover.width);
       const play = page.getByRole("button", { name: "Play", exact: true });
-      expect(play.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(180);
+      // The shared prototype-style primary has a 9rem floor instead of a fixed12rem width.
+      expect(play.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(144);
+      expect(play.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
       expect(play.element().getBoundingClientRect().width).toBeLessThanOrEqual(220);
       await capture(`managed-${theme}-${width}`);
       for (const label of [
@@ -417,8 +419,10 @@ it.each([1440, 1024, 740])(
         (button) => button.textContent?.trim() === "Play",
       )!;
       const bounds = play.getBoundingClientRect();
-      expect(bounds.width).toBeGreaterThanOrEqual(Math.min(192 * scale, actions.clientWidth) - 1);
+      expect(bounds.width).toBeGreaterThanOrEqual(Math.min(144 * scale, actions.clientWidth) - 1);
       expect(bounds.right).toBeLessThanOrEqual(actions.getBoundingClientRect().right + 1);
+      expect(bounds.left).toBeGreaterThanOrEqual(actions.getBoundingClientRect().left - 1);
+      expect(bounds.height).toBeGreaterThanOrEqual(44 * scale - 1);
       expect(play.disabled).toBe(false);
       play.focus();
       await expect.element(play).toHaveFocus();
@@ -446,3 +450,44 @@ it.each(["dark", "light"])("gives search its own full row at 740px in %s", async
     contained();
   }
 });
+
+it.each([1440, 320])(
+  "keeps saved-data facts compact and backup creation above them at %ipx",
+  async (width) => {
+    await page.viewport(width, 900);
+    await mount("light");
+    await open();
+    await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
+    const heading = page.getByRole("heading", { name: "Saved data", exact: true });
+    await expect.element(heading).toBeVisible();
+    heading.element().scrollIntoView({ block: "start" });
+    const summary = document.querySelector<HTMLElement>(".detail-saved-data-summary")!;
+    const bounds = summary.getBoundingClientRect();
+    const backup = page.getByRole("button", { name: "Back up now", exact: true }).element();
+    const folder = page
+      .getByRole("button", { name: "Open folder for saved data", exact: true })
+      .element();
+    expect(backup.getBoundingClientRect().bottom).toBeLessThanOrEqual(bounds.top);
+    const explanation = document.getElementById("backup-create-explanation")!;
+    expect(backup.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      width === 320
+        ? explanation.getBoundingClientRect().bottom
+        : heading.element().getBoundingClientRect().top,
+    );
+    expect(explanation.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+      width === 320 ? bounds.width - 1 : 96,
+    );
+    expect(summary.contains(folder)).toBe(true);
+    const accessibleNames = await axe.run(summary, {
+      runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+    });
+    expect(accessibleNames.violations).toEqual([]);
+    expect(bounds.height).toBeLessThanOrEqual(width === 320 ? 280 : 160);
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+    await expect
+      .element(page.getByRole("heading", { name: "Backups", exact: true }))
+      .toBeInTheDocument();
+    await capture(`saved-data-summary-light-${width}`, false);
+  },
+);

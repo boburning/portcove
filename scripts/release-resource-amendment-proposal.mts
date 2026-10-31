@@ -13,12 +13,17 @@ import {
   capacityDigest,
 } from "./release-capacity.mts";
 import { observeReleaseResources } from "./release-resource-observation.mts";
+import { inspectReleaseProfile } from "./release-package-policy.mts";
 
 export function prepareReleaseResourceAmendmentProposal(
   production: Buffer,
   wake: Buffer,
   candidate: Buffer,
+  rawProfile: unknown = "initial-beta-win-linux",
 ) {
+  const profile = inspectReleaseProfile(rawProfile);
+  assert.ok(profile !== "full", "Explicit initial-beta proposal profile required");
+  const windowsOnly = profile === "initial-beta-windows-x86_64-v1";
   assert.ok(production.length > 0 && production.length <= 512 * 1024);
   const parsed = parseDocument(production.toString("utf8"), { uniqueKeys: true });
   assert.equal(parsed.errors.length, 0);
@@ -119,9 +124,31 @@ export function prepareReleaseResourceAmendmentProposal(
     linuxSuccess,
     "(" + linuxSuccess + " && needs.native_windows.result == 'success')",
   );
+  if (windowsOnly) {
+    assert.ok(
+      Array.isArray(publication.needs) &&
+        typeof publication.if === "string" &&
+        typeof native.if === "string",
+    );
+    // This is still only proposed source. Keep every shared Linux tool,
+    // observer/signing job and the separately held Windows execution gate.
+    delete jobs.native_linux;
+    publication.needs = publication.needs.filter((name) => name !== "native_linux");
+    publication.if = publication.if.replace(
+      "(" + linuxSuccess + " && needs.native_windows.result == 'success')",
+      "needs.native_windows.result == 'success'",
+    );
+    assert.ok(isRecord(jobs.admission) && isRecord(jobs.admission.outputs));
+    jobs.admission.outputs.release_profile = "${{ steps.admit.outputs.release_profile }}";
+    native.if = native.if.replace(
+      "false &&",
+      "false && needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' &&",
+    );
+  }
   const proposedWorkflow = Buffer.from(stringify(raw, { lineWidth: 100 })),
     observation = observeReleaseResources(proposedWorkflow, wake, candidate);
-  assert.equal(observation.accounting.application, 165);
+  const proposedMinutes = windowsOnly ? 140 : 165;
+  assert.equal(observation.accounting.application, proposedMinutes);
   assert.equal(observation.accounting.catalog_alternative, 40);
   assert.equal(observation.accounting.policy_envelope, 100);
   assert.equal(observation.policy_matches_workflow, false);
@@ -140,9 +167,9 @@ export function prepareReleaseResourceAmendmentProposal(
     input_workflow_sha256: digest,
     aggregate_job_minutes: app.filter((row) => !inputs(row.key)).map(minutes),
     input_job_minutes: app.filter((row) => inputs(row.key)).map(minutes),
-    declared_job_minutes: 165,
-    purpose_accounting: "mutually-exclusive-max-application165-catalog40",
-    total_job_minutes: 165,
+    declared_job_minutes: proposedMinutes,
+    purpose_accounting: `mutually-exclusive-max-application${proposedMinutes}-catalog40`,
+    total_job_minutes: proposedMinutes,
   };
   return {
     proposedWorkflow,
@@ -150,6 +177,7 @@ export function prepareReleaseResourceAmendmentProposal(
       schema_version: 1,
       authority: "none",
       status: "PROPOSAL ONLY; NOT RATIFIED",
+      ...(windowsOnly ? { release_profile: profile } : {}),
       effective_policy_digest: slice4CapacityResourceDigest,
       input_workflow_sha256: createHash("sha256").update(production).digest("hex"),
       proposed_workflow_sha256: digest,
@@ -168,13 +196,23 @@ export function prepareReleaseResourceAmendmentProposal(
   };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  assert.equal(process.argv.length, 2, "Proposal has no execution or arbitrary source options");
+  const args = process.argv.slice(2);
+  assert.ok(
+    args.length === 0 || (args.length === 2 && args[0] === "--release-profile"),
+    "Proposal accepts only one closed release-profile selector",
+  );
+  const profile = inspectReleaseProfile(args[1] ?? "initial-beta-win-linux");
   const bytes = await Promise.all(
     ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
       (name) => readFile(new URL("../.github/workflows/" + name, import.meta.url)),
     ),
   );
-  const proposal = prepareReleaseResourceAmendmentProposal(bytes[0]!, bytes[1]!, bytes[2]!);
+  const proposal = prepareReleaseResourceAmendmentProposal(
+    bytes[0]!,
+    bytes[1]!,
+    bytes[2]!,
+    profile,
+  );
   console.log(
     JSON.stringify(
       { ...proposal.proposal, proposed_workflow_utf8: proposal.proposedWorkflow.toString("utf8") },

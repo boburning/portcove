@@ -348,9 +348,13 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
           </Button>
           <small className="text-pc-muted-foreground">{request.profile.label}</small>
         </div>
-        {busy && <p role="status">{busy}</p>}
+        {busy && (
+          <p className="mt-3" role="status">
+            {busy}
+          </p>
+        )}
         {result && (
-          <section className="grid gap-3" aria-label={copy.resultLabel}>
+          <section className="mt-3 grid gap-3" aria-label={copy.resultLabel}>
             {!result.report && (
               <>
                 <p className="mb-0 font-bold" role="status">
@@ -369,7 +373,10 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
               <SourceIdentityPanel report={result.report} openEvidence={openEvidence} />
             )}
             {requiredTool && (
-              <section className="source-intake-tool" aria-label="Preparation tool needed">
+              <section
+                className="source-intake-tool grid gap-3"
+                aria-label="Preparation tool needed"
+              >
                 <h3>Preparation tool needed</h3>
                 <p>
                   This source format needs {requiredTool.display_name} before Portcove can finish
@@ -436,8 +443,16 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
           onCancel={() => setPlan(undefined)}
           onApply={apply}
         />
-        {notice && <p role="status">{notice}</p>}
-        {error && <p role="alert">{error}</p>}
+        {notice && (
+          <p className="mt-3" role="status">
+            {notice}
+          </p>
+        )}
+        {error && (
+          <p className="mt-3" role="alert">
+            {error}
+          </p>
+        )}
         <DialogFooter className="mt-4">
           {refreshFailed && (
             <Button data-focusable disabled={Boolean(busy)} onClick={() => void retryRefresh()}>

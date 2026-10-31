@@ -267,7 +267,7 @@ interface CatalogActions {
 function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
   const [publicKey, setPublicKey] = useState("");
   return (
-    <>
+    <section className="catalog-publisher-trust mt-6 grid gap-3">
       <h3>Trusted publishers</h3>
       <p>
         Verify the publisher key through a trusted channel. Trust allows that publisher to change
@@ -333,7 +333,7 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
           Trust publisher
         </Button>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -362,7 +362,7 @@ function CatalogReview({
   const setPlan = (value?: CatalogUpdatePlan) =>
     setPlanState({ baseline: status.state_sha256, value });
   return (
-    <>
+    <section className="catalog-update-source-review mt-6 grid gap-3">
       <h3>Review an update</h3>
       <ChoiceSelect
         triggerId="catalog-update-source"
@@ -436,7 +436,7 @@ function CatalogReview({
         Review update
       </Button>
       {plan && (
-        <section aria-label="Catalog update review">
+        <section className="mt-3 grid gap-3" aria-label="Catalog update review">
           <h3>Review catalog information</h3>
           <p>Signature verified with a trusted publisher key.</p>
           <p>{catalogChangeSummary(plan.changed_ports.length)}</p>
@@ -506,7 +506,7 @@ function CatalogReview({
           </Button>
         </section>
       )}
-    </>
+    </section>
   );
 }
 

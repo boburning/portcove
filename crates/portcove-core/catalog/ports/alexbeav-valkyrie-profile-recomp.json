@@ -20,19 +20,25 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download the upstream setup package",
-          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version\u2019s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+          "title": "Finish the upstream setup package first",
+          "instruction": "Use the complete official v0.1.3 Windows x64 setup package in a separate writable folder. Its root executable is a setup host, not the completed player. Deliberately finish upstream Generate & Build with your own matching originals and its required tools before adding the player. The existing Linux setup download remains separate: use the complete Linux package and this version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. The Windows completed-player steps here do not qualify a Linux player. The standalone flow is supported; RetComM is an optional upstream manager. Portcove does not start a compiler, helper or installer while discovering a launch target."
         },
         {
-          "title": "Supply the matching original files",
-          "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Use both canonical USA discs and your own SCPH-1001 BIOS. OpenBIOS is unqualified for this game. Upstream reports a corrected Disc 2 load in its operator test; that attributed result does not establish other versions or a full playthrough."
+          "title": "Keep both USA discs and your BIOS",
+          "instruction": "Use your own complete canonical USA disc pair, SLUS-01156 and SLUS-01179, keeping each CUE with every referenced track, and your own legal SCPH-1001 BIOS. OpenBIOS is not qualified for this title. The published first-track identity is not a complete two-disc verification. Upstream reports one corrected Windows Disc 2 operator test; that does not establish every transition, save/reload or future rebuilt version."
         },
         {
-          "title": "Finish upstream setup, then add the player",
-          "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version\u2019s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+          "title": "Add the completed native player",
+          "instruction": "Select build-release/Valkyrie_Profile_Recompiled.exe, or the actual completed product in your upstream-configured build directory. Use its containing directory as the normal working folder, preserving a different established working directory if your actual working launch requires it. A normally prepared product needs no extra arguments; retain any actual supported --game plus absolute configuration path, disc, BIOS or memory-card arguments used by your working copy as separate literal arguments. Do not select the root setup host, which can forward to another executable and exit. Save launch details, then choose Play separately."
+        },
+        {
+          "title": "Preserve the complete creating project and profiles",
+          "instruction": "Keep the whole setup project, both original discs, BIOS, generated sources, build-release or custom build directory, dependencies, game.toml, game_options.toml, settings.toml, sidecar .cfg files, cards, saves, states, mods, caches, logs and unknown files. Runtime paths anchor to the actual executable, with some source paths searched above it; inspect the actual settings and preserve custom paths and both root/build histories. You or upstream manage rebuilds and updates. Portcove registration provides no managed backup, update, rollback or migration; removing registration leaves every external file untouched."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "Project-owned GPL terms do not grant rights to original game data, generated retail code, BIOS or separately licensed dependencies. Keep private prepared outputs private unless their applicable terms permit sharing."
+      ],
       "help_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp#readme"
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp/releases",

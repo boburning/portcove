@@ -1,3 +1,4 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import path from "node:path";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -342,6 +343,7 @@ export async function runFixedAdmittedAggregateConfiguration(
                 { api },
               ),
               isRecord(expectedCandidate) ? expectedCandidate : {},
+              applicationReleaseProfile(authorities.configuration),
             )
           : null;
         if (signedJournal && !nativeCustody)

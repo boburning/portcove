@@ -3,12 +3,43 @@
   "listing": {
     "id": "crash-bandicoot-crashbandicoot-launcher",
     "name": "Crash Bandicoot / CrashBandicoot-Launcher",
-    "summary": "Explore Crash Bandicoot / CrashBandicoot-Launcher and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an already prepared permitted Crash Bandicoot 2.3.1 Windows player, preserving your USA disc, creating runtime, cards, states and generated-game files.",
     "project_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
     "issue_number": 385,
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
+    "original_game_title": "Crash Bandicoot",
+    "manual_setup": {
+      "help_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md",
+      "steps": [
+        {
+          "title": "Keep a permitted complete official player",
+          "instruction": "Use an already working permitted official 2.3.1 Windows x64 CrashBandicoot.exe copy under applicable project/component terms and upstream own-original requirements. Root/project MIT is not a blanket original-media or all-component certification. This official entry is self-contained .NET10; retain its established writable installation and upstream-required graphics/VC++ runtime context. Other architectures, APK and Linux products are separate."
+        },
+        {
+          "title": "Finish upstream original-disc preparation first",
+          "instruction": "Use your own Crash Bandicoot USA SCUS-94900 standalone single MODE2/2352-track CUE/BIN or supported CHD, preserving the image/set/path for every run. Complete official selection and initial generation outside Portcove. The upstream product/layout/size/metadata and first-4096-boot-byte checks and short fingerprint are not independent full-disc authentication. Parent-dependent, foreign and multitrack media are not established by this guide. Core-owned source admission, private staging/cancellation/atomic preparation publication remain unresolved and unoffered."
+        },
+        {
+          "title": "Select the normal completed application",
+          "instruction": "Select CrashBandicoot.exe with zero launch arguments and its containing installation root as initial working directory. Normal Windows UI stays in this process: START GAME loads the cached game assembly synchronously and embeds the game window; ending play returns to the launcher, so close the launcher too to end the selected session. Do not select a generated DLL, updater/helper or short smoke mode. Registration itself does not prepare or launch the game."
+        },
+        {
+          "title": "Review intent and keep replacement upstream-owned",
+          "instruction": "Review and consent to the exact native executable, directory and empty arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns preparation, repair and actual replacement. Preserve the current creating version and review a changed executable through fresh relink. The selected Windows path has no evidenced self-downloading replacement/relaunch; opening external links is not a managed update."
+        },
+        {
+          "title": "Preserve all creating runtime and player files",
+          "instruction": "Keep the whole actual copy and original: settings.json/CdPath, interface.ini, save/carda.sav and cardb.sav, save/states/slotN.state and companions, game/<fingerprint> source/DLL/manifest, mods/.cache/custom assets, examples, catalog, captures, logs and every unknown/custom path. Windows roots data beside the real executable, not its single-file extraction TEMP directory; changing initial CWD is not a profile redirect. Upstream may move legacy root cards into save when destination is absent and seed/refresh stock mods; this is not Core migration. Keep old state with its creating runtime. Removing registration removes only metadata and preserves all external bytes."
+        }
+      ],
+      "warnings": [
+        "Current source and selected 2.3.1 are distinct revisions; this handoff uses the tagged interface. Prior 1.9.1 local package-integrity evidence is not qualification of 2.3.1. Source/publisher metadata and an inert Core probe do not authenticate this game, original, generated code or package.",
+        "No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion is supplied. Existing source-fingerprint/private-stage/atomic-generation and stronger managed conditions are not marked solved by registration. No emulator, old-port or cross-build state compatibility is promised.",
+        "Actual game/native/gameplay/save-load/state/mod compatibility, other-platform, installed-app and protected observations remain unqualified here; no Supported promotion."
+      ]
+    },
     "artwork": {
       "game_id": 1185,
       "cover_id": 239961,

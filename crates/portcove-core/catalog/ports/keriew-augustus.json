@@ -6,7 +6,6 @@
     "summary": "Play Caesar III with Augustus’s roadblocks, city improvements and expanded building tools.",
     "project_url": "https://github.com/Keriew/augustus",
     "issue_number": 1793,
-    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Keriew/augustus#running-the-game",
     "artwork": {
@@ -30,12 +29,51 @@
         {
           "title": "Keep your game folder and saves",
           "instruction": "Augustus keeps saves in the selected Caesar III data folder and remembers its location in its own profile. Keep both when replacing the upstream runtime."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+        },
+        {
+          "title": "Keep the upstream Linux alternative",
+          "instruction": "The upstream Linux package remains an alternative with its own native setup, game-data selection and profile rules. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. The Linux availability fact is retained, not declared unsupported."
         }
       ],
       "warnings": [
         "Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate."
       ],
       "help_url": "https://github.com/Keriew/augustus#running-the-game"
+    },
+    "original_game_title": "Caesar III"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "Keriew/augustus",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the native package for your system in a separate folder; the Windows player is augustus.exe. On first Play, select your writable Caesar III game folder, patched to version 1.0.1.0. Augustus keeps saves in the selected Caesar III data folder and remembers its location in its own profile. Keep both when replacing the upstream runtime. Complete the upstream setup in your permitted working copy before registration. Select the actual augustus.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. The upstream Linux package remains an alternative with its own native setup, game-data selection and profile rules. This Portcove declaration offers the Windows registration route; Core operations on other candidate platforms remain unqualified here. The Linux availability fact is retained, not declared unsupported. Augustus can read Caesar III and Julius saves, but Augustus saves cannot be loaded by Caesar III or Julius. Keep your original saves separate."
     }
   }
 }

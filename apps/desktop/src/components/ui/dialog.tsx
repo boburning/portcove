@@ -11,7 +11,7 @@ import { XIcon } from "lucide-react";
 const overlayClassName =
   "fixed inset-0 z-(--layer-floating) bg-pc-scrim transition-opacity duration-(--duration-slow) ease-(--ease-standard) data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none";
 const popupClassName = cn(
-  "fixed top-1/2 left-1/2 z-(--layer-floating) grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-pc-lg border border-pc-border bg-pc-surface p-4 text-sm text-pc-foreground shadow-(--shadow-floating) outline-none sm:max-w-sm forced-colors:outline-1 forced-colors:outline-solid",
+  "fixed top-1/2 left-1/2 z-(--layer-floating) grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-pc-lg border border-pc-border bg-pc-surface p-6 text-sm text-pc-foreground shadow-(--shadow-floating) outline-none sm:max-w-[32.5rem] forced-colors:outline-1 forced-colors:outline-solid",
   floatingMotion,
 );
 
@@ -70,7 +70,7 @@ function DialogContent({
       {showCloseButton && (
         <DialogPrimitive.Close
           data-slot="dialog-close"
-          render={<Button variant="ghost" className="absolute end-2 top-2" size="icon-sm" />}
+          render={<Button variant="secondary" className="absolute end-4 top-4" size="icon-sm" />}
         >
           <XIcon />
           <span className="sr-only">Close</span>
@@ -80,6 +80,8 @@ function DialogContent({
   );
   const layoutClassName = cn(
     popupClassName,
+    showCloseButton &&
+      "[&_[data-slot=dialog-description]]:pe-10 [&_[data-slot=dialog-title]]:pe-10",
     reviewSize && reviewLayoutClassName,
     reviewSize && reviewWidths[reviewSize],
   );
@@ -133,7 +135,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col flex-wrap gap-2 rounded-b-pc-lg border-t border-pc-border bg-pc-surface-muted/50 p-4 sm:flex-row sm:justify-end",
+        "mt-6 flex flex-col flex-wrap gap-2.5 border-t border-pc-border pt-5 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -151,7 +153,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={controlClassName(
-        "m-0 pe-8 font-pc-heading text-lg leading-tight font-medium",
+        "m-0 pe-8 font-pc-heading text-xl leading-tight font-semibold",
         className,
       )}
       {...props}

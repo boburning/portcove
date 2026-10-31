@@ -7,7 +7,7 @@ import {
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { InstallRecord, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
-import { DetailPanel } from "./DetailPanel";
+import { DetailPanel, InstallationVersionSummary } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import {
   port,
@@ -268,7 +268,7 @@ it.each([
 
 describe("desktop components", () => {
   it.each(["unknown", "available", "none", "stale-channel"] as const)(
-    "puts the %s update observation before the appropriate next action",
+    "keeps the %s update observation and action eligibility under a header check",
     (state) => {
       const fixture = missingRuntimeFixture(state === "available");
       const status: PortStatus = {
@@ -286,10 +286,10 @@ describe("desktop components", () => {
         />,
       );
       const check = html.indexOf("Check for updates</button>");
-      const review = html.indexOf("Update now</button>");
+      const review = html.indexOf("Update now");
       expect(check).toBeGreaterThan(-1);
       expect(review >= 0).toBe(state === "available");
-      expect(review < check).toBe(true);
+      expect(review === -1 || check < review).toBe(true);
       const expected =
         state === "available"
           ? "was available at the last check"
@@ -297,7 +297,7 @@ describe("desktop components", () => {
             ? "No update was found at the last check"
             : "No update check is saved for this installation and channel";
       expect(html).toContain(expected);
-      expect(html.indexOf(expected)).toBeLessThan(state === "available" ? review : check);
+      expect(state !== "available" || html.indexOf(expected) < review).toBe(true);
       expect(html).not.toContain(">This update<");
       expect(html.indexOf("Future update preferences")).toBeGreaterThan(Math.max(check, review));
     },
@@ -848,7 +848,11 @@ describe("desktop components", () => {
 
     expect(ready).toContain("Ready to play");
     expect(ready).not.toContain('class="hero-reason"');
-    expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Ready to play"));
+    // Identity and readiness precede the final hero action row.
+    expect(ready.indexOf("Ready to play")).toBeLessThan(
+      ready.indexOf('class="detail-header-actions'),
+    );
+    expect(ready.indexOf('class="detail-header-actions')).toBeLessThan(ready.indexOf("Play"));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
     expect(downloaded).toContain("Ready to play");
@@ -1454,7 +1458,7 @@ describe("desktop components", () => {
       /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
     );
     expect(buttonLabels).toContain("Check for updates");
-    expect(installed).toContain("Open saved data folder");
+    expect(installed).toContain("Open folder for saved data");
     expect(installed).toContain("Back up now");
     expect(installed).toContain('title="Back up saves and settings managed by Portcove."');
     const backupButton = installed.match(
@@ -1748,6 +1752,66 @@ describe("desktop components", () => {
     expect(primary).toContain("Add all required game files and the BIOS file before installing");
   });
 
+  it.each(["absent", "same", "version", "artifact", "runtime"] as const)(
+    "keeps saved activation primary and retains distinct checked candidates: %s",
+    (candidate) => {
+      const active = installRecord();
+      const staged = installRecord({ id: "saved", version: "2.0", staged: true });
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active,
+        staged,
+        last_update_check:
+          candidate === "absent"
+            ? null
+            : {
+                checked_at: 2,
+                check: {
+                  port_id: port.id,
+                  channel: active.channel,
+                  installed_version: active.version,
+                  installed_artifact: active.artifact,
+                  installed_runtime: active.runtime,
+                  required_runtime: candidate === "runtime" ? runtimeIdentity : staged.runtime,
+                  update_available: true,
+                  release: {
+                    published_at: null,
+                    version: candidate === "version" ? "3.0" : staged.version,
+                    channel: staged.channel,
+                    asset: {
+                      name: staged.artifact.asset_name,
+                      url: "https://example.com/sample.zip",
+                      size: staged.artifact.size,
+                      sha256: candidate === "artifact" ? "c".repeat(64) : staged.artifact.sha256,
+                    },
+                  },
+                },
+              },
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={port}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      const versions = detailSection(html, "versions");
+      expect(versions.match(/Apply update · 2\.0/gu)).toHaveLength(1);
+      expect(versions.indexOf("Apply update · 2.0")).toBeLessThan(
+        versions.indexOf("Future update preferences"),
+      );
+      expect(versions).toMatch(
+        /<button(?=[^>]*staged-action)(?=[^>]*data-variant="primary")[^>]*>Apply update · 2\.0<\/button>/u,
+      );
+      for (const action of ["Update now", "Download for later"]) {
+        expect(versions.includes(action)).toBe(candidate !== "absent" && candidate !== "same");
+      }
+    },
+  );
+
   it("keeps direct Play in the header and staged activation with its consequences in Versions", () => {
     const install = installRecord();
     const status: PortStatus = {
@@ -1930,7 +1994,7 @@ describe("desktop components", () => {
       expect(saves).toContain(content);
     for (const content of [
       "Installed version",
-      "Latest version at last check",
+      "Available at last check",
       "2.0",
       "Check for updates",
     ])
@@ -1979,7 +2043,7 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Selected channel");
     expect(html).toContain("Preview");
-    expect(html).not.toContain("Latest version at last check");
+    expect(html).not.toContain("Latest release at last check");
     expect(html).not.toContain("9.9-stale");
   });
 
@@ -2021,8 +2085,9 @@ describe("desktop components", () => {
         }}
       />,
     );
-    expect(html).toContain("<dt>Installed version</dt><dd>1.1</dd>");
-    expect(html).not.toContain("Latest version at last check");
+    expect(html).toContain("Installed version");
+    expect(html).toContain("<strong>1.1</strong>");
+    expect(html).not.toContain("Latest release at last check");
     expect(html).not.toContain("9.9-stale");
   });
 });
@@ -2170,3 +2235,56 @@ it("explains the retained setup and saved-data contract after current metadata c
   expect(coverage).toContain("retained-saves");
   expect(coverage).not.toContain("new-catalog-only");
 });
+
+it("separates the active version from a downloaded update without implying it is active", () => {
+  const active = installRecord({ version: "1.0" });
+  const html = renderToStaticMarkup(
+    <InstallationVersionSummary
+      status={{
+        ...portStatus(),
+        active,
+        staged: { ...active, id: "downloaded", version: "2.0", staged: true },
+      }}
+      selectedChannel="stable"
+    />,
+  );
+  const current = html.slice(
+    html.indexOf('class="detail-version-current"'),
+    html.indexOf('class="detail-version-candidate"'),
+  );
+  const candidate = html.slice(html.indexOf('class="detail-version-candidate"'));
+  expect(current).toContain("<strong>1.0</strong>");
+  expect(current).not.toContain("<strong>2.0</strong>");
+  expect(candidate).toContain("Update saved for later");
+  expect(candidate).toContain("<strong>2.0</strong>");
+});
+
+it.each(["current", "pending", "failed"] as const)(
+  "qualifies the backup journey caption when inventory read is %s",
+  (readStatus) => {
+    const html = renderToStaticMarkup(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+        status={{ ...portStatus(), active: installRecord() }}
+        backupReadState={{ status: readStatus, hasInventory: true }}
+        backups={[
+          {
+            id: "b1",
+            port_id: port.id,
+            path: "backups/sample/b1",
+            created_at: 1,
+            file_count: 1,
+            size: 10,
+            sha256: "a".repeat(64),
+          },
+        ]}
+      />,
+    );
+    const overview = detailSection(html, "overview");
+    expect(overview.includes("1 backup")).toBe(readStatus === "current");
+    expect(overview.includes("Review backup history")).toBe(readStatus !== "current");
+  },
+);

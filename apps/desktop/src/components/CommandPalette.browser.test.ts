@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite-plus/test";
 import { Boxes, Library } from "lucide-react";
 import { userEvent } from "vite-plus/test/browser";
@@ -100,6 +101,51 @@ describe("command search transitions", () => {
     vi.unstubAllGlobals();
   });
 
+  it("crosses presentation groups in registry order while skipping disabled commands", async () => {
+    const action = vi.fn();
+    const unavailable = vi.fn();
+    const close = vi.fn();
+    const grouped = [
+      { ...commands[0], group: "Navigation" },
+      {
+        ...commands[1],
+        id: "unavailable",
+        group: "Library actions",
+        disabled: true,
+        action: unavailable,
+      },
+      { ...commands[1], group: "Library actions", action },
+    ];
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands: grouped, close })),
+    );
+    const search = document.body.querySelector<HTMLInputElement>("input")!;
+    const key = async (key: string) =>
+      act(async () => {
+        search.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        );
+      });
+    expect(
+      [...document.body.querySelectorAll('[role="listbox"] [role="group"]')].map((group) =>
+        group.getAttribute("aria-label"),
+      ),
+    ).toEqual(["Navigation", "Library actions"]);
+    expect(
+      [...document.body.querySelectorAll('[role="option"]')].map((option) => option.id),
+    ).toEqual(["command-library", "command-unavailable", "command-catalog"]);
+    await key("ArrowDown");
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+    await captureParityState("command-palette-groups-disabled");
+    await key("ArrowUp");
+    expect(search.getAttribute("aria-activedescendant")).toBe("command-library");
+    await key("ArrowDown");
+    await key("Enter");
+    expect(action).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    expect(unavailable).not.toHaveBeenCalled();
+  });
+
   it("keeps an empty search inert and restores keyboard selection when matches return", async () => {
     const action = vi.fn();
     const close = vi.fn();
@@ -138,6 +184,7 @@ describe("command search transitions", () => {
     expect(document.body.querySelector('[role="listbox"]')).toBeNull();
     expect(search.getAttribute("aria-expanded")).toBe("false");
     expect(search.hasAttribute("aria-controls")).toBe(false);
+    await captureParityState("command-palette-empty-search");
     await key("ArrowDown");
     await key("Enter");
     expect(action).not.toHaveBeenCalled();
@@ -199,6 +246,7 @@ describe("command search transitions", () => {
       ),
     );
     expect(search.getAttribute("aria-activedescendant")).toBe("command-catalog");
+    await captureParityState("command-palette-reordered-active");
 
     await act(async () =>
       root.render(
@@ -256,6 +304,7 @@ describe("command search transitions", () => {
     const search = document.body.querySelector<HTMLInputElement>("input")!;
     expect(document.body.querySelector('[role="option"]')?.textContent).toContain("Open library");
     expect(search.hasAttribute("aria-activedescendant")).toBe(false);
+    await captureParityState("command-palette-unavailable-only");
     await act(async () => {
       search.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),

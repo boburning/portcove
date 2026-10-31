@@ -1,0 +1,2063 @@
+{
+  "format_version": 1,
+  "kind": "dated four-owner completed-player/use and retained permission evidence; not live planning or fleet acceptance",
+  "owners": [2926, 2510, 1422],
+  "pickup_source_base_commit": "be90b995a369bbddd2819f516d9565b29d210b2f",
+  "observation_date": "2026-10-30",
+  "selected_rows": [
+    {
+      "id": "crash-bandicoot-crashbandicoot-launcher",
+      "canonical_issue": 385,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "b8c6bef2e0eb8c5e3fee37edf07217a2c52d19dfc49aede6e1e5b747c94f7e9f",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T20:39:26.924Z",
+      "authored_sha256": "fdf59a565bfbd420573c9c29c2a7bfc8de16ebb3dfd6f4a49cebf5a645ff2287",
+      "selected_source": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+      "selected_tag": "2.3.1",
+      "completed_entry": "CrashBandicoot.exe",
+      "normal_literal_arguments": [],
+      "outcome": "permitted completed-player handoff",
+      "acquisition_hold_present": false,
+      "game_execution_this_batch": "not_run",
+      "gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
+      "canonical_issue": 319,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "e0cb724b530cbb19ea3c2748ab99391554d4dd116ddd15527c493157c4a7014a",
+      "planning_at_pickup": {
+        "Status": "Blocked",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Blocked",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T20:48:53.836Z",
+      "authored_sha256": "f356f57f20dcacf5a470f49f32b957bae8220c8c1ebd5cd9756501af4b3982d2",
+      "selected_source": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+      "selected_tag": "v0.5.1b",
+      "completed_entry": "sotn.exe",
+      "normal_literal_arguments": ["one absolute owned CHD/CUE path"],
+      "outcome": "permitted completed-player handoff; broader source/distribution/managed holds retained",
+      "acquisition_hold_present": false,
+      "game_execution_this_batch": "not_run",
+      "gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "rage-racer-rage-racer-pc",
+      "canonical_issue": 349,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "c64a21e623a393fa2218aa68fbd4170d36e7c1ef69dcf8d30f736e99140c3137",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T21:29:28.601Z",
+      "authored_sha256": "f71d7373bc74a68e360849624ad123b32c6604eff5fc7689759fc93ad23ff894",
+      "selected_source": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+      "selected_tag": "0.6.13-alpha",
+      "completed_entry": "Rage-Racer.exe",
+      "normal_literal_arguments": [],
+      "outcome": "permitted completed-player handoff; fresh-acquisition condition retained",
+      "acquisition_hold_present": true,
+      "game_execution_this_batch": "not_run",
+      "gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "vandal-hearts-vandalhearts-pcport",
+      "canonical_issue": 347,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "dd6bb13f552a738f8441d720045e643651cbcfb139b0f69533672bdedd631e0c",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T20:39:26.021Z",
+      "authored_sha256": "6f4d5054a12a214330f300a29db2fde42145c34f76bce5155aa72ea87c551d2c",
+      "selected_source": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+      "selected_tag": "v2.1.0",
+      "completed_entry": null,
+      "normal_literal_arguments": null,
+      "outcome": "exact excluded embedded-component acquisition condition; integration remains open",
+      "acquisition_hold_present": true,
+      "game_execution_this_batch": "not_run",
+      "gameplay_state_installed_protected_this_batch": "not_evaluated"
+    }
+  ],
+  "source_packets": [
+    {
+      "record": "reviewer-recompone-next",
+      "manifest_sha256": "f776e7a7551a96a3a2788bfdd300110e91731bb958431bd9852d470e40b6438d",
+      "observations": {
+        "trees": [
+          {
+            "label": "vandal",
+            "role": "current",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "entries": 561,
+            "sha256": "19c72f5dec50fb854a402a81a8334a0cbbd6bcceaca4f345b478db7820bec150",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "vandal-current-tree.json"
+          },
+          {
+            "label": "vandal",
+            "role": "release",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "entries": 561,
+            "sha256": "37c72070c15c2a51ce9d6e8f2c61c69c34e28cdfc6a302059877cdf22fc660ca",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "vandal-release-tree.json"
+          },
+          {
+            "label": "crash",
+            "role": "current",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "entries": 515,
+            "sha256": "796f1a561aadb9cef001fab240547ffdf20f630ae66abda9b6032cb8479743be",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "crash-current-tree.json"
+          },
+          {
+            "label": "crash",
+            "role": "release",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "entries": 470,
+            "sha256": "116b61c6b219c2d494b156ca70ec002708cb46086bae32c7ce5db6ece938d0db",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "crash-release-tree.json"
+          }
+        ],
+        "bindings": [
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "path": "CREDITS",
+            "git_blob": "17d9e7043899bea8bcb81d56c86771e2490a4a3b",
+            "sha256": "381bc1ce3e0647e0586d6572edc3c7a119d859e7bf68c46933f69a6f971ee674",
+            "bytes": 1495,
+            "retained_local_path_name": "CREDITS"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "path": "LICENSE",
+            "git_blob": "17cb286430a4d8094e473d06bd7f50f40438ddba",
+            "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3",
+            "bytes": 17337,
+            "retained_local_path_name": "LICENSE"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "path": "NOTICE",
+            "git_blob": "3ee5b9ce93be5a0c8d41b780262dfceaa71bb621",
+            "sha256": "0744b759761907508ce4a24302c0b62b503a2df112cf336d7dd349af3ff5cc60",
+            "bytes": 5299,
+            "retained_local_path_name": "NOTICE"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "path": "README.md",
+            "git_blob": "8f5363b3794840f25d523480e42bf5022f597305",
+            "sha256": "b3264b9113da2145d7172055a018b3e071d810a563ddeea98610d9bbcb59f30b",
+            "bytes": 14878,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "path": "CREDITS",
+            "git_blob": "17d9e7043899bea8bcb81d56c86771e2490a4a3b",
+            "sha256": "381bc1ce3e0647e0586d6572edc3c7a119d859e7bf68c46933f69a6f971ee674",
+            "bytes": 1495,
+            "retained_local_path_name": "CREDITS"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "path": "LICENSE",
+            "git_blob": "17cb286430a4d8094e473d06bd7f50f40438ddba",
+            "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3",
+            "bytes": 17337,
+            "retained_local_path_name": "LICENSE"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "path": "NOTICE",
+            "git_blob": "3ee5b9ce93be5a0c8d41b780262dfceaa71bb621",
+            "sha256": "0744b759761907508ce4a24302c0b62b503a2df112cf336d7dd349af3ff5cc60",
+            "bytes": 5299,
+            "retained_local_path_name": "NOTICE"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "path": "README.md",
+            "git_blob": "8f5363b3794840f25d523480e42bf5022f597305",
+            "sha256": "b3264b9113da2145d7172055a018b3e071d810a563ddeea98610d9bbcb59f30b",
+            "bytes": 14878,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "LICENSE",
+            "git_blob": "a86967bd0a7ca450017d95823401edc6bd67bf3e",
+            "sha256": "32ac11439f95e98c722d369b95aaee096545acff50128e5b1d62d969a1fc1b7c",
+            "bytes": 1070,
+            "retained_local_path_name": "LICENSE"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "README.md",
+            "git_blob": "e92f185e22dde6308d26351e50282e0918d1bcef",
+            "sha256": "da577381d3af2f25771f4d4e58c1cf2f15a462086228dc113051e709529ed15f",
+            "bytes": 18467,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "LICENSE",
+            "git_blob": "a86967bd0a7ca450017d95823401edc6bd67bf3e",
+            "sha256": "32ac11439f95e98c722d369b95aaee096545acff50128e5b1d62d969a1fc1b7c",
+            "bytes": 1070,
+            "retained_local_path_name": "LICENSE"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "README.md",
+            "git_blob": "e92f185e22dde6308d26351e50282e0918d1bcef",
+            "sha256": "da577381d3af2f25771f4d4e58c1cf2f15a462086228dc113051e709529ed15f",
+            "bytes": 18467,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "path": "DISCLAIMER",
+            "git_blob": "0ebe4a7be16f9265af2a6b62e726d6596c7731da",
+            "sha256": "f1afbb450ccd984477b7e22d1de12d10e7cc5a6f59e8f76408b184f3a6dfcd16",
+            "bytes": 3296,
+            "retained_local_path_name": "DISCLAIMER"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "path": "docs/building.md",
+            "git_blob": "ab1dd273f332ce8cd692a3a71d313582331a8906",
+            "sha256": "8cb331264990311765e0317fba8863a1da2079ae876b5b3f56f5de1b22bbe04d",
+            "bytes": 17306,
+            "retained_local_path_name": "building.md"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "14552fffa0e0b47e02b57592e274fc6e7a649923",
+            "path": "platform/pc/CMakeLists.txt",
+            "git_blob": "eb4a30d0704c8c05252bc4930918e9f9ab4e13e8",
+            "sha256": "98c0b125202d57d74c836365e7a66ac9e3bfc8d61c780dab4243afb9bee1c8dd",
+            "bytes": 34005,
+            "retained_local_path_name": "CMakeLists.txt"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "path": "DISCLAIMER",
+            "git_blob": "0ebe4a7be16f9265af2a6b62e726d6596c7731da",
+            "sha256": "f1afbb450ccd984477b7e22d1de12d10e7cc5a6f59e8f76408b184f3a6dfcd16",
+            "bytes": 3296,
+            "retained_local_path_name": "DISCLAIMER"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "path": "docs/building.md",
+            "git_blob": "ab1dd273f332ce8cd692a3a71d313582331a8906",
+            "sha256": "8cb331264990311765e0317fba8863a1da2079ae876b5b3f56f5de1b22bbe04d",
+            "bytes": 17306,
+            "retained_local_path_name": "building.md"
+          },
+          {
+            "label": "vandal",
+            "repository": "HalmyLyseas/VandalHearts-PcPort",
+            "commit": "7450a2462c0d437740da2ec438a7d8d55c27fadf",
+            "path": "platform/pc/CMakeLists.txt",
+            "git_blob": "eb4a30d0704c8c05252bc4930918e9f9ab4e13e8",
+            "sha256": "98c0b125202d57d74c836365e7a66ac9e3bfc8d61c780dab4243afb9bee1c8dd",
+            "bytes": 34005,
+            "retained_local_path_name": "CMakeLists.txt"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "THIRD-PARTY-NOTICES.txt",
+            "git_blob": "5598e1ae77e2b0c739a0a15a4edf4a17217ebe97",
+            "sha256": "4ed3e5834ad21d937126cefd630060d3cc67a5f1ddf48baa7289a875862f442a",
+            "bytes": 8933,
+            "retained_local_path_name": "THIRD-PARTY-NOTICES.txt"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/Program.cs",
+            "git_blob": "c2e0e5bc9ed94d92378c3503ff74b10ef60dc99f",
+            "sha256": "880872a74d595bb75e6f4b581f39c43632f51ad8bbceb3eaefadc482e6dcfcee",
+            "bytes": 8726,
+            "retained_local_path_name": "Program.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/CrashBandicoot.Launcher.csproj",
+            "git_blob": "eae19a30fc4fe1b98180b1fbcaf2528de936b2e1",
+            "sha256": "99ef32c7b06142968781e5ececb191e39fd655992aee446fb4bd0aea0b84ea65",
+            "bytes": 6868,
+            "retained_local_path_name": "CrashBandicoot.Launcher.csproj"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/Recomp/DiscValidator.cs",
+            "git_blob": "ba2884a68b708ea3fc05a4a002ca446032032efb",
+            "sha256": "75979dcaf9a6239e56113cc3095207f8ec3f7d93ab4011e8f9273de2235aa2a3",
+            "bytes": 16839,
+            "retained_local_path_name": "DiscValidator.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/Recomp/RecompPipeline.cs",
+            "git_blob": "c50587301d3ec2012ab85373adb1c9d3952dea8d",
+            "sha256": "4435862106126fd0dd5b88e6aef57792d6f69c2171676b63632bb8a8f3931c3f",
+            "bytes": 2415,
+            "retained_local_path_name": "RecompPipeline.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/AppPaths.cs",
+            "git_blob": "760ced3c27082bd10fed2fde5f3d45fe79c64e65",
+            "sha256": "360279a95329512bddafffc14912082603d954b7aa19cf36eb6d2d4c13b3619e",
+            "bytes": 8570,
+            "retained_local_path_name": "AppPaths.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/RecompOne.Runtime.csproj",
+            "git_blob": "d2a04985fa3db2573146d4b3d98dd88dd8e7eb39",
+            "sha256": "e775a3141ca11640d72b93151aa4d0a39eed0f946893cac5a6f00a28a9686980",
+            "bytes": 1611,
+            "retained_local_path_name": "RecompOne.Runtime.csproj"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/Config/ConfigManager.cs",
+            "git_blob": "59e1eb9b3318ac5a28aa5fb572b1da84eb2f1739",
+            "sha256": "6ad80a1291936d49df42f80a05f69e57f80cde385dba9f6aee33c00c44d4af9d",
+            "bytes": 5874,
+            "retained_local_path_name": "ConfigManager.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/Config/GameConfig.cs",
+            "git_blob": "db453e1d4563100ffe3c93d515441804e60454dd",
+            "sha256": "ffd85d9fa34dac091cdb85ad48824481f3e20d13fda6ae6eb796f918440f3043",
+            "bytes": 3441,
+            "retained_local_path_name": "GameConfig.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/Bios/Fonts/FONT_LICENSE.md",
+            "git_blob": "f931857138090a9b62c8ec43a3c1b8c8b9a593ce",
+            "sha256": "4b32247cd0bfb51494e2a538038c6f9ec6525e10ab3c406e210368bcd9f59836",
+            "bytes": 736,
+            "retained_local_path_name": "FONT_LICENSE.md"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "THIRD-PARTY-NOTICES.txt",
+            "git_blob": "5598e1ae77e2b0c739a0a15a4edf4a17217ebe97",
+            "sha256": "4ed3e5834ad21d937126cefd630060d3cc67a5f1ddf48baa7289a875862f442a",
+            "bytes": 8933,
+            "retained_local_path_name": "THIRD-PARTY-NOTICES.txt"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/Program.cs",
+            "git_blob": "c2e0e5bc9ed94d92378c3503ff74b10ef60dc99f",
+            "sha256": "880872a74d595bb75e6f4b581f39c43632f51ad8bbceb3eaefadc482e6dcfcee",
+            "bytes": 8726,
+            "retained_local_path_name": "Program.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/CrashBandicoot.Launcher.csproj",
+            "git_blob": "eae19a30fc4fe1b98180b1fbcaf2528de936b2e1",
+            "sha256": "99ef32c7b06142968781e5ececb191e39fd655992aee446fb4bd0aea0b84ea65",
+            "bytes": 6868,
+            "retained_local_path_name": "CrashBandicoot.Launcher.csproj"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/Recomp/DiscValidator.cs",
+            "git_blob": "ba2884a68b708ea3fc05a4a002ca446032032efb",
+            "sha256": "75979dcaf9a6239e56113cc3095207f8ec3f7d93ab4011e8f9273de2235aa2a3",
+            "bytes": 16839,
+            "retained_local_path_name": "DiscValidator.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/Recomp/RecompPipeline.cs",
+            "git_blob": "c50587301d3ec2012ab85373adb1c9d3952dea8d",
+            "sha256": "4435862106126fd0dd5b88e6aef57792d6f69c2171676b63632bb8a8f3931c3f",
+            "bytes": 2415,
+            "retained_local_path_name": "RecompPipeline.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/AppPaths.cs",
+            "git_blob": "760ced3c27082bd10fed2fde5f3d45fe79c64e65",
+            "sha256": "360279a95329512bddafffc14912082603d954b7aa19cf36eb6d2d4c13b3619e",
+            "bytes": 8570,
+            "retained_local_path_name": "AppPaths.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/RecompOne.Runtime.csproj",
+            "git_blob": "7ec5dd57b35e98aa75c105a391203de763ca3a8f",
+            "sha256": "7920060bafdb031463eeb4ca91f6980142f41d28a02680f8eaf9c2ec1459e17d",
+            "bytes": 1461,
+            "retained_local_path_name": "RecompOne.Runtime.csproj"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/Config/ConfigManager.cs",
+            "git_blob": "59e1eb9b3318ac5a28aa5fb572b1da84eb2f1739",
+            "sha256": "6ad80a1291936d49df42f80a05f69e57f80cde385dba9f6aee33c00c44d4af9d",
+            "bytes": 5874,
+            "retained_local_path_name": "ConfigManager.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/Config/GameConfig.cs",
+            "git_blob": "db453e1d4563100ffe3c93d515441804e60454dd",
+            "sha256": "ffd85d9fa34dac091cdb85ad48824481f3e20d13fda6ae6eb796f918440f3043",
+            "bytes": 3441,
+            "retained_local_path_name": "GameConfig.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/Bios/Fonts/FONT_LICENSE.md",
+            "git_blob": "f931857138090a9b62c8ec43a3c1b8c8b9a593ce",
+            "sha256": "4b32247cd0bfb51494e2a538038c6f9ec6525e10ab3c406e210368bcd9f59836",
+            "bytes": 736,
+            "retained_local_path_name": "FONT_LICENSE.md"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/Recomp/GameLoader.cs",
+            "git_blob": "e37671ccf1981b4a13cf396ce33c5839ff944388",
+            "sha256": "e047f4aa4df03c39eebf93f3cec3d8ff08bfb8a6d2e15d442291eb874c72d561",
+            "bytes": 4518,
+            "retained_local_path_name": "GameLoader.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/LauncherHost.cs",
+            "git_blob": "1c54b0540fd5197828353ba3b843b879ddc4edba",
+            "sha256": "a9245d05cf5ce02fc2701d2a3f64ca2b5b8fdeba6f70ea1166f072e854a011c2",
+            "bytes": 27691,
+            "retained_local_path_name": "LauncherHost.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/SingleInstance.cs",
+            "git_blob": "0803b1c0e279ca879e49660d6314e6a4319b5061",
+            "sha256": "45a8f79f4112baba61d173948ae136d905802f4c45ca24170b5783fc407cd198",
+            "bytes": 2555,
+            "retained_local_path_name": "SingleInstance.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/Host/SaveStates.cs",
+            "git_blob": "f4cd11a7587c7566e3b8b94f19875453a4744d5c",
+            "sha256": "32dac616c2a6dd72b6cb8ec8c9d340b37e5a37705cd48b2114a6cbe9b3e66e4e",
+            "bytes": 10593,
+            "retained_local_path_name": "SaveStates.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/Diagnostics/SessionLog.cs",
+            "git_blob": "128b1b80cb68fe77fb428efcee6a65239065d86f",
+            "sha256": "b340983ffaa6d392fd152aec663fd44d771ebd57bb00fee10f866a48eabe2b17",
+            "bytes": 5958,
+            "retained_local_path_name": "SessionLog.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/Recomp/GameLoader.cs",
+            "git_blob": "e37671ccf1981b4a13cf396ce33c5839ff944388",
+            "sha256": "e047f4aa4df03c39eebf93f3cec3d8ff08bfb8a6d2e15d442291eb874c72d561",
+            "bytes": 4518,
+            "retained_local_path_name": "GameLoader.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/LauncherHost.cs",
+            "git_blob": "e11e79be6f1c65803681e19175c8a3889cc09e9d",
+            "sha256": "a716c190b03df4439b791b11c1e0996f6e8494f9be1575f8b90538d1078fd9ba",
+            "bytes": 27497,
+            "retained_local_path_name": "LauncherHost.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/SingleInstance.cs",
+            "git_blob": "0803b1c0e279ca879e49660d6314e6a4319b5061",
+            "sha256": "45a8f79f4112baba61d173948ae136d905802f4c45ca24170b5783fc407cd198",
+            "bytes": 2555,
+            "retained_local_path_name": "SingleInstance.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/Host/SaveStates.cs",
+            "git_blob": "f4cd11a7587c7566e3b8b94f19875453a4744d5c",
+            "sha256": "32dac616c2a6dd72b6cb8ec8c9d340b37e5a37705cd48b2114a6cbe9b3e66e4e",
+            "bytes": 10593,
+            "retained_local_path_name": "SaveStates.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/Diagnostics/SessionLog.cs",
+            "git_blob": "128b1b80cb68fe77fb428efcee6a65239065d86f",
+            "sha256": "b340983ffaa6d392fd152aec663fd44d771ebd57bb00fee10f866a48eabe2b17",
+            "bytes": 5958,
+            "retained_local_path_name": "SessionLog.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": ".github/workflows/release.yml",
+            "git_blob": "fd122b16696bb07d1ecbc9c1614a640d39ae90ef",
+            "sha256": "88db6dc03c3e950da4791a4d025d57af5953c990c264ecd9fcdb5ca9cb652de0",
+            "bytes": 30990,
+            "retained_local_path_name": "release.yml"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/Ui/LauncherUiFactory.cs",
+            "git_blob": "01576d6c82ccf20b5d56798ad9d7c90b82b8c043",
+            "sha256": "b74d2ee62bd4d728567b171472bda05ff103e5d88fd5c196b7626a5c22118ac2",
+            "bytes": 209,
+            "retained_local_path_name": "LauncherUiFactory.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "CrashBandicoot.Launcher/Ui/NativeLauncherUi.cs",
+            "git_blob": "bd1d476405800443272a0c82b0b94f8c3b878ba1",
+            "sha256": "771ef67997cd4a88b1babd889a8ebc77a5abdd6fc40dcb2a88a4a993b29fe798",
+            "bytes": 113354,
+            "retained_local_path_name": "NativeLauncherUi.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/Modding/ModLoader.cs",
+            "git_blob": "454f67d65a2a06ea0d4b0e62edfc172ab69604d1",
+            "sha256": "531ef028517d51e07c9daab07c6b04c98382e9dad52b148e8b8d1f870f151135",
+            "bytes": 23681,
+            "retained_local_path_name": "ModLoader.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "RecompOne.Runtime/Hardware/MemoryCard.cs",
+            "git_blob": "f7c8004a193d117496becff92d1d23b56a09347b",
+            "sha256": "e052613a4686632274c12bc07114b31938f0b1d1be2bf83d648f73088080fd77",
+            "bytes": 4873,
+            "retained_local_path_name": "MemoryCard.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": ".github/workflows/release.yml",
+            "git_blob": "fd122b16696bb07d1ecbc9c1614a640d39ae90ef",
+            "sha256": "88db6dc03c3e950da4791a4d025d57af5953c990c264ecd9fcdb5ca9cb652de0",
+            "bytes": 30990,
+            "retained_local_path_name": "release.yml"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/Ui/LauncherUiFactory.cs",
+            "git_blob": "01576d6c82ccf20b5d56798ad9d7c90b82b8c043",
+            "sha256": "b74d2ee62bd4d728567b171472bda05ff103e5d88fd5c196b7626a5c22118ac2",
+            "bytes": 209,
+            "retained_local_path_name": "LauncherUiFactory.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "CrashBandicoot.Launcher/Ui/NativeLauncherUi.cs",
+            "git_blob": "c1df180e77af62820d02ffb7854b93b41f10540a",
+            "sha256": "ae82bc20a2ae12d6e30343c0ac8a51124d17bb431ece135875f7b51d5c225fe0",
+            "bytes": 112749,
+            "retained_local_path_name": "NativeLauncherUi.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/Modding/ModLoader.cs",
+            "git_blob": "454f67d65a2a06ea0d4b0e62edfc172ab69604d1",
+            "sha256": "531ef028517d51e07c9daab07c6b04c98382e9dad52b148e8b8d1f870f151135",
+            "bytes": 23681,
+            "retained_local_path_name": "ModLoader.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "RecompOne.Runtime/Hardware/MemoryCard.cs",
+            "git_blob": "f7c8004a193d117496becff92d1d23b56a09347b",
+            "sha256": "e052613a4686632274c12bc07114b31938f0b1d1be2bf83d648f73088080fd77",
+            "bytes": 4873,
+            "retained_local_path_name": "MemoryCard.cs"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "b78dc65b7b97715d70b6f0848d0ffebe42c704ca",
+            "path": "publish_release.py",
+            "git_blob": "399b872c01e4d089c7db4a4dfb69f5454fa350d4",
+            "sha256": "3cb1a4e19efad3befbdf008b5effc4a787a168d7d5b0f148219e2fc4e5face15",
+            "bytes": 29671,
+            "retained_local_path_name": "publish_release.py"
+          },
+          {
+            "label": "crash",
+            "repository": "Matteo842/CrashBandicoot-Launcher",
+            "commit": "edc2771064132975a1870bfb7cfccceb7fbdf1ee",
+            "path": "publish_release.py",
+            "git_blob": "399b872c01e4d089c7db4a4dfb69f5454fa350d4",
+            "sha256": "3cb1a4e19efad3befbdf008b5effc4a787a168d7d5b0f148219e2fc4e5face15",
+            "bytes": 29671,
+            "retained_local_path_name": "publish_release.py"
+          }
+        ],
+        "raw_api_observations": [
+          {
+            "bytes": 1775,
+            "sha256": "ba39ee06f2d1815192a9ede00e2408a9ff74d6c4fefde424ec5ac8f97a0f14e1",
+            "retained_path_name": "crash-current-a86967bd0a7ca450017d95823401edc6bd67bf3e.json"
+          },
+          {
+            "bytes": 4169,
+            "sha256": "83d4935187d455830306db0eb533b22e7be7ec333e4214b553f31cc05fb3e677",
+            "retained_path_name": "crash-current-commit.json"
+          },
+          {
+            "bytes": 25746,
+            "sha256": "4ef364d65d50a51e34e7e346e0d81b8648ca4a237414023001325b82f862e8f0",
+            "retained_path_name": "crash-current-e92f185e22dde6308d26351e50282e0918d1bcef.json"
+          },
+          {
+            "bytes": 135761,
+            "sha256": "796f1a561aadb9cef001fab240547ffdf20f630ae66abda9b6032cb8479743be",
+            "retained_path_name": "crash-current-tree.json"
+          },
+          {
+            "bytes": 1775,
+            "sha256": "ba39ee06f2d1815192a9ede00e2408a9ff74d6c4fefde424ec5ac8f97a0f14e1",
+            "retained_path_name": "crash-release-a86967bd0a7ca450017d95823401edc6bd67bf3e.json"
+          },
+          {
+            "bytes": 10696,
+            "sha256": "af6d1962230e5ce759e6891edadabae069087862e76aa35e39fc82d21f68bf5e",
+            "retained_path_name": "crash-release-commit.json"
+          },
+          {
+            "bytes": 25746,
+            "sha256": "4ef364d65d50a51e34e7e346e0d81b8648ca4a237414023001325b82f862e8f0",
+            "retained_path_name": "crash-release-e92f185e22dde6308d26351e50282e0918d1bcef.json"
+          },
+          {
+            "bytes": 124042,
+            "sha256": "116b61c6b219c2d494b156ca70ec002708cb46086bae32c7ce5db6ece938d0db",
+            "retained_path_name": "crash-release-tree.json"
+          },
+          {
+            "bytes": 14948,
+            "sha256": "99850e082bcf07334603a21f211481a405696a280b36b78562d50881ac51508c",
+            "retained_path_name": "crash-release.json"
+          },
+          {
+            "bytes": 5924,
+            "sha256": "4636946c694ec048e3e83b521658bac01e2bd5a854e4c55797d2d326c5187a40",
+            "retained_path_name": "crash-repo.json"
+          },
+          {
+            "bytes": 24186,
+            "sha256": "df4ab256a7efcf33e431e3966d64ed3c13e6754620226c6e2dbe3d8ea5b5933c",
+            "retained_path_name": "vandal-current-17cb286430a4d8094e473d06bd7f50f40438ddba.json"
+          },
+          {
+            "bytes": 2361,
+            "sha256": "fe560a1a01e0779406e3902569f109a784e30455120f76b15e39bffef1b67907",
+            "retained_path_name": "vandal-current-17d9e7043899bea8bcb81d56c86771e2490a4a3b.json"
+          },
+          {
+            "bytes": 7601,
+            "sha256": "76e1e3b4730d61173b51c84dc8f0e05d8a359c1786618db6a2f77c6ac6458c69",
+            "retained_path_name": "vandal-current-3ee5b9ce93be5a0c8d41b780262dfceaa71bb621.json"
+          },
+          {
+            "bytes": 20800,
+            "sha256": "feebccd85eba4bfa09362af2a1265534aed2f47bbf373f7ed466f609515bbfb5",
+            "retained_path_name": "vandal-current-8f5363b3794840f25d523480e42bf5022f597305.json"
+          },
+          {
+            "bytes": 18044,
+            "sha256": "1672ff7babbbefc31d31510c37d4c81c0cefc85aae07a859f0e6e742aa3435a5",
+            "retained_path_name": "vandal-current-commit.json"
+          },
+          {
+            "bytes": 140390,
+            "sha256": "19c72f5dec50fb854a402a81a8334a0cbbd6bcceaca4f345b478db7820bec150",
+            "retained_path_name": "vandal-current-tree.json"
+          },
+          {
+            "bytes": 24186,
+            "sha256": "df4ab256a7efcf33e431e3966d64ed3c13e6754620226c6e2dbe3d8ea5b5933c",
+            "retained_path_name": "vandal-release-17cb286430a4d8094e473d06bd7f50f40438ddba.json"
+          },
+          {
+            "bytes": 2361,
+            "sha256": "fe560a1a01e0779406e3902569f109a784e30455120f76b15e39bffef1b67907",
+            "retained_path_name": "vandal-release-17d9e7043899bea8bcb81d56c86771e2490a4a3b.json"
+          },
+          {
+            "bytes": 7601,
+            "sha256": "76e1e3b4730d61173b51c84dc8f0e05d8a359c1786618db6a2f77c6ac6458c69",
+            "retained_path_name": "vandal-release-3ee5b9ce93be5a0c8d41b780262dfceaa71bb621.json"
+          },
+          {
+            "bytes": 20800,
+            "sha256": "feebccd85eba4bfa09362af2a1265534aed2f47bbf373f7ed466f609515bbfb5",
+            "retained_path_name": "vandal-release-8f5363b3794840f25d523480e42bf5022f597305.json"
+          },
+          {
+            "bytes": 4776,
+            "sha256": "4378a301b7e3e8dae68c0c8656b82add8422295f4e08bd522f0874878f9651f0",
+            "retained_path_name": "vandal-release-commit.json"
+          },
+          {
+            "bytes": 140390,
+            "sha256": "37c72070c15c2a51ce9d6e8f2c61c69c34e28cdfc6a302059877cdf22fc660ca",
+            "retained_path_name": "vandal-release-tree.json"
+          },
+          {
+            "bytes": 19337,
+            "sha256": "eaba24ffb62bba2aeb16d7ecd76239ca4c72e5440bdf5b7bbc2b196a6649b948",
+            "retained_path_name": "vandal-release.json"
+          },
+          {
+            "bytes": 6142,
+            "sha256": "725f0158f9bd96a6bd845f40eafb1da59074f0fb9e351354fdd2137c78789964",
+            "retained_path_name": "vandal-repo.json"
+          }
+        ],
+        "counts": {
+          "distinct_repo_commit_path_blob_bindings": 60,
+          "unique_content_blobs": 33,
+          "complete_tree_roles": 4
+        },
+        "limits": "Public source/API bytes only; no package, executable, original, helper or game acquired/executed. Component/source statements are not exhaustive artifact compliance or reproducible source-to-binary proof."
+      }
+    },
+    {
+      "record": "reviewer-symphony-refresh",
+      "manifest_sha256": "7be87aa4eadce75ade48ebcc339ce1ba5a55f4fcb5512d27f5bf9c77158b2a37",
+      "observations": {
+        "trees": [
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "entries": 571,
+            "sha256": "2bd7677e2f00a0ded511e1615cb1a078501a2d641257ddb19c0bc8073bd54c37",
+            "truncated": false,
+            "gitlinks": [
+              {
+                "path": "RecompOne",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "4259b76fa923d1e607a6b3379ef908cb5d5b9354"
+              },
+              {
+                "path": "mods",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "d68bef33c1c046220104ad72f50098559231437c"
+              }
+            ],
+            "retained_path_name": "current-tree.json"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "entries": 523,
+            "sha256": "f9f151ac7c7650ae6f410c56d29eec4eae3de5e512108fa1e2d043c0bf11465c",
+            "truncated": false,
+            "gitlinks": [
+              {
+                "path": "RecompOne",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "132378d788ea68940920f5df4cc1819bdf3d500f"
+              },
+              {
+                "path": "mods",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "f07889931f70819511a350b8e45e0c94f4506392"
+              }
+            ],
+            "retained_path_name": "release-tree.json"
+          },
+          {
+            "role": "current-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "4259b76fa923d1e607a6b3379ef908cb5d5b9354",
+            "entries": 285,
+            "sha256": "64bff41ad923d8cb3eedeb58a3490015bc7cac74033c9b089e91d1061b596dc4",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "current-RecompOne-tree.json"
+          },
+          {
+            "role": "current-mods",
+            "repository": "BlackLabelHQ/SymphonyRecompMods",
+            "commit": "d68bef33c1c046220104ad72f50098559231437c",
+            "entries": 4,
+            "sha256": "8d62b2b09df4ba613421ed1bcae204a3abaea6d9ef7d7d614870145716665be8",
+            "truncated": false,
+            "gitlinks": [
+              {
+                "path": "blackout",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "54b3ceaf58a60b3e05ae863a7c8ceeae2aab09cb"
+              },
+              {
+                "path": "shaders",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "1b6201c5f6d7324006e50bfcfb26586629eea6b6"
+              }
+            ],
+            "retained_path_name": "current-mods-tree.json"
+          },
+          {
+            "role": "release-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "132378d788ea68940920f5df4cc1819bdf3d500f",
+            "entries": 235,
+            "sha256": "d4d9bffe0dbfc13f295b5126730f1f6cae42bbb7c36149049c36ff1d37a9446c",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "release-RecompOne-tree.json"
+          },
+          {
+            "role": "release-mods",
+            "repository": "BlackLabelHQ/SymphonyRecompMods",
+            "commit": "f07889931f70819511a350b8e45e0c94f4506392",
+            "entries": 4,
+            "sha256": "094d81cdc62469b3dd0e449ce22d4ab70f353b8a20e5db6931fbe7f7b33f6f75",
+            "truncated": false,
+            "gitlinks": [
+              {
+                "path": "blackout",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "00aeb9eed6315058d4423a763edfd5ccc1006802"
+              },
+              {
+                "path": "shaders",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "175742f36f93b36488d9ab8472415e93a10afa12"
+              }
+            ],
+            "retained_path_name": "release-mods-tree.json"
+          },
+          {
+            "role": "release-mods-blackout",
+            "repository": "BlackLabelHQ/BlackoutMod",
+            "commit": "00aeb9eed6315058d4423a763edfd5ccc1006802",
+            "entries": 4,
+            "sha256": "abcb2e3eb3313ff0088a0b260d517ab0e5c8a27ac77fff754782d520a6881f5f",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "release-mods-blackout-tree.json"
+          },
+          {
+            "role": "release-mods-shaders",
+            "repository": "BlackLabelHQ/ShaderMod",
+            "commit": "175742f36f93b36488d9ab8472415e93a10afa12",
+            "entries": 8,
+            "sha256": "a24c021404ef9041f1a1c07db131fc48b848b7313b5e3b5d2bdf47461ea7ac34",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "release-mods-shaders-tree.json"
+          },
+          {
+            "role": "current-mods-blackout",
+            "repository": "BlackLabelHQ/BlackoutMod",
+            "commit": "54b3ceaf58a60b3e05ae863a7c8ceeae2aab09cb",
+            "entries": 4,
+            "sha256": "698099ff057184d15f145efc5178afc0fa9485aca3b669bc0bc8e85402495ec9",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "current-mods-blackout-tree.json"
+          },
+          {
+            "role": "current-mods-shaders",
+            "repository": "BlackLabelHQ/ShaderMod",
+            "commit": "1b6201c5f6d7324006e50bfcfb26586629eea6b6",
+            "entries": 10,
+            "sha256": "40a86cebade7b031e387dd5cfb47752d925e906da078ea4579a100848c699db4",
+            "truncated": false,
+            "gitlinks": [],
+            "retained_path_name": "current-mods-shaders-tree.json"
+          }
+        ],
+        "bindings": [
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": ".gitmodules",
+            "git_blob": "394cecd9bcd4954a1329ba7b6186fe1741d53ef6",
+            "sha256": "3c6695fb730a09811addbbc8ceb600444c9c229dcd6f45678b5fdb075aa30fd6",
+            "bytes": 204,
+            "retained_local_path_name": ".gitmodules"
+          },
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": "README.md",
+            "git_blob": "15358635371052c2af026916fb3f50819d472a6a",
+            "sha256": "720604e82c8f1fa299a7ae323cb4f9da581f8dfeff5ec289ab72cf0bd749cc3c",
+            "bytes": 4645,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": ".gitmodules",
+            "git_blob": "394cecd9bcd4954a1329ba7b6186fe1741d53ef6",
+            "sha256": "3c6695fb730a09811addbbc8ceb600444c9c229dcd6f45678b5fdb075aa30fd6",
+            "bytes": 204,
+            "retained_local_path_name": ".gitmodules"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": "README.md",
+            "git_blob": "b60ebbd5ecd2dedf6edc672c9ef28120f15f4b59",
+            "sha256": "1e288c7a383f0090a2b16f62b41b5a60fffb508b7381706db2551be44e06f3f0",
+            "bytes": 4108,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": ".github/workflows/build.yml",
+            "git_blob": "856fd9694c60ce8255c359f64065c78362aa6f20",
+            "sha256": "8fd2f27ac28bcfce4b4a73883eb405fed287aa4a22793e05f613800ac92643ac",
+            "bytes": 1176,
+            "retained_local_path_name": "build.yml"
+          },
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": ".github/workflows/release.yml",
+            "git_blob": "0057d76abf719bc74ee963acdea7c1830a9debac",
+            "sha256": "8c9e052fbcf2ed68efebaf134f5d8ed70cd2dfc05e693d70dad21dc2f121cd3d",
+            "bytes": 4679,
+            "retained_local_path_name": "release.yml"
+          },
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": "Program.cs",
+            "git_blob": "a81d3e26dccef4679986af6acfc16a4148bf2242",
+            "sha256": "653e505b7f22ffec5058e424435acf9767df33fe1c3b12e24441cc2999e3307a",
+            "bytes": 1468,
+            "retained_local_path_name": "Program.cs"
+          },
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": "RecompOne.SoTN.csproj",
+            "git_blob": "198e1abaebe83dac71d0dd73f61ca99cb10cc5b9",
+            "sha256": "810650eb2541584ca0b997b137167952a1268dd356a830dc3f7a83c1c50bfae5",
+            "bytes": 1193,
+            "retained_local_path_name": "RecompOne.SoTN.csproj"
+          },
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": "misc/AutoUpdater.cs",
+            "git_blob": "766e597e91d569b96cc02ab6f295a5e161ac42d4",
+            "sha256": "3b8472060b3154a667dd16ead6ac39aad9bc22a7ca6a8f96c3889b7b9887ae06",
+            "bytes": 20086,
+            "retained_local_path_name": "AutoUpdater.cs"
+          },
+          {
+            "role": "current-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "4259b76fa923d1e607a6b3379ef908cb5d5b9354",
+            "path": "LICENSE",
+            "git_blob": "d50a594dcadfff37a76e3872c3f6619708fff622",
+            "sha256": "5fe34e5d43a161f111402b2d04b710966516aac31718d48b70df4a22d087d674",
+            "bytes": 1063,
+            "retained_local_path_name": "LICENSE"
+          },
+          {
+            "role": "current-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "4259b76fa923d1e607a6b3379ef908cb5d5b9354",
+            "path": "README.md",
+            "git_blob": "10701523f458b6e13e84a0590e19f8e605d5a831",
+            "sha256": "1830a5b4ebabea62d890f9bef7c437e70dedaed66ccec0141c2a0c9d135f84f9",
+            "bytes": 3007,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "role": "current-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "4259b76fa923d1e607a6b3379ef908cb5d5b9354",
+            "path": "RecompOne.Runtime/Runtime.cs",
+            "git_blob": "709e0246c6657ac3402213e18055f2246b12e87f",
+            "sha256": "5d72143430ec37a9bf10ab23751dd048a18cbe5a5191093bc47e76b610bbc921",
+            "bytes": 8863,
+            "retained_local_path_name": "Runtime.cs"
+          },
+          {
+            "role": "current-mods",
+            "repository": "BlackLabelHQ/SymphonyRecompMods",
+            "commit": "d68bef33c1c046220104ad72f50098559231437c",
+            "path": ".gitmodules",
+            "git_blob": "ce656211b7d4d590a1262b31538a7a4fb7029361",
+            "sha256": "fea5f508df54565c7d5348100bab1bfbf2790952e134c2e3da9b41856568a6a9",
+            "bytes": 216,
+            "retained_local_path_name": ".gitmodules"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": ".github/workflows/build.yml",
+            "git_blob": "856fd9694c60ce8255c359f64065c78362aa6f20",
+            "sha256": "8fd2f27ac28bcfce4b4a73883eb405fed287aa4a22793e05f613800ac92643ac",
+            "bytes": 1176,
+            "retained_local_path_name": "build.yml"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": ".github/workflows/release.yml",
+            "git_blob": "0057d76abf719bc74ee963acdea7c1830a9debac",
+            "sha256": "8c9e052fbcf2ed68efebaf134f5d8ed70cd2dfc05e693d70dad21dc2f121cd3d",
+            "bytes": 4679,
+            "retained_local_path_name": "release.yml"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": "Program.cs",
+            "git_blob": "d0c6e04f169b9ed0fd6ed81099fb918ae36924f2",
+            "sha256": "0d89ef92224b9cefe3a7cd1e33118a888ace98f63ecc769ace3c4a39b118e7f7",
+            "bytes": 1359,
+            "retained_local_path_name": "Program.cs"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": "RecompOne.SoTN.csproj",
+            "git_blob": "092a2b74c8e7180559a41064de205845c7979d84",
+            "sha256": "edcce945e7fb8baff7333e057c89553c6df36664796f6344ea220468e44f105b",
+            "bytes": 1227,
+            "retained_local_path_name": "RecompOne.SoTN.csproj"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": "misc/AutoUpdater.cs",
+            "git_blob": "bc57bcb290ffa249b00bc27a456969367a943057",
+            "sha256": "f41a6467155841d798a1ebc0ff6f6789524905fea4df8b0ee94d5a9636f9617e",
+            "bytes": 20322,
+            "retained_local_path_name": "AutoUpdater.cs"
+          },
+          {
+            "role": "release-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "132378d788ea68940920f5df4cc1819bdf3d500f",
+            "path": "LICENSE",
+            "git_blob": "d50a594dcadfff37a76e3872c3f6619708fff622",
+            "sha256": "5fe34e5d43a161f111402b2d04b710966516aac31718d48b70df4a22d087d674",
+            "bytes": 1063,
+            "retained_local_path_name": "LICENSE"
+          },
+          {
+            "role": "release-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "132378d788ea68940920f5df4cc1819bdf3d500f",
+            "path": "README.md",
+            "git_blob": "10701523f458b6e13e84a0590e19f8e605d5a831",
+            "sha256": "1830a5b4ebabea62d890f9bef7c437e70dedaed66ccec0141c2a0c9d135f84f9",
+            "bytes": 3007,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "role": "release-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "132378d788ea68940920f5df4cc1819bdf3d500f",
+            "path": "RecompOne.Runtime/Config/ConfigManager.cs",
+            "git_blob": "9ee151f347721a5e75037599156777c3e1c0abdf",
+            "sha256": "c36e2e8f19365b62ee6aa9d0a0717d2cd873670490b4862b477918edd218f584",
+            "bytes": 4086,
+            "retained_local_path_name": "ConfigManager.cs"
+          },
+          {
+            "role": "release-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "132378d788ea68940920f5df4cc1819bdf3d500f",
+            "path": "RecompOne.Runtime/Config/GameConfig.cs",
+            "git_blob": "10798472b8b44e396f5851f25b044f4ecd0e2fe6",
+            "sha256": "1811ac734cdf06d8f6d99105b97e328f681d4ce6f6402113b025f37f88c148e6",
+            "bytes": 3022,
+            "retained_local_path_name": "GameConfig.cs"
+          },
+          {
+            "role": "release-RecompOne",
+            "repository": "BlackLabelHQ/RecompOne",
+            "commit": "132378d788ea68940920f5df4cc1819bdf3d500f",
+            "path": "RecompOne.Runtime/Runtime.cs",
+            "git_blob": "4c8834dd21f334c56ff954029193ff09ad0730eb",
+            "sha256": "f26569e32bde0a62085325446bbd63f7eec90ed86c87fc4ca87f652fca2a8322",
+            "bytes": 5621,
+            "retained_local_path_name": "Runtime.cs"
+          },
+          {
+            "role": "release-mods",
+            "repository": "BlackLabelHQ/SymphonyRecompMods",
+            "commit": "f07889931f70819511a350b8e45e0c94f4506392",
+            "path": ".gitmodules",
+            "git_blob": "ce656211b7d4d590a1262b31538a7a4fb7029361",
+            "sha256": "fea5f508df54565c7d5348100bab1bfbf2790952e134c2e3da9b41856568a6a9",
+            "bytes": 216,
+            "retained_local_path_name": ".gitmodules"
+          },
+          {
+            "role": "release",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "16859f39abbeca905dcd6ab062617f19a7285fe6",
+            "path": "misc/DiscCheck.cs",
+            "git_blob": "4065fbf9697d22212b22502f0065f7b0b9099734",
+            "sha256": "a93ffaaf9c57667a3b33537ece125d6bb6b1d57eb86b15543160bbfb204e04ea",
+            "bytes": 4026,
+            "retained_local_path_name": "DiscCheck.cs"
+          },
+          {
+            "role": "current",
+            "repository": "BlackLabelHQ/SymphonyRecomp",
+            "commit": "081396cf38ed31193422e3553082f4974231a4de",
+            "path": "misc/DiscCheck.cs",
+            "git_blob": "4065fbf9697d22212b22502f0065f7b0b9099734",
+            "sha256": "a93ffaaf9c57667a3b33537ece125d6bb6b1d57eb86b15543160bbfb204e04ea",
+            "bytes": 4026,
+            "retained_local_path_name": "DiscCheck.cs"
+          }
+        ],
+        "raw_api_observations": [
+          {
+            "bytes": 6697,
+            "sha256": "dafa423c344a64ae8752bc5decdc8d8ebd5d0614c3a63aaaecfd3c4cfd0785f0",
+            "retained_path_name": "current-15358635371052c2af026916fb3f50819d472a6a.json"
+          },
+          {
+            "bytes": 574,
+            "sha256": "4b22b5349a994acd414d735dc5f6b9ad16865b89a8dd157664215156cb2e2ad6",
+            "retained_path_name": "current-394cecd9bcd4954a1329ba7b6186fe1741d53ef6.json"
+          },
+          {
+            "bytes": 72187,
+            "sha256": "64bff41ad923d8cb3eedeb58a3490015bc7cac74033c9b089e91d1061b596dc4",
+            "retained_path_name": "current-RecompOne-tree.json"
+          },
+          {
+            "bytes": 15983,
+            "sha256": "fc4c3b1f119e2d1831bcd7ef9865aba2aeffb023c76daca7a7b6b85d1f0708bd",
+            "retained_path_name": "current-commit.json"
+          },
+          {
+            "bytes": 1087,
+            "sha256": "698099ff057184d15f145efc5178afc0fa9485aca3b669bc0bc8e85402495ec9",
+            "retained_path_name": "current-mods-blackout-tree.json"
+          },
+          {
+            "bytes": 2479,
+            "sha256": "40a86cebade7b031e387dd5cfb47752d925e906da078ea4579a100848c699db4",
+            "retained_path_name": "current-mods-shaders-tree.json"
+          },
+          {
+            "bytes": 861,
+            "sha256": "8d62b2b09df4ba613421ed1bcae204a3abaea6d9ef7d7d614870145716665be8",
+            "retained_path_name": "current-mods-tree.json"
+          },
+          {
+            "bytes": 140476,
+            "sha256": "2bd7677e2f00a0ded511e1615cb1a078501a2d641257ddb19c0bc8073bd54c37",
+            "retained_path_name": "current-tree.json"
+          },
+          {
+            "bytes": 574,
+            "sha256": "4b22b5349a994acd414d735dc5f6b9ad16865b89a8dd157664215156cb2e2ad6",
+            "retained_path_name": "release-394cecd9bcd4954a1329ba7b6186fe1741d53ef6.json"
+          },
+          {
+            "bytes": 59455,
+            "sha256": "d4d9bffe0dbfc13f295b5126730f1f6cae42bbb7c36149049c36ff1d37a9446c",
+            "retained_path_name": "release-RecompOne-tree.json"
+          },
+          {
+            "bytes": 5957,
+            "sha256": "be451ffd67cac594320c82e12745a2f70b3237b9e045f0504865b2056388cafc",
+            "retained_path_name": "release-b60ebbd5ecd2dedf6edc672c9ef28120f15f4b59.json"
+          },
+          {
+            "bytes": 35280,
+            "sha256": "10d1ce5a6191a029c63372164564d4fdf9d3d3787a548ee3f872348f75bffb61",
+            "retained_path_name": "release-commit.json"
+          },
+          {
+            "bytes": 1087,
+            "sha256": "abcb2e3eb3313ff0088a0b260d517ab0e5c8a27ac77fff754782d520a6881f5f",
+            "retained_path_name": "release-mods-blackout-tree.json"
+          },
+          {
+            "bytes": 1992,
+            "sha256": "a24c021404ef9041f1a1c07db131fc48b848b7313b5e3b5d2bdf47461ea7ac34",
+            "retained_path_name": "release-mods-shaders-tree.json"
+          },
+          {
+            "bytes": 861,
+            "sha256": "094d81cdc62469b3dd0e449ce22d4ab70f353b8a20e5db6931fbe7f7b33f6f75",
+            "retained_path_name": "release-mods-tree.json"
+          },
+          {
+            "bytes": 128034,
+            "sha256": "f9f151ac7c7650ae6f410c56d29eec4eae3de5e512108fa1e2d043c0bf11465c",
+            "retained_path_name": "release-tree.json"
+          },
+          {
+            "bytes": 15941,
+            "sha256": "5622b66bfaebbf029d735c6bf602ec91e6ae8eb6c869c67abfd2fe60c57d998c",
+            "retained_path_name": "release.json"
+          },
+          {
+            "bytes": 6635,
+            "sha256": "432b99ca917278e53d6929aef7add45dfa648f373406a23e72be909b5dcc7cd0",
+            "retained_path_name": "repo.json"
+          }
+        ],
+        "counts": {
+          "distinct_repo_commit_path_blob_bindings": 26,
+          "unique_content_blobs": 19,
+          "complete_tree_roles": 10
+        },
+        "limits": "Textual public source/API observations only. No package/executable/original/helper acquired or executed; historical canonical native observations retain exact prior scope."
+      }
+    },
+    {
+      "record": "reviewer-rage-player",
+      "manifest_sha256": "8f78100eecceb08a4e93d78dd7faab869bc0476415ce5274593d00ce08358666",
+      "observations": {
+        "trees": [
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "entries": 1800,
+            "sha256": "707b426c5e896aab788715b152ab757f442491d16bac56d7aba7d4ed50060e25",
+            "truncated": false,
+            "gitlinks": [
+              {
+                "path": "external/libchdr",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "970a0ce060c0aa1012b1eebba1433c9a9e8ac8b9"
+              },
+              {
+                "path": "external/psyz",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "77a6bc19652ddc399f204c2ccfaeb6d38c5f64ca"
+              }
+            ],
+            "retained_path_name": "current-tree.json"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "entries": 1851,
+            "sha256": "2dc67f0302365436c8f18b99e19b1cd28bd83c19fdabb5c081aebbbbef163dc5",
+            "truncated": false,
+            "gitlinks": [
+              {
+                "path": "external/libchdr",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "970a0ce060c0aa1012b1eebba1433c9a9e8ac8b9"
+              },
+              {
+                "path": "external/psyz",
+                "mode": "160000",
+                "type": "commit",
+                "sha": "5b950544640a54b48cbb8e5c4870cf3d5ef62471"
+              }
+            ],
+            "retained_path_name": "release-tree.json"
+          }
+        ],
+        "bindings": [
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "README.md",
+            "git_blob": "24b5738a282e30d0b5a95afce00a5bafa8f9d315",
+            "sha256": "6f7f33b0ad8557a9f450af2d3838ad5b902c7fd03bbd59045e2561a6271156ba",
+            "bytes": 30825,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "LICENSE.md",
+            "git_blob": "84aa3e2785a12c2877db817ceff4fa1a6dbbbcff",
+            "sha256": "fdc344b443280d3c60d4e9029a576cbf9221495ecf0ed99ed23c6182bbf8a24f",
+            "bytes": 594,
+            "retained_local_path_name": "LICENSE.md"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "CMakeLists.txt",
+            "git_blob": "e83bc74a50bd476ec789d13c5dc9c20172b60391",
+            "sha256": "364e43f2ae3ab8b3d99e556972d122715687f7dc77963e4e3666bb26ad01aee6",
+            "bytes": 38461,
+            "retained_local_path_name": "CMakeLists.txt"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/main.c",
+            "git_blob": "96b69aa3544032b90223eafb0ab2352cec27289c",
+            "sha256": "10b905ab2f615f65383d7ba3d627ede2276ab6677b9d159548a874ea1558bef9",
+            "bytes": 7574,
+            "retained_local_path_name": "main.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/platform_paths.c",
+            "git_blob": "55351c595fbf277cc3db08d68a4936c707a3978b",
+            "sha256": "e5e44ecc6e7b522d37df89725633a6fa7cdf2123e317f9452beed51a79ef2481",
+            "bytes": 13030,
+            "retained_local_path_name": "platform_paths.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/runtime_config.c",
+            "git_blob": "468f4e124a28e1b4505556b68257c0c238f4dd4c",
+            "sha256": "9ca74387e731d0ea7c07d7fc849422f0c59a3a773865cd85f37be05fae6fa1d6",
+            "bytes": 12174,
+            "retained_local_path_name": "runtime_config.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/port_config.c",
+            "git_blob": "47eef292f5dff9f82a40a9a70db7b0b1839e4d1b",
+            "sha256": "e3f458a70b666b955c5d6237fa93ca3f12da684021dcdd3849559bb4da287fe7",
+            "bytes": 6947,
+            "retained_local_path_name": "port_config.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/host_disc.c",
+            "git_blob": "6c67c7a45e5bbea65d5381b3ebaa5aca9d7afd56",
+            "sha256": "5b0fa0a0ebdacbc390822bc05036ccf209ca6401316c89f1a63bab16c71f9204",
+            "bytes": 18589,
+            "retained_local_path_name": "host_disc.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/host_state_save.c",
+            "git_blob": "09a3b0aac2f569acce026800a54863fdc7e1a3b6",
+            "sha256": "c45b308b92bbde21a6d405ed03420ba4485120b34595c16a43743bb6ccc8a6b9",
+            "bytes": 1742,
+            "retained_local_path_name": "host_state_save.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/native_asset_importer.c",
+            "git_blob": "81ef128d4c2780feb7cfe1b22b93d46722d179f7",
+            "sha256": "c3eeb5410318ffc9d15be515aa473ac3721a9af91c4ab372a7b074429f41df75",
+            "bytes": 30486,
+            "retained_local_path_name": "native_asset_importer.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/disc_picker.c",
+            "git_blob": "057cf54f89daa2eae8fea514632218d798d0198e",
+            "sha256": "4b9f93431eb2744742de61158d85e4e0ddbe29fb9df00ae3f60fcb4c90e89c74",
+            "bytes": 1839,
+            "retained_local_path_name": "disc_picker.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/disc_stage_validation.c",
+            "git_blob": "10e7a622dcc1f5fb086d3e7fee7d4a0425fead85",
+            "sha256": "57e1535a4eebf89afdb73c10d3a50df74d74eb5538d7c5a14dfed9bb161006a7",
+            "bytes": 3683,
+            "retained_local_path_name": "disc_stage_validation.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "README.md",
+            "git_blob": "065094fa12910d55839ebb30040940b1193ab3c2",
+            "sha256": "72b4220b8af64ab38240bfedffdaf98fb61b0628e4bbe01c3271e0207dea882e",
+            "bytes": 31899,
+            "retained_local_path_name": "README.md"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "LICENSE.md",
+            "git_blob": "84aa3e2785a12c2877db817ceff4fa1a6dbbbcff",
+            "sha256": "fdc344b443280d3c60d4e9029a576cbf9221495ecf0ed99ed23c6182bbf8a24f",
+            "bytes": 594,
+            "retained_local_path_name": "LICENSE.md"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "CMakeLists.txt",
+            "git_blob": "356c82a1e69c9dc2ffdc66d59b16309465ce9314",
+            "sha256": "29fef20a14abcc2ec5503104ad91558008a96361b91766c0d51a02a4d418c4ad",
+            "bytes": 39934,
+            "retained_local_path_name": "CMakeLists.txt"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/main.c",
+            "git_blob": "56c13d2769d38d22368f9bff3fd3179184c67676",
+            "sha256": "9b41428cf1df2cd35ccea12c61f2e456ada435e25088e0e305f56d7b12694028",
+            "bytes": 8052,
+            "retained_local_path_name": "main.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/platform_paths.c",
+            "git_blob": "a65406b086d90308b5e62f427467e96b451bd100",
+            "sha256": "537668f993b4b75f3c0b36dceae18b34a62f6b97f68574812fb4647a89bfcf82",
+            "bytes": 13812,
+            "retained_local_path_name": "platform_paths.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/runtime_config.c",
+            "git_blob": "468f4e124a28e1b4505556b68257c0c238f4dd4c",
+            "sha256": "9ca74387e731d0ea7c07d7fc849422f0c59a3a773865cd85f37be05fae6fa1d6",
+            "bytes": 12174,
+            "retained_local_path_name": "runtime_config.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/port_config.c",
+            "git_blob": "bcbcea1dd113b8f73c02aee15ab68a3edc048fa1",
+            "sha256": "528e48dac762e87dfa7d9ef64c196feb781cc9d4285e7fa87df33995a9f91b58",
+            "bytes": 7887,
+            "retained_local_path_name": "port_config.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/host_disc.c",
+            "git_blob": "2c6bc00befc659f12a38ea16b368b4f336a42e5f",
+            "sha256": "05e94c135e2fa45aee9a1bbf8626a33cc1b3c26ba0350668e3fb152fcbbd50a3",
+            "bytes": 20951,
+            "retained_local_path_name": "host_disc.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/host_state_save.c",
+            "git_blob": "09a3b0aac2f569acce026800a54863fdc7e1a3b6",
+            "sha256": "c45b308b92bbde21a6d405ed03420ba4485120b34595c16a43743bb6ccc8a6b9",
+            "bytes": 1742,
+            "retained_local_path_name": "host_state_save.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/native_asset_importer.c",
+            "git_blob": "a9bf1be0cad4ae0852a0e6b72a6fdab274d047a6",
+            "sha256": "daa3819c378b51367a15d65642fb161ad14081d3ee4e5ff8d8b8036161920766",
+            "bytes": 33144,
+            "retained_local_path_name": "native_asset_importer.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/disc_picker.c",
+            "git_blob": "057cf54f89daa2eae8fea514632218d798d0198e",
+            "sha256": "4b9f93431eb2744742de61158d85e4e0ddbe29fb9df00ae3f60fcb4c90e89c74",
+            "bytes": 1839,
+            "retained_local_path_name": "disc_picker.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/disc_stage_validation.c",
+            "git_blob": "10e7a622dcc1f5fb086d3e7fee7d4a0425fead85",
+            "sha256": "57e1535a4eebf89afdb73c10d3a50df74d74eb5538d7c5a14dfed9bb161006a7",
+            "bytes": 3683,
+            "retained_local_path_name": "disc_stage_validation.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/host_storage.c",
+            "git_blob": "36844f4e628264268db660be10875a98373acf67",
+            "sha256": "0cdb10790ce46c790777a1c474816a07f8ed384060e35ea7581b6df159bd33b6",
+            "bytes": 2626,
+            "retained_local_path_name": "host_storage.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/mod_assets.c",
+            "git_blob": "901c1f62a1dfd04656cd954f02e50411d596a600",
+            "sha256": "8e12af35985fdaa89ca23433d830bc576a0881a853ea3cc5811ea38e24568576",
+            "bytes": 14585,
+            "retained_local_path_name": "mod_assets.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/diagnostic_log.c",
+            "git_blob": "26c41294717d7e13968366fae7def28a7dc0a2b5",
+            "sha256": "c1f07f180a0bc03909fd75a55c8028a1fc673d3f8a3e9b63faa533140e3270a5",
+            "bytes": 2317,
+            "retained_local_path_name": "diagnostic_log.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/car_catalog_profile.c",
+            "git_blob": "f567dd602df1ef533b20ae2035cfb618f789b4dc",
+            "sha256": "205b0656612d2b3ba1467605647d32b687a3fee819e4d2590cc4b53e34758c6e",
+            "bytes": 2779,
+            "retained_local_path_name": "car_catalog_profile.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/disc_discovery.c",
+            "git_blob": "59d00223ad70e5afb09552266b0da246085c4d9a",
+            "sha256": "2c958be5bbe1fb30128af72887f7acda76f8fa1af740f4785ac0950ec322a5aa",
+            "bytes": 6747,
+            "retained_local_path_name": "disc_discovery.c"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "docs/classic-renderer.md",
+            "git_blob": "3777fe88818c8f3011370adbd782e46919b3a468",
+            "sha256": "54d336c21bb6dd8933a4777a09f6b44361b3a91a2530192f5d2b6bb5fc359440",
+            "bytes": 5019,
+            "retained_local_path_name": "classic-renderer.md"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "rage-port.ini",
+            "git_blob": "c4031c3ce0a21dbb5642c53d4d3efb93aa097af8",
+            "sha256": "7765c08fa2cd287651ae1a32d0f0895e3a0e718b5b150aeca190aee880e1cb73",
+            "bytes": 8709,
+            "retained_local_path_name": "rage-port.ini"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/host_storage.c",
+            "git_blob": "36844f4e628264268db660be10875a98373acf67",
+            "sha256": "0cdb10790ce46c790777a1c474816a07f8ed384060e35ea7581b6df159bd33b6",
+            "bytes": 2626,
+            "retained_local_path_name": "host_storage.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/mod_assets.c",
+            "git_blob": "095d238f2a49e81e2dc15a2c4edc9133b219e6d7",
+            "sha256": "8f1c71ce0cb32f151989d0f7a678b8722be3c15c70b1f800d9576ed4ef173d38",
+            "bytes": 14589,
+            "retained_local_path_name": "mod_assets.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/diagnostic_log.c",
+            "git_blob": "26c41294717d7e13968366fae7def28a7dc0a2b5",
+            "sha256": "c1f07f180a0bc03909fd75a55c8028a1fc673d3f8a3e9b63faa533140e3270a5",
+            "bytes": 2317,
+            "retained_local_path_name": "diagnostic_log.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/car_catalog_profile.c",
+            "git_blob": "f567dd602df1ef533b20ae2035cfb618f789b4dc",
+            "sha256": "205b0656612d2b3ba1467605647d32b687a3fee819e4d2590cc4b53e34758c6e",
+            "bytes": 2779,
+            "retained_local_path_name": "car_catalog_profile.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/disc_discovery.c",
+            "git_blob": "59d00223ad70e5afb09552266b0da246085c4d9a",
+            "sha256": "2c958be5bbe1fb30128af72887f7acda76f8fa1af740f4785ac0950ec322a5aa",
+            "bytes": 6747,
+            "retained_local_path_name": "disc_discovery.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "docs/classic-renderer.md",
+            "git_blob": "3777fe88818c8f3011370adbd782e46919b3a468",
+            "sha256": "54d336c21bb6dd8933a4777a09f6b44361b3a91a2530192f5d2b6bb5fc359440",
+            "bytes": 5019,
+            "retained_local_path_name": "classic-renderer.md"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "rage-port.ini",
+            "git_blob": "233a25eb1cc218aadcc93641e1b180ce5cc706f5",
+            "sha256": "9b9187ea08043b319f4f59b76c6d9a2425c77e5686d88734ba0e74c364dc1f5a",
+            "bytes": 9131,
+            "retained_local_path_name": "rage-port.ini"
+          },
+          {
+            "role": "current",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e05387dce87164a9aec9df76c2624ee2727da067",
+            "path": "src/port/native_initialized_state.c",
+            "git_blob": "2e7e7af18361895c920c3aad300979b20f18e18d",
+            "sha256": "4a3766b3b1d9843e9f7f4a3aadc9a90e8827e83545a19fd4bb57aac01c5a655a",
+            "bytes": 80347,
+            "retained_local_path_name": "native_initialized_state.c"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "docs/release-0.6.13-alpha.md",
+            "git_blob": "7c83755ea21b4e674566640d9963f85e27833921",
+            "sha256": "f1634a367aca67ad9537a9b8fec438f66b02e4d3f1c751fc7030bb9939530a52",
+            "bytes": 1490,
+            "retained_local_path_name": "release-0.6.13-alpha.md"
+          },
+          {
+            "role": "release",
+            "repository": "khasinski/rage-racer-pc",
+            "commit": "e6b6de9a157094848074c8979c32a33a4f980c2a",
+            "path": "src/port/native_initialized_state.c",
+            "git_blob": "2e7e7af18361895c920c3aad300979b20f18e18d",
+            "sha256": "4a3766b3b1d9843e9f7f4a3aadc9a90e8827e83545a19fd4bb57aac01c5a655a",
+            "bytes": 80347,
+            "retained_local_path_name": "native_initialized_state.c"
+          }
+        ],
+        "raw_api_observations": [
+          {
+            "bytes": 2823,
+            "sha256": "2f6bccca269304e46a44622f6a1612aa413606934bc89e7b09735e3dcc97888c",
+            "retained_path_name": "current-057cf54f89daa2eae8fea514632218d798d0198e.json"
+          },
+          {
+            "bytes": 2691,
+            "sha256": "a4bdb23e97d9b504627605597f4041670059a030e6764ed17cf533d764a878c8",
+            "retained_path_name": "current-09a3b0aac2f569acce026800a54863fdc7e1a3b6.json"
+          },
+          {
+            "bytes": 5365,
+            "sha256": "56b17659d143ad19b5064a53a58ca9a8fe1170a65ff32735e5e9eaec95af57e8",
+            "retained_path_name": "current-10e7a622dcc1f5fb086d3e7fee7d4a0425fead85.json"
+          },
+          {
+            "bytes": 42760,
+            "sha256": "2f7edc6d84ff1d1c5c50faa4ed43619e243d8636c6c33e9597aa7e128c88030e",
+            "retained_path_name": "current-24b5738a282e30d0b5a95afce00a5bafa8f9d315.json"
+          },
+          {
+            "bytes": 17064,
+            "sha256": "ba4b54e9421ac46bcecd42e76562498f8fa151005d3f129e0f01c4e76db4f664",
+            "retained_path_name": "current-468f4e124a28e1b4505556b68257c0c238f4dd4c.json"
+          },
+          {
+            "bytes": 9863,
+            "sha256": "82e1cae90e652108d032d04361c08e092025f950a270aa1b17f2a6d070fac33c",
+            "retained_path_name": "current-47eef292f5dff9f82a40a9a70db7b0b1839e4d1b.json"
+          },
+          {
+            "bytes": 18246,
+            "sha256": "4612307be3f0f43a44d7eb5c1ad38d9061c2a941aef7970b55b3477dcdbb79dd",
+            "retained_path_name": "current-55351c595fbf277cc3db08d68a4936c707a3978b.json"
+          },
+          {
+            "bytes": 25906,
+            "sha256": "b17aba7ecb14965beeea3a3d1cb063ab26e5f1430161bff862643627b9b982cc",
+            "retained_path_name": "current-6c67c7a45e5bbea65d5381b3ebaa5aca9d7afd56.json"
+          },
+          {
+            "bytes": 42294,
+            "sha256": "1c3d402cea9c8cf720d49c68d565f9c7e9cd2a907a0169d9d547fbd5593ca684",
+            "retained_path_name": "current-81ef128d4c2780feb7cfe1b22b93d46722d179f7.json"
+          },
+          {
+            "bytes": 1108,
+            "sha256": "3ee7f4fb0b48a977a5a41b6d855ea24d38901be3620a5330aebc7b3ffdef35ae",
+            "retained_path_name": "current-84aa3e2785a12c2877db817ceff4fa1a6dbbbcff.json"
+          },
+          {
+            "bytes": 10727,
+            "sha256": "688b138c8635ec338322c2f5833cd4b1e23ae9ab03fd1b90f736a8ffadf96348",
+            "retained_path_name": "current-96b69aa3544032b90223eafb0ab2352cec27289c.json"
+          },
+          {
+            "bytes": 5955,
+            "sha256": "c7e95266b085ba5602c57edd8a4758da81e626cb60f62f021567160c186d05cb",
+            "retained_path_name": "current-commit.json"
+          },
+          {
+            "bytes": 53284,
+            "sha256": "e2b57f9b623f83864d90a4087ddc571c7cd9380bcab2e49feec8dee65069e198",
+            "retained_path_name": "current-e83bc74a50bd476ec789d13c5dc9c20172b60391.json"
+          },
+          {
+            "bytes": 445594,
+            "sha256": "707b426c5e896aab788715b152ab757f442491d16bac56d7aba7d4ed50060e25",
+            "retained_path_name": "current-tree.json"
+          },
+          {
+            "bytes": 2823,
+            "sha256": "2f6bccca269304e46a44622f6a1612aa413606934bc89e7b09735e3dcc97888c",
+            "retained_path_name": "release-057cf54f89daa2eae8fea514632218d798d0198e.json"
+          },
+          {
+            "bytes": 44240,
+            "sha256": "61327d017f9584966179c09fad09674f462146c6f508a4c39a6b80433b62b59c",
+            "retained_path_name": "release-065094fa12910d55839ebb30040940b1193ab3c2.json"
+          },
+          {
+            "bytes": 2691,
+            "sha256": "a4bdb23e97d9b504627605597f4041670059a030e6764ed17cf533d764a878c8",
+            "retained_path_name": "release-09a3b0aac2f569acce026800a54863fdc7e1a3b6.json"
+          },
+          {
+            "bytes": 5365,
+            "sha256": "56b17659d143ad19b5064a53a58ca9a8fe1170a65ff32735e5e9eaec95af57e8",
+            "retained_path_name": "release-10e7a622dcc1f5fb086d3e7fee7d4a0425fead85.json"
+          },
+          {
+            "bytes": 29158,
+            "sha256": "c2829324634db635f1245fa5497d7c17af5186e2e79fe6c699b8734967d3796f",
+            "retained_path_name": "release-2c6bc00befc659f12a38ea16b368b4f336a42e5f.json"
+          },
+          {
+            "bytes": 55314,
+            "sha256": "c8daf708dab635302299ba14488a8e5ee28f57c5c77ee8552c0ae9edc31f093d",
+            "retained_path_name": "release-356c82a1e69c9dc2ffdc66d59b16309465ce9314.json"
+          },
+          {
+            "bytes": 17064,
+            "sha256": "ba4b54e9421ac46bcecd42e76562498f8fa151005d3f129e0f01c4e76db4f664",
+            "retained_path_name": "release-468f4e124a28e1b4505556b68257c0c238f4dd4c.json"
+          },
+          {
+            "bytes": 11383,
+            "sha256": "503e97ba8298680efdd5bfa2284743d0589702f9088e4db87a7844ba2604df27",
+            "retained_path_name": "release-56c13d2769d38d22368f9bff3fd3179184c67676.json"
+          },
+          {
+            "bytes": 1108,
+            "sha256": "3ee7f4fb0b48a977a5a41b6d855ea24d38901be3620a5330aebc7b3ffdef35ae",
+            "retained_path_name": "release-84aa3e2785a12c2877db817ceff4fa1a6dbbbcff.json"
+          },
+          {
+            "bytes": 19320,
+            "sha256": "3f0857a9f031fb07607059e0d528528560eebb7e775c18b6ca4f185a1664d8b5",
+            "retained_path_name": "release-a65406b086d90308b5e62f427467e96b451bd100.json"
+          },
+          {
+            "bytes": 45956,
+            "sha256": "c33138ad44213fe2edba5f4d9b4246adfd3ebc340f6a65efc74535a389a27cde",
+            "retained_path_name": "release-a9bf1be0cad4ae0852a0e6b72a6fdab274d047a6.json"
+          },
+          {
+            "bytes": 11157,
+            "sha256": "a1f6f6e1b5f45cbd5df131fc1ae08c0956e023cc195fb8ccfff9061b955c4093",
+            "retained_path_name": "release-bcbcea1dd113b8f73c02aee15ab68a3edc048fa1.json"
+          },
+          {
+            "bytes": 23672,
+            "sha256": "a7c6e17451e998a69fab3b7257ce9ce2623cf4d1abcc27c76564820469b4183c",
+            "retained_path_name": "release-commit.json"
+          },
+          {
+            "bytes": 458217,
+            "sha256": "2dc67f0302365436c8f18b99e19b1cd28bd83c19fdabb5c081aebbbbef163dc5",
+            "retained_path_name": "release-tree.json"
+          },
+          {
+            "bytes": 15464,
+            "sha256": "37eea4c42d41e75952326343bfc4b0ca5029a890d166c867a49a3cd721545d22",
+            "retained_path_name": "release.json"
+          },
+          {
+            "bytes": 5445,
+            "sha256": "ebbd29e1620a9f2f1e96d05dc30da4094b660afddcf924b67d3d366ba9155d80",
+            "retained_path_name": "repo.json"
+          }
+        ],
+        "counts": {
+          "distinct_repo_commit_path_blob_bindings": 41,
+          "unique_content_blobs": 30,
+          "complete_tree_roles": 2
+        },
+        "limits": "Textual public source/API bytes only; original frozen reviewer-psx-next manifest untouched. No package/original/executable/helper acquired or executed."
+      }
+    }
+  ],
+  "counts": {
+    "distinct_repo_commit_path_blob_bindings": 127,
+    "unique_content_blobs": 82,
+    "complete_tree_reference_roles": 16,
+    "distinct_repo_commit_tree_bindings": 16,
+    "unique_tree_objects": 16
+  },
+  "rights_boundary": "Publisher-supported already-permitted completed-player use is narrower than whole-source/package/component/redistribution grants. Rage fresh-acquisition condition and Vandal excluded-component condition remain; Symphony broader top/mod rights and managed holds remain. No missing optional LICENSE alone is classified a prohibition.",
+  "evidence_boundary": "No upstream package/original/ROM/helper/compiler/game acquisition/execution this batch. Historical actual qualification stays with its exact owner/version. Source/API/authoring and eventual inert Core tests are not native-game, whole-original/package/DLL authenticity, gameplay/save/state/installed/protected acceptance.",
+  "composition_authority": "Final PR/receipts own source/base, exact-head CI, independent target review, guarded merge and canonical readback."
+}

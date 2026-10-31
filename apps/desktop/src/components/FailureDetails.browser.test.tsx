@@ -22,40 +22,130 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("announces repeated task outcomes without creating duplicate landmarks", async () => {
+it("primes task announcements before work and retains repeated outcomes", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const host = document.body.appendChild(document.createElement("div"));
   const root = createRoot(host);
   let state!: ReturnType<typeof useOperationState>;
+  let finishReadback!: () => void;
   function Fixture() {
-    state = useOperationState({ refresh: async () => {} });
+    state = useOperationState({
+      refresh: () =>
+        new Promise<void>((resolve) => {
+          finishReadback = resolve;
+        }),
+    });
     return (
       <StatusLayer clearError={() => state.setError(undefined)} invocations={state.invocations} />
     );
   }
   try {
     await act(async () => root.render(<Fixture />));
+    const region = host.querySelector('[data-invocation-announcements][role="status"]');
+    expect(region).not.toBeNull();
+    expect(region!.textContent).toBe("");
     const announcedIds = new Set<string>();
     for (let attempt = 0; attempt < 2; attempt++) {
+      let finishTask!: () => void;
+      let performed!: Promise<unknown>;
       await act(async () => {
-        await state.perform("review install", async () => undefined);
+        performed = state.perform(
+          "review install",
+          () =>
+            new Promise<void>((resolve) => {
+              finishTask = resolve;
+            }),
+        );
       });
-      const announcements = [...host.querySelectorAll('[role="status"]')];
-      expect(announcements).toHaveLength(1);
-      expect(announcements[0]?.textContent).toContain("finished");
-      const id = announcements[0]
-        ?.closest("[data-invocation-id]")
-        ?.getAttribute("data-invocation-id");
-      expect(id).toBeTruthy();
-      expect(announcedIds.has(id!)).toBe(false);
-      announcedIds.add(id!);
+      const invocation = [...state.invocations.values()].find(
+        (record) => record.phase === "pending",
+      )!;
+      const message = region!.querySelector(`[data-announcement-invocation-id="${invocation.id}"]`);
+      expect(message).not.toBeNull();
+      expect(message!.textContent).toContain("review install · Current library");
+      expect(message!.textContent).not.toContain("finished");
+      expect(host.querySelector("[data-invocation-announcements]")).toBe(region);
+      await act(async () => {
+        finishTask();
+        await Promise.resolve();
+      });
+      expect(message!.textContent).toContain("finished; refreshing current state");
+      expect(region!.querySelector(`[data-announcement-invocation-id="${invocation.id}"]`)).toBe(
+        message,
+      );
+      await act(async () => {
+        finishReadback();
+        await performed;
+      });
+      expect(message!.textContent).toContain("finished.");
+      expect(message!.textContent).not.toContain("refreshing");
+      expect(region!.querySelector(`[data-announcement-invocation-id="${invocation.id}"]`)).toBe(
+        message,
+      );
+      expect(host.querySelectorAll('[role="status"]')).toHaveLength(1);
+      expect(announcedIds.has(String(invocation.id))).toBe(false);
+      announcedIds.add(String(invocation.id));
     }
-    expect(host.querySelectorAll('[data-invocation-id][role="group"]').length).toBe(2);
+    expect(host.querySelectorAll('[data-invocation-id][role="group"]')).toHaveLength(2);
+    expect(region!.querySelectorAll("[data-announcement-invocation-id]")).toHaveLength(2);
     expect(announcedIds.size).toBe(2);
-    const report = await axe.run(host, {
-      runOnly: { type: "rule", values: ["landmark-unique"] },
-    });
+    const report = await axe.run(host, { runOnly: { type: "rule", values: ["landmark-unique"] } });
     expect(report.violations).toEqual([]);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it("retains independently attributed announcements for simultaneous settlements", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  let state!: ReturnType<typeof useOperationState>;
+  function Fixture() {
+    state = useOperationState({ refresh: async () => {} });
+    return <StatusLayer clearError={() => {}} invocations={state.invocations} />;
+  }
+  try {
+    await act(async () => root.render(<Fixture />));
+    const region = host.querySelector("[data-invocation-announcements]");
+    expect(region).not.toBeNull();
+    expect(region!.textContent).toBe("");
+    const finish: (() => void)[] = [];
+    const performed: Promise<unknown>[] = [];
+    await act(async () => {
+      for (const id of ["first", "second"])
+        performed.push(
+          state.perform(
+            "verify",
+            () =>
+              new Promise<void>((resolve) => {
+                finish.push(resolve);
+              }),
+            {
+              refresh: "none",
+              context: {
+                action: "Check installed files",
+                target: { kind: "port", id, label: `Owned ${id} game` },
+                libraryGeneration: 0,
+                exclusionScope: "target",
+              },
+            },
+          ),
+        );
+    });
+    const messages = [...region!.querySelectorAll("[data-announcement-invocation-id]")];
+    expect(messages).toHaveLength(2);
+    await act(async () => {
+      finish.forEach((resolve) => resolve());
+      await Promise.all(performed);
+    });
+    expect(host.querySelector("[data-invocation-announcements]")).toBe(region);
+    expect([...region!.querySelectorAll("[data-announcement-invocation-id]")]).toEqual(messages);
+    for (const [index, id] of ["first", "second"].entries())
+      expect(messages[index]!.textContent).toBe(
+        `Check installed files · Owned ${id} game: finished.`,
+      );
   } finally {
     await act(async () => root.unmount());
     host.remove();

@@ -8,6 +8,17 @@ and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
 effective. Preparation, a successful rehearsal and an ordinary merge each retain
 their own scope; publication requires its existing explicit authority.
 
+The first public beta application release is Windows x86-64 only at the existing
+supported Windows/WebView2 baseline. Follow the
+[Windows/shared release boundary](DELIVERY.md#first-public-beta-host-boundary).
+Linux remains planned for a subsequent beta; retain its implementation, metadata
+and completed/unfinished evidence without requiring an unshipped Linux or macOS
+application artifact for this launch. Shared checks keep their appropriate hosts.
+The additive `initial-beta-windows-x86_64-v1` profile must be delivered through
+the existing machinery and qualified on actual candidate bytes before use; this
+document does not claim it is implemented or authorize publication. The `full`
+and historical `initial-beta-win-linux` paths remain explicit broader profiles.
+
 ### Preflight
 
 Establish the [frozen source and input identities](#frozen-source-consistency)
@@ -1023,9 +1034,12 @@ does not prove immutable tag rules, absence of bypass actors or production secre
 isolation. Actual platform enforcement must be independently provisioned and
 proven before any secret-bearing job executes. Installed role sources are not
 provider enforcement or grants. Actual host and issuer qualification, protected
-configuration, custody, eligible coordinator state and real Windows/Linux public
-recovery proof remain under #534. The existing canonical owner packet binds the
-final reviewed controller, configuration and exact protected grant before use.
+configuration, custody, eligible coordinator state and real public recovery
+proof for the selected application release profile remain under #534. The first
+Windows beta still requires its actual Windows/shared proof; Linux application
+recovery remains required for the retained broader profile and subsequent Linux
+release. The existing canonical owner packet binds the final reviewed
+controller, configuration and exact protected grant before use.
 
 ### Durable local coordinator checkpoints
 
@@ -1084,7 +1098,9 @@ not classification authority or a recurring personal approval requirement.
 This supplies nonproduction local persistence/refusal controls for #534. Trusted
 execution/principal enforcement, producer-job/attempt/artifact binding, isolated
 candidate runners/caches, protected remote durability, custody, signing/feed
-activation and actual Windows/Linux public recovery proof remain separate.
+activation and actual public recovery proof for the selected release profile
+remain separate. The Windows-only scope does not supply missing Windows proof
+or complete deferred Linux acceptance.
 
 ### Bounded no-spend attempt eligibility (Slice 4)
 
@@ -1268,14 +1284,24 @@ Results identify the role as `package-aggregate-assembler`. Authenticated
 assembler and original compiler identities remain null. SBOM finalization and
 release authorization remain `not-evaluated`. There is no workflow, upload,
 attestation, signing, installation or publication activation. In particular,
-running the existing finalizer in a controller checkout would evaluate its
-Linux release gate against that checkout; this interface does not do so or
-bypass #706. A future finalizer still needs independently authenticated exact
+running the retained broader-profile finalizer in a controller checkout would
+evaluate its Linux release gate against that checkout; this interface does not
+do so or bypass #706. The Windows-only profile instead uses its source-bound
+non-authorizing audit assessment; that assessment grants no signing or
+publication authority and does not waive shared scan failures. A future
+finalizer still needs independently authenticated exact
 candidate/scan/publication evidence, applicable qualification, authenticated
 producing run/attempt/job and exact artifact/attestation binding through the
 existing protected architecture.
 
 ### Bounded artifact-to-aggregate integration
+
+The existing Windows/Linux profile below retains its exact broader package and
+evidence contract. The first Windows-only beta instead requires the additive
+`initial-beta-windows-x86_64-v1` path to be delivered, independently reviewed and
+qualified through the same machinery; its implementation and protected
+source/resource/activation holds are not satisfied by choosing a name or omitting
+Linux artifacts from the broader profile.
 
 The trusted `initial-beta-win-linux` profile declares exactly six distributions:
 Windows x86-64 current-user NSIS and CLI ZIP; ordinary Linux x86-64 AppImage,
@@ -2010,23 +2036,25 @@ packaging change does not grant it or introduce another manual gate.
 
 ## Upgrade acceptance and technical previews
 
-Public beta requires the complete verified application updater under
-[#52](https://github.com/boburning/portcove/issues/52): Windows per-user NSIS,
-ordinary Linux x86-64 AppImage. Installed macOS Intel/Apple Silicon bundle
-qualification (#45/#226) follows during beta, Required before 1.0. Shared mechanisms are implemented
-incrementally, with actual platform upgrade/recovery proof before the beta
-declaration. [#46](https://github.com/boburning/portcove/issues/46) retains later
-exact production package/upgrade/rehearsal evidence for 1.0; #52 does not wait
-for its post-beta closure. Neither macOS proof nor Deck qualification, including
-#535's Gaming Mode updater proof, blocks initial #52/Public beta acceptance.
-Deck owners remain high-priority
-Public beta follow-up (Beta 2) work under #51/#213–#217/#535, Required before 1.0.
-Until their actual-device matrix passes, the Linux build may be usable on SteamOS
-but Deck is unqualified; release prose must not claim official Deck/Gaming Mode
-support, all-port compatibility or Valve Verified. Windows/ordinary Linux safety and their
-actual installed upgrade/recovery proofs remain mandatory. Later support claims
-consume the same trust foundation and require their own exact platform evidence. RC stabilizes one exact
-candidate, not all development.
+The first Windows public beta requires the complete applicable Windows/shared
+verified updater under [#52](https://github.com/boburning/portcove/issues/52):
+Windows x86-64 current-user NSIS, the existing WebView2 baseline, actual installed
+upgrade/recovery, signatures, provenance, production feed continuity and safe
+preservation. Linux application/package/native acceptance is planned for a
+subsequent beta under existing #45/#46 and component owners, consuming completed
+#225 at its actual scope. It is not a prerequisite for this Windows launch.
+Shared mechanisms and shared or Windows-affecting defects remain required
+regardless of test execution OS.
+
+Installed macOS Intel/Apple Silicon bundle qualification (#45/#226) and Deck
+qualification (#51/#213–#217/#535) retain their existing later-beta and
+Required-before-1.0 commitments. Later Linux and other platform claims require
+their own exact native/package/updater evidence; no date or pass is supplied by
+this timing change. #46 retains final production package requalification for
+1.0; #52's independently finishable Windows/shared first-beta minimum does not
+wait for that later closure. Until the actual Deck matrix passes, an available
+Linux build is not official Deck/Gaming Mode support or Valve Verified evidence.
+RC stabilizes one exact candidate, not all development.
 
 The [delivery contract](DELIVERY.md) separates application/catalog/game updates,
 Stable/Preview eligibility, updater authenticity, SHA-256 reconciliation, OS
@@ -2044,8 +2072,10 @@ backed-up libraries. Record package hashes and the unassisted first-play/recover
 scenario outside the development checkout. A preview is not evidence of universal
 catalog or platform qualification, and its plan does not authorize publication.
 
-Missing required Windows/ordinary Linux evidence keeps initial Public beta open; it does not block
-independent implementation or an otherwise eligible incremental preview. A
+Missing required Windows/shared evidence keeps the first Windows Public beta
+open; missing Linux-only application evidence keeps its subsequent Linux
+acceptance open. Neither stops unrelated implementation or an otherwise
+eligible incremental preview. A
 successful manual reinstall cannot complete the baseline updater. DEB/RPM remain
 package-manager-mediated; standalone CLI self-updating and optional extra formats
 remain outside the baseline. Record exact unsupported paths and recovery limits.

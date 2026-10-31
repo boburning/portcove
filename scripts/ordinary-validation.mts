@@ -378,6 +378,7 @@ for (const [file, tests] of [
       "apps/desktop/scripts/desktop-readiness.native.test.mts",
       "scripts/desktop-staged-layout.test.mts",
       "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
     ],
   ],
   [
@@ -470,6 +471,14 @@ for (const [file, tests] of [
   [
     "scripts/native-qualification-linux-transfer.test.py",
     ["scripts/native-qualification-linux-transfer.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-linux-native-session.mts",
+    [
+      "scripts/desktop-linux-native-session.test.mts",
+      "scripts/desktop-linux-stop.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
   ],
   [
     "apps/desktop/scripts/native-linux-isolated-plan.mts",
@@ -1029,6 +1038,10 @@ for (const [file, tests] of [
     ["scripts/release-tuf-signing.test.mts", "scripts/release-connected-fixture.test.mts"],
   ],
   ["scripts/fixtures/tuf-prekey-fixture.mts", ["scripts/release-tuf-signing.test.mts"]],
+  [
+    "scripts/fixtures/tuf-controller-guard-fixture.mts",
+    ["scripts/release-tuf-controller.test.mts"],
+  ],
   ["scripts/release-tuf-signing.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
   [
@@ -1197,6 +1210,10 @@ for (const [file, tests] of [
     ["scripts/updater-artifact-inventory.test.mts"],
   ],
   [
+    "scripts/native-qualification-posix-identity.psm1",
+    ["scripts/updater-artifact-inventory.test.mts"],
+  ],
+  [
     "scripts/fixtures/linux-prerequisites-fixture.mts",
     [
       "scripts/container-build.test.mts",
@@ -1279,7 +1296,11 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-macos-installed-update-test.mts",
   ].map((file): [string, string[]] => [
     file,
-    ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-windows-update.native.test.mts",
+    ],
   ]),
   [
     "apps/desktop/scripts/desktop-qualification-history-test.mts",
@@ -1663,8 +1684,22 @@ for (const [file, tests] of [
     ["scripts/desktop-input-observation.test.mts"],
   ],
   [
+    "apps/desktop/scripts/desktop-owned-native-session.mts",
+    [
+      "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-real-runtime-test.mts",
+    ["scripts/desktop-real-runtime.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
     "apps/desktop/scripts/desktop-test.mts",
     [
+      "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-input-observation.test.mts",
       "scripts/desktop-scenarios.test.mts",
@@ -1674,6 +1709,7 @@ for (const [file, tests] of [
       "scripts/windows-helper-checks.test.mts",
       "scripts/development-evidence.test.mts",
       "scripts/native-session-lock.test.mts",
+      "apps/desktop/scripts/desktop-native-observations.native.test.mts",
     ],
   ],
   ...[

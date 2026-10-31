@@ -1,0 +1,93 @@
+{
+  "id": "mega-man-x2-snes-recomp",
+  "name": "Mega Man X2 Recompiled",
+  "summary": "Native Mega Man X2 recompilation with an exact original and pinned Windows runtime.",
+  "project_url": "https://github.com/mstan/MegaManX2Recomp",
+  "support_tier": "beta",
+  "channels": [
+    "stable"
+  ],
+  "platforms": [
+    "windows-x86-64"
+  ],
+  "adapter": "staged-source-portable",
+  "automated_tested_platforms": [],
+  "manually_validated_platforms": [],
+  "release": {
+    "provider": "direct-manifest",
+    "direct": {
+      "windows-x86-64": {
+        "version": "v0.1.5",
+        "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.5/MegaManX2SNESRecomp-windows-x64-v0.1.5.zip",
+        "size": 13128270,
+        "sha256": "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d",
+        "published_at": "2026-10-27T22:32:18Z"
+      }
+    }
+  },
+  "source_profile": "mega-man-x2-snes-usa",
+  "executable_hints": {
+    "windows-x86-64": [
+      "MegaManX2SNESRecomp.exe"
+    ]
+  },
+  "runtime_source_filename": "game.sfc",
+  "runtime_source_materialization": "copy",
+  "runtime_source_hashes": {
+    "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
+  },
+  "launch_arguments": [
+    "--no-launcher",
+    "game.sfc"
+  ],
+  "launch_environment": {
+    "SNESRECOMP_NO_LAUNCHER": "1"
+  },
+  "persistent_paths": [
+    "game.sfc",
+    "config.ini",
+    "keybinds.ini",
+    "rom.cfg",
+    "saves",
+    "screenshots",
+    "mods/preloaded/state.toml",
+    "mods/preloaded/state.toml.tmp"
+  ],
+  "runtime_mutable_paths": [
+    ".snesrecomp_write_probe",
+    "last_run_report.json"
+  ],
+  "runtime_mutable_file_patterns": [
+    {
+      "prefix": "crash_report_",
+      "suffix": ".json"
+    },
+    {
+      "prefix": "crash_minidump_",
+      "suffix": ".dmp"
+    }
+  ],
+  "presentation": {
+    "installation_method": "portable-recompilation",
+    "source_requirements": [
+      {
+        "role": "game",
+        "profile_id": "mega-man-x2-snes-usa",
+        "label": "Mega Man X2 (USA) exact headerless SNES original",
+        "verification": "catalog-identity"
+      }
+    ],
+    "saves_and_settings": "portcove-managed",
+    "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. This fresh managed route uses the checked official Windows v0.1.5 package and starts the game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Keep config.local.ini absent and developer trace, capture, oracle and path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package.",
+    "original_game_title": "Mega Man X2",
+    "artwork": {
+      "game_id": 1742,
+      "cover_id": 284706,
+      "image_id": "co63oi",
+      "image_sha256": "33ebabec123f267f664f2918c86165be04df00b7c20dacdf8171b515c19ee2d1",
+      "game_slug": "mega-man-x2",
+      "match_kind": "underlying-game"
+    }
+  },
+  "windows_runtime_path_policy": "printable-ascii-max-path"
+}

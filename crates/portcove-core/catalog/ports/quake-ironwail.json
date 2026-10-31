@@ -3,13 +3,43 @@
   "listing": {
     "id": "quake-ironwail",
     "name": "Quake (Ironwail)",
-    "summary": "Upstream route: Native Quake implementation with desktop packages. Limits: Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Upstream platforms: Windows/Linux native desktop packages/source builds, exact selected CPUs unknown in frozen evidence. macOS explicitly unsupported due to OpenGL4.3 requirements. Original data: Use original Quake game data. Retained Ironwail README supports the 2021 rerelease and installed Steam Quake/add-ons through automatic discovery when no valid local Quake installation is present. Exact required classic/release PAK set and accepted data revision are not established by that README; mods/add-ons are separate data. Portcove setup/gameplay not verified.",
+    "summary": "Windows prepared-player route: use a complete permitted Ironwail0.8.2 copy and your own compatible Quake data. Preserve actual portable, store-selected and migrated profile roots; upstream owns migration and replacement. Core offers explicit nonowning registration and selected-process Play, without original/mod/save or other-platform qualification.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/andrei-drexler/ironwail",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/andrei-drexler/ironwail",
-    "issue_number": 2698
+    "issue_number": 2698,
+    "manual_setup": {
+      "help_url": "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+      "steps": [
+        {
+          "title": "Keep the complete upstream player",
+          "instruction": "Use an already permitted complete Ironwail0.8.2 Windows win64 copy with its accompanying files. Select ironwail.exe itself, not an installer, shortcut or dedicated-server mode. Its native main owns the normal Host_Frame loop. Upstream engine licensing does not license original Quake assets or arbitrary mods."
+        },
+        {
+          "title": "Finish the actual original or rerelease setup",
+          "instruction": "Use your own compatible classic or rerelease Quake data and finish upstream discovery/picker/configuration plus a normal start/quit before registration. Preserve the selected original/rerelease flavor and actual base/id1/expansion/mod set. Do not point at another edition, relabel data or replace your only creating copy to make a registration succeed. Core does not acquire, validate original PAK identities or prepare the game."
+        },
+        {
+          "title": "Keep the working player coordinates",
+          "instruction": "Use the actual prepared runtime working directory and established supported literal arguments/data/edition choices. Preserve existing absolute -basedir and custom game/root choices where used. Review exact intent and consent, then choose Play separately. No Core environment rewrite or forced portable mode is supplied."
+        },
+        {
+          "title": "Preserve old and new migration roots before changes",
+          "instruction": "Standalone copies may use their base/game folders; Windows store-selected copies can use actual Saved Games/Ironwail/original or Saved Games/Ironwail/rerelease. Keep the actual known-folder location, old Nightdive Studios/Quake tree, standalone/store/custom roots, ironwail.cfg and all saves/autosaves/screenshots/demos/mod/addon files and unknowns. Startup migration can rename episode directories and move recognized files, writing a new config and removing its old copy; it is not a read-only import. Finish any chosen upstream migration first and keep the full pre-migration tree recoverable. No cross-version mod/save/replay roundtrip is certified."
+        },
+        {
+          "title": "Keep replacement and removal ownership clear",
+          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+        }
+      ],
+      "warnings": [
+        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

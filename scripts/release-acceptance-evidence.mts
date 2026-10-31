@@ -1,3 +1,4 @@
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
@@ -242,7 +243,7 @@ export async function collectReleaseSbomEvidence(
   const matches = evidence.artifacts.filter((artifact) => artifact.name === name);
   const selectedDispatch =
     evidence.run.event === "workflow_dispatch" &&
-    accepted.release_profile === "initial-beta-win-linux";
+    isInitialBetaReleaseProfile(accepted.release_profile);
   if (!matches.length || (evidence.run.event !== "push" && !selectedDispatch))
     return {
       state: "unknown" as const,

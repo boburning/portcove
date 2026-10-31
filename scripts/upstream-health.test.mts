@@ -58,21 +58,24 @@ const boundPolicy: HealthAccountingPolicy = {
   pins: [{ ...reviewedPin, port_contract_sha256: healthArtifactHash(port, "windows-x86-64") }],
 };
 
-function provider(change: (facts: typeof fade) => void = () => {}) {
+function provider(
+  change: (facts: typeof fade) => void = () => {},
+  declaredArtifactUrl = artifactUrl,
+) {
   const facts = structuredClone(fade);
   change(facts);
   const requests: string[] = [];
   const fetch: HealthFetch = async (url, options) => {
     requests.push(url);
     assert.equal(options.redirect, "manual");
-    if (url === artifactUrl) {
+    if (url === declaredArtifactUrl) {
       assert.equal(options.method, "HEAD");
       assert.equal(options.headers.Authorization, undefined);
       return new Response(null, { status: 302 });
     }
     const base = `https://api.github.com/repos/${fade.repository.full_name}`;
     if (url === base) return Response.json(facts.repository);
-    if (url === `${base}/releases/tags/${fade.release.tag_name}`)
+    if (url === `${base}/releases/tags/${facts.release.tag_name}`)
       return Response.json(facts.release);
     if (url === `${base}/releases/${facts.release.id}/assets?per_page=100`)
       return Response.json(facts.assets);
@@ -102,6 +105,49 @@ void test("ordinary GitHub pin metadata needs no exception and grants no identit
   assert.equal(pin.identity_binding, "unbound-observation");
   assert.equal(pin.destination_availability, "unknown");
   assert.equal(pin.accepted_bytes, "unverified");
+});
+
+void test("a replacement URL stays unbound while its superseded reviewed binding is retained", async () => {
+  const replacement = structuredClone(port);
+  const artifact = replacement.release.direct["windows-x86-64"];
+  const tag = "v999-fixture";
+  artifact.url = artifact.url.replace(`/download/${reviewedPin.tag}/`, `/download/${tag}/`);
+  artifact.version = tag;
+  const remote = provider((facts) => {
+    facts.release.id += 100;
+    facts.release.tag_name = tag;
+    for (const asset of facts.assets) {
+      asset.id += 100;
+      asset.browser_download_url = asset.browser_download_url.replace(
+        `/download/${reviewedPin.tag}/`,
+        `/download/${tag}/`,
+      );
+    }
+    facts.release.assets = structuredClone(facts.assets);
+  }, artifact.url);
+  const report = await collectRepositoryHealth(
+    { ports: [replacement] },
+    {
+      ...remote,
+      now: () => now,
+      reviewedAccounting: boundPolicy,
+    },
+  );
+  assert.equal(boundPolicy.pins.length, 1);
+  assert.equal(boundPolicy.pins[0]?.url, artifactUrl);
+  assert.equal(report.collection_status, "complete", JSON.stringify(report));
+  assert.equal(report.outcome, "complete");
+  const observation = report.observations.find((record) => record.repository === artifact.url);
+  const assessed = observation?.pin_assessment;
+  assert.ok(assessed && assessed.status !== "unknown");
+  assert.equal(assessed.status, "provider-reported-pin-observed");
+  assert.equal(assessed.identity_binding, "unbound-observation");
+  assert.equal(assessed.destination_availability, "unknown");
+  assert.equal(assessed.accepted_bytes, "unverified");
+  assert.ok(
+    !remote.requests.includes(artifactUrl),
+    "historical projection does not claim old URL monitoring",
+  );
 });
 
 void test("reviewed identity survives presentation and other platform edits", async () => {

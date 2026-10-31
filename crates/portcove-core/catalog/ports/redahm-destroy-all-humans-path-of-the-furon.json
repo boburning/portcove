@@ -16,6 +16,36 @@
       "image_sha256": "006284fde5d80cb1c49e1163b7657da68b27daf7fcfb85b1d90abf887761170b",
       "game_slug": "destroy-all-humans-path-of-the-furon",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/masterspike52/reDAHM/blob/da958b288c6f8f42812b9f36b08c29ffdd7e48fd/README.md",
+      "steps": [
+        {
+          "title": "Keep an already permitted working direct player",
+          "instruction": "Use an already permitted working Windows x64 redahm.exe copy, its complete actual dependencies and creating configuration. Upstream explicitly documents direct release play with one's own US original alongside optional Goopie; Goopie is not selected or granted Core lifecycle authority. No top-level project license is established by this review; publisher player instructions do not establish whole-source/component/redistribution rights."
+        },
+        {
+          "title": "Complete original extraction and path selection upstream",
+          "instruction": "Use your own US Destroy All Humans! Path of the Furon Xbox 360 original and its complete extracted assets, preserving the exact source and existing game/user/update roots. Finish the direct player's first-run path wizard outside Core. The tagged native entry persists redahm.cfg beside the actual executable, with game_data_root, user_data_root and optional update_data_root. Keep its actual valid configuration and roots; directory existence is not exact disc/XEX identity authentication. No Core ISO extraction, title-update installation or source generation is supplied."
+        },
+        {
+          "title": "Select the established actual game process",
+          "instruction": "Select redahm.exe itself, zero arguments for an already configured normal copy, and its actual established writable installation-root initial CWD. Preserve already required supported custom literal arguments and creating environment; do not redirect user data merely to register. Keep the whole adjacent DLL/plugin/runtime dependency set rather than synthesizing one from source. Do not select Goopie, a build/extractor/helper or DLL. Registration itself does not run setup or play."
+        },
+        {
+          "title": "Review intent and keep replacement upstream-owned",
+          "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+        },
+        {
+          "title": "Preserve all real configuration and player paths",
+          "instruction": "Keep the complete runtime, executable-side redahm.cfg, redahm.toml, originals/extracted assets and the actual configured user/save/content/update/cache/log/mod roots, including every custom and unknown file. Absolute configured roots can be outside the runtime and must be retained separately; retain established relative coordinates with their creating CWD. Upstream wizard writes its own path config; this is not Core migration or a preservation guarantee for changing upstream versions. Keep old state with its creating runtime."
+        }
+      ],
+      "warnings": [
+        "The current release tag new is mutable in practice: its current Windows asset is 34,942,774 bytes / publisher SHA256 9c90176d7cefb88975b8b2b9c84d8c66e913578ef6b0b74296e0412bdf4e5dc8, distinct from the previously acquired 34,918,055-byte ae2d24a6... asset. Old accepted archive/native identity does not qualify changed bytes. Do not silently replace a known working copy or treat a freshly computed hash as old accepted identity.",
+        "Selected tag source and current source differ, including audio code; the README-named custom SDK fork returned HTTP404 and its exact selected binary SDK provenance is not established. Source review records the native entry and path-store boundary, not source-to-binary certification or a reproducible managed kit.",
+        "No Core-managed acquisition/preparation/Install/Update/Backup/Rollback/migration/external deletion, new SDK/.NET/compiler provisioning, exact original authentication or generic Xbox framework. No game/package/original execution, gameplay/save compatibility/installed/protected acceptance or Supported promotion is established here."
+      ]
     }
   }
 }

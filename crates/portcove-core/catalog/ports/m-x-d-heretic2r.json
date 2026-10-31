@@ -6,7 +6,6 @@
     "summary": "Play Heretic II with Heretic2R’s widescreen display, smoother effects and OGG music support.",
     "project_url": "https://github.com/m-x-d/Heretic2R",
     "issue_number": 1826,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/m-x-d/Heretic2R#installation",
     "artwork": {
@@ -34,12 +33,47 @@
         {
           "title": "Optional CD music",
           "instruction": "For OGG music, place your own CD tracks named track02.ogg through track14.ogg in base/music inside the separate runtime folder."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual Heretic2R.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
       "warnings": [
         "Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately."
       ],
       "help_url": "https://github.com/m-x-d/Heretic2R#installation"
+    },
+    "original_game_title": "Heretic II"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "m-x-d/Heretic2R",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use the Windows runtime ZIP in a separate folder. Copy your Heretic II version 1.06 base folder into it, excluding the original DLL files; keep the original installation untouched. Finish setup with Heretic2R.exe. Heretic2R stores saves, settings, screenshots and logs in your Windows Saved Games/Heretic2R folder. Keep that folder when updating the upstream runtime. For OGG music, place your own CD tracks named track02.ogg through track14.ogg in base/music inside the separate runtime folder. Complete the upstream setup in your permitted working copy before registration. Select the actual Heretic2R.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately."
     }
   }
 }

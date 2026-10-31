@@ -14,6 +14,72 @@ import {
 } from "./fixtures/signing-context-artifact-fixture.mts";
 import { syncBuiltinESMExports } from "node:module";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+
+void test("Windows native identities survive the signing-context carrier only with the explicit bound Windows assembly", () => {
+  const f = fixture();
+  const profile = "initial-beta-windows-x86_64-v1";
+  const native = hostedNativeProofFixture(
+    "windows-x86_64",
+    "payload-signing",
+    "client-minimum",
+    profile,
+  );
+  const proof = inspectHostedNativeProofFiles(native.files, native.authorities, native.producer);
+  const native_proofs = [
+    {
+      platform: "windows-x86_64",
+      transport: "fixed-hosted-job",
+      report_sha256: proof.report_sha256,
+      hosted_job: {
+        ...native.producer,
+        subject_sha256: proof.subject_sha256,
+        report_sha256: proof.report_sha256,
+        bundle_sha256: "b".repeat(64),
+      },
+    },
+  ];
+  const facts = {
+    ...f.manifest.facts,
+    assembly: {
+      schema_version: 3,
+      release_profile: profile,
+      public_build_inputs: {
+        release_profile: profile,
+        configuration_revision: "c".repeat(40),
+        manifest_sha256: "d".repeat(64),
+        artifacts: [
+          { platform: "windows-x86_64", artifact_id: 123, bytes: 22, sha256: "a".repeat(64) },
+        ],
+      },
+    },
+  };
+  const binding = {
+    ...Object.fromEntries(
+      Object.entries(f.manifest.binding).filter(([name]) => name !== "native_checks"),
+    ),
+    native_proofs,
+  };
+  const manifest = { ...f.manifest, facts, facts_sha256: digest(facts), binding };
+  const archive = (value: unknown) => f.archiveFor(Buffer.from(JSON.stringify(value)));
+  assert.deepEqual(inspectSigningContextArchive(archive(manifest)).manifest.binding, binding);
+  assert.throws(() =>
+    inspectSigningContextArchive(
+      archive({
+        ...manifest,
+        binding: { ...binding, native_proofs: [...native_proofs, native_proofs[0]] },
+      }),
+    ),
+  );
+  const oldFacts = {
+    ...facts,
+    assembly: { ...facts.assembly, release_profile: "initial-beta-win-linux" },
+  };
+  assert.throws(() =>
+    inspectSigningContextArchive(
+      archive({ ...manifest, facts: oldFacts, facts_sha256: digest(oldFacts) }),
+    ),
+  );
+});
 import { hostedNativeProofFixture } from "./fixtures/hosted-native-proof-fixture.mts";
 import { inspectHostedNativeProofFiles } from "./release-hosted-native-proof-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";

@@ -1,0 +1,194 @@
+{
+  "format_version": 1,
+  "kind": "dated four-identity selected-player evidence; not live planning or a gameplay/support ledger",
+  "owners": [2510, 2926, 1422],
+  "pickup_main": "7728082eca24bbc27715f49426c3cd99c7c36ac5",
+  "frozen_membership": "Four existing historical316/original524/frozen858 identities; 317 historical rows deduplicate to316. No membership expansion.",
+  "operations": [
+    "consent-bound explicit executable/working-directory/literal-argument registration",
+    "retained contract/relink and explicit supervised Play",
+    "preview/consent-bound registration-only removal preserving external files"
+  ],
+  "not_offered": [
+    "managed Install",
+    "managed Update",
+    "managed Backup",
+    "managed Rollback",
+    "migration",
+    "external deletion",
+    "automatic original/helper/prerequisite preparation"
+  ],
+  "evidence_sources": [
+    "classic-fps-upstream-routes-2026-10-26.json and PR3678 prior bounded package/source inspection",
+    "PR3737 and canonical371 retained Wolf source/package setup evidence",
+    "fresh repository identity, selected release metadata and pinned LICENSE content reads",
+    "four maintained prepare-port checkpoints before authoring",
+    "existing Core selected-player/adversarial suite with four independent actual embedded-ID cases"
+  ],
+  "native_game_execution": "not run; no game inputs/player/helper/installer acquired or executed by this batch",
+  "release_history_boundary": "Fresh first page/current release observations only; no new complete-history claim. Prior complete inventories retain their original scope.",
+  "baseline": {
+    "listing_count": 1424,
+    "operational_definition_count": 247,
+    "source_identity_count": 116
+  },
+  "expected_after": {
+    "listing_count": 1424,
+    "operational_definition_count": 263,
+    "source_identity_count": 116
+  },
+  "rows": [
+    {
+      "id": "doom-rpg-doomrpg-re",
+      "canonical_issue": 369,
+      "historical_1422_member": true,
+      "frozen_cohort": "original-524",
+      "repository": {
+        "full_name": "Erick194/DoomRPG-RE",
+        "id": 730009485,
+        "node_id": "R_kgDOK4MPjQ"
+      },
+      "selected_upstream": {
+        "tag": "v.0.2.2",
+        "source": "fb8e9deb7b7f6e6fa2632daf4bd79133978482da",
+        "release_id": 138254813,
+        "prerelease": false,
+        "windows_asset": {
+          "id": 147418826,
+          "name": "DoomRPG_Port.-.v.0.2.2.zip",
+          "size": 5709480,
+          "digest": null
+        }
+      },
+      "license": {
+        "source_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+        "url": "https://github.com/Erick194/DoomRPG-RE/blob/fb8e9deb7b7f6e6fa2632daf4bd79133978482da/LICENSE",
+        "scope": "GPLv3 engine source; no original-game rights supplied"
+      },
+      "selected_player": "DoomRPG/DoomRPG.exe",
+      "platforms": ["windows-x86-64"],
+      "source_setup_data_boundary": "DoomRPG.zip beside player; compatible BREW BarToZip preparation stays manual; exact mobile variant remains unqualified.",
+      "before_record_sha256": "0e72ff0c80316bc6c5ec4df198eb9da31d81fe82edf73e95538a655c2eb3cf92",
+      "record_sha256": "44e3a2dc648c6c52dc1d3a72c7b5d2529cba2ace783f4ab54a7be9931ac05d15",
+      "retained_listing_facts": "Existing metadata/artwork/help/original boundaries retained; only explicit external-ownership step added; platforms derive from the integration without losing the preexisting Wolf Linux route.",
+      "maintenance_declaration": "user-managed-update",
+      "acceptance_boundary": "Definition and selected-player operation contract only; no new original preparation, actual game/native/gameplay or managed/protected acceptance. Named canonical remaining conditions stay on the same issue."
+    },
+    {
+      "id": "doom-ii-rpg-doomiirpg-re",
+      "canonical_issue": 370,
+      "historical_1422_member": true,
+      "frozen_cohort": "original-524",
+      "repository": {
+        "full_name": "Erick194/DoomIIRPG-RE",
+        "id": 730020848,
+        "node_id": "R_kgDOK4M78A"
+      },
+      "selected_upstream": {
+        "tag": "v.0.1",
+        "source": "a979bcf9e741dee7546194d2e87c29f361d18c72",
+        "release_id": 133344832,
+        "prerelease": false,
+        "windows_asset": {
+          "id": 140013043,
+          "name": "DoomIIRPG.v0.1.zip",
+          "size": 1124693,
+          "digest": null
+        }
+      },
+      "license": {
+        "source_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+        "url": "https://github.com/Erick194/DoomIIRPG-RE/blob/a979bcf9e741dee7546194d2e87c29f361d18c72/LICENSE",
+        "scope": "GPLv3 engine source; no original-game rights supplied"
+      },
+      "selected_player": "DoomIIRPG.exe",
+      "platforms": ["windows-x86-64"],
+      "source_setup_data_boundary": "Own matching Doom 2 RPG.ipa beside player; OpenAL manual; preserve local Doom2rpg.app.",
+      "before_record_sha256": "bc8a071af0e27be46c37bfa288fbb8feb749ae1188b8462a2371bf4f61002fad",
+      "record_sha256": "fa8d628691d3965767a1bdf871ec785728d0eabd25ece8fe91eae6af8152f9e6",
+      "retained_listing_facts": "Existing metadata/artwork/help/original boundaries retained; only explicit external-ownership step added; platforms derive from the integration without losing the preexisting Wolf Linux route.",
+      "maintenance_declaration": "user-managed-update",
+      "acceptance_boundary": "Definition and selected-player operation contract only; no new original preparation, actual game/native/gameplay or managed/protected acceptance. Named canonical remaining conditions stay on the same issue."
+    },
+    {
+      "id": "wolfenstein-rpg-wolfensteinrpg-re",
+      "canonical_issue": 371,
+      "historical_1422_member": true,
+      "frozen_cohort": "original-524",
+      "repository": {
+        "full_name": "Erick194/WolfensteinRPG-RE",
+        "id": 937792318,
+        "node_id": "R_kgDON-WTPg"
+      },
+      "selected_upstream": {
+        "tag": "WolfensteinRPG-v.0.1",
+        "source": "a17066018269ff973968002ba7dd4130fcba99db",
+        "release_id": 201931447,
+        "prerelease": false,
+        "windows_asset": {
+          "id": 231920915,
+          "name": "WolfensteinRPG.v0.1.zip",
+          "size": 1150527,
+          "digest": null
+        }
+      },
+      "license": {
+        "source_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+        "url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/LICENSE",
+        "scope": "GPLv3 engine source; no original-game rights supplied"
+      },
+      "selected_player": "WolfensteinRPG.exe / working Linux AppImage or native player",
+      "platforms": ["windows-x86-64", "linux-x86-64"],
+      "source_setup_data_boundary": "Own matching Wolfenstein RPG.ipa; required bundle layout; preserve local WolfensteinRPG.app; OpenAL manual.",
+      "before_record_sha256": "116f24cb9ad61dc08e29d8f5d8136c7d2dad2bbfb187cf4e3cba79f1ab821a5c",
+      "record_sha256": "df8637f6622965fa890419ba7c8a087814c16e6b01148eb3865b7a4ba6b5171d",
+      "retained_listing_facts": "Existing metadata/artwork/help/original boundaries retained; only explicit external-ownership step added; platforms derive from the integration without losing the preexisting Wolf Linux route.",
+      "maintenance_declaration": "user-managed-update",
+      "acceptance_boundary": "Definition and selected-player operation contract only; no new original preparation, actual game/native/gameplay or managed/protected acceptance. Named canonical remaining conditions stay on the same issue."
+    },
+    {
+      "id": "openjkdf2-jedi-knight-dark-forces-ii",
+      "canonical_issue": 725,
+      "historical_1422_member": true,
+      "frozen_cohort": "original-524",
+      "repository": {
+        "full_name": "shinyquagsire23/OpenJKDF2",
+        "id": 139542792,
+        "node_id": "MDEwOlJlcG9zaXRvcnkxMzk1NDI3OTI="
+      },
+      "selected_upstream": {
+        "tag": "v0.9.9",
+        "source": "814b684c0d06bbfc6e1121941fc8a9e88e3aede7",
+        "release_id": 349246800,
+        "prerelease": true,
+        "windows_asset": {
+          "id": 467433914,
+          "name": "win64-debug.zip",
+          "size": 18249906,
+          "digest": "sha256:842d2ece45f52cd533df341107a4b415d7cd35c2ccff44100664195bc95e8c28"
+        }
+      },
+      "license": {
+        "source_blob": "77df059a14ac2122c999153e97257e33c962da64",
+        "url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/LICENSE.md",
+        "scope": "Contributor-software permission with Lucasfilm original rights and separately licensed dependencies preserved; not blanket GPL authority."
+      },
+      "selected_player": "openjkdf2-64.exe",
+      "platforms": ["windows-x86-64"],
+      "source_setup_data_boundary": "Upstream supported GOG/Steam/original layouts, optional soundtrack/expansions/mods; preserve actual imported data and all selected profiles; upstream updater owns replacement.",
+      "before_record_sha256": "f49db17fe02aa724502f518825027b3ef00ef67fbc60c6a5e64f300b12fd0878",
+      "record_sha256": "1116feadd562abed3f4b74af813f8b6042e0a2deb56795d166a9b63d3ed22f8d",
+      "retained_listing_facts": "Existing metadata/artwork/help/original boundaries retained; only explicit external-ownership step added; platforms derive from the integration without losing the preexisting Wolf Linux route.",
+      "maintenance_declaration": "user-managed-update",
+      "acceptance_boundary": "Definition and selected-player operation contract only; no new original preparation, actual game/native/gameplay or managed/protected acceptance. Named canonical remaining conditions stay on the same issue."
+    }
+  ],
+  "combined_delivery": {
+    "historical_PC_definitions": 4,
+    "CPS_frozen312_definitions": 12,
+    "new_definitions": 16,
+    "historical_1422_identities_affected": 4,
+    "membership_expansion": false,
+    "CPS_evidence": "cps-selected-player-routes-2026-10-30.json"
+  }
+}

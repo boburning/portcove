@@ -320,23 +320,7 @@ export function assessDispatchedBuild706({
     )
   )
     throw new Error("affected compiler graph requires original full-scope scanner finding");
-  // Do not turn an additional advisory warning into an initial-proof exception.
-  const { diagnostics } = parseDependencyScan(String(scan.stdout), String(scan.stderr));
-  if (
-    diagnostics.some(
-      (entry) =>
-        entry.advisory &&
-        !knownFinding706(entry) &&
-        !(
-          entry.severity === "warning" &&
-          entry.code === "unmaintained" &&
-          isRecord(entry.advisory) &&
-          entry.advisory.id === "RUSTSEC-2024-0370" &&
-          entry.advisory.package === "proc-macro-error"
-        ),
-    )
-  )
-    throw new Error("dispatched build assessment contains another advisory finding");
+  assertBuildAssessmentAdvisories(scan);
   return {
     schema_version: 1,
     disposition: "build-assessment-only",
@@ -362,6 +346,123 @@ export function assessDispatchedBuild706({
   };
 }
 
+function assertBuildAssessmentAdvisories(scan: Record<string, unknown>) {
+  // Do not turn an additional advisory warning into an initial-proof exception.
+  const { diagnostics } = parseDependencyScan(String(scan.stdout), String(scan.stderr));
+  if (
+    diagnostics.some(
+      (entry) =>
+        entry.advisory &&
+        !knownFinding706(entry) &&
+        !(
+          entry.severity === "warning" &&
+          entry.code === "unmaintained" &&
+          isRecord(entry.advisory) &&
+          entry.advisory.id === "RUSTSEC-2024-0370" &&
+          entry.advisory.package === "proc-macro-error"
+        ),
+    )
+  )
+    throw new Error("dispatched build assessment contains another advisory finding");
+}
+
+/** Windows package production still measures the original all-target scan.
+ * This does not authorize distribution or consume the Linux-only risk waiver. */
+export function assessWindowsDispatchedBuild({
+  head,
+  lockSha256,
+  scan,
+  policy,
+  now = new Date().toISOString(),
+}: {
+  head: string;
+  lockSha256: string;
+  scan: unknown;
+  policy: string;
+  now?: string;
+}) {
+  if (
+    !sha.test(head) ||
+    !sha256.test(lockSha256) ||
+    !isRecord(scan) ||
+    scan.head !== head ||
+    scan.lockSha256 !== lockSha256 ||
+    typeof scan.completedAt !== "string" ||
+    !Number.isFinite(Date.parse(now)) ||
+    !Number.isFinite(Date.parse(scan.completedAt)) ||
+    Date.parse(scan.completedAt) > Date.parse(now) ||
+    Date.parse(now) - Date.parse(scan.completedAt) > 15 * 60 * 1000
+  )
+    throw new Error("Windows dispatched build requires fresh exact-source assessment inputs");
+  const development = developmentSecurity(scan, policy);
+  assertBuildAssessmentAdvisories(scan);
+  return {
+    schema_version: 1,
+    disposition: "build-assessment-only",
+    authority: "none",
+    release_profile: "initial-beta-windows-x86_64-v1",
+    candidate: head,
+    lockSha256,
+    scanScope: scan.scope,
+    policySha256: hash(policy),
+    sourceReview: "not-authorized",
+    evaluatedAt: now,
+    scanPassed: development.scanPassed,
+    scanExitCode: development.scanExitCode,
+    knownFinding: development.knownFinding,
+    riskAuthorization: "not-evaluated",
+    releaseAuthorization: "not-evaluated",
+    pending: [
+      "authenticated-owner-amendment",
+      "protected-Windows-admission",
+      "publication-exposure-readback",
+    ],
+  };
+}
+
+/** Build-only dispatch assessment and tag publication retain separate routes.
+ * Called by the release audit after retaining the unmodified full-scope scan. */
+export async function releaseAuditDisposition({
+  root,
+  head,
+  scan,
+  environment,
+  now,
+}: {
+  root: string;
+  head: string;
+  scan: unknown;
+  environment: NodeJS.ProcessEnv;
+  now?: string;
+}) {
+  const policy = readFileSync(path.join(root, "deny.toml"), "utf8");
+  if (
+    environment.GITHUB_EVENT_NAME === "workflow_dispatch" &&
+    environment.PORTCOVE_RELEASE_PROFILE === "initial-beta-windows-x86_64-v1"
+  ) {
+    return {
+      suffix: "build-assessment.json",
+      decision: assessWindowsDispatchedBuild({
+        head,
+        lockSha256: hash(readFileSync(path.join(root, "Cargo.lock"))),
+        scan,
+        policy,
+        ...(now === undefined ? {} : { now }),
+      }),
+    };
+  }
+  if (dispatchedBuildAssessment706(environment)) {
+    return {
+      suffix: "build-assessment.json",
+      decision: assessDispatchedBuild706({
+        candidate: await candidate706(root),
+        scan,
+        policy,
+      }),
+    };
+  }
+  return { suffix: "release.json", decision: await releaseSecurity(root, scan) };
+}
 /** Routing only. Environment strings cannot appoint a risk waiver. */
 export function dispatchedBuildAssessment706(environment: NodeJS.ProcessEnv) {
   return (

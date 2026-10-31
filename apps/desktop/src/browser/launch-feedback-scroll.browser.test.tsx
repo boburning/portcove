@@ -88,9 +88,16 @@ async function reconcileSnapshotConflict(
   const replacement = point(origin);
   // Measure the actual contribution, without prescribing notice dimensions.
   expect(Math.abs(replacement.originDocumentTop - pending.originDocumentTop)).toBeGreaterThan(1);
-  expect(document.querySelector('[data-invocation-id] [role="status"]')?.textContent).toContain(
-    "finished",
+  const invocations = document.querySelectorAll('[data-invocation-id][aria-label^="Launch · "]');
+  expect(invocations).toHaveLength(1);
+  const invocation = invocations[0]!;
+  const announcement = document.querySelector(
+    `[data-announcement-invocation-id="${invocation.getAttribute("data-invocation-id")}"]`,
   );
+  expect(announcement?.parentElement).toBe(
+    document.querySelector("[data-invocation-announcements]"),
+  );
+  expect(announcement?.textContent).toContain(`${invocation.getAttribute("aria-label")}: finished`);
   allowCurrentRead();
   await controlledAct(async () => {
     window.dispatchEvent(new Event("focus"));

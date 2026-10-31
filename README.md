@@ -106,6 +106,15 @@ A port appearing in the catalog does **not** mean every platform has completed h
 
 Current priorities and blockers live in the public [Portcove Roadmap](https://github.com/users/boburning/projects/1). The meaning of Alpha, Beta, RC, and V1 lives in [docs/ROADMAP.md](docs/ROADMAP.md). The catalog can continue growing without turning every newly discovered port into a V1 blocker.
 
+The **first public beta application release targets Windows x86-64 only**, at the
+existing supported Windows/WebView2 baseline. Linux is planned for a subsequent
+beta; its implementation, support data and completed evidence remain retained.
+Shared correctness and security checks still apply wherever they run. This changes
+the application host commitment, not the original platforms of the games in the
+catalog. The [release boundary](docs/DELIVERY.md#first-public-beta-host-boundary)
+describes the remaining qualification and publication requirements. No public beta
+or new platform qualification is claimed here.
+
 ## Download the technical alpha
 
 For the graphical app, choose a **Desktop** package for your operating system

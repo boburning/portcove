@@ -17,6 +17,7 @@ import {
   assessDispatchedBuild706,
   dispatchedBuildAssessment706,
   inspectCompilerRiskAssessment706,
+  releaseAuditDisposition,
 } from "./linux-beta-risk-706.mts";
 
 import { createHash } from "node:crypto";
@@ -370,6 +371,113 @@ void test("dispatched build measures changed native source without appointing a 
       }),
     /blocking finding/u,
   );
+});
+
+void test("Windows release audit dispatch retains the full scan without Linux approval or a native graph", async (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-windows-release-audit-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const value = input();
+  const lock = "retained full-workspace lock\n";
+  writeFileSync(path.join(dir, "Cargo.lock"), lock);
+  writeFileSync(path.join(dir, "deny.toml"), scannerPolicy);
+  const scan = {
+    ...value.scan,
+    lockSha256: createHash("sha256").update(lock).digest("hex"),
+  };
+  const assess = (observed: unknown = scan) =>
+    releaseAuditDisposition({
+      root: dir,
+      head: value.candidate.head,
+      scan: observed,
+      environment: {
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v1",
+      },
+      now: value.now,
+    });
+  // No .git, Linux approval file, reviewed native baseline or cargo metadata
+  // exists here. Execute the same disposition function used by the real audit.
+  const result = await assess();
+  assert.equal(result.suffix, "build-assessment.json");
+  assert.ok("release_profile" in result.decision);
+  assert.equal(result.decision.authority, "none");
+  assert.equal(result.decision.releaseAuthorization, "not-evaluated");
+  assert.equal(result.decision.scanPassed, false);
+  assert.equal(result.decision.scanExitCode, 1);
+  assert.equal(result.decision.knownFinding, "RUSTSEC-2024-0429");
+  assert.equal(result.decision.release_profile, "initial-beta-windows-x86_64-v1");
+  assert.equal(result.decision.scanScope, "workspace-default-all-targets-all-checks");
+  assert.equal("dependencyGraphSha256" in result.decision, false);
+  for (const changed of [
+    { head: "f".repeat(40) },
+    { lockSha256: "f".repeat(64) },
+    { completedAt: "2026-10-15T23:44:59.000Z" },
+    { completedAt: "2026-10-16T00:00:01.000Z" },
+    { complete: false },
+    { scope: "Windows-only" },
+    { executionConfig: "changed" },
+    { exitCode: 0 },
+  ])
+    await assert.rejects(() => assess({ ...scan, ...changed }));
+  const warning = {
+    severity: "warning",
+    code: "unmaintained",
+    advisory: { id: "RUSTSEC-2024-0370", package: "proc-macro-error" },
+  };
+  const warnings = (entry: unknown) => ({
+    ...scan,
+    stderr: output([finding, entry], {
+      ...summary,
+      advisories: { ...summary.advisories, warnings: 1 },
+    }),
+  });
+  await assess(warnings(warning));
+  await assert.rejects(
+    () =>
+      assess(
+        warnings({
+          ...warning,
+          advisory: { ...warning.advisory, id: "RUSTSEC-OTHER" },
+        }),
+      ),
+    /another advisory/u,
+  );
+  await assert.rejects(
+    () => assess(warnings({ ...warning, code: "changed" })),
+    /another advisory/u,
+  );
+  const clean = await assess({
+    ...scan,
+    exitCode: 0,
+    stderr: output([], {
+      ...summary,
+      advisories: { errors: 0, warnings: 0, notes: 0, helps: 0 },
+    }),
+  });
+  assert.ok("release_profile" in clean.decision);
+  assert.equal(clean.decision.scanPassed, true);
+  assert.equal(clean.decision.releaseAuthorization, "not-evaluated");
+  for (const environment of [
+    { GITHUB_EVENT_NAME: "push", PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v1" },
+    { GITHUB_EVENT_NAME: "workflow_dispatch", PORTCOVE_RELEASE_PROFILE: "full" },
+    { GITHUB_EVENT_NAME: "workflow_dispatch", PORTCOVE_RELEASE_PROFILE: "initial-beta-win-linux" },
+    {
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+      PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v2",
+    },
+  ]) {
+    await assert.rejects(
+      () =>
+        releaseAuditDisposition({
+          root: dir,
+          head: value.candidate.head,
+          scan,
+          environment,
+          now: value.now,
+        }),
+      /git|repository/u,
+    );
+  }
 });
 
 void test("strict clean remediation remains build-only without requiring an exception profile", () => {

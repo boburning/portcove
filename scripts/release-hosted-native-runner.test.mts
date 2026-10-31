@@ -1,6 +1,6 @@
 /** Real bounded file rendezvous, controlled producer; no native acceptance. */
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { retainHostedNativeDiagnostics } from "./release-controller-diagnostics.mts";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -41,6 +41,18 @@ import {
   inspectNativePostSignReadiness,
   waitForNativePostSignReadiness,
 } from "./release-native-postsign-readiness.mts";
+
+/** Fixture preparation may use a read-only HOME; runtime custody still checks every ancestor. */
+function nativeFixtureDirectory(context: TestContext, prefix: string) {
+  const parent = fileURLToPath(new URL("../work/", import.meta.url));
+  mkdirSync(parent, { recursive: true, mode: 0o700 });
+  const directory = disposableDirectory(context, path.join(parent, prefix));
+  const probe = path.join(directory, "fixture-custody-probe");
+  writeFileSync(probe, "inert fixture custody", { flag: "wx", mode: 0o600 });
+  inspectNativeRuntimeCustody([probe]);
+  rmSync(probe);
+  return directory;
+}
 
 const prerequisiteJobs = (status = "completed", conclusion: string | null = "success") => ({
   total_count: 2,
@@ -208,7 +220,7 @@ void test(
     skip: process.platform !== "linux" || process.getuid?.() === 0,
   },
   (t) => {
-    const root = disposableDirectory(t, path.join(os.homedir(), ".native-workflow-handoff-"));
+    const root = nativeFixtureDirectory(t, ".native-workflow-handoff-");
     chmodSync(root, 0o700);
     const entry = new URL("./release-hosted-native-workflow.mts", import.meta.url).href;
     const code = String.raw`
@@ -318,7 +330,7 @@ void test(
     const manifest = inspectControllerToolManifest(JSON.parse(manifestBytes.toString("utf8")));
     assert.equal(manifest.source_commit, result.source.commit);
     assert.equal(manifest.source_tree, result.source.tree);
-    const root = disposableDirectory(t, path.join(os.homedir(), ".native-supervision-reaper-"));
+    const root = nativeFixtureDirectory(t, ".native-supervision-reaper-");
     chmodSync(root, 0o700);
     const tools = path.join(root, "prepared");
     mkdirSync(tools, { mode: 0o700 });
@@ -470,7 +482,7 @@ void test(
   "Linux private launch preparation preserves original Node identity and partial effects without spawning a worker",
   { timeout: 150000, skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
-    const root = disposableDirectory(t, path.join(os.homedir(), ".native-launch-preparation-"));
+    const root = nativeFixtureDirectory(t, ".native-launch-preparation-");
     chmodSync(root, 0o700);
     const entry = new URL("./release-hosted-native-launcher.mts", import.meta.url).href;
     const code = String.raw`
@@ -571,10 +583,9 @@ for (const actualCustody of [false, true])
     `native source bootstrap ${actualCustody ? "with real Linux custody" : "with controlled peers"} shares one original clock and refuses drift before importing the runner`,
     { skip: actualCustody && (process.platform !== "linux" || process.getuid?.() === 0) },
     (t) => {
-      const root = disposableDirectory(
-        t,
-        path.join(actualCustody ? os.homedir() : os.tmpdir(), ".native-source-bootstrap-"),
-      );
+      const root = actualCustody
+        ? nativeFixtureDirectory(t, ".native-source-bootstrap-")
+        : disposableDirectory(t, path.join(os.tmpdir(), ".native-source-bootstrap-"));
       const fixedNode = actualCustody ? path.join(root, "bootstrap-node") : process.execPath;
       if (actualCustody) {
         copyFileSync(process.execPath, fixedNode);
@@ -611,6 +622,10 @@ const routes={
 if(!actualCustody)routes['./release-native-runtime-custody.mts']={inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'};
 registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}&&routes[specifier])return {url:'native-bootstrap:'+specifier,shortCircuit:true};return next(specifier,context)},load(url,context,next){if(url.startsWith('native-bootstrap:'))return {format:'module',source:Object.entries(routes[url.slice('native-bootstrap:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.nativeBootstrapFixture.'+key+';').join('\n'),shortCircuit:true};return next(url,context)}});
 const api=await import(${JSON.stringify(entry)});
+process.env.PORTCOVE_CONTROL_APP_TOKEN='inert forbidden fixture credential';
+await assert.rejects(api.launchFixedHostedLinuxNativeJob('pre-sign'),/fixed controller bootstrap forbids inherited signing, observer or App credentials/);
+assert.equal(receives,0);assert.equal(imported,0);assert.equal(runs.length,0);
+delete process.env.PORTCOVE_CONTROL_APP_TOKEN;
 const needs={tool_bootstrap:{result:'success',outputs:{source_tree:'b'.repeat(40),artifact_id:'1',artifact_sha256:'c'.repeat(64)}},tool_attest:{result:'success',outputs:{bundle_artifact_id:'2',bundle_artifact_sha256:'d'.repeat(64)}}};
 async function reset(name){if(actualCustody)Object.defineProperty(process,'getuid',{value:originalGetUid,configurable:true});fault=name;config='fixed';receives=0;runs=[];providerReads=0;pathReads=0;imported=0;directory=path.join(root,name||'valid');await mkdir(directory,{mode:0o700});executingRoot=path.join(directory,'executing');await mkdir(executingRoot,{mode:0o700});worker=path.join(executingRoot,'fixed-runner.mjs');await writeFile(worker,workerCode,{mode:0o600});await writeFile(path.join(executingRoot,'manifest.json'),'{}',{mode:0o600});process.env.RUNNER_TEMP=directory;process.env.PORTCOVE_CONTROLLER_ADMISSION='inert policy';process.env.PORTCOVE_RELEASE_AUTHORITIES='{}';process.env.PORTCOVE_FIXED_NEEDS=JSON.stringify(needs);process.env.GITHUB_JOB='native_linux';process.env.GH_TOKEN='inert reader';}
 for(const name of ['','source','provider','tools','node','environment','late-tools','worker','missing-pre','changed-binding','expired','enlarged','missing-clock','bad-needs',...(actualCustody?['writable','link','foreign','replaced']:[])]){
@@ -637,6 +652,16 @@ console.log('controlled native bootstrap clock/source/tool handoff passed');
         encoding: "utf8",
         timeout: 15000,
         maxBuffer: 1024 * 1024,
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          WINDIR: process.env.SystemRoot,
+          HOME: root,
+          USERPROFILE: root,
+          TEMP: root,
+          TMP: root,
+          RUNNER_TEMP: root,
+        },
       });
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
       assert.match(
@@ -871,8 +896,7 @@ void test(
   { skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
     // /tmp is intentionally refused: its writable ancestry cannot protect code.
-    const root = mkdtempSync(path.join(os.homedir(), ".portcove-runtime-custody-"));
-    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const root = nativeFixtureDirectory(t, ".portcove-runtime-custody-");
     chmodSync(root, 0o700);
     const directory = path.join(root, "tools");
     mkdirSync(directory, { mode: 0o700 });
@@ -915,9 +939,8 @@ void test(
   "Linux runtime uses original controlled providers, exact inputs and prepared support without compiler fallback",
   { timeout: 60000, skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
-    const root = mkdtempSync(path.join(os.homedir(), ".portcove-runtime-binding-"));
+    const root = nativeFixtureDirectory(t, ".portcove-runtime-binding-");
     chmodSync(root, 0o700);
-    t.after(() => rmSync(root, { recursive: true, force: true }));
     // Hosted setup-node caches can have shared-writable ancestry. The actual
     // fixed launcher uses its verified private Node copy; match that custody.
     const fixedNode = path.join(root, "node");
@@ -948,7 +971,7 @@ function fixture(name){
  const metadata=Buffer.from(JSON.stringify({schema_version:1,product:fixed.product,platform:'linux-x86_64',compiler,input_fingerprint:fingerprint,rustc_arguments:fixed.arguments,source:{bytes:source.length,sha256:hash(source)},output:{bytes:binary.length,sha256:hash(binary),mode:0o700}}));
  const files=[];for(const name of controllerToolPaths){const filename=path.join(tools,name);mkdirSync(path.dirname(filename),{recursive:true,mode:0o700});const bytes=name===fixed.source?source:name===fixed.binary?binary:name===fixed.metadata?metadata:name==='bin/node'?readFileSync(process.execPath):Buffer.from('inert '+name);if(name!==fixed.source)writeFileSync(filename,bytes,{flag:'wx',mode:name.startsWith('bin/')?0o700:0o600});files.push({path:name,bytes:bytes.length,sha256:hash(bytes)})}
  const identity={controller_revision:'a'.repeat(40),source_tree:'b'.repeat(40),controller_ref:'refs/tags/fixed-fixture',run_id:'99',run_attempt:1};
- writeFileSync(path.join(tools,'manifest.json'),JSON.stringify({schema_version:2,source_commit:identity.controller_revision,source_tree:identity.source_tree,platform:'linux-x86_64',node_version:controllerNodeVersion,bundler:'vite-plus@1.3.0',tauri_cli_version:'2.12.2',files}),{mode:0o600});
+ writeFileSync(path.join(tools,'manifest.json'),JSON.stringify({schema_version:2,source_commit:identity.controller_revision,source_tree:identity.source_tree,platform:'linux-x86_64',node_version:controllerNodeVersion,bundler:'vite-plus@1.4.0',tauri_cli_version:'2.12.2',files}),{mode:0o600});
  const tool={},parent={};toolReceipts.set(tool,{root:tools,node:path.join(tools,'bin/node'),platform:'linux-x86_64',identity});parents.set(parent,{producer:{...identity},stage:'payload-signing',platform_label:'linux-x86_64',deadline:performance.now()+60000,recheck(){assert.ok(performance.now()<this.deadline)}});
  return {directory,tools,tool,parent,entry:path.join(tools,'scripts/release-hosted-native-runner.bundle.mjs')};
 }

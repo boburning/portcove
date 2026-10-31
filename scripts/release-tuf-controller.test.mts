@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -734,46 +737,35 @@ void test("final role output projects the retained producer result into the main
 });
 
 void test("actual TUF pre-key guard checks controls last after slow reservation read", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const { stripTypeScriptTypes } = await import("node:module");
-  const { runInNewContext } = await import("node:vm");
-  const source = await readFile(new URL("./release-tuf-controller.mts", import.meta.url), "utf8");
-  const start = source.indexOf("const guard = async () => {"),
-    end = source.indexOf("\n    await guard();", start);
-  assert(start > 0 && end > start);
-  let clock = 59000,
-    keys = 0;
-  const controls: number[] = [];
-  const guard = runInNewContext(stripTypeScriptTypes(source.slice(start, end)) + "\nguard", {
-    active: () => {
-      if (clock >= 115000) throw new Error("original job exhausted");
-    },
-    verifiedControllerToolPaths: async () => {},
-    requireRetainedSigningContext: async () => {},
-    requireRetainedTufRoleArtifact: async () => {},
-    toolsReceipt: {},
-    contextReceipt: {},
-    capturedDependencies: [],
-    directory: "inert",
-    coordinator: {},
-    deadline: 115000,
-    readRemoteCoordinatorSnapshot: async () => {
-      clock = 61000;
-      return {};
-    },
-    reservation: async () => {},
-    fresh: async () => {
-      controls.push(clock);
-      if (clock >= 60000) throw new Error("original controls expired");
-    },
-  }) as () => Promise<void>;
-  await assert.rejects(
-    (async () => {
-      await guard();
-      keys++;
-    })(),
-    /original controls expired/,
+  const environment: NodeJS.ProcessEnv = {};
+  for (const name of [
+    "PATH",
+    "Path",
+    "SystemRoot",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "TMP",
+    "TEMP",
+    "TMPDIR",
+  ])
+    if (process.env[name] !== undefined) environment[name] = process.env[name];
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      "--experimental-test-module-mocks",
+      fileURLToPath(new URL("./fixtures/tuf-controller-guard-fixture.mts", import.meta.url)),
+    ],
+    { env: environment, timeout: 25000, maxBuffer: 512 * 1024, windowsHide: true },
   );
-  assert.deepEqual(controls, [61000]);
-  assert.equal(keys, 0);
+  const result: unknown = JSON.parse(stdout);
+  assert.ok(isRecord(result) && Array.isArray(result.scenarios));
+  assert.deepEqual(
+    result.scenarios.map((scenario: unknown) => {
+      assert.ok(isRecord(scenario));
+      return scenario.mode;
+    }),
+    ["current", "stale-controls", "expired-after-controls"],
+  );
 });

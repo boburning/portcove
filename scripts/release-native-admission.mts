@@ -1,3 +1,5 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { isDeepStrictEqual } from "node:util";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
@@ -230,9 +232,9 @@ export async function inspectNativeQualificationAssociation(
   if (
     (stage !== "payload-signing" && stage !== "release-publication") ||
     !Array.isArray(rawReports) ||
-    rawReports.length !== 2 ||
+    ![1, 2].includes(rawReports.length) ||
     !Array.isArray(rawArchives) ||
-    rawArchives.length !== 2
+    ![1, 2].includes(rawArchives.length)
   )
     throw new Error("native qualification requires the exact selected two-platform pair");
   const reports = rawReports.map(inspectNativeReleaseQualification);
@@ -241,8 +243,13 @@ export async function inspectNativeQualificationAssociation(
     structuredClone(rawAssembly),
   );
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
-    !isDeepStrictEqual([...labels].sort(), ["linux-x86_64", "windows-x86_64"])
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
+    !isDeepStrictEqual(
+      [...labels].sort(),
+      [...nativePlatformsForReleaseProfile(accepted.release_profile)].sort(),
+    ) ||
+    reports.length !== labels.length ||
+    capturedArchives.length !== labels.length
   )
     throw new Error("native pair cannot qualify the unchanged full package profile");
   const archives = capturedArchives.map((raw: unknown) => {
@@ -264,9 +271,9 @@ export async function inspectNativeQualificationAssociation(
     return { platform: raw.platform, artifact_id: raw.artifact_id };
   });
   if (
-    new Set(archives.map((a) => a.platform)).size !== 2 ||
-    new Set(archives.map((a) => a.artifact_id)).size !== 2 ||
-    new Set(reports.map((r) => r.platform_label)).size !== 2
+    new Set(archives.map((a) => a.platform)).size !== labels.length ||
+    new Set(archives.map((a) => a.artifact_id)).size !== labels.length ||
+    new Set(reports.map((r) => r.platform_label)).size !== labels.length
   )
     throw new Error("native platform/archive identity is duplicated");
   for (const report of reports) {
@@ -314,9 +321,12 @@ export async function requireNativeReleaseQualificationPair(
   rawArchives: unknown,
   stage: NativeQualificationStage,
 ) {
+  const expected = nativePlatformsForReleaseProfile(
+    (await inspectTrustedAssemblyInput(rawAssembly)).accepted.release_profile,
+  );
   const validReceipts = (raw: unknown): raw is readonly object[] =>
     Array.isArray(raw) &&
-    raw.length === 2 &&
+    raw.length === expected.length &&
     raw.every((value: unknown) => typeof value === "object" && value !== null);
   if (!validReceipts(receipts))
     throw new Error("two actual native qualification receipts are required");

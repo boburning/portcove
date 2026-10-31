@@ -1,3 +1,4 @@
+import { captureParityState } from "../../../test/parity-capture";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -185,6 +186,7 @@ it("leaves a running update with valid focus without cancelling or changing its 
     .poll(() => document.activeElement)
     .toBe(container.querySelector('section[aria-label="Review game update"]'));
   expect(apply.mock.calls[0]?.slice(0, 4)).toEqual(["sample", true, expected.plan_sha256, 9]);
+  await captureParityState("game-update-continue-browsing-fixture");
   expect(cancel).not.toHaveBeenCalled();
   await act(async () => finish(stagedUpdate));
   expect(cancel).not.toHaveBeenCalled();
@@ -406,9 +408,11 @@ it("does not submit duplicate reviews or apply a stale plan after a failed chang
     (button) => button.textContent === "Checking update…",
   );
   expect(confirmation?.disabled).toBe(true);
+  await captureParityState("game-update-action-change-pending-fixture");
   await act(async () => rejectChange(new Error("Update service offline")));
   await expect.poll(dialog).toBeNull();
   expect(container.textContent).toContain("Update service offline");
+  await captureParityState("game-update-action-change-failed-fixture");
   expect(apply).not.toHaveBeenCalled();
   expect(acquire).not.toHaveBeenCalled();
 });
@@ -621,11 +625,13 @@ it("keeps update cancellation inside the busy review and locks dismissal", async
   await click("Update now");
   await click("Prepare update for later");
   expect(dialog()?.textContent).toContain("Cancel game update");
+  await captureParityState("game-update-running-fixture");
   await pressEscape();
   expect(dialog()).not.toBeNull();
   await click("Cancel game update");
   expect(cancel).toHaveBeenCalledExactlyOnceWith("update-1");
   expect(dialog()?.textContent).toContain("Cancellation requested");
+  await captureParityState("game-update-cancellation-requested-fixture");
   await act(async () => finish());
   await expect.poll(dialog).toBeNull();
 });
@@ -1152,10 +1158,12 @@ it("Activity refuses Apply while the same port has file work, but keeps unrelate
   expect(applyButton().disabled).toBe(false);
   await root.rerender(view(new Map([[1, work(port.id)]])));
   expect(applyButton().disabled).toBe(true);
+  await captureParityState("game-update-same-port-held-fixture");
   await act(async () => applyButton().click());
   expect(apply).not.toHaveBeenCalled();
   await root.rerender(view(new Map([[1, work("another-port")]])));
   expect(applyButton().disabled).toBe(false);
+  await captureParityState("game-update-unrelated-port-available-fixture");
   await click("Cancel review");
   await click("Update now");
   expect(review).toHaveBeenCalledTimes(2);
@@ -1303,12 +1311,14 @@ it.each(["acquired", "attention_required"] as const)(
       first.id,
     );
     expect(discard).not.toHaveBeenCalled();
+    await captureParityState(`game-update-archive-discard-${phase}-review-fixture`);
     await show(next);
     await expect
       .element(page.getByRole("button", { name: "Discard archive", exact: true }))
       .toBeDisabled();
     await click("Discard archive");
     expect(discard).not.toHaveBeenCalled();
+    await captureParityState(`game-update-archive-discard-${phase}-stale-fixture`);
     await click("Keep archive");
     await click("Discard archive…");
     expect(document.querySelector("[data-game-update-discard-review]")?.textContent).toContain(
@@ -1363,6 +1373,25 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
     stat.textContent?.includes("Prepared updates"),
   );
   expect(prepared?.querySelector("strong")?.textContent).toBe("0");
+  const header = container.querySelector<HTMLElement>(".update-entry > .update-row")!;
+  const actions = container.querySelector<HTMLElement>('.update-entry > [role="group"]')!;
+  const title = header.querySelector<HTMLElement>(".update-title")!;
+  const archive = actions.querySelector<HTMLElement>('[aria-label="Retained update archive"]')!;
+  expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    header.getBoundingClientRect().bottom,
+  );
+  expect(title.getBoundingClientRect().width).toBeGreaterThan(160);
+  expect(archive.getBoundingClientRect().right).toBeLessThanOrEqual(
+    container.getBoundingClientRect().right,
+  );
+  await captureParityState("game-update-archive-not-prepared-fixture");
+  await page.viewport(414, 896);
+  expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    header.getBoundingClientRect().bottom,
+  );
+  expect(archive.getBoundingClientRect().right).toBeLessThanOrEqual(414);
+  expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
+  await captureParityState("game-update-archive-not-prepared-narrow-fixture");
   await click("Play");
   expect(launch).toHaveBeenCalledExactlyOnceWith(port.id);
 });
@@ -1441,6 +1470,7 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
     "The operation finished, but library status could not be refreshed",
   );
   expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
+  await captureParityState("game-update-acquisition-receipt-stale-status-fixture");
   expect(
     [...container.querySelectorAll("button")].some(
       (button) => button.textContent === "Discard archive…",
@@ -1632,6 +1662,7 @@ it("runs immutable acquisition alongside a pending launch through the actual inv
       ),
     ).toBe(true);
     expect(owner.error).toBeUndefined();
+    await captureParityState("game-update-acquisition-alongside-launch-fixture");
     await expect
       .element(page.getByRole("button", { name: "Update now", exact: true }))
       .toBeDisabled();
@@ -1729,6 +1760,9 @@ it.each([
       archive.id,
     );
     expect(discard).not.toHaveBeenCalled();
+    await captureParityState(
+      `game-update-removed-runtime-discard-${phase}-${hasMetadata ? "metadata" : "no-metadata"}-fixture`,
+    );
     await confirmation.getByRole("button", { name: "Discard archive", exact: true }).click();
     expect(discard).toHaveBeenCalledExactlyOnceWith(retainedId, archive.id, 9);
     await expect.element(archives).not.toBeInTheDocument();

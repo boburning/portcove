@@ -3,12 +3,42 @@
   "listing": {
     "id": "super-metroid-snesrev-sm",
     "name": "Super Metroid / snesrev sm",
-    "summary": "Explore Super Metroid / snesrev sm and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register your permitted source-built experimental snesrev Super Metroid Windows player while keeping its original, configuration and diagnostic saves together.",
     "project_url": "https://github.com/snesrev/sm",
     "issue_number": 340,
     "platforms": [],
     "availability": "source-only",
     "setup_url": "https://github.com/snesrev/sm#readme",
+    "manual_setup": {
+      "help_url": "https://github.com/snesrev/sm/blob/578f90b3cc49557bb70060ad033bb90b8cf8ac50/BUILDING.md",
+      "steps": [
+        {
+          "title": "Complete the upstream source build",
+          "instruction": "Use the distinct snesrev/sm implementation under its MIT and component notices with your own supported Super Metroid original. Follow the pinned upstream Windows build instructions outside Portcove. This is an early experimental native implementation with bugs and frame-by-frame comparison against the original; a mismatch writes diagnostic snapshots. It is distinct from mstan Super Metroid and does not inherit its source, saves or qualification."
+        },
+        {
+          "title": "Choose the completed player and original",
+          "instruction": "Select your already working sm.exe. The Visual Studio Release recipe writes build/bin-x64-Release/sm.exe; the Make recipe builds the sm target at the project root. Use your established runtime root containing the configuration and saves as the working directory. Do not select run_with_tcc.bat, a compiler or another build wrapper. Keep your supported raw sm.smc, SHA-1 da957f0d63d14cb441d215462904c4fa8519c613; the guide does not establish alternate revisions, copier headers or archive representations."
+        },
+        {
+          "title": "Preserve the actual configuration and literal arguments",
+          "instruction": "For an explicit invocation use three literal tokens in this order: --config, the absolute path to your actual existing configuration, and the absolute path to your supported ROM. Preserve sm.user.ini if that is your active override; otherwise use your existing sm.ini. Keep spaces inside each path token. This explicit --config avoids upward sm.ini directory discovery, but relative data still uses the chosen working directory. Preserve an already working custom invocation rather than switching profiles."
+        },
+        {
+          "title": "Review consent, then Play",
+          "instruction": "Review and consent to the selected executable, working directory and literal arguments. Registration does not build, start or repair the game. Choose Play separately; retained registration and relink remain subject to a new review when execution intent changes. Portcove observes the selected process. Close all actual players before changing the upstream copy."
+        },
+        {
+          "title": "Preserve the experimental runtime and saves",
+          "instruction": "Upstream/player own all builds, repairs and updates. Keep the complete runtime/source tree, original, sm.ini, sm.user.ini, every selected custom configuration, saves/sm.srm and sm.srm.bak, save/replay/mismatch snapshots and all custom files. Keep diagnostic states with their creating build; this route does not migrate or establish compatibility with another build or implementation. Removing registration removes only Portcove metadata and preserves all external files."
+        }
+      ],
+      "warnings": [
+        "The MIT project grant and separate component notices do not grant rights to the original game or generated game content. Core does not authenticate the ROM or source/build provenance in this user-selected route.",
+        "This Windows selected-process route does not provide managed acquisition, compilation, Install, Update, Backup, Rollback, migration or external deletion. Actual game execution/gameplay/save-load, other platforms, exclusive process-family ownership, network/debug behavior and installed/protected delivery are not qualified here."
+      ]
+    },
+    "original_game_title": "Super Metroid",
     "artwork": {
       "game_id": 1103,
       "cover_id": 265426,
@@ -16,20 +46,6 @@
       "image_sha256": "6c552ed7337ed7a6a68fd8502d2885747bccd350af9cd4aa081f1f08060c5f6d",
       "game_slug": "super-metroid",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "steps": [
-        {
-          "title": "Prepare upstream or keep an existing game build",
-          "instruction": "Follow the linked BUILDING.md for your own Super Metroid source. Upstream expects the supported sm.smc in the runtime root and uses a frame-by-frame comparison mode, writing mismatch snapshots under saves. Keep that source/runtime layout and the upstream limitations with your own native build; this is not a packaged game download."
-        },
-        {
-          "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
-        }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/snesrev/sm#readme"
     }
   }
 }

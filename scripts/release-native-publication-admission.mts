@@ -262,7 +262,7 @@ export async function deriveHostedNativePublicationJourneys(
   });
   active();
   if (!records.length) return prepared.journeys;
-  if (records.length !== 2 || prepared.journeys.length !== 2)
+  if (records.length !== prepared.journeys.length || ![1, 2].includes(prepared.journeys.length))
     throw new Error("historical native lineage cannot mix Check and hosted authorities");
   const { collectConfiguredHostedNativePredecessors, collectOriginalNativeParentPredecessors } =
     await import("./release-hosted-native-history.mts");

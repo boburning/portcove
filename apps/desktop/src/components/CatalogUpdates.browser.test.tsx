@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -158,6 +159,25 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(technical?.textContent).toContain("1 accepted");
     expect(technical?.textContent).toContain(new Date(plan.expires_at * 1000).toLocaleString());
     expect(technical?.textContent).toContain(plan.envelope_sha256);
+    const publisherSection = document.querySelector(".catalog-publisher-trust")!;
+    const sourceReview = document.querySelector(".catalog-update-source-review")!;
+    expect(
+      sourceReview.getBoundingClientRect().top - publisherSection.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(23);
+    for (const group of [
+      publisherSection,
+      sourceReview,
+      document.querySelector('[aria-label="Catalog update review"]')!,
+    ]) {
+      const children = Array.from(group.children);
+      for (let index = 1; index < children.length; index++) {
+        expect(
+          children[index]!.getBoundingClientRect().top -
+            children[index - 1]!.getBoundingClientRect().bottom,
+        ).toBeGreaterThanOrEqual(11);
+      }
+    }
+    await captureParityState("catalog-trust-reviewed-fixture");
     await click("Review update");
     expect(document.body.textContent).toContain("No port information will change.");
     expect(document.body.querySelector('[aria-label="Affected ports"]')).toBeNull();
@@ -176,6 +196,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     await click("Apply catalog update");
     expect(apply).toHaveBeenCalledWith(plan.source, plan.plan_sha256, expect.any(Function));
     expect(document.body.textContent).toContain("Catalog changed; review again");
+    await captureParityState("catalog-update-stale-plan-fixture");
     expect(button("Apply catalog update")).toBeUndefined();
     expect(refresh).not.toHaveBeenCalled();
     await click("Review update");

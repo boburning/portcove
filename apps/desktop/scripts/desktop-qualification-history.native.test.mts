@@ -67,9 +67,14 @@ async function historyReadOracle(subject: Subject) {
   assert.equal(probe.original, original);
 }
 
-async function historyCleanupOracle(subject: Subject) {
-  const restore = subject.restoreHistoryScenario;
-  assert.equal(typeof restore, "function", "HISTORY_RESTORE_EXPORT");
+interface HistoryCleanupCase {
+  restored: unknown;
+  nativeReply: unknown;
+  failWrite: boolean;
+  primaryFailure: { error: unknown } | undefined;
+  positive: boolean;
+}
+function historyCleanupCases(): HistoryCleanupCase[] {
   const goodRestoration = { restored: true, snapshots: 1, reports: 1 };
   const noObservationsRestoration = { restored: true, snapshots: 0, reports: 0 };
   const cases: [unknown, unknown][] = [
@@ -86,7 +91,8 @@ async function historyCleanupOracle(subject: Subject) {
     [goodRestoration, { ok: true, value: [] }],
     [noObservationsRestoration, { ok: true, value: [] }],
   ];
-  for (const [restored, nativeReply] of cases) {
+  const inputs: HistoryCleanupCase[] = [];
+  for (const [restored, nativeReply] of cases)
     for (const failWrite of [false, true])
       for (const primaryFailure of [
         undefined,
@@ -97,117 +103,147 @@ async function historyCleanupOracle(subject: Subject) {
         { error: undefined },
         { error: new Error("original scenario failure") },
       ]) {
-        const actions: string[] = [];
-        const records: unknown[] = [];
-        const observation = primaryFailure ? { failure: { message: "original" } } : {};
-        const artifacts: string[] = [];
-        const originalWindow = {};
-        const result: unknown = Reflect.apply(
-          restore as (...args: unknown[]) => unknown,
-          undefined,
-          [
-            {
-              primaryFailure,
-              observation,
-              browser: {
-                executeAsyncScript: async (callback: unknown, font: unknown) => {
-                  assert.equal(typeof callback, "function", "HISTORY_RESTORE_CALLBACK");
-                  assert.equal(font, "");
-                  return restored;
-                },
-                manage: () => ({
-                  window: () => ({
-                    setRect: async (rect: unknown) => {
-                      assert.equal(rect, originalWindow);
-                      actions.push("window");
-                    },
-                  }),
-                }),
-              },
-              originalFont: "",
-              originalWindow,
-              output: "/owned-output",
-              artifacts,
-              invoke: async (command: string) => {
-                assert.equal(command, "get_sources");
-                actions.push("sources");
-                return nativeReply;
-              },
-              writeEvidence: async (file: string, body: string, options: unknown) => {
-                assert.equal(file, path.join("/owned-output", "qualification-history.json"));
-                assert.deepEqual(options, { flag: "wx" });
-                actions.push("report");
-                if (failWrite) throw new Error("retained storage unavailable");
-                records.push(JSON.parse(body));
-              },
-            },
-          ],
-        );
-        await Promise.resolve(result).catch(() => {});
-        assert.deepEqual(
-          actions.filter((action) => action !== "report"),
-          ["window", "sources"],
-          "HISTORY_CLEANUP_ORDER",
-        );
-        assert.equal(actions.includes("report"), true, "HISTORY_EVIDENCE_REQUIRED");
         const positive =
           (restored === goodRestoration ||
             (restored === noObservationsRestoration && primaryFailure !== undefined)) &&
           isRecord(nativeReply) &&
           nativeReply.ok === true &&
           Array.isArray(nativeReply.value);
-        if (primaryFailure) {
-          let caught: { error: unknown } | undefined;
-          try {
-            await result;
-          } catch (error) {
-            caught = { error };
-          }
-          assert.ok(
-            caught && Object.is(caught.error, primaryFailure.error),
-            "HISTORY_PRIMARY_ERROR_IDENTITY",
-          );
-        }
-        if (!positive && !primaryFailure) {
-          let rejected = false;
-          try {
-            await result;
-          } catch {
-            rejected = true;
-          }
-          assert.equal(rejected, true, "HISTORY_VALIDATION_REQUIRED");
-        }
-        if (positive && !failWrite && !primaryFailure) await result;
-        else
-          await assert.rejects(
-            async () => {
-              await result;
-            },
-            (error: unknown) =>
-              primaryFailure
-                ? Object.is(error, primaryFailure.error)
-                : positive && failWrite
-                  ? errorMessage(error) === "retained storage unavailable"
-                  : error !== undefined,
-          );
-        assert.deepEqual(actions, ["window", "sources", "report"], "HISTORY_CLEANUP_ORDER");
-        assert.equal(records.length, failWrite ? 0 : 1, "HISTORY_EVIDENCE_RECORD_COUNT");
-        assert.deepEqual(
-          artifacts,
-          failWrite ? [] : [path.join("/owned-output", "qualification-history.json")],
-          "HISTORY_EXCLUSIVE_ARTIFACT",
-        );
-        if (!failWrite) {
-          assert.ok(isRecord(records[0]));
-          assert.ok(Object.hasOwn(records[0], "restoration"));
-          assert.ok(Object.hasOwn(records[0], "native_source_restoration"));
-          if (restored === noObservationsRestoration)
-            assert.equal(
-              Object.hasOwn(records[0], "restoration_validation_failure"),
-              primaryFailure === undefined,
-            );
-        }
+        inputs.push({ restored, nativeReply, failWrite, primaryFailure, positive });
       }
+  return inputs;
+}
+async function runHistoryCleanupCase(
+  restore: (...args: unknown[]) => unknown,
+  input: HistoryCleanupCase,
+) {
+  const { restored, nativeReply, failWrite, primaryFailure } = input;
+  const actions: string[] = [];
+  const records: unknown[] = [];
+  const observation = primaryFailure ? { failure: { message: "original" } } : {};
+  const artifacts: string[] = [];
+  const originalWindow = {};
+  const result: unknown = Reflect.apply(restore, undefined, [
+    {
+      primaryFailure,
+      observation,
+      browser: {
+        executeAsyncScript: async (callback: unknown, font: unknown) => {
+          assert.equal(typeof callback, "function", "HISTORY_RESTORE_CALLBACK");
+          assert.equal(font, "");
+          return restored;
+        },
+        manage: () => ({
+          window: () => ({
+            setRect: async (rect: unknown) => {
+              assert.equal(rect, originalWindow);
+              actions.push("window");
+            },
+          }),
+        }),
+      },
+      originalFont: "",
+      originalWindow,
+      output: "/owned-output",
+      artifacts,
+      invoke: async (command: string) => {
+        assert.equal(command, "get_sources");
+        actions.push("sources");
+        return nativeReply;
+      },
+      writeEvidence: async (file: string, body: string, options: unknown) => {
+        assert.equal(file, path.join("/owned-output", "qualification-history.json"));
+        assert.deepEqual(options, { flag: "wx" });
+        actions.push("report");
+        if (failWrite) throw new Error("retained storage unavailable");
+        records.push(JSON.parse(body));
+      },
+    },
+  ]);
+  await Promise.resolve(result).catch(() => {});
+  return { actions, records, artifacts, result };
+}
+async function assertHistoryCleanupOutcome(input: HistoryCleanupCase, result: unknown) {
+  const { positive, failWrite, primaryFailure } = input;
+  if (primaryFailure) {
+    let caught: { error: unknown } | undefined;
+    try {
+      await result;
+    } catch (error) {
+      caught = { error };
+    }
+    assert.ok(
+      caught && Object.is(caught.error, primaryFailure.error),
+      "HISTORY_PRIMARY_ERROR_IDENTITY",
+    );
+  }
+  if (!positive && !primaryFailure) {
+    let rejected = false;
+    try {
+      await result;
+    } catch {
+      rejected = true;
+    }
+    assert.equal(rejected, true, "HISTORY_VALIDATION_REQUIRED");
+  }
+  if (positive && !failWrite && !primaryFailure) await result;
+  else
+    await assert.rejects(
+      async () => {
+        await result;
+      },
+      (error: unknown) =>
+        primaryFailure
+          ? Object.is(error, primaryFailure.error)
+          : positive && failWrite
+            ? errorMessage(error) === "retained storage unavailable"
+            : error !== undefined,
+    );
+}
+function assertHistoryCleanupEvidence(
+  input: HistoryCleanupCase,
+  actual: Awaited<ReturnType<typeof runHistoryCleanupCase>>,
+) {
+  const { failWrite, primaryFailure, restored } = input;
+  const { actions, records, artifacts } = actual;
+  assert.deepEqual(actions, ["window", "sources", "report"], "HISTORY_CLEANUP_ORDER");
+  assert.equal(records.length, failWrite ? 0 : 1, "HISTORY_EVIDENCE_RECORD_COUNT");
+  assert.deepEqual(
+    artifacts,
+    failWrite ? [] : [path.join("/owned-output", "qualification-history.json")],
+    "HISTORY_EXCLUSIVE_ARTIFACT",
+  );
+  if (!failWrite) {
+    assert.ok(isRecord(records[0]));
+    assert.ok(Object.hasOwn(records[0], "restoration"));
+    assert.ok(Object.hasOwn(records[0], "native_source_restoration"));
+    if (
+      isRecord(restored) &&
+      restored.restored === true &&
+      restored.snapshots === 0 &&
+      restored.reports === 0
+    )
+      assert.equal(
+        Object.hasOwn(records[0], "restoration_validation_failure"),
+        primaryFailure === undefined,
+      );
+  }
+}
+async function historyCleanupOracle(subject: Subject) {
+  const restore = subject.restoreHistoryScenario;
+  assert.equal(typeof restore, "function", "HISTORY_RESTORE_EXPORT");
+  const inputs = historyCleanupCases();
+  assert.equal(inputs.length, 126, "HISTORY_COMPLETE_CLEANUP_INVENTORY");
+  for (const input of inputs) {
+    const actual = await runHistoryCleanupCase(restore as (...args: unknown[]) => unknown, input);
+    assert.deepEqual(
+      actual.actions.filter((action) => action !== "report"),
+      ["window", "sources"],
+      "HISTORY_CLEANUP_ORDER",
+    );
+    assert.equal(actual.actions.includes("report"), true, "HISTORY_EVIDENCE_REQUIRED");
+    await assertHistoryCleanupOutcome(input, actual.result);
+    assertHistoryCleanupEvidence(input, actual);
   }
 }
 
@@ -219,6 +255,10 @@ function program(
     import path from 'node:path';import {runInNewContext} from 'node:vm';
     import {errorMessage,isRecord} from ${JSON.stringify(new URL("../../../scripts/runtime-values.mts", import.meta.url).href)};
     const actual=await import(entry);let subject=actual;const owned=[];
+    ${historyCleanupCases.toString()}
+    ${runHistoryCleanupCase.toString()}
+    ${assertHistoryCleanupOutcome.toString()}
+    ${assertHistoryCleanupEvidence.toString()}
     ${mutation}
     console.error=()=>{};
     await (${oracle.toString()})(subject,owned);

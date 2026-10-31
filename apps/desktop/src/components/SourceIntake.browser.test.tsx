@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
@@ -186,6 +187,37 @@ describe("source intake dialog", () => {
       expect(preview.mock.lastCall).toEqual([profile.id, "D:/Game.z64", "move"]);
     };
     await openMove();
+    const review = document.querySelector<HTMLElement>('[aria-label="Source import review"]')!;
+    expect(
+      review.getBoundingClientRect().top -
+        review.previousElementSibling!.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(23);
+    const reviewChildren = [...review.children];
+    for (let index = 1; index < reviewChildren.length; index += 1) {
+      expect(
+        reviewChildren[index]!.getBoundingClientRect().top -
+          reviewChildren[index - 1]!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(11);
+    }
+    await captureParityState("source-move-initial-review-fixture");
+    const move = page.getByRole("button", { name: "Move into Portcove", exact: true });
+    const cancelMove = page.getByRole("button", { name: "Cancel review", exact: true });
+    move.element().scrollIntoView({ block: "center" });
+    await expect.element(move).toBeVisible();
+    await expect
+      .poll(() =>
+        [move.element(), cancelMove.element()].every((element) => {
+          const bounds = element.getBoundingClientRect();
+          return (
+            bounds.top >= 0 &&
+            bounds.bottom <= innerHeight &&
+            bounds.left >= 0 &&
+            bounds.right <= innerWidth
+          );
+        }),
+      )
+      .toBe(true);
+    await captureParityState("source-move-initial-review-lower-fixture");
     await page.getByRole("button", { name: "Cancel review", exact: true }).click();
     expect(imported).not.toHaveBeenCalled();
 
@@ -214,6 +246,7 @@ describe("source intake dialog", () => {
     // A later Move needs a new reviewed fingerprint and its own native approval.
     await openMove();
     expect(reviewNumber).toBe(2);
+    await captureParityState("source-move-new-approval-required-fixture");
     expect(imported).not.toHaveBeenCalled();
     imported.mockResolvedValueOnce(null);
     await page.getByRole("button", { name: "Move into Portcove", exact: true }).click();
@@ -226,6 +259,7 @@ describe("source intake dialog", () => {
     ]);
     expect(added).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Move cancelled");
+    await captureParityState("source-move-second-consent-declined-fixture");
   });
 
   it("preserves a committed import when its workspace refresh fails", async () => {
@@ -242,6 +276,7 @@ describe("source intake dialog", () => {
     expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
     expect(button("Close")!.disabled).toBe(false);
     expect(button("Copy into Portcove")).toBeUndefined();
+    await captureParityState("source-import-refresh-failed-fixture");
     refresh.mockResolvedValue(undefined);
     await act(async () => button("Retry refresh")!.click());
     expect(refresh).toHaveBeenCalledTimes(2);
@@ -306,6 +341,7 @@ describe("source intake dialog", () => {
     expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
       "owned import failure",
     );
+    await captureParityState("source-import-failed-fixture");
     expect(button("Close")!.disabled).toBe(false);
   });
 
@@ -319,6 +355,7 @@ describe("source intake dialog", () => {
     expect(document.body.textContent).not.toContain("the files were already added");
     expect(document.body.textContent).toContain("Move cancelled");
     expect(document.body.querySelector('[role="alert"]')).toBeNull();
+    await captureParityState("source-import-cancelled-fixture");
     expect(button("Close")!.disabled).toBe(false);
   });
 
@@ -353,6 +390,7 @@ describe("source intake dialog", () => {
     expect(button("Copy into Portcove")).toBeDefined();
     expect(button("Use current location")).toBeDefined();
     expect(button("Review move")).toBeDefined();
+    await captureParityState("source-intake-readonly-fixture");
     expect(plan).not.toHaveBeenCalled();
     expect(apply).not.toHaveBeenCalled();
   });
@@ -375,6 +413,7 @@ describe("source intake dialog", () => {
     expect(button("Copy into Portcove")).toBeUndefined();
     expect(document.body.textContent).toContain("Try again.");
     expect(document.body.textContent).not.toContain("Choose how to add them.");
+    await captureParityState("source-intake-multiple-paths-fixture");
   });
 
   it("keeps pending validation guidance distinct from an accepted match", async () => {
@@ -388,6 +427,7 @@ describe("source intake dialog", () => {
       <SourceIntakeDialog request={request(["D:/Needs-upstream-check.iso"])} close={vi.fn()} />,
     );
     expect(document.body.textContent).toContain(pending.next_action);
+    await captureParityState("source-intake-validation-pending-fixture");
     expect(document.body.textContent).not.toContain("Choose how to add these files.");
     expect(button("Copy into Portcove")).toBeDefined();
   });
@@ -483,10 +523,25 @@ describe("source intake dialog", () => {
     expect(document.body.textContent).toContain("Preparation tool needed");
     expect(document.body.textContent).toContain("Your selected game files remain unchanged.");
     expect(document.body.textContent).not.toContain("Technical ID");
+    const toolSection = document.querySelector<HTMLElement>(".source-intake-tool")!;
+    const toolChildren = [...toolSection.children];
+    for (let index = 1; index < toolChildren.length; index += 1) {
+      expect(
+        toolChildren[index]!.getBoundingClientRect().top -
+          toolChildren[index - 1]!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(11);
+    }
+    const resultSection = toolSection.parentElement!;
+    expect(
+      resultSection.getBoundingClientRect().top -
+        resultSection.previousElementSibling!.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(11);
+    await captureParityState("source-tool-needed-fixture");
     await act(async () => button("Locate chdman…")!.click());
     expect(locate).toHaveBeenCalledWith(tool);
     expect(inspect).toHaveBeenNthCalledWith(2, profile.id, ["D:/Game.chd"]);
     expect(button("Copy into Portcove")).toBeDefined();
+    await captureParityState("source-tool-rechecked-fixture");
   });
 
   it("ignores an older inspection and an older error after the selected path changes", async () => {
@@ -553,6 +608,7 @@ describe("source intake dialog", () => {
 
     expect(document.body.textContent).toContain("Check BIOS for Example Port");
     expect(button("Choose BIOS file to check")).toBeDefined();
+    await captureParityState("source-intake-bios-selection-fixture");
     await act(async () => button("Choose BIOS file to check")!.click());
     expect(choose).toHaveBeenCalledWith(biosProfile, "", "bios");
     expect(document.body.textContent).toContain("File selection cancelled. Nothing was changed.");

@@ -7,6 +7,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolvePhysicalPath } from "./dev-storage.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { readCoverageMaps } from "./coverage-maps.mts";
+import { parse } from "yaml";
+import { workspacePackageDeclaration } from "./workspace-package-declaration.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   parseCoverageArguments,
@@ -36,13 +38,24 @@ function runtimeIdentity(root: string, request: CoverageRequest) {
   const runner: unknown = JSON.parse(
     readFileSync(runnerRequire.resolve("vitest/package.json"), "utf8"),
   );
+  const declaration =
+    isRecord(manifest) && isRecord(manifest.devDependencies)
+      ? manifest.devDependencies["@vitest/coverage-v8"]
+      : undefined;
+  const workspace: unknown =
+    declaration === "catalog:"
+      ? parse(
+          boundedCoverageRead(path.join(root, "pnpm-workspace.yaml"), 1024 * 1024).toString("utf8"),
+        )
+      : undefined;
+  const providerPin = workspacePackageDeclaration(workspace, "@vitest/coverage-v8", declaration);
   if (
     !isRecord(manifest) ||
     !isRecord(manifest.devDependencies) ||
     !isRecord(provider) ||
     !isRecord(runner) ||
     typeof provider.version !== "string" ||
-    manifest.devDependencies["@vitest/coverage-v8"] !== provider.version ||
+    providerPin !== provider.version ||
     provider.version !== runner.version
   )
     throw new Error(
@@ -139,6 +152,7 @@ function retainSources(packet: CoveragePacket) {
   const executor = [
     "scripts/test-coverage.mts",
     "scripts/test-coverage-config.mts",
+    "scripts/workspace-package-declaration.mts",
     "scripts/coverage-node-reporter.mts",
     "scripts/coverage-node-loader.mts",
     "scripts/coverage-maps.mts",
@@ -153,6 +167,7 @@ function retainSources(packet: CoveragePacket) {
     "scripts/ui-test-selection.mts",
     "apps/desktop/src/browser/failure-probe-contract.ts",
     "package.json",
+    "pnpm-workspace.yaml",
     "pnpm-lock.yaml",
   ].map((file) => {
     const bytes = boundedCoverageRead(path.join(executorRoot, file), 4 * 1024 * 1024);

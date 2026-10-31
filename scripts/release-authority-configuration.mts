@@ -1,3 +1,4 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -120,6 +121,9 @@ export async function requireControllerJobCredentialRoute(rawPhase: unknown) {
     route: Object.freeze({
       phase,
       purpose: view.purpose,
+      ...(view.purpose === "application"
+        ? { release_profile: applicationReleaseProfile(view.configuration) }
+        : {}),
       credential_transport:
         view.configuration.schema_version === 4 ? ("fixed-job" as const) : ("legacy-app" as const),
       source: view.source,

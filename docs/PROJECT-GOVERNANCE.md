@@ -674,10 +674,16 @@ links alone never block a release. Unrelated unscheduled intake is not a gate.
 Keep non-gating approved work Planned at the release where it may ship or Post-1.0
 where that is its real target; do not distort forecasts merely to avoid a gate.
 
-Initial Public beta officially targets Windows and ordinary Linux x86-64, with
-actual qualification required before claiming support. #52 closes on the shared
-verified updater and #224/#225 evidence for those platforms. Its authenticated
-feed, trust, staging, busy-session, interruption, recovery, rollback/schema and
+Initial Public beta officially targets Windows x86-64 at the approved
+Windows/WebView2 baseline, with actual qualification required before claiming
+support. Ordinary Linux remains planned for a subsequent beta; retain its
+implementation, metadata, completed evidence and unfinished acceptance with the
+existing #45/#46 and component owners. No Linux date or change to established
+before-1.0 commitments follows. #52's Windows minimum requires the shared verified
+updater and applicable #224 evidence; #225's Linux application acceptance remains
+preserved for the subsequent platform and does not gate this Windows launch.
+The shared updater's authenticated feed, trust, staging, busy-session,
+interruption, recovery, rollback/schema and
 preservation requirements remain intact; #534's separately provisioned protected
 delivery authority remains required. #52 and #246 have no reciprocal blocker.
 
@@ -697,9 +703,12 @@ user-ready Playnite (#910), automatic Steam entry management (#292), physical Xb
 qualification (#44) and SteamGridDB (#527) are high-priority work during Public
 beta, Required before 1.0. Their active target is 1.0; Deck's follow-up may be
 described as Beta 2 without reusing the historical Project option. They do not
-gate initial beta directly or transitively. #993 still owns the bounded selected-
-stack/WebView compatibility decision and Windows/Linux evidence needed by #917;
-practical macOS CI/build health and portable architecture remain. Qualification
+gate initial beta directly or transitively. Consume #993's completed bounded
+selected-stack/WebView decision and Windows/Linux evidence at their actual scope;
+missing Windows acceptance needed by #917 remains required. Shared correctness,
+practical Linux/macOS CI/build health and portable architecture remain required
+on their appropriate hosts. Linux-only application observations are deferred;
+execution on Linux alone does not make a shared check optional. Qualification
 of macOS packages/devices and Deck/Gaming Mode follows later. Neither Linux CI
 nor desktop observations establish physical-device or Valve Verified claims.
 Until qualified, those platforms are unqualified support targets even if an
@@ -707,7 +716,8 @@ available build works; no deliberate execution block is introduced.
 
 Later owners consume shared foundations one way. #46 owns final production
 requalification, including the intended later platform claims, without reopening
-completed Windows/Linux beta acceptance. Provider usage stays optional at runtime;
+completed components or treating unfinished Linux acceptance as passed. Provider
+usage stays optional at runtime;
 default artwork needs no personal provider credentials. Independent component
 proofs permit useful work before complete downstream product acceptance. Paid
 signing, marketplace approval, continuous Steam synchronization, Decky and optional
@@ -732,8 +742,11 @@ candidate's implementation scope and genuine transitive blockers independently
 of cumulative milestones. Selected optional work still has to be complete when
 included in that candidate; missing/unclassified dependencies fail closed. A
 READY scope result never substitutes for package, CI, review, signature/feed or
-publication-authority checks. Use `readiness --release "Public beta"` or
-`readiness --release "1.0"` additionally for a maturity declaration.
+publication-authority checks. For the first Windows beta maturity declaration,
+use `readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1`.
+Unprofiled readiness retains the broader assessment; use
+`readiness --release "1.0"` for that cumulative maturity declaration. Profile selection is not
+candidate, qualification or publication acceptance.
 
 Historical receipts retain Opportunistic. Readiness interprets that historical input as Planned, while active configuration uses only Required / Planned. Use `roadmap.mts rename-commitment` for a read-only in-place option plan, then `--apply` for an ID-preserving rename with assignment readback. An already-applied rename is a no-op; competing old/new options refuse automatic consolidation.
 

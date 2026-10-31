@@ -537,7 +537,11 @@ export async function workspaceRefreshScenario({
         15_000,
       );
       await preferences.click();
-      const policyControl = By.xpath('//button[contains(., "Game update behavior")]');
+      const policyControl = By.css('section[aria-label="Game update settings"] [role="combobox"]');
+      assert.match(
+        await browser.findElement(policyControl).getAccessibleName(),
+        /^Game update behavior\s/u,
+      );
       await browser.wait(until.elementIsVisible(await browser.findElement(policyControl)), 10_000);
       const policyBefore = transportValue("status", command(["status", port.id])).update_policy;
       assert.notEqual(policyBefore, "automatic", "Policy reconciliation requires a real change");

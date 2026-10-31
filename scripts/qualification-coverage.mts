@@ -75,13 +75,16 @@ export function isQualificationOnlyCondition(value: unknown) {
   return expression(value) === qualificationMode;
 }
 const intelCondition = `${qualificationMode}&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-x86_64')`;
+const nativeCondition = `${qualificationMode}&&(contains(fromJSON(needs.classify.outputs.platforms_json),'linux-x86_64')||contains(fromJSON(needs.classify.outputs.platforms_json),'macos-aarch64'))`;
 const portabilityCondition =
   "(needs.classify.outputs.mode=='qualification'&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-aarch64'))||(needs.classify.outputs.mode!='qualification'&&(contains(needs.classify.outputs.files_json,'apps/desktop/scripts/browser-runtime.mts')||contains(needs.classify.outputs.files_json,'scripts/run-rust-tests.mts')||contains(needs.classify.outputs.files_json,'scripts/run-rust-tests.test.mts')||contains(needs.classify.outputs.files_json,'scripts/rust-test-tree-supervisor.mts')||contains(needs.classify.outputs.files_json,'scripts/rust-test-tree-supervisor.test.mts')||contains(needs.classify.outputs.files_json,'pnpm-workspace.yaml')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/display-recovery.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/compact-navigation.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/components/AdoptionModal.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/components/Artwork.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))";
 export function isWindowsHelperExecutionCondition(value: unknown) {
   return expression(value) === "needs.classify.outputs.windows_helpers=='true'";
 }
 export function isReusableQualificationCondition(value: unknown) {
-  return [qualificationMode, intelCondition, portabilityCondition].includes(expression(value));
+  return [qualificationMode, intelCondition, nativeCondition, portabilityCondition].includes(
+    expression(value),
+  );
 }
 function qualificationCondition(value: unknown) {
   const condition = expression(value);
@@ -569,11 +572,13 @@ export function validateQualificationCoverage(
     const expectedCondition =
       id === "intel_build" || id === "intel_tests"
         ? intelCondition
-        : id === "frontend_portability"
-          ? portabilityCondition
-          : declaredPullRequest.includes(id)
-            ? `github.event_name=='pull_request'&&${qualificationMode}`
-            : qualificationMode;
+        : id === "native_rust"
+          ? nativeCondition
+          : id === "frontend_portability"
+            ? portabilityCondition
+            : declaredPullRequest.includes(id)
+              ? `github.event_name=='pull_request'&&${qualificationMode}`
+              : qualificationMode;
     qualificationAssert(
       expression(parsedJobs[id]?.if) === expectedCondition,
       `producer condition does not match its platform role: ${id}`,

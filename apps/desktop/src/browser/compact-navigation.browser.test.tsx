@@ -38,7 +38,7 @@ for (const width of [320, 576]) {
       expect(firstArt.getBoundingClientRect().top).toBeLessThan(650);
       const heading = page.getByRole("heading", { name: "Your library", level: 1 }).element();
       const commands = page
-        .getByRole("button", { name: /^Commands .*open command palette$/ })
+        .getByRole("button", { name: /^Search games and pages .*open command palette$/ })
         .element();
       const compactHeader = document.querySelector<HTMLElement>(".sidebar-compact-header")!;
       const headerBox = compactHeader.getBoundingClientRect();
@@ -221,7 +221,7 @@ for (const theme of ["light", "dark"]) {
         .getBoundingClientRect().bottom,
     );
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    expect(categories.element().querySelectorAll("button")).toHaveLength(7);
+    expect(categories.element().querySelectorAll("button")).toHaveLength(8);
     await categories.getByRole("button", { name: "Library and storage", exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Choose another library", exact: true }))

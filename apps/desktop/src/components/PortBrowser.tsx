@@ -33,6 +33,8 @@ import type { CollectionLayout } from "../features/browsing/use-collection-layou
 import {
   ArrowRight,
   Heart,
+  LayoutGrid,
+  List,
   Play,
   Boxes,
   CheckCircle2,
@@ -139,6 +141,7 @@ function visibleRecentPort(
 
 function usePortBrowser({
   organization,
+  organizationSelection,
   catalogUniverse,
   favorites,
   view,
@@ -175,6 +178,7 @@ function usePortBrowser({
   setCollectionLayout?: ((layout: CollectionLayout) => void) | undefined;
   collectionLayoutFailure?: "read" | "write" | undefined;
   organization?: Organization | undefined;
+  organizationSelection?: { value: string; onChange: (value: string) => void } | undefined;
   catalogUniverse?: CatalogEntry[] | undefined;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   view: View;
@@ -208,9 +212,11 @@ function usePortBrowser({
 }) {
   const [organizationViews, setOrganizationViews] = useState({ library: "all", catalog: "all" });
   const organizationKey = view === "catalog" ? "catalog" : "library";
-  const organizationView = organizationViews[organizationKey];
-  const setOrganizationView = (value: string) =>
-    setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
+  const organizationView = organizationSelection?.value ?? organizationViews[organizationKey];
+  const setOrganizationView = (value: string) => {
+    if (organizationSelection) organizationSelection.onChange(value);
+    else setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
+  };
   const browserOwner = useRef({ closed: false });
   const filterButton = useRef<HTMLButtonElement>(null);
   const browserRoot = useRef<HTMLDivElement>(null);
@@ -305,6 +311,7 @@ function usePortBrowser({
     favorites,
     organization,
     organizationView,
+    organizationInSidebar: Boolean(organizationSelection),
     setOrganizationView,
     catalogUniverse,
     view,
@@ -394,9 +401,53 @@ function PortBrowserView({
           <OrganizationControls
             organization={model.organization}
             selected={model.organizationView}
-            onSelect={model.setOrganizationView}
+            onSelect={(value) => {
+              model.setOrganizationView(value);
+              favorites?.setOnly(false);
+              model.setFilter((current) => {
+                const query = queryFromFilter(current);
+                return query.version === 1 ? { ...query, membership: [] } : current;
+              });
+            }}
+            allSelected={
+              model.organizationView === "all" &&
+              !favorites?.only &&
+              !queryFromFilter(model.filter).membership?.length
+            }
+            afterAll={
+              <Button
+                size="sm"
+                data-focusable
+                variant={
+                  queryFromFilter(model.filter).membership?.length === 1 &&
+                  queryFromFilter(model.filter).membership?.[0] === "not-in-library"
+                    ? "selected"
+                    : "ghost"
+                }
+                aria-pressed={
+                  queryFromFilter(model.filter).membership?.length === 1 &&
+                  queryFromFilter(model.filter).membership?.[0] === "not-in-library"
+                }
+                disabled={
+                  queryFromFilter(model.filter).version !== 1 || !model.queryContext?.library
+                }
+                onClick={() => {
+                  model.setOrganizationView("all");
+                  favorites?.setOnly(false);
+                  model.setFilter((current) => {
+                    const query = queryFromFilter(current);
+                    return query.version === 1
+                      ? { ...query, membership: ["not-in-library"] }
+                      : current;
+                  });
+                }}
+              >
+                Not in library
+              </Button>
+            }
             discover
           >
+            {renderFilters()}
             {renderSteamBatch()}
           </OrganizationControls>
         )}
@@ -510,7 +561,7 @@ function filterConstrained(filter: Filter | CatalogQuery) {
   );
 }
 
-function SteamBatchLibraryAction({
+export function SteamBatchLibraryAction({
   ports,
   generation,
 }: {
@@ -615,7 +666,7 @@ function BrowserResults({
     <section
       className={
         view === "library"
-          ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : "gap-4"}`
+          ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : ""}`
           : "port-grid collection-covers @container/collection grid w-full"
       }
       aria-label={view === "library" ? "Library entries" : "Find games entries"}
@@ -691,8 +742,8 @@ function BrowserEmptyState({
     return (
       <EmptyState
         visual={
-          <span className="empty-mascot-stage grid size-16 place-items-center overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)]">
-            <BrandMascot className="size-full" decorative />
+          <span className="empty-mascot-stage grid size-16 place-items-center">
+            <BrandMascot className="size-full" decorative transparent />
           </span>
         }
         title="Your library is empty"
@@ -765,12 +816,12 @@ function ContinueCard({
     <GameHero
       port={port}
       variant="continue"
-      className="continue-card mb-4"
+      className="continue-card mb-6"
       successfulLaunches={status.successful_launches}
       label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
     >
       <div className="continue-identity min-w-0 wrap-anywhere">
-        <h2 className="m-0 text-base">{gameTitle(port)}</h2>
+        <h2 className="continue-title m-0">{gameTitle(port)}</h2>
         {gameProjectLabel(port) && (
           <p className="m-0 mt-1 text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</p>
         )}
@@ -781,17 +832,8 @@ function ContinueCard({
       <div className="continue-actions min-w-0">
         <Button
           data-focusable
-          variant="outline"
-          size="sm"
-          data-detail-origin={`library:continue-details:${port.id}`}
-          onClick={() => details(port.id, `library:continue-details:${port.id}`)}
-        >
-          View details
-        </Button>
-        <Button
-          data-focusable
           variant="primary"
-          size="sm"
+          size="default"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           disabled={launchable && Boolean(action.busy)}
           focusableWhenDisabled={launchable && Boolean(action.busy)}
@@ -801,7 +843,7 @@ function ContinueCard({
             launchable ? launch(port.id) : details(port.id, `library:continue-review:${port.id}`)
           }
         >
-          <Icon glyph={Gamepad2} />
+          <Icon glyph={Play} className="fill-current" />
           {launchable
             ? status.readiness?.pending_setup
               ? "Launch to finish setup"
@@ -811,6 +853,16 @@ function ContinueCard({
                   ? "Continue playing"
                   : "Play"
             : "Review launch"}
+        </Button>
+        <Button
+          data-focusable
+          variant="ghost"
+          className="continue-details"
+          data-detail-origin={`library:continue-details:${port.id}`}
+          onClick={() => details(port.id, `library:continue-details:${port.id}`)}
+        >
+          Game details
+          <Icon glyph={ArrowRight} />
         </Button>
       </div>
     </GameHero>
@@ -1000,11 +1052,11 @@ function LibraryEntry({
         <span
           role="heading"
           aria-level={2}
-          className="collection-title text-sm leading-snug font-semibold wrap-anywhere"
+          className="collection-title font-semibold wrap-anywhere"
         >
           {gameTitle(port)}
         </span>{" "}
-        <span className="collection-project block text-xs leading-normal wrap-anywhere text-[var(--color-text-secondary)]">
+        <span className="collection-project block wrap-anywhere text-[var(--color-text-secondary)]">
           {gameProjectLabel(port) ?? port.name}
         </span>
       </button>
@@ -1356,7 +1408,7 @@ function renderFiltersPortBrowserView(
         className="filter-row"
         data-focus-group
         role="group"
-        aria-label={model.view === "library" ? "Library filters" : "Release channel filters"}
+        aria-label={model.view === "library" ? "Library filters" : "Favorite games"}
       >
         {model.composedLibrary && (
           <div className="collection-readiness max-w-full min-w-0">
@@ -1379,12 +1431,24 @@ function renderFiltersPortBrowserView(
             variant={favorites.only ? "selected" : "ghost"}
             ref={filterButton}
             data-favorites-filter
+            aria-label={`Favorites (${model.favoriteCount ?? "unavailable"})`}
             aria-pressed={favorites.only}
             disabled={!favorites.ids}
-            onClick={() => favorites.setOnly(!favorites.only)}
+            onClick={() => {
+              if (model.view === "catalog") {
+                model.setOrganizationView("all");
+                model.setFilter((current) => {
+                  const query = queryFromFilter(current);
+                  return query.version === 1 ? { ...query, membership: [] } : current;
+                });
+              }
+              favorites.setOnly(!favorites.only);
+            }}
           >
-            <Icon glyph={Star} size="sm" /> Favorites
-            {model.favoriteCount === undefined ? " (unavailable)" : ` (${model.favoriteCount})`}
+            Favorites{" "}
+            <span className="browse-count">
+              ({model.favoriteCount === undefined ? "unavailable" : model.favoriteCount})
+            </span>
           </Button>
         )}
         {favorites?.only && model.view !== "library" && (
@@ -1438,6 +1502,11 @@ function BrowserQuickViews({
         }}
       >
         All games
+        {typeof model.readinessCount("all") === "number" && (
+          <span className="browse-count" aria-hidden="true">
+            {model.readinessCount("all")}
+          </span>
+        )}
       </Button>
       {favorites && (
         <Button
@@ -1448,11 +1517,13 @@ function BrowserQuickViews({
           variant={favorites.only ? "selected" : "ghost"}
           aria-pressed={favorites.only}
           disabled={!favorites.ids}
+          aria-label={`Favorites ${model.favoriteCount ?? "unavailable"}`}
           onClick={() => favorites.setOnly(!favorites.only)}
         >
-          <Icon glyph={Star} size="sm" />
           Favorites{" "}
-          {model.favoriteCount === undefined ? "(unavailable)" : `(${model.favoriteCount})`}
+          <span className="browse-count" aria-hidden="true">
+            {model.favoriteCount ?? "unavailable"}
+          </span>
         </Button>
       )}
       <Button
@@ -1466,6 +1537,11 @@ function BrowserQuickViews({
         }
       >
         Needs attention
+        {typeof model.readinessCount("setup") === "number" && (
+          <span className="browse-count" aria-hidden="true">
+            {model.readinessCount("setup")}
+          </span>
+        )}
       </Button>
       <Button
         size="sm"
@@ -1496,7 +1572,7 @@ function renderSortPortBrowserView(
 ) {
   return (
     model.setCatalogSort && (
-      <div className="browse-sort w-60 max-w-full min-w-0">
+      <div className="browse-sort w-44 max-w-full min-w-0">
         <ChoiceSelect
           inline
           label="Sort"
@@ -1583,14 +1659,8 @@ function CollectionLayoutToggle({
           data-focusable
           onClick={() => onChange(nextLayout)}
         >
-          {nextLayout === "covers" ? (
-            "Covers"
-          ) : (
-            <>
-              <span className="max-[42rem]:hidden">Compact rows</span>
-              <span className="hidden max-[42rem]:inline">Rows</span>
-            </>
-          )}
+          <Icon glyph={nextLayout === "covers" ? LayoutGrid : List} size="sm" />
+          {nextLayout === "covers" ? "Covers" : "Rows"}
         </Button>
       ))}
     </div>
@@ -1623,20 +1693,24 @@ function BrowserCollectionTools({
           library={model.view === "library"}
         />
       )}
-      {!model.composedLibrary && renderFilters()}
+      {!model.composedLibrary &&
+        !(model.view === "catalog" && model.organization) &&
+        renderFilters()}
     </>
   );
   const after = (
     <>
       {model.view === "library" && model.organization && (
-        <OrganizationControls
-          organization={model.organization}
-          selected={model.organizationView}
-          onSelect={model.setOrganizationView}
-          discover={false}
-        >
-          {renderSteamBatch()}
-        </OrganizationControls>
+        <div className={model.organizationInSidebar ? "compact-library-collections" : undefined}>
+          <OrganizationControls
+            organization={model.organization}
+            selected={model.organizationView}
+            onSelect={model.setOrganizationView}
+            discover={false}
+          >
+            {renderSteamBatch()}
+          </OrganizationControls>
+        </div>
       )}
       {renderSort()}
       {setCollectionLayout && (

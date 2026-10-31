@@ -1859,8 +1859,12 @@ For an unavailable minimum-version host or Steam Deck, build the candidate at th
 exact revision with `VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE=1`, retain the
 desktop executable/package and source revision, then run the same exact scenario
 through the platform route above. Record the artifact SHA-256, OS/architecture,
-WebView engine/version and result. Record initial-beta Windows and ordinary Linux negative/minimum evidence gaps
-under #993. Preserve macOS CI/build and bounded architecture compatibility work;
+WebView engine/version and result. Consume #993's completed stack evidence at its
+actual scope and record missing first-beta Windows negative/minimum evidence on
+the applicable acceptance owner. Retain Linux-only application gaps for the
+subsequent beta under #45/#46 and their existing component owners; useful shared
+engine/build checks remain required on their appropriate hosts. Preserve macOS
+CI/build and bounded architecture compatibility work;
 full Intel/Apple Silicon platform observations belong to #45/#226 during beta
 before 1.0, using appropriate native/hosted routes without owner-operated hardware. Steam Deck/SteamOS procedure
 preparation and actual-device evidence gaps belong to #51/#217 for the Public beta
@@ -2406,6 +2410,10 @@ Unix stream socket whose peer matches the wrapper PID and supplied birth identit
 Readable EOF closes the group; unexpected bytes fail closed. Wrapper pipe loss
 closes that anchored group; reaper pipe
 loss makes the Node supervisor close its own group without inventing a receipt.
+While the payload runs, the reaper collects exited adopted children with
+nonblocking waits so their original process observers can confirm settlement.
+The direct Node supervisor remains unreaped to pin the original cleanup group;
+early child reaping does not publish a final cleanup receipt.
 The reaper stays outside the killed group, drains direct and adopted children, and
 publishes an atomic positive receipt only after actual group absence and completed
 reaping, within the existing five-second cleanup bound. If procfs omits

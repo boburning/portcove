@@ -55,6 +55,8 @@ export function ownedFixtureCommand(
         encoding: "utf8",
         windowsHide: true,
         timeout,
+        // The complete embedded catalog exceeds Node's default 1 MiB buffer.
+        ...(args[0] === "catalog" && args[1] === "list" ? { maxBuffer: 8 * 1024 * 1024 } : {}),
         env: {
           ...process.env,
           ...(catalogPath === undefined ? {} : { PORTCOVE_QUALIFICATION_CATALOG: catalogPath }),

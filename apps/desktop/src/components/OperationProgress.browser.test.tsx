@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { OperationEvent } from "../types";
@@ -55,10 +56,12 @@ describe("accessible operation progress", () => {
       expect(container.textContent).toContain("100 B of 100 B");
       expect(status.textContent).toBe("Downloading release");
       expect(container.querySelector('[role="progressbar"]')?.closest("[aria-live]")).toBeNull();
+      await captureParityState("operation-progress-download-complete");
       await render(event(0, 10, "copy"));
       expect(container.querySelector('[role="status"]')).toBe(status);
       expect(status.textContent).toBe("Copying game files");
       expect(changes.length).toBeGreaterThan(0);
+      await captureParityState("operation-progress-phase-evolved");
     } finally {
       observer.disconnect();
     }
@@ -188,6 +191,7 @@ describe("accessible operation progress", () => {
     expect(container.querySelector('[role="progressbar"]')?.hasAttribute("aria-valuenow")).toBe(
       false,
     );
+    await captureParityState(`operation-progress-indeterminate-${unit}`);
   });
 
   it.each([

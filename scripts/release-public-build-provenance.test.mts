@@ -21,6 +21,38 @@ import {
 } from "./release-public-build-provenance.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
+void test("Windows public provenance binds one complete immutable Windows archive to the explicit profile", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t, true, "initial-beta-windows-x86_64-v1");
+  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const binding = selectPublicBuildInputBinding(f.configuration, evidence);
+  assert.deepEqual(binding, f.binding);
+  assert.deepEqual(
+    binding.artifacts.map((artifact) => artifact.platform),
+    ["windows-x86_64"],
+  );
+  const result = await verifyReleasePublicBuildInputs(f.root, binding, evidence, f.options);
+  assert.equal(result.receipts.length, 1);
+  assert.equal(result.receipts[0]!.platform, "windows-x86_64");
+  assert.equal(result.evidence_scope, "injected-provider");
+  await assert.rejects(requireVerifiedReleasePublicBuildInputs(result));
+  assert.deepEqual((await inspectTrustedAssemblyInput(f.request)).labels, ["windows-x86_64"]);
+  for (const artifacts of [
+    [],
+    [...binding.artifacts, binding.artifacts[0]],
+    [{ ...binding.artifacts[0], platform: "linux-x86_64" }],
+  ])
+    assert.throws(() => inspectPublicBuildInputBinding({ ...binding, artifacts }));
+  assert.throws(() => inspectPublicBuildInputBinding(binding, "initial-beta-win-linux"));
+  assert.throws(() =>
+    inspectPublicBuildInputBinding({ ...binding, release_profile: "initial-beta-windows" }),
+  );
+  const missing = structuredClone(evidence);
+  missing.artifacts = missing.artifacts.filter(
+    (artifact) => !artifact.name.startsWith("release-public-build-inputs-windows"),
+  );
+  assert.throws(() => selectPublicBuildInputBinding(f.configuration, missing));
+});
+
 void test("schema-2 appointed profile survives both immutable public archives and rejects a substituted recipe", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t, true);
   let evidence = collectReleaseRunEvidence(f.expected, { api: f.api });

@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Original hosted-parent -> fixed credential-free Linux capture. Detached
  * recipes and imported wire data never acquire this module's private brand. */
 import assert from "node:assert/strict";
@@ -457,8 +458,8 @@ async function prepare(actual: ActualRequest, parent: Parent, controllerRoot = r
     tools: Object.fromEntries(["python", "git", "sudo"].map((name) => [name, tools[name]])),
     host_expected: {
       machine_id_sha256: actual.host.observed.machine_id_sha256,
-      minimum_os_version:
-        parent.configuration.hosted_native["linux-x86_64"].compatibility.minimum_os_version,
+      minimum_os_version: selectedHostedNativePlatform(parent.configuration, "linux-x86_64")
+        .compatibility.minimum_os_version,
     },
     request_sha256: hash(outer),
     plan_sha256: hash(plan),
@@ -662,8 +663,8 @@ export async function captureActualHostedNativeLinuxInvocation(
         actual.prepared.request.invocation_id,
         {
           machine_id_sha256: actual.host.observed.machine_id_sha256,
-          minimum_os_version:
-            parent.configuration.hosted_native["linux-x86_64"].compatibility.minimum_os_version,
+          minimum_os_version: selectedHostedNativePlatform(parent.configuration, "linux-x86_64")
+            .compatibility.minimum_os_version,
         },
       );
       files.set(name, { bytes: bytes.length, sha256: hash(bytes) });

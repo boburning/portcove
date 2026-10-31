@@ -1,3 +1,4 @@
+import { workspacePackageDeclaration } from "../../../scripts/workspace-package-declaration.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -92,9 +93,9 @@ export function checkBrowserPackageCompatibility(packageFile: string) {
   const declarations = { ...object(read(packageFile).devDependencies) };
   const workspaceFile = path.resolve(path.dirname(packageFile), "../../pnpm-workspace.yaml");
   const workspace = object(parse(readFileSync(workspaceFile, "utf8")));
-  const catalog = object(workspace.catalog);
   for (const [name, version] of Object.entries(declarations))
-    if (version === "catalog:") declarations[name] = text(catalog[name]);
+    if (version === "catalog:")
+      declarations[name] = workspacePackageDeclaration(workspace, name, version);
   const require = createRequire(packageFile);
   const repositoryRequire = createRequire(path.join(path.dirname(workspaceFile), "package.json"));
   const providerFile = require.resolve("@vitest/browser-playwright/package.json");

@@ -9,7 +9,32 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/FWGS/xash3d-fwgs",
-    "issue_number": 2678
+    "issue_number": 2678,
+    "manual_setup": {
+      "help_url": "https://github.com/FWGS/xash3d-fwgs/tree/a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+      "steps": [
+        {
+          "title": "Keep the complete compatible Half-Life engine tuple",
+          "instruction": "Use a permitted complete official FWGS Windows copy with your own compatible Half-Life valve data and the game libraries matching that engine. Select native xash3d.exe with its companion engine DLLs/resources. The normal launcher loads the engine in the same process. The default Windows engine is 32-bit for Steam game-DLL compatibility; a 64-bit engine needs compatible game libraries and does not automatically run 32-bit DLLs. Keep an already working tuple rather than mixing architectures, substituting a DLL/server, rebuilding an SDK or assuming arbitrary GoldSrc mods work."
+        },
+        {
+          "title": "Retain the creating root and write directories",
+          "instruction": "Keep the actual prepared working directory, established game arguments and original valve/game trees. The engine can resolve its root from existing XASH3D_BASEDIR, otherwise its SDL base path with a working-directory fallback; it then changes to that root. An existing -rodir argument or XASH3D_RODIR can select a separate read-only data root. Preserve the creating environment and both actual roots; Portcove does not inject environment variables or force a new data layout. Keep the full writable game directory, saves, configuration, custom downloads/mods, logs and unknown files, plus all matching runtime libraries and read-only originals. Do not assume Steam’s profile or another runtime folder owns all state."
+        },
+        {
+          "title": "Check the working copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

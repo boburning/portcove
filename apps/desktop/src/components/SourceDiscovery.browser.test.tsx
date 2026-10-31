@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup } from "vitest-browser-react";
 import { page, userEvent } from "vite-plus/test/browser";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -192,6 +193,12 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       "Searching does not upload or move your files. After finding a match, choose whether to use it where it is, copy it into Portcove, or move it.",
     );
     await page.getByRole("combobox", { name: /^Required files/ }).click();
+    // The portal can mount after the browser click completes its input events.
+    await expect
+      .poll(() =>
+        document.body.querySelector<HTMLElement>('[data-slot="select-content"][data-open]'),
+      )
+      .not.toBeNull();
     const openPopup = document.body.querySelector<HTMLElement>(
       '[data-slot="select-content"][data-open]',
     );
@@ -229,6 +236,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).toContain("temporarily move some files outside it");
     expect(document.body.textContent).not.toContain("Result count");
     expect(document.body.textContent).not.toContain("not-a-match.iso");
+    await captureParityState("source-discovery-incomplete-scan-fixture");
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
       {
@@ -263,6 +271,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     await click("Review copy");
     expect(review).toHaveBeenCalledWith(profile.id, candidate.path, "copy");
     expect(document.body.textContent).toContain("Source changed after discovery");
+    await captureParityState("source-discovery-changed-source-fixture");
     await click("Review copy");
     expect(document.body.textContent).toContain(plan.destination);
     expect(plan.admission_mode).toBe("exact_identity");

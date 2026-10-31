@@ -241,6 +241,36 @@ export async function waitForRealRuntimeReview(browser: WebDriver, kind: string,
   }, 15_000);
 }
 
+/** Retain the actual close request even when publication or positive exit fails. */
+export async function requestRealRuntimeClose({
+  native,
+  closeFile,
+  executable,
+  requestFile,
+  route,
+  artifacts,
+  write,
+}: {
+  native: <Mode extends "RequestClose" | "Wait">(
+    mode: Mode,
+    snapshot: string,
+    extra?: string[],
+  ) => NativeSessionObservations[Mode];
+  closeFile: string;
+  executable: string;
+  requestFile: string;
+  route: Record<string, unknown>;
+  artifacts: string[];
+  write: (file: string, bytes: string, options: { flag: "wx" }) => Promise<void>;
+}) {
+  const requested = native("RequestClose", closeFile, ["-ApplicationPath", executable]);
+  route.ordinary_game_close = { requested };
+  await write(requestFile, JSON.stringify(requested, null, 2), { flag: "wx" });
+  artifacts.push(requestFile);
+  const exited = native("Wait", closeFile);
+  route.ordinary_game_close = { requested, exited };
+}
+
 async function runRealRuntimeRoutes(context: RealContext, report: Record<string, unknown>) {
   let browser = context.browser;
   const {
@@ -536,14 +566,16 @@ async function launchRealRuntime(
     assert.equal(close.application_pid, session.child_pid);
     route.live_game = { executableIdentity, supervisor, game, close };
     await screenshot(`${port.id}-desktop-launch-observation`);
-    const requested = native("RequestClose", closeFile, ["-ApplicationPath", executable]);
-    route.ordinary_game_close = { requested };
-    const requestFile = path.join(output, `${port.id}-ordinary-close-request.json`);
-    await writeFile(requestFile, JSON.stringify(requested, null, 2), { flag: "wx" });
-    artifacts.push(requestFile);
-    const exited = native("Wait", closeFile);
+    await requestRealRuntimeClose({
+      native,
+      closeFile,
+      executable,
+      requestFile: path.join(output, `${port.id}-ordinary-close-request.json`),
+      route,
+      artifacts,
+      write: writeFile,
+    });
     naturalExit = true;
-    route.ordinary_game_close = { requested, exited };
     const terminal = await browser.wait(() => {
       const current = transportValue("launch_request", command(["launch", "show", session.id]));
       return current?.outcome !== null && current?.finished_at ? current : false;

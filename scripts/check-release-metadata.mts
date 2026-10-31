@@ -57,6 +57,7 @@ const requiredProjectFiles = [
   "apps/desktop/assets/brand/models/v2/portcove-mascot-v2.glb",
   "apps/desktop/assets/brand/models/v2/validate_portcove_mascot_v2.py",
   "apps/desktop/public/brand/icons/portcove-mascot-head-256.png",
+  "apps/desktop/public/brand/icons/portcove-mascot-transparent.png",
   "apps/desktop/public/brand/logo/portcove-logo-v2-transparent.png",
   "apps/desktop/public/brand/mascot/portcove-mascot-v2-front.png",
   "apps/desktop/src-tauri/icons/32x32.png",

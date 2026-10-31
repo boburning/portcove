@@ -54,7 +54,7 @@ void test("connected inspector stays owned when post-connect media verification 
         admission: { verify: async () => {} },
         custody: undefined,
         linuxPackagedInspector: true,
-        linuxLaunch: {},
+        linuxPublication: { launch: {} },
         output: "/owned-output",
         artifacts: [],
         port: 9000,

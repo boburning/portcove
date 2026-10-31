@@ -1,12 +1,14 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
+import { desktopApi } from "../api";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { portDefinition, portStatus, sourceProfile, fixtureValue } from "../test-fixtures";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
 import { actions as detailActions, installRecord } from "./rendered-test-fixtures";
-import type { ReadinessBlocker, SourceHealth } from "../types";
+import type { PortOutputLocation, ReadinessBlocker, SourceHealth } from "../types";
 import "../styles/index.css";
 
 afterEach(cleanup);
@@ -88,6 +90,89 @@ it.each([
     .toBeVisible();
   expect(props.actions.launch).not.toHaveBeenCalled();
 });
+
+it.each(["game", "bios"] as const)(
+  "reviews an unregistered selected %s path without registering or installing it",
+  async (input) => {
+    const port = currentCatalogPort("mortal-kombat-4-recompiled");
+    const reviewInstall = vi.fn();
+    const install = vi.fn();
+    const launch = vi.fn();
+    const status = {
+      ...portStatus(),
+      port_id: port.id,
+      active: null,
+      readiness: {
+        launchable: false,
+        pending_setup: false,
+        source: "unregistered" as const,
+        bios: "unregistered" as const,
+        blockers: [input === "game" ? ("missing_source" as const) : ("missing_bios" as const)],
+      },
+      port_actions: [
+        {
+          action: "install" as const,
+          availability: "waiting" as const,
+          reason: input === "game" ? ("missing_source" as const) : ("missing_bios" as const),
+        },
+      ],
+    };
+    await render(
+      <DetailPanel
+        port={port}
+        status={status}
+        sourcePath="C:/Player/selected-game.bin"
+        setSourcePath={vi.fn()}
+        biosPath="C:/Player/selected-bios.bin"
+        setBiosPath={vi.fn()}
+        actions={{ ...detailActions, reviewInstall, install, launch }}
+      />,
+    );
+    const review = page.getByRole("button", { name: "Review installation", exact: true });
+    await expect.element(review).toBeVisible();
+    await review.click();
+    expect(reviewInstall).toHaveBeenCalledOnce();
+    expect(install).not.toHaveBeenCalled();
+    expect(launch).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-launch-action]")).toBeNull();
+  },
+);
+
+for (const input of ["game", "bios"] as const) {
+  it.each(["missing", "unreadable", "changed", "incompatible", "saved"] as const)(
+    `keeps ${input} install review unavailable for a %s input`,
+    async (failure) => {
+      const props = installedSourceDetail("mortal-kombat-4-recompiled", "unregistered");
+      const blocker =
+        `${failure === "saved" ? "missing" : failure}_${input === "game" ? "source" : "bios"}` as ReadinessBlocker;
+      await render(
+        <DetailPanel
+          {...props}
+          source={input === "game" && failure === "saved" ? props.source : undefined}
+          bios={input === "bios" && failure === "saved" ? props.source : undefined}
+          biosPath="C:/Player/selected-bios.bin"
+          setBiosPath={vi.fn()}
+          status={{
+            ...props.status,
+            active: null,
+            readiness: {
+              launchable: false,
+              pending_setup: false,
+              source: input === "game" && failure === "missing" ? "missing" : "unregistered",
+              bios: input === "bios" && failure === "missing" ? "missing" : "unregistered",
+              blockers: [input === "game" ? "missing_source" : "missing_bios", blocker],
+            },
+          }}
+        />,
+      );
+      expect(
+        page.getByRole("button", { name: "Review installation", exact: true }).query(),
+      ).toBeNull();
+      expect(document.querySelector("[data-launch-action]:not(:disabled)")).toBeNull();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+    },
+  );
+}
 
 it("asks only for missing BIOS when the registered game has metadata-only health", async () => {
   const props = installedSourceDetail("mortal-kombat-4-recompiled", "not_checked", [
@@ -364,3 +449,163 @@ it.each([
     }
   },
 );
+
+it("routes the saved-update summary action to the existing activation review owner", async () => {
+  const port = portDefinition();
+  const active = installRecord({ port_id: port.id });
+  const activate = vi.fn();
+  await render(
+    <DetailPanel
+      port={port}
+      status={{
+        ...portStatus(),
+        port_id: port.id,
+        active,
+        staged: { ...active, id: "saved", version: "2.0", staged: true },
+      }}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={{ ...detailActions, activate }}
+    />,
+  );
+  await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+  const summary = page.getByRole("region", { name: "Installation and release versions" });
+  await summary.getByRole("button", { name: "Apply update · 2.0", exact: true }).click();
+  expect(activate).toHaveBeenCalledOnce();
+  expect(page.getByRole("button", { name: "Update now", exact: true }).query()).toBeNull();
+  expect(page.getByRole("button", { name: "Download for later", exact: true }).query()).toBeNull();
+});
+
+it.each(["busy", "missing_runtime", "invalid_installation"] as const)(
+  "keeps simultaneous hero notices and staged activation safety in the %s renderer fixture",
+  async (state) => {
+    await page.viewport(960, 800);
+    const port = { ...portDefinition(), source_profile: null };
+    const active = installRecord({ port_id: port.id });
+    const activate = vi.fn();
+    const launch = vi.fn();
+    const busy = state === "busy";
+    await render(
+      <DetailPanel
+        port={port}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          active,
+          staged: { ...active, id: "saved", version: "2.0", staged: true },
+          readiness: {
+            launchable: busy,
+            pending_setup: false,
+            blockers: busy ? [] : [state],
+          },
+        }}
+        busy={busy ? "activating staged update" : undefined}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={{ ...detailActions, activate, launch }}
+      />,
+    );
+    const hero = document.querySelector<HTMLElement>(".detail-hero")!;
+    const notices = document.querySelector<HTMLElement>(".detail-attention")!;
+    expect(notices.querySelectorAll(".detail-notice-row")).toHaveLength(2);
+    expect(notices.querySelector("[data-update-attention]")?.textContent).toContain(
+      "Update saved for later · 2.0",
+    );
+    const primary = hero.querySelector<HTMLButtonElement>(".detail-header-actions button")!;
+    expect(primary.disabled || primary.getAttribute("aria-disabled") === "true").toBe(busy);
+    expect(notices.textContent?.includes("Working: activating staged update.")).toBe(busy);
+    expect(
+      notices.querySelector(busy ? '[role="status"]' : "[data-detail-reason]")?.textContent?.trim(),
+    ).toBeTruthy();
+    expect(primary.textContent).toContain(busy ? "Play" : "Set up");
+    await captureParityState(`detail-hero-${state}-and-staged-fixture`);
+    await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+    const apply = page.getByRole("button", { name: "Apply update · 2.0", exact: true });
+    await expect.element(apply).toBeVisible();
+    expect((apply.element() as HTMLButtonElement).disabled).toBe(busy);
+    expect(activate).not.toHaveBeenCalled();
+    expect(launch).not.toHaveBeenCalled();
+  },
+);
+
+it("opens actual Overview evidence and future-folder controls in a renderer fixture", async () => {
+  await page.viewport(960, 900);
+  const port = { ...portDefinition(), source_profile: null };
+  const location: PortOutputLocation = {
+    port_id: port.id,
+    library_root: "E:/Portcove",
+    default_output_directory: "E:/Portcove/versions/sample",
+    configured_output_directory: null,
+    effective_output_directory: "E:/Portcove/versions/sample",
+    selection_source: "library_default",
+    user_data_root: "E:/Portcove/user/sample",
+  };
+  const read = vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(location);
+  const relocation = vi.spyOn(desktopApi, "outputRelocationStatus").mockResolvedValue(null);
+  const preview = vi.spyOn(desktopApi, "previewOutputLocation").mockResolvedValue({
+    port_id: port.id,
+    current: location,
+    proposed: location,
+    reset_to_default: true,
+    availability: "available",
+    ownership: "library_default",
+    available_bytes: 8 * 1024 ** 3,
+    total_bytes: 16 * 1024 ** 3,
+    volume_identity: "fixture-volume",
+    validation_errors: [],
+    affected_installs: [],
+    moves_existing_install: false,
+    preview_sha256: "a".repeat(64),
+  });
+  try {
+    await render(
+      <DetailPanel
+        port={port}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={detailActions}
+        libraryGeneration={7}
+      />,
+    );
+    const overview = page.getByRole("tab", { name: "Overview", exact: true });
+    await overview.click();
+    await expect.element(overview).toHaveAttribute("aria-selected", "true");
+    for (const [label, expected, name] of [
+      [
+        "Project status and release information",
+        "Catalog designation (not a test result)",
+        "project",
+      ],
+      ["Compatibility qualifications", "Installation method", "compatibility"],
+      ["Recorded checks", "Recorded history, not a fresh check", "recorded-checks"],
+    ] as const) {
+      const summary = page.getByText(label, { exact: true });
+      await summary.click();
+      const disclosure = summary.element().closest("details")!;
+      expect(disclosure.open).toBe(true);
+      expect(disclosure.textContent).toContain(expected);
+      summary.element().scrollIntoView({ block: "start" });
+      await captureParityState(`detail-overview-${name}-expanded-fixture`);
+    }
+    await page.getByRole("tab", { name: "Manage", exact: true }).click();
+    const folder = page.getByText("Folder for a future install", { exact: true });
+    await folder.click();
+    const disclosure = folder.element().closest("details")!;
+    expect(disclosure.open).toBe(true);
+    await expect
+      .element(page.getByLabelText("Folder for future installs", { exact: true }))
+      .toHaveValue(location.effective_output_directory);
+    await expect.poll(() => disclosure.textContent).toContain("8.0 GiB available of 16.0 GiB");
+    expect(disclosure.textContent).toContain(
+      "Choosing an output folder does not move or install a game.",
+    );
+    expect(read).toHaveBeenCalledWith(port.id, 7);
+    expect(preview).toHaveBeenCalledWith(port.id, null, 7);
+    folder.element().scrollIntoView({ block: "start" });
+    await captureParityState("detail-manage-future-folder-expanded-fixture");
+  } finally {
+    read.mockRestore();
+    relocation.mockRestore();
+    preview.mockRestore();
+  }
+});

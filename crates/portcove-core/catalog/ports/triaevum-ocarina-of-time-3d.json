@@ -16,6 +16,37 @@
       "image_sha256": "6121a7f8647fd6a1606e7406bc81841f04a5e0186e4c9bee7a7d31fd3dd92ce8",
       "game_slug": "the-legend-of-zelda-ocarina-of-time-3d",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/coccofresco/TriAevum/blob/a56f9649747a46655728f217abda9c51c66b11ba/README.md",
+      "steps": [
+        {
+          "title": "Keep a permitted fully prepared Windows copy",
+          "instruction": "Use an already permitted working v0.8.0-beta.1.2 Windows x64 TriAevum installation and its privately Forge-prepared title/runtime/profile, complete adjacent dependencies and creating Vulkan/GPU context. Project GPL3-or-later and third-party notices do not license Nintendo originals or private ROM-derived outputs. This beta is distinct from the formerly qualified v0.6.0-alpha.2c. Do not use the explicitly broken/withdrawn alpha.3/alpha.3b builds or infer Linux/Flatpak/SteamDeck qualification."
+        },
+        {
+          "title": "Complete Forge preparation outside Core",
+          "instruction": "Use your own supported decrypted Ocarina of Time3D .3ds/.cci USA/EUR input and finish official Forge installation/activation and a working normal launch first. Forge checks internal content families and generates private content/title plugin, manifests and launch profile; no external compiler/SDK is needed. Keep exact original/creating build and private outputs. Core does not authenticate or extract the ROM, run Forge, download optional textures/mods, activate generated code or certify original/package/plugin identity."
+        },
+        {
+          "title": "Select the prepared native game entry and profile",
+          "instruction": "Select the actual installed TriAevum.exe after Forge has created it, zero arguments for its established default profile, and the creating writable installation-root initial CWD. The native game loads its existing TriAevum.launch.json beside the executable or under data/ and remains in the game process. If the working installation already requires a custom profile, preserve --launch-profile and its absolute existing JSON path as separate literal arguments. Keep spaces inside path tokens. Do not select TriAevumForge.exe, an installer/helper/plugin DLL or finite --frames diagnostic mode for ordinary Play. Registration itself does not prepare or launch anything."
+        },
+        {
+          "title": "Review intent and keep activation and updates upstream-owned",
+          "instruction": "Review and consent to the exact native executable, working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Preparation, repair, profiles and actual replacement remain player/upstream owned. Close all real instances before changing files, keep the old creating runtime and review changed executable bytes through relink. Metadata removal preserves every external runtime, original and player file. After an upstream package replacement, finish the matching Forge repair/refresh outside Core before reviewing/relinking the resulting native runtime. Do not move only the executable or mix launch profile, generated plugin and package versions. The direct entry does not turn Core into Forge activation/recovery authority. After any interrupted Forge install/activation/update/mod refresh, activation journal, mismatched or not-ready runtime tuple, complete upstream Forge recovery and a successful normal Launch game before Core Play or relink. Do not delete or bypass an activation journal or run an old profile/plugin against a new package; direct native entry does not repeat Forge's journal/receipt checks."
+        },
+        {
+          "title": "Preserve the complete private runtime and player data",
+          "instruction": "Keep the whole actual installation and data root: active-title.json, content-addressed titles and their receipts/manifests, prepared game/content files, activated native title plugin, TriAevum.launch.json and every profile-referenced path; savedata, config/TriAevum.json/topscreen_ui.json, mods/texture/model archives and edits, cache/shaders/pipelines, logs/dumps/custom and unknown files. Windows normally keeps data/ beside the application; custom profile/data paths can be external and must be preserved separately. Keep data with its creating runtime/GPU configuration. Registration neither rebuilds regenerable caches nor adopts/deletes saves; old Flatpak data is not automatically migrated."
+        }
+      ],
+      "warnings": [
+        "The earlier exact-source Forge install and bounded Windows Vulkan intro launch remain credited solely to v0.6.0-alpha.2c and their recorded inputs. Source/probe evidence here does not repeat or expand them to this beta, a full playthrough, saves/state/mods, other GPUs/platforms or installed/protected qualification.",
+        "Selected executable consent is not a certificate for mutable launch-profile references, secondary generated code, ROM or complete package. Preserve the existing permitted working tuple and upstream notices; private outputs must remain private. Optional original-derived textures/model mods have their own terms and are not downloaded or rights-cleared by Core.",
+        "Managed Forge generation/activation, interrupted recovery, update/rollback, private-data migration and GPU cache regeneration remain unresolved/unoffered stronger operations. Existing generated-output registration does not mark those conditions solved or make speculative console-family infrastructure a prerequisite for this native handoff.",
+        "Component terms remain separate: selected LICENSE_SCOPE excludes iMMERSE from the general GPL grant and records TriAevum-exclusive nontransferable redistribution permission; NVIDIA NGX/DLSS and other components retain their own terms. This guide covers only an already permitted working private copy, not redistribution clearance."
+      ]
     }
   }
 }

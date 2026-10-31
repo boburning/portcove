@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hasNextestEquivalence, isNextestProof } from "./nextest-equivalence.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
+import { inspectReleaseProfile, type ReleaseProfile } from "./release-package-policy.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
@@ -35,7 +36,7 @@ export const validationAreas = Object.freeze([
 export type ValidationGroup = (typeof fastGroups)[number];
 export type ValidationArea = (typeof validationAreas)[number];
 export type ValidationPlatform = "primary-host" | (typeof qualificationPlatforms)[number];
-export type ReleaseQualificationProfile = "full" | "initial-beta-win-linux";
+export type ReleaseQualificationProfile = ReleaseProfile;
 export interface ValidationChange {
   status: string;
   oldMode: string | null;
@@ -75,7 +76,7 @@ export interface ValidationPlan {
   groups: readonly ValidationGroup[];
   platforms: readonly ValidationPlatform[];
   qualification_required: boolean;
-  release_profile?: "initial-beta-win-linux";
+  release_profile?: Exclude<ReleaseQualificationProfile, "full">;
   fallback: { kind: "all-fast-groups"; paths: string[] } | null;
   identities: {
     base: string | null;
@@ -136,10 +137,13 @@ export const qualificationPlatforms = Object.freeze([
   "windows-x86_64",
 ] as const);
 
-export function qualificationPlatformsForProfile(profile: string = "full") {
+export function qualificationPlatformsForProfile(input: unknown = "full") {
+  const profile = inspectReleaseProfile(input);
   if (profile === "full") return qualificationPlatforms;
   if (profile === "initial-beta-win-linux")
     return Object.freeze(["linux-x86_64", "windows-x86_64"] as const);
+  if (profile === "initial-beta-windows-x86_64-v1")
+    return Object.freeze(["windows-x86_64"] as const);
   throw new Error("unknown release qualification profile");
 }
 
@@ -1337,8 +1341,13 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
     throw new Error("validation plan reason is missing");
   if (typeof plan.qualification_required !== "boolean")
     throw new Error("validation qualification authority is invalid");
-  if (Object.hasOwn(plan, "release_profile") && plan.release_profile !== "initial-beta-win-linux")
-    throw new Error("invalid release qualification profile");
+  if (Object.hasOwn(plan, "release_profile")) {
+    if (
+      typeof plan.release_profile !== "string" ||
+      inspectReleaseProfile(plan.release_profile) === "full"
+    )
+      throw new Error("invalid release qualification profile");
+  }
   assertStringArray(plan.changed_files, [], "changed_files");
   assertStringArray(plan.areas, validationAreas, "area");
   assertStringArray(plan.groups, fastGroups, "group");
