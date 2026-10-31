@@ -242,11 +242,20 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   const review = vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
   const run = vi.fn().mockResolvedValue(plan.inputs.install);
   await root.rerender(
-    <PreparationControl portId="sample" generation={7} disabled={false} run={run} />,
+    <PreparationControl
+      portId="sample"
+      taskLabel="Sample game · Port: Sample engine"
+      generation={7}
+      disabled={false}
+      run={run}
+    />,
   );
   await click("Review setup");
   expect(review).toHaveBeenCalledWith("sample", 7);
   expect(run).not.toHaveBeenCalled();
+  const dialog = document.body.querySelector('[role="dialog"]');
+  expect(dialog?.textContent).toContain("Sample game · Port: Sample engine");
+  expect(dialog?.querySelector(".artwork-image")).not.toBeNull();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(document.body.querySelector('[role="dialog"] .preparation-plan')).not.toBeNull();
   expect(document.body.textContent).toContain("E:/owned.iso");

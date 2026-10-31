@@ -230,7 +230,7 @@ function ContinueToGame({
           Retry refresh
         </Button>
       )}
-      <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+      <div className="actions flex flex-wrap gap-2">
         {matchingPorts.map((port) => (
           <Button
             key={port.id}
@@ -284,7 +284,7 @@ function CandidateRow({
 }) {
   return (
     <div
-      className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3 max-[55rem]:grid-cols-[minmax(0,1fr)]"
+      className="source-health-row grid grid-cols-[minmax(0,1fr)_minmax(0,18rem)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 max-[55rem]:grid-cols-[minmax(0,1fr)]"
       data-candidate-row
       data-completed-candidate={completed || undefined}
       data-live-candidate={!completed || undefined}
@@ -475,7 +475,7 @@ function SavedRootRows({
     <div className="source-health-list my-4 grid gap-2">
       {roots.map((root) => (
         <div
-          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+          className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 max-[55rem]:grid-cols-[minmax(0,1fr)]"
           key={root.id}
           data-game-file-root={root.id}
         >
@@ -489,7 +489,7 @@ function SavedRootRows({
                 : "Unavailable — reconnect or relink this folder"}
             </span>
           </div>
-          <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+          <div className="actions flex flex-wrap gap-2">
             <Button
               data-focusable
               variant="outline"
@@ -961,7 +961,7 @@ export function GameFileLibraries({
     </div>
   );
   const renderScanActions = () => (
-    <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+    <div className="actions flex flex-wrap gap-2">
       <Button
         data-focusable
         variant="outline"

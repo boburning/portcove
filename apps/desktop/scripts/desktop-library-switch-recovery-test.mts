@@ -147,6 +147,11 @@ export async function librarySwitchRecoveryScenario({
       assert.deepEqual(await readFile(fixture[key]), await readFile(fixture.before[key]), key);
   };
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  const storageCategory = By.xpath(
+    '//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Library and storage"]',
+  );
+  await browser.wait(until.elementLocated(storageCategory), 15_000);
+  await browser.findElement(storageCategory).click();
   const trigger = By.xpath('//button[normalize-space(.)="Choose another library"]');
   const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
   const selectAndReview = async (target: string, name: string) => {
@@ -179,7 +184,8 @@ export async function librarySwitchRecoveryScenario({
   );
   const refusal = await browser.wait(until.elementLocated(alert), 15_000);
   const refusalSummary = await refusal.getText();
-  assert.match(refusalSummary, /The current operation state could not be confirmed/);
+  assert.match(refusalSummary, /This library requires a newer Portcove database version/);
+  assert.ok(refusalSummary.includes("Portcove couldn't confirm whether anything changed."));
   await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
   const rejected = await read("get_bootstrap_status");
   assert.deepEqual(rejected, before);

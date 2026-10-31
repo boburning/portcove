@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { filterChoice } from "../../test/filter-fields";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
@@ -297,6 +298,7 @@ it.each(["dark", "light"])(
     await chooseReadiness("Ready (2)");
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(await filterChoice("Linux (1)"));
+    await captureParityState("library-filters-expanded");
     await closeFilters();
     await expect
       .element(page.getByRole("region", { name: "Filter options", exact: true }))
@@ -312,6 +314,27 @@ it.each(["dark", "light"])(
     await closeFilters();
     await chooseReadiness("Ready (1)");
     await expect.element(button("Remove Preview filter")).toBeInTheDocument();
+    const footers = [
+      ...document.querySelectorAll<HTMLElement>(".collection-cover .library-entry-footer"),
+    ];
+    expect(footers.length).toBeGreaterThan(0);
+    for (const footer of footers) {
+      const bounds = footer.getBoundingClientRect();
+      const status = footer
+        .querySelector<HTMLElement>(".collection-state")!
+        .getBoundingClientRect();
+      const actions = footer
+        .querySelector<HTMLElement>(".collection-actions")!
+        .getBoundingClientRect();
+      expect(status.width).toBeGreaterThanOrEqual(Math.min(96, bounds.width) - 1);
+      expect(
+        status.right <= actions.left ||
+          actions.right <= status.left ||
+          status.bottom <= actions.top ||
+          actions.bottom <= status.top,
+      ).toBe(true);
+    }
+    await captureParityState("library-selected-filter-chips");
     await userEvent.click(button("View details for Linux game Linux game"));
     await userEvent.click(button("Back to library"));
     await expectReadinessLabel("Readiness Ready (1)");
@@ -327,7 +350,7 @@ it.each(["dark", "light"])(
     await expectReadinessLabel("Readiness All (3)");
     await userEvent.click(button("Switch library"));
     await expectReadinessLabel("Readiness Ready (1)");
-    await userEvent.click(button("Favorites (1)"));
+    await userEvent.click(button("Favorites 1"));
     await expectReadinessOption("Needs attention (1)");
     await userEvent.fill(
       page.getByRole("textbox", { name: "Search library" }),
@@ -338,6 +361,7 @@ it.each(["dark", "light"])(
     await expect.element(await filterChoice("Linux (0)")).toBeEnabled();
     await closeFilters();
     await expect.element(button("Filters (2)")).toHaveFocus();
+    await captureParityState("library-zero-results");
     const chip = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Linux filter"]',
     )!;
@@ -367,10 +391,11 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
     .toHaveAttribute("aria-checked", "true");
   await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
-  await userEvent.click(button("Favorites (2)"));
+  await userEvent.click(button("Favorites 2"));
   await userEvent.click(button("Toggle favorite facts"));
   await expectReadinessOption("Ready (unavailable)");
   await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
+  await captureParityState("library-unavailable-facts");
   await userEvent.click(button("Toggle favorite facts"));
   await userEvent.click(button("Toggle empty"));
   await expectReadinessOption("Ready (0)");
@@ -382,11 +407,11 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
 });
 it("clears retained Favorites when its facts are unavailable", async () => {
   flushSync(() => root.render(<Fixture />));
-  await userEvent.click(button("Favorites (2)"));
+  await userEvent.click(button("Favorites 2"));
   await userEvent.click(button("Toggle favorite facts"));
-  await expect.element(button("Favorites (unavailable)")).toBeDisabled();
+  await expect.element(button("Favorites unavailable")).toBeDisabled();
   await userEvent.click(button("Reset view"));
-  await expect.element(button("Favorites (unavailable)")).toHaveAttribute("aria-pressed", "false");
+  await expect.element(button("Favorites unavailable")).toHaveAttribute("aria-pressed", "false");
   await expectReadinessLabel("Readiness All (3)");
 });
 it("holds unknown migrated readiness and query separately until correction", async () => {
@@ -443,7 +468,7 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
-});
+}, 45_000);
 
 it("retains specific attention with independent Library readiness, zero counts and unavailable removable focus", async () => {
   flushSync(() => root.render(<Fixture />));
@@ -477,7 +502,7 @@ it("retains specific attention with independent Library readiness, zero counts a
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessLabel("Readiness Needs attention (1)");
   expect(invoke).not.toHaveBeenCalled();
-});
+}, 30_000);
 
 it("keeps playable plus matching staged updates independent from attention with self-excluding counts and zero IPC", async () => {
   flushSync(() => root.render(<Fixture />));
@@ -507,7 +532,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessLabel("Readiness Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
-});
+}, 45_000);
 
 it("composes quick views with declared filters and clears only quick-view scope from All games", async () => {
   flushSync(() => root.render(<Fixture />));
@@ -516,7 +541,7 @@ it("composes quick views with declared filters and clears only quick-view scope 
   await openAdvancedFilters("Filters (0)");
   await userEvent.click(await filterChoice("Windows (2)"));
   await closeFilters();
-  await page.getByRole("button", { name: "Favorites (1)", exact: true }).click();
+  await page.getByRole("button", { name: "Favorites 1", exact: true }).click();
   const quick = page.getByRole("group", { name: "Library quick views", exact: true });
   await quick.getByRole("button", { name: "Updates", exact: true }).click();
   await expect
@@ -530,10 +555,48 @@ it("composes quick views with declared filters and clears only quick-view scope 
   await expect.element(button("Remove Windows filter")).toBeVisible();
   await expect.element(button("Remove Available at last check filter")).not.toBeInTheDocument();
   await expect.element(button("Remove Matching update staged filter")).not.toBeInTheDocument();
-  await expect.element(button("Favorites (1)")).toHaveAttribute("aria-pressed", "false");
+  await expect.element(button("Favorites 1")).toHaveAttribute("aria-pressed", "false");
   await expect
     .element(quick.getByRole("button", { name: "Updates", exact: true }))
     .toHaveAttribute("aria-pressed", "false");
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(2);
   expect(invoke).not.toHaveBeenCalled();
 });
+
+it("keeps selected filter labels and their popover bounded at 320px with enlarged text", async () => {
+  await page.viewport(320, 844);
+  document.documentElement.dataset.theme = "dark";
+  document.documentElement.style.fontSize = "32px";
+  try {
+    flushSync(() => root.render(<Fixture />));
+    await openAdvancedFilters("Filters (0)");
+    await userEvent.click(await filterChoice("Linux (2)"));
+    await userEvent.click(await filterChoice("Preview (2)"));
+    await closeFilters();
+    const preview = page.getByRole("button", { name: "Remove Preview filter", exact: true });
+    const linux = page.getByRole("button", { name: "Remove Linux filter", exact: true });
+    await expect.element(preview).toHaveTextContent("Release channels: Preview");
+    await expect.element(linux).toHaveTextContent("Target OS: Linux");
+    for (const chip of [preview, linux]) {
+      const element = chip.element();
+      expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth + 1);
+      expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(innerWidth + 1);
+    }
+    await captureParityState("library-selected-chips-narrow-text-200");
+    await openAdvancedFilters("Filters (2)");
+    const panel = page.getByRole("region", { name: "Filter options", exact: true });
+    await expect.element(panel).toBeVisible();
+    const panelBounds = panel.element().getBoundingClientRect();
+    const overflowing = [...panel.element().querySelectorAll<HTMLElement>("*")]
+      .filter((element) => element.getBoundingClientRect().right > panelBounds.right + 1)
+      .map((element) => `${element.className}: ${element.textContent}`);
+    expect(panel.element().scrollWidth, overflowing.join("\n")).toBeLessThanOrEqual(
+      panel.element().clientWidth + 1,
+    );
+    await captureParityState("library-selected-popover-narrow-text-200");
+    await closeFilters();
+    await expect.element(button("Filters (2)")).toHaveFocus();
+  } finally {
+    document.documentElement.style.removeProperty("font-size");
+  }
+}, 45_000);

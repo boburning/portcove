@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -76,6 +77,7 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   );
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
+  await captureParityState("backup-restore-reviewed-fixture");
   await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
@@ -111,6 +113,7 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
     "permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy",
   );
   expect(document.body.textContent).toContain("not a reversible cancellation");
+  await captureParityState("backup-delete-reviewed-fixture");
   await click("Cancel");
   expect(close).toHaveBeenCalledOnce();
   expect(apply).not.toHaveBeenCalled();
@@ -155,12 +158,14 @@ it("requires a fresh review after a changed selection fails and rejects duplicat
   );
   await click("Restore this backup");
   expect(document.body.textContent).toContain("Restoring backup…");
+  await captureParityState("backup-restore-pending-fixture");
   await click("Restoring backup…");
   await click("Cancel");
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  await captureParityState("backup-restore-failed-fixture");
   expect(document.body.textContent).not.toContain("Restore this backup");
   await click("Review again");
   expect(preview).toHaveBeenCalledTimes(2);

@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -6,6 +7,7 @@ import { desktopApi } from "../api";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { INTERFACE_SIZE_KEY } from "../interface-size-controller";
+import { THEME_STORAGE_KEY } from "../theme";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 let spacing: HTMLStyleElement | undefined;
@@ -27,6 +29,7 @@ for (const theme of ["dark", "light"]) {
       throw new Error(message);
     });
     initializeLocalization(["en"]);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(548, 366);
     await render(
@@ -44,6 +47,8 @@ for (const theme of ["dark", "light"]) {
       document.createTreeWalker(label, NodeFilter.SHOW_TEXT).nextNode()!,
     );
     expect(libraryRange.getClientRects()).toHaveLength(1);
+    await expect.poll(() => document.documentElement.dataset.theme).toBe(theme);
+    await captureParityState("navigation-sheet-short-window");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.viewport(240, 160);
     for (const name of ["Follow system", "Dark", "Light"]) {
@@ -67,6 +72,7 @@ for (const theme of ["dark", "light"]) {
       throw new Error(message);
     });
     initializeLocalization(["en"]);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(320, 640);
     await render(
@@ -110,6 +116,7 @@ for (const theme of ["dark", "light"]) {
       throw new Error(message);
     });
     initializeLocalization(["en"]);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(960, 640);
     await render(
@@ -168,6 +175,7 @@ for (const theme of ["dark", "light"]) {
         throw new Error(message);
       });
       initializeLocalization(["en"]);
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
       document.documentElement.dataset.theme = theme;
       await page.viewport(320, 800);
       await render(
@@ -198,6 +206,10 @@ for (const theme of ["dark", "light"]) {
       await expect
         .element(page.getByRole("button", { name: "Reset to 100%", exact: true }))
         .toBeEnabled();
+      await expect.poll(() => document.documentElement.dataset.theme).toBe(theme);
+      await captureParityState(
+        mode === "spacing overrides" ? "settings-spacing-overrides" : "settings-text-200",
+      );
     });
   }
 }

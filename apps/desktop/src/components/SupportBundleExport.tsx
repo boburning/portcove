@@ -96,6 +96,7 @@ export function SupportBundleExport({
         </p>
       </details>
       <Button
+        data-settings-control="diagnostics"
         data-focusable
         variant="outline"
         size="sm"

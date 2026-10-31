@@ -1,3 +1,5 @@
+import { captureParityState } from "../../test/parity-capture";
+import "../styles/index.css";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -248,6 +250,7 @@ describe("Library empty browsing context", () => {
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Your library is empty");
     expect(host.textContent).toContain("Connect game-file folder");
+    await captureParityState("empty-library-first-use");
     await act(async () =>
       [...host.querySelectorAll("button")]
         .find((button) => button.textContent?.includes("Connect game-file folder"))!

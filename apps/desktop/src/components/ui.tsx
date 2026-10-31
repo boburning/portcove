@@ -62,7 +62,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <section className="empty-state flex min-h-[18.75rem] flex-col items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-10 text-center text-pc-muted-foreground">
+    <section className="empty-state flex min-h-[18.75rem] flex-col items-center justify-center gap-4 p-10 text-center text-pc-muted-foreground">
       <EmptyVisual icon={icon} visual={visual} />
       <div>
         {eyebrow && (
@@ -82,7 +82,7 @@ function EmptyVisual({ icon, visual }: { icon?: LucideIcon | undefined; visual?:
   if (visual) return visual;
   if (!icon) return null;
   return (
-    <span className="relative grid size-12 place-items-center rounded-pc-lg border border-pc-border bg-pc-surface text-[var(--color-interactive-text)] shadow-[var(--shadow-control)]">
+    <span className="relative grid size-16 place-items-center rounded-pc-lg border border-pc-border bg-pc-surface text-[var(--color-interactive-text)] shadow-[var(--shadow-control)]">
       <Icon glyph={icon} size="lg" />
     </span>
   );

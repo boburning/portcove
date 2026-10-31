@@ -5,6 +5,7 @@ import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import type { LibraryMovePlan } from "../types";
 import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import { ActionReviewFailure } from "./ActionReviewFailure";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -125,7 +126,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           />
         )}
         {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
-        {error != null && <p role="alert">{errorText(error)}</p>}
+        {error != null && <ActionReviewFailure error={error} />}
         {transferAttempted && !busy && (
           <p>Closing this review refreshes the library before you continue.</p>
         )}
@@ -187,7 +188,7 @@ export function LibraryMoveRecovery({
   disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
   const recover = async (abort: boolean) => {
     if (busy || disabled) return;
     setBusy(true);
@@ -197,7 +198,7 @@ export function LibraryMoveRecovery({
       await desktopApi.recoverLibraryMove(source, abort);
       reloadWorkspace();
     } catch (value) {
-      setError(errorText(value));
+      setError(value ?? errorText(value));
     } finally {
       setBusy(false);
       onBusyChange?.(false);
@@ -241,7 +242,7 @@ export function LibraryMoveRecovery({
         )}
       </div>
       {busy && <p role="status">Recovering the library location change…</p>}
-      {error && <p role="alert">{error}</p>}
+      {error != null && <ActionReviewFailure error={error} />}
     </section>
   );
 }

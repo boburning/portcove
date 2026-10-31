@@ -277,6 +277,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     assert.equal((await browser.findElements(dialogFor("register"))).length, 0);
     report.steps.push("ordinary-workspace-return-has-no-old-review");
     review = await selectFolder("external-runtime-native-cancel-picker");
+    const reviewedBeforeNativeCancel = await review.dialog.getText();
     await review.action.click();
     await confirmNative(
       "Confirm external runtime",
@@ -284,10 +285,15 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       fixture.port.id,
       "external-runtime-registration-cancel",
     );
-    await closed("register");
+    // Native consent cancellation preserves the exact reviewed folder for retry.
+    review = await reviewed("register", "Use this installation");
+    assert.equal(await review.dialog.getText(), reviewedBeforeNativeCancel);
+    assert.equal((await review.dialog.findElements(By.css('[role="alert"]'))).length, 0);
     assert.ok(!(await status()).external_runtime);
     await retainFiles();
-    report.steps.push("native-registration-consent-cancelled-without-registration");
+    report.steps.push("native-registration-consent-cancelled-with-review-and-files-preserved");
+    await review.dialog.findElement(buttonFor("Cancel")).click();
+    await closed("register");
     // Real Core preview refusal, rather than a supplied error payload. Only this
     // scenario's inert immutable fixture is changed, then restored before reuse.
     const rejectedFile = path.join(fixture.directory, "unknown-save.bin");

@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
@@ -10,6 +11,7 @@ import { DetailPanel, InstallAction } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { portStatus } from "../test-fixtures";
 import { actions } from "./rendered-test-fixtures";
+import "../styles/index.css";
 
 const plan: InstallPlan = {
   bundled_runtime: null,
@@ -631,6 +633,7 @@ it("does not dismiss the reviewed installation after installation starts", async
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   expect(button("Cancel review").disabled).toBe(true);
+  await captureParityState("install-busy-review");
 });
 
 it("keeps the active installation cancellation reachable inside the busy review", async () => {
@@ -671,6 +674,7 @@ it("keeps the active installation cancellation reachable inside the busy review"
   await click("Cancel operation");
   expect(cancel).toHaveBeenCalledWith("install-1");
   expect(dialog?.textContent).toContain("Cancellation requested");
+  await captureParityState("install-cancellation-requested");
 });
 
 it("exposes a failed install result outside the dismissed review before another attempt", async () => {
@@ -703,6 +707,7 @@ it("exposes a failed install result outside the dismissed review before another 
     "Artifact unavailable",
   );
   expect(document.activeElement?.textContent).toContain("Review installation");
+  await captureParityState("install-failed-status");
 });
 
 it.each([

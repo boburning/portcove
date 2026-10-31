@@ -11,6 +11,11 @@ inline. Keep location dismisses the inline region and returns focus to its
 trigger. Cancellation is neutral and changed impact requires renewed intent.
 Other destructive reviews retain their own consent contracts.
 
+Current and reviewed output destinations summarize all existing eligibility checks.
+Raw filesystem availability cannot announce passed checks when ownership or
+validation refuses the folder. Full, unavailable and unknown results remain
+explicit; the host retains apply authorization and preimage checks.
+
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
@@ -26,14 +31,14 @@ name. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
 selection scope, including filtered-out entries in supported Steam commands.
 
-Covers use content-driven columns with a preferred minimum of 12.75rem, giving
+Covers use content-driven columns with a preferred minimum of 12rem, giving
 five columns at the matched 1440px desktop viewport with the normal interface
 size and full sidebar. Available width and interface size change the count.
 Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
-it caps at 160px. Short windows retain the same density rules. Supporting text
+it caps at 160px. Compact widths and short desktop windows use a 10rem preferred column minimum; artwork remains capped at 260px even when supporting text grows. Supporting text
 scales and wraps without growing artwork beyond its CSS bound; native interface
 zoom still enlarges the physical rendering. Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a bordered, labeled button; hover and keyboard focus use the signature red. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a quiet bordered, labeled button, including hover and keyboard focus; the selected game's detail and Continue actions retain signature red emphasis. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
@@ -77,6 +82,16 @@ Geist, semantic tokens, the existing controls and the one persisted/native sizin
 authority remain shared. Enlarged text may wrap and scroll; it never authorizes
 shrinking essential text, hiding consequences or replacing the domain projections.
 
+Cover-grid titles use scalable 14px-equivalent type with 1.45 leading; project text
+uses a 12px-equivalent role with 1.5 leading. Compact-row titles use 15px-equivalent
+type with 1.4 leading and 13px-equivalent project text. The cover-to-identity gap is
+24px in Library and 12px in Discover at normal scale. Columns are separated by
+20px, and card actions use a 32px-equivalent height. Shared general-purpose buttons retain their larger hit targets. Saved and
+hidden collection views, Favorites, and Not in library share existing query owners;
+the latter is selected only for that exact singleton membership, not an OR selection
+that also includes installed games. Selecting a quick view preserves search and
+unrelated facets.
+
 ## Game details
 
 Managed games, registered external installations and catalog/self-service entries
@@ -105,14 +120,15 @@ keep the complete glyph bounds over a readable surface. Logo ink/contrast and
 minimum rendered size are checked; unsuitable or failed assets advance to the
 next fallback without arbitrary pixel recoloring. Continue uses recorded launch
 history and relaunches that installation; it does not load a save automatically.
-Loaded galleries use three columns in wide containers when at least three images
-exist, two at medium widths, and one in compact containers; per-slot attribution,
+Loaded galleries use contained 4:3 stages, with three columns for exactly three images at
+851px viewport width and above and two columns otherwise. The viewer includes a selectable thumbnail
+filmstrip with an exposed current selection; per-slot attribution,
 errors and lightbox focus remain with the media owner. Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
-Home/End move focus; Enter/Space select. Narrow tab lists wrap with visible labels.
+Home/End move focus; Enter/Space select. Narrow tab lists retain visible labels in one horizontally scrollable row.
 Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
@@ -168,7 +184,9 @@ feedback changes never take focus or reveal a control the player left behind.
 
 Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record.
 
-Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement.
+Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement. Invocation-backed polite messages use a status owner that exists empty before work begins, with an atomic action/target message for each invocation. Pending, execution completion, readback and terminal changes update that invocation’s message; simultaneous results do not replace one another. Real failures retain their attributed assertive notices, and visual progress does not duplicate the owned announcement. Browser lifecycle checks do not establish actual screen-reader speech.
+
+Library location-change review and recovery retain Core's typed failure consequences through the shared review-failure presentation. The summary, reported mutation outcome and expandable technical phase/context remain together. An unknown outcome stays unknown; a committed outcome does not invite an automatic repeat. Displaying recovery details grants no additional recovery action or library lease authority.
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
@@ -235,7 +253,7 @@ build targets, operating-system minima or publication qualification.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
 - Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Graphite and warm controller-gray surfaces carry most of the interface. In the light theme, navigation is darker than the warm workspace and elevated surfaces are brighter. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
-- Selected state and focus are deliberately different: shared selected buttons use blue fill and a bottom-line marker with a transparent border; destination and Settings category navigation use the fill and current-page semantics. A gold outline communicates the current keyboard or controller target independently. Selecting an ordinary control preserves its regular font weight and geometry; forced colors retain a visible state cue.
+- Selected state and focus are deliberately different: shared selected buttons use blue fill and a bottom-line marker with a transparent border; destination and Settings category navigation use the fill and current-page semantics. A gold outline communicates the current keyboard or controller target independently. Selecting an ordinary control preserves its regular font weight and geometry; forced colors retain a visible state cue. Current destination and Settings-category controls keep a leading system-color border in forced colors, independently of the keyboard focus outline.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use decorative gradients, glass, blur, neon glow, scanlines, or pixel-interface typography. Hero artwork uses the shared directional opacity mask solely to protect foreground readability.
 - The bundled Geist variable font is the intended default interface typeface, with an intentional monospace stack for technical content and offline system/script fallbacks coordinated with #203. The desktop must not make a network request to render its interface.
 - A second token interchange format is unnecessary while CSS has one runtime consumer. If a demonstrated second consumer later needs exchange, evaluate the then-current Design Tokens Community Group format without treating a community-group specification as a W3C Recommendation or manually maintaining competing CSS and JSON authorities.
@@ -292,6 +310,7 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Command-palette pointer movement, option focus and direct clicks remain usable alongside keyboard selection. A popup appearing beneath a stationary pointer must not replace the command selected with the arrow keys.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
+- Supplemental tooltips stay within their trigger's existing landmark or dialog. Fixed positioning keeps the popup clear of scrollable containers while preserving accessible names, descriptions and dismissal.
 - Shared review dialogs permit long path and identifier text to wrap anywhere when space requires it, including inline values in consequence paragraphs. Preserve the complete selectable value; do not hide horizontal overflow. Check real Windows paths spanning several directory names at 240px and 320px effective widths as well as ordinary windows: hyphenated or Unicode-only samples can introduce break opportunities that mask failures.
 - Motion is small, interruptible, reduced-motion safe, and independent of business logic. Approximately 100–140 ms for ordinary visual transitions and 160–220 ms for small floating surfaces are evaluation ranges, not standards or global release gates.
 - First use, no filtered matches, unavailable storage, refresh failure with retained data, operation failure, partial success, and cancellation remain distinct. Settings either persist immediately and report persistence truthfully or use an explicit Apply/Cancel transaction.
@@ -1016,3 +1035,21 @@ precede that identity chain. Header and screenshot selection remain independent.
 A logo sits above the game identity/actions; a cover retains its portrait column.
 Supporting detail and settings text scales with interface size. No artwork or
 prototype fixture creates readiness, launch history or operation eligibility.
+
+### Prototype composition and production state
+
+Overview uses a primary information column and a narrower Requirements/Project &
+support column. Files and Versions follow the same responsive rhythm. Current
+and downloaded/available versions are separate prominent values; retained update
+observations never become current facts after a generation or installation change.
+Backup journey counts require a current healthy inventory, and unavailable data
+never becomes a zero count. Manage uses ruled rows and a separate destructive zone.
+
+Activity embeds progress within task rows and uses open empty states while keeping
+history completeness visible. Supplemental update explanations are disclosed;
+current check coverage remains visible. Command groups are registry metadata, with
+original keyboard order, disabled skipping and command dispatch unchanged.
+
+Shared dialogs reserve heading and description space for Close. Shared empty
+states use an open icon/title/body composition; informational notices use a quiet
+surface and leading accent while warning/error semantics remain independent.

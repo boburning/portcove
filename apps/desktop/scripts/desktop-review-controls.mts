@@ -9,6 +9,20 @@ import { writeFile } from "node:fs/promises";
 import axe from "axe-core";
 import { By, Key, until } from "selenium-webdriver";
 
+/** Reveal the retained log through its real enclosing disclosure. */
+export async function preparationLogControl(browser: WebDriver, row: WebElement) {
+  const taskDetails = await row.findElement(
+    By.xpath('.//summary[normalize-space(.)="Task details"]'),
+  );
+  const details = await taskDetails.findElement(By.xpath(".."));
+  if ((await details.getAttribute("open")) === null) await clickVisible(browser, taskDetails);
+  const log = await row.findElement(
+    By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
+  );
+  await browser.wait(until.elementIsVisible(log), 5_000);
+  return log;
+}
+
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
@@ -251,14 +265,27 @@ export async function selectPrimaryNavigation(
   const locator = By.xpath(
     `//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="${label}"]]`,
   );
-  const visibleDestination = async () => {
+  const renderedDestination = async () => {
     for (const candidate of await browser.findElements(locator)) {
-      if (await candidate.isDisplayed()) return candidate;
+      // A wide navigation item can be clipped by document scrolling. Choose its
+      // rendered route before clickVisible reveals it; responsive display:none
+      // destinations still require the shipping narrow sheet.
+      if (
+        await executeBrowserScript(
+          browser,
+          (element) =>
+            element.getClientRects().length > 0 &&
+            getComputedStyle(element).visibility !== "hidden" &&
+            !element.closest("[hidden], [inert]"),
+          candidate,
+        )
+      )
+        return candidate;
     }
     return undefined;
   };
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
-  let destination = await visibleDestination();
+  let destination = await renderedDestination();
   if (!destination) {
     const trigger = await browser.wait(
       until.elementLocated(By.css('button[aria-label="Open navigation"]')),
@@ -266,7 +293,7 @@ export async function selectPrimaryNavigation(
     );
     await clickVisible(browser, trigger);
     await browser.wait(async () => {
-      destination = await visibleDestination();
+      destination = await renderedDestination();
       return Boolean(destination);
     }, 5_000);
   }

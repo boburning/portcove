@@ -1,4 +1,5 @@
 import { controlledAct as act } from "../../../test/controlled-react-act";
+import { captureParityState } from "../../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
 import { useState } from "react";
@@ -12,6 +13,7 @@ import type { BackupInventory, BackupRecord, BackupReview } from "../../types";
 import { failureReport } from "../../test-fixtures";
 import { usePortBackups } from "./use-port-backups";
 import { detailActions } from "../game-details/detail-actions";
+import "../../styles/index.css";
 
 const backups: BackupRecord[] = [1, 2].map((index) => ({
   id: `backup-${index}`,
@@ -538,10 +540,14 @@ it("identifies retained rows after a failed refresh and retries only the invento
   const remove = vi.fn();
   const restore = vi.fn();
   await root.rerender(<ReadHistory remove={remove} restore={restore} />);
+  await expect.poll(() => container.querySelectorAll(".backup-row").length).toBe(2);
+  expect(container.textContent).not.toContain("last loaded backup list");
+  await captureParityState("backup-history-current-populated-fixture");
   await click("Refresh backup history");
   expect(container.querySelectorAll(".backup-row")).toHaveLength(2);
   expect(container.textContent).toContain("last loaded backup list");
   expect(container.textContent).not.toContain("2 verified backups");
+  await captureParityState("backup-history-retained-failed-refresh-fixture");
   await click("Retry backup history");
   expect(container.querySelectorAll(".backup-row")).toHaveLength(0);
   expect(container.textContent).toContain("No backups yet");

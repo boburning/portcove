@@ -2251,7 +2251,14 @@ mod tests {
     #[tokio::test]
     async fn authenticated_status_partial_body_exhausts_the_read_idle_bound() {
         let (auth_root, mut auth_server) = serve_deadline_response(DeadlineResponse::BodyStall);
-        let bounds = short_network_bounds();
+        // The 50ms fixture guard expired before the Windows server received
+        // the request (62ms, no headers/body). Leave room to reach the body,
+        // while retaining the assertions that idle expiry precedes total expiry.
+        let bounds = ProviderNetworkBounds {
+            connect: Duration::from_millis(200),
+            read_idle: Duration::from_millis(200),
+            request: Duration::from_millis(800),
+        };
         let provider = GithubReleaseProvider::with_api_root_and_bounds(auth_root, bounds).unwrap();
         provider.set_credential(
             Some("fixed-phase-fixture-token".into()),

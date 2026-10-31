@@ -462,6 +462,17 @@ fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
         emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);
 }
 
+fn emit_install_operation(
+    app: &tauri::AppHandle,
+    on_event: &Option<tauri::ipc::Channel<OperationEvent>>,
+    event: OperationEvent,
+) {
+    if let Some(channel) = on_event {
+        let _ = channel.send(event.clone());
+    }
+    emit_operation(app, event);
+}
+
 #[tauri::command]
 async fn get_github_auth_status(
     state: tauri::State<'_, DesktopState>,
@@ -832,16 +843,12 @@ async fn check_installed(
             .filter(|status| status.active.is_some())
             .map(|status| status.port_id)
             .collect::<Vec<_>>();
-        let total = installed.len() as u64;
         let operation = OperationCoordinator::new("check_installed", None);
+        // Core returns the complete batch. Keep feedback indeterminate until it
+        // settles rather than replaying per-item progress after the work ended.
         emit_operation(&app, operation.started());
         let mut outcomes = Vec::with_capacity(installed.len());
-        for (index, (port_id, result)) in service
-            .check_updates(installed)
-            .await?
-            .into_iter()
-            .enumerate()
-        {
+        for (port_id, result) in service.check_updates(installed).await? {
             outcomes.push(match result {
                 Ok(result) => BatchOutcome {
                     port_id,
@@ -856,15 +863,6 @@ async fn check_installed(
                     error: Some(error.into()),
                 },
             });
-            emit_operation(
-                &app,
-                operation.progress_with_unit(
-                    "check_installed",
-                    portcove_core::ProgressUnit::Ports,
-                    index as u64 + 1,
-                    Some(total),
-                ),
-            );
         }
         let success = outcomes.iter().all(|outcome| outcome.ok);
         emit_operation(
@@ -1240,10 +1238,14 @@ async fn set_policy(
 #[tauri::command]
 async fn install_port(
     app: tauri::AppHandle,
+    webview: tauri::Webview,
     state: tauri::State<'_, DesktopState>,
     input: InstallInput,
     generation: u64,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
 ) -> DesktopResult<InstallRecord> {
+    let on_event: Option<tauri::ipc::Channel<OperationEvent>> =
+        on_event.map(|id| id.channel_on(webview));
     let state = state.inner().clone();
     blocking_async_service_at_generation(state, generation, move |service| async move {
         if service.catalog().port(&input.port_id)?.managed_shared_preferences.is_some() {
@@ -1258,10 +1260,11 @@ async fn install_port(
             let destination = scope.local_fallback_path.parent().ok_or_else(|| PortcoveError::verification("shared preferences installation location is missing"))?;
             let message = format!("Install {} {}\nLocation: {}\nOriginal game file: {}\n\n{}", service.catalog().port(&input.port_id)?.name, reviewed.plan.release.version, destination.display(), original.as_ref().map(|record| record.path.display().to_string()).unwrap_or_else(|| "Not registered".into()), scope.write_scope_disclosure());
             if !confirm_destructive(&app, "Allow ReGaiden's shared preferences?", message, "Accept scope and install").await {
-                return Err(PortcoveError::usage("shared preferences review was canceled").into());
+                return Err(PortcoveError::new(portcove_core::ErrorCode::Cancelled, "Shared preferences review cancelled. Nothing was changed.")
+                    .with_mutation_state(portcove_core::MutationState::NotStarted).into());
             }
             let authorization = service.authorize_game_install_with_shared_preferences_ack(&input.port_id, &reviewed.plan_sha256, Some(&reviewed.plan_sha256)).await?;
-            return service.apply_game_install(&input.port_id, &authorization.token, |event| emit_operation(&app, event)).await.map_err(Into::into);
+            return service.apply_game_install(&input.port_id, &authorization.token, |event| emit_install_operation(&app, &on_event, event)).await.map_err(Into::into);
         }
         service
             .install(
@@ -1271,7 +1274,7 @@ async fn install_port(
                 input.bios.as_deref(),
                 !input.stage,
                 |event: OperationEvent| {
-                    emit_operation(&app, event);
+                    emit_install_operation(&app, &on_event, event);
                 },
             )
             .await

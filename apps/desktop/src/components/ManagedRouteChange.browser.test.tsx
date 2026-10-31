@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -113,6 +114,7 @@ it("reviews a separate managed copy before consent and leaves Play explicit", as
   expect(dialog).toBeDefined();
   expect(dialog!.left).toBeGreaterThanOrEqual(0);
   expect(dialog!.right).toBeLessThanOrEqual(360);
+  await captureParityState("managed-route-change-reviewed-fixture");
   await page.getByRole("button", { name: "Create managed copy" }).click();
   expect(apply).toHaveBeenCalledExactlyOnceWith(port.id, "reviewed-route", 7);
   expect(changed).toHaveBeenCalledOnce();
@@ -138,6 +140,7 @@ it("shows the Core hold while keeping the current copy intact", async () => {
     .toBeVisible();
   await expect.element(page.getByRole("button", { name: "Create managed copy" })).toBeDisabled();
   expect(apply).not.toHaveBeenCalled();
+  await captureParityState("managed-route-change-refused-fixture");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Review a Portcove-managed copy…" }))
@@ -163,6 +166,7 @@ it("retains a committed failure until the player refreshes the authoritative ins
     .element(page.getByRole("button", { name: "Refresh current installation" }))
     .toBeVisible();
   expect(document.body.textContent).not.toContain("Create managed copy");
+  await captureParityState("managed-route-change-committed-failure-fixture");
   await page.getByRole("button", { name: "Refresh current installation" }).click();
   expect(changed).toHaveBeenCalledOnce();
 });
