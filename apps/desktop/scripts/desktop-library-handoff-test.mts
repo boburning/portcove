@@ -267,6 +267,9 @@ export async function libraryHandoffScenario({
               alerts: [...(element?.querySelectorAll('[role="alert"]') ?? [])]
                 .slice(0, 8)
                 .map((alert) => alert.textContent?.trim().slice(0, 1000)),
+              technical: [...(element?.querySelectorAll(".failure-details pre") ?? [])]
+                .slice(0, 4)
+                .map((details) => details.textContent?.trim().slice(0, 8192)),
               buttons: [...(element?.querySelectorAll<HTMLButtonElement>("button") ?? [])]
                 .slice(0, 16)
                 .map((button) => ({
@@ -298,7 +301,7 @@ export async function libraryHandoffScenario({
                 dialog,
                 bootstrap: current,
                 interpretation:
-                  "Sequential read-only observations after the failed wait; inline text does not reconstruct the original typed rejection.",
+                  "Sequential read-only observations after the failed wait. Technical details retain the renderer's typed failure projection when present; neither these details nor bootstrap identify the lease holder or reconstruct overlapping command lifetimes.",
               },
               null,
               2,

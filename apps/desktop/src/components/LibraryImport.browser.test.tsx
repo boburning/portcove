@@ -11,6 +11,7 @@ import type { LibraryImportPlan } from "../types";
 import { LibraryImportButton } from "./LibraryImport";
 import { LibraryMoveButton, LibraryMoveRecovery } from "./LibraryMove";
 import { BootstrapRecovery } from "../App";
+import { failureReport } from "../test-fixtures";
 
 let root: RenderResult;
 const plan: LibraryImportPlan = {
@@ -156,6 +157,101 @@ it("explains retained originals and space before reviewing a library move", asyn
     "The old folder is kept, so this does not free space on its drive.",
   );
   expect(document.body.textContent).toContain("Original game files stay at their saved locations");
+});
+
+it("retains a typed busy move refusal without claiming a mutation outcome or repeating the move", async () => {
+  const error = failureReport();
+  error.code = "conflict";
+  error.message = "library is in use";
+  error.presentation.summary = "Another Portcove operation is using this library.";
+  error.presentation.technical_message = error.message;
+  error.presentation.technical_context = { library_root: "D:/Owned library" };
+  vi.spyOn(desktopApi, "planLibraryMove").mockResolvedValue({
+    ...plan,
+    source_root: "D:/Owned library",
+    source_will_be_retained: true,
+  });
+  const move = vi.spyOn(desktopApi, "moveLibrary").mockRejectedValue(error);
+  await root.rerender(<LibraryMoveButton disabled={false} />);
+  await click("Change library location");
+  await page.getByRole("textbox", { name: "New library folder" }).fill("E:/New");
+  await click("Review location change");
+  await click("Copy and switch");
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+    error.presentation.summary,
+  );
+  expect(document.body.textContent).toContain(
+    "Portcove couldn't confirm whether anything changed.",
+  );
+  await page.getByText("View technical details", { exact: true }).click();
+  const details: unknown = JSON.parse(document.querySelector(".failure-details pre")!.textContent);
+  expect(details).toEqual({
+    code: "conflict",
+    mutation_state: "unknown",
+    phase: null,
+    message: "library is in use",
+    context: { library_root: "D:/Owned library" },
+  });
+  expect(move).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(reloadWorkspace)).not.toHaveBeenCalled();
+  await click("Close");
+  expect(vi.mocked(reloadWorkspace)).toHaveBeenCalledTimes(1);
+  expect(move).toHaveBeenCalledTimes(1);
+});
+
+it.each([240, 320])("retains committed recovery details within a %spx view", async (width) => {
+  const original = { width: innerWidth, height: innerHeight };
+  await page.viewport(width, 160);
+  try {
+    const error = failureReport();
+    error.code = "state";
+    error.presentation.mutation_state = "committed";
+    error.presentation.phase = "finalization";
+    error.presentation.technical_context = { retained_source: `D:/${"long-folder/".repeat(20)}` };
+    const recover = vi.spyOn(desktopApi, "recoverLibraryMove").mockRejectedValue(error);
+    await root.rerender(<LibraryMoveRecovery source="D:/Original" canKeepOriginal={false} />);
+    await click("Continue location change");
+    expect(document.body.textContent).toContain("The change was saved.");
+    await page.getByText("View technical details", { exact: true }).click();
+    const details: unknown = JSON.parse(
+      document.querySelector(".failure-details pre")!.textContent,
+    );
+    expect(details).toEqual({
+      code: "state",
+      mutation_state: "committed",
+      phase: "finalization",
+      message: error.presentation.technical_message,
+      context: error.presentation.technical_context,
+    });
+    const panel = document.querySelector<HTMLElement>('[aria-label="Library move recovery"]')!;
+    expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth + 1);
+    expect(document.body.textContent).not.toContain("Keep using original library");
+    expect(recover).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(reloadWorkspace)).not.toHaveBeenCalled();
+  } finally {
+    await page.viewport(original.width, original.height);
+  }
+});
+
+it("keeps recovery-required consequences attached to a failed library recovery", async () => {
+  const error = failureReport();
+  error.presentation.mutation_state = "recovery_required";
+  vi.spyOn(desktopApi, "recoverLibraryMove").mockRejectedValue(error);
+  await root.rerender(<LibraryMoveRecovery source="D:/Original" canKeepOriginal={true} />);
+  await click("Continue location change");
+  expect(document.body.textContent).toContain("An earlier attempt left unfinished work.");
+  expect(button("Keep using original library").disabled).toBe(false);
+  expect(vi.mocked(reloadWorkspace)).not.toHaveBeenCalled();
+});
+
+it.each([null, undefined])("keeps a nullish rejected recovery visible (%s)", async (value) => {
+  const recover = vi.spyOn(desktopApi, "recoverLibraryMove").mockRejectedValue(value);
+  await root.rerender(<LibraryMoveRecovery source="D:/Original" canKeepOriginal={true} />);
+  await click("Continue location change");
+  expect(document.querySelector('[role="alert"]')?.textContent).toBe(String(value));
+  expect(document.querySelector(".failure-details")).toBeNull();
+  expect(recover).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(reloadWorkspace)).not.toHaveBeenCalled();
 });
 
 it.each([240, 320])(
