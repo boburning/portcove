@@ -16,6 +16,31 @@
       "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
       "game_slug": "snowboard-kids",
       "match_kind": "underlying-game"
+    },
+    "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend e85b912d9df677b04f9358867dd010c8af27ea05 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package.",
+    "manual_setup": {
+      "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
+      "steps": [
+        {
+          "title": "Keep a complete permitted Windows player",
+          "instruction": "Use an already completed Snowboard Kids (HikariLucy) Windows copy you are permitted to use. Keep SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs together. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
+        },
+        {
+          "title": "Select your own supported original on Play",
+          "instruction": "Choose your own supported Snowboard Kids (USA), game code NSKE, through the upstream ROM chooser. Upstream ROM-IDENTITY.md specifies its normalized identity and supported N64 byte orders. Preserve that original separately. Portcove does not acquire, upload, copy, patch or authenticate the ROM through this attachment route."
+        },
+        {
+          "title": "Review the engine, working directory and intent",
+          "instruction": "Select the completed native SnowboardKidsEngine.exe with the established package root as working directory and only its supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the actual profile and active module",
+          "instruction": "Keep the complete creating package, original and effective profile before maintenance. The normal Windows profile is %APPDATA%/SnowboardKids; SBK_USER_DATA_DIR can select another root, and resolver fallbacks must be preserved in their actual locations. Retain all configuration, remembered source paths, Controller Pak .mpk files, .sbks states, modules, logs and custom paths. Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable."
+        }
+      ],
+      "warnings": [
+        "Use only an actual copy and components you are permitted to use. The official base frontend GPLv3 resolution does not establish the separate modified cdlewis fork grant; fresh acquisition stays held. Source/first-party checks are not gameplay, real-save, installed or protected acceptance."
+      ]
     }
   }
 }

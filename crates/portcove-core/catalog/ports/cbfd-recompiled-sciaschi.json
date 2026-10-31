@@ -26,12 +26,12 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Choose this implementation’s complete player",
+          "title": "Choose this implementation\u2019s complete player",
           "instruction": "Use a permitted sciaschi CBFD-Recompiled copy: ConkerRecomp.exe on Windows or ConkerRecomp on Linux, with its full extracted folder as the working directory. Keep assets, runtime libraries and notices together. The separate Mods.zip contains optional mods, not the player. The upstream macOS application is a separate Apple Silicon/macOS 15-or-later route; retain its bundle and follow upstream instructions."
         },
         {
           "title": "Load your USA original on first Play",
-          "instruction": "Choose Play explicitly, then Load ROM in the launcher and supply your own supported USA Conker’s Bad Fur Day dump. Upstream validates and remembers the input; the released player does not need the source-build tools. Keep this implementation separate from Conker64’s scene prototype and the distinct Reloaded player."
+          "instruction": "Choose Play explicitly, then Load ROM in the launcher and supply your own supported USA Conker\u2019s Bad Fur Day dump. Upstream validates and remembers the input; the released player does not need the source-build tools. Keep this implementation separate from Conker64\u2019s scene prototype and the distinct Reloaded player."
         },
         {
           "title": "Keep the complete profile before updating",
@@ -40,7 +40,6 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md"
-    },
-    "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
+    }
   }
 }

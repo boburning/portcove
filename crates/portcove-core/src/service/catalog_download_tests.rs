@@ -669,6 +669,16 @@ struct GithubFixture {
 
 impl GithubFixture {
     fn new(bytes: Vec<u8>, digest: Option<String>, sidecar: Option<String>) -> Self {
+        Self::for_repository("owner/game", bytes, digest, sidecar)
+    }
+
+    fn for_repository(
+        repository: &str,
+        bytes: Vec<u8>,
+        digest: Option<String>,
+        sidecar: Option<String>,
+    ) -> Self {
+        let release_path = format!("/repos/{repository}/releases");
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         listener.set_nonblocking(true).unwrap();
         let origin = format!("http://{}", listener.local_addr().unwrap());
@@ -752,9 +762,9 @@ impl GithubFixture {
                         .cloned()
                         .unwrap_or_else(|| thread_assets.lock().unwrap().clone());
                     page_bytes(&inventory)
-                } else if path == "/repos/owner/game/releases/7" {
+                } else if path == format!("{release_path}/7") {
                     serde_json::to_vec(&thread_releases.lock().unwrap()[0]).unwrap()
-                } else if path.starts_with("/repos/owner/game/releases?") {
+                } else if path.starts_with(&format!("{release_path}?")) {
                     page_bytes(&thread_releases.lock().unwrap())
                 } else if path == "/download/game.zip" {
                     bytes.clone()
@@ -1640,4 +1650,152 @@ async fn embedded_metroid_prime_excluded_game_sdk_hold_keeps_prepared_guide_befo
 #[tokio::test]
 async fn embedded_re_cherry_selected_component_hold_keeps_prepared_guide_before_network() {
     assert_embedded_player_download_holds(&["lollipop-chainsaw-re-cherry"]).await;
+}
+
+// Synthetic first-party bytes exercise the real listing/provider contracts;
+// they are not an upstream package, permission or gameplay observation.
+async fn assert_embedded_resolved_frontend_download(id: &str, tag: &str, asset_name: &str) {
+    let (_temporary, mut service, mut request) = fixture();
+    service.catalog = Catalog::embedded().unwrap();
+    request.port_id = id.into();
+    assert!(service.catalog.port(id).is_err());
+    let listing = service.catalog.listing(id).unwrap();
+    assert!(listing.manual_setup.is_some());
+    assert!(listing.download_block_reason.is_none());
+    let repository = crate::release::catalog_download_repository(
+        listing
+            .release_url
+            .as_deref()
+            .unwrap_or(&listing.project_url),
+    )
+    .unwrap();
+    let expected_channel = if id == "danielgomesvieira2000-beetle-adventure-racing-recomp" {
+        ReleaseChannel::Beta
+    } else {
+        ReleaseChannel::Stable
+    };
+    assert_eq!(
+        service.catalog_download_channel(id).unwrap(),
+        expected_channel
+    );
+    let bytes = archive();
+    let expected = crate::signed_catalog::digest(&bytes);
+    let github =
+        GithubFixture::for_repository(&repository, bytes, Some(format!("sha256:{expected}")), None);
+    github.assets.lock().unwrap()[0]["name"] = json!(asset_name);
+    // The actual Beetle release is labelled alpha but is not API-prerelease.
+    github.releases.lock().unwrap()[0]["tag_name"] = json!(tag);
+    let options = service
+        .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+        .await
+        .unwrap();
+    assert!(options.allowed);
+    assert_eq!(options.selected_release_id, Some(7));
+    assert_eq!(options.candidates.len(), 1);
+    assert_eq!(options.candidates[0].name, asset_name);
+    assert_eq!(
+        options.candidates[0].sha256.as_deref(),
+        Some(expected.as_str())
+    );
+    let coverage = options.coverage.unwrap();
+    assert!(coverage.release_history_complete && coverage.candidates_complete);
+    assert_eq!(
+        options.recommended_asset_id,
+        (Platform::current().unwrap() == Platform::WindowsX86_64).then_some(11)
+    );
+    assert!(service.pending_setups().unwrap().is_empty());
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    assert_eq!(preview.artifact.name, asset_name);
+    assert_eq!(preview.artifact.sha256.as_deref(), Some(expected.as_str()));
+    assert!(!preview.destination_path.exists());
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(pending.port_id, id);
+    assert_eq!(pending.state, PendingSetupState::Downloaded);
+    assert_eq!(pending.archive_sha256, expected);
+    assert_eq!(pending.artifact.sha256.as_deref(), Some(expected.as_str()));
+    assert_eq!(
+        fs::read(pending.path.join("readme.txt")).unwrap(),
+        b"Follow the upstream setup instructions."
+    );
+    assert_eq!(
+        service.pending_setups().unwrap().as_slice(),
+        std::slice::from_ref(&pending)
+    );
+    assert!(service.library.all_installs().unwrap().is_empty());
+    assert!(
+        service
+            .library
+            .status(id, expected_channel)
+            .unwrap()
+            .external_runtime
+            .is_none()
+    );
+    assert!(service.require_no_pending_setup(id).is_err());
+    assert!(github.requests.load(Ordering::SeqCst) > 0);
+}
+
+#[tokio::test]
+async fn dahsidiabdallah_conkerbfdreloaded_resolved_frontend_download_1806() {
+    assert_embedded_resolved_frontend_download(
+        "dahsidiabdallah-conkerbfdreloaded",
+        "v1.4.7",
+        "ConkerBFDReloaded-v1.4.7-Windows.zip",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn danielgomesvieira2000_beetle_adventure_racing_recomp_resolved_frontend_download_1800() {
+    assert_embedded_resolved_frontend_download(
+        "danielgomesvieira2000-beetle-adventure-racing-recomp",
+        "v0.4.2-alpha",
+        "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn body_harvest_recompiled_resolved_frontend_download_1448() {
+    assert_embedded_resolved_frontend_download(
+        "body-harvest-recompiled",
+        "v1.0.0",
+        "BodyHarvestRecompiled-v1.0.0-Windows.zip",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn cbfd_recompiled_sciaschi_resolved_frontend_download_1216() {
+    assert_embedded_resolved_frontend_download(
+        "cbfd-recompiled-sciaschi",
+        "V0.1.6",
+        "ConkerRecompiled-V0.1.6-Windows.zip",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn snowboard_kids_remaining_component_hold_before_network_1354() {
+    assert_embedded_player_download_holds(&["snowboard-kids"]).await;
+}
+
+#[tokio::test]
+async fn cdlewis_snowboardkids_recomp_remaining_component_hold_before_network_1886() {
+    assert_embedded_player_download_holds(&["cdlewis-snowboardkids-recomp"]).await;
+}
+
+#[tokio::test]
+async fn vidanox_banjotooierecompiled_remaining_component_hold_before_network_1795() {
+    assert_embedded_player_download_holds(&["vidanox-banjotooierecompiled"]).await;
 }
