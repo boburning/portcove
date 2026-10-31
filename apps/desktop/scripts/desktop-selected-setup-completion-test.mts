@@ -317,7 +317,7 @@ export async function selectedSetupCompletionScenario({
       const enlargedTargets: Readonly<Record<string, string>> = {
         "initial-folder-connection": '[aria-label="Connect your game files"] h2',
         "connected-folder-management": "#game-file-libraries-heading",
-        "selected-setup-prepared": "[data-task-owner] h2",
+        "selected-setup-prepared": '[data-task-owner] > [data-slot="current-state-summary"] h3',
         "selected-setup-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-settled-return": '[aria-label="Selected setup reviews"] > h3',
@@ -1160,7 +1160,7 @@ export async function selectedSetupCompletionScenario({
         "Preparation must restore natural focus to the next step when compatibility is unconfirmed",
       );
       assert.ok(report.observations.result_focus);
-      assert.equal(report.observations.result_focus.tag, "H2");
+      assert.equal(report.observations.result_focus.tag, "H3");
       assert.equal(report.observations.result_focus.text, "Next step");
       await screenshot("selected-setup-prepared");
       await enlargedStage("prepared-completion");
