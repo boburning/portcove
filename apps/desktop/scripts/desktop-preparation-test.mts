@@ -1523,9 +1523,12 @@ export async function preparationScenarios({
       await browser.wait(
         () =>
           executeBrowserScript(browser, () => {
-            const heading = document.querySelector("[data-task-owner] h2");
+            const heading = document.querySelector(
+              'section[aria-label="Game actions"] [data-slot="current-state-summary"] h3',
+            );
             return (
-              heading?.textContent?.trim() === "Next step" && document.activeElement === heading
+              heading?.textContent?.trim() === "Files need checking" &&
+              document.activeElement === heading
             );
           }),
         5_000,
@@ -2668,44 +2671,40 @@ export async function preparationScenarios({
           const comparison = await executeBrowserScript(
             browser,
             (element) => {
-              const blocks = [...element.querySelectorAll(".update-version")];
+              const versions = element.querySelector(".update-versions");
+              if (!(versions instanceof HTMLElement))
+                throw new Error("Update version comparison is missing");
+              const offered = versions.querySelector("strong");
+              const bounds = versions.getBoundingClientRect();
+              const offeredBounds = offered?.getBoundingClientRect();
               return {
                 rowOverflow: element.scrollWidth > element.clientWidth + 1,
                 documentOverflow:
                   document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-                blocks: blocks.map((block) => {
-                  const label = block.querySelector("small");
-                  const value = block.querySelector("span");
-                  const rect = block.getBoundingClientRect();
-                  return {
-                    label: label?.textContent?.trim(),
-                    value: value?.textContent?.trim(),
-                    visible: getComputedStyle(block).display !== "none" && rect.width > 0,
-                    left: rect.left,
-                    right: rect.right,
-                    top: rect.top,
-                    bottom: rect.bottom,
-                  };
-                }),
+                labels: [...versions.querySelectorAll(".sr-only")].map((label) =>
+                  label.textContent?.trim(),
+                ),
+                installed: [...versions.childNodes]
+                  .find((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
+                  ?.textContent?.trim(),
+                offered: offered?.textContent?.trim(),
+                visible:
+                  getComputedStyle(versions).display !== "none" &&
+                  bounds.width > 0 &&
+                  bounds.height > 0 &&
+                  Boolean(offeredBounds && offeredBounds.width > 0 && offeredBounds.height > 0),
+                versionsOverflow: versions.scrollWidth > versions.clientWidth + 1,
               };
             },
             row,
           );
           assert.equal(comparison.rowOverflow, false);
           assert.equal(comparison.documentOverflow, false);
-          assert.deepEqual(
-            comparison.blocks.map(({ label }) => label),
-            ["Installed", "Latest eligible"],
-          );
-          assert.ok(comparison.blocks.every(({ visible, value }) => visible && value));
-          if (width === 960)
-            assert.ok(
-              required(comparison.blocks[0]).bottom <= required(comparison.blocks[1]).top + 1,
-            );
-          else
-            assert.ok(
-              required(comparison.blocks[0]).right <= required(comparison.blocks[1]).left + 1,
-            );
+          assert.deepEqual(comparison.labels, ["Installed version:", "; offered version:"]);
+          assert.equal(comparison.installed, required(before.active).version);
+          assert.equal(comparison.offered, candidate.plan.release.version);
+          assert.equal(comparison.visible, true);
+          assert.equal(comparison.versionsOverflow, false);
           const comparisonScreenshot = path.join(
             output,
             `native-game-update-comparison-${theme}-${width}x${height}.png`,
@@ -2715,6 +2714,34 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(comparisonScreenshot);
+          const details = await row
+            .findElement(By.xpath(".."))
+            .findElement(By.xpath('.//details[summary[normalize-space(.)="Update details"]]'));
+          const wasOpen = (await details.getAttribute("open")) !== null;
+          if (!wasOpen) await clickVisible(browser, await details.findElement(By.css("summary")));
+          assert.equal(await details.isDisplayed(), true);
+          const latest = await details.getText();
+          assert.match(latest, /Latest eligible/);
+          assert.ok(latest.includes(candidate.plan.release.version));
+          assert.ok(latest.includes("Stable"));
+          assert.equal(
+            await executeBrowserScript(
+              browser,
+              (element) => element.scrollWidth > element.clientWidth + 1,
+              details,
+            ),
+            false,
+          );
+          const latestScreenshot = path.join(
+            output,
+            `native-game-update-latest-eligible-${theme}-${width}x${height}.png`,
+          );
+          await writeFile(latestScreenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(latestScreenshot);
+          if (!wasOpen) await clickVisible(browser, await details.findElement(By.css("summary")));
           await selectActivitySection(browser, "History");
           await assertActivityLabelSeparation(browser, width);
           const historyScreenshot = path.join(

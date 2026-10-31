@@ -1457,7 +1457,11 @@ async function scenario(name: string, action: () => unknown) {
     },
     diagnostics: () => captureScenarioDiagnostics(name, target.setup),
     screenshot: async () => {
-      if (!target.setup || failed) await captureScenarioScreenshot(name, failed);
+      if (!target.setup || failed)
+        await captureScenarioScreenshot(
+          failed ? `${target.setup ? "setup-" : ""}${name}-scenario-failure` : name,
+          failed,
+        );
     },
   });
 }
