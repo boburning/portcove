@@ -979,5 +979,31 @@
     "Current historical Persona and REDRIVER2 observations keep exact old binary/source/CLI/package/check provenance and retained failure limits; this batch does not establish present private evidence custody or supply a genuine new N/N+1 Steam fixture.",
     "No Source catalog/original identity/managed preparation/runtime-replacement/backup/rollback/migration/deletion or signing/publication authority change. Existing Core API routes and per-port historical qualification stages/RequiredPublicbeta commitments remain separate from finite source/operation closure."
   ],
-  "delivery_authority": "Final PR/individual receipts bind exact source/base/current-target composition, separate full review, five exact-head contexts with actual selected/executed cases/artifacts, guarded merge/readback and exact canonical dispositions."
+  "delivery_authority": "Final PR/individual receipts bind exact source/base/current-target composition, separate full review, five exact-head contexts with actual selected/executed cases/artifacts, guarded merge/readback and exact canonical dispositions.",
+  "retained_hosted_harness_failure": {
+    "source": "3f57b15058658a392d0ee2961f9dff6a5f0db9bb",
+    "checkout": "80328d9afac6962716a63fe0eaf1bcb09dba69d6",
+    "run": 41158481794,
+    "attempt": 1,
+    "job": 124411739147,
+    "case": "service::tests::successor_staged_and_rollback_versions_keep_exact_contracts",
+    "platform": "x86_64-pc-windows-msvc",
+    "old_limit_seconds": 60,
+    "observed_duration_ms": 60214.6728,
+    "phases": [
+      "start: 400ns",
+      "library-opened: 85.0946ms",
+      "catalog-authenticated: 1.2615565s",
+      "three-versions-registered: 6.0817757s",
+      "service-opened: 6.7529354s",
+      "changed-catalog-loaded: 7.0951235s",
+      "retained-install-verified: 18.5556877s",
+      "retained-launch-prepared: 33.2866527s",
+      "rollback-finished: 45.7194621s"
+    ],
+    "original_log_sha256": "68e61eb6ab8b559e540b4a6a06e1b6de3549c524d4d02e443873e0c229cfcca9",
+    "proposed_limit_seconds": 90,
+    "scope": "exact Windows test harness only; preserve source test, assertions, two workers, zero retries, finite termination and product deadlines",
+    "diagnosis": "sequential setup/verify/launch/rollback progressed through45.719s; outer limit interrupted before activation and full retained-contract assertions; no product assertion or inner behavioral deadline failure reported; no performance causal claim"
+  }
 }
