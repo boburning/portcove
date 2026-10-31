@@ -15,6 +15,13 @@ phrase before clearing its display. Keep phrases in age's private terminal;
 encrypted output alone does not qualify recovery without authenticated restore,
 private/public identity reprojection and an incorrect-input refusal observation.
 
+Keep inner signer passwords distinct from the outer recovery phrase. Preserve
+the owning tool's exact interactive generation procedure; an automated flag is
+not authorized merely because it produces a compatible key format. An explicitly
+chosen empty inner password may satisfy a procedure that permits it, while the
+outer recovery phrase still needs retention and authenticated restore. State
+the selected inspection profile and its unsupported password/KDF variants.
+
 For restricted reviewer preflights, launch/readiness exclusion and captured
 helper custody, use the shared [native boundary checks](../../portcove-desktop-verification/references/qualification-boundaries.md#platform-preflight-and-input-custody).
 

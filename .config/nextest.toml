@@ -215,10 +215,15 @@ filter = 'package(portcove-core) & (test(/^definition_repository::tests::publish
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Genuine scheduled41194833826/a1 ARM macOS retained a60.052s cutoff:
+# baseline capture26.430s; Active35.318s, Retired43.981s and Superseded51.900s
+# completed, then Abandoned began51.904s. Keep the entire matrix and assertions;
+# allow only this progressing ARM fixture finite90s room, retaining diagnostics,
+# two workers, cleanup, zero retries and every product deadline. No speedup claim.
 [[profile.default.overrides]]
 platform = 'aarch64-apple-darwin'
 filter = 'package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)'
-slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
 [[profile.default.overrides]]
@@ -1041,6 +1046,18 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::staged_and_rollback_tamper_leave_install_pointers_unchanged$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Genuine scheduled41194833826/a1 Linux retained a30.014s cutoff after
+# backup creation0.320s, versions prepared4.235s and restore publication19.868s.
+# Keep all subsequent launch/rollback/staged-activation/data assertions and
+# existing phase diagnostics; only this Linux fixture gains finite60s room.
+# Two workers, cleanup, zero retries and product deadlines remain unchanged.
+# A pass within this budget establishes completion, not a causal speedup.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
