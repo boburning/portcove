@@ -108,6 +108,93 @@ function connection(
   ) as RoadmapIssueItem[];
 }
 
+/** Issue comments advance updatedAt too. Prove every changed full body, rather
+ * than requiring an unrelated repository-wide discussion to remain quiet. */
+function confirmIntakeIssueSemantics(
+  client: RoadmapClient,
+  initial: Record<string, unknown>,
+  rows: RoadmapIssueItem[],
+  marker: () => Record<string, unknown>,
+) {
+  const nodes = object(initial.issues).nodes;
+  if (
+    !Array.isArray(nodes) ||
+    nodes.length !== (rows.length ? 1 : 0) ||
+    object(initial.issues).totalCount !== rows.length
+  )
+    throw new Error("Intake baseline repository coverage differs");
+  const since = rows.length ? object(nodes[0]).updatedAt : null;
+  if (since !== null && (typeof since !== "string" || !Number.isFinite(Date.parse(since))))
+    throw new Error("Intake server watermark is unavailable");
+  if (rows.length && !rows.some((row) => row.id === object(nodes[0]).id))
+    throw new Error("Intake initial watermark identity is unavailable");
+  const before = marker();
+  const [owner, name] = client.config.repository.split("/");
+  const changed = connection(
+    client,
+    `query IntakeIssueUpdates($owner:String!,$name:String!,$since:DateTime,$after:String){repository(owner:$owner,name:$name){id nameWithOwner issues(first:50,after:$after,filterBy:{since:$since},orderBy:{field:UPDATED_AT,direction:DESC}){totalCount nodes{id number title state url updatedAt body} pageInfo{hasNextPage endCursor}}}}`,
+    { owner, name, since },
+    (data) => {
+      const repository = object(object(data).repository);
+      if (
+        repository.id !== initial.id ||
+        String(repository.nameWithOwner).toLowerCase() !== client.config.repository.toLowerCase()
+      )
+        throw new Error("Intake update repository identity differs");
+      return repository.issues;
+    },
+  );
+  if (
+    object(before.issues).totalCount !== rows.length ||
+    observationHash(marker()) !== observationHash(before)
+  )
+    throw new GitHubApiError(
+      "repository_changed",
+      "Repository changed during intake semantic confirmation",
+    );
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const seen = new Set(changed.map((row) => row.id));
+  for (const row of rows)
+    if (since === null || Date.parse(String(row.updatedAt)) >= Date.parse(since))
+      if (!seen.has(row.id)) throw new Error("Intake update boundary coverage is incomplete");
+  const latest = object(before.issues).nodes;
+  if (
+    !Array.isArray(latest) ||
+    latest.length !== (rows.length ? 1 : 0) ||
+    (rows.length &&
+      (changed[0]?.id !== object(latest[0]).id ||
+        changed[0]?.updatedAt !== object(latest[0]).updatedAt))
+  )
+    throw new Error("Intake latest update is missing from confirmation");
+  let previous = Infinity;
+  for (const update of changed) {
+    const row = byId.get(update.id),
+      time = Date.parse(String(update.updatedAt));
+    if (
+      !row ||
+      typeof update.updatedAt !== "string" ||
+      !Number.isFinite(time) ||
+      time > previous ||
+      (since !== null && time < Date.parse(since)) ||
+      time < Date.parse(String(row.updatedAt)) ||
+      update.id !== row.id ||
+      update.number !== row.number ||
+      update.url !== row.url ||
+      update.title !== row.title ||
+      update.state !== row.state ||
+      typeof update.body !== "string" ||
+      update.body !== row.body
+    )
+      throw new GitHubApiError(
+        "repository_changed",
+        "Intake issue semantics or membership changed",
+      );
+    previous = time;
+    row.updatedAt = update.updatedAt;
+  }
+  return changed.length;
+}
+
 export function collectRoadmapInventory(
   client: RoadmapClient,
   cache?: InventoryCache,
@@ -415,10 +502,11 @@ export function collectRoadmapInventory(
     }),
   );
   if (
-    hydrationMoved ||
-    projectMoved.size > 0 ||
-    observationHash(afterHydration) !== observationHash(before) ||
-    observationHash(afterProject) !== observationHash(before)
+    !intake &&
+    (hydrationMoved ||
+      projectMoved.size > 0 ||
+      observationHash(afterHydration) !== observationHash(before) ||
+      observationHash(afterProject) !== observationHash(before))
   ) {
     // One semantic reconciliation pass; failed requests and a second drift are never retried.
     stableMarker = afterProject;
@@ -444,14 +532,18 @@ export function collectRoadmapInventory(
     }
     hydrate(changed);
     if (observationHash(marker()) !== observationHash(stableMarker))
-      throw new Error(
+      throw new GitHubApiError(
+        "repository_changed",
         "Repository changed during the single inventory reconciliation; resume on a later run",
       );
     rows = refreshed;
     // Discard the entire first Project observation, including dependencies and fields.
     project = collectProject();
     if (observationHash(marker()) !== observationHash(stableMarker))
-      throw new Error("Repository changed during inventory collection");
+      throw new GitHubApiError(
+        "repository_changed",
+        "Repository changed during inventory collection",
+      );
   }
   const { items: allItems, projectId } = project;
   const byId = new Map(rows.map((i) => [i.id, i]));
@@ -465,7 +557,7 @@ export function collectRoadmapInventory(
         content.number !== local.number ||
         content.title !== local.title ||
         content.state !== local.state ||
-        content.updatedAt !== local.updatedAt
+        (!intake && content.updatedAt !== local.updatedAt)
       )
         throw new Error(
           `Project/repository issue revision mismatch for #${local.number}: ${String(local.updatedAt)} -> ${String(content.updatedAt)}`,
@@ -497,14 +589,32 @@ export function collectRoadmapInventory(
       !Array.isArray(fresh.fieldValues) ||
       fresh.id !== item.id ||
       fresh.content?.id !== issue.id ||
-      !sameRevision(issue, fresh.content) ||
+      !(intake
+        ? fresh.content.url === issue.url &&
+          fresh.content.number === issue.number &&
+          fresh.content.title === issue.title &&
+          fresh.content.state === issue.state &&
+          Number.isFinite(Date.parse(String(fresh.content.updatedAt))) &&
+          Date.parse(String(fresh.content.updatedAt)) >= Date.parse(String(issue.updatedAt))
+        : sameRevision(issue, fresh.content)) ||
       fresh.content.body !== issue.body
     )
       throw new Error("Intake planning target changed during field hydration");
+    item.content!.updatedAt = fresh.content.updatedAt;
     allItems[allItems.indexOf(item)] = { ...item, ...fresh, content: item.content! };
   }
-  if (intake && observationHash(marker()) !== observationHash(stableMarker))
-    throw new Error("Repository changed during intake planning hydration");
+  if (intake) {
+    bodyReads += confirmIntakeIssueSemantics(client, before, rows, marker);
+    for (const item of allItems) {
+      const local = byId.get(item.content!.id);
+      if (local) {
+        const observed = Date.parse(String(item.content!.updatedAt));
+        if (!Number.isFinite(observed) || observed > Date.parse(String(local.updatedAt)))
+          throw new Error("Project revision is newer than confirmed intake semantics");
+        item.content!.updatedAt = local.updatedAt;
+      }
+    }
+  }
   const result: RoadmapInventory = {
     ...(intake ? { scope: "intake" as const } : {}),
     format: 1,

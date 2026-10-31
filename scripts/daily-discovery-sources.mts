@@ -78,7 +78,7 @@ export function collectRecompBoardSource(
     provenance: "recomp.board Atom feed; discovery hints require direct upstream research",
   };
 }
-function list(c: SourceContext, endpoint: string, label: string) {
+function list(c: SourceContext, endpoint: string, label: string, repositoryId: number) {
   const records: unknown[] = [];
   const identities = new Set<unknown>();
   let next: string | null = endpoint;
@@ -92,14 +92,15 @@ function list(c: SourceContext, endpoint: string, label: string) {
       identities.add(id);
       records.push(value);
     }
-    next = discoveryNextPage(response, endpoint, next);
+    next = discoveryNextPage(response, endpoint, next, repositoryId);
   }
   return records;
 }
 function metadata(c: SourceContext, repo: string) {
   const meta = rec(c.api.request("GET", `repos/${repoName(repo)}`).body);
   repoName(meta.full_name);
-  if (typeof meta.id !== "number") throw new Error("Missing provider repository ID");
+  if (!Number.isSafeInteger(meta.id) || Number(meta.id) < 1)
+    throw new Error("Missing provider repository ID");
   return meta;
 }
 function commit(c: SourceContext, meta: Record<string, unknown>) {
@@ -545,6 +546,7 @@ function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
     c,
     `repos/${repo}/releases?per_page=10`,
     "complete upstream release listing",
+    Number(meta.id),
   ).map(rec);
   const ordered = [...releases]
     .filter((r) => !r.draft)
@@ -569,6 +571,7 @@ function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
       c,
       `repos/${repo}/releases/${String(release.id)}/assets?per_page=100`,
       "selected release assets",
+      Number(meta.id),
     );
     let target = rec(
       rec(

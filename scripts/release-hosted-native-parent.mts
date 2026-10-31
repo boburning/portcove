@@ -1,3 +1,5 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Actual fixed-parent source/issuer binding only. This is not a candidate
  * invocation, OS boundary, native result, reservation or signing capability. */
 import { createHash } from "node:crypto";
@@ -115,6 +117,12 @@ export async function createActualHostedNativeParentSource(
   );
   if (bound.configuration.purpose !== "application")
     throw new Error("native application parent source required");
+  if (
+    !nativePlatformsForReleaseProfile(applicationReleaseProfile(bound.configuration)).some(
+      (value) => value === platform,
+    )
+  )
+    throw new Error("native platform is outside ratified application release profile");
   if (
     !path.isAbsolute(parent) ||
     (await realpath(parent)) !== path.resolve(parent) ||

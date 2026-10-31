@@ -75,13 +75,16 @@ export function isQualificationOnlyCondition(value: unknown) {
   return expression(value) === qualificationMode;
 }
 const intelCondition = `${qualificationMode}&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-x86_64')`;
+const nativeCondition = `${qualificationMode}&&(contains(fromJSON(needs.classify.outputs.platforms_json),'linux-x86_64')||contains(fromJSON(needs.classify.outputs.platforms_json),'macos-aarch64'))`;
 const portabilityCondition =
   "(needs.classify.outputs.mode=='qualification'&&contains(fromJSON(needs.classify.outputs.platforms_json),'macos-aarch64'))||(needs.classify.outputs.mode!='qualification'&&(contains(needs.classify.outputs.files_json,'apps/desktop/scripts/browser-runtime.mts')||contains(needs.classify.outputs.files_json,'scripts/run-rust-tests.mts')||contains(needs.classify.outputs.files_json,'scripts/run-rust-tests.test.mts')||contains(needs.classify.outputs.files_json,'scripts/rust-test-tree-supervisor.mts')||contains(needs.classify.outputs.files_json,'scripts/rust-test-tree-supervisor.test.mts')||contains(needs.classify.outputs.files_json,'pnpm-workspace.yaml')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/display-recovery.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/compact-navigation.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/components/AdoptionModal.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/components/Artwork.browser.test.tsx')||contains(needs.classify.outputs.files_json,'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))";
 export function isWindowsHelperExecutionCondition(value: unknown) {
   return expression(value) === "needs.classify.outputs.windows_helpers=='true'";
 }
 export function isReusableQualificationCondition(value: unknown) {
-  return [qualificationMode, intelCondition, portabilityCondition].includes(expression(value));
+  return [qualificationMode, intelCondition, nativeCondition, portabilityCondition].includes(
+    expression(value),
+  );
 }
 function qualificationCondition(value: unknown) {
   const condition = expression(value);
@@ -119,10 +122,46 @@ function rootRun(job: Record<string, unknown>, step: Record<string, unknown>) {
     (shell === undefined || shell === "bash" || shell === "pwsh" || shell === "sh")
   );
 }
-function requireConsumer(job: Record<string, unknown>, command: string) {
+function requireConsumer(
+  job: Record<string, unknown>,
+  command: string,
+  alternatives: readonly string[] = [],
+) {
+  // Preserve shell token boundaries. Only unquoted spacing is cosmetic;
+  // quotes, escapes and operators remain literal parts of the maintained recipe.
+  const spacing = (statement: string) => {
+    let quote: string | null = null;
+    let pending = false;
+    let normalized = "";
+    for (const character of statement) {
+      if (quote) {
+        normalized += character;
+        if (character === quote) quote = null;
+      } else if (/[ \t]/u.test(character)) {
+        pending = true;
+      } else {
+        if (pending && normalized) normalized += " ";
+        pending = false;
+        normalized += character;
+        if (character === "'" || character === '"') quote = character;
+      }
+    }
+    return normalized;
+  };
+  const statements = (run: string) =>
+    run
+      .replace(/\\\n/gu, "")
+      .split("\n")
+      .map((line) => line.replace(/^[ \t]+|[ \t]+$/gu, ""))
+      .filter((line) => line && !line.startsWith("#"))
+      .map(spacing);
+  const recipes = [command, ...alternatives].map(statements);
   qualificationAssert(
     activeSteps(job).some(
-      (step) => rootRun(job, step) && typeof step.run === "string" && step.run.trim() === command,
+      (step) =>
+        rootRun(job, step) &&
+        typeof step.run === "string" &&
+        recipes.some((recipe) => isDeepStrictEqual(statements(step.run as string), recipe)),
     ),
     `consumer missing or disabled: ${command}`,
   );
@@ -276,6 +315,11 @@ function validateMatrices(
   requireConsumer(
     jobs.intel_tests ?? {},
     'node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"',
+    [
+      "mkdir -p work/test-results\n" +
+        "/usr/sbin/sysctl -n hw.logicalcpu hw.physicalcpu machdep.cpu.brand_string > work/test-results/intel-host.txt\n" +
+        '/usr/bin/time -lp -o work/test-results/intel-resource-usage.txt node scripts/qualification-nextest.mts intel "${{ matrix.partition }}"',
+    ],
   );
   for (const partition of ["hash:1/2", "hash:2/2"])
     qualificationAssert(
@@ -528,11 +572,13 @@ export function validateQualificationCoverage(
     const expectedCondition =
       id === "intel_build" || id === "intel_tests"
         ? intelCondition
-        : id === "frontend_portability"
-          ? portabilityCondition
-          : declaredPullRequest.includes(id)
-            ? `github.event_name=='pull_request'&&${qualificationMode}`
-            : qualificationMode;
+        : id === "native_rust"
+          ? nativeCondition
+          : id === "frontend_portability"
+            ? portabilityCondition
+            : declaredPullRequest.includes(id)
+              ? `github.event_name=='pull_request'&&${qualificationMode}`
+              : qualificationMode;
     qualificationAssert(
       expression(parsedJobs[id]?.if) === expectedCondition,
       `producer condition does not match its platform role: ${id}`,

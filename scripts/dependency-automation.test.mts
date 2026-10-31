@@ -145,15 +145,28 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "@types/node",
     "@types/selenium-webdriver",
     "@types/semver",
+    "@vitest/browser-playwright",
     "@vitest/coverage-v8",
     "es-module-lexer",
     "fallow",
+    "playwright",
     "vite-plus",
+    "vitest",
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
   assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "3.0.4");
-  assert.equal(repositoryPackage.devDependencies["@vitest/coverage-v8"], "5.0.5");
+  for (const name of [
+    "@vitest/browser-playwright",
+    "@vitest/coverage-v8",
+    "vite-plus",
+    "vitest",
+  ] as const)
+    assert.equal(repositoryPackage.devDependencies[name], "catalog:");
+  assert.equal(
+    repositoryPackage.devDependencies.playwright,
+    desktopPackage.devDependencies.playwright,
+  );
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "@vitest/coverage-v8"), false);
   assert.equal(Object.hasOwn(desktopPackage.devDependencies, "es-module-lexer"), false);
   for (const signingTool of ["@sigstore/bundle", "@sigstore/sign"] as const) {
@@ -166,7 +179,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     Object.keys(repositoryPackage.devDependencies).filter((name) =>
       Object.hasOwn(desktopPackage.devDependencies, name),
     ),
-    ["vite-plus", "yaml"],
+    ["@vitest/browser-playwright", "playwright", "vite-plus", "vitest", "yaml"],
   );
   assert.equal(desktopPackage.devDependencies["vite-plus"], "catalog:");
   assert.equal(desktopPackage.devDependencies.yaml, repositoryPackage.devDependencies.yaml);
@@ -721,6 +734,7 @@ void test("Node proposals update every maintained isolated pin without rewriting
   for (const [filename, count] of [
     [".node-version", 1],
     ["scripts/controller-node-runtime.mts", 1],
+    ["scripts/release-hosted-native-windows-diagnostic-launch.ps1", 1],
     [".github/workflows/application-update-production.yml", 1],
     ["docs/qualification/application-update-production.complete.yml", 1],
     ["docs/qualification/application-update-production.controller-tools.yml", 1],

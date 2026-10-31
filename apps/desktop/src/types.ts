@@ -86,6 +86,8 @@ export type { BackupProblem } from "./transport-types.generated";
 export type BackupInventory = Generated.TransportOutputs["backup_inventory"];
 
 export type RestoreResult = Generated.TransportOutputs["restore_result"];
+export type GhostshipRecoveryPlan = Generated.TransportOutputs["ghostship_recovery_plan"];
+export type GhostshipRecoveryResult = Generated.TransportOutputs["ghostship_recovery_result"];
 
 export type AdoptionPreview = Generated.TransportOutputs["adoption_preview"];
 export type ExternalRuntimePreview = Generated.TransportOutputs["desktop_external_runtime_preview"];

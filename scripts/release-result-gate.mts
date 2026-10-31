@@ -1,3 +1,4 @@
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspectReleaseProfile } from "./release-package-policy.mts";
@@ -21,7 +22,7 @@ export function evaluateReleaseResults(results: unknown, rawProfile: unknown = "
     if (!(name in results)) throw new Error(`release result gate is missing ${name}`);
     const result: unknown = Reflect.get(results, name);
     const expected =
-      profile === "initial-beta-win-linux" && ["build_intel", "verify_intel"].includes(name)
+      isInitialBetaReleaseProfile(profile) && ["build_intel", "verify_intel"].includes(name)
         ? "skipped"
         : "success";
     if (result !== expected) {

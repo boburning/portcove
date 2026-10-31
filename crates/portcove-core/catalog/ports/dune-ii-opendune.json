@@ -17,7 +17,32 @@
       "game_slug": "dune-ii-the-building-of-a-dynasty",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2674
+    "issue_number": 2674,
+    "manual_setup": {
+      "help_url": "https://github.com/OpenDUNE/OpenDUNE/tree/af3f3239eca1073ac9d621286014fba282c1dc5a",
+      "steps": [
+        {
+          "title": "Prepare the supported Dune II data upstream",
+          "instruction": "Use a complete permitted OpenDUNE Windows copy for your CPU, with your own Dune II 1.07 data, including dune2.exe, prepared in data/. Upstream accepts eu, hs and us 1.07 sets; French needs eu/hs and German needs eu. Dune 2000 is a different game. Keep the complete original files; select native opendune.exe rather than the original DOS dune2.exe or an installer."
+        },
+        {
+          "title": "Retain the creating data and save paths",
+          "instruction": "Keep the actual prepared runtime directory as working directory. Retain opendune.ini and its [opendune] datadir and savedir choices. On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails. Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+        },
+        {
+          "title": "Check the working copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

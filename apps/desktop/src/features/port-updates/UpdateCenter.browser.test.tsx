@@ -9,6 +9,8 @@ import { failureReport, portStatus } from "../../test-fixtures";
 import type { ActivityRecord } from "../../types";
 
 import { installRecord, updateCenterFixtures } from "../../components/rendered-test-fixtures";
+import { captureParityState } from "../../../test/parity-capture";
+import { page } from "vite-plus/test/browser";
 
 const { port, priorResult } = updateCenterFixtures();
 
@@ -212,8 +214,112 @@ it("keeps the focused task and expanded diagnostics mounted through Activity reg
     expect(summary.closest("details")?.open).toBe(true);
     expect(host.textContent).toContain("Recent");
     expect(host.textContent).not.toContain("Needs attention");
+    await captureParityState("activity-regrouped-expanded-diagnostics");
   } finally {
     await result.unmount();
     host.remove();
+  }
+});
+
+it.each(["partial", "unavailable", "stale"] as const)(
+  "renders qualified update counts for the %s fixture",
+  async (state) => {
+    await page.viewport(1024, 800);
+    const second = { ...port, id: "second-game", name: "Second game" };
+    const status = { ...portStatus(), active: installRecord() };
+    const result = await renderComponent(
+      <UpdateCenter
+        section="updates"
+        generation={1}
+        ports={[port, second]}
+        statuses={
+          new Map([
+            [port.id, status],
+            [second.id, { ...status, port_id: second.id }],
+          ])
+        }
+        activities={[]}
+        outcomes={
+          state === "unavailable"
+            ? []
+            : [
+                {
+                  port_id: port.id,
+                  ok: true,
+                  error: null,
+                  result: { ...priorResult, update_available: true },
+                },
+              ]
+        }
+        batchRead={{
+          status: state === "stale" ? "failed" : "current",
+          hasResults: state !== "unavailable",
+        }}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={state === "stale"}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+    try {
+      await expect
+        .element(
+          page.getByText(
+            `${state === "stale" ? "Earlier update" : "Update"} results cover ${state === "unavailable" ? 0 : 1} of 2 installed ports.`,
+            { exact: false },
+          ),
+        )
+        .toBeVisible();
+      await captureParityState(`activity-update-count-${state}-synthetic`);
+    } finally {
+      await result.unmount();
+      await page.viewport(1280, 800);
+    }
+  },
+);
+
+it.each([true, false])("renders an empty Activity feed with completeness %s", async (complete) => {
+  await page.viewport(1024, 800);
+  const result = await renderComponent(
+    <UpdateCenter
+      section="tasks"
+      generation={1}
+      ports={[]}
+      statuses={new Map()}
+      activities={[]}
+      outcomes={[]}
+      activityFeed={{
+        records: [],
+        current_activity_ids: [],
+        attention_required_activity_ids: [],
+        recovery_required_activity_ids: [],
+        active_and_actionable_complete: complete,
+        terminal_history_complete: complete,
+        terminal_history_count: 0,
+        terminal_history_limit: 20,
+      }}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={!complete}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+  try {
+    await expect
+      .element(
+        page.getByRole("heading", { name: "No current tasks in these records", exact: true }),
+      )
+      .toBeVisible();
+    expect(
+      document.body.textContent?.includes("Current work and attention coverage is incomplete."),
+    ).toBe(!complete);
+    await captureParityState(`activity-empty-${complete ? "complete" : "partial"}-synthetic`);
+  } finally {
+    await result.unmount();
+    await page.viewport(1280, 800);
   }
 });

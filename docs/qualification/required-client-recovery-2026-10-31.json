@@ -1,0 +1,253 @@
+{
+  "format_version": 1,
+  "kind": "dated two-Required Windows client-operation source evidence, not live planning or installed acceptance",
+  "observation_date": "2026-10-31",
+  "owners": [2510, 2926, 1422],
+  "implementation_base": "f71a8e10efa232beaa3b00c76f1ae69b7119c8e9",
+  "prototype_interface_source": "8fd2316ada97602649f2787676f8d4744c6b0f2c",
+  "rows": [
+    {
+      "canonical_issue": 53,
+      "id": "ghostship",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Validating",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Cataloged",
+        "Effort": "L"
+      },
+      "body_sha256_at_pickup": "a1a3d939d7b56ad685bfba35f461f95065bfa0f8cbe53bb683cd4185493aa5d0",
+      "authored_sha256": "b3c3f670d99a7ed5678f3797e0d9b91fb5f5d5095fc384c4fd8fece7cb28780a",
+      "completion_disposition": "remains open; existing applicable installed/accepted/protected delivery clauses are not satisfied by this source batch"
+    },
+    {
+      "canonical_issue": 519,
+      "id": "render96ex",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "planning_at_pickup": {
+        "Status": "Validating",
+        "Priority": "Medium",
+        "Horizon": "Next",
+        "Target release": "Public beta",
+        "Release commitment": "Required",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Cataloged",
+        "Effort": "Unknown"
+      },
+      "body_sha256_at_pickup": "45a2c1318f1e89d4d2310fcc6fdb972f8f3750ffcab40c72da66ea0ea2a0629a",
+      "authored_sha256": "4ea3505147ec6855e53ddab8812041c90df2097e5c1c24110ca44e0cb43e84ea",
+      "completion_disposition": "remains open; existing applicable installed/accepted/protected delivery clauses are not satisfied by this source batch"
+    }
+  ],
+  "invariants": {
+    "strict_identities": 272,
+    "listing_identities": 1424,
+    "all_source_catalog_records_identical": true,
+    "strict_catalog_byte_identity": false,
+    "only_strict_delta": "render96ex.presentation.manual_setup",
+    "only_authored_delta": "render96ex.listing.manual_setup",
+    "all_operational_source_release_persistence_artwork_lineage_qualification_fields_unchanged": true,
+    "entire_old_user_selected_file_identical_after_removing_one_new_actual_ID_case": true,
+    "old_user_selected_file_sha256": "1503329ebc53d8d10127424ab18db6f46877f705828202d776bb54d769ff1da2"
+  },
+  "ghostship_boundary": {
+    "core_implementation_unchanged": true,
+    "native_review_inputs": ["backup_id", "expected_plan", "library_generation"],
+    "authority": "Core qualified plan, generation/fingerprint rechecks before and after native consent, Core one-use authorization/replan/port fence/journal/CAS",
+    "native_cancellation": "only named nullable command; exact three-line cancelledResult interface reused from B6 source8fd",
+    "mutation_vs_readback": "successful Core result remains successful despite separately recorded workspace or backup-inventory readback failure",
+    "ordinary_restore_pending_recovery_companion_deletion": "existing behavior unchanged",
+    "actual_native_installed_protected_observation": "not run by this batch"
+  },
+  "render96_source_bindings": [
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "README.md",
+      "blob": "7557871ac4626aec87cac46f8d4922b996f493bb",
+      "bytes": 1108,
+      "sha256": "4dfc6387ad27fabd542713fc3a7729ab5a2364006f1d6fa626193097b0b9e5a5"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "README_es_ES.md",
+      "blob": "44a34a1c5f202d0e2381e3906a0020333c63cdc0",
+      "bytes": 9655,
+      "sha256": "7a93ece1debbdff73cb2f60e1caa278cdea116db4e9d222b6c5ea245404fa03e"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "README_pt_BR.md",
+      "blob": "758733d10c2d92bfbce7453df8669375fa03bbbe",
+      "bytes": 2070,
+      "sha256": "a849832a690c325513181fbc9161e50aa3daed4dc2bf65c9a57c09d0d9688d53"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "README_zh_CN.md",
+      "blob": "b3e90f92821e3763ef1414d2fce2f2c02f9fa384",
+      "bytes": 1453,
+      "sha256": "1866a84d49acbcbe9ded518cc2da47535efcfdc1263163ba41b425c7393a1fd5"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "Makefile",
+      "blob": "365f39ec5b9ae24d10a3b07947913d4be3b70391",
+      "bytes": 33480,
+      "sha256": "f2c1d101b384cb11aa46608a7368a480b2c2536ac585776825723608cb9019d7"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/pc_main.c",
+      "blob": "b1c6f6e38c47fc87f36ee48f39b68ab087fded9b",
+      "bytes": 6889,
+      "sha256": "c41e4d09df71ba6dd028de0bdcb5e3084f3e1d2b9913f85f7e9b0f3224c007e3"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/fs/fs.c",
+      "blob": "b9e117f7a4d0131d51ee9854426e26c3b8dbe624",
+      "bytes": 12526,
+      "sha256": "e117ebdf8de306a970d5fea144b1a8f20d768fb4f8f8b97eb393881f7a82874d"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/fs/fs.h",
+      "blob": "25d176dfadf3927e345d9fba01e1688b2fbd6ae1",
+      "bytes": 5657,
+      "sha256": "b87bcb95ff25c295146a94e7eff0827b27963186437c0ec1153b82e9f05ca2e8"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/configfile.c",
+      "blob": "7411d4f84bd46d00a8d7f6521471c082c7bcba3d",
+      "bytes": 13674,
+      "sha256": "51dc5425590d4443cc40cbf435767eb457f640fdc59f63598d5568a2d4c0ad3d"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/configfile.h",
+      "blob": "b92ae7beaebb210899ba5198cec987a2c4849993",
+      "bytes": 1912,
+      "sha256": "c20f9924d08046e651229faab0f83dbcaeb3fba75471380a670d12a29ea0e7f0"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/cliopts.c",
+      "blob": "b9e9ee77f348c068be7127bc0e5c8b3912021d43",
+      "bytes": 2535,
+      "sha256": "ec3f9b60c25faa6f57f4861f62ef3251f0b16709429cfc7283a6204a8a3ab2b7"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/cliopts.h",
+      "blob": "f9a45e18976b2d5e0f3462402ac975d88cb6c88b",
+      "bytes": 351,
+      "sha256": "fc9e90339f3a3dae0defd8e3a48776c13a010b46c3148d85d3dab5a8fe22a373"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/game/save_file.c",
+      "blob": "45ac71f4a8668fc130b59d6a9d557d3075e7e5e1",
+      "bytes": 24602,
+      "sha256": "bea13456a14193f419693b81d51f6adf042ba4e4a78653b66ae3c31b94347e17"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/platform.c",
+      "blob": "e68370a44c36a089b3562cbac77ca94bed9f8667",
+      "bytes": 5111,
+      "sha256": "eaa0a1ff997afa2f2cae1c00f7538e06666dcffc5ae311299aabf2512395f809"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/platform.h",
+      "blob": "168333d15ff675f0ac92b9e52b04619dd59c298f",
+      "bytes": 822,
+      "sha256": "25adcb04daf3c6826883ba6cb006ed36177831aeeaab8823c8e0965bb257ddbf"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/controller/controller_sdl.c",
+      "blob": "a71a82ebcb2eb12bddea911096e48425d7ea214e",
+      "bytes": 10302,
+      "sha256": "9943235dd4dbc5fe8235d9346dd635ff002a105ee56abc9be9cbdd0a2aa797ab"
+    },
+    {
+      "repository": "Render96/Render96ex",
+      "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+      "path": "src/pc/ultra_reimplementation.c",
+      "blob": "0389776b9b197b36040aedf203727790dca51bb3",
+      "bytes": 4228,
+      "sha256": "1f24125bae77cf0d26c6f4d9d301934c970d78925b0e019a8a1e4c264774b477"
+    }
+  ],
+  "render96_complete_tree": {
+    "commit": "48da5c491c8abfb2f5192b59278c1c269411e533",
+    "tree": "d36e3764e1bf29d421e3f77bde6fe58256a00fc9",
+    "entries": 4018,
+    "truncated": false,
+    "response_sha256": "7a9169d3dd792496f72840a32e9dd7515252eeb888e478f91433b46670afaa0e"
+  },
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 17,
+    "unique_blobs": 17,
+    "complete_tree_roots": 1
+  },
+  "firstparty_proposal_validation": {
+    "validator": {
+      "source": "f71a8e10efa232beaa3b00c76f1ae69b7119c8e9",
+      "tree": "e06da098820850305380c49ab4e52fedd5497606",
+      "source_worktree_clean": true,
+      "artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+      "bytes": 407829448,
+      "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+      "purpose": "firstparty catalog inspection only; not game/runtime/installed/protected qualification",
+      "admitted_build_log": "current-validator-build.txt"
+    },
+    "input_sha256": "6c46bfb624be6799bcf6838e9137f45fa0f6cd022f1c417af3f9b6760e1ee6ac",
+    "input_bytes": 1772795,
+    "catalog_schema": 2,
+    "validated_declarations": 272,
+    "compatibility": "matched",
+    "all_272_input_declarations_checked": true,
+    "source_scope": "fresh clean f71 firstparty CLI under maintained resource admission; no game/runtime producer execution"
+  },
+  "retained_failures": [
+    "initial authoring refusal without compatible validator",
+    "trusted older773/e589 validator refusal of current NativePortable source contract; not relabeled current-compatible",
+    "first local UI run incomplete because new owned Chromium cache absent; existing14unit cases passed but browser cases did not execute",
+    "first checkpoint precommit lint rejected any-valued matcher assignment; exact Error assertion retained the same failure message check"
+  ],
+  "limits": [
+    "No game/original/private save/upstream package/compiler/helper/player acquired or executed. Building the firstparty validator and running inert probes is not upstream/runtime execution.",
+    "Local/browser/Core fixtures, actual native/installed client acceptance and protected delivery remain separate. Neither53 nor519 closes from this narrower batch.",
+    "No signed publication, production activation, protected acceptance, source/permission waiver, new runtime replacement owner, speculative console-family infrastructure or full858-member scope reduction."
+  ],
+  "delivery": "Final PR/owner receipts bind reviewed source, exact-head checks, actual target composition, guarded merge and canonical readback."
+}

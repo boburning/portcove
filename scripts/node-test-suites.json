@@ -31,6 +31,14 @@
         "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
     },
+    "windows-helpers-4": {
+      "arguments": [
+        "--test",
+        "--test-timeout=60000",
+        "--test-reporter=./scripts/required-node-test-reporter.mts"
+      ],
+      "localResourceProfile": "analysis"
+    },
     "windows-storage": {
       "arguments": [
         "--test",
@@ -1131,16 +1139,16 @@
       "memberships": [
         ["catalog-full-2", 2500],
         ["release-check", 600],
-        ["windows-storage-3", 1000110]
+        ["windows-helpers-4", 100]
       ],
       "platform_skips": [
         {
           "platform": "win32",
-          "owner": "windows-storage-3",
+          "owner": "windows-helpers-4",
           "category": "platform",
           "prerequisite": "Actual win32 process/filesystem semantics",
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite windows-helpers-4",
           "cases": [
             "hosted runtime timings retain eligible and refused observations without installer effects"
           ]
@@ -1409,6 +1417,7 @@
             "native shutdown wait is bounded, preserves a live process, and accepts its later exit",
             "isolated driver stop refuses stale identity without acting",
             "driver stop never terminates a replacement or path-mismatched captured survivor",
+            "ordinary close admits only the hash-bound captured direct application",
             "ordinary close refuses changed identity or a windowless owned application",
             "native process discovery refuses ambiguous application descendants",
             "marked helper observation retains actual OS exits without inventing or forcing them"
@@ -1726,6 +1735,33 @@
           "intended_route": "scripts/catalog-recovery-vault.test.mts; catalog-full-2",
           "cases": [
             "authorized custody reader enforces offline owner and bounded single-link acquisition"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "scripts/initial-key-custody.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11945],
+        ["release-check", 14145]
+      ],
+      "qualification": {
+        "linux-x86_64": "catalog-full-2"
+      },
+      "platform_skips": [
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "explicit-acceptance",
+          "prerequisite": "Independently pinned release-tools binary and qualified public age cache; disposable keys only",
+          "reason": "Actual initial-snapshot crypto and private-terminal observations are opt-in and do not establish production custody.",
+          "intended_route": "scripts/initial-key-custody.test.mts; bounded local disposable recovery qualification",
+          "cases": [
+            "actual shared vault engine restores the complete disposable initial set and refuses wrong keys and purpose"
+          ],
+          "required_environment": [
+            "PORTCOVE_CATALOG_RECOVERY_QUALIFICATION_TOOL",
+            "PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT"
           ]
         }
       ]
@@ -3476,6 +3512,13 @@
       ]
     },
     {
+      "file": "scripts/hosted-discovery-intake-runner.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9691],
+        ["roadmap-check", 191]
+      ]
+    },
+    {
       "file": "scripts/hosted-discovery-intake.test.mts",
       "memberships": [
         ["catalog-full-2", 9690],
@@ -3612,12 +3655,13 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
           "cases": [
+            "Linux adopting containment proves adopted-exit",
             "Linux adopting containment proves cancel-pipe",
             "Linux adopting containment proves escaped-closure",
             "Linux adopting containment proves gate-refusal",
             "Linux adopting containment proves ignored-sigchld",
             "Linux adopting containment proves init-refusal",
-            "Linux adopting containment proves legacy-sibling-red",
+            "Linux adopting containment proves legacy-sibling-adopted",
             "Linux adopting containment proves natural",
             "Linux adopting containment proves parent-refusal",
             "Linux adopting containment proves pipe-refusal",
@@ -4176,6 +4220,39 @@
       "memberships": [["native-tools", 1300]]
     },
     {
+      "file": "apps/desktop/scripts/desktop-installed-library-busy.native.test.mts",
+      "memberships": [["native-tools", 1350]],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "native-tools",
+          "category": "platform",
+          "prerequisite": "Actual Linux child-process, executable-script and pipe semantics",
+          "reason": "Controller protocol and kernel launch-refusal components only; no Core, installed application or release acceptance follows. Execute every declared case on the maintained Linux route.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
+          "cases": [
+            "component fake producer: explicit release retains actual child close exit 0",
+            "component fake producer: bad-ready fails and preserves actual owned EOF/exit outcome",
+            "component fake producer: early-exit fails and preserves actual owned EOF/exit outcome",
+            "component fake producer: OS exit 0 cannot accept a foreign terminal activity",
+            "component noexec probe never runs an inert surrogate on an exec mount"
+          ]
+        },
+        {
+          "platform": ["linux", "win32"],
+          "owner": "native-tools",
+          "category": "platform",
+          "prerequisite": "Actual Linux or Windows CLI argument validation and child-process semantics",
+          "reason": "Fail-closed admission of the actual installed driver before output or launch; frontend dependencies are stubbed to reject UI use. No installed application acceptance follows.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite native-tools",
+          "cases": [
+            "ordinary driver refuses busy helper without hash before creating output or launching",
+            "ordinary driver refuses busy helper without real-data before creating output or launching"
+          ]
+        }
+      ]
+    },
+    {
       "file": "apps/desktop/scripts/desktop-linux-native-session.native.test.mts",
       "memberships": [["native-tools", 1400]]
     },
@@ -4299,7 +4376,11 @@
           "prerequisite": "PowerShell unavailable; required Windows job executes this contract",
           "reason": "The original prerequisite/admission guard remains required; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3; Mac complement macos-platform-contracts",
-          "cases": ["Windows analyzer acquisition retains the exact pin and both mandatory gates"],
+          "cases": [
+            "Windows analyzer acquisition retains the exact pin and both mandatory gates",
+            "Rust action records consumed toolchain context and stops at each failed probe",
+            "Rust pin reader consumes the repository TOML and refuses malformed inputs without partial outputs"
+          ],
           "skip_reason_prefix": "PowerShell unavailable; required Windows job executes this contract"
         },
         {
@@ -4369,7 +4450,8 @@
       "file": "scripts/release-windows-webview-driver.test.mts",
       "memberships": [
         ["catalog-full-2", 1000010],
-        ["release-check", 16209]
+        ["release-check", 16209],
+        ["windows-helpers-3", 800]
       ]
     },
     {

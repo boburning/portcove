@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -104,6 +105,92 @@ it("reserves no gallery for absent media", async () => {
   expect(read).not.toHaveBeenCalled();
 });
 
+for (const theme of ["dark", "light"] as const) {
+  for (const width of [320, 740, 1440]) {
+    it(`keeps three mixed-aspect screenshots contained in ${theme} at ${width}px`, async () => {
+      const previousTheme = document.documentElement.dataset.theme;
+      const previousViewport = { width: window.innerWidth, height: window.innerHeight };
+      document.documentElement.dataset.theme = theme;
+      try {
+        await page.viewport(width, width === 320 ? 844 : 900);
+        const media = [
+          { name: "Landscape", width: 320, height: 180, color: "#5845aa" },
+          { name: "Portrait", width: 180, height: 320, color: "#236a57" },
+          { name: "Square", width: 240, height: 240, color: "#a64d23" },
+        ].map((shape, index) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = shape.width;
+          canvas.height = shape.height;
+          const drawing = canvas.getContext("2d");
+          if (!drawing) throw new Error("Fixture canvas unavailable");
+          drawing.fillStyle = shape.color;
+          drawing.fillRect(0, 0, shape.width, shape.height);
+          drawing.strokeStyle = "white";
+          drawing.lineWidth = 8;
+          drawing.strokeRect(4, 4, shape.width - 8, shape.height - 8);
+          drawing.fillStyle = "white";
+          drawing.font = "bold 20px sans-serif";
+          drawing.fillText(shape.name, 16, 36);
+          return {
+            asset: {
+              ...image(`mixed-${index}`),
+              caption: `${shape.name} synthetic scene`,
+              width: shape.width,
+              height: shape.height,
+              sha256: String(index + 1).repeat(64),
+            },
+            bytes: canvas.toDataURL("image/png").split(",")[1]!,
+          };
+        });
+        vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(
+          async (_port, id, sha256) => {
+            const fixture = media.find(({ asset }) => asset.id === id);
+            if (!fixture) throw new Error(`Unexpected fixture image: ${id}`);
+            return { asset_sha256: sha256, choice_revision: 0, png_base64: fixture.bytes };
+          },
+        );
+        const assets = media.map(({ asset }) => asset);
+        await render(
+          <ArtworkProvider generation={7} listings={directory(assets)}>
+            <CatalogMediaGallery
+              port={{
+                ...portDefinition(),
+                presentation: { ...portDefinition().presentation!, media: assets },
+              }}
+            />
+          </ArtworkProvider>,
+        );
+        for (const [index, { asset }] of media.entries()) {
+          const opener = page.getByRole("button", {
+            name: `Enlarge screenshot ${index + 1}: ${asset.caption}`,
+            exact: true,
+          });
+          await expect.element(opener).toBeEnabled();
+          const element = opener.element().querySelector("img")!;
+          await expect.poll(() => element.naturalWidth).toBe(asset.width);
+          expect(element.naturalHeight).toBe(asset.height);
+          expect(getComputedStyle(element).objectFit).toBe("contain");
+          const bounds = element.getBoundingClientRect();
+          expect(bounds.left).toBeGreaterThanOrEqual(0);
+          expect(bounds.right).toBeLessThanOrEqual(width);
+        }
+        const figures = [...document.querySelectorAll(".media-gallery-grid > figure")];
+        expect(figures).toHaveLength(3);
+        const [first, second, third] = figures.map((figure) => figure.getBoundingClientRect());
+        expect(second!.top).toBe(first!.top);
+        expect(third!.top === first!.top).toBe(width === 1440);
+        expect(third!.top > first!.bottom).toBe(width !== 1440);
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+        await captureParityState("catalog-gallery-three-mixed-aspects-synthetic");
+      } finally {
+        if (previousTheme === undefined) delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = previousTheme;
+        await page.viewport(previousViewport.width, previousViewport.height);
+      }
+    });
+  }
+}
+
 it("shows source and edition attribution, navigates previews and returns focus to the same screenshot", async () => {
   const first = image("first"),
     second = {
@@ -146,6 +233,7 @@ it("shows source and edition attribution, navigates previews and returns focus t
     exact: true,
   });
   await expect.element(origin).toBeEnabled();
+  await captureParityState("catalog-gallery-synthetic");
   await origin.click();
   await expect
     .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
@@ -160,6 +248,17 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("dialog").getByRole("link", { name: "CC0-1.0", exact: true }))
     .toHaveAttribute("href", second.rights_url);
+  const firstChoice = page.getByRole("button", {
+    name: "Show screenshot 1: Owned first scene",
+    exact: true,
+  });
+  await expect.element(firstChoice).toHaveAttribute("aria-pressed", "false");
+  await firstChoice.click();
+  await expect.element(firstChoice).toHaveAttribute("aria-pressed", "true");
+  await captureParityState("catalog-lightbox-filmstrip-synthetic");
+  await expect
+    .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
+    .toBeVisible();
   await userEvent.keyboard("{Escape}");
   await expect.element(origin).toHaveFocus();
 });
@@ -428,6 +527,7 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
     const play = page.getByRole("button", { name: "Play controlled game", exact: true });
     await play.click();
     const action = document.activeElement;
+    if (keyArtState === "unavailable") await captureParityState("hero-admitted-logo-synthetic");
     const logoElement = document.querySelector<HTMLImageElement>(".game-hero-image");
     if (!logoElement) throw new Error("Logo did not render");
     await act(async () => {
@@ -439,6 +539,7 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
     expect(document.activeElement).toBe(action);
     const cover = document.querySelector<HTMLImageElement>(".game-hero-image");
     if (!cover) throw new Error("Cover fallback did not render");
+    if (keyArtState === "unavailable") await captureParityState("hero-cover-fallback-synthetic");
     await page.getByText("Image credits", { exact: true }).click();
     await expect.element(page.getByText("Image credits", { exact: true })).toHaveFocus();
     await act(async () => {
@@ -451,58 +552,87 @@ it.each(["unavailable", "tiny", "thin", "tall"] as const)(
     expect(document.activeElement).toBe(action);
     expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
     expect(document.querySelector(".game-hero-background")).toBeNull();
+    if (keyArtState === "unavailable") await captureParityState("hero-title-fallback-synthetic");
   },
 );
 
-it("keeps a legible logo ahead of key art when the Continue footprint shrinks", async () => {
-  const { keyArt, logo, port, logoBytes } = controlledHeroMedia(true);
-  keyArt.width = 960;
-  keyArt.height = 240;
-  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
-    automaticArtwork(id, slot),
-  );
-  const media = vi
-    .spyOn(desktopApi, "catalogMediaThumbnail")
-    .mockImplementation(async (_id, mediaId, hash) => ({
-      asset_sha256: hash,
+it.each([true, false])(
+  "contains compact=%s Continue media and preserves its legibility fallback",
+  async (compactLogo) => {
+    const { keyArt, logo, port, logoBytes } = controlledHeroMedia(compactLogo);
+    keyArt.width = 960;
+    keyArt.height = 240;
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "b".repeat(64),
       choice_revision: 0,
-      png_base64: mediaId === keyArt.id ? controlledKeyArt(960, 240) : logoBytes,
-    }));
-  await page.viewport(1200, 900);
-  await render(
-    <div
-      data-testid="continue-width"
-      style={{ width: "900px", containerType: "inline-size", containerName: "library-query" }}
-    >
-      <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
-        <GameHero port={port} variant="continue">
-          <h2>Sample</h2>
-          <button>Continue controlled game</button>
-        </GameHero>
-      </ArtworkProvider>
-    </div>,
-  );
-  await expect
-    .poll(() => {
-      const image = document.querySelector<HTMLImageElement>(".game-hero-image");
-      return image?.complete && image.naturalWidth === logo.width;
-    })
-    .toBe(true);
-  expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("logo");
-  await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
-  const action = document.activeElement;
-  await act(async () => {
-    const container = document.querySelector<HTMLElement>('[data-testid="continue-width"]');
-    if (!container) throw new Error("Continue fixture missing");
-    container.style.width = "240px";
-  });
-  await expect
-    .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
-    .toBe("logo");
-  await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
-  expect(document.activeElement).toBe(action);
-  expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
-});
+      png_base64: controlledKeyArt(160, 240),
+    });
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+      automaticArtwork(id, slot),
+    );
+    const media = vi
+      .spyOn(desktopApi, "catalogMediaThumbnail")
+      .mockImplementation(async (_id, mediaId, hash) => ({
+        asset_sha256: hash,
+        choice_revision: 0,
+        png_base64: mediaId === keyArt.id ? controlledKeyArt(960, 240) : logoBytes,
+      }));
+    await page.viewport(1200, 900);
+    await render(
+      <div
+        data-testid="continue-width"
+        style={{ width: "900px", containerType: "inline-size", containerName: "library-query" }}
+      >
+        <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+          <GameHero port={port} variant="continue">
+            <h2>Sample</h2>
+            <button>Continue controlled game</button>
+          </GameHero>
+        </ArtworkProvider>
+      </div>,
+    );
+    await expect
+      .poll(() => {
+        const image = document.querySelector<HTMLImageElement>(".game-hero-image");
+        return image?.complete && image.naturalWidth === logo.width;
+      })
+      .toBe(true);
+    expect(document.querySelector(".game-hero")?.getAttribute("data-hero-identity")).toBe("logo");
+    const assertContainedMedia = () => {
+      const frame = document.querySelector(".game-hero-foreground")!.getBoundingClientRect();
+      const image = document.querySelector(".game-hero-image")!.getBoundingClientRect();
+      const credits = document.querySelector(".game-hero-credits")!.getBoundingClientRect();
+      expect(image.left).toBeGreaterThanOrEqual(frame.left - 1);
+      expect(image.right).toBeLessThanOrEqual(frame.right + 1);
+      expect(image.top).toBeGreaterThanOrEqual(frame.top - 1);
+      expect(image.bottom).toBeLessThanOrEqual(frame.bottom + 1);
+      expect(image.bottom).toBeLessThanOrEqual(credits.top);
+    };
+    assertContainedMedia();
+    await captureParityState(
+      compactLogo ? "continue-logo-wide-synthetic" : "continue-horizontal-logo-wide-synthetic",
+    );
+    await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
+    const action = document.activeElement;
+    await act(async () => {
+      const container = document.querySelector<HTMLElement>('[data-testid="continue-width"]');
+      if (!container) throw new Error("Continue fixture missing");
+      container.style.width = "240px";
+    });
+    await expect
+      .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+      .toBe(compactLogo ? "logo" : "cover");
+    await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
+    expect(document.activeElement).toBe(action);
+    expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
+    assertContainedMedia();
+    await captureParityState(
+      compactLogo
+        ? "continue-logo-240-container-synthetic"
+        : "continue-horizontal-logo-cover-fallback-240-synthetic",
+    );
+  },
+);
 
 it.each(
   (["detail", "continue"] as const).flatMap((variant) =>

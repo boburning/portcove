@@ -1,0 +1,160 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-10-30",
+  "canonical_issue": 148,
+  "catalog_id": "soulcalibur-ii-ring-out",
+  "new_frozen_identities": 0,
+  "selected_routes": 1,
+  "offered_operations": [
+    "user-selected-register",
+    "relink",
+    "retained-intent-restart",
+    "selected-process-play",
+    "registration-only-preserving-removal"
+  ],
+  "source": {
+    "source_commit": "ec464ef01c6f6872a72090cc5541700e6c71158a",
+    "tree_complete": true,
+    "tree_entry_count": 32904,
+    "verified_source_blobs": [
+      {
+        "path": "DolRecomp/src/app/paths.c",
+        "git_blob": "9a6f3c0bec8f64428780aa03bcec5f6ca77ca26c",
+        "bytes": 5530,
+        "sha256": "87a55474d294fc6d2118bbc5131a774d188a1745d2e088774412ca74b06dc1c7"
+      },
+      {
+        "path": "DolRecomp/src/app/setup.c",
+        "git_blob": "1fa134e426bd53d99adb0d427a2aa10e9079045c",
+        "bytes": 7974,
+        "sha256": "4507674afab4ebe0ebdf99ed770445aa3cf2f58bb2a10929c6deb2577e668859"
+      },
+      {
+        "path": "LICENSE",
+        "git_blob": "17cb286430a4d8094e473d06bd7f50f40438ddba",
+        "bytes": 17337,
+        "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3"
+      },
+      {
+        "path": "ModernGekko/CMakeLists.txt",
+        "git_blob": "5db51b85400091243a869e0049d5fa5f3a29d645",
+        "bytes": 45973,
+        "sha256": "6683f0391b99e97ccb2da09e498e9ccf4c3726694f6e4433c4909926639e7ef4"
+      },
+      {
+        "path": "ModernGekko/LICENSE",
+        "git_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+        "bytes": 35149,
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+      },
+      {
+        "path": "ModernGekko/src/runtime/dolphin_runtime.cpp",
+        "git_blob": "b85977cc1a4bbdb4e064dd64f3c71ec7f5f374df",
+        "bytes": 53942,
+        "sha256": "83f51cb80c22099b65c25a15b7b9edb2477d34d9e9d48fb2e130df738578dc8e"
+      },
+      {
+        "path": "ModernGekko/src/runtime/game.cpp",
+        "git_blob": "fdb3604fa859125566ac8e5c5a4502fa75c6e4f3",
+        "bytes": 8698,
+        "sha256": "e66640b84b5fbc3108b5b6d6bd2c01dc52f808c114f2646c46e301f21405833f"
+      },
+      {
+        "path": "ModernGekko/src/runtime/module_loader.cpp",
+        "git_blob": "bd923de80feda541a81c7a6a83aed0c81d987ba5",
+        "bytes": 2266,
+        "sha256": "4b2eb4a530e14ef8fd66604c38bc3f7a5f4271adfd60c9d27c96ce5140329058"
+      },
+      {
+        "path": "ModernGekko/tools/moderngekko_run.cpp",
+        "git_blob": "3d1e4a2e7c14fb01538eaa3c0756feb525e85e84",
+        "bytes": 30098,
+        "sha256": "1c2191a64f12a11007eb25713a05b9034486e782e79b50ef917341722a51979b"
+      },
+      {
+        "path": "README.md",
+        "git_blob": "3a2f1e31e889d633e7ea358510cbb7e841587173",
+        "bytes": 26849,
+        "sha256": "da9e219a4a172d02d3fffc5feeba1b40bdb3e52883ffdf2bc23cd67b36871014"
+      },
+      {
+        "path": "VERSION",
+        "git_blob": "d3bdbdf1fdaecae544df2a889f92ae49320ee31b",
+        "bytes": 4,
+        "sha256": "2894c5729307b0246d73c17758d6394fe47087f69a25a0f8351810387663dac5"
+      },
+      {
+        "path": "dist/RingOut-1.0-dist/README.txt",
+        "git_blob": "17927859f2d2cf9360142452e9f416134acdef44",
+        "bytes": 8462,
+        "sha256": "81064984ab9ed2c05bd21105b3cec8a4e5e2541225abff189c4e0e6b521414c3"
+      },
+      {
+        "path": "dist/RingOut-1.0-dist/windows/RingOut.ps1",
+        "git_blob": "0ce1fd5012e32619bca6234972b80718dcefa47e",
+        "bytes": 4291,
+        "sha256": "7d42ca80d143a616c331594764bfeb2a9405f61281dd5ad0f8e067266c2e9703"
+      },
+      {
+        "path": "dist/RingOut-1.0-dist/windows/launcher/RingOut.c",
+        "git_blob": "f80c9fb012fbd3e05e68eebc53464be60adf2c71",
+        "bytes": 7054,
+        "sha256": "df25f98a534f1d7d108dea6e02725de94fe4a6f328f876395572b055a5c519a9"
+      },
+      {
+        "path": "dist/RingOut-1.0-dist/windows/setup.ps1",
+        "git_blob": "5ecee994af8e44fa9f135516e4e3c8343f958f08",
+        "bytes": 26273,
+        "sha256": "6edf4a7f5d652e15b0eab455b14f67c64cfcdf45984494dcc8a784f7ed50e66a"
+      }
+    ]
+  },
+  "release": {
+    "id": 426111303,
+    "tag_name": "v1.7",
+    "published_at": "2026-10-27T23:47:51Z",
+    "html_url": "https://github.com/jackpoison-prog/RingOut/releases/tag/v1.7"
+  },
+  "actual_artifact": {
+    "capture_date": "2026-10-30",
+    "asset_id": 683234794,
+    "actual_size": 242240570,
+    "expected_digest": "sha256:23ab7008a492c87830ef0459e54bbe1106c1989059659e82b34dcf0ef1254ae6",
+    "actual_sha256": "23ab7008a492c87830ef0459e54bbe1106c1989059659e82b34dcf0ef1254ae6",
+    "entry_count": 11630,
+    "central_directory_size": 1260320,
+    "expanded_bytes": 812907062,
+    "headers": [
+      {
+        "path": "RingOut-1.7/RingOut.exe",
+        "file_bytes": 17920,
+        "machine": "0x8664",
+        "optional_header_magic": "0x20b"
+      },
+      {
+        "path": "RingOut-1.7/bin/moderngekko-run.exe",
+        "file_bytes": 13273600,
+        "machine": "0x8664",
+        "optional_header_magic": "0x20b"
+      }
+    ],
+    "scope": "Read-only software ZIP metadata and bounded PE-header inspection; no extraction or execution. Private inspection bound20000entries/4MiBcentral afterobserving11630/1260320; product100000entrylimit unchanged."
+  },
+  "selected_coordinates": {
+    "executable": "<root>/bin/moderngekko-run.exe",
+    "working_directory": "<root>",
+    "literal_arguments": [
+      "--user-dir",
+      "<absolute root>/userdata",
+      "--game",
+      "<absolute root>/game",
+      "--module",
+      "<absolute root>/bin/gGRSEAF_recomp.dll"
+    ]
+  },
+  "actual_preparation": "not_run",
+  "actual_game_execution": "not_run",
+  "gameplay": "not_evaluated",
+  "protected_installed_client": "not_evaluated",
+  "historical_v161_integrity_gap": "preserved; v1.7 is a distinct publication"
+}

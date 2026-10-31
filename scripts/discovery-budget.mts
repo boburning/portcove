@@ -26,6 +26,7 @@ export interface Usage {
   profile: DiscoveryProfile;
   backoff_until?: string;
   provider_quotas?: Record<string, ProviderQuota>;
+  provider_sources?: Record<string, Record<string, ProviderQuota>>;
   attempts: { method: string; endpoint: string; status: string; requests: number; bytes: number }[];
 }
 export class DiscoveryBudget {
@@ -36,6 +37,96 @@ export class DiscoveryBudget {
   readonly persist: (usage: Usage) => void;
   readonly now: () => number;
   graphqlPointHeadroom = discoveryGraphqlPointHeadroom;
+  private readonly providers = new Map<string, { id: string; refresh: () => void }>();
+  private readonly refreshAttempts = new Set<string>();
+  private refreshing = false;
+  private coreObserved = false;
+  registerProvider(token: string, refresh: () => void) {
+    const existing = this.providers.get(token);
+    if (existing) return existing.id;
+    const id = `provider${this.providers.size + 1}`;
+    const prior = this.providers.size === 0 ? this.usage.provider_quotas : undefined;
+    this.providers.set(token, { id, refresh });
+    this.usage.provider_sources ??= {};
+    this.usage.provider_sources[id] = { ...prior };
+    this.aggregateProviders();
+    return id;
+  }
+  private aggregateProviders() {
+    if (!this.providers.size) return;
+    this.usage.provider_quotas ??= {};
+    for (const resource of ["core", "graphql", "search"]) {
+      const rows = [...this.providers.values()].map(
+        (p) => this.usage.provider_sources?.[p.id]?.[resource],
+      );
+      if (rows.some((row) => !row)) {
+        delete this.usage.provider_quotas[resource];
+        continue;
+      }
+      const known = rows as ProviderQuota[];
+      this.usage.provider_quotas[resource] = {
+        resource,
+        remaining: Math.min(...known.map((row) => row.remaining)),
+        resetAt: known.map((row) => row.resetAt).toSorted()[0]!,
+      };
+    }
+  }
+  refreshProvider(id: string, action: () => void) {
+    const generation = `${id}:${JSON.stringify(
+      Object.entries(this.usage.provider_sources?.[id] ?? {})
+        .map(([key, value]) => [key, value.resetAt])
+        .toSorted((a, b) =>
+          String(a[0]) < String(b[0]) ? -1 : String(a[0]) > String(b[0]) ? 1 : 0,
+        ),
+    )}`;
+    if (this.refreshing || this.refreshAttempts.has(generation))
+      throw new GitHubApiError(
+        "quota_unknown",
+        "Provider quota refresh cannot be retried in this window",
+      );
+    this.refreshing = true;
+    try {
+      this.admitQuotaProbe();
+      this.refreshAttempts.add(generation);
+      action();
+    } finally {
+      this.refreshing = false;
+    }
+  }
+  private refreshExpired(resource: string, id?: string) {
+    if (this.refreshing) return;
+    for (const provider of this.providers.values()) {
+      if (id && provider.id !== id) continue;
+      const quota = this.usage.provider_sources?.[provider.id]?.[resource];
+      if (
+        (quota && Date.parse(quota.resetAt) <= this.now()) ||
+        (!quota && resource === "core" && this.coreObserved)
+      )
+        provider.refresh();
+    }
+  }
+  admitQuotaProbe() {
+    const left = this.remaining();
+    if (
+      !this.refreshing ||
+      (!this.coreObserved && this.usage.requests >= this.limits.requests) ||
+      left.bytes < 16384 ||
+      left.milliseconds <= 0
+    )
+      throw new GitHubApiError(
+        "budget_exhausted",
+        "Quota observation cannot fit the existing byte/time budget",
+      );
+    this.checkBackoff();
+    return { ...left, requests: 1, bytes: 16384 };
+  }
+  private checkBackoff() {
+    if (this.usage.backoff_until && Date.parse(this.usage.backoff_until) > this.now())
+      throw new GitHubApiError(
+        "rate_limited",
+        "Provider backoff is active; resume after " + this.usage.backoff_until,
+      );
+  }
   constructor(
     profile: DiscoveryProfile,
     persist: (usage: Usage) => void = () => {},
@@ -75,7 +166,9 @@ export class DiscoveryBudget {
             ),
           ),
         )
-      : this.limits.requests - this.usage.requests;
+      : this.coreObserved && (!quota || Date.parse(quota.resetAt) <= this.now())
+        ? 0
+        : this.limits.requests - this.usage.requests;
     return {
       requests: requests - (this.delivery ? 0 : this.reserve.requests),
       bytes:
@@ -87,7 +180,6 @@ export class DiscoveryBudget {
     };
   }
   admit(requests: number, bytes: number) {
-    const left = this.remaining();
     if (
       !Number.isSafeInteger(requests) ||
       requests < 0 ||
@@ -95,11 +187,10 @@ export class DiscoveryBudget {
       bytes < 0
     )
       throw new Error("Invalid operation budget");
-    if (this.usage.backoff_until && Date.parse(this.usage.backoff_until) > this.now())
-      throw new GitHubApiError(
-        "rate_limited",
-        "Provider backoff is active; resume after " + this.usage.backoff_until,
-      );
+    this.checkBackoff();
+    this.refreshExpired("core");
+    this.checkBackoff();
+    const left = this.remaining();
     if (left.milliseconds <= 0 || requests > left.requests || bytes > left.bytes)
       throw new GitHubApiError(
         "budget_exhausted",
@@ -117,7 +208,7 @@ export class DiscoveryBudget {
       throw e;
     }
   }
-  observeProvider(quota: ProviderQuota) {
+  observeProvider(quota: ProviderQuota, source?: string, retainZero = true) {
     if (
       !["core", "graphql", "search"].includes(quota.resource) ||
       !Number.isSafeInteger(quota.remaining) ||
@@ -125,9 +216,18 @@ export class DiscoveryBudget {
       !Number.isFinite(Date.parse(quota.resetAt))
     )
       throw new Error("Invalid provider quota observation");
-    this.usage.provider_quotas ??= {};
-    this.usage.provider_quotas[quota.resource] = quota;
-    if (quota.remaining === 0) this.retainBackoff(quota.resetAt);
+    if (quota.resource === "core") this.coreObserved = true;
+    const id = source ?? this.providers.values().next().value?.id;
+    if (id) {
+      if (!this.usage.provider_sources?.[id])
+        throw new Error("Unknown provider observation source");
+      this.usage.provider_sources[id][quota.resource] = quota;
+      this.aggregateProviders();
+    } else {
+      this.usage.provider_quotas ??= {};
+      this.usage.provider_quotas[quota.resource] = quota;
+    }
+    if (retainZero && quota.remaining === 0) this.retainBackoff(quota.resetAt);
     this.persist(this.usage);
   }
   retainBackoff(until: string) {
@@ -139,8 +239,11 @@ export class DiscoveryBudget {
       this.usage.backoff_until = until;
     this.persist(this.usage);
   }
-  admitProvider(resource: string, points: number, required = false) {
-    const quota = this.usage.provider_quotas?.[resource];
+  admitProvider(resource: string, points: number, required = false, source?: string) {
+    this.refreshExpired(resource, source);
+    const quota = source
+      ? this.usage.provider_sources?.[source]?.[resource]
+      : this.usage.provider_quotas?.[resource];
     if (!quota || Date.parse(quota.resetAt) <= this.now()) {
       if (required)
         throw new GitHubApiError(
@@ -184,14 +287,16 @@ export class DiscoveryBudget {
     // An actual core response replaces this estimate with provider readback;
     // search/GraphQL retain their independent transport admission checks.
     const quota = this.usage.provider_quotas?.core;
-    if (quota) quota.remaining = Math.max(0, quota.remaining - requests);
+    for (const rows of Object.values(this.usage.provider_sources ?? {}))
+      if (rows.core) rows.core.remaining = Math.max(0, rows.core.remaining - requests);
+    if (this.providers.size) this.aggregateProviders();
+    else if (quota) quota.remaining = Math.max(0, quota.remaining - requests);
     const attempt = { method, endpoint, status, requests, bytes };
     this.usage.attempts.push(attempt);
     this.usage.accounting_bytes += Buffer.byteLength(JSON.stringify(attempt)) + 1;
     this.persist(this.usage);
     if (
-      ((!quota || Date.parse(quota.resetAt) <= this.now()) &&
-        this.usage.requests > this.limits.requests) ||
+      (!this.coreObserved && !this.refreshing && this.usage.requests > this.limits.requests) ||
       this.usage.bytes + this.usage.accounting_bytes > this.limits.bytes
     )
       throw new GitHubApiError("budget_exhausted", "Discovery hard budget exceeded");
@@ -214,16 +319,26 @@ export function createDiscoveryTransport(
   token: string,
   worker = fileURLToPath(new URL("./discovery-http.mts", import.meta.url)),
 ) {
-  const request = (
+  const source = budget.registerProvider(token, () => refreshQuotas());
+  const perform = (
     method: string,
     url: string,
     body?: string,
     binary = false,
     conditionalEtag?: string,
+    quotaProbe = false,
   ) => {
-    const left = budget.remaining();
-    budget.admit(1, 1);
     const target = new URL(url);
+    if (
+      quotaProbe &&
+      (method !== "GET" ||
+        url !== "https://api.github.com/rate_limit" ||
+        body ||
+        binary ||
+        conditionalEtag)
+    )
+      throw new Error("Quota observation is restricted to the exact read-only provider endpoint");
+    if (!quotaProbe) budget.admit(1, 1);
     if (target.origin === "https://api.github.com" && target.pathname !== "/rate_limit")
       budget.admitProvider(
         target.pathname === "/graphql"
@@ -232,7 +347,10 @@ export function createDiscoveryTransport(
             ? "search"
             : "core",
         target.pathname === "/graphql" ? budget.graphqlPointHeadroom : 1,
+        false,
+        source,
       );
+    const left = quotaProbe ? budget.admitQuotaProbe() : budget.remaining();
     const cap = Math.min(2 * 1024 * 1024, left.bytes);
     const maxRequests = Math.min(5, left.requests);
     const timeout = Math.min(20000, left.milliseconds);
@@ -286,6 +404,7 @@ export function createDiscoveryTransport(
       !Number.isSafeInteger(parsed.requests) ||
       parsed.requests < 0 ||
       parsed.requests > maxRequests ||
+      (quotaProbe && parsed.requests !== 1) ||
       typeof parsed.bytes !== "number" ||
       !Number.isSafeInteger(parsed.bytes) ||
       parsed.bytes < 0 ||
@@ -327,6 +446,7 @@ export function createDiscoveryTransport(
     const remaining = parsed.headers["x-ratelimit-remaining"];
     const reset = parsed.headers["x-ratelimit-reset"];
     if (
+      !quotaProbe &&
       target.origin === "https://api.github.com" &&
       typeof resource === "string" &&
       ["core", "graphql", "search"].includes(resource) &&
@@ -335,11 +455,14 @@ export function createDiscoveryTransport(
       typeof reset === "string" &&
       /^\d+$/u.test(reset)
     )
-      budget.observeProvider({
-        resource,
-        remaining: Number(remaining),
-        resetAt: new Date(Number(reset) * 1000).toISOString(),
-      });
+      budget.observeProvider(
+        {
+          resource,
+          remaining: Number(remaining),
+          resetAt: new Date(Number(reset) * 1000).toISOString(),
+        },
+        source,
+      );
     if (typeof parsed.backoff_until === "string") {
       budget.retainBackoff(parsed.backoff_until);
     }
@@ -353,6 +476,50 @@ export function createDiscoveryTransport(
       text: string;
     };
   };
+  const request = (
+    method: string,
+    url: string,
+    body?: string,
+    binary = false,
+    conditionalEtag?: string,
+  ) => perform(method, url, body, binary, conditionalEtag);
+  const refreshQuotas = () =>
+    budget.refreshProvider(source, () => {
+      const response = perform(
+        "GET",
+        "https://api.github.com/rate_limit",
+        undefined,
+        false,
+        undefined,
+        true,
+      );
+      if (response.status !== 200)
+        throw new GitHubApiError("http_error", `Quota observation HTTP ${response.status}`, {
+          status: response.status,
+        });
+      const data: unknown = JSON.parse(response.text);
+      if (!isRecord(data) || !isRecord(data.resources))
+        throw new Error("Incomplete provider quota observation");
+      const quotas = ["core", "graphql", "search"].map((resource) => {
+        const value = (data.resources as Record<string, unknown>)[resource];
+        if (
+          !isRecord(value) ||
+          !Number.isSafeInteger(value.remaining) ||
+          Number(value.remaining) < 0 ||
+          !Number.isSafeInteger(value.limit) ||
+          Number(value.limit) < Number(value.remaining) ||
+          !Number.isSafeInteger(value.reset) ||
+          Number(value.reset) * 1000 <= budget.now()
+        )
+          throw new Error("Incomplete or stale provider quota observation");
+        return {
+          resource,
+          remaining: Number(value.remaining),
+          resetAt: new Date(Number(value.reset) * 1000).toISOString(),
+        };
+      });
+      for (const quota of quotas) budget.observeProvider(quota, source, quota.resource === "core");
+    });
   const runner = (args: readonly string[], input?: string) => {
     if (args[0] === "auth" && args[1] === "status") return "";
     if (args[0] !== "api") throw new Error("Discovery requires bounded API commands");

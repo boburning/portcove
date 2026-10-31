@@ -58,7 +58,10 @@ import {
   readNativeProcessSnapshot,
   readNativeSessionObservation,
 } from "./desktop-owned-native-session.mts";
-import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
+import {
+  launchLinuxNativeSession,
+  LinuxLaunchPublication,
+} from "./desktop-linux-native-session.mts";
 import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
 import { inspectIsolatedNativeLinuxBinding } from "./native-linux-isolated-plan.mts";
 import { createHash } from "node:crypto";
@@ -102,6 +105,7 @@ import {
 } from "./desktop-qualification-history-test.mts";
 import {
   revealDetailSection,
+  clickVisible,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -280,10 +284,14 @@ const {
   ordinaryCloseSession,
   minimizedPreparationSession,
   normalPackageSession,
+  reviewedWorkflowSession,
   identityBoundSession: plannedIdentityBoundSession,
   cleanupName,
 } = executionPlan.session;
 const identityBoundSession = plannedIdentityBoundSession || Boolean(nativeAccount);
+const interruptedPreparationSession =
+  process.platform === "win32" &&
+  selection.selected_scenarios.includes("native-interrupted-preparation-recovery");
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 const hostPublicationSession = selection.selected_scenarios.includes(
@@ -384,10 +392,16 @@ const linuxSelectedSession =
         ].includes(name) ||
         (name === "native-preparation-cancellation" && selection.selected_scenarios.length === 1),
     ));
-let linuxLaunch: LinuxLaunch | undefined;
-let linuxCleanup: LinuxCleanup | undefined;
-let linuxLaunchCount = 0;
-let linuxStop: Promise<void> | undefined;
+const linuxPublication = new LinuxLaunchPublication<LinuxCleanup, LinuxLaunch, boolean>({
+  output,
+  artifacts,
+  write: writeFile,
+  beforeCommit: publishLinuxMediaEvidence,
+  committed: () => {
+    driver = undefined;
+  },
+  afterCommit: validateLinuxMediaEvidence,
+});
 let packageEvidence:
   | Awaited<ReturnType<typeof verifyNormalPackageEvidence>>
   | Awaited<ReturnType<typeof verifyLinuxPackageEvidence>>
@@ -518,76 +532,69 @@ async function retainNativeCustody(error: unknown): Promise<never> {
   });
 }
 
+async function publishLinuxMediaEvidence(cleanup: LinuxCleanup, evidence: string) {
+  let mediaWrapperFailure = false;
+  if (linuxPackagedInspector) {
+    const finalEvidence = `${applicationMediaEvidence}.final.json`;
+    await writeFile(
+      finalEvidence,
+      JSON.stringify(
+        {
+          quiesced: cleanup.quiesced,
+          namespace_join: evidence,
+          limitation: "Namespace closure; no application or wrapper normal-exit inference",
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+    artifacts.push(finalEvidence);
+    for (const suffix of ["", ".failure.json", ".exit.json"]) {
+      const captured = await lstat(`${applicationMediaEvidence}${suffix}`).catch((error) => {
+        if (errorCode(error) === "ENOENT") return null;
+        throw error;
+      });
+      if (captured) {
+        assert.ok(captured.isFile() && !captured.isSymbolicLink());
+        artifacts.push(`${applicationMediaEvidence}${suffix}`);
+        if (suffix === ".failure.json") mediaWrapperFailure = true;
+      }
+    }
+  }
+  return mediaWrapperFailure;
+}
+
+async function validateLinuxMediaEvidence(
+  cleanup: LinuxCleanup,
+  mediaWrapperFailure: boolean | undefined,
+) {
+  if (linuxPackagedInspector) {
+    const { assertMediaWrapperOutcome } = await import("../../../scripts/desktop-linux-media.mts");
+    assertMediaWrapperOutcome(cleanup.events);
+    assert.equal(
+      mediaWrapperFailure,
+      false,
+      "Application media wrapper failed; preserve its failure receipt",
+    );
+    const exit = await readFile(`${applicationMediaEvidence}.exit.json`, "utf8").catch((error) => {
+      if (errorCode(error) === "ENOENT") return null;
+      throw error;
+    });
+    if (exit) {
+      const observed = object(JSON.parse(exit));
+      assert.deepEqual(
+        { code: observed.code, signal: observed.signal },
+        { code: 0, signal: null },
+        "Unexpected ordinary app exit before namespace cleanup",
+      );
+    }
+  }
+}
+
 async function stopDriver() {
   if (linuxSelectedSession) {
-    if (!linuxLaunch) return;
-    if (!linuxStop) {
-      const launch = linuxLaunch;
-      const launchIndex = linuxLaunchCount;
-      linuxStop = (async () => {
-        const cleanup = await launch.stop();
-        const evidence = path.join(output, `linux-native-launch-${launchIndex}-join.json`);
-        await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
-        artifacts.push(evidence);
-        let mediaWrapperFailure = false;
-        if (linuxPackagedInspector) {
-          const finalEvidence = `${applicationMediaEvidence}.final.json`;
-          await writeFile(
-            finalEvidence,
-            JSON.stringify(
-              {
-                quiesced: cleanup.quiesced,
-                namespace_join: evidence,
-                limitation: "Namespace closure; no application or wrapper normal-exit inference",
-              },
-              null,
-              2,
-            ) + "\n",
-            { flag: "wx" },
-          );
-          artifacts.push(finalEvidence);
-          for (const suffix of ["", ".failure.json", ".exit.json"]) {
-            const captured = await lstat(`${applicationMediaEvidence}${suffix}`).catch((error) => {
-              if (errorCode(error) === "ENOENT") return null;
-              throw error;
-            });
-            if (captured) {
-              assert.ok(captured.isFile() && !captured.isSymbolicLink());
-              artifacts.push(`${applicationMediaEvidence}${suffix}`);
-              if (suffix === ".failure.json") mediaWrapperFailure = true;
-            }
-          }
-        }
-        linuxCleanup = cleanup;
-        linuxLaunch = undefined;
-        driver = undefined;
-        if (linuxPackagedInspector) {
-          const { assertMediaWrapperOutcome } =
-            await import("../../../scripts/desktop-linux-media.mts");
-          assertMediaWrapperOutcome(cleanup.events);
-          assert.equal(
-            mediaWrapperFailure,
-            false,
-            "Application media wrapper failed; preserve its failure receipt",
-          );
-          const exit = await readFile(`${applicationMediaEvidence}.exit.json`, "utf8").catch(
-            (error) => {
-              if (errorCode(error) === "ENOENT") return null;
-              throw error;
-            },
-          );
-          if (exit) {
-            const observed = object(JSON.parse(exit));
-            assert.deepEqual(
-              { code: observed.code, signal: observed.signal },
-              { code: 0, signal: null },
-              "Unexpected ordinary app exit before namespace cleanup",
-            );
-          }
-        }
-      })();
-    }
-    return linuxStop;
+    return linuxPublication.stop();
   }
   if (identityBoundSession) {
     stopBackupFocusDriver();
@@ -685,6 +692,7 @@ function validateBackupFocusInventory(
   });
 }
 
+let cleanupCaptureSequence = 0;
 function captureBackupFocusCleanup(evidenceName = cleanupName) {
   if (ownedSession.inventory) return ownedSession.inventory;
   assert.ok(
@@ -692,12 +700,17 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
   const suffix =
-    hostInterruptionSession ||
-    ordinaryCloseSession ||
-    savedLibraryRecoverySession ||
-    hostPublicationSession
-      ? `-${driver.pid}`
-      : "";
+    cleanupName === "presentation" ||
+    cleanupName === "organization-restart" ||
+    reviewedWorkflowSession ||
+    interruptedPreparationSession
+      ? `-${++cleanupCaptureSequence}-${driver.pid}`
+      : hostInterruptionSession ||
+          ordinaryCloseSession ||
+          savedLibraryRecoverySession ||
+          hostPublicationSession
+        ? `-${driver.pid}`
+        : "";
   const original = path.join(output, `${evidenceName}-final-processes${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriverTree", original);
   artifacts.push(original);
@@ -794,6 +807,8 @@ async function verifySettingsRows() {
   );
   assert.match(await savedBundle.getText(), /support|bundle/iu);
   const originalWindow = await browser.manage().window().getRect();
+  let primaryFailure: unknown;
+  let failed = false;
   try {
     for (const theme of ["dark", "light"]) {
       await selectSettingsTheme(theme);
@@ -808,6 +823,7 @@ async function verifySettingsRows() {
           "game-files",
           "updates",
           "integrations",
+          "controls",
           "advanced",
         ]) {
           await selectSettingsCategory(group);
@@ -888,17 +904,31 @@ async function verifySettingsRows() {
         }
       }
     }
-  } finally {
+  } catch (error) {
+    failed = true;
+    primaryFailure = error;
+    await captureScenarioScreenshot("settings-rows-primary-failure");
+  }
+  try {
     await browser.manage().window().setRect(originalWindow);
     await selectSettingsCategory("appearance");
-    await browser
-      .findElement(
+    await clickVisible(
+      browser,
+      await browser.findElement(
         By.xpath(
           '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="Follow system"]',
         ),
-      )
-      .click();
+      ),
+    );
+  } catch (restoreError) {
+    if (failed)
+      throw new Error(
+        `Settings row verification failed: ${errorMessage(primaryFailure)}; restoring appearance failed: ${errorMessage(restoreError)}`,
+        { cause: new AggregateError([primaryFailure, restoreError]) },
+      );
+    throw restoreError;
   }
+  if (failed) throw primaryFailure;
 }
 
 interface SettingsRect {
@@ -920,7 +950,8 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
     "library-storage": 3,
     "game-files": 3,
     updates: 2,
-    integrations: 1,
+    integrations: 2,
+    controls: 2,
     advanced: 3,
   };
   for (const [name, group] of Object.entries(rows.groups)) {
@@ -1002,9 +1033,9 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     });
     await captureScenarioScreenshot(`game-details-long-title-${theme}-${size.width}`, true);
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
-    assert.equal(layout.project, "Port project: Castlevania: Legacy of Darkness Recompiled");
+    assert.equal(layout.project, "Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Set up game");
+    assert.equal(layout.action.label, "Set up");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -1021,8 +1052,16 @@ async function verifyLongTitleCatalogDetail(theme: string) {
 
 async function refreshSettings(category?: string) {
   const browser = driverBrowser();
+  const previousDocument = await browser.findElement(By.css("html"));
   await browser.navigate().refresh();
+  // WebView's refresh command can return while the previous renderer is still visible.
+  // Select the category only after the new document and workspace have settled.
+  await browser.wait(until.stalenessOf(previousDocument), 15_000);
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+  await browser.wait(
+    () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
+    15_000,
+  );
   await selectPrimaryNavigation(browser, "Settings");
   if (category) await selectSettingsCategory(category);
 }
@@ -1034,7 +1073,7 @@ async function selectSettingsCategory(id: string) {
     `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
   );
   await browser.wait(until.elementLocated(category), 15_000);
-  await browser.findElement(category).click();
+  await clickVisible(browser, await browser.findElement(category));
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1258,13 +1297,14 @@ async function captureKeyboardTarget(
 async function selectSettingsTheme(theme: string) {
   const browser = driverBrowser();
   await selectSettingsCategory("appearance");
-  await browser
-    .findElement(
+  await clickVisible(
+    browser,
+    await browser.findElement(
       By.xpath(
         `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
       ),
-    )
-    .click();
+    ),
+  );
   await browser.wait(
     async () =>
       (await executeBrowserScript(browser, () => document.documentElement.dataset.theme)) === theme,
@@ -1415,14 +1455,20 @@ async function scenario(name: string, action: () => unknown) {
     });
     return;
   }
+  let failed = false;
   await observeDesktopScenario(action, {
     record: ({ outcome, ...details }) => {
+      failed = outcome === "failed";
       recordScenario(target, name, outcome, { ...details, duration_scope: "scenario-action" });
       if (outcome === "failed") process.exitCode = 1;
     },
     diagnostics: () => captureScenarioDiagnostics(name, target.setup),
     screenshot: async () => {
-      if (!target.setup) await captureScenarioScreenshot(name);
+      if (!target.setup || failed)
+        await captureScenarioScreenshot(
+          failed ? `${target.setup ? "setup-" : ""}${name}-scenario-failure` : name,
+          failed,
+        );
     },
   });
 }
@@ -1437,7 +1483,7 @@ async function connectObservedDriver() {
       awaitApplicationMediaReadiness,
       verifyApplicationMediaInputs,
     } = await import("../../../scripts/desktop-linux-media.mts");
-    const launch = required(linuxLaunch);
+    const launch = required(linuxPublication.launch);
     let readiness: unknown;
     const inspector = await connectLinuxInspector({
       port,
@@ -1488,8 +1534,8 @@ async function connectObservedDriver() {
           ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
         },
       });
-    if (linuxLaunch && "privateAgent" in linuxLaunch)
-      builder.usingHttpAgent(linuxLaunch.privateAgent);
+    if (linuxPublication.launch && "privateAgent" in linuxPublication.launch)
+      builder.usingHttpAgent(linuxPublication.launch.privateAgent);
     browser = await builder.build();
   } finally {
     if (finishObservation) {
@@ -1575,9 +1621,11 @@ async function restartApplication(
     await required(browser).quit();
     browser = undefined;
     await stopDriver();
-    assert.equal(required(linuxCleanup).quiesced, true);
+    assert.equal(required(linuxPublication.cleanup).quiesced, true);
     const evidence = path.join(output, `${name}-restart.json`);
-    await writeFile(evidence, JSON.stringify(linuxCleanup, null, 2) + "\n", { flag: "wx" });
+    await writeFile(evidence, JSON.stringify(linuxPublication.cleanup, null, 2) + "\n", {
+      flag: "wx",
+    });
     artifacts.push(evidence);
     await startDriver(childEnvironment);
     await connect();
@@ -1615,32 +1663,58 @@ async function restartApplication(
     savedLibraryRecoverySession ||
     selectedSetupRestart ||
     hostPublicationSession ||
-    acquisitionRestart
+    acquisitionRestart ||
+    (process.platform === "win32" && identityBoundSession)
   ) {
-    if (!preferencesRecoverySession && !hostPublicationSession && !acquisitionRestart)
+    if (
+      !preferencesRecoverySession &&
+      !hostPublicationSession &&
+      !acquisitionRestart &&
+      !(
+        reviewedWorkflowSession &&
+        selection.selected_scenarios.includes("native-staged-update-composition") &&
+        name === "native-staged-update-composition"
+      ) &&
+      !(
+        interruptedPreparationSession &&
+        (name === "interrupted-preparation-fixture" || name === "journal-only-preparation-recovery")
+      )
+    )
       assert.equal(
         prepareWhileStopped,
         undefined,
         "Identity-bound restart cannot rewrite fixture state",
       );
-    const inventory = captureBackupFocusCleanup(
-      selectedSetupRestart || acquisitionRestart ? name : cleanupName,
-    );
-    validateBackupFocusInventory(
-      readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
-      selectedSetupRestart || acquisitionRestart,
-    );
-    await required(browser).quit();
-    browser = undefined;
-    stopBackupFocusDriver();
-    const cleanup = ownedSession.requireQuiescence();
-    const restartEvidence = path.join(output, `${name}-restart.json`);
-    await writeFile(restartEvidence, `${JSON.stringify(cleanup, null, 2)}\n`, { flag: "wx" });
-    artifacts.push(restartEvidence);
-    if (prepareWhileStopped) await prepareWhileStopped();
-    await startDriver(childEnvironment);
-    await connect();
-    return driverBrowser();
+    return await ownedSession.restart({
+      capture: async () => {
+        const inventory = captureBackupFocusCleanup(
+          selectedSetupRestart ||
+            acquisitionRestart ||
+            interruptedPreparationSession ||
+            reviewedWorkflowSession
+            ? name
+            : cleanupName,
+        );
+        validateBackupFocusInventory(
+          readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
+          selectedSetupRestart || acquisitionRestart,
+        );
+      },
+      close: async () => {
+        await required(browser).quit();
+        browser = undefined;
+      },
+      stop: stopBackupFocusDriver,
+      publish: async (cleanup) => {
+        const restartEvidence = path.join(output, `${name}-restart.json`);
+        await writeFile(restartEvidence, `${JSON.stringify(cleanup, null, 2)}\n`, { flag: "wx" });
+        artifacts.push(restartEvidence);
+      },
+      prepare: prepareWhileStopped,
+      start: () => startDriver(childEnvironment),
+      connect,
+      browser: driverBrowser,
+    });
   }
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
@@ -1815,42 +1889,20 @@ async function interruptLinuxPreparation(
   assertStillPreparing: () => Promise<void>,
 ) {
   assert.equal(process.platform, "linux");
-  assert.equal(selection.selected_scenarios.length, 1);
-  assert.equal(selection.selected_scenarios[0], "native-linux-interrupted-preparation");
-  assert.ok(linuxSelectedSession && linuxLaunch);
-  assert.ok(
-    path.resolve(preparationExecutable).startsWith(path.resolve(library, "staging") + path.sep),
-  );
-  await assertStillPreparing();
-  const startedAt = new Date().toISOString();
-  const receipt = linuxLaunch.receipt;
-  // Do not delete the WebDriver session or request an application close. EOF
-  // makes the private PID namespace's init exit; the kernel ends its members.
-  browser = undefined;
-  await stopDriver();
-  assert.equal(required(linuxCleanup).quiesced, true);
-  const evidence = path.join(output, `${name}-restart.json`);
-  await writeFile(
-    evidence,
-    JSON.stringify(
-      {
-        started_at: startedAt,
-        shutdown_request: "private-pid-namespace-init-eof-without-session-delete",
-        launch_receipt: receipt,
-        joined_at: new Date().toISOString(),
-        cleanup: linuxCleanup,
-        limitation:
-          "Namespace teardown; no graceful close, app-only termination, OS shutdown or product quiescence attestation",
-      },
-      null,
-      2,
-    ) + "\n",
-    { flag: "wx" },
-  );
-  artifacts.push(evidence);
-  await startDriver();
-  await connect();
-  return driverBrowser();
+  assert.ok(linuxSelectedSession);
+  return linuxPublication.interruptPreparation({
+    name,
+    preparationExecutable,
+    library,
+    selectedScenarios: selection.selected_scenarios,
+    assertStillPreparing,
+    invalidateBrowser: () => {
+      browser = undefined;
+    },
+    start: () => startDriver(),
+    connect,
+    browser: driverBrowser,
+  });
 }
 
 async function closeApplication(
@@ -2040,32 +2092,22 @@ function observeNativeSession<Mode extends NativeSessionMode>(
   return readNativeSessionObservation(mode, JSON.parse(result.stdout));
 }
 
-let driverStartupSequence = 0;
 function captureBackupFocusDriverLaunch(launchStarted: number) {
-  const child = required(driver);
-  // Every launch retains a new immutable proof, including full-profile restarts
-  // and a later launch that happens to reuse an earlier PID.
-  const suffix = `-${++driverStartupSequence}-${child.pid}`;
-  const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
-  const captured = observeNativeSession("SnapshotDriver", snapshot);
-  assert.equal(captured.driver.pid, child.pid);
-  assert.equal(
-    path.resolve(captured.driver.path).toLowerCase(),
-    path.resolve(driverPath).toLowerCase(),
-  );
-  const created = Number(BigInt(captured.driver.started_filetime) / 10_000n) - 11_644_473_600_000;
-  assert.ok(
-    created >= launchStarted - 1 && created <= Date.now(),
-    "Driver creation must belong to this launch",
-  );
-  ownedSession.driver = captured.driver;
-  artifacts.push(snapshot);
+  ownedSession.captureDriverLaunch({
+    pid: required(driver).pid,
+    executable: driverPath,
+    output,
+    name: cleanupName,
+    launchStarted,
+    artifacts,
+    observe: observeNativeSession,
+  });
 }
 
 async function driverReady() {
   try {
     if (linuxBinding) {
-      const launch = required(linuxLaunch);
+      const launch = required(linuxPublication.launch);
       assert.ok("privateAgent" in launch);
       return await new Promise<boolean>((resolve, reject) => {
         const request = httpGet(
@@ -2154,7 +2196,7 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
     });
   }
-  if (linuxSelectedSession) await required(linuxLaunch).ready();
+  if (linuxSelectedSession) await required(linuxPublication.launch).ready();
   if (linuxPackagedInspector) return;
   try {
     await captureSelectedDriverLaunch(launchStarted);
@@ -2187,59 +2229,61 @@ async function launchDriverProcess(childEnvironment: NodeJS.ProcessEnv) {
   ];
   if (linuxSelectedSession) {
     ownedSession.beginLaunch();
-    assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
-    linuxCleanup = undefined;
-    linuxStop = undefined;
-    linuxLaunchCount++;
-    if (linuxBinding) {
-      assert.equal(
-        linuxPackagedInspector,
-        false,
-        "Inspector media route is separate from isolated WebDriver package qualification",
-      );
-      linuxLaunch = await launchIsolatedLinuxNativeSession(
-        linuxBinding,
-        driverPath,
-        arguments_,
-        driverEnvironment(childEnvironment),
-        admission.assertReady,
-      );
-    } else
-      linuxLaunch = await launchLinuxNativeSession(
-        linuxPackagedInspector ? process.execPath : driverPath,
-        linuxPackagedInspector
-          ? [
-              path.join(root, "scripts/desktop-linux-media.mts"),
-              "--launch-probed-app",
-              required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
-              application,
-              required(inputs[0]).sha256,
-              applicationMediaEvidence,
-            ]
-          : arguments_,
-        linuxPackagedInspector
-          ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
-          : driverEnvironment(childEnvironment),
-        { beforeLaunch: admission.assertReady },
-      );
-    driver = linuxLaunch.child;
+    const launch = await linuxPublication.start(async () => {
+      if (linuxBinding) {
+        assert.equal(
+          linuxPackagedInspector,
+          false,
+          "Inspector media route is separate from isolated WebDriver package qualification",
+        );
+        return await launchIsolatedLinuxNativeSession(
+          linuxBinding,
+          driverPath,
+          arguments_,
+          driverEnvironment(childEnvironment),
+          admission.assertReady,
+        );
+      } else
+        return await launchLinuxNativeSession(
+          linuxPackagedInspector ? process.execPath : driverPath,
+          linuxPackagedInspector
+            ? [
+                path.join(root, "scripts/desktop-linux-media.mts"),
+                "--launch-probed-app",
+                required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
+                application,
+                required(inputs[0]).sha256,
+                applicationMediaEvidence,
+              ]
+            : arguments_,
+          linuxPackagedInspector
+            ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
+            : driverEnvironment(childEnvironment),
+          { beforeLaunch: admission.assertReady },
+        );
+    });
+    driver = launch.child;
   } else if (nativeAccount) {
-    admission.assertReady();
-    ownedSession.beginLaunch();
-    driver = nativeAccount.start(
-      driverPath,
-      arguments_,
-      runtimeRoot,
-      driverEnvironment(childEnvironment),
-    );
+    driver = ownedSession.startLaunch({
+      admit: () => admission.assertReady(),
+      create: () =>
+        required(nativeAccount).start(
+          driverPath,
+          arguments_,
+          runtimeRoot,
+          driverEnvironment(childEnvironment),
+        ),
+    });
   } else {
-    admission.assertReady();
-    ownedSession.beginLaunch();
-    driver = spawn(driverPath, arguments_, {
-      windowsHide: true,
-      detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-      env: driverEnvironment(childEnvironment),
+    driver = ownedSession.startLaunch({
+      admit: () => admission.assertReady(),
+      create: () =>
+        spawn(driverPath, arguments_, {
+          windowsHide: true,
+          detached: process.platform !== "win32",
+          stdio: ["ignore", "pipe", "pipe"],
+          env: driverEnvironment(childEnvironment),
+        }),
     });
   }
 }
@@ -2260,7 +2304,23 @@ async function captureSelectedDriverLaunch(launchStarted: number) {
 async function verifyCompactSettingsJumps() {
   const browser = driverBrowser();
   const index = await browser.findElement(By.css('nav[aria-label="Settings categories"]'));
-  assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 7);
+  assert.deepEqual(
+    await Promise.all(
+      (await index.findElements(By.css('button[data-slot="button"]'))).map((button) =>
+        button.getText(),
+      ),
+    ),
+    [
+      "Appearance",
+      "Library and storage",
+      "Game files",
+      "Updates",
+      "Integrations",
+      "Keyboard and controller",
+      "Advanced",
+      "About",
+    ],
+  );
   await executeBrowserScript(
     browser,
     (element) => element.scrollIntoView({ block: "start" }),
@@ -2862,7 +2922,7 @@ try {
         { flag: "wx" },
       );
       artifacts.push(filename);
-      const launch = required(linuxLaunch);
+      const launch = required(linuxPublication.launch);
       assert.ok("observeRuntime" in launch);
       const runtime = await launch.observeRuntime();
       const browserCapabilities = await browser.getCapabilities();
@@ -3551,6 +3611,7 @@ try {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]) {
@@ -3597,6 +3658,7 @@ try {
       { name: "game-files", columns: 1 },
       { name: "updates", columns: 1 },
       { name: "integrations", columns: 1 },
+      { name: "controls", columns: 1 },
       { name: "advanced", columns: 1 },
       { name: "about", columns: 1 },
     ]);
@@ -3651,7 +3713,7 @@ try {
       );
     await captureKeyboardTarget(
       "settings-about-title-compact",
-      await about.findElement(By.css("h2")),
+      await about.findElement(By.css("h3")),
     );
 
     await selectSettingsCategory("updates");
@@ -3692,9 +3754,13 @@ try {
       5_000,
       "Game updates heading did not receive focus",
     );
+    const updateCheckDetails = await browser.findElement(By.css(".update-check-details"));
+    if ((await updateCheckDetails.getAttribute("open")) === null)
+      await updateCheckDetails.findElement(By.css("summary")).click();
     const applicationUpdatesLink = await browser.findElement(
       By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
     );
+    await browser.wait(until.elementIsVisible(applicationUpdatesLink), 5_000);
     await executeBrowserScript(
       browser,
       (element) => element.scrollIntoView({ block: "center" }),
@@ -3721,20 +3787,37 @@ try {
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
     const filters = await openCatalogFilters(browser);
-    const selectedFilter = await filters.findElement(
-      By.xpath(
-        './/fieldset[legend[normalize-space(.)="Release channels"]]//button[starts-with(normalize-space(.),"Stable (")]',
-      ),
+    const channelChoices = await filters.findElement(
+      By.css('button[aria-label="Release channels: All"]'),
     );
+    await clickVisible(browser, channelChoices);
+    const selectedFilter = await browser.wait(
+      until.elementLocated(
+        By.css('fieldset[aria-label="Release channels"] [role="checkbox"][aria-label^="Stable ("]'),
+      ),
+      5_000,
+    );
+    await browser.wait(until.elementIsVisible(selectedFilter), 5_000);
     await selectedFilter.sendKeys(Key.SPACE);
     await browser.wait(
-      async () => (await selectedFilter.getAttribute("aria-pressed")) === "true",
+      async () => (await selectedFilter.getAttribute("aria-checked")) === "true",
       5_000,
       "Keyboard activation did not select the Stable channel filter",
     );
-    assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
-    assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
+    assert.equal(await selectedFilter.getAttribute("data-slot"), "checkbox");
     await selectedFilter.sendKeys(Key.ESCAPE);
+    await browser.wait(
+      async () =>
+        (await channelChoices.getAttribute("aria-expanded")) === "false" &&
+        (await executeBrowserScript(
+          browser,
+          (element) => document.activeElement === element,
+          channelChoices,
+        )),
+      5_000,
+      "Escape did not close channel choices and restore focus to its trigger",
+    );
+    await channelChoices.sendKeys(Key.ESCAPE);
     await browser.wait(
       () =>
         executeBrowserScript(browser, () => {
@@ -3875,7 +3958,7 @@ try {
         "Manage",
       ]);
       assert.equal(hierarchy.selected, "Game files");
-      assert.equal(hierarchy.action, "Set up game");
+      assert.equal(hierarchy.action, "Set up");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);
@@ -3901,9 +3984,6 @@ try {
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
     await revealDetailSection(browser, "Manage");
-    await browser
-      .findElement(By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'))
-      .click();
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();
@@ -4211,7 +4291,9 @@ try {
         By.xpath('//*[@aria-label="Application update mode"]//button[normalize-space(.)="Manual"]'),
       )
       .click();
-    await browser.findElement(By.id("pause-application-updates")).click();
+    await browser
+      .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
+      .click();
 
     assert.equal(
       success(await invoke("get_application_update_preferences")).choice,
@@ -4259,7 +4341,12 @@ try {
         .getText(),
       "Manual",
     );
-    assert.equal(await browser.findElement(By.id("pause-application-updates")).isSelected(), true);
+    assert.equal(
+      await browser
+        .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
+        .getAttribute("aria-checked"),
+      "true",
+    );
 
     await captureApplicationUpdateSettingsComparison();
 
@@ -4373,6 +4460,7 @@ try {
       shutdown?: NativeExitObservation;
       connected?: string;
       preference_preserved?: boolean;
+      owned_restart_receipt?: string;
     }
     const observations: AppearanceRestartObservation[] = [];
     try {
@@ -4383,17 +4471,27 @@ try {
           shutdown_request: "identity-bound-isolated-driver-tree-termination",
         };
         observations.push(observation);
-        const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
-        if (process.platform === "win32") {
-          observeNativeSession("Snapshot", snapshot);
-          artifacts.push(snapshot);
+        if (process.platform === "win32" && identityBoundSession) {
+          const name = `appearance-restart-${cycle + 1}`;
+          await restartApplication(name);
+          const receipt = path.join(output, `${name}-restart.json`);
+          observation.owned_restart_receipt = receipt;
+          const cleanup: unknown = JSON.parse(await readFile(receipt, "utf8"));
+          assert.ok(isRecord(cleanup));
+          observation.shutdown = readNativeSessionObservation("Wait", cleanup.exited);
+        } else {
+          const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
+          if (process.platform === "win32") {
+            observeNativeSession("Snapshot", snapshot);
+            artifacts.push(snapshot);
+          }
+          observation.driver_stop = await requestApplicationShutdown(snapshot);
+          observation.session_delete_completed = new Date().toISOString();
+          if (process.platform === "win32")
+            observation.shutdown = observeNativeSession("Wait", snapshot);
+          await startDriver();
+          await connect();
         }
-        observation.driver_stop = await requestApplicationShutdown(snapshot);
-        observation.session_delete_completed = new Date().toISOString();
-        if (process.platform === "win32")
-          observation.shutdown = observeNativeSession("Wait", snapshot);
-        await startDriver();
-        await connect();
         observation.connected = new Date().toISOString();
         assert.equal(
           await executeBrowserScript(driverBrowser(), () => document.documentElement.dataset.theme),
@@ -4413,9 +4511,9 @@ try {
     const browser = driverBrowser();
     const reset = await invoke("set_locale_preference", { locale: "en" });
     assert.ok(reset.ok);
-    await refreshSettings();
+    await refreshSettings("appearance");
     const languageTrigger = await browser.wait(
-      until.elementLocated(By.xpath('//button[contains(., "Display language")]')),
+      until.elementLocated(By.css('.language-card [role="combobox"]')),
       15_000,
     );
     await languageTrigger.click();
@@ -4446,12 +4544,12 @@ try {
 
     const engineering = await invoke("set_locale_preference", { locale: "ar-XB" });
     assert.ok(engineering.ok);
-    await refreshSettings();
+    await refreshSettings("appearance");
     await browser.wait(async () => {
       const state = await executeBrowserScript(browser, () => ({
         lang: document.documentElement.lang,
         dir: document.documentElement.dir,
-        heading: [...document.querySelectorAll("h2")].some(
+        heading: [...document.querySelectorAll(".language-card h3")].some(
           (element) => element.textContent?.trim() === "لغة الواجهة",
         ),
         preview: document
@@ -4463,7 +4561,7 @@ try {
     const rendered = await executeBrowserScript(browser, () => ({
       lang: document.documentElement.lang,
       dir: document.documentElement.dir,
-      heading: [...document.querySelectorAll("h2")].some(
+      heading: [...document.querySelectorAll(".language-card h3")].some(
         (element) => element.textContent?.trim() === "لغة الواجهة",
       ),
       preview: document
@@ -4505,7 +4603,7 @@ try {
 
     await selectPrimaryNavigation(browser, "Settings");
     const rtlTrigger = await browser.wait(
-      until.elementLocated(By.css(".language-card button")),
+      until.elementLocated(By.css('.language-card [role="combobox"]')),
       15_000,
     );
     await rtlTrigger.click();
@@ -4641,7 +4739,7 @@ try {
               ? nativeGameFileFolderPicker({
                   application: application,
                   getDriverIdentity: () => ownedSession.driver,
-                  getLinuxLaunch: () => linuxLaunch,
+                  getLinuxLaunch: () => linuxPublication.launch,
                   output,
                   artifacts,
                 })
@@ -4740,7 +4838,7 @@ try {
         browser = undefined;
         await stopDriver();
         assert.equal(
-          linuxCleanup?.quiesced,
+          linuxPublication.cleanup?.quiesced,
           true,
           "Positive current Linux namespace join is required",
         );
@@ -4756,11 +4854,17 @@ try {
       }
       if (cleanupFailed || quitFailure) {
         const failure = cleanupFailed ? cleanupError : required(quitFailure).error;
-        const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-unknown.json`);
+        const evidence = path.join(
+          output,
+          `linux-native-launch-${linuxPublication.ordinal}-unknown.json`,
+        );
         await writeFile(
           evidence,
-          JSON.stringify({ error: errorMessage(failure), receipt: linuxLaunch?.receipt }, null, 2) +
-            "\n",
+          JSON.stringify(
+            { error: errorMessage(failure), receipt: linuxPublication.launch?.receipt },
+            null,
+            2,
+          ) + "\n",
           { flag: "wx" },
         );
         artifacts.push(evidence);
@@ -4964,14 +5068,14 @@ try {
     });
     console.log(JSON.stringify(checks, null, 2));
   } finally {
-    if (linuxSelectedSession && linuxLaunch) {
+    if (linuxSelectedSession && linuxPublication.launch) {
       try {
         // A late normal join can release custody but never repair the failed
         // qualification. Keep the owning runner/slot alive while still pending.
-        const custody = await linuxLaunch.custody();
+        const custody = await linuxPublication.launch.custody();
         const evidence = path.join(
           output,
-          `linux-native-launch-${linuxLaunchCount}-retained-join.json`,
+          `linux-native-launch-${linuxPublication.ordinal}-retained-join.json`,
         );
         await writeFile(evidence, JSON.stringify(custody, null, 2) + "\n", { flag: "wx" });
       } catch (error) {

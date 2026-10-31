@@ -16,6 +16,36 @@
       "image_sha256": "67695ffc1a9bc9a5b41ef3d1ce2df91b84223497b65b7ed1e351f43577744f1d",
       "game_slug": "wwe-smackdown-vs-raw-2007",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/HollywoodAkeem/SVR07-Recomp/blob/c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc/README.md",
+      "steps": [
+        {
+          "title": "Keep a permitted completed direct native player",
+          "instruction": "Use an already permitted working official v1.0 Windows x64 svr07.exe and the complete actual installation, with existing Windows10/11/D3D12 support. Root BSD3 covers project code, not original game/assets/trademarks or exhaustive dependency/package clearance. The publisher explicitly documents native release use with a legally owned original; this is not whole-package/source-to-binary or gameplay certification."
+        },
+        {
+          "title": "Preserve the exact own extracted original",
+          "instruction": "Complete upstream preparation using your own WWE SmackDown vs. Raw 2007 Xbox 360 original. USA/Canada is recommended; other regions are untested. Keep assets/ and the complete extracted files/default.xex, existing title-update paths and original set. Core does not extract an ISO, authenticate a full disc/XEX, install an update or establish arbitrary regional/revision compatibility."
+        },
+        {
+          "title": "Select the game rather than the settings prelauncher",
+          "instruction": "Select the actual already working svr07.exe game entry, zero arguments for the normal prepared copy, and its established writable containing installation-root CWD. The official release also advertises a settings prelauncher; complete settings there separately and select the long-lived native game for Core Play. Preserve any already required supported custom literal arguments/profile context; do not select an updater, SDK/build/helper or DLL. Registration itself does not prepare or launch the game."
+        },
+        {
+          "title": "Review intent and keep replacement upstream-owned",
+          "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+        },
+        {
+          "title": "Preserve every actual root and creating profile",
+          "instruction": "Keep the whole runtime, original/extracted assets, actual configuration, save/user content, title-update data, logs/caches/mods/custom and unknown paths. The title source uses application name svr07 and overrides update_data_root to a rooted assets/1_update coordinate; do not rewrite/create that path merely to register. The named runtime-fork observation uses a Windows Documents/svr07 default user root, but is not pinned to the selected release binary: preserve the actual established profile/custom roots rather than inferring or migrating it from that example. Keep state with its creating runtime; removal preserves all external bytes."
+        }
+      ],
+      "warnings": [
+        "Upstream current README still reports roughly a 10% per-session random D3D12 GPU-device-loss crash, not root-caused, plus vertex artifacts and fixed internal resolution/aspect constraints. The older tag lacks the later crash text; no fix, stability, full-game/gameplay or save-load pass is inferred. Relaunch advice is upstream recovery guidance, not a Core crash-repair guarantee.",
+        "The v1.0 package/old matching digest and BSD3 source grant retain their original scopes. The selected release source has no exact SDK-fork commit pin; current fork source is only an explicitly separate observation, not a certificate for that binary. No generic SDK/source/other-game support is inherited.",
+        "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion or new console-family framework. Actual game/original/package execution, state/mod compatibility, installed/human/other-platform/protected qualification and Supported promotion remain unestablished here."
+      ]
     }
   }
 }

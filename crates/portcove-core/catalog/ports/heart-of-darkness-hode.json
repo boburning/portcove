@@ -9,7 +9,36 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/usineur/hode",
-    "issue_number": 2882
+    "issue_number": 2882,
+    "manual_setup": {
+      "help_url": "https://github.com/usineur/hode/tree/912594e84cee8bcb4075e19520fed7c61dc9a078",
+      "steps": [
+        {
+          "title": "Prepare a coherent desktop Heart of Darkness copy upstream",
+          "instruction": "Use a permitted, already working native desktop hode build with your own supported Windows Heart of Darkness data: hod.paf, setup.dat and the matching *_hod.lvl, *_hod.sss and *_hod.mst files. Keep the complete same-edition tree. The selected source’s RELEASES.yaml records specific French/German/Italian/Japanese Win32 sets and separate demo/promotion/PlayStation tuples; those are not interchangeable or evidence for every retail patch. Observed official Switch/Vita binaries are not desktop packages. Complete any upstream desktop build outside Portcove; no compiler or converter is run here."
+        },
+        {
+          "title": "Select the actual desktop player and paths",
+          "instruction": "Select the prepared native hode player for the current host, not hode.nro, hode.vpk, a setup script or original-game executable. The selected desktop Makefile produces hode; an actual Windows build must be prepared upstream rather than inferred from console assets. Keep its established working directory and literal --datapath=ABS and --savepath=ABS options if configured; defaults use the working directory."
+        },
+        {
+          "title": "Retain progress and the creating data roots",
+          "instruction": "Keep hode.ini in the creating working directory, setup.cfg and screenshot-*.bmp in the effective save path, complete originals, runtime dependencies, custom and unknown files. The source writes setup.cfg through that selected save path; a relative save path depends on the creating working directory. Keep compatible old runtime and saves; no backward-save or full-campaign observation is claimed."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

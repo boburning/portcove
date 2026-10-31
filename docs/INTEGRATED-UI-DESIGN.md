@@ -79,7 +79,7 @@ port remain distinct drafts, including a selected port outside filtered results.
 
 Settings uses open rows separated by rules. Wide layouts place an 11.875rem category
 column beside a reading column bounded at 47.5rem; below 65rem the categories form
-one horizontally scrollable strip. All seven panels stay mounted to preserve
+one horizontally scrollable strip. All eight panels stay mounted to preserve
 drafts and operations. Category focus reveals the selected heading and its outline
 below any sticky category strip, scrolling the existing workspace only as far as needed.
 
@@ -179,3 +179,22 @@ never an inferred progress phase. The reviewed external-to-managed transition
 creates and activates through its existing atomic owner; no pretend prepared-copy
 or return transition is displayed. Native, browser and real-file acceptance remain
 distinct, and live integration completion/evidence belongs to #3725.
+
+### Full-app prototype composition
+
+Collections are exposed in the desktop sidebar with the same ephemeral selection
+owner used by the compact picker. Settings includes a Controls category derived
+from the real keyboard registry and existing controller navigation; Steam uses
+the single-installation dialog for one eligible target and the batch owner for
+multiple targets. The implementation must not imply unsupported native toggles.
+
+Add games presents distinct intake routes without a fabricated fixed step count.
+Selected preparation identity comes from the existing task owner. Detail notices,
+version comparisons, backup summaries, gallery stages and management rows share
+the prototype composition while preserving their independent operational owners.
+A downloaded candidate keeps the current installation playable when Core permits
+it; presentation never turns a download into consent to apply it.
+
+Renderer comparison fixtures document visual behavior only. Native setup, launch,
+update, restore, Steam and interface-size acceptance require their maintained
+production checks; a diagnostic fixture is not evidence of successful native work.

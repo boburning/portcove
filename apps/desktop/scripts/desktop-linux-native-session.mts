@@ -74,6 +74,7 @@ import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const init = fileURLToPath(new URL("./native-linux-init.mts", import.meta.url));
@@ -250,4 +251,114 @@ export async function launchLinuxNativeSession(
       return stopping;
     },
   };
+}
+
+/** Ephemeral launch custody and exclusive evidence publication; process providers stay with callers. */
+export class LinuxLaunchPublication<
+  Cleanup extends { quiesced: boolean },
+  Launch extends { receipt: unknown; stop(): Promise<Cleanup> },
+  Extra = undefined,
+> {
+  launch: Launch | undefined;
+  cleanup: Cleanup | undefined;
+  ordinal = 0;
+  private stopping: Promise<void> | undefined;
+
+  private readonly publication: {
+    output: string;
+    artifacts: string[];
+    write: (file: string, bytes: string, options: { flag: "wx" }) => Promise<void>;
+    beforeCommit?: (cleanup: Cleanup, joinEvidence: string) => Promise<Extra>;
+    committed: () => void;
+    afterCommit?: (cleanup: Cleanup, extra: Extra | undefined) => Promise<void>;
+  };
+
+  constructor(publication: LinuxLaunchPublication<Cleanup, Launch, Extra>["publication"]) {
+    this.publication = publication;
+  }
+
+  async start(factory: () => Promise<Launch>): Promise<Launch> {
+    assert.equal(this.launch, undefined, "The previous Linux launch must finish publication");
+    this.cleanup = undefined;
+    this.stopping = undefined;
+    this.ordinal++;
+    this.launch = await factory();
+    return this.launch;
+  }
+
+  async stop(): Promise<void> {
+    if (!this.launch) return;
+    if (!this.stopping) {
+      const launch = this.launch;
+      const ordinal = this.ordinal;
+      this.stopping = (async () => {
+        const cleanup = await launch.stop();
+        const evidence = path.join(
+          this.publication.output,
+          `linux-native-launch-${ordinal}-join.json`,
+        );
+        await this.publication.write(evidence, JSON.stringify(cleanup, null, 2) + "\n", {
+          flag: "wx",
+        });
+        this.publication.artifacts.push(evidence);
+        const extra = await this.publication.beforeCommit?.(cleanup, evidence);
+        this.cleanup = cleanup;
+        this.launch = undefined;
+        this.publication.committed();
+        await this.publication.afterCommit?.(cleanup, extra);
+      })();
+    }
+    return this.stopping;
+  }
+
+  async interruptPreparation<Browser>(options: {
+    name: string;
+    preparationExecutable: string;
+    library: string;
+    selectedScenarios: readonly string[];
+    assertStillPreparing: () => Promise<void>;
+    invalidateBrowser: () => void;
+    start: () => Promise<void>;
+    connect: () => Promise<void>;
+    browser: () => Browser;
+  }): Promise<Browser> {
+    assert.equal(options.selectedScenarios.length, 1);
+    assert.equal(options.selectedScenarios[0], "native-linux-interrupted-preparation");
+    assert.ok(this.launch);
+    assert.ok(
+      path
+        .resolve(options.preparationExecutable)
+        .startsWith(path.resolve(options.library, "staging") + path.sep),
+    );
+    await options.assertStillPreparing();
+    const startedAt = new Date().toISOString();
+    const receipt = this.launch.receipt;
+    // Namespace EOF deliberately replaces graceful session deletion here.
+    options.invalidateBrowser();
+    await this.stop();
+    assert.ok(this.cleanup);
+    assert.equal(this.cleanup.quiesced, true);
+    const evidence = path.join(this.publication.output, `${options.name}-restart.json`);
+    await this.publication.write(
+      evidence,
+      JSON.stringify(
+        {
+          started_at: startedAt,
+          shutdown_request: "private-pid-namespace-init-eof-without-session-delete",
+          launch_receipt: receipt,
+          joined_at: new Date().toISOString(),
+          cleanup: this.cleanup,
+          limitation:
+            "Namespace teardown; no graceful close, app-only termination, OS shutdown or product quiescence attestation",
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+    this.publication.artifacts.push(evidence);
+    await options.start();
+    await options.connect();
+    return options.browser();
+  }
 }

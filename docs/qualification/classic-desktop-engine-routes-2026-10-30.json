@@ -1,0 +1,2760 @@
+{
+  "format_version": 1,
+  "kind": "dated eight classic-desktop-engine prepared-player source packet; not live planning or game acceptance",
+  "observation_date": "2026-10-30",
+  "owners": [2510, 2926, 1422],
+  "base": "02596a9064b1653837553158507040bec6854320",
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 203,
+    "unique_content_blobs": 159,
+    "complete_tree_reference_roles": 15,
+    "unique_root_tree_objects": 15,
+    "complete_selected_GitHub_release_inventories": 6,
+    "selected_GitHub_assets_metadata": 42
+  },
+  "selected_rows": [
+    {
+      "canonical_issue": 2697,
+      "id": "quake-vkquake",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "vkQuake.exe",
+      "selected_tag": "1.37.0",
+      "tag_source": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+      "current_source": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+      "publisher_asset_inventory": {
+        "complete_pages": [
+          {
+            "route": "repos/Novum/vkQuake/releases/410108250/assets?per_page=100&page=1",
+            "file": "selected-assets-page-1.json",
+            "rows": 4,
+            "sha256": "27babc8892686cc8b12907da7eb1301da2e7103b3de5993884058d1131bd3665",
+            "observed_at": "2026-10-31T02:31:44.103887+00:00"
+          }
+        ],
+        "total": 4,
+        "assets": [
+          {
+            "id": 632507389,
+            "name": "vkQuake-1.37.0-x86_64.AppImage",
+            "bytes": 9538040,
+            "digest": "sha256:abf8546316997d16b86fea242d90afc8203fecb9e5016d6262f7bec1f36a5a9e"
+          },
+          {
+            "id": 632511099,
+            "name": "vkQuake-1.37.0_windows_arm64.zip",
+            "bytes": 6184196,
+            "digest": "sha256:3db11ad004979d70faa9f8ffe02b099fb42beebbd8b3cfc10f009542dd119209"
+          },
+          {
+            "id": 632507386,
+            "name": "vkQuake-1.37.0_windows_x64.zip",
+            "bytes": 5762231,
+            "digest": "sha256:c2f9a6c591c119681ada626aed029719871790bd8208bbae08b58185b62a7d83"
+          },
+          {
+            "id": 632507385,
+            "name": "vkQuake-Installer-windows_x64-1.37.0.exe",
+            "bytes": 4276928,
+            "digest": "sha256:203af1354c496a9391bfd21177c0a98f9e80ebff764147ab69986c5f25020c3e"
+          }
+        ]
+      },
+      "authored_sha256": "540b729d0f9f9b307b767b3f218acef3b6aac1a23a353d757bb323da59564b80",
+      "prior_body_sha256": "a5b21ed7292c63b3c1ee4fa2132e6ec5668bf10901f27089f21ab69a7271dee3",
+      "context_observed_at": "2026-10-31T01:00:32.301Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "reviewed source-contract advancement/finite minimum completion after actual qualified delivery; no support promotion",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 2698,
+      "id": "quake-ironwail",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "ironwail.exe",
+      "selected_tag": "v0.8.2",
+      "tag_source": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+      "current_source": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+      "publisher_asset_inventory": {
+        "complete_pages": [
+          {
+            "route": "repos/andrei-drexler/ironwail/releases/367851051/assets?per_page=100&page=1",
+            "file": "selected-assets-page-1.json",
+            "rows": 3,
+            "sha256": "970016f87843486768864984eaaeb83ae5bb54732b13cf183851786ed53b475c",
+            "observed_at": "2026-10-31T02:31:44.108204+00:00"
+          }
+        ],
+        "total": 3,
+        "assets": [
+          {
+            "id": 510564613,
+            "name": "ironwail-0.8.2-linux-x64.tar.gz",
+            "bytes": 592534,
+            "digest": "sha256:fcb0219d13c50f64728892f0558b4761ba5578319a6cc01021fad981c6333aa5"
+          },
+          {
+            "id": 510410138,
+            "name": "ironwail-0.8.2-win32.zip",
+            "bytes": 2387133,
+            "digest": "sha256:676ba44bc2c99bb85fa617d62f6a3b003099dedd89e3a2852688bb391c672c9a"
+          },
+          {
+            "id": 510410102,
+            "name": "ironwail-0.8.2-win64.zip",
+            "bytes": 2538274,
+            "digest": "sha256:0e54e9089ce72bad73c288148cfb5474a00b05d9e1da1c8feb0b76665faf7d01"
+          }
+        ]
+      },
+      "authored_sha256": "1b7c390da931a856b3b3867c17d7320e65d5f73f7643cdacd69142ed569afed6",
+      "prior_body_sha256": "532cc2ec1292bd9fbd44ce7b692b1e99169869e96a66964661177e2c97a5082d",
+      "context_observed_at": "2026-10-31T01:00:33.601Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "reviewed source-contract advancement/finite minimum completion after actual qualified delivery; no support promotion",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 2573,
+      "id": "fallout-fallout-community-edition",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "fallout-ce.exe",
+      "selected_tag": "v1.1.0",
+      "tag_source": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+      "current_source": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+      "publisher_asset_inventory": {
+        "complete_pages": [
+          {
+            "route": "repos/alexbatalov/fallout1-ce/releases/144550631/assets?per_page=100&page=1",
+            "file": "selected-assets-page-1.json",
+            "rows": 7,
+            "sha256": "f06c22b5be876e04f3d5c194d2ed3c0d68f5731436937d1978f6b49d88f7e560",
+            "observed_at": "2026-10-31T02:31:44.106049+00:00"
+          }
+        ],
+        "total": 7,
+        "assets": [
+          {
+            "id": 154698880,
+            "name": "fallout-ce-android.apk",
+            "bytes": 5251181,
+            "digest": null
+          },
+          {
+            "id": 154699024,
+            "name": "fallout-ce-ios.ipa",
+            "bytes": 7352921,
+            "digest": null
+          },
+          {
+            "id": 154698403,
+            "name": "fallout-ce-linux-x64.tar.gz",
+            "bytes": 3645253,
+            "digest": null
+          },
+          {
+            "id": 154698489,
+            "name": "fallout-ce-linux-x86.tar.gz",
+            "bytes": 3486492,
+            "digest": null
+          },
+          {
+            "id": 154699497,
+            "name": "fallout-ce-macos.dmg",
+            "bytes": 5049524,
+            "digest": null
+          },
+          {
+            "id": 154698481,
+            "name": "fallout-ce-windows-x64.zip",
+            "bytes": 1285574,
+            "digest": null
+          },
+          {
+            "id": 154698482,
+            "name": "fallout-ce-windows-x86.zip",
+            "bytes": 1107679,
+            "digest": null
+          }
+        ]
+      },
+      "authored_sha256": "7545c8131da4220140032ef3605200fa8804dba1cf061fd614e427fdc530a1b0",
+      "prior_body_sha256": "1dca4bf4fafd5abbb3ab0effbe4e19cd53b47d24edd06e876d2b91b10c2595b2",
+      "context_observed_at": "2026-10-31T01:00:34.944Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "reviewed source-contract advancement/finite minimum completion after actual qualified delivery; no support promotion",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 2574,
+      "id": "fallout-2-fallout-2-community-edition",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "fallout2-ce.exe",
+      "selected_tag": "v1.3.0",
+      "tag_source": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+      "current_source": "e97087b9582f37075db347a89898887320753f8b",
+      "publisher_asset_inventory": {
+        "complete_pages": [
+          {
+            "route": "repos/alexbatalov/fallout2-ce/releases/152083085/assets?per_page=100&page=1",
+            "file": "selected-assets-page-1.json",
+            "rows": 7,
+            "sha256": "56d051390a8a34e7633f7e731ef1720492e7f40ab726a0ee9d6a6ad575231018",
+            "observed_at": "2026-10-31T02:31:44.096974+00:00"
+          }
+        ],
+        "total": 7,
+        "assets": [
+          {
+            "id": 163372855,
+            "name": "fallout2-ce-android.apk",
+            "bytes": 6486987,
+            "digest": null
+          },
+          {
+            "id": 163373360,
+            "name": "fallout2-ce-ios.ipa",
+            "bytes": 6668563,
+            "digest": null
+          },
+          {
+            "id": 163372459,
+            "name": "fallout2-ce-linux-x64.tar.gz",
+            "bytes": 5360178,
+            "digest": null
+          },
+          {
+            "id": 163372503,
+            "name": "fallout2-ce-linux-x86.tar.gz",
+            "bytes": 5181378,
+            "digest": null
+          },
+          {
+            "id": 163373306,
+            "name": "fallout2-ce-macos.dmg",
+            "bytes": 4910819,
+            "digest": null
+          },
+          {
+            "id": 163372488,
+            "name": "fallout2-ce-windows-x64.zip",
+            "bytes": 1407974,
+            "digest": null
+          },
+          {
+            "id": 163372489,
+            "name": "fallout2-ce-windows-x86.zip",
+            "bytes": 1212442,
+            "digest": null
+          }
+        ]
+      },
+      "authored_sha256": "e1eabc421699a3e77ad131751b03160ceebb48dd6f930d3059be46e780565c6a",
+      "prior_body_sha256": "a6a446f818041fa8914b66473a90ff00110dc9c607b8e51f1597624c2b481ade",
+      "context_observed_at": "2026-10-31T01:00:36.253Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "reviewed source-contract advancement/finite minimum completion after actual qualified delivery; no support promotion",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 2554,
+      "id": "arx-fatalis-arx-libertatis",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "arx.exe",
+      "selected_tag": "1.2.1",
+      "tag_source": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+      "current_source": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+      "publisher_asset_inventory": {
+        "complete_pages": [
+          {
+            "route": "repos/arx/ArxLibertatis/releases/64055672/assets?per_page=100&page=1",
+            "file": "selected-assets-page-1.json",
+            "rows": 10,
+            "sha256": "223366d1b8115f78ae36d27f4c83eba6b5a6bc4ec60113a350021c51210f47af",
+            "observed_at": "2026-10-31T02:31:44.347067+00:00"
+          }
+        ],
+        "total": 10,
+        "assets": [
+          {
+            "id": 62137439,
+            "name": "arx-libertatis-1.2.1-linux-debug.tar.xz",
+            "bytes": 31988804,
+            "digest": null
+          },
+          {
+            "id": 62138168,
+            "name": "arx-libertatis-1.2.1-linux.tar.xz",
+            "bytes": 5845876,
+            "digest": null
+          },
+          {
+            "id": 62138293,
+            "name": "arx-libertatis-1.2.1-linux.tar.xz.sig",
+            "bytes": 566,
+            "digest": null
+          },
+          {
+            "id": 62138294,
+            "name": "arx-libertatis-1.2.1-windows-debug.tar.xz",
+            "bytes": 9964860,
+            "digest": null
+          },
+          {
+            "id": 62138415,
+            "name": "arx-libertatis-1.2.1-windows.exe",
+            "bytes": 9693227,
+            "digest": null
+          },
+          {
+            "id": 62138599,
+            "name": "arx-libertatis-1.2.1-windows.exe.sig",
+            "bytes": 566,
+            "digest": null
+          },
+          {
+            "id": 62138600,
+            "name": "arx-libertatis-1.2.1-windows.zip",
+            "bytes": 11746336,
+            "digest": null
+          },
+          {
+            "id": 62138783,
+            "name": "arx-libertatis-1.2.1-windows.zip.sig",
+            "bytes": 566,
+            "digest": null
+          },
+          {
+            "id": 62138784,
+            "name": "arx-libertatis-1.2.1.tar.xz",
+            "bytes": 2479764,
+            "digest": null
+          },
+          {
+            "id": 62138798,
+            "name": "arx-libertatis-1.2.1.tar.xz.sig",
+            "bytes": 566,
+            "digest": null
+          }
+        ]
+      },
+      "authored_sha256": "bc3e416010f9586aaa78d476d3ab839b90bca2869731fa30df3e46605fe70720",
+      "prior_body_sha256": "fd684213ed7bb4179c73fd8ab04211ef7c3406d76142aa51d86c93e2ed8cd5f9",
+      "context_observed_at": "2026-10-31T01:00:37.540Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "reviewed source-contract advancement/finite minimum completion after actual qualified delivery; no support promotion",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 2706,
+      "id": "return-to-castle-wolfenstein-iortcw",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "iowolfsp.x64.exe",
+      "selected_tag": "1.51c",
+      "tag_source": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+      "current_source": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+      "publisher_asset_inventory": {
+        "complete_pages": [
+          {
+            "route": "repos/iortcw/iortcw/releases/16159520/assets?per_page=100&page=1",
+            "file": "selected-assets-page-1.json",
+            "rows": 11,
+            "sha256": "e8e40682733eb2d6fba9b885ac9ee572bb10dd0be56863c829028c08b8ecd67f",
+            "observed_at": "2026-10-31T02:31:44.415488+00:00"
+          }
+        ],
+        "total": 11,
+        "assets": [
+          {
+            "id": 11574779,
+            "name": "iortcw-1.51c-linux-x86.zip",
+            "bytes": 9551735,
+            "digest": null
+          },
+          {
+            "id": 11574780,
+            "name": "iortcw-1.51c-linux-x86_64.zip",
+            "bytes": 10760036,
+            "digest": null
+          },
+          {
+            "id": 11574781,
+            "name": "iortcw-1.51c-mac-term.zip",
+            "bytes": 25486401,
+            "digest": null
+          },
+          {
+            "id": 11574782,
+            "name": "iortcw-1.51c-mac-ub.zip",
+            "bytes": 27677356,
+            "digest": null
+          },
+          {
+            "id": 11574783,
+            "name": "iortcw-1.51c-win-x64.zip",
+            "bytes": 15444583,
+            "digest": null
+          },
+          {
+            "id": 11574784,
+            "name": "iortcw-1.51c-win-x86.zip",
+            "bytes": 12637269,
+            "digest": null
+          },
+          {
+            "id": 11574811,
+            "name": "patch-data-141.zip",
+            "bytes": 79421754,
+            "digest": null
+          },
+          {
+            "id": 11574812,
+            "name": "patch-data-SP_deutsch.zip",
+            "bytes": 151225,
+            "digest": null
+          },
+          {
+            "id": 11574813,
+            "name": "patch-data-SP_espanol.zip",
+            "bytes": 151425,
+            "digest": null
+          },
+          {
+            "id": 11574814,
+            "name": "patch-data-SP_francais.zip",
+            "bytes": 151337,
+            "digest": null
+          },
+          {
+            "id": 11574815,
+            "name": "patch-data-SP_italiano.zip",
+            "bytes": 151249,
+            "digest": null
+          }
+        ]
+      },
+      "authored_sha256": "04cbda3479f386cc9a7e1d46e1d64d157522a004bf69cc3f6e0f8cc44fc263e7",
+      "prior_body_sha256": "29bf343acd7dd82962a0b17ad151f70a663a6493305cf8cd88fbba8970968128",
+      "context_observed_at": "2026-10-31T01:00:38.773Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "reviewed source-contract advancement/finite minimum completion after actual qualified delivery; no support promotion",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 2700,
+      "id": "quake-ii-yamagi-quake-ii",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "yquake2.exe",
+      "selected_tag": "QUAKE2_8_70 source / official Windows8.70a SDL repack",
+      "tag_source": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+      "current_source": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+      "publisher_asset_inventory": {
+        "status": "no selected GitHub release; external distributions exist; no external-absence inference"
+      },
+      "authored_sha256": "d8d399e88125ed994b460fad1a86e79c1158583c22c7575f7ae348b21d7492b8",
+      "prior_body_sha256": "b109396a1220979f7cb6c1cc97a66fe24090fc5954a755f2583c604652df3fd4",
+      "context_observed_at": "2026-10-31T01:00:41.318Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "reviewed source-contract advancement/finite minimum completion after actual qualified delivery; no support promotion",
+      "game_package_original_execution": "not_run"
+    },
+    {
+      "canonical_issue": 2892,
+      "id": "prince-of-persia-dos-sdlpop",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "completed_entry": "prince.exe",
+      "selected_tag": null,
+      "tag_source": null,
+      "current_source": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+      "publisher_asset_inventory": {
+        "status": "no selected GitHub release; external distributions exist; no external-absence inference"
+      },
+      "authored_sha256": "be2bff70218a375bd5892a1d6358d4b201c66a3a8309e90f15c91439c13ccb77",
+      "prior_body_sha256": "141686d5561f4e105a7af1c13831074ec647bd1a194a7c026d7c6fbea493c783",
+      "context_observed_at": "2026-10-31T01:00:40.083Z",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      },
+      "offered_operation": "already permitted externally prepared Windows native copy; exact intent/consent/register/relink/restart/separate selected-process Play/registration-only preserving removal",
+      "proposed_finite_disposition": "retain OPEN; exact external package/DAT and original-asset permission question unresolved",
+      "game_package_original_execution": "not_run"
+    }
+  ],
+  "source_packets": [
+    {
+      "issue": 2697,
+      "repository": "Novum/vkQuake",
+      "complete_tree_references": [
+        {
+          "role": "tag",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "root_tree": "3d854931eea618561ee6f68eb8c30aa1aee748d8",
+          "members": 631,
+          "complete": true
+        },
+        {
+          "role": "current",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "root_tree": "b9e9cf370fbc4b604fb3892f76aa6ca212fa3586",
+          "members": 632,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "LICENSE.txt",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "readme.md",
+          "blob": "63edaf0a228528bc8b7f840c0c2aca12a9b438ee",
+          "bytes": 12131,
+          "sha256": "2b4c0674a11b6600322f15d4931222a2765f1befa2f2856f8c9d6ddaf83c0cba"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "LICENSE.txt",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "readme.md",
+          "blob": "b26ddb193c047150ed6c5bf1c277717f5acf672c",
+          "bytes": 11961,
+          "sha256": "6c0987b6ddbbe8d6cba1b495606e7ce64a89c601360bdddf6beb1f5c5e536558"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "meson.build",
+          "blob": "459c782655f38d11c7229fa49c32777b0ce835b5",
+          "bytes": 17426,
+          "sha256": "28a9ce878d4bda7f56fc68280d0ccacf6faeac464c86e979c7a87180a99840e0"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "Quake/sys_sdl.c",
+          "blob": "b9281c7ad56cc71f879dc634680ca9b91933a18c",
+          "bytes": 8831,
+          "sha256": "5d4bcf8dd9c5161dbcc45b9316ede17d0a0acde2c348cb0460e5a41dd8791cd4"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "Quake/sys_sdl_win.c",
+          "blob": "bae2ae08534862ab0ccf597b664d79f69e72ef04",
+          "bytes": 26808,
+          "sha256": "b4e57560d85bc0d7ab21e4278b138cc6a1891ac47fcbe5c72cb33a783c20adf3"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "Quake/common.c",
+          "blob": "3531d655984d2b5466fd67965550f6c4b653c807",
+          "bytes": 114012,
+          "sha256": "ad877f8f0bf5a59303b16d58b32be7cfcb084f6e3885bddd896f4214ed4d58c9"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "Quake/host.c",
+          "blob": "d8c329227526b61cb56177d45a9ffa3911a0a1dd",
+          "bytes": 40114,
+          "sha256": "0e4327f08aeba5452ee8e2bf59a45f7a952e4873b2367b4fbb399847f3ed5c48"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "Quake/host_cmd.c",
+          "blob": "e99bd939cf2197867fddd53d42f95a64dd3703ab",
+          "bytes": 91495,
+          "sha256": "d10f71353ec64053be8117ebfa61e92504185ae1df41605f46f990ae89a5e2ee"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "meson.build",
+          "blob": "eae55084b1deb6820948c30469570720969676c8",
+          "bytes": 18158,
+          "sha256": "ac289bd51faa5501b571357f75993fbfd245d786f2d403f3cde58792f712cabd"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "Quake/sys_sdl.c",
+          "blob": "b9281c7ad56cc71f879dc634680ca9b91933a18c",
+          "bytes": 8831,
+          "sha256": "5d4bcf8dd9c5161dbcc45b9316ede17d0a0acde2c348cb0460e5a41dd8791cd4"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "Quake/sys_sdl_win.c",
+          "blob": "bae2ae08534862ab0ccf597b664d79f69e72ef04",
+          "bytes": 26808,
+          "sha256": "b4e57560d85bc0d7ab21e4278b138cc6a1891ac47fcbe5c72cb33a783c20adf3"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "Quake/common.c",
+          "blob": "3531d655984d2b5466fd67965550f6c4b653c807",
+          "bytes": 114012,
+          "sha256": "ad877f8f0bf5a59303b16d58b32be7cfcb084f6e3885bddd896f4214ed4d58c9"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "Quake/host.c",
+          "blob": "467234b17038e878d96a138333d5f81b99103208",
+          "bytes": 40123,
+          "sha256": "c27a301bea6eef2e9d3e5432ea4d164feace3e312b804df5df5079d96d90cf66"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "Quake/host_cmd.c",
+          "blob": "e99bd939cf2197867fddd53d42f95a64dd3703ab",
+          "bytes": 91495,
+          "sha256": "d10f71353ec64053be8117ebfa61e92504185ae1df41605f46f990ae89a5e2ee"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "Quake/quakedef.h",
+          "blob": "0b26d8efab9d91fafe1ad7d2a7cc5dc9411d3e0c",
+          "bytes": 14103,
+          "sha256": "2ee7cfbe17e32b3ce81cd4a290fda62d35d5fdf38740242a1e856a717013549a"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "Quake/quakedef.h",
+          "blob": "0b26d8efab9d91fafe1ad7d2a7cc5dc9411d3e0c",
+          "bytes": 14103,
+          "sha256": "2ee7cfbe17e32b3ce81cd4a290fda62d35d5fdf38740242a1e856a717013549a"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+          "path": "Quake/main_sdl.c",
+          "blob": "6e1ea44820f93b650f597fd0bebb747fecf51989",
+          "bytes": 3545,
+          "sha256": "3261aaa4f6d1d294f9572e13c4c6077bd62ffb6fe5e78182bd474553f9136755"
+        },
+        {
+          "repository": "Novum/vkQuake",
+          "commit": "a6b64093fb89506c9e18e2f8187fbfaff959989a",
+          "path": "Quake/main_sdl.c",
+          "blob": "6e1ea44820f93b650f597fd0bebb747fecf51989",
+          "bytes": 3545,
+          "sha256": "3261aaa4f6d1d294f9572e13c4c6077bd62ffb6fe5e78182bd474553f9136755"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 5125,
+          "sha256": "1d4de7e7946b68ce568c8e8c7f6b6cc758ec08d4a17f4cf8f485656d92598a22"
+        },
+        {
+          "name": "release.json",
+          "bytes": 15176,
+          "sha256": "8fa350244b7a2b98af8fb314b7e4ea632df7128050e37398b33a994ee4e1ff71"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 13627,
+          "sha256": "da7807a9e80a8ee3738642b841cd0c7bb166551f7f41ba63b39d11f79501a4bd"
+        },
+        {
+          "name": "current.json",
+          "bytes": 5705,
+          "sha256": "1a68b37742db1d0c83fdd450b8273416b788da0dca279efc389cb178d3dc13fe"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 146021,
+          "sha256": "ec0883ea7619060414987894a989d9ceb83d44d2472fa02c9bab0f9f220b723f"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 5813,
+          "sha256": "b4acfeb1ed1ab6174a4a07fdb6f16a07c9f22f7bf3c5c82dfc76bf40e14be1ea"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 145795,
+          "sha256": "b012f7d395582eb4eeb54a80080da69ad9ecf151b45c063b5e45ad299158b5e3"
+        },
+        {
+          "name": "selected-assets-complete.json",
+          "bytes": 8309,
+          "sha256": "230bdfb085b5481d861f9658e036bcff6ca7a58acbc0d62cdfe34e0dbb12df60"
+        },
+        {
+          "name": "selected-assets-page-1.json",
+          "bytes": 6637,
+          "sha256": "27babc8892686cc8b12907da7eb1301da2e7103b3de5993884058d1131bd3665"
+        }
+      ]
+    },
+    {
+      "issue": 2698,
+      "repository": "andrei-drexler/ironwail",
+      "complete_tree_references": [
+        {
+          "role": "tag",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "root_tree": "6431bb943d26375f1f18f79a052eb53ba5afe57c",
+          "members": 551,
+          "complete": true
+        },
+        {
+          "role": "current",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "root_tree": "a9910f9c9ad59e40ce9bd3dc26caaec62a3d9d30",
+          "members": 551,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "CMakeLists.txt",
+          "blob": "14c6950f20b6224753809a8a335c4560f3fad238",
+          "bytes": 6601,
+          "sha256": "fd94f079af87a14e9c97672c2d893fbf552b259574efb0b98217b8b884da0633"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "LICENSE.txt",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "README.md",
+          "blob": "c13bae699fa565a1e3c5b6073518878a90ba11e9",
+          "bytes": 4036,
+          "sha256": "4fa1c4d577d7c19e7320f0ff04e1d6b139968c7dcaccd6dd729e40ea7d27cb66"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "CMakeLists.txt",
+          "blob": "14c6950f20b6224753809a8a335c4560f3fad238",
+          "bytes": 6601,
+          "sha256": "fd94f079af87a14e9c97672c2d893fbf552b259574efb0b98217b8b884da0633"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "LICENSE.txt",
+          "blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "bytes": 18092,
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "README.md",
+          "blob": "c13bae699fa565a1e3c5b6073518878a90ba11e9",
+          "bytes": 4036,
+          "sha256": "4fa1c4d577d7c19e7320f0ff04e1d6b139968c7dcaccd6dd729e40ea7d27cb66"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "Quake/sys_sdl_win.c",
+          "blob": "7de5788f0baa710030d66c6d445c6c398f3cb5ee",
+          "bytes": 28231,
+          "sha256": "b50a042889ef28aec53e6dcf808352e923a825d7af2b003502ced1243775100b"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "Quake/common.c",
+          "blob": "c0330c017086ab09cda7f8364c3418e0aebc3389",
+          "bytes": 97422,
+          "sha256": "e4cd05bea0e26d08ba22f7e3937cb2916dc86d4af8b8d1cd090b0187485c8b19"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "Quake/host.c",
+          "blob": "9d91760b70405861abb5dea93ea2fb5f0e97edc3",
+          "bytes": 38157,
+          "sha256": "3a87428cb0a090dc1bc198e013126a7d6200b1831575b21bdd8db9efc8458738"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "Quake/host_cmd.c",
+          "blob": "6b0c393d70eb073179f8d3901fba2573568f181f",
+          "bytes": 86833,
+          "sha256": "ce5cd01f8e497989afb74a3b528ec6846dd5727edb034e943552e2d96c535f1c"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "Quake/sys_sdl_win.c",
+          "blob": "7de5788f0baa710030d66c6d445c6c398f3cb5ee",
+          "bytes": 28231,
+          "sha256": "b50a042889ef28aec53e6dcf808352e923a825d7af2b003502ced1243775100b"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "Quake/common.c",
+          "blob": "c0330c017086ab09cda7f8364c3418e0aebc3389",
+          "bytes": 97422,
+          "sha256": "e4cd05bea0e26d08ba22f7e3937cb2916dc86d4af8b8d1cd090b0187485c8b19"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "Quake/host.c",
+          "blob": "9d91760b70405861abb5dea93ea2fb5f0e97edc3",
+          "bytes": 38157,
+          "sha256": "3a87428cb0a090dc1bc198e013126a7d6200b1831575b21bdd8db9efc8458738"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "Quake/host_cmd.c",
+          "blob": "2485499d6338166e206466b23673c7f9badbd614",
+          "bytes": 86868,
+          "sha256": "5258221aa6bd4dac8ee25955d2fefa684fc1bf999d87ab82b1ca9842fd34b600"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "Quake/quakedef.h",
+          "blob": "a50853252a33baca776f7df0526cb3868ba997be",
+          "bytes": 11982,
+          "sha256": "04e8a9bf72c35c366d7c18abbb96ff0b7a303f571e603e7838899487eda8e6d1"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "Quake/quakedef.h",
+          "blob": "50ff6893dcd5bf604ff50ec5525eec208b733061",
+          "bytes": 11986,
+          "sha256": "82fbd2e1337fb4968e9b6cab45be7294da24bcb998a0a1b42c716707d7de239c"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "1eabd0df21130e55d94496c7af177e2dcbed75df",
+          "path": "Quake/main_sdl.c",
+          "blob": "533995df6f751ec02105574d2d314e26eb443d3c",
+          "bytes": 4806,
+          "sha256": "a6ac223c15bef37e8c122754d8c10f762bcc438f1204ead866eec0be0e9c74f1"
+        },
+        {
+          "repository": "andrei-drexler/ironwail",
+          "commit": "08d578136ff43d7d1ef38e636dfbfd3e844be7cd",
+          "path": "Quake/main_sdl.c",
+          "blob": "533995df6f751ec02105574d2d314e26eb443d3c",
+          "bytes": 4806,
+          "sha256": "a6ac223c15bef37e8c122754d8c10f762bcc438f1204ead866eec0be0e9c74f1"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 16033,
+          "sha256": "86cf23288103adc6e502ef927028cb4d21dace3588732cf634bc2c9836e3ca45"
+        },
+        {
+          "name": "release.json",
+          "bytes": 12546,
+          "sha256": "953843afc121a210147426569c49cf5bf81c65445207980fadb7d8cf795e4445"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 11312,
+          "sha256": "30e047d37e405297ebe2b226dc865458913c18976a7af6d96e308ce383a13f6e"
+        },
+        {
+          "name": "current.json",
+          "bytes": 6467,
+          "sha256": "ae771d46904b4e9a0a71db34cb3506850ed7ab098ba9ac41e6e13364fc840c18"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 131953,
+          "sha256": "e8620e6801344525b2f53e252fe1386857353c5e4d9bb760db40661690552a94"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 4441,
+          "sha256": "6d1368ffb90fb4cb10b256e478429c34ee6e1fcbab1224d413f94cf93400a168"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 131953,
+          "sha256": "1e1f94227fab52eb6c50639e283a3d70a6c9d2246ec9ffa477cbd20e7bd23695"
+        },
+        {
+          "name": "selected-assets-complete.json",
+          "bytes": 6086,
+          "sha256": "286a1bbe702b1f71f563b5c529e1d548847a32ff77ab68ee1307d46419c063ed"
+        },
+        {
+          "name": "selected-assets-page-1.json",
+          "bytes": 4723,
+          "sha256": "970016f87843486768864984eaaeb83ae5bb54732b13cf183851786ed53b475c"
+        }
+      ]
+    },
+    {
+      "issue": 2573,
+      "repository": "alexbatalov/fallout1-ce",
+      "complete_tree_references": [
+        {
+          "role": "tag",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "root_tree": "31a4660871ac2cb9e8516f8f729ebd7fd1d5575a",
+          "members": 349,
+          "complete": true
+        },
+        {
+          "role": "current",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "root_tree": "c8894a35f04be7318444ebba670e6d807e451507",
+          "members": 349,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "CMakeLists.txt",
+          "blob": "f341df76625938979dc9850f7e4e7b1857d284ed",
+          "bytes": 10441,
+          "sha256": "080fe50940d1e8e03efbcd3eedff256eaffea23e43aee002c929f597e360b580"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "LICENSE.md",
+          "blob": "2b66da9e6ee6b7f85abf2fcd1b2ea07a1a4da9bb",
+          "bytes": 3601,
+          "sha256": "3c260f537a0c7c3d140e5524551e5743c836cca8d819216a6934aa4669d9abec"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "README.md",
+          "blob": "e1d2fd8cf5f15c9cc04869c5ced82404445dfa4c",
+          "bytes": 6854,
+          "sha256": "e4ecc55513fa082a746811d4c5c7f4fb6c61b3ba46328cfcc4204b72731b8e8b"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "CMakeLists.txt",
+          "blob": "bd50a9eb876edac8d1ed23606b57cd7ee88d31a3",
+          "bytes": 10474,
+          "sha256": "d9eaa9c19451a5980b2e4289b07f33ac3b8c7d01fb58416ed568f6effb5f18ff"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "LICENSE.md",
+          "blob": "2b66da9e6ee6b7f85abf2fcd1b2ea07a1a4da9bb",
+          "bytes": 3601,
+          "sha256": "3c260f537a0c7c3d140e5524551e5743c836cca8d819216a6934aa4669d9abec"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "README.md",
+          "blob": "e1d2fd8cf5f15c9cc04869c5ced82404445dfa4c",
+          "bytes": 6854,
+          "sha256": "e4ecc55513fa082a746811d4c5c7f4fb6c61b3ba46328cfcc4204b72731b8e8b"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "src/game/main.cc",
+          "blob": "4f8efc1aab64e4c3969c43cb866a9e27910f65f5",
+          "bytes": 16193,
+          "sha256": "227791d1e04d8b76ab7f077a3be861b5513bf7563576ac2a34171a2d8df6f004"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "src/game/game.cc",
+          "blob": "c01b514e6ed09423944a7a1329a997930a19c1db",
+          "bytes": 34612,
+          "sha256": "317e9586aaca394946267c45082232ec6cedbcc4d508086c0abc39e81d8f2704"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "src/game/gconfig.cc",
+          "blob": "98226b54d41da0a2ef4dc664fbb4482003f7001c",
+          "bytes": 8853,
+          "sha256": "690618483caf6f05bfa8ee08268b1e76f4ce3c74561131fb9f94447617b59d10"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "src/game/loadsave.cc",
+          "blob": "62b03b272a2af580aafef55faac2e69cf9a8dd38",
+          "bytes": 80415,
+          "sha256": "c98d36df1330749e20fcc7982d0cbe24d77b2621d95d560bf304ac6c80df2f45"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "src/plib/gnw/winmain.cc",
+          "blob": "d703f57a7d0ffdf4ff18b36b2f0d223e816beff7",
+          "bytes": 1339,
+          "sha256": "f5100c84be3e291a86a88ef07bcf1066e7b524340ca989e969cfe27122fd4a69"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+          "path": "src/platform_compat.cc",
+          "blob": "972593b1c7d9ff603b288533568d5f4f02566251",
+          "bytes": 7773,
+          "sha256": "b491cc191ecef17f817ae4a0fdba2ff6bcdc6246e2735f6e10d2a281cf56eb46"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "src/game/main.cc",
+          "blob": "4f8efc1aab64e4c3969c43cb866a9e27910f65f5",
+          "bytes": 16193,
+          "sha256": "227791d1e04d8b76ab7f077a3be861b5513bf7563576ac2a34171a2d8df6f004"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "src/game/game.cc",
+          "blob": "c01b514e6ed09423944a7a1329a997930a19c1db",
+          "bytes": 34612,
+          "sha256": "317e9586aaca394946267c45082232ec6cedbcc4d508086c0abc39e81d8f2704"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "src/game/gconfig.cc",
+          "blob": "98226b54d41da0a2ef4dc664fbb4482003f7001c",
+          "bytes": 8853,
+          "sha256": "690618483caf6f05bfa8ee08268b1e76f4ce3c74561131fb9f94447617b59d10"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "src/game/loadsave.cc",
+          "blob": "62b03b272a2af580aafef55faac2e69cf9a8dd38",
+          "bytes": 80415,
+          "sha256": "c98d36df1330749e20fcc7982d0cbe24d77b2621d95d560bf304ac6c80df2f45"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "src/plib/gnw/winmain.cc",
+          "blob": "d703f57a7d0ffdf4ff18b36b2f0d223e816beff7",
+          "bytes": 1339,
+          "sha256": "f5100c84be3e291a86a88ef07bcf1066e7b524340ca989e969cfe27122fd4a69"
+        },
+        {
+          "repository": "alexbatalov/fallout1-ce",
+          "commit": "0609bcfd0ec40ff0571d0f57fab2821eb461dc8b",
+          "path": "src/platform_compat.cc",
+          "blob": "972593b1c7d9ff603b288533568d5f4f02566251",
+          "bytes": 7773,
+          "sha256": "b491cc191ecef17f817ae4a0fdba2ff6bcdc6246e2735f6e10d2a281cf56eb46"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 5531,
+          "sha256": "20f60f36fd1ec1d8ce3c2fb2af6afae6b11a9f06969546f8391721abb85517e3"
+        },
+        {
+          "name": "release.json",
+          "bytes": 16056,
+          "sha256": "6b40619d16372020c4990f537a27506abc149eca039880da4b9a20612b311d41"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 13554,
+          "sha256": "1bd554831c19bb9baf7a9f9efa3e5bf7297fc1d1222c6558ffd6d579d3b802eb"
+        },
+        {
+          "name": "current.json",
+          "bytes": 44300,
+          "sha256": "3ad58fe42f41e0b59c1052b5b957475d449ab8144840940945d37c9802c530bf"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 83057,
+          "sha256": "63552e1007c0f2a5b16717f3df4aa48a6006e1c2db50f47792b8eead8c6067dc"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 12138,
+          "sha256": "20e8915a14d99310fe9c47684c1fd4cc4333eea36254c66f548ec656b46b3a92"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 83056,
+          "sha256": "2304930adf9ff45b9e075d77af2896d1d266dcbbdeb6558ab71f314bd344b2c2"
+        },
+        {
+          "name": "selected-assets-complete.json",
+          "bytes": 13808,
+          "sha256": "f300ee57def2f0802de1b6547eabf88b2834218db53b6a75c094d28d7b2dc2f4"
+        },
+        {
+          "name": "selected-assets-page-1.json",
+          "bytes": 11169,
+          "sha256": "f06c22b5be876e04f3d5c194d2ed3c0d68f5731436937d1978f6b49d88f7e560"
+        }
+      ]
+    },
+    {
+      "issue": 2574,
+      "repository": "alexbatalov/fallout2-ce",
+      "complete_tree_references": [
+        {
+          "role": "tag",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "root_tree": "c95928e2605badc7f31114ae6b5d1018264a38f5",
+          "members": 386,
+          "complete": true
+        },
+        {
+          "role": "current",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "root_tree": "bbd68a3185e87b3772c8665de207d50143b45454",
+          "members": 378,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "CMakeLists.txt",
+          "blob": "5e03941804372cfa3acf4626c4d8769afdd38624",
+          "bytes": 9783,
+          "sha256": "51e5ca1760f97f832678096fd1d2dc5b5153b837c1effe2abe1b9dcbc9f7e32a"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "LICENSE.md",
+          "blob": "2b66da9e6ee6b7f85abf2fcd1b2ea07a1a4da9bb",
+          "bytes": 3601,
+          "sha256": "3c260f537a0c7c3d140e5524551e5743c836cca8d819216a6934aa4669d9abec"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "README.md",
+          "blob": "8143ece585716321d8d2aafe3948a3c91db970e9",
+          "bytes": 7888,
+          "sha256": "ba8c022f9a50131d1aa833c358c6e5c6e581cd0c5b2d73eaa8d08156c1da62b7"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "CMakeLists.txt",
+          "blob": "2de2af168267fb237ca338afd177cdef61befd59",
+          "bytes": 9995,
+          "sha256": "3c61fc862b178e258e08719eab92ae622b3dbecdb46214339a818952e635f432"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "LICENSE.md",
+          "blob": "2b66da9e6ee6b7f85abf2fcd1b2ea07a1a4da9bb",
+          "bytes": 3601,
+          "sha256": "3c260f537a0c7c3d140e5524551e5743c836cca8d819216a6934aa4669d9abec"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "README.md",
+          "blob": "ff0aae70bfc86daa6add2c1019e2c0e60906adf6",
+          "bytes": 7380,
+          "sha256": "1bfa3eb7dde62ded5e42eb46f2e346cb8f3bf8b87cb0bc7ae04079c671048376"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/main.cc",
+          "blob": "44287b6d33184e811584e3afb011c5b958aaf732",
+          "bytes": 19096,
+          "sha256": "679b93e02bcff8e11bd4929314361be34302c3b483ad794de02155967cb389da"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/game.cc",
+          "blob": "d7743375348715acd4830728ac2a6d4d06ea3fb4",
+          "bytes": 42151,
+          "sha256": "2e2bc9b604ad77542a3d36a05300d28264d9ea3296dd978a881fe2622f6003d2"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/game_config.cc",
+          "blob": "f57e293254ba64fb2e42e6806d3b4cc16908a8a3",
+          "bytes": 11349,
+          "sha256": "79b0eebf2e3f04058c3c4735a865086c32d0e796317241df5769f3529a54ba0a"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/loadsave.cc",
+          "blob": "3fbe54d0873f58a939f039787da6b125849e841e",
+          "bytes": 91922,
+          "sha256": "063d497eee20a0603223162db79eb329fd2f201f9dfcc5a9a449aa71a84153fa"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/platform_compat.cc",
+          "blob": "95c6ebae88beca2b2fd7f69ceea1830544ce14d2",
+          "bytes": 8710,
+          "sha256": "4235741a1d605e3fea5474bbf7e839a774433eb04bb8bc1e821c518947e82f04"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/file_utils.cc",
+          "blob": "182d4c947f487e64462bbed79ec26ca66b9c9d80",
+          "bytes": 4358,
+          "sha256": "ef6761563486f353223baeb20b1b7d98e68b4a83fb844bebbb69ba77990fbda2"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/main.cc",
+          "blob": "ee67a0a437476a82e4a9b4483aef5607a8437e3d",
+          "bytes": 15049,
+          "sha256": "c041479dcd0159fec745d227fed491958fb5a02615c60eea1dcf0a4ef0eb0fa3"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/game.cc",
+          "blob": "978a3859cdf3cb7cbf4c4feffbd203a430afe26b",
+          "bytes": 42111,
+          "sha256": "d289cff3c07cb273381b5bcb7b5a87fd8ecfcbd5e5fc9ef080660591aadb397e"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/game_config.cc",
+          "blob": "f57e293254ba64fb2e42e6806d3b4cc16908a8a3",
+          "bytes": 11349,
+          "sha256": "79b0eebf2e3f04058c3c4735a865086c32d0e796317241df5769f3529a54ba0a"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/loadsave.cc",
+          "blob": "f352c35f493262a85add8b7e4dd120519bf957f3",
+          "bytes": 91866,
+          "sha256": "8b4e83fae778076ce6edf825c6fc6cca458c862c8b63459f8c2c4e154e59a2c1"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/platform_compat.cc",
+          "blob": "95c6ebae88beca2b2fd7f69ceea1830544ce14d2",
+          "bytes": 8710,
+          "sha256": "4235741a1d605e3fea5474bbf7e839a774433eb04bb8bc1e821c518947e82f04"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/file_utils.cc",
+          "blob": "182d4c947f487e64462bbed79ec26ca66b9c9d80",
+          "bytes": 4358,
+          "sha256": "ef6761563486f353223baeb20b1b7d98e68b4a83fb844bebbb69ba77990fbda2"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/win32.cc",
+          "blob": "1f8691964bbec4783fdb7636022d7683cd47683b",
+          "bytes": 1424,
+          "sha256": "87d3f70d147c0d934e935022061574a962fca1334ce7e50d203681e9e3914d6c"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/autorun.cc",
+          "blob": "ce97847aad4f1e760362a76e35b382fd52b4b778",
+          "bytes": 671,
+          "sha256": "fe4f4aacc7a90c45ba68b24ddecb434f1109bd987dc1947cd533bad288f56d00"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "9fb917c357b20d95d597bed4d67904c29cd5c753",
+          "path": "src/settings.cc",
+          "blob": "e92992dc0d0f7ef007cc5207853afd443919affb",
+          "bytes": 16463,
+          "sha256": "fff8ba46e5839e4a91ee5c33cf9b2dee33a8cb855c7eeec6612d973ff4ef996c"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/win32.cc",
+          "blob": "56e8881cb5d6d0481b4c24ca8cce0bfb570c7447",
+          "bytes": 1416,
+          "sha256": "4eba029eb218f207ea4a57bbb2074c91e615381b4740e33c085c7248639abce2"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/autorun.cc",
+          "blob": "ce97847aad4f1e760362a76e35b382fd52b4b778",
+          "bytes": 671,
+          "sha256": "fe4f4aacc7a90c45ba68b24ddecb434f1109bd987dc1947cd533bad288f56d00"
+        },
+        {
+          "repository": "alexbatalov/fallout2-ce",
+          "commit": "e97087b9582f37075db347a89898887320753f8b",
+          "path": "src/settings.cc",
+          "blob": "e92992dc0d0f7ef007cc5207853afd443919affb",
+          "bytes": 16463,
+          "sha256": "fff8ba46e5839e4a91ee5c33cf9b2dee33a8cb855c7eeec6612d973ff4ef996c"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 5534,
+          "sha256": "5d52d0cc0dde1754f145d968515b0db95f7b0c5ba77d5fbd948c45ffdb2f9d4e"
+        },
+        {
+          "name": "release.json",
+          "bytes": 16073,
+          "sha256": "f9f23ee0472bb8ffbe69bebfdd2cecc1afe0834cdbf1753b3604328660898840"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 13571,
+          "sha256": "0b2822c7304c6fd369723057ff455ce0d0af146e0dfe820a9a663fd9821e905a"
+        },
+        {
+          "name": "current.json",
+          "bytes": 9307,
+          "sha256": "104767e981ec9947fc57eca9e65b53c2addb9b4ae1fbe4d8ed36c88d7ee8b250"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 89211,
+          "sha256": "51ecd6c7942ce26e6fd8bb60660e6f99afa905742c198b29e0237cfaf0e39a21"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 5257,
+          "sha256": "51f7ba9dd2d0ee2de5816e1e4a8c917541f89b314589e766dda532319fdb0e9b"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 91038,
+          "sha256": "710dcddd4d0f0da9f1ec69e86347526729474c9b023784c159b434544e7556f4"
+        },
+        {
+          "name": "selected-assets-complete.json",
+          "bytes": 13822,
+          "sha256": "ec7b7c4e5ac7c13b602e0d3edd5a510da3582331e6d679374d6b4553a4c6c5f8"
+        },
+        {
+          "name": "selected-assets-page-1.json",
+          "bytes": 11183,
+          "sha256": "56d051390a8a34e7633f7e731ef1720492e7f40ab726a0ee9d6a6ad575231018"
+        }
+      ]
+    },
+    {
+      "issue": 2554,
+      "repository": "arx/ArxLibertatis",
+      "complete_tree_references": [
+        {
+          "role": "tag",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "root_tree": "be422c3f08551a72b1263f3372d9b5a56663d61d",
+          "members": 850,
+          "complete": true
+        },
+        {
+          "role": "current",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "root_tree": "15e350889cb73066fd211760976db8554ad5c931",
+          "members": 912,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "CMakeLists.txt",
+          "blob": "af0a0ebea4d70bf0eb04c6a9a8ecd9de5dccb04a",
+          "bytes": 65192,
+          "sha256": "0a3c241c7caaaa7e1423f56d22b4b087d23318759e66ed223a4ba6b14075bde5"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "COPYING",
+          "blob": "9caaf963903624d25e8aa34666a068f30e931353",
+          "bytes": 1155,
+          "sha256": "143895de0f60f9e02786e558eac65c8cc9a3221a4c5dc3c996f874f1278fec1a"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "LICENSE",
+          "blob": "901762eec5fc7b7af8803ae5078821b7f2a3e1cf",
+          "bytes": 35840,
+          "sha256": "c11998395eb53de7af8e0af08207362f5f8bcdd80a9106ad168ae9dcae346957"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "LICENSE.DejaVu",
+          "blob": "254e2cc42a6d0135cccf2047768b9e44f25e666f",
+          "bytes": 4816,
+          "sha256": "d75938dec098f06f0ac3c00853065d94f020be1c3c62ef1dc2975ba15b4d9b0e"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "LICENSE.fast_float",
+          "blob": "2fb2a37ad7fda521092c8b7b16911176c3f8a81b",
+          "bytes": 1079,
+          "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "LICENSE.stb",
+          "blob": "a228ddd0ea1f799d3392788ec63be5ff6d793834",
+          "bytes": 2511,
+          "sha256": "96e519fbd10ee063673d852f49c08cb881e702c88c3a9462e1bbb26d2fe6d838"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "README.md",
+          "blob": "2ee83bfbeeab914c8791135574db3e4ff0b89c60",
+          "bytes": 11151,
+          "sha256": "1b41369ec7929de8664303d90dd42e68429227cb0e07bf7176db46dcbb0a26cd"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "CMakeLists.txt",
+          "blob": "d7f9759567495b91f84d63ec7046e32b1bc2c071",
+          "bytes": 68442,
+          "sha256": "9a0658f3076429932f4c4aa013c59409360e81c537e917f469d5b4fb7851bc80"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "COPYING",
+          "blob": "b4b1a78348b541e40bca186fdc1e0873628498f4",
+          "bytes": 866,
+          "sha256": "1d8f72ef3793b8ca504455077653214ebc48f0bd2d6e5aec2c7101ce21ff4c9a"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "LICENSE",
+          "blob": "901762eec5fc7b7af8803ae5078821b7f2a3e1cf",
+          "bytes": 35840,
+          "sha256": "c11998395eb53de7af8e0af08207362f5f8bcdd80a9106ad168ae9dcae346957"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "LICENSE.DejaVu",
+          "blob": "254e2cc42a6d0135cccf2047768b9e44f25e666f",
+          "bytes": 4816,
+          "sha256": "d75938dec098f06f0ac3c00853065d94f020be1c3c62ef1dc2975ba15b4d9b0e"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "README.md",
+          "blob": "2abd8626caadd585cfe09abab3837821ac04ec37",
+          "bytes": 11071,
+          "sha256": "873edff56b0d1bb1608ebf135e4a487839baacd19714488cf625145e62b4ec7e"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/core/Startup.cpp",
+          "blob": "992da0283e0e346e34df698e047c409d0d85b67c",
+          "bytes": 5221,
+          "sha256": "8b2499db79c1fd56f690a884a26e9c85e0ddc7796cf02c567e5f35f61325124f"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/core/ArxGame.cpp",
+          "blob": "6b34e0e3573d48aba9f8b536dc3d8e99780e0b25",
+          "bytes": 52991,
+          "sha256": "500a6aefa9fd6dc5022b1f4e6654e2b3ec2d8e421718d5f8030a6f3ba697d409"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/core/SaveGame.cpp",
+          "blob": "81e61d2e646823e0da8f0da16ba4d28cf903b0ae",
+          "bytes": 7481,
+          "sha256": "d467cb57f216567ff7c652c4282f6072c51f6d229a10dd178f2096fb2a5d6752"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/io/fs/SystemPaths.cpp",
+          "blob": "9f42493b54529afb42eeb29ab38d957df15fbc0f",
+          "bytes": 16282,
+          "sha256": "8e9f95f0586f05a63b43803329695fb5ad0c6d2300691f20870d2616b30cab08"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/platform/WindowsMainGUI.cpp",
+          "blob": "3390be70b415220ebd0ad1864535bb1da54eea99",
+          "bytes": 1504,
+          "sha256": "1a29ff95d2df9f9d87c67f4682a9b16980452fedd0ec088064dd874b594a4749"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/platform/WindowsMainCommon.h",
+          "blob": "994f75d218b708ef296c32681c4267146b553800",
+          "bytes": 2849,
+          "sha256": "2ecafadd393b76166b00af23b1d7e527c61e5c8320ac54c9ec18c062f04d3aa1"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/platform/WindowsUtils.cpp",
+          "blob": "db357e918b94fe5a3064ab7bb67f3ae42badedd9",
+          "bytes": 4618,
+          "sha256": "03607ab6fb8a93eb300d630143212391584661339e3b5265cf3a99355eb1f289"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/core/Startup.cpp",
+          "blob": "8250b55d4d26c9411a8acb17a9d1efe571d2a2bb",
+          "bytes": 5257,
+          "sha256": "a52c6da3eec4022a720407a7a00ab2e8bce660c492a45a5897531735889ce987"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/core/ArxGame.cpp",
+          "blob": "b430ed85d42f363517423e35988b225e01f397a7",
+          "bytes": 50818,
+          "sha256": "c0c12a3417a4fb43af7d56baae603a40e1fa4a273164f10f1d3f3f60e7471357"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/core/SaveGame.cpp",
+          "blob": "d66f531a6ab3395ef8edfe3dc15282c3b5ad3117",
+          "bytes": 7515,
+          "sha256": "4ad1e2c88633b2b7f47eeda143cf746d2a159b51f1c24fbfe86f2386cb8e615e"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/io/fs/SystemPaths.cpp",
+          "blob": "493a8065cc3c296d24fd8f10eddb3c1dce5378d8",
+          "bytes": 16017,
+          "sha256": "f8b059ccc20bb32324b6c1cfde90c5310eb75c45cfa1610e402f5e06e86021d4"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/platform/WindowsMainGUI.cpp",
+          "blob": "3390be70b415220ebd0ad1864535bb1da54eea99",
+          "bytes": 1504,
+          "sha256": "1a29ff95d2df9f9d87c67f4682a9b16980452fedd0ec088064dd874b594a4749"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/platform/WindowsMainCommon.h",
+          "blob": "8317a1d4d7af6b351a1c2f6ddafc11dda16071fa",
+          "bytes": 2906,
+          "sha256": "f4c1e4e04f8eab2c55954f114aad3458edd17bec288ced79086fdf8cc072195c"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/platform/WindowsUtils.cpp",
+          "blob": "78c1043b4ac20a13cd10531e360b3356bd689d45",
+          "bytes": 6336,
+          "sha256": "cced4ddc0e0f43f89e2eb8e2d6c2c9fd568e9d9503466c67bf5ca6af7bdf3641"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/core/Config.cpp",
+          "blob": "f61ac2986fd28e11d561535c8b6f4ce2f2780078",
+          "bytes": 25283,
+          "sha256": "0df7d61122e67fddda49ce76d394d68f216a7a53b222470428f3aa6d92630699"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/core/Config.h",
+          "blob": "75ba83e35b837338d183154567df1b5e57c6cd74",
+          "bytes": 5290,
+          "sha256": "2161e63403b68e02a8740ad7e658292836030a64fd508f6fefab56c354962ec3"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/io/fs/SystemPaths.h",
+          "blob": "7ea147c6fe53777448b165d2f8a27a15c4d3234f",
+          "bytes": 2027,
+          "sha256": "f4ebb9caa102371dd40b9070757ac4b3078b8ee078aa9a9c88b70fb96867ee3c"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/platform/WindowsMain.h",
+          "blob": "8acf04695ee1b6fa6bd2e4ffa48318e6a8e6dbbe",
+          "bytes": 1423,
+          "sha256": "53d1053256c3861536274a49fbaed1538f003f350a99ebacadaa17f1fc4f1987"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/core/Config.cpp",
+          "blob": "ed0149a71732ec49f66d99778d8a3778c3a78574",
+          "bytes": 25597,
+          "sha256": "5e461574341ab687965e4562a30b2280c10f0abb1142e8cde780d48a4654dcaf"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/core/Config.h",
+          "blob": "44e7225826e9f42faf3dc02814acd53505f0e2c6",
+          "bytes": 5315,
+          "sha256": "5aadfbd5436fe32d19e923b58b3af43272c5c74ccd8a30e927cba1e67498169e"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/io/fs/SystemPaths.h",
+          "blob": "7ea147c6fe53777448b165d2f8a27a15c4d3234f",
+          "bytes": 2027,
+          "sha256": "f4ebb9caa102371dd40b9070757ac4b3078b8ee078aa9a9c88b70fb96867ee3c"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/platform/WindowsMain.h",
+          "blob": "8acf04695ee1b6fa6bd2e4ffa48318e6a8e6dbbe",
+          "bytes": 1423,
+          "sha256": "53d1053256c3861536274a49fbaed1538f003f350a99ebacadaa17f1fc4f1987"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/platform/Environment.cpp",
+          "blob": "a27cc7782418d33ca8f952f8bb9a442da792ffaa",
+          "bytes": 17779,
+          "sha256": "8160e77037a9b33e118553f12136185e16f17367e89692f7538b6246216c0769"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/platform/Environment.h",
+          "blob": "b05008229b4909bfbbe545a13428070e183ce1a3",
+          "bytes": 5160,
+          "sha256": "39607d4c62fa6d090f11449a690c84795e3b9299745dcde017f3254ee61b6394"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/Configure.h.in",
+          "blob": "5b572e45ecd2cf9080a8ad08e37e44c1dcfb7854",
+          "bytes": 3276,
+          "sha256": "3bac5ba036e2c785747a602d028d0f8cd0f8ed9fd01d292ec2e75985da269ba0"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/core/Core.cpp",
+          "blob": "5bc3b042dfe60c36ff8b06b3c8700a188985d315",
+          "bytes": 37958,
+          "sha256": "e8e2190886945942297a3b09e479640fddda941848d374587b3171394f3ac33f"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/platform/Environment.cpp",
+          "blob": "55e18b04864d10317b0600a7a0bc94728edaf8b4",
+          "bytes": 16343,
+          "sha256": "c40872fb34f6744e7e0fb55567e4c62c4b7ba51a538cba0619b3a3ee80c0bf3c"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/platform/Environment.h",
+          "blob": "e7f1fc9b25f3e1ac51e407f0337a9f14520327b7",
+          "bytes": 5173,
+          "sha256": "65574f808357ffd0ac78835f04f69e36732a45ac491b60d5d318618662aa0dac"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/Configure.h.in",
+          "blob": "a82378a780c22240a3b55dc11442dbec990eb07d",
+          "bytes": 3102,
+          "sha256": "4d7949b708752a1ef6b7595a59d5c9da471c715a2499ec50cc43bdbccbfd8c92"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/core/Core.cpp",
+          "blob": "4db8d410ca3e073d6187defdf39f6e35644ff2e3",
+          "bytes": 37586,
+          "sha256": "29f436ecf9763d84fe616e747e924e132b7aa25c2aef8095ad13d350870f0b0a"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "src/io/fs/PathConstants.h.in",
+          "blob": "5e01028ab7cf24055ac2d1ccaf4e44e88929aac7",
+          "bytes": 1630,
+          "sha256": "ed630f14fc48ff9c756066e702caa2f1e7d8921e80aa48d06e1d72a86a15de01"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "src/io/fs/PathConstants.h.in",
+          "blob": "5e01028ab7cf24055ac2d1ccaf4e44e88929aac7",
+          "bytes": 1630,
+          "sha256": "ed630f14fc48ff9c756066e702caa2f1e7d8921e80aa48d06e1d72a86a15de01"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "scripts/arx-install-data",
+          "blob": "978763168072ac134fe76af598dc091ff33740af",
+          "bytes": 104080,
+          "sha256": "2ec23f28a02aa1af470327d58b382f30eeccd312267d7377d85e566fb8ee570a"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "b054123cd0ac280c1e1b42479c52ea32e25c7965",
+          "path": "data/man/arx-install-data.1",
+          "blob": "98d3d7633be7cf0333ace871edcebb3029642713",
+          "bytes": 1147,
+          "sha256": "be609c1ceca3aa3f61ee2efc8ef2e94571c150f4d29288571225862b7bcf294c"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "scripts/arx-install-data",
+          "blob": "97e1774ff3e57ccfa16c8591dc8bf92a25f935f8",
+          "bytes": 104589,
+          "sha256": "d0fceb811e8bcadbbf3f20e941279da33771d9b41fda760fc734cc35fd89a88d"
+        },
+        {
+          "repository": "arx/ArxLibertatis",
+          "commit": "5b95e4c5ca9d583f1b11c085326979772645e0f3",
+          "path": "data/man/arx-install-data.1",
+          "blob": "49f078622d296af13c8dd549eb3cbc7499f4285a",
+          "bytes": 1149,
+          "sha256": "bd7749ba91b56d71f88f30fb6ae2aa03540656079760c199a339a5f0f6ffb135"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 6366,
+          "sha256": "51382401e3519dc5064121405181abbd39b9d3b197de5e617d43ca51bf540f83"
+        },
+        {
+          "name": "release.json",
+          "bytes": 20281,
+          "sha256": "fc1c049965de8c28975df35a89e8179d4d58ff4bc7bc8c6d41eba4ead18c9f28"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 16822,
+          "sha256": "bf2e6e92d6031249b8098b53febdbb3eee722a8e6f55c4d25a5a7386aaac4066"
+        },
+        {
+          "name": "current.json",
+          "bytes": 4346,
+          "sha256": "a20f8e00973a3af46627f9f30942a613e8c6fd2a21a342a7c19e65a6ed87b83a"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 215195,
+          "sha256": "0d8fe4652133917fc6fb09ca9e9b6ab1b72bf57799678596c1088eb113bd5941"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 7921,
+          "sha256": "04b98ec93ab099a287594a83fb8d69cc56c2639f6b99313fb18b11793dc09589"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 199478,
+          "sha256": "d5b825acf224a4c82ddb8a2c7e6d321ee3ce657387156550e891901d05e9814f"
+        },
+        {
+          "name": "selected-assets-complete.json",
+          "bytes": 17986,
+          "sha256": "e5c8819227b37121eeba7403468756d6b4327de6a355ac6d9b15a9d02b35b1a1"
+        },
+        {
+          "name": "selected-assets-page-1.json",
+          "bytes": 14397,
+          "sha256": "223366d1b8115f78ae36d27f4c83eba6b5a6bc4ec60113a350021c51210f47af"
+        }
+      ]
+    },
+    {
+      "issue": 2706,
+      "repository": "iortcw/iortcw",
+      "complete_tree_references": [
+        {
+          "role": "tag",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "root_tree": "fcaf33f9f6fe96aa6015a1dc2b55856844a1b5df",
+          "members": 3531,
+          "complete": true
+        },
+        {
+          "role": "current",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "root_tree": "5a40e1dd38fb833f53ff399168f8f6bfb525f8a0",
+          "members": 3548,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "README.md",
+          "blob": "dce291201bb7080dc410a462e2dd8b1569b7a093",
+          "bytes": 30882,
+          "sha256": "a1d7a6953c03df53ba43e321e9fd7fc8472bca58fce057da28b4b06b7a172adb"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "README_RASPBERRYPI",
+          "blob": "76379dd06c21500e5bf288d979782068aca95daf",
+          "bytes": 1105,
+          "sha256": "dca4b22b2f684233332fe0c05b0b03d95a76fa14bab716c13a27422f8005c1b2"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "README.md",
+          "blob": "e2a60c03b00874b5e4e9d8b869f1e632fc24b53b",
+          "bytes": 29063,
+          "sha256": "beb63e57416657e88afaf169dca0b696676f92c46dc40bc26fdf3ef4e0cee4bb"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "README_RASPBERRYPI",
+          "blob": "76379dd06c21500e5bf288d979782068aca95daf",
+          "bytes": 1105,
+          "sha256": "dca4b22b2f684233332fe0c05b0b03d95a76fa14bab716c13a27422f8005c1b2"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "SP/Makefile",
+          "blob": "667aeebb88327867775ab6237d78779fb8273a46",
+          "bytes": 71683,
+          "sha256": "28bb2422bd322f272bd6ab31528168ecc0df7e67e3117d8649a04b423e33652c"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "MP/Makefile",
+          "blob": "5447e449208ebf4a58e36b3b2052dfaa4cb0f837",
+          "bytes": 72251,
+          "sha256": "165721a270f72e41e72201d9c442538135b16dca6c63dfbdbffeeeec7cf388c1"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "SP/COPYING.txt",
+          "blob": "2449be1559baaea77fbfffef14e3ead21e8e3a2c",
+          "bytes": 35873,
+          "sha256": "209020a7b4809246e4021d3e24ee4e7e463c836aaba5471316b4d2c4632e6199"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "MP/COPYING.txt",
+          "blob": "6fc52e5de0783d7cd1eaf15c4d70b037fcbb4359",
+          "bytes": 35867,
+          "sha256": "5adc0692be45be6a4df2fdd801efe7d70fb843bd277755bc43d4f2062b18c42a"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "SP/code/sys/sys_main.c",
+          "blob": "e7a5db78d6089a3e5685b5c6dd640c53288368ce",
+          "bytes": 14813,
+          "sha256": "e61e35aeb8b2311d5329b1f060f14761bac23c931d176010f0ce5b67f3c5d5c8"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "SP/code/sys/sys_win32.c",
+          "blob": "dd7cd6c0073794307dde2897353e8cd7a32778a0",
+          "bytes": 18411,
+          "sha256": "05a1559896461fa773037258d2c98b5a6d36557d1e3dcf347c0133a6cb5714d0"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "SP/code/qcommon/files.c",
+          "blob": "caf9f41a56ea3d296164562d4123c5ebaa039d45",
+          "bytes": 109628,
+          "sha256": "4010b1775f35d722fd6f1568a3cd588559773abf7d94d274dea3043349ac949e"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "MP/code/sys/sys_main.c",
+          "blob": "481a123cbef0028ac4c67d40aff49e679f9938eb",
+          "bytes": 14812,
+          "sha256": "bac4dff15277c0a344d02c44e41aa27df978601ae57f5215461ae6ae59b3d31f"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "MP/code/sys/sys_win32.c",
+          "blob": "5f0e1862ed487c4c44031e7abfceadcc2dd9b9ac",
+          "bytes": 18328,
+          "sha256": "f8032e4836a81aa4cc4f8ef91d9a81921fce939e86ea724d327bf9641d4d31a7"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "MP/code/qcommon/files.c",
+          "blob": "7460b4d4dc30b1d936fc579ceceb5547316c1b7b",
+          "bytes": 112441,
+          "sha256": "e924b00caba9e03651a6fc30e2d31bcf4717b981e722431901955c553dfec098"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "SP/Makefile",
+          "blob": "74a126d2e2f2de5c96be7e9a378d2b21e11ec5ef",
+          "bytes": 76713,
+          "sha256": "917b37fe330a58f23aa7000670cf66e50096e6a7546541b6e8dc90731ce1a616"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "MP/Makefile",
+          "blob": "7618bb914c5c620b1be12a2c6652e73fb5dfe5a9",
+          "bytes": 77281,
+          "sha256": "184e190d6697c1caa3d54b22027ff2d64257b18abf9f9e0346c86d5a8516a78b"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "SP/COPYING.txt",
+          "blob": "2449be1559baaea77fbfffef14e3ead21e8e3a2c",
+          "bytes": 35873,
+          "sha256": "209020a7b4809246e4021d3e24ee4e7e463c836aaba5471316b4d2c4632e6199"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "MP/COPYING.txt",
+          "blob": "6fc52e5de0783d7cd1eaf15c4d70b037fcbb4359",
+          "bytes": 35867,
+          "sha256": "5adc0692be45be6a4df2fdd801efe7d70fb843bd277755bc43d4f2062b18c42a"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "SP/code/sys/sys_main.c",
+          "blob": "2c880f1ba0dfa380e9711503a963790b0a8f9f85",
+          "bytes": 14791,
+          "sha256": "881cc681b4ca670759a8a2d014947842ece5abf4a733953363b0c7c81abb02f0"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "SP/code/sys/sys_win32.c",
+          "blob": "582d470cf0ac76c5ab915471acc5f11eb4196ad2",
+          "bytes": 18599,
+          "sha256": "d0be35f1f18e8c1667698b80c8d26619cb362498925eae2f694032031619e78c"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "SP/code/qcommon/files.c",
+          "blob": "bca95230738291fa0a5bb27cab616a03752d1a5d",
+          "bytes": 109707,
+          "sha256": "c5ee68b4db39f292466397d508bbed8f9eb0e84649b51a2848df7038e80cbcfb"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "MP/code/sys/sys_main.c",
+          "blob": "185890621b4b574328df5e0917a793d54427b632",
+          "bytes": 14790,
+          "sha256": "47035c149dcb618bd1a20b8ef1f922094d1350f7c1abf5efe9405babe6a3bf0c"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "MP/code/sys/sys_win32.c",
+          "blob": "9913d59a5a61944bc6792b076788d664cc25d2b2",
+          "bytes": 18516,
+          "sha256": "b3ce3111061e5a5ca729bbea45b818650f299f7ed66be0e69c38872ef5f4ab2e"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "MP/code/qcommon/files.c",
+          "blob": "1e5e94625ee907c71e5dd039f6ab6fef2522b284",
+          "bytes": 112478,
+          "sha256": "c3d404e64ba971267680e9c11a49a50f2a5b78b971514a7e1cefaaa396f42611"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "SP/code/qcommon/q_shared.h",
+          "blob": "869a992f86d7a7232968646310455fd369a77cc7",
+          "bytes": 56950,
+          "sha256": "83c3d952133acce3db7c80e26e5e30297c07b8ab8b03a8f34ff9673b6ba9ba89"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+          "path": "SP/code/qcommon/common.c",
+          "blob": "75a1dfe80572d2f58e4a42c15277c0fa1feb406a",
+          "bytes": 73792,
+          "sha256": "90e5bec23ac7138dd1f441fee8f38e594923e00de1e3b6fab27a4a499b8bf10c"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "SP/code/qcommon/q_shared.h",
+          "blob": "c2888d36bd2f1431a39304532caa5d84fadfe7f2",
+          "bytes": 57059,
+          "sha256": "2f2713fd002920cc9e65f690bf9fa251703bcd2257b48d66f792c50bb95f8cd3"
+        },
+        {
+          "repository": "iortcw/iortcw",
+          "commit": "438e7d413b5f7277187c35b032eb0ef9093ae778",
+          "path": "SP/code/qcommon/common.c",
+          "blob": "a1e7dc0bd1a025034ef8c8e10339aa239d1c615b",
+          "bytes": 73736,
+          "sha256": "b5db7d63eac4380602b3bacbff094c44d58e2a5308c4066de37a81c1e4b30c74"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 6084,
+          "sha256": "ffc47cbd36c588ea37316fb4e58e8fb959a0cd7703b3d4c258094f36bfc2d807"
+        },
+        {
+          "name": "release.json",
+          "bytes": 21786,
+          "sha256": "e2442f66c67b8bf6fd869183fbf8b503e4637aa709e85ae65c5f39bde84c049a"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 18008,
+          "sha256": "ac1cc23ec8bcc24743c8a970239fa22d4e77c0c5fc081b1923cd165d8cce9884"
+        },
+        {
+          "name": "current.json",
+          "bytes": 4785,
+          "sha256": "48e10d886f1f14dc5e3f1b2da8dd528da22bf37545912f129b73354d3acb88da"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 850305,
+          "sha256": "1e255ee5f60d539a2b08ab1bcaefe0aa1f0f8383dfdf53a5b5afd5ff1d6abecb"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 4284,
+          "sha256": "8ddb7dc3c784aced56e70e66c9c6b7c0bd07366fbe6f1f559e7e87e08b4a9957"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 846256,
+          "sha256": "423eb89818edf102def90d06710398a534749369c2dbdb39c6fbda7cbc8ed785"
+        },
+        {
+          "name": "selected-assets-complete.json",
+          "bytes": 19821,
+          "sha256": "3c0873e9331b31b1adc9f882dbb0879d9d8f016558d8fa9ccd6518f180b31f33"
+        },
+        {
+          "name": "selected-assets-page-1.json",
+          "bytes": 15917,
+          "sha256": "e8e40682733eb2d6fba9b885ac9ee572bb10dd0be56863c829028c08b8ecd67f"
+        }
+      ]
+    },
+    {
+      "issue": 2700,
+      "repository": "yquake2/yquake2",
+      "complete_tree_references": [
+        {
+          "role": "tag",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "root_tree": "62643994b04cbb7c97295012b9b3c1adb35851f5",
+          "members": 413,
+          "complete": true
+        },
+        {
+          "role": "current",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "root_tree": "791f27c789da55a7bcfd905feb9a9b362a314851",
+          "members": 428,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "CMakeLists.txt",
+          "blob": "309fde27ed897dd54cab51e5d3d70c6630832f57",
+          "bytes": 31076,
+          "sha256": "939630588f51cdc35029b9a999f315552b5aa8d8c9d49bf0dac43b09f650264d"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "LICENSE",
+          "blob": "9a5470eb9c3915b122c249cf090f9237ef7f403d",
+          "bytes": 32404,
+          "sha256": "71cedf562c786b4c2a617419206ad77d43d37c1020fbc3bf6ecf1fa110d58e05"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "README.md",
+          "blob": "4be03d639e57cd1bc03547c4712e609076f8d058",
+          "bytes": 3141,
+          "sha256": "25f5a035aceac539c70a0540a1815354dcc5c48d3afa948bdb00865581835ba0"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "doc/020_installation.md",
+          "blob": "cc0fc4a408834296be8413b6262a6a62b533e578",
+          "bytes": 14257,
+          "sha256": "7be9ea5737d1ef1eacffcf286962d6875e0e4f421efb888f1c71186709f2d322"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "doc/030_configuration.md",
+          "blob": "8cf0b8116ff14921cd94e8af7305c44af966915f",
+          "bytes": 9135,
+          "sha256": "8b7dbd8c8820be4c302c0717bf7e714588ec8b98fd32b1a91c1ccc57caab0b0a"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "doc/090_filelists.md",
+          "blob": "eae376b1589265226137003746ea23405272d9e8",
+          "bytes": 11765,
+          "sha256": "104fea16d5e90005fe5148c9c06dbdc9ae285c1fa2cccd8f5bc958430f97728b"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/backends/windows/main.c",
+          "blob": "c8eb9fcae23386ffa5d846cdb86b4711361acc81",
+          "bytes": 2906,
+          "sha256": "211f134dcf3aa192f0ae13df70d0f5fcda7d351c57bdbd523584816ca91bbf7e"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/common/filesystem.c",
+          "blob": "8e906286024c9a9945983c7c9ec165b3c06d7aa0",
+          "bytes": 43499,
+          "sha256": "596c05b19517687bf7a0b5998c3850766df9bf44226927df68818bd40ceb34f9"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/client/cl_main.c",
+          "blob": "112bb17223b4f07c5ad17a76a7328be5436424f0",
+          "bytes": 21685,
+          "sha256": "6b37fa2e834467f7fbaa5da7382f35ad9b01cfffa176b1989fc6f080f38dde61"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/game/savegame/savegame.c",
+          "blob": "79bd49390ec3ede6f56c4d8d672ba89eef535ac0",
+          "bytes": 28431,
+          "sha256": "b80039efca0330d58539de6061189c40d5e4630ae3d4c79527069c06281326dc"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "doc/010_index.md",
+          "blob": "e59ac92a54e2e26767271332cb1905d9393d7d8a",
+          "bytes": 1140,
+          "sha256": "5dd6f2580ad72f6410fc143960413cfb76e9ad0b9136b7983e1e213d04481aea"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "CMakeLists.txt",
+          "blob": "b0b7503f0faf707bd0b833011e77e194c07322af",
+          "bytes": 31033,
+          "sha256": "1b9e1589f1c9309513ad42bbbea39683bed136efba119f41b928f44d52f76964"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "doc/020_installation.md",
+          "blob": "c1686e44502ee209f56d8ee5f843897905a5bdf3",
+          "bytes": 14265,
+          "sha256": "148f7673754120db6396ab2af8f8cb590d82ef2902e2c66d54f02ecd092f57d6"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "doc/030_configuration.md",
+          "blob": "8cf0b8116ff14921cd94e8af7305c44af966915f",
+          "bytes": 9135,
+          "sha256": "8b7dbd8c8820be4c302c0717bf7e714588ec8b98fd32b1a91c1ccc57caab0b0a"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "doc/090_filelists.md",
+          "blob": "eae376b1589265226137003746ea23405272d9e8",
+          "bytes": 11765,
+          "sha256": "104fea16d5e90005fe5148c9c06dbdc9ae285c1fa2cccd8f5bc958430f97728b"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/backends/windows/main.c",
+          "blob": "c8eb9fcae23386ffa5d846cdb86b4711361acc81",
+          "bytes": 2906,
+          "sha256": "211f134dcf3aa192f0ae13df70d0f5fcda7d351c57bdbd523584816ca91bbf7e"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/common/filesystem.c",
+          "blob": "133d5fae6d1c17ac43e097ea6da363f889811a3f",
+          "bytes": 47736,
+          "sha256": "5fe220eeb7401874226154463e8ab74171945ad303ffde2d4f099f30fd05f887"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/client/cl_main.c",
+          "blob": "8bb28b56342d7c40268a7f309e2033a9912788e3",
+          "bytes": 21695,
+          "sha256": "5ea65e26cb376076f5b8c4a523abf77417be3553517922478365e428b4ccfc70"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/game/savegame/savegame.c",
+          "blob": "dc8715e72d3b4161708042d64877749a2d5935cd",
+          "bytes": 27520,
+          "sha256": "5b0dee070dd45d0f33c77050a751c4e9d27ab1cd9057cd8b0e4e73086080b755"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/backends/windows/system.c",
+          "blob": "f5bd10b3de34404faf7de73d178ad1199a6a7dd6",
+          "bytes": 16348,
+          "sha256": "28d02bd15df8788896d0322a528a3ecbecab1741deaa8f1b73bbae91c46c95c6"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/common/frame.c",
+          "blob": "8db3492955adcf6b74885a62635d49ef1764eef7",
+          "bytes": 19701,
+          "sha256": "68cfd82db9470d20e48edb366d60bff1a71e3cc81b5461071d25bebd75ed5029"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/backends/windows/system.c",
+          "blob": "f5bd10b3de34404faf7de73d178ad1199a6a7dd6",
+          "bytes": 16348,
+          "sha256": "28d02bd15df8788896d0322a528a3ecbecab1741deaa8f1b73bbae91c46c95c6"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/common/frame.c",
+          "blob": "805d8762ef0090786d961ef1c0e9bc8f77292f92",
+          "bytes": 19713,
+          "sha256": "17915ca637df6b4d209881ac5af014a73b80ed5f05df6056ba289db2bb728980"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/common/header/common.h",
+          "blob": "6a6f2cd20efa2d0c8b3cac1eebf528ee5202c3f5",
+          "bytes": 28074,
+          "sha256": "99f4417524cbc7347c175bedd8a6ace155c6a70976d595129c276b80b32f7618"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "Makefile",
+          "blob": "4d6379609c9e08f789a16c76e3e01290b5831730",
+          "bytes": 38196,
+          "sha256": "95c9f0b9483d13967684e7e7d323fbebed46572777e36d93ecd058d1087769aa"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/common/header/common.h",
+          "blob": "322f5e073b5195dae47d45da573ec10df2a2c617",
+          "bytes": 28927,
+          "sha256": "28e003a4ee2e87fd2a3e5e6917e8ed293848316c79fe5abd581a3aeff5302fbf"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "Makefile",
+          "blob": "6d6f8dec9cd2489bdaf8d7b471f8e21b39348158",
+          "bytes": 38586,
+          "sha256": "00595870f33846dcf34df961baee85441500f5162c2c420c642de4f17d9a28da"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+          "path": "src/win-wrapper/wrapper.c",
+          "blob": "186b1e3835cb562097f78d6571861114e88f05a7",
+          "bytes": 4181,
+          "sha256": "29f10e782128162e4b7dc28344b75c1096965c1f599cb8ef03fca138763f57f2"
+        },
+        {
+          "repository": "yquake2/yquake2",
+          "commit": "9dbf699273e2546f3ad14cff3dee6a51a518cd2a",
+          "path": "src/win-wrapper/wrapper.c",
+          "blob": "186b1e3835cb562097f78d6571861114e88f05a7",
+          "bytes": 4181,
+          "sha256": "29f10e782128162e4b7dc28344b75c1096965c1f599cb8ef03fca138763f57f2"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 6128,
+          "sha256": "b16a4bdcfd1cc2b29bbae86f38c9cc01f1acc199ed4b609ccac5c2e3a54f721e"
+        },
+        {
+          "name": "release.json",
+          "bytes": 5,
+          "sha256": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 130,
+          "sha256": "d9e37600354c1839f6b22cebde497e9d14750d2401a06c9a51b1619baf991613"
+        },
+        {
+          "name": "current.json",
+          "bytes": 28430,
+          "sha256": "907d186e5686a825a9a33fa02af7ddc2956eed3c04ec30254b3a5ca9865a25e1"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 99491,
+          "sha256": "e98657a6fa2a0e53591e15538574fdb31b32c775e979fbe44c454431e1499733"
+        },
+        {
+          "name": "tag.json",
+          "bytes": 4128,
+          "sha256": "28ca25b44b81f328838a4d203bad221cb494877a4c1486ae1579fa1fcd2ffbf1"
+        },
+        {
+          "name": "tag-tree.json",
+          "bytes": 96082,
+          "sha256": "2cef7d3abe2f914938426dac74433ec3175ae430452a6a82952f5464b6d707ac"
+        },
+        {
+          "name": "release-recent-first10.json",
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "name": "official-site.html",
+          "bytes": 10661,
+          "sha256": "ebfa932ab6f4f5a83169899b38f7b48366cb2606bba6bc4761a4d7b220bce013"
+        },
+        {
+          "name": "official-site-observation.json",
+          "bytes": 197,
+          "sha256": "2b5b0f7d97ea720ccc7af19cbbce8f8825decc08f6b8b53941a86f5fbc4f583c"
+        }
+      ]
+    },
+    {
+      "issue": 2892,
+      "repository": "NagyD/SDLPoP",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "root_tree": "0b517c1af866839ff68bbabf7e3d025bc4bc5f9d",
+          "members": 1147,
+          "complete": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "COPYING",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "README.md",
+          "blob": "5bc50e61640ec58963c9b89e0036ec93686a5b22",
+          "bytes": 21474,
+          "sha256": "c08a42a7c6afd1bea84e7729697cf846ef0e5b95027914636bb2f95ec689a3b8"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "ReadMe.amigaos4",
+          "blob": "093ad23da3abf4bf2fb08b5a47c7b259078fb487",
+          "bytes": 2284,
+          "sha256": "5cd38ac7afb740acca5ea174f7fe203207572c6ecc7dbf1be7c0722ded90489f"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "Readme.PSP",
+          "blob": "b9a5ad3a28f80ad93a6219145d5752727b99701f",
+          "bytes": 1338,
+          "sha256": "8c226d1fabe1f49a3e5a247c7f2f66810f6e1cd8b151a08a304d361d4388fc98"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/main.c",
+          "blob": "4ff71e95ef399ba348f4eaafef2c77ef272eb936",
+          "bytes": 1179,
+          "sha256": "ebe61f19ea734424b3b0931413d023b3e5e205225e81abc2b461e95ad96067f7"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/options.c",
+          "blob": "a9508a25faf9b6b9668b9862387ed49a7b165d68",
+          "bytes": 43867,
+          "sha256": "99e3616f06ef9fef8b6d88ff250eb3f1a5a11f9d5be91187390135e0cebe9f33"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/replay.c",
+          "blob": "38a36a46ddd804858aa5d3f20555f76231be7462",
+          "bytes": 36343,
+          "sha256": "a6d64e08596bb4e25b7edf8c664a0bb7d040e6210ce175965a5f6830e3b175bf"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/data.c",
+          "blob": "578e3154dbc30fe7944cf277af9c7006d790c070",
+          "bytes": 860,
+          "sha256": "94d5c55fc270fa90d8e0a08ad0f6da4088f1e1740549ebf0c3abd7efd356ee1f"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/seg000.c",
+          "blob": "3701636f9d5323a34ccdd55ca2ce86a27a5ab696",
+          "bytes": 73296,
+          "sha256": "a14d2fe66def5540144ef19a898d508c8a9505cfadc0b4bf932fbf9e4627ee71"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/seg007.c",
+          "blob": "e88695087a4a11b75c7b032b6e9f260374241c06",
+          "bytes": 30654,
+          "sha256": "aa9c4e017e0483d97c1b26612c943876d36c9ac7f6aa3db35d3689e64abc1cd1"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/GPLv3.h",
+          "blob": "ad820ee0e8bfe75ab11e5880ad64d77ab20cc260",
+          "bytes": 792,
+          "sha256": "2bf5c03a07ae7286a80dc1e8632785e621111b650b83f5c6b663688950d8d6f1"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "SDLPoP.ini",
+          "blob": "acfca1b08a90c491e1b43c73fa3a5d0fc68ece0f",
+          "bytes": 22039,
+          "sha256": "e1454e8d77f6a5aec83d3ce7fb74b46f6f72e8c8caf15dddb165be9430cbb5e0"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/seg001.c",
+          "blob": "fef5e8167046c45d678abaa9fdb3b8198f2621a3",
+          "bytes": 21589,
+          "sha256": "f30dc52aeb4bae32753ce25023f2688b4c121e5c73f2447bf84048bc7be8c4d2"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/seg009.c",
+          "blob": "a6c496e77d270a21abd282af1a2020f11100c5f7",
+          "bytes": 139519,
+          "sha256": "f10927d4f3fc46c3b0e4202bc6f2de2460270d3101d6f7fb025570b891b5fa1a"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/proto.h",
+          "blob": "4af7d682a2023f00cf567fd6ee919a8b446b529e",
+          "bytes": 25232,
+          "sha256": "796db8bf0b5ee0e1151d809590044b0323ea31d11e4223650ea12f19dc4d390d"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/CMakeLists.txt",
+          "blob": "ee8da73336285d6cfee65265ec280790c0e6074e",
+          "bytes": 4932,
+          "sha256": "5a734e9c62f648a822fad5020a39b30fe8d9f36fc5889fa427d7241622614f8d"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "src/Makefile",
+          "blob": "03301d358bfd6489b000510770a7e5552ca8113a",
+          "bytes": 793,
+          "sha256": "f0e812ceaab5f1519de9b722a9ed3c5db488736ad9a1b2ea1588c09c562e8ab6"
+        },
+        {
+          "repository": "NagyD/SDLPoP",
+          "commit": "3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+          "path": "doc/Readme.txt",
+          "blob": "7ae12a5ec27349798040e023afe0c087a9698333",
+          "bytes": 64,
+          "sha256": "34252578d494728aef99db642344750debebdf328724c1bec8dbd71beabb9eed"
+        }
+      ],
+      "retained_metadata_manifest": [
+        {
+          "name": "repository.json",
+          "bytes": 5097,
+          "sha256": "702f706a629a41cb6ce52b081f2e5b93b972c87e7f0b2e9aec2900699fff0758"
+        },
+        {
+          "name": "release.json",
+          "bytes": 5,
+          "sha256": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed"
+        },
+        {
+          "name": "release-stable.json",
+          "bytes": 130,
+          "sha256": "d9e37600354c1839f6b22cebde497e9d14750d2401a06c9a51b1619baf991613"
+        },
+        {
+          "name": "current.json",
+          "bytes": 10558,
+          "sha256": "868112ac5231b9fd48821d2652a4ad8a67ed8bb7421901fb9fd821c5d98267e3"
+        },
+        {
+          "name": "current-tree.json",
+          "bytes": 256987,
+          "sha256": "12f999f6d4c1a410aadbca93d65edd2760469a9fc5b4551a64b64c7c629229f1"
+        },
+        {
+          "name": "release-recent-first10.json",
+          "bytes": 2,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      ]
+    }
+  ],
+  "invariants": {
+    "all_strict_catalog_bytes_unchanged": true,
+    "all_source_catalog_bytes_unchanged": true,
+    "only_eight_listing_manual_setup_and_summary_changed": true,
+    "all_identity_artwork_lineage_availability_platform_acquisition_operational_qualification_fields_unchanged": true,
+    "remove_only_eight_new_native_case_blocks_recovers_entire_prior_Rust_file": true,
+    "no_production_core_or_helper_change": true
+  },
+  "limits": [
+    "No game package/original/private save/compiler/installer/upstream helper/player acquired or executed. Asset hashes are API metadata, not downloaded or independently rehashed bytes.",
+    "Exact source consumers do not bind arbitrary downloaded/current binaries or authenticate original/private outputs. Existing full native fixtures prove Core selected operations, not game/save/mod/network/installed/physical/human/other-platform/protected acceptance.",
+    "SDLPoP exact official package contents/accepted DAT set/asset permission remain unresolved for fresh management; conditional already-permitted-copy guidance neither closes that question nor invents a separate original EXE/ROM requirement.",
+    "No Supported promotion, Required reduction, new family dependency, Source catalog/private output/helper trust/managed acquisition/preparation/update/backup/rollback/migration/deletion or credentials/signing/publication authority.",
+    "All actual external writes and upstream migrations, shared roots, old runtime/data/save/unknowns remain player-owned; another executable folder is not isolation. Stronger held operations and explicit stopped native participation elsewhere remain unchanged."
+  ],
+  "delivery_authority": "Fresh exact-head five-context CI/complete selected-executed inventories/artifacts, separate complete-source/current-target/exactcanonicalreview, guarded merge/readback and scoped canonical reconciliation precede any finite completion."
+}

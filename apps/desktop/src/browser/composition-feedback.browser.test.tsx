@@ -6,6 +6,7 @@ import { StatusLayer } from "../components/Chrome";
 import { UpdateCenter } from "../components/UpdateCenter";
 import { Tooltip } from "../components/ui/tooltip";
 import { Button } from "../components/ui/button";
+import axe from "axe-core";
 import { portDefinition } from "../test-fixtures";
 import type { ActivityRecord } from "../types";
 import type { InvocationRecord } from "../features/operations/invocation-state";
@@ -90,34 +91,87 @@ it("shows one identity-bound completion without replaying old success after dism
       dismissInvocation={dismiss}
     />
   );
-  const view = await render(show([first]));
-  await expect
-    .element(page.getByRole("status"))
-    .toHaveTextContent("Save setting · Portcove: finished.");
+  const view = await render(show([]));
+  const announcements = page.getByRole("status", { name: "Task updates" }).element();
+  expect(announcements.textContent).toBe("");
+  const visibleCompletions = () =>
+    document.querySelectorAll('[data-invocation-id] [data-slot="notice-body"]');
+  await view.rerender(show([first]));
+  expect(visibleCompletions()).toHaveLength(1);
+  expect(visibleCompletions()[0]?.textContent).toBe("Save setting · Portcove: finished.");
+  const firstMessage = announcements.querySelector('[data-announcement-invocation-id="1"]');
+  expect(firstMessage?.textContent).toBe("Save setting · Portcove: finished.");
   await view.rerender(show([first, second]));
-  await expect
-    .element(page.getByRole("status"))
-    .toHaveTextContent("Check updates · Portcove: finished.");
+  expect(visibleCompletions()).toHaveLength(1);
+  expect(visibleCompletions()[0]?.textContent).toBe("Check updates · Portcove: finished.");
+  expect(announcements.querySelector('[data-announcement-invocation-id="1"]')).toBe(firstMessage);
+  expect(announcements.querySelector('[data-announcement-invocation-id="2"]')?.textContent).toBe(
+    "Check updates · Portcove: finished.",
+  );
   await page.getByRole("button", { name: "Dismiss completion for Check updates" }).click();
   expect(dismiss).toHaveBeenCalledExactlyOnceWith(2);
   await view.rerender(show([first]));
-  await expect.element(page.getByRole("status")).not.toBeInTheDocument();
+  expect(visibleCompletions()).toHaveLength(0);
+  expect(page.getByRole("status", { name: "Task updates" }).element()).toBe(announcements);
+  expect(announcements.querySelector('[data-announcement-invocation-id="1"]')).toBe(firstMessage);
+  expect(announcements.querySelector('[data-announcement-invocation-id="2"]')).toBeNull();
 });
 
 it("provides supplemental keyboard help in a direction-aware portal without changing the action name", async () => {
   await render(
-    <DirectionProvider direction="rtl">
-      <Tooltip label="Open commands">
-        <Button aria-label="Commands" size="icon">
-          ?
-        </Button>
-      </Tooltip>
-    </DirectionProvider>,
+    <main>
+      <DirectionProvider direction="rtl">
+        <Tooltip label="Open commands">
+          <Button aria-label="Commands" size="icon">
+            ?
+          </Button>
+        </Tooltip>
+      </DirectionProvider>
+    </main>,
   );
   await userEvent.keyboard("{Tab}");
   await expect.element(page.getByRole("button", { name: "Commands" })).toHaveFocus();
   await expect.element(page.getByRole("tooltip")).toHaveTextContent("Open commands");
+  const landmarks = await axe.run(document.body, { runOnly: ["region"] });
+  expect(landmarks.violations).toEqual([]);
+  expect(landmarks.incomplete).toEqual([]);
   await expect.element(page.getByRole("button", { name: "Commands" })).toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("tooltip")).not.toBeInTheDocument();
 });
+
+it.each(["main", "aside", "header"] as const)(
+  "keeps a tooltip visible at a scrollable %s edge",
+  async (owner) => {
+    await page.viewport(320, 600);
+    const Owner = owner;
+    await render(
+      <Owner
+        aria-label="Tooltip host"
+        style={{ width: "100%", height: 160, overflow: "auto", position: "relative" }}
+      >
+        <div style={{ height: 320 }} />
+        <Tooltip label="Additional actions">
+          <Button>Actions</Button>
+        </Tooltip>
+      </Owner>,
+    );
+    await userEvent.keyboard("{Tab}");
+    const trigger = page.getByRole("button", { name: "Actions", exact: true });
+    await expect.element(trigger).toHaveFocus();
+    const popup = page.getByRole("tooltip");
+    await expect.element(popup).toBeVisible();
+    const element = popup.element();
+    const host = document.querySelector(owner)!;
+    expect(element.closest(owner)).toBe(host);
+    expect(host.scrollTop).toBeGreaterThan(0);
+    const box = element.getBoundingClientRect();
+    expect(box.left).toBeGreaterThanOrEqual(0);
+    expect(box.right).toBeLessThanOrEqual(320);
+    expect(box.top).toBeGreaterThanOrEqual(0);
+    expect(box.bottom).toBeLessThanOrEqual(600);
+    const landmarks = await axe.run(document.body, { runOnly: ["region"] });
+    expect(landmarks.violations).toEqual([]);
+    expect(landmarks.incomplete).toEqual([]);
+  },
+);

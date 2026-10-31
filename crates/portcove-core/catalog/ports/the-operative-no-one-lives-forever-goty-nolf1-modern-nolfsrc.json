@@ -17,7 +17,36 @@
       "game_slug": "the-operative-no-one-lives-forever",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2902
+    "issue_number": 2902,
+    "manual_setup": {
+      "help_url": "https://github.com/nolffan/nolfsrc/tree/6f61ddcfe33ff374f984264ff357a74a81291ffe",
+      "steps": [
+        {
+          "title": "Prepare the clean public modern copy with your own GOTY discs",
+          "instruction": "Use an already permitted complete native Windows NOLF Modern copy prepared from the clean public archive in a new empty directory with your own two European Game of the Year Edition disc images, corresponding to the documented redump discs 42823 and 42561. Complete upstream installation/checksum verification outside Portcove. The original-data-fetching rez submodule workflow is excluded. Other regions/editions do not inherit this setup. Nightly builds and alpha releases must be chosen deliberately; no original image, installer, compiler or game helper is run here."
+        },
+        {
+          "title": "Select the direct player that waits for the game",
+          "instruction": "Select normal NOLF.exe in the completed Windows game directory, keeping all companion binaries and established settings. The selected modern direct entry sets its working directory to its own folder and waits for its lithtech.exe child, retaining that process lifetime. NOLFLauncher.exe is the separate configuration launcher; do not substitute a setup batch file or a launcher that merely hands off and exits. Linux/macOS paths use Wine/Proton/CrossOver and are not native platform qualifications here."
+        },
+        {
+          "title": "Keep the whole creating installation and permitted components",
+          "instruction": "Retain Save/, autoexec.cfg, launcher.ini, nolfcmds.txt, logs including modern.log/nolfsrc.log, captures, custom files and the complete old installation. Upstream says each new archive is a whole installation, not an overlay patch; preserve the old copy and deliberately copy compatible saves into a separately completed new copy before relinking. Monolith/GameSpy, OpenMiles GPL, Bink/FFmpeg LGPL and DirectMusic have distinct terms; the upstream license notes retain distribution-compatibility questions. A public download or engine-code license is not a whole-package/IP grant, and this guide does not infer a blanket ban on an independently permitted copy."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

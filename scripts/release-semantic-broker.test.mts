@@ -564,12 +564,22 @@ void test("registration page/callback/replay path captures privately and leaves 
       await page.text(),
       /form method="post" action="https:\/\/github.com\/settings\/apps\/new/u,
     );
+    assert.match(await page.text(), /Portcove Semantic Producer/u);
     const wrong = await get(appCallback.url.replace(appState, "b".repeat(64)));
     assert.equal(wrong.status, 400);
     assert.equal(f.calls.length, 0);
     const completed = await get(appCallback.url);
     assert.equal(completed.status, 200);
-    assert(!(await completed.text()).includes("PRIVATE KEY"));
+    const body = await completed.text();
+    assert.match(body, /App created\. Install it next\./u);
+    assert.match(
+      body,
+      /href="https:\/\/github.com\/apps\/portcove-inert-producer\/installations\/new"/u,
+    );
+    assert.match(body, /Only select repositories/u);
+    assert.match(body, /boburning\/portcove/u);
+    for (const privateValue of ["PRIVATE KEY", "inert-private-client-secret", appCode, appState])
+      assert(!body.includes(privateValue));
     const replay = await get(appCallback.url);
     assert.equal(replay.status, 409);
     assert.equal(finishes, 1);
@@ -705,9 +715,15 @@ function hostedAppReadback(role: HostedReleaseAppRole, appId = 123, installation
 void test("selected two-App manifests have exact permissions and no OAuth or webhook work", () => {
   const semantic = prepareHostedReleaseAppManifest("semantic");
   const observer = prepareHostedReleaseAppManifest("protection_observer");
+  assert.equal(semantic.name, "Portcove Semantic Producer");
+  assert.equal(observer.name, "Portcove Protection Observer");
   assert.deepEqual(semantic.default_permissions, { checks: "write", metadata: "read" });
   assert.deepEqual(observer.default_permissions, { administration: "write", metadata: "read" });
   for (const manifest of [semantic, observer]) {
+    assert(
+      manifest.name.length <= 34,
+      "GitHub App names must fit the provider's 34-character limit",
+    );
     assert.equal(manifest.public, false);
     assert.equal(manifest.hook_attributes.active, false);
     assert.deepEqual(manifest.default_events, []);

@@ -168,7 +168,15 @@ describe("detail actions", () => {
       close: vi.fn(),
       libraryGeneration: 9,
     }).install();
-    expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false, 9);
+    expect(install).toHaveBeenCalledExactlyOnceWith(
+      port.id,
+      "stable",
+      "source.z64",
+      "",
+      false,
+      9,
+      undefined,
+    );
   });
 
   it("closes a failed installation review only after the shared operation settles", async () => {
@@ -306,8 +314,8 @@ describe("detail actions", () => {
     }
     for (const task of pending) await task();
     expect(install.mock.calls).toEqual([
-      [port.id, "stable", "source.z64", "bios.bin", false, 7],
-      [port.id, "stable", "source.z64", "bios.bin", false, 8],
+      [port.id, "stable", "source.z64", "bios.bin", false, 7, undefined],
+      [port.id, "stable", "source.z64", "bios.bin", false, 8, undefined],
     ]);
     expect(launch.mock.calls).toEqual([
       [port.id, "source.z64", 7],
@@ -345,6 +353,7 @@ describe("detail actions", () => {
     }).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
+      cancelledResult: expect.any(Function) as unknown,
       context: {
         action: "Remove installation",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
@@ -444,6 +453,7 @@ describe("detail actions", () => {
     }).remove("reviewed-removal");
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
+      cancelledResult: expect.any(Function) as unknown,
       context: {
         action: "Remove installation",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },

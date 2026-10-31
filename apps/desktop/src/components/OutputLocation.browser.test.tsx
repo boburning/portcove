@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
@@ -135,6 +136,8 @@ describe("per-game install folder", () => {
     ["owned_by_port", "Used by this game", false],
     ["owned_by_another_port", "Used by another game", true],
     ["unrelated_content", "Contains unrelated files", true],
+    ["invalid", "Invalid destination", true],
+    ["unknown", "Unknown", true],
   ] as const)("explains read-only folder suitability for %s", async (ownership, label, blocked) => {
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
     vi.mocked(desktopApi.previewOutputLocation).mockResolvedValue(
@@ -157,11 +160,61 @@ describe("per-game install folder", () => {
     await click("Review future folder");
     const review = document.querySelector('[role="dialog"]');
     expect(review?.textContent).toContain(label);
+    const checks = review?.querySelector(
+      '[aria-label="Output destination review"] > [aria-live="polite"]',
+    );
+    expect(checks?.textContent).toContain(blocked ? "Needs attention" : "Checks passed");
+    expect(checks?.textContent).not.toContain("Available");
     expect(button("Use this folder for future installs", review!).disabled).toBe(blocked);
     await click("Cancel review", review!);
     expect(apply).not.toHaveBeenCalled();
     expect(reset).not.toHaveBeenCalled();
     expect(move).not.toHaveBeenCalled();
+  });
+
+  it("keeps an available destination with validation problems refused in the review summary", async () => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    vi.mocked(desktopApi.previewOutputLocation).mockResolvedValue(
+      destinationPreview("sample", "F:/Games/Sample", {
+        validation_errors: ["destination overlaps the library"],
+      }),
+    );
+    const apply = vi.spyOn(desktopApi, "setOutputLocation");
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    await changePath("F:/Games/Sample");
+    await click("Review future folder");
+    const review = document.querySelector('[role="dialog"]')!;
+    const checks = review.querySelector(
+      '[aria-label="Output destination review"] > [aria-live="polite"]',
+    );
+    expect(checks?.textContent).toContain("Needs attention");
+    expect(checks?.textContent).not.toContain("Checks passed");
+    expect(review.textContent).toContain("destination overlaps the library");
+    expect(button("Use this folder for future installs", review).disabled).toBe(true);
+    await click("Cancel review", review);
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it("keeps an invalid current destination selected without announcing passed checks", async () => {
+    const custom = "F:/Games/Conflicting";
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample", custom));
+    vi.mocked(desktopApi.previewOutputLocation).mockResolvedValue(
+      currentDestinationPreview("sample", custom, {
+        ownership: "invalid",
+        available_bytes: null,
+        total_bytes: null,
+        validation_errors: ["destination overlaps the library"],
+      }),
+    );
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    const current = container.querySelector('[aria-label="Current output destination"]');
+    expect(current?.querySelector('[aria-live="polite"]')?.textContent).toContain(
+      "Needs attention",
+    );
+    expect(current?.textContent).toContain("Invalid destination");
+    expect(current?.textContent).toContain("Capacity unavailable");
+    expect(current?.textContent).toContain("This destination stays selected");
+    expect(document.body.textContent).toContain(custom);
   });
 
   it("shows current destination availability and capacity without requiring a review", async () => {
@@ -171,8 +224,9 @@ describe("per-game install folder", () => {
 
     const current = container.querySelector('[aria-label="Current output destination"]');
     expect(current?.textContent).toContain("Current destination");
-    expect(current?.textContent).toContain("Available");
+    expect(current?.textContent).toContain("Checks passed");
     expect(current?.textContent).toContain("8.0 GiB available of 16.0 GiB");
+    await captureParityState("output-current-capacity-fixture");
     expect(desktopApi.previewOutputLocation).toHaveBeenCalledWith("sample", null, 7);
   });
 
@@ -197,6 +251,7 @@ describe("per-game install folder", () => {
     expect(current?.textContent).toContain("selected drive is unavailable");
     expect(current?.textContent).toContain("This destination stays selected");
     expect(current?.textContent).toContain("Choose an available folder below");
+    await captureParityState("output-current-unavailable-fixture");
     expect(document.body.textContent).toContain(custom);
     expect(document.body.textContent).toContain("Custom for this game");
     expect(desktopApi.previewOutputLocation).toHaveBeenCalledWith("sample", custom, 7);
@@ -245,7 +300,7 @@ describe("per-game install folder", () => {
     });
 
     expect(document.body.textContent).toContain("F:/second");
-    expect(document.body.textContent).toContain("Available");
+    expect(document.body.textContent).toContain("Checks passed");
     expect(document.body.textContent).not.toContain("old destination is unavailable");
   });
 
@@ -412,6 +467,7 @@ describe("per-game install folder", () => {
     await click("Review future folder");
     expect(document.body.textContent).toContain("Full · no free space");
     expect(document.body.textContent).toContain("game output volume has no available space");
+    await captureParityState("output-review-full-validation-fixture");
     expect(button("Use this folder for future installs").disabled).toBe(true);
   });
 

@@ -1,4 +1,7 @@
+import { captureParityState } from "../../test/parity-capture";
 import { openAdvancedFilters } from "../../test/filter-fields";
+import { navigateTo } from "../../test/primary-navigation";
+import { settingsCategories } from "../features/app-shell/settings-categories";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import {
@@ -16,8 +19,12 @@ beforeEach(async () => {
   await page.viewport(1280, 800);
 });
 
-function mount(journey: string) {
-  window.history.replaceState(null, "", `/scenarios.html?mode=interactive&journey=${journey}`);
+function mount(journey: string, embed = false) {
+  window.history.replaceState(
+    null,
+    "",
+    `/scenarios.html?mode=interactive&journey=${journey}${embed ? "&embed=1" : ""}`,
+  );
   document.body.innerHTML = new DOMParser().parseFromString(
     scenarioShell,
     "text/html",
@@ -330,6 +337,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await expect.element(page.getByText("Selected game files", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
+  await captureParityState("preparation-reviewed-fixture");
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await expect
     .element(
@@ -340,10 +348,12 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
         }),
     )
     .toBeVisible();
+  await captureParityState("preparation-running-fixture");
   await userEvent.click(page.getByRole("button", { name: "Cancel preparation", exact: true }));
   await expect
     .element(page.getByRole("button", { name: "Cancellation requested", exact: true }))
     .toBeVisible();
+  await captureParityState("preparation-cancellation-requested-fixture");
   await userEvent.keyboard("{Alt>}{Shift>}C{/Shift}{/Alt}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
@@ -353,6 +363,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await expect
     .element(page.getByText("The demo setup did not finish.", { exact: false }).first())
     .toBeVisible();
+  await captureParityState("preparation-failed-fixture");
   await userEvent.click(page.getByRole("button", { name: "Review setup", exact: true }));
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await userEvent.keyboard("{Alt>}{Shift>}{Enter}{/Shift}{/Alt}");
@@ -364,6 +375,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)
     .toContain("Ready to play");
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toHaveFocus();
+  await captureParityState("preparation-completed-fixture");
 }, 45_000);
 
 it("renders recovery choices, returns to Library via the actual bootstrap hook, and resets", async () => {
@@ -385,6 +397,7 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
   await expect
     .element(page.getByRole("button", { name: "Keep using original library", exact: true }))
     .toBeVisible();
+  await captureParityState("startup-location-recovery-fixture");
   await userEvent.click(page.getByRole("button", { name: "Use platform default", exact: true }));
   await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
   await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
@@ -427,3 +440,211 @@ it("keeps actual App update entries and their independent Play actions reachable
   expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
   await page.screenshot({ path: "../../../../outputs/uiux-game-titles/narrow-updates-320.png" });
 });
+
+// Owning issue #4021: matched production-renderer evidence. These are disposable
+// transport fixtures, not Core execution, native WebView or real-file acceptance.
+// Keep captures under ui-refinement, the existing retained browser-evidence root.
+const parityViewports = [
+  { width: 1440, height: 900 },
+  { width: 1024, height: 800 },
+  { width: 740, height: 900 },
+  { width: 320, height: 844 },
+];
+const parityCases = ["dark", "light"].flatMap((theme) =>
+  parityViewports.map((viewport) => ({ theme, ...viewport })),
+);
+
+type ParityCase = (typeof parityCases)[number];
+
+async function startParityScene(scene: string, { theme, width, height }: ParityCase) {
+  await page.viewport(width, height);
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
+  mount(scene, true);
+  await expect.element(page.getByRole("main")).toBeVisible();
+}
+
+async function captureParity(surface: string, { theme, width, height }: ParityCase) {
+  await settleCapture();
+  expect(document.documentElement.dataset.theme).toBe(theme);
+  expect(window.innerWidth).toBe(width);
+  expect(window.innerHeight).toBe(height);
+  const workspace = document.querySelector<HTMLElement>(".workspace-main")!;
+  expect(workspace, "Production workspace must be mounted").not.toBeNull();
+  expect(workspace.scrollWidth, `${surface} workspace must reflow`).toBeLessThanOrEqual(
+    workspace.clientWidth + 1,
+  );
+  expect(
+    document.documentElement.scrollWidth,
+    `${surface} document must reflow`,
+  ).toBeLessThanOrEqual(width);
+  expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
+  // Limit the capture to the test iframe's actual viewport, not the runner's
+  // taller document. The transparent frame changes no application layout.
+  const frame = document.createElement("div");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = "position:fixed;inset:0;pointer-events:none";
+  document.body.append(frame);
+  try {
+    await page.screenshot({
+      path: `../../../../outputs/ui-refinement/prototype-parity/${surface}-${theme}-${width}x${height}.png`,
+      element: frame,
+    });
+  } finally {
+    frame.remove();
+  }
+}
+
+it.each(parityCases.filter(({ width }) => width === 320))(
+  "captures the open navigation sheet in $theme at $width × $height",
+  async (configuration) => {
+    await startParityScene("collection", configuration);
+    await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+    await page.getByRole("button", { name: "Open navigation", exact: true }).click();
+    await expect
+      .element(page.getByRole("dialog", { name: "Navigation", exact: true }))
+      .toBeVisible();
+    await captureParityState("navigation-sheet-open");
+  },
+  45_000,
+);
+
+it.each(parityCases)(
+  "captures browsing and Add games in $theme at $width × $height",
+  async (configuration) => {
+    await startParityScene("collection", configuration);
+    await expect
+      .element(page.getByRole("heading", { name: "Your library", exact: true }))
+      .toBeVisible();
+    await captureParity("library-covers", configuration);
+    await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+    await captureParity("library-rows", configuration);
+    await navigateTo("Discover");
+    await page.getByRole("button", { name: "Covers", exact: true }).click();
+    await captureParity("discover-covers", configuration);
+    await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+    await captureParity("discover-rows", configuration);
+    await navigateTo("Library");
+    await page.getByRole("button", { name: "Add games", exact: true }).click();
+    await expect
+      .element(page.getByRole("heading", { name: "Add games", exact: true }))
+      .toBeVisible();
+    await captureParity("add-games", configuration);
+  },
+  90_000,
+);
+
+it.each(parityCases)(
+  "captures all five detail tabs in $theme at $width × $height",
+  async (configuration) => {
+    await startParityScene("library", configuration);
+    await page
+      .getByRole("button", {
+        name: "View details for Harbor Adventure Harbor Adventure",
+        exact: true,
+      })
+      .click();
+    await captureParity("detail-hero", configuration);
+    for (const [label, name] of [
+      ["Overview", "overview"],
+      ["Game files", "game-files"],
+      ["Saves & backups", "saves-backups"],
+      ["Versions & updates", "versions-updates"],
+      ["Manage", "manage"],
+    ] as const) {
+      const tab = page.getByRole("tab", { name: label, exact: true });
+      await tab.click();
+      await expect.element(tab).toHaveAttribute("aria-selected", "true");
+      const panel = page.getByRole("tabpanel", { name: label, exact: true });
+      await expect.element(panel).toBeVisible();
+      panel.element().scrollIntoView({ block: "start" });
+      await captureParity(`detail-${name}`, configuration);
+      if (panel.element().getBoundingClientRect().bottom > innerHeight + 1) {
+        panel.element().scrollIntoView({ block: "end" });
+        await captureParity(`detail-${name}-lower`, configuration);
+      }
+    }
+  },
+  90_000,
+);
+
+it.each(parityCases)(
+  "captures all Activity tabs in $theme at $width × $height",
+  async (configuration) => {
+    await startParityScene("activity", configuration);
+    await navigateTo("Activity");
+    for (const [label, name] of [
+      ["Tasks", "tasks"],
+      ["Game updates", "game-updates"],
+      ["History", "history"],
+    ] as const) {
+      const tab = page.getByRole("tab", { name: label, exact: true });
+      await tab.click();
+      await expect.element(tab).toHaveAttribute("aria-selected", "true");
+      await captureParity(`activity-${name}`, configuration);
+    }
+  },
+  60_000,
+);
+
+it.each(parityCases)(
+  "captures every Settings category in $theme at $width × $height",
+  async (configuration) => {
+    await startParityScene("library", configuration);
+    await navigateTo("Settings");
+    const navigation = page.getByRole("navigation", { name: "Settings categories", exact: true });
+    for (const { id, label } of settingsCategories) {
+      const category = navigation.getByRole("button", { name: label, exact: true });
+      await category.click();
+      await expect.element(category).toHaveAttribute("aria-current", "page");
+      await expect.element(document.getElementById(`settings-${id}`)!).toBeVisible();
+      await captureParity(`settings-${id}`, configuration);
+      const section = document.getElementById(`settings-${id}`)!;
+      if (section.getBoundingClientRect().bottom > innerHeight + 1) {
+        section.scrollIntoView({ block: "end" });
+        await captureParity(`settings-${id}-lower`, configuration);
+      }
+    }
+  },
+  120_000,
+);
+
+it("keeps category navigation and selected content bounded at the 900px Settings breakpoint", async () => {
+  await startParityScene("library", { theme: "dark", width: 900, height: 800 });
+  await navigateTo("Settings");
+  const navigation = page.getByRole("navigation", { name: "Settings categories", exact: true });
+  const category = navigation.getByRole("button", { name: "Game files", exact: true });
+  await category.click();
+  await expect.element(category).toHaveAttribute("aria-current", "page");
+  await expect.element(document.getElementById("settings-game-files")!).toBeVisible();
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  // The documented narrow category strip scrolls locally; the page must stay bounded.
+  const buttons = navigation.getByRole("button");
+  expect(buttons.elements()).toHaveLength(8);
+  buttons.first().element().focus();
+  for (const { label } of settingsCategories) {
+    const destination = navigation.getByRole("button", { name: label, exact: true });
+    await expect.element(destination).toHaveFocus();
+    // The category focus owner reveals each tab stop without changing the selected panel.
+    // Observe its scrolling without moving the strip on the test's behalf.
+    await expect.element(category).toHaveAttribute("aria-current", "page");
+    await expect.element(document.getElementById("settings-game-files")!).toBeVisible();
+    await expect
+      .poll(
+        () =>
+          destination.element().getBoundingClientRect().left -
+          navigation.element().getBoundingClientRect().left,
+      )
+      .toBeGreaterThanOrEqual(-1);
+    await expect
+      .poll(
+        () =>
+          destination.element().getBoundingClientRect().right -
+          navigation.element().getBoundingClientRect().right,
+      )
+      .toBeLessThanOrEqual(1);
+    await userEvent.keyboard("{Tab}");
+  }
+  await category.click();
+  await expect.element(category).toHaveAttribute("aria-current", "page");
+  await captureParityState("settings-category-breakpoint");
+}, 45_000);

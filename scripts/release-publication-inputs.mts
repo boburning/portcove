@@ -1,3 +1,4 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Bounded byte reconstruction only. The caller must first authenticate the
  * complete signing context; this function cannot create an admission receipt. */
 import { createHash } from "node:crypto";
@@ -24,7 +25,8 @@ export async function reconstructPublicationSignatures(
     throw new Error("complete publication signing context required");
   const binding = manifest.binding;
   const { accepted, policy, labels } = await inspectTrustedAssemblyInput(facts.assembly);
-  if (labels.length !== 2) throw new Error("exact detached signature pair required");
+  if (labels.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length)
+    throw new Error("exact detached signature pair required");
   const candidates = labels.map((platform) => {
     const updater = updaterIdentity(policy, platform, accepted.version);
     const raw = files.get(
@@ -55,15 +57,15 @@ export async function reconstructPublicationSignatures(
       };
     });
   });
-  const matches = candidates[0]!.flatMap((a) =>
-    candidates[1]!.flatMap((b) => {
-      const pair = [a, b];
-      return [pair, [...pair].reverse()].some(
-        (ordered) => digest(ordered.map((item) => item.identity)) === binding.signatures_sha256,
-      )
-        ? [pair]
-        : [];
-    }),
+  let combinations: (typeof candidates)[number][] = [[]];
+  for (const alternatives of candidates)
+    combinations = combinations.flatMap((prefix) =>
+      alternatives.map((entry) => [...prefix, entry]),
+    );
+  const matches = combinations.filter((pair) =>
+    [pair, [...pair].reverse()].some(
+      (ordered) => digest(ordered.map((item) => item.identity)) === binding.signatures_sha256,
+    ),
   );
   if (matches.length !== 1) throw new Error("original detached signature pair digest differs");
   const signatures = matches[0]!;

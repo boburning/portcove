@@ -1,3 +1,16 @@
+import {
+  updaterWorkflow,
+  updaterWorkflowVariants,
+  observeUpdaterCaller,
+  observeLinuxDriver,
+  observeHistoricalScope,
+  observeRetainedRebootScope,
+} from "./fixtures/updater-workflow-fixture.mts";
+import {
+  prerequisiteInvocation,
+  prerequisiteEnvironment,
+} from "./fixtures/linux-prerequisites-fixture.mts";
+import { readWorkflow } from "./ci-workflow-fixture.mts";
 import type { TestContext } from "node:test";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import type {
@@ -112,16 +125,11 @@ void test(
   async (t) => {
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-runtime-preflight-"));
     t.after(() => rm(root, { recursive: true, force: true }));
-    const workflow = await readFile(
+    const workflow = await readWorkflow(
       new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
-      "utf8",
     );
-    const block = workflow.match(
-      /- name: Check Windows updater runtime prerequisite before building fixtures\r?\n[\s\S]*?        run: \|\r?\n(?<body>[\s\S]*?)      - name: Test signature/,
-    );
-    assert.ok(block?.groups?.body);
-    assert.ok(workflow.includes("work/updater-prerequisites/windows-runtime.json"));
-    const step = block.groups.body.replace(/^          /gmu, "");
+    const contract = updaterWorkflow(workflow, releaseLabels(policy));
+    const step = String(contract.runtime.step.run);
     for (const [index, actual] of [
       "155.0.4283.60",
       "155.0.4283.62",
@@ -135,7 +143,7 @@ void test(
         path.join(cwd, "apps/desktop/src-tauri/tauri.conf.json"),
         JSON.stringify({ bundle: { windows: { minimumWebview2Version: "155.0.4283.62" } } }),
       );
-      const script = `$ErrorActionPreference = 'Stop'\nfunction node { $global:LASTEXITCODE = 0; '{"desktop":{"webview2_version":"${actual}"}}' }\n${step}`;
+      const script = `$ErrorActionPreference = 'Stop'\nfunction node { if ($args.Count -ne 2 -or $args[0].Replace('\\','/') -notmatch '^(?:\\./)?scripts/tool-cache[.]mts$' -or $args[1] -ne '--state') { throw 'UPDATER_RUNTIME_PROBE_ARGUMENTS' }; $global:LASTEXITCODE = 0; '{"desktop":{"webview2_version":"${actual}"}}' }\n${step}`;
       const result = spawnSync(
         "pwsh",
         [
@@ -183,64 +191,172 @@ function runPowerShellScript(
 
 void test("AppImage qualification refuses root and unknown identities before creating state", async (t) => {
   const harness = fileURLToPath(new URL("./test-linux-appimage-update.ps1", import.meta.url));
-  const source = await readFile(harness, "utf8");
-  assert.ok(
-    source.indexOf("$qualificationIdentity = Get-RootlessQualificationIdentity") <
-      source.indexOf("$predecessor = Resolve-ExistingFile"),
+  const identityModule = fileURLToPath(
+    new URL("./native-qualification-posix-identity.psm1", import.meta.url),
   );
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-rootless-identity-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const script = path.join(root, "identity.ps1");
+  const missingModuleHarness = path.join(root, "missing-module", "test-linux-appimage-update.ps1");
+  await mkdir(path.dirname(missingModuleHarness));
+  await copyFile(harness, missingModuleHarness);
   await writeFile(
     script,
     `
 $ErrorActionPreference = 'Stop'
-$tokens = $null; $errors = $null
-$ast = [Management.Automation.Language.Parser]::ParseFile('${harness.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
-if ($errors.Count) { throw 'AppImage harness parse failed' }
-$functions = @($ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-RootlessQualificationIdentity'}, $true))
-if ($functions.Count -ne 1) { throw 'Missing rootless identity preflight' }
-Invoke-Expression $functions[0].Extent.Text
-function Invoke-IdFixture {
+$harness = '${harness.replaceAll("'", "''")}'
+$identityModule = '${identityModule.replaceAll("'", "''")}'
+$fixtureRoot = '${root.replaceAll("'", "''")}'
+$missingModuleHarness = '${missingModuleHarness.replaceAll("'", "''")}'
+function global:Invoke-IdFixture {
+ if ($args.Count -ne 1 -or $args[0] -notin @('-u','-g')) { throw 'APPIMAGE_ID_ARGUMENTS' }
  $Kind = $args[0]
+ $global:QualificationIdCalls += $Kind
+ $case = $global:QualificationIdentityFixtureCase
  $global:LASTEXITCODE = if ($Kind -eq '-u') { $case.user_exit } else { $case.group_exit }
  if ($Kind -eq '-u') { $case.uid } else { $case.gid }
 }
-Set-Alias -Name /usr/bin/id -Value Invoke-IdFixture
+Set-Alias -Scope Global -Name /usr/bin/id -Value Invoke-IdFixture
+function global:Resolve-Path {
+ $global:QualificationInputResolutionCalls++
+ throw 'APPIMAGE_INPUT_RESOLUTION_BOUNDARY'
+}
+$global:QualificationUnexpectedEffects = 0
+function global:Refuse-IdentityFixtureEffect {
+ $global:QualificationUnexpectedEffects += 1
+ throw 'APPIMAGE_UNEXPECTED_EFFECT'
+}
+foreach ($name in @('New-Item','Remove-Item','Copy-Item','Move-Item','Start-Process','Invoke-WebRequest','Invoke-RestMethod','/usr/bin/cp','chmod','sudo','git')) {
+ Set-Alias -Scope Global -Name $name -Value Refuse-IdentityFixtureEffect
+}
 $cases = @(
- @{ uid='0'; gid='0'; user_exit=0; group_exit=0; error='Root cannot qualify' },
- @{ uid=''; gid='1000'; user_exit=0; group_exit=0; error='user ID' },
- @{ uid='invalid'; gid='1000'; user_exit=0; group_exit=0; error='user ID' },
- @{ uid='1000'; gid='1000'; user_exit=1; group_exit=0; error='user ID' },
- @{ uid='1000'; gid=''; user_exit=0; group_exit=0; error='group ID' },
- @{ uid='1000'; gid='1000'; user_exit=0; group_exit=1; error='group ID' },
- @{ uid='1000'; gid='1000'; user_exit=0; group_exit=0; error=$null }
+ @{ uid='0'; gid='0'; user_exit=0; group_exit=0; error='Root cannot qualify'; calls=@('-u') },
+ @{ uid=''; gid='1000'; user_exit=0; group_exit=0; error='user ID'; calls=@('-u') },
+ @{ uid='invalid'; gid='1000'; user_exit=0; group_exit=0; error='user ID'; calls=@('-u') },
+ @{ uid='1000'; gid='1000'; user_exit=1; group_exit=0; error='user ID'; calls=@('-u') },
+ @{ uid='1000'; gid=''; user_exit=0; group_exit=0; error='group ID'; calls=@('-u','-g') },
+ @{ uid='1000'; gid='1000'; user_exit=0; group_exit=1; error='group ID'; calls=@('-u','-g') },
+ @{ uid='1000'; gid='1000'; user_exit=0; group_exit=0; error=$null; calls=@('-u','-g') }
 )
+$moduleObservations = @()
+$entryObservations = @()
+$ordinal = 0
 foreach ($case in $cases) {
+ $identityOwner = Import-Module $identityModule -Force -PassThru
+ $global:QualificationIdentityFixtureCase = $case
+ $global:QualificationIdCalls = @()
+ $global:QualificationInputResolutionCalls = 0
  $refused = $false
  try {
   $identity = Get-RootlessQualificationIdentity
-  if ($case.error) { throw 'Unexpected identity acceptance' }
-  if ($identity.uid -ne $case.uid -or $identity.gid -ne $case.gid) { throw 'Identity changed' }
+  if ($case.error) { throw 'APPIMAGE_UNEXPECTED_IDENTITY_ACCEPTANCE' }
+  if ($identity.uid -cne $case.uid -or $identity.gid -cne $case.gid) { throw 'APPIMAGE_IDENTITY_CHANGED' }
  } catch {
   if (-not $case.error -or $_.Exception.Message -notlike "*$($case.error)*") { throw }
   $refused = $true
  }
- if ($case.error -and -not $refused) { throw 'Missing refusal' }
+ if ($case.error -and -not $refused) { throw 'APPIMAGE_MISSING_IDENTITY_REFUSAL' }
+ if (($global:QualificationIdCalls -join ',') -cne ($case.calls -join ',')) { throw 'APPIMAGE_MODULE_ID_CALLS' }
+ if ($global:QualificationInputResolutionCalls -ne 0) { throw 'APPIMAGE_MODULE_INPUT_EFFECT' }
+ $moduleObservations += @{ ordinal=$ordinal; refused=$refused; arguments=@($global:QualificationIdCalls) }
+ Remove-Module -ModuleInfo $identityOwner -Force
+ if (Get-Command Get-RootlessQualificationIdentity -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IDENTITY_COMMAND' }
+ if ($IsLinux -or $ordinal -eq 0) {
+  $global:QualificationIdCalls = @()
+  $global:QualificationInputResolutionCalls = 0
+  $state = Join-Path $fixtureRoot "state-$ordinal"
+  $evidence = Join-Path $fixtureRoot "evidence-$ordinal.json"
+  $missing = Join-Path $fixtureRoot 'missing-input'
+  $invocation = @{
+   PredecessorPath=$missing; CandidatePath=$missing; TrustedRootPath=$missing;
+   MetadataPath=$missing; TargetsPath=$missing; MissingSignatureRepositoryPath=$missing;
+   WrongSignatureRepositoryPath=$missing; RecoveryRepositoryPath=$missing;
+   WrongPayloadPublicKeySha256=('0' * 64); PayloadPrivateKeyPath=$missing;
+   TufPrivateRootPath=$missing; StateRoot=$state; EvidencePath=$evidence
+  }
+  $expected = if (-not $IsLinux) { 'AppImage update harness requires Linux' } elseif ($case.error) { $case.error } else { 'APPIMAGE_INPUT_RESOLUTION_BOUNDARY' }
+  $observed = $null
+  try { & $harness @invocation; throw 'APPIMAGE_UNEXPECTED_ENTRY_ACCEPTANCE' }
+  catch { $observed = $_.Exception.Message }
+  if ($observed -notlike "*$expected*") { throw "APPIMAGE_ENTRY_REFUSAL:$ordinal expected=$expected observed=$observed" }
+  $expectedResolution = if ($IsLinux -and -not $case.error) { 1 } else { 0 }
+  if ($global:QualificationInputResolutionCalls -ne $expectedResolution) { throw "APPIMAGE_ENTRY_INPUT_ORDER:$ordinal" }
+  $expectedCalls = if ($IsLinux) { $case.calls } else { @() }
+  if (($global:QualificationIdCalls -join ',') -cne ($expectedCalls -join ',')) { throw "APPIMAGE_ENTRY_ID_CALLS:$ordinal" }
+  if ((Test-Path -LiteralPath $state) -or (Test-Path -LiteralPath $evidence)) { throw "APPIMAGE_ENTRY_STATE_CREATED:$ordinal" }
+  $entryObservations += @{ ordinal=$ordinal; arguments=@($global:QualificationIdCalls); input_resolutions=$global:QualificationInputResolutionCalls; refusal=$observed; state_absent=$true; evidence_absent=$true }
+ }
+ $ordinal++
 }
-@{ cases = $cases.Count; root_refused = $true; ordinary_identity_retained = $true } | ConvertTo-Json -Compress
+$dependencyObservations = @()
+if ($IsLinux) {
+ # Neither direct-module setup nor an earlier public call may supply the
+ # operation when this exact invocation omits its required dependency.
+ Get-Module | Where-Object Path -CEQ $identityModule | Remove-Module -Force
+ if (Get-Command Get-RootlessQualificationIdentity -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IDENTITY_COMMAND' }
+ $global:QualificationIdentityFixtureCase = $cases[-1]
+ $global:QualificationIdCalls = @()
+ $global:QualificationInputResolutionCalls = 0
+ $global:QualificationUnexpectedEffects = 0
+ $missingModule = Join-Path (Split-Path -Parent $missingModuleHarness) 'native-qualification-posix-identity.psm1'
+ if (Test-Path -LiteralPath $missingModule) { throw 'APPIMAGE_MISSING_MODULE_FIXTURE_PRESENT' }
+ $failure = $null
+ try { & $missingModuleHarness @invocation } catch { $failure = $_ }
+ if ($null -eq $failure -or $failure.FullyQualifiedErrorId.Split(',')[0] -cne 'Modules_ModuleNotFound' -or -not $failure.Exception.Message.Contains($missingModule)) { throw 'APPIMAGE_MISSING_MODULE_REFUSAL' }
+ if ($global:QualificationIdCalls.Count -ne 0 -or $global:QualificationInputResolutionCalls -ne 0 -or $global:QualificationUnexpectedEffects -ne 0 -or (Test-Path -LiteralPath $state) -or (Test-Path -LiteralPath $evidence)) { throw 'APPIMAGE_MISSING_MODULE_EFFECT' }
+ $dependencyObservations += @{ kind='missing-artifact'; error_id=$failure.FullyQualifiedErrorId; module_path=$missingModule; identity_calls=0; input_resolutions=0; effects=0; state_absent=$true; evidence_absent=$true }
+ if (Get-Command Get-RootlessQualificationIdentity -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IDENTITY_COMMAND' }
+ if (Get-Alias -Name Import-Module -ErrorAction SilentlyContinue) { throw 'APPIMAGE_AMBIENT_IMPORT_ALIAS' }
+ $global:QualificationFixtureModulePath = $identityModule
+ $global:QualificationSuppressedImports = 0
+ function global:Suppress-IdentityModuleImport {
+  [CmdletBinding()]
+  param([Parameter(Position=0,Mandatory=$true)][string]$Name, [switch]$Force)
+  if ([IO.Path]::GetFullPath($Name) -cne $global:QualificationFixtureModulePath) { throw 'APPIMAGE_IMPORT_MODULE_IDENTITY' }
+  $global:QualificationSuppressedImports += 1
+ }
+ Set-Alias -Scope Global -Name Import-Module -Value Suppress-IdentityModuleImport
+ $failure = $null
+ try {
+  try { & $harness @invocation } catch { $failure = $_ }
+ } finally {
+  # Remove only the alias created by this control; filesystem mutation remains
+  # denied by the unqualified command boundary above.
+  Microsoft.PowerShell.Management\\Remove-Item -LiteralPath Alias:\\Import-Module -Force
+ }
+ if ($global:QualificationSuppressedImports -ne 1 -or $null -eq $failure -or $failure.Exception -isnot [Management.Automation.CommandNotFoundException] -or -not $failure.Exception.Message.Contains('Get-RootlessQualificationIdentity')) { throw 'APPIMAGE_SUPPRESSED_IMPORT_REFUSAL' }
+ if ($global:QualificationIdCalls.Count -ne 0 -or $global:QualificationInputResolutionCalls -ne 0 -or $global:QualificationUnexpectedEffects -ne 0 -or (Test-Path -LiteralPath $state) -or (Test-Path -LiteralPath $evidence)) { throw 'APPIMAGE_SUPPRESSED_IMPORT_EFFECT' }
+ $dependencyObservations += @{ kind='suppressed-import'; error_id=$failure.FullyQualifiedErrorId; imports=$global:QualificationSuppressedImports; identity_calls=0; input_resolutions=0; effects=0; state_absent=$true; evidence_absent=$true }
+}
+@{ module_observations=$moduleObservations; entry_observations=$entryObservations; dependency_observations=$dependencyObservations; actual_linux=[bool]$IsLinux; authority='none; controlled provider observations, no installed qualification' } | ConvertTo-Json -Depth 8 -Compress
 `,
   );
   const result = spawnSync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", script], {
     encoding: "utf8",
+    env: prerequisiteEnvironment(),
     timeout: 30_000,
   });
+  assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), {
-    cases: 7,
-    root_refused: true,
-    ordinary_identity_retained: true,
-  });
+  const report = object(JSON.parse(result.stdout));
+  assert.equal(report.actual_linux, process.platform === "linux");
+  assert.ok(Array.isArray(report.module_observations) && report.module_observations.length === 7);
+  assert.ok(
+    Array.isArray(report.entry_observations) &&
+      report.entry_observations.length === (process.platform === "linux" ? 7 : 1),
+  );
+  for (let ordinal = 0; ordinal < 7; ordinal++) {
+    const observation = object(report.module_observations[ordinal]);
+    assert.equal(observation.ordinal, ordinal);
+    assert.equal(observation.refused, ordinal !== 6);
+    assert.deepEqual(observation.arguments, ordinal < 4 ? ["-u"] : ["-u", "-g"]);
+  }
+  assert.ok(Array.isArray(report.dependency_observations));
+  assert.deepEqual(
+    report.dependency_observations.map((value: unknown) => object(value).kind),
+    process.platform === "linux" ? ["missing-artifact", "suppressed-import"] : [],
+  );
+  console.log("AppImage identity fixture observations: " + JSON.stringify(report));
 });
 
 async function fixture(t: TestContext, label = "windows-x86_64") {
@@ -401,45 +517,102 @@ void test("release-only overlay preserves ordinary secret-free builds and update
 });
 
 void test("manual rehearsal retains the complete matrix without production credentials or publication", async () => {
-  const workflow = await readFile(
+  const workflow = await readWorkflow(
     new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
-    "utf8",
   );
-  assert.match(workflow, /workflow_dispatch:/);
-  assert.match(workflow, /contents: read/);
-  assert.doesNotMatch(
-    workflow,
-    /secrets\.|contents: write|actions: write|gh release|pull_request_target/,
+  const contract = updaterWorkflow(workflow, releaseLabels(policy));
+  for (const expression of ["${{ toJSON(secrets) }}", "${{ format('}}{0}', toJSON(secrets)) }}"]) {
+    const secretContext = structuredClone(contract.workflow);
+    object(secretContext.env).WHOLE_CONTEXT = expression;
+    assert.throws(
+      () => updaterWorkflow(JSON.stringify(secretContext), releaseLabels(policy)),
+      (error: unknown) =>
+        error instanceof assert.AssertionError &&
+        error.message.includes("UPDATER_PRODUCTION_SECRET_BINDING"),
+    );
+  }
+  for (const expression of [
+    "${{ 'secrets.EXAMPLE is documentation' }}",
+    "${{ '}} secrets.EXAMPLE is documentation' }}",
+  ]) {
+    const literal = structuredClone(contract.workflow);
+    object(literal.env).DOCUMENTATION = expression;
+    updaterWorkflow(JSON.stringify(literal), releaseLabels(policy));
+  }
+  const ownerKey = first(
+    Object.entries(object(contract.workflow.jobs)).filter(([, value]) => value === contract.job),
+  )[0];
+  const narrow = structuredClone(contract.workflow);
+  const copiedUploader = object(
+    array(object(object(narrow.jobs)[ownerKey]).steps)[contract.upload.index],
   );
-  assert.match(workflow, /default: all/);
-  assert.match(workflow, /transition_profile:/);
-  assert.match(workflow, /default: legacy-skipped/);
-  assert.match(workflow, /options: \[legacy-adjacent, legacy-skipped, preview-final\]/);
-  assert.match(workflow, /-TransitionProfile '\$\{\{ inputs\.transition_profile \}\}'/);
-  const matrix = object(JSON.parse(text(workflow.match(/label:.*fromJSON\('([^']+)'\)/)?.[1])));
-  assert.deepEqual(strings(matrix.all).toSorted(), releaseLabels(policy).toSorted());
-  for (const label of releaseLabels(policy)) assert.deepEqual(matrix[label], [label]);
-  assert.match(workflow, /retention-days: 1/);
-  assert.doesNotMatch(workflow, /updater-rehearsal\/\*\*|\.key\b/);
-  const retainedPaths = text(
-    workflow.match(
-      /name: Retain bounded rehearsal evidence[\s\S]*?path: \|\r?\n([\s\S]*?)\s+if-no-files-found:/,
-    )?.[1],
-  )
-    .trim()
-    .split(/\r?\n/)
-    .map((entry: string) => entry.trim());
+  object(copiedUploader.with).path = text(object(copiedUploader.with).path).replace(
+    "windows-renderer-evidence/*.json",
+    "windows-renderer-evidence/receipt.json",
+  );
+  assert.throws(
+    () => updaterWorkflow(JSON.stringify(narrow), releaseLabels(policy)),
+    (error: unknown) =>
+      error instanceof assert.AssertionError && error.message.includes("UPDATER_EVIDENCE_FAMILY"),
+  );
+  for (const [field, value, refusal] of [
+    ["if-no-files-found", undefined, "UPDATER_MISSING_EVIDENCE_REFUSAL"],
+    [
+      "path",
+      text(object(contract.upload.step.with).path) +
+        "\n!work/updater-rehearsal/windows-renderer-evidence/**",
+      "UPDATER_UNMODELED_EVIDENCE_EXCLUSION",
+    ],
+  ] as const) {
+    const missing = structuredClone(contract.workflow);
+    const uploader = object(
+      array(object(object(missing.jobs)[ownerKey]).steps)[contract.upload.index],
+    );
+    object(uploader.with)[field] = value;
+    assert.throws(
+      () => updaterWorkflow(JSON.stringify(missing), releaseLabels(policy)),
+      (error: unknown) => error instanceof assert.AssertionError && error.message.includes(refusal),
+    );
+  }
+  for (const [role, field, value, refusal] of [
+    ["rehearsal", "if", false, "UPDATER_REHEARSAL_REACHABILITY"],
+    ["historicalScope", "if", false, "UPDATER_HISTORICAL_SCOPE_REACHABILITY"],
+    ["verification", "if", false, "UPDATER_VERIFICATION_REACHABILITY"],
+    ["rehearsal", "continue-on-error", true, "UPDATER_REHEARSAL_FAILURE_PROPAGATION"],
+    ["upload", "if", "success()", "UPDATER_FAILURE_EVIDENCE"],
+  ] as const) {
+    const disabled = structuredClone(contract.workflow);
+    const step = object(array(object(object(disabled.jobs)[ownerKey]).steps)[contract[role].index]);
+    step[field] = value;
+    assert.throws(
+      () => updaterWorkflow(JSON.stringify(disabled), releaseLabels(policy)),
+      (error: unknown) => error instanceof assert.AssertionError && error.message.includes(refusal),
+    );
+  }
+  const missingArtifacts = structuredClone(contract.workflow);
+  const missingUploader = object(
+    array(object(object(missingArtifacts.jobs)[ownerKey]).steps)[contract.upload.index],
+  );
+  delete object(missingUploader.with).path;
+  assert.throws(
+    () => updaterWorkflow(JSON.stringify(missingArtifacts), releaseLabels(policy)),
+    (error: unknown) =>
+      error instanceof assert.AssertionError && error.message.includes("UPDATER_EVIDENCE_INPUTS"),
+  );
+  const retainedPaths = contract.retainedPaths;
   const retained = (file: string) =>
     retainedPaths.some((pattern) => path.posix.matchesGlob(file, pattern));
   for (const label of releaseLabels(policy)) {
     for (const version of ["0.1.0", "0.2.0", "0.3.0", "1.0.0-rc.2", "1.0.0"])
       assert.ok(
-        retainedPaths.some((pattern: string) =>
-          path.posix.matchesGlob(
-            `work/updater-rehearsal/${version}-${label}/updater-inventory.json`,
-            pattern.replaceAll("${{ matrix.label }}", label),
+        contract
+          .retainedPathsFor(label)
+          .some((pattern) =>
+            path.posix.matchesGlob(
+              `work/updater-rehearsal/${version}-${label}/updater-inventory.json`,
+              pattern,
+            ),
           ),
-        ),
         `${label} loses ${version} candidate identity`,
       );
   }
@@ -458,48 +631,42 @@ void test("manual rehearsal retains the complete matrix without production crede
     assert.equal(retained(`${directory}/session-startup-0.stop`), false);
     assert.equal(retained(`${directory}/private.key`), false);
   }
-  assert.match(workflow, /linux-appimage-qualification\/application-update-evidence\.json/);
-  assert.match(
-    workflow,
-    /install-linux-desktop-prerequisites\.sh --include-rpm --include-appimage-runtime --include-webdriver/,
-  );
-  assert.match(workflow, /cargo install tauri-driver --locked --version "\$version"/);
-  assert.match(workflow, /bootstrap-quality-tools\.ps1 -Desktop/);
-  assert.match(workflow, /installer-test\/run-\*\/renderer-qualification\/evidence\/\*\.json/);
-  assert.match(workflow, /windows-renderer-evidence\/\*\.json/);
-  assert.match(workflow, /windows-renderer-evidence\/\*\.png/);
-  assert.match(workflow, /renderer-qualification\/evidence\/\*\.json/);
-  assert.doesNotMatch(workflow, /renderer-qualification\/\*\*/);
   for (const file of ["Portcove_0.1.0_x64-setup.exe", "Portcove_0.1.0_x64-setup.exe.sig"])
     assert.ok(
       retained(`work/updater-rehearsal/qualified-0.1.0-bundles/nsis/${file}`),
       `loses installed predecessor ${file}`,
     );
   assert.equal(retained("work/updater-rehearsal/qualified-0.1.0-bundles/nsis/private.key"), false);
-  assert.match(workflow, /qualified-\*-bundles\/appimage\/\*\*/);
-  assert.match(workflow, /qualified-\*-bundles\/macos\/Portcove\.app\/\*\*/);
-  assert.match(
-    workflow,
-    /macos-installed-selection-qualification\/application-update-evidence\.json/,
-  );
-  assert.match(workflow, /macos-installed-selection-qualification\/state\/\*\.json/);
-  assert.doesNotMatch(workflow, /macos-installed-selection-qualification\/private\/\*\*/);
-  assert.match(workflow, /state\/update-state\/\*\.json/);
-  assert.match(workflow, /state\/library\/logs\/portcove-desktop\.jsonl\*/);
-  assert.doesNotMatch(workflow, /linux-appimage-qualification\/(?:private|state)\/\*\*/);
+  for (const required of [
+    "work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json",
+    "work/updater-rehearsal/installer-test/run-owned/renderer-qualification/evidence/evidence.json",
+    "work/updater-rehearsal/windows-renderer-evidence/renderer-update-evidence.json",
+    "work/updater-rehearsal/windows-renderer-evidence/native-processes-before-restart.json",
+    "work/updater-rehearsal/windows-renderer-evidence/before-restart.png",
+    "work/updater-rehearsal/windows-renderer-evidence/failure.png",
+    "work/updater-rehearsal/qualified-0.1.0-bundles/appimage/Portcove.AppImage",
+    "work/updater-rehearsal/qualified-0.1.0-bundles/macos/Portcove.app/Contents/MacOS/portcove-desktop",
+    "work/updater-rehearsal/macos-installed-selection-qualification/application-update-evidence.json",
+    "work/updater-rehearsal/macos-installed-selection-qualification/state/context.json",
+    "work/updater-rehearsal/linux-appimage-qualification/state/update-state/state.json",
+    "work/updater-rehearsal/macos-installed-selection-qualification/state/library/logs/portcove-desktop.jsonl",
+  ])
+    assert.ok(retained(required), `UPDATER_MANDATORY_EVIDENCE: ${required}`);
+  for (const rejected of [
+    "work/updater-rehearsal/installer-test/run-owned/renderer-qualification/private.key",
+    "work/updater-rehearsal/macos-installed-selection-qualification/private/disposable.key",
+    "work/updater-rehearsal/linux-appimage-qualification/private/disposable.key",
+    "work/updater-rehearsal/linux-appimage-qualification/state/private.key",
+  ])
+    assert.equal(retained(rejected), false, `UPDATER_PRIVATE_EVIDENCE: ${rejected}`);
   const lifecycle = await readFile(
     new URL("./test-windows-installer.ps1", import.meta.url),
     "utf8",
   );
-  assert.match(lifecycle, /\$InstallMode -eq "Passive".*"\/P"/);
-  assert.match(lifecycle, /\$predecessor.*"\/UPDATE"/);
-  assert.doesNotMatch(lifecycle, /@\(\$installFlag, "\/D=\$installRoot"\).*candidate_installer/);
-  assert.match(lifecycle, /DisplayVersion -ne \$ExpectedVersion/);
   assert.match(lifecycle, /HKEY_CURRENT_USER/);
   assert.match(lifecycle, /installed_update_truncated_stage/);
   assert.match(lifecycle, /installed_truncated_stage_rejected/);
   assert.match(lifecycle, /desktop-windows-update-test\.mts/);
-  assert.match(lifecycle, /ValidateSet\('official', 'embedded'\)/);
   assert.equal((lifecycle.match(/if \(\$RendererTransport -eq 'embedded'\)/g) ?? []).length, 2);
   assert.equal((lifecycle.match(/desktop-windows-embedded-preflight\.mts/g) ?? []).length, 2);
   assert.match(lifecycle, /\$rendererArguments \+= @\('--transport', \$RendererTransport\)/);
@@ -559,9 +726,6 @@ void test("manual rehearsal retains the complete matrix without production crede
     rehearsal,
     /\$qualifiedBundleName = "qualified-\$predecessorVersion-bundles"[\s\S]*Move-RehearsalInput \$bundleRoot \$qualifiedBundleName[\s\S]*\$predecessor = Join-Path \$runRoot[\s\S]*Invoke-Checked "dbus-run-session"/,
   );
-  assert.match(rehearsal, /ValidateSet\("legacy-adjacent", "legacy-skipped", "preview-final"\)/);
-  assert.match(rehearsal, /"1\.0\.0-rc\.2"/);
-  assert.match(rehearsal, /"1\.0\.0"/);
   assert.match(rehearsal, /-PredecessorVersion/);
   assert.match(rehearsal, /-CandidateVersion/);
   assert.match(rehearsal, /application-update-qualification/);
@@ -700,12 +864,9 @@ void test("manual rehearsal retains the complete matrix without production crede
   assert.doesNotMatch(linuxHarness, /WEBKIT_DISABLE_COMPOSITING_MODE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE/);
   assert.match(linuxHarness, /PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT/);
-  assert.match(linuxHarness, /schema_version = 15/);
   assert.match(linuxHarness, /& \$stable --portcove-qualify-update-stage \$truncatedCandidate/);
   assert.match(linuxHarness, /& \$stable --portcove-qualify-update-stage \$candidate/);
   assert.match(linuxHarness, /-- prepare-staged \$PredecessorVersion/);
-  assert.match(linuxHarness, /\$PredecessorVersion = "0\.1\.0"/);
-  assert.match(linuxHarness, /\$CandidateVersion = "0\.3\.0"/);
   assert.match(rehearsal, /wrong-disposable\.key/);
   assert.match(rehearsal, /repository\/missing-payload-signature/);
   assert.match(rehearsal, /repository\/wrong-payload-signature/);
@@ -911,6 +1072,107 @@ void test("manual rehearsal retains the complete matrix without production crede
   assert.match(rehearsal, /Invoke-Checked "dbus-run-session"/);
 });
 
+void test("updater workflow caller binds every platform and transition while preserving historical scope", async () => {
+  const source = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  for (const contract of updaterWorkflowVariants(source, releaseLabels(policy))) {
+    const profiles = ["legacy-adjacent", "legacy-skipped", "preview-final"];
+    const scopes = [];
+    for (const requested of ["all", ...releaseLabels(policy)])
+      for (const profile of profiles)
+        for (const historical of [false, true])
+          scopes.push({
+            requested,
+            profile,
+            historical,
+            bindings: {
+              "inputs.platform": requested,
+              "inputs.transition_profile": profile,
+              "inputs.historical_linux_bootstrap": String(historical),
+            },
+          });
+    const decisions = observeHistoricalScope(contract.historicalScope.step, scopes);
+    for (const [index, entry] of scopes.entries())
+      assert.equal(
+        decisions[index]?.admitted,
+        !entry.historical ||
+          (entry.requested === "linux-x86_64" && entry.profile !== "preview-final"),
+        "UPDATER_HISTORICAL_SCOPE",
+      );
+    const offered = [];
+    for (const label of releaseLabels(policy))
+      for (const profile of profiles)
+        for (const historical of [false, true]) {
+          if (historical && (label !== "linux-x86_64" || profile === "preview-final")) continue;
+          offered.push({
+            label,
+            profile,
+            historical,
+            bindings: {
+              ["matrix." + contract.axis]: label,
+              "inputs.transition_profile": profile,
+              "inputs.historical_linux_bootstrap": String(historical),
+            },
+          });
+        }
+    const observations = observeUpdaterCaller(
+      contract.rehearsal.step,
+      "rehearse-updater-artifacts.ps1",
+      offered,
+    );
+    assert.deepEqual(
+      observations,
+      offered.map(({ label, profile, historical }) => ({ platform: label, profile, historical })),
+      "UPDATER_REHEARSAL_ARGUMENT_BINDING",
+    );
+  }
+});
+
+void test("updater workflow native driver calls consume the repository pins and public bootstrap flags", async () => {
+  const source = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  for (const contract of updaterWorkflowVariants(source, releaseLabels(policy))) {
+    assert.deepEqual(
+      prerequisiteInvocation(String(contract.linuxPrerequisite.step.run)).toSorted(),
+      ["--include-rpm", "--include-appimage-runtime", "--include-webdriver"].toSorted(),
+      "UPDATER_LINUX_DEPENDENCIES",
+    );
+    const bootstrap = await readFile(
+      new URL("../.config/tool-bootstrap.json", import.meta.url),
+      "utf8",
+    );
+    const version = text(object(object(JSON.parse(bootstrap)).desktop).tauri_driver);
+    const arguments_ = observeLinuxDriver(contract.linuxDriver.step, bootstrap);
+    assert.deepEqual(arguments_.slice(0, 2), ["install", "tauri-driver"]);
+    const options = arguments_.slice(2);
+    assert.equal(options.length, 3);
+    assert.equal(options.filter((value) => value === "--locked").length, 1);
+    const at = options.indexOf("--version");
+    assert.ok(at >= 0);
+    assert.equal(options[at + 1], version, "UPDATER_PINNED_DRIVER_VERSION");
+    const alternate = object(JSON.parse(bootstrap));
+    object(alternate.desktop).tauri_driver = version === "0.0.1" ? "0.0.2" : "0.0.1";
+    const alternativeArguments = observeLinuxDriver(
+      contract.linuxDriver.step,
+      JSON.stringify(alternate),
+    );
+    assert.equal(
+      alternativeArguments[alternativeArguments.indexOf("--version") + 1],
+      object(alternate.desktop).tauri_driver,
+      "UPDATER_PIN_INPUT_CONSUMED",
+    );
+    assert.deepEqual(
+      observeUpdaterCaller(contract.windowsDriver.step, "bootstrap-quality-tools.ps1", [
+        { bindings: {} },
+      ]),
+      [{ desktop: true }],
+      "UPDATER_WINDOWS_DESKTOP_BOOTSTRAP",
+    );
+  }
+});
+
 void test("packaged transition and evidence contracts execute exact profile semantics", () => {
   const rehearsalCases: {
     profile: string;
@@ -998,7 +1260,11 @@ void test("packaged transition and evidence contracts execute exact profile sema
       "-DescribeTransition",
     ]);
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), expected);
+    assert.deepEqual(
+      JSON.parse(result.stdout),
+      expected,
+      `UPDATER_TRANSITION_METADATA:${platform}:${profile}`,
+    );
   }
 
   const invalid = runPowerShellScript("./rehearse-updater-artifacts.ps1", [
@@ -1008,8 +1274,45 @@ void test("packaged transition and evidence contracts execute exact profile sema
     "not-a-transition",
     "-DescribeTransition",
   ]);
-  assert.notEqual(invalid.status, 0);
+  assert.equal(invalid.status, 1, "UPDATER_INVALID_PROFILE_REFUSAL");
   assert.match(invalid.stderr, /Cannot validate argument.*TransitionProfile/);
+
+  const rehearsalPath = fileURLToPath(new URL("./rehearse-updater-artifacts.ps1", import.meta.url));
+  const metadata = spawnSync(
+    "pwsh",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      `
+$ErrorActionPreference = 'Stop'
+$command = Get-Command -Name '${rehearsalPath.replaceAll("'", "''")}'
+$sets = @($command.Parameters['TransitionProfile'].Attributes | Where-Object { $_ -is [Management.Automation.ValidateSetAttribute] })
+if ($sets.Count -ne 1) { throw 'Exactly one TransitionProfile validation set is required' }
+ConvertTo-Json -InputObject @($sets[0].ValidValues) -Compress
+`,
+    ],
+    { encoding: "utf8", timeout: 10000 },
+  );
+  assert.equal(metadata.status, 0, `UPDATER_PROFILE_METADATA_COMPLETION: ${metadata.stderr}`);
+  assert.deepEqual(
+    array(JSON.parse(metadata.stdout)).map(text).sort(),
+    ["legacy-adjacent", "legacy-skipped", "preview-final"],
+    "UPDATER_PROFILE_ENUM",
+  );
+
+  const defaults = runPowerShellScript("./test-linux-appimage-update.ps1", ["-DescribeContract"]);
+  assert.equal(defaults.status, 0, defaults.stderr);
+  assert.deepEqual(
+    JSON.parse(defaults.stdout),
+    {
+      schema_version: 15,
+      predecessor_version: "0.1.0",
+      candidate_version: "0.3.0",
+    },
+    "UPDATER_DEFAULT_EVIDENCE_CONTRACT",
+  );
 
   const evidence = runPowerShellScript("./test-linux-appimage-update.ps1", [
     "-DescribeContract",
@@ -1019,11 +1322,15 @@ void test("packaged transition and evidence contracts execute exact profile sema
     "1.0.0",
   ]);
   assert.equal(evidence.status, 0, evidence.stderr);
-  assert.deepEqual(JSON.parse(evidence.stdout), {
-    schema_version: 15,
-    predecessor_version: "1.0.0-rc.2",
-    candidate_version: "1.0.0",
-  });
+  assert.deepEqual(
+    JSON.parse(evidence.stdout),
+    {
+      schema_version: 15,
+      predecessor_version: "1.0.0-rc.2",
+      candidate_version: "1.0.0",
+    },
+    "UPDATER_OVERRIDE_EVIDENCE_CONTRACT",
+  );
 });
 
 void test(
@@ -1190,9 +1497,6 @@ function text(value: unknown): string {
   assert.ok(typeof value === "string");
   return value;
 }
-function strings(value: unknown): string[] {
-  return array(value).map(text);
-}
 function first<T>(values: readonly T[]): T {
   const value = values[0];
   assert.ok(value !== undefined);
@@ -1256,4 +1560,73 @@ $stageExit=$LASTEXITCODE
   assert.equal(observed.stage_exit, 0);
   assert.match(text(observed.selection_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
   assert.match(text(observed.stage_stderr), /Portcove WebView runtime version: 2\.52\.6/u);
+});
+
+void test("retained Linux reboot admits only its frozen independent mode and public evidence", async () => {
+  const source = await readWorkflow(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+  );
+  const contract = updaterWorkflow(source, releaseLabels(policy));
+  const baseline = {
+    PLATFORM: "linux-x86_64",
+    PROFILE: "legacy-skipped",
+    LINUX_RUNNER: "ubuntu-24.04",
+    HISTORICAL: "false",
+  };
+  assert.equal(observeRetainedRebootScope(contract.retainedReboot.scope.step, baseline), 0);
+  for (const [key, value] of Object.entries({
+    PLATFORM: "all",
+    PROFILE: "adjacent",
+    LINUX_RUNNER: "ubuntu-26.04",
+    HISTORICAL: "true",
+  })) {
+    assert.notEqual(
+      observeRetainedRebootScope(contract.retainedReboot.scope.step, { ...baseline, [key]: value }),
+      0,
+    );
+  }
+  const mutations: ((workflow: Record<string, unknown>) => void)[] = [
+    (w) => {
+      object(object(object(w.on).workflow_dispatch).inputs).retained_reboot_only = {
+        type: "boolean",
+        default: true,
+      };
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).if = "always()";
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).needs = "packages";
+    },
+    (w) => {
+      object(object(w.jobs)["linux-retained-reboot"]).permissions = {
+        contents: "read",
+        actions: "write",
+      };
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(object(steps[3]).with).ref = "main";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(steps[12]).run = "python3 scripts/qualification/linux-reboot/controller.py";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(steps[13]).if = "success()";
+    },
+    (w) => {
+      const steps = array(object(object(w.jobs)["linux-retained-reboot"]).steps);
+      object(object(steps[14]).with).path = "work/";
+    },
+  ];
+  for (const mutate of mutations) {
+    const changed = structuredClone(contract.workflow);
+    mutate(changed);
+    assert.throws(
+      () => updaterWorkflow(JSON.stringify(changed), releaseLabels(policy)),
+      assert.AssertionError,
+    );
+  }
 });

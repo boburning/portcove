@@ -28,12 +28,15 @@ export function runDesktopModuleFixture(
   entry: URL,
   program: string,
   control?: { exportName: string; variant: "aliased" | "wrong-export" },
-  reply?: { command: string; value: Record<string, unknown> },
+  reply?:
+    | { command: string; value: Record<string, unknown> }
+    | { command: string; value: Record<string, unknown> }[],
 ) {
-  if (reply !== undefined) {
-    assert.ok(typeof reply.command === "string" && reply.command.length > 0);
+  const replies = reply === undefined ? [] : Array.isArray(reply) ? reply : [reply];
+  for (const entry of replies) {
+    assert.ok(typeof entry.command === "string" && entry.command.length > 0);
     assert.ok(
-      reply.value !== null && typeof reply.value === "object" && !Array.isArray(reply.value),
+      entry.value !== null && typeof entry.value === "object" && !Array.isArray(entry.value),
     );
   }
   const environment = { ...process.env };
@@ -54,21 +57,23 @@ export function runDesktopModuleFixture(
         const inertTransportReply=${JSON.stringify(reply ?? null)};
         const forbidden=()=>{throw Error('Native process execution is forbidden in this fixture');};
         process.kill=forbidden;
+        globalThis.fetch=()=>{throw Error('Uncontrolled fixture network work is forbidden');};
         mock.module('node:child_process',{namedExports:Object.fromEntries(
           Object.entries(childProcess).filter(([name])=>name!=='default').map(([name,value])=>
             [name,typeof value==='function'?forbidden:value])
         )});
-        // Actual IPC replies remain forbidden. One explicitly declared inert
-        // producer object may cross by identity for a selected caller contract.
+        // Actual IPC and schema admission remain forbidden. Only declared inert
+        // command/object-identity pairs may cross the selected fixture boundary.
+        const permittedReplies=Array.isArray(inertTransportReply)?inertTransportReply:inertTransportReply?[inertTransportReply]:[];
         mock.module(new URL('./transport-values.mts',entry).href,{namedExports:{
           transportValue:(command,value)=>{
-            if(!inertTransportReply||command!==inertTransportReply.command||value!==inertTransportReply.value)return forbidden();
+            if(!permittedReplies.some(reply=>command===reply.command&&value===reply.value))return forbidden();
             return value;
           },transportValues:forbidden,
         }});
         registerHooks({resolve(specifier,context,next){
           if(specifier==='selenium-webdriver')return {url:'data:text/javascript,'+encodeURIComponent(
-            'export class WebDriver{};export const By={css:value=>({using:"css selector",value}),xpath:value=>({using:"xpath",value}),id:value=>({using:"id",value})};export const Key={};export const until={elementLocated:value=>value,elementIsVisible:element=>({fn:()=>element.isDisplayed()}),elementIsEnabled:element=>({fn:()=>element.isEnabled()})};'
+            'export class WebDriver{};export const By={css:value=>({using:"css selector",value}),xpath:value=>({using:"xpath",value}),id:value=>({using:"id",value})};export const Key={COMMAND:"fixture-command",CONTROL:"fixture-control",BACK_SPACE:"fixture-backspace",chord:(...keys)=>keys.join("+")};export const until={elementLocated:value=>value,elementIsVisible:element=>({fn:()=>element.isDisplayed()}),elementIsEnabled:element=>({fn:()=>element.isEnabled()})};'
           ),shortCircuit:true};
           if(specifier==='axe-core')return {url:'data:text/javascript,export default {}',shortCircuit:true};
           return next(specifier,context);

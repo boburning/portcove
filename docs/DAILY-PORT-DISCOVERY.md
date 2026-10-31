@@ -49,12 +49,58 @@ Actions checks complete open/closed issue and active/archived Project coverage,
 authored catalog lineage and immutable primary identity before publishing a
 bot-authored plan on #177. It refreshes complete upstream release/selected-asset
 pagination and pinned README evidence through the maintained investigator. The
-plan contains the exact proposed bodies, primary bindings and `plan_sha256`.
+plan binds the exact proposed bodies, primary bindings and `plan_sha256`.
+New receipts use `plan_encoding: proposal-bound-v1`: each ordered descriptor
+records the candidate index/key, body hash and primary evidence bindings rather
+than repeating the proposal text and rendered body. Reconstruct the body with
+the maintained `hostedBody` renderer from the exact hash-matching proposal;
+the recorded body hash must match before recovery or completion readback.
+Legacy full-plan receipts remain readable and completed receipts are not rewritten.
 The same invocation then applies the bound proposal automatically. Port metadata
 intake requires no separate model reviewer or review attestation. The owner
 confirmed this policy on October 28, 2026. Software changes retain the repository's
 independent review and CI requirements. Changed request or primary evidence stops
 delivery; prepare a fresh proposal instead of overwriting an in-flight issue.
+
+A partly created batch whose primary evidence changes can use an explicit owner
+reconciliation. After the finite old Actions job terminates, withdraw its owner
+proposal by prepending a dated explanation while retaining the original proposal
+verbatim at the end. Keep the old bot receipt untouched. Submit one new full-batch
+proposal with **identical ordered candidates and body text**, adding this optional
+object alongside `schema_version`, `kind`, `investigator` and `candidates`:
+
+```json
+{
+  "reconcile": {
+    "request_comment": 123,
+    "request_sha256": "64-lowercase-hex-original-proposal-body-hash",
+    "receipt_comment": 456,
+    "receipt_sha256": "64-lowercase-hex-exact-bot-comment-body-hash",
+    "plan_sha256": "64-lowercase-hex-original-plan-hash"
+  }
+}
+```
+
+These example hash placeholders must be replaced with actual SHA-256 digests.
+The executor requires that exact withdrawn owner source, one exact bot receipt,
+its original request/plan/body bindings and at least one confirmed canonical ID.
+It rejects reordered, dropped, added or revised candidate bodies. Reconciliation
+reaffirms the dated candidate facts; material factual corrections still require
+separate guarded canonical issue maintenance. A pending candidate whose facts
+are no longer accurate stays held; this route cannot capture stale prose merely
+to correct it afterwards. A fresh primary plan is bound to
+the new request and receipt. `body_request_comment` retains the original request's
+creation markers; all confirmed IDs and unconfirmed `create-attempted` states
+carry forward unchanged. This is not permission to recapture an uncertain write.
+Only a confirmed matching marker recovers that intent; ambiguous absence remains
+held. A positive retained proof that POST was never dispatched can support an
+explicit operator repair through maintained capture, complete identity readback,
+neutral fields and doctor, but an absent issue alone cannot supply that proof.
+The successor rechecks exact source preimages during delivery, all carried issue
+bodies/owners/fields and every affected doctor. It keeps the entire logical batch
+and any final full-doctor obligation. Old receipts remain historical incomplete
+evidence, never rewritten to claim success. This route adds no automatic evidence
+rebinding, provider retry, scheduler or model reviewer.
 
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
@@ -66,13 +112,46 @@ refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify before the
 receipt says `complete`. A logical batch over ten retains its final full doctor.
 Scoped receipts retain `global_health: not_evaluated`.
+The existing Actions job owns bounded continuation; the hosted chat need not
+notice and rerun ordinary temporary holds. It runs at most three joined worker
+passes, each with the existing cold quota/byte/time envelope and fresh queue,
+primary and inventory reads. Only typed inventory movement or budget admission
+holds with no unconfirmed mutation can continue. Each pass preserves its own
+diagnostics. Eligible requests at an exhausted queue tail run first next pass;
+a repeated budget hold without semantic delivery progress stops. Queue collection
+revision drift can restart a read-only pass. Missing/inconsistent reports, killed
+workers, provider/auth/identity/owner conflicts, ambiguous writes and failed
+receipt readbacks stop automatic recovery. Independent requests may still finish;
+any held request keeps the overall job incomplete. The job has a finite 100-minute
+outer timeout; no new workflow, timer, credential scope or API retry is introduced.
+After the bound, report the exact remaining blocker and resume the same receipt
+through the ordinary process entry point. No bounded mechanism guarantees
+eventual completion during continual upstream/owner changes or unavailable APIs.
 Routine hosted intake uses an explicit capability of the maintained inventory:
 complete repository issue bodies and two complete archive-inclusive Project
 membership traversals must agree on exact item/content identities and archive
 state. Unrelated planning fields and dependencies remain Unknown, so ordinary
 field/view edits elsewhere on the board do not invalidate that membership proof.
 Existing recovery targets receive fresh complete direct field reads; missing
-field coverage cannot be interpreted as an unset value. The normal collector
+field coverage cannot be interpreted as an unset value.
+Repository comment activity also moves issue `updatedAt`. Intake keeps the complete
+all-state issue/body baseline, then enumerates every updated issue through
+[GitHub's inclusive `since` filter](https://docs.github.com/en/graphql/reference/issues#issuefilters),
+starting at the initial server issue watermark, including its equal-second rows.
+Every filtered page, opaque ID and total must verify under the same repository
+identity; the short read is bracketed by an unchanged latest-update marker and
+repository count. All returned full bodies, titles, states, URLs and issue
+identities must exactly match the baseline. Missing boundary/latest records,
+regressing timestamps, membership changes or real semantic edits fail closed.
+Only independently proved timestamp-only changes are accepted; no body or owner
+change is ignored. Selected targets still require fresh exact full bodies and
+complete fields. Full/global inventory retains its strict revision contract.
+Warm hosted preflight admits the existing thin inventory plus a conservative
+whole-corpus delta envelope and bounded diagnostic headroom before reading it.
+This preserves capacity to restore a prepared intent when the existing budget
+cannot fit confirmation. Actual delta reads remain charged; no retry, larger
+physical budget or extra worker pass is introduced.
+The normal collector
 and inventory-backed doctors still require full coverage. A large batch obtains
 a fresh full inventory for its global doctor; the intake projection cannot
 satisfy that check. Repository revision, membership, provider and budget guards
@@ -443,6 +522,17 @@ zero quota also retain backoff. Lower-priority API work stops at observed provid
 delivery headroom as well as the local request/byte reserve. No failed request
 is automatically retried and no identity is switched.
 
+Each configured credential retains its own quota observations in the same budget
+ledger; shared admission uses conservative capacity. An observed window expiring
+does not restore the startup request estimate or erase charged usage. Before more
+work, the transport permits one charged, authenticated `GET /rate_limit` per quota
+generation, capped at one request and 16 KiB inside the existing time, byte and
+backoff bounds. All required resource observations must be complete and fresh;
+failed, malformed or stale observations stop without retrying the pending request.
+A previously admitted successful response remains recordable across a quota reset;
+the next operation requires fresh capacity. This does not change ambiguous POST
+recovery, physical envelopes or the requirement to retain confirmed identities.
+
 | `op`           | Additional message fields and completion criterion                                                                                                                                                                                                         |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                                       |
@@ -713,8 +803,14 @@ Keep the detailed specification here. Do not launch a second product writer.
 Primary research retains exact successful GET positions and collection links in
 `active-run.json` under `research_progress`, with a 32 MiB physical envelope.
 Numeric repository identity, canonical repository scope, page identities and
-sequential provider-only continuation links remain mandatory. Interrupted
-release/asset listings, tag resolution and pinned documentation continue from
+sequential provider-only continuation links remain mandatory.
+GitHub release/asset pagination may use the numeric `/repositories/<id>/`
+alias only when it matches the freshly observed immutable primary repository ID
+and the exact release or selected-release-assets collection. Page sequence,
+page size, origin and query checks still apply. Accepted aliases normalize to
+the original named request path so retained research evidence and conditional
+validation keep their existing repository binding.
+Interrupted release/asset listings, tag resolution and pinned documentation continue from
 accepted reads. A resumed collection performs a checkpointed conditional
 validation pass before returning complete research evidence. Changed pages reset
 that collection; corrupt or changed repository identities refuse. Accepted

@@ -507,6 +507,127 @@ async fn authored_download_restriction_blocks_options_preview_and_mutation_befor
     assert!(service.pending_setups().unwrap().is_empty());
 }
 
+async fn assert_embedded_player_download_holds(ids: &[&str]) {
+    assert_embedded_listing_download_holds(ids, true).await;
+}
+
+async fn assert_embedded_listing_download_holds(ids: &[&str], expected_manual_setup: bool) {
+    for &id in ids {
+        let (_temporary, mut service, mut request) = fixture();
+        service.catalog = Catalog::embedded().unwrap();
+        request.port_id = id.into();
+        assert!(service.catalog.port(id).is_err());
+        assert_eq!(
+            service.catalog.listing(id).unwrap().manual_setup.is_some(),
+            expected_manual_setup
+        );
+        let reason = service
+            .catalog
+            .listing(id)
+            .unwrap()
+            .download_block_reason
+            .clone()
+            .unwrap();
+        let upstream = GithubFixture::new(archive(), None, None);
+        let options = service
+            .catalog_download_options_with_provider(id, None, None, Some(&upstream.provider))
+            .await
+            .unwrap();
+        assert!(!options.allowed);
+        assert_eq!(options.reason.as_deref(), Some(reason.as_str()));
+        assert!(options.candidates.is_empty());
+        assert!(options.coverage.is_none());
+        let error = service
+            .catalog_download_preview_with_provider(&request, &upstream.provider)
+            .await
+            .unwrap_err();
+        assert_eq!(error.message, reason);
+        let error = service
+            .download_catalog_package_with_provider(
+                &request,
+                &"a".repeat(64),
+                |_| {},
+                &upstream.provider,
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.message, reason);
+        assert_eq!(upstream.requests.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            fs::read_dir(&request.destination_parent).unwrap().count(),
+            0
+        );
+        assert!(service.pending_setups().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn embedded_cannonball_listing_routes_keep_download_hold_before_network() {
+    assert_embedded_player_download_holds(&["cannonball-outrun", "cannonball-dx-outrun"]).await;
+}
+
+#[tokio::test]
+async fn embedded_psx_permitted_players_keep_download_hold_before_network() {
+    assert_embedded_player_download_holds(&[
+        "mstan-battle-arena-toshinden-recomp",
+        "novapowers0-bloody-roar-ii-recomp",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn embedded_mmx_source_player_keeps_package_hold_before_network() {
+    assert_embedded_player_download_holds(&["mega-man-x-snes-recomp"]).await;
+}
+
+#[tokio::test]
+async fn embedded_retained_acquisition_holds_refuse_before_network() {
+    assert_embedded_listing_download_holds(
+        &[
+            "pokemon-yellow-recomp",
+            "zelda-link-s-awakening-dx-hd",
+            "star-wars-shadows-of-the-empire-n64-sote-recomp",
+        ],
+        false,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn embedded_ps1_selected_package_permission_holds_refuse_before_network() {
+    assert_embedded_player_download_holds(&["rage-racer-rage-racer-pc"]).await;
+    assert_embedded_listing_download_holds(
+        &["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"],
+        false,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn embedded_vandal_component_permission_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["vandal-hearts-vandalhearts-pcport"], false).await;
+}
+
+#[tokio::test]
+async fn embedded_skate3_package_use_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["skate-3-recomp"], true).await;
+}
+
+#[tokio::test]
+async fn embedded_dprecomp_shader_component_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["deadly-premonition-dprecomp"], true).await;
+}
+
+#[tokio::test]
+async fn embedded_kameo_linked_binary_permission_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["kameo-repowered"], true).await;
+}
+
+#[tokio::test]
+async fn embedded_ackman_translation_component_hold_refuses_before_network() {
+    assert_embedded_listing_download_holds(&["go-go-ackman-go-go-ackman-recompiled"], true).await;
+}
+
 #[tokio::test]
 async fn newly_restricted_listing_invalidates_an_earlier_download_review_without_publication() {
     let (_temporary, mut service, request) = fixture();
@@ -1504,4 +1625,14 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
         changed.archive_sha256.is_empty(),
         "external replacement is not authenticated ownership"
     );
+}
+
+#[tokio::test]
+async fn ambermoon_bundled_content_acquisition_hold_keeps_permitted_copy_guide_before_network() {
+    assert_embedded_player_download_holds(&["ambermoon-ambermoon-net"]).await;
+}
+
+#[tokio::test]
+async fn embedded_metroid_prime_excluded_game_sdk_hold_keeps_prepared_guide_before_network() {
+    assert_embedded_player_download_holds(&["odrannnn-metroidprimeport"]).await;
 }

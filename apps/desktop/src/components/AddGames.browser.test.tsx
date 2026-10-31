@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -8,6 +9,7 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { sourceProfile } from "../test-fixtures";
+import { THEME_STORAGE_KEY } from "../theme";
 vi.mock("../file-picker", { spy: true });
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -47,6 +49,7 @@ it("retains the selected game and search through details, navigation and closing
   await expect
     .element(page.getByRole("button", { name: "Review setup for Harbor Adventure" }))
     .toHaveFocus();
+  await captureParityState("add-games-selected-return-fixture");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page
     .getByRole("navigation", { name: "Primary navigation" })
@@ -84,13 +87,15 @@ it("uses the selected profile's existing inspection, preserves failures and rest
   await expect.element(page.getByRole("alert")).toMatchTextContent("Unsupported owned input");
   expect(choose).toHaveBeenCalledWith(profile, "", "game");
   expect(inspect).toHaveBeenCalledExactlyOnceWith(profile.id, ["E:/owned/未知.iso"]);
+  await captureParityState("add-games-source-failed-fixture");
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect.element(page.getByRole("button", { name: "Choose files to check…" })).toHaveFocus();
+  await captureParityState("add-games-source-opener-restored-fixture");
 });
 it.each(["dark", "light"])(
   "keeps the %s chooser readable at 240px and exposes no duplicated search IDs",
   async (theme) => {
-    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
     await page.viewport(240, 800);
     await mount();
     await page.getByRole("button", { name: "Choose a game or port", exact: true }).click();
@@ -101,6 +106,8 @@ it.each(["dark", "light"])(
     await expect
       .element(page.getByRole("status").filter({ hasText: "No game or port matches" }))
       .toBeVisible();
+    await expect.poll(() => document.documentElement.dataset.theme).toBe(theme);
+    await captureParityState("add-games-search-no-match-fixture");
   },
 );
 

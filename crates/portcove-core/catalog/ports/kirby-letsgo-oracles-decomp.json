@@ -3,11 +3,32 @@
   "listing": {
     "id": "kirby-letsgo-oracles-decomp",
     "name": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons / Oracles Decomp (kirby-letsgo)",
-    "summary": "Explore The Legend of Zelda: Oracle of Ages / Oracle of Seasons / Oracles Decomp (kirby-letsgo) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "A native Oracles engine for your own Oracle of Ages and Oracle of Seasons data.",
     "project_url": "https://github.com/kirby-letsgo/oracles-decomp",
     "issue_number": 1863,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/kirby-letsgo/oracles-decomp"
+    "setup_url": "https://github.com/kirby-letsgo/oracles-decomp",
+    "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "asset_hints": {
+        "windows-x86-64": ["oracles-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Oracles.exe"]
+    },
+    "persistent_paths": ["portable.txt", "oracles-data", "oracles-data.part"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance."
+    }
   }
 }

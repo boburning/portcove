@@ -107,5 +107,15 @@ it("audits the long-identity details state with all default rules", async (conte
   const root = await mount("dark", 320);
   await page.getByRole("button", { name: /^View details for The Very Long Voyage/ }).click();
   await expect.element(page.getByRole("heading", { name: /^The Very Long Voyage/ })).toHaveFocus();
+  const title = document.getElementById("port-detail-title")!;
+  const plate = title.closest(".game-hero-content")!.getBoundingClientRect();
+  const text = document.createRange();
+  text.selectNodeContents(title);
+  for (const line of text.getClientRects()) {
+    expect(line.top).toBeGreaterThanOrEqual(plate.top);
+    expect(line.bottom).toBeLessThanOrEqual(plate.bottom);
+    expect(line.left).toBeGreaterThanOrEqual(plate.left);
+    expect(line.right).toBeLessThanOrEqual(plate.right);
+  }
   await auditAccessibility(root, "details/long-identity/dark/320", context);
 }, 45_000);

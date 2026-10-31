@@ -1,3 +1,4 @@
+import { inspectPublicBuildInputBinding } from "./release-public-build-binding-contract.mts";
 /** Fixed public context handoff. Hashes and ZIP parsing alone establish no
  * eligibility: only the existing controller attestation/provider join may admit
  * a transferred context, and each role still needs its own fresh controls. */
@@ -222,8 +223,19 @@ export function inspectSigningContextArchive(raw: Buffer) {
         ? "aggregate_sha256,native_proofs,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version"
         : "aggregate_sha256,native_checks,pending_obligations,records_sha256,run_attempt,run_id,sbom_sha256,signatures_sha256,source_commit,source_tree,version",
     );
-    if (Object.hasOwn(manifest.binding, "native_proofs"))
-      inspectHostedNativeTransportIdentities(manifest.binding.native_proofs);
+    if (Object.hasOwn(manifest.binding, "native_proofs")) {
+      const assembly =
+        isRecord(manifest.facts) && isRecord(manifest.facts.assembly)
+          ? manifest.facts.assembly
+          : null;
+      const profile = assembly?.release_profile ?? "initial-beta-win-linux";
+      if (profile === "initial-beta-windows-x86_64-v1") {
+        if (assembly?.schema_version !== 3)
+          throw new Error("Windows context requires bound public input assembly");
+        inspectPublicBuildInputBinding(assembly.public_build_inputs, profile);
+      }
+      inspectHostedNativeTransportIdentities(manifest.binding.native_proofs, profile);
+    }
     for (const name of ["aggregate_sha256", "records_sha256", "sbom_sha256", "signatures_sha256"])
       sha(manifest.binding[name]);
   }

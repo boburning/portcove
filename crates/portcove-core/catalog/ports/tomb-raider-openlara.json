@@ -9,7 +9,36 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/XProger/OpenLara",
-    "issue_number": 2904
+    "issue_number": 2904,
+    "manual_setup": {
+      "help_url": "https://github.com/XProger/OpenLara/tree/f145f0b9892ad2c509210d2b09f124a39fa79b7f",
+      "steps": [
+        {
+          "title": "Prepare a coherent Tomb Raider I PC copy upstream",
+          "instruction": "Use a permitted, already working OpenLara Windows copy with your own original Tomb Raider I PC retail data. The reviewed source detects DATA/GYM.PHD (or the root GYM.PHD fallback) and loads PC DATA/<LEVEL>.PHD files. Preserve the complete same-edition data; PlayStation/Saturn and later Tomb Raider branches are different tuples, not substitutes. Web demos and screenshots are not retail qualification."
+        },
+        {
+          "title": "Keep the completed audio/video preparation",
+          "instruction": "Retain the already prepared original music/audio tracks and cutscenes in the layout used by that copy. Selected TR1 PC lookup supports track_XX or remapped numbered .ogg/.mp3/.wav files in audio/1, audio or the configured root; FMV/video lookup and the actual codec must agree. Keep the working edition’s original naming/mapping instead of mixing console tracks with PC data. Complete any permitted conversion upstream; no original acquisition or converter is run here."
+        },
+        {
+          "title": "Select the player and preserve the whole profile",
+          "instruction": "Select native OpenLara.exe with the creating data/game directory as working directory and established literal arguments (an optional first level path is not a universal data-directory flag). Retain the whole runtime, originals, audio/video and current account’s AppData/OpenLara profile/cache, including savegame.dat, settings and custom files. Keep actual fallback/alternate locations and compatible old engine; full campaign, patch-variant and backward-save behavior are unverified. The moving latest Windows package lacks an independently published accepted digest for managed installation."
+        },
+        {
+          "title": "Review the prepared executable and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+        },
+        {
+          "title": "Keep one replacement owner and preserve all data",
+          "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+        "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

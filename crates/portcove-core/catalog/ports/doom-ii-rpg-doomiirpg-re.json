@@ -6,7 +6,6 @@
     "summary": "Play Doom II RPG with the upstream Windows player and your original iOS game package.",
     "project_url": "https://github.com/Erick194/DoomIIRPG-RE",
     "issue_number": 370,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Erick194/DoomIIRPG-RE#readme",
     "artwork": {
@@ -30,6 +29,10 @@
         {
           "title": "Select the player and keep your saves",
           "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+        },
+        {
+          "title": "Keep external ownership and deliberate Play",
+          "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
       "warnings": [],
@@ -40,5 +43,35 @@
       "windows-x86-64": ["DoomIIRPG.", ".zip"]
     },
     "original_game_title": "Doom II RPG"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "Erick194/DoomIIRPG-RE",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Keep your permitted original Doom 2 RPG.ipa beside DoomIIRPG.exe, using that exact filename. This player reads the iOS package; BREW/J2ME rendering or cheat descriptions do not establish alternate game-data support. Extract the complete Windows ZIP into a separate working folder. Upstream requires OpenAL 1.1 on Windows; use its documented runtime installation if it is missing. Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates. Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+    }
   }
 }

@@ -709,7 +709,7 @@ export async function sourceDialogScenario({
       await browser.findElement(discoveryDialog),
     );
     const selectTrigger = await browser.findElement(
-      By.xpath('//button[contains(., "Required files")]'),
+      By.css('#source-profile-select[role="combobox"]'),
     );
     await selectTrigger.sendKeys(Key.ENTER);
     const openSelect = By.css('[data-slot="select-content"][data-open]');
@@ -802,7 +802,7 @@ export async function sourceDialogScenario({
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     await click(
       By.xpath(
-        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
       ),
     );
     const sourceActivity = By.xpath(
@@ -854,7 +854,7 @@ export async function sourceDialogScenario({
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     await click(
       By.xpath(
-        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="History"]',
+        '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="History"]]',
       ),
     );
     const discoveryActivity = By.xpath(
@@ -1438,7 +1438,10 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
     const enabled = async (locator: Parameters<WebDriver["findElements"]>[0]) =>
       browser.wait(async () => {
         const matches = await browser.findElements(locator);
-        return matches.length === 1 && matches[0] !== undefined && (await matches[0].isEnabled())
+        return matches.length === 1 &&
+          matches[0] !== undefined &&
+          (await matches[0].isEnabled()) &&
+          (await matches[0].getAttribute("aria-disabled")) !== "true"
           ? matches[0]
           : false;
       }, 15_000);
@@ -1501,8 +1504,11 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
       const row = await browser.wait(until.elementLocated(rowLocator), 5_000);
       assert.match(await row.getText(), /Validation has not run\./);
       assert.equal(
-        (await browser.findElements(By.css(`input[data-setup-review-port="${fixture.port.id}"]`)))
-          .length,
+        (
+          await browser.findElements(
+            By.css(`[role="checkbox"][data-setup-review-port="${fixture.port.id}"]`),
+          )
+        ).length,
         0,
       );
       const opener = await row.findElement(By.css("[data-candidate-review]"));
@@ -1552,7 +1558,9 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
           (await browser.findElements(By.css('[aria-label="Source import review"]'))).length === 0,
         15_000,
       );
-      const checkboxLocator = By.css(`input[data-setup-review-port="${fixture.port.id}"]`);
+      const checkboxLocator = By.css(
+        `[role="checkbox"][data-setup-review-port="${fixture.port.id}"]`,
+      );
       const checkbox = await enabled(checkboxLocator);
       assert.ok(checkbox);
       const registered = await read("get_sources");
@@ -1767,7 +1775,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
       await click(By.css("[data-detail-back]"));
       const returned = await enabled(checkboxLocator);
       assert.ok(returned);
-      assert.equal(await returned.isSelected(), true);
+      assert.equal(await returned.getAttribute("aria-checked"), "true");
       await enabled(button(`Review ${fixture.port.name} setup`));
       await browser.wait(
         () =>

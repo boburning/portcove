@@ -9,7 +9,36 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/1oom-fork/1oom",
-    "issue_number": 2883
+    "issue_number": 2883,
+    "manual_setup": {
+      "help_url": "https://github.com/1oom-fork/1oom/tree/a956a6f73f75e6cd26b701afcd04bd4973650520",
+      "steps": [
+        {
+          "title": "Choose the actual vanilla RC5 lineage",
+          "instruction": "Use a permitted completed Windows copy of the reviewed 1oom vanilla-RC5 beta/testing package and your own Master of Orion version 1.3 LBX data. The exact tag and current master-vanilla-beta-RC5 branch resolve to a956a6f73f75e6cd26b701afcd04bd4973650520. The discontinued default branch/latest v1.11.9 and the separately referenced newer SourceCraft project do not inherit this guide. A provider prerelease flag of false does not remove the beta/RC/testing scope. No version pin or automatic managed replacement of this lineage is offered."
+        },
+        {
+          "title": "Select the native graphical player",
+          "instruction": "Select the prepared graphical 1oom_classic_sdl2.exe (or the actual prepared SDL1 graphical variant), keeping the complete companion DLLs and chosen MOO data directory. Do not select lbxview, saveconv, the command-line demonstration, a DOS executable or emulator. Retain established -data ABS and -user ABS as separate literal arguments when configured; they select distinct data and user roots."
+        },
+        {
+          "title": "Preserve original-format slots and configuration",
+          "instruction": "Preserve the whole creating runtime, all LBX originals, CONFIG.MOO and every SAVE*.GAM or 1oom_save*.bin slot in the actual user root. Selected Windows source defaults that root to the working directory, not an invented literal User subfolder; -user can redirect it. Original-format saves are enabled by default and use the original MOO slot names, so running inside the original installation can overwrite those existing slots. Keep an independent recoverable copy before running/changing engines. Source support for a format is not observed backward compatibility or permission to migrate saves."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

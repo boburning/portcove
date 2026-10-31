@@ -1,0 +1,2221 @@
+{
+  "format_version": 1,
+  "kind": "dated three-title existing native-player/source/permission evidence; not live planning or fleet acceptance",
+  "observation_date": "2026-10-30",
+  "owners": [2510, 2926, 1422],
+  "local_stack_parent_source": "4926cf371f3f6d23cf35e5bc574d4ddcbc2e3300",
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 107,
+    "unique_content_blobs": 76,
+    "complete_tree_reference_roles": 8,
+    "distinct_commit_root_tree_bindings": 8
+  },
+  "selected_rows": [
+    {
+      "id": "kameo-repowered",
+      "canonical_issue": 129,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "b415c97d5ecbb8fc137e4a5e0c50a4b99cedbea676bbc9322b3c12df68ba6728",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T21:43:09.122Z",
+      "authored_sha256": "7fbeda0569e2b9e243bb92afc24a686670b294484985f8576dd0e86daaf4f95c",
+      "tag": "v0.2.1",
+      "selected_tag_source": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+      "current_source": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+      "publisher_assets": [
+        {
+          "id": 455959765,
+          "name": "kameorepowered-tu-v0.2.1-linux-x64.tar.gz",
+          "bytes": 84701105,
+          "digest": "sha256:da3daaa0b46251656a544faa1e11139bc0ef09a5280156b127d8b41269c0db0e"
+        },
+        {
+          "id": 455959764,
+          "name": "kameorepowered-tu-v0.2.1-windows-x64.zip",
+          "bytes": 25065511,
+          "digest": "sha256:b9006fc094dc2c1c37f13cd460c76a73331e6b3a24676de87388ce101e868fe5"
+        },
+        {
+          "id": 455959762,
+          "name": "kameorepowered-v0.2.1-linux-x64.tar.gz",
+          "bytes": 84383606,
+          "digest": "sha256:f6f7e5e52bd19fccb298128a6b37ddeb5f851faf738c9fad8fe1d6a6960a6372"
+        },
+        {
+          "id": 455959763,
+          "name": "kameorepowered-v0.2.1-windows-x64.zip",
+          "bytes": 24755464,
+          "digest": "sha256:0b5728f05db7b18aa0cbe49f0dea01229a8a5ea94d935d2b49b6935ead6eedac"
+        }
+      ],
+      "acquisition_hold_present": true,
+      "offered_route": "already permitted working Windows x64 selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; preparation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "redahm-destroy-all-humans-path-of-the-furon",
+      "canonical_issue": 130,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "f5e8f3afcc0de6660aff1755dd9292f5cc81ef71958319fff3ce4294e1d11ea6",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Multi-platform",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T21:43:11.376Z",
+      "authored_sha256": "b90a5ad433e322c6584fccd391007251c3c3539416d1ea4557fcc49ad29f5115",
+      "tag": "new",
+      "selected_tag_source": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+      "current_source": "b1a326869113fb17045f1bf11f396adfcd59f727",
+      "publisher_assets": [
+        {
+          "id": 563673553,
+          "name": "redahm-win-x64.zip",
+          "bytes": 34942774,
+          "digest": "sha256:9c90176d7cefb88975b8b2b9c84d8c66e913578ef6b0b74296e0412bdf4e5dc8"
+        },
+        {
+          "id": 527091873,
+          "name": "redahm.toml",
+          "bytes": 98,
+          "digest": "sha256:cebf3ef79fdf2da77576ff5550fb491a255aa466d9c91c94b6c8bbf9a6387d8f"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted working Windows x64 selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; preparation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    },
+    {
+      "id": "svr07-recomp-wwe-smackdown-vs-raw-2007",
+      "canonical_issue": 131,
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "canonical_body_sha256_at_pickup": "6ca987437bddb90f34557755c0a696cb500caeff7887c1683cddce3e0e1bba6d",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      },
+      "context_observed_at": "2026-10-30T21:43:12.457Z",
+      "authored_sha256": "c77ad90ecfe94168ecee932b71262833846e755319663f4f02d00b26f9700ecc",
+      "tag": "v1.0",
+      "selected_tag_source": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+      "current_source": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+      "publisher_assets": [
+        {
+          "id": 404117481,
+          "name": "svr07.zip",
+          "bytes": 15760204,
+          "digest": "sha256:a798e9becc1002f285a9dbd70c5eeecc1fd1e49a206e0b2bc685f4fc86479fc9"
+        }
+      ],
+      "acquisition_hold_present": false,
+      "offered_route": "already permitted working Windows x64 selected-native intent/register/relink/restart/explicit selected-process Play/metadata-only preserving removal; preparation/replacement external",
+      "game_package_original_execution_this_batch": "not_run",
+      "native_gameplay_state_installed_protected_this_batch": "not_evaluated"
+    }
+  ],
+  "source_packets": [
+    {
+      "canonical_issue": 129,
+      "bindings": [
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": ".github/workflows/_build.yml",
+          "blob": "04c9c3b5e012c581a5ab904ae7c34451628d2c97",
+          "bytes": 5093,
+          "sha256": "f695c647a21de138dd1950131d529f28db59e0eaf020f860facc7013b92a0e5b",
+          "retained_source_name": "tag-.github__workflows___build.yml"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": ".github/workflows/ci.yml",
+          "blob": "573857247bcf3cc19779678e7f6537c671eda1a8",
+          "bytes": 750,
+          "sha256": "5b06eeac5cba13df56efa10e8922efd3ffe99b6465c74ee26dbb347d50bb93e5",
+          "retained_source_name": "tag-.github__workflows__ci.yml"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": ".github/workflows/release.yml",
+          "blob": "56402dd977303dd500a02fad9accedf2d25b5065",
+          "bytes": 934,
+          "sha256": "1b7d1add159f8fb7e3edd2232e24fc86cb5e261316228b1482e23ce2a65dad21",
+          "retained_source_name": "tag-.github__workflows__release.yml"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": ".sdk-version",
+          "blob": "79bfcc51300be8704ea26cbcea2ca074c7b67eab",
+          "bytes": 25,
+          "sha256": "bca709590e588a81d5536b30dfc5ce15f543ea51a7f81f64a329bf47f6b5a6cb",
+          "retained_source_name": "tag-.sdk-version"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "CMakeLists.txt",
+          "blob": "ba6838f17332bde72f40718036d0875af505fb1d",
+          "bytes": 1439,
+          "sha256": "0ce053967a1f3fbae90c5cd2626178ed59993e6e79b7b2f65fe3cd4f92bae236",
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "kameorepowered_manifest.toml",
+          "blob": "36748af0412736f29b9836b50293e65b85047e16",
+          "bytes": 243,
+          "sha256": "9ab2caed4c4593c953bb4fa9e21905c421dffe44a172e9d84994f5b8569ca91c",
+          "retained_source_name": "tag-kameorepowered_manifest.toml"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_app.h",
+          "blob": "42001f7e26dffb0e16c08e7084b7d9853e38014e",
+          "bytes": 9383,
+          "sha256": "a34f9d85beb7ba5141caf163fd892c9dfcc7c0da043ee95b4c0b551c881bce9b",
+          "retained_source_name": "tag-src__kameorepowered_app.h"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_dialogs.h",
+          "blob": "7f7635445fcdb3f80de461994121226a92f2f061",
+          "bytes": 7886,
+          "sha256": "d7da49eceaa84c4457161998f5ad67ff81a5d885da97499e71decdd261aea983",
+          "retained_source_name": "tag-src__kameorepowered_dialogs.h"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_dlc_models.h",
+          "blob": "8b0d3e32d741575a681f76fcf0b9dd8b43c060a4",
+          "bytes": 4291,
+          "sha256": "0e09249f82e857ce15e39a377d136cc2ee9464db743a8e0e3524bb1a13a213d4",
+          "retained_source_name": "tag-src__kameorepowered_dlc_models.h"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_dlc_swap.h",
+          "blob": "a5554218cdefe511f63359c104251896bf8867b6",
+          "bytes": 2976,
+          "sha256": "c188ab30487cd25b8854e2e3100ce487d0d2040ea88330a76d40d688845e0ca6",
+          "retained_source_name": "tag-src__kameorepowered_dlc_swap.h"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_fp_guard.h",
+          "blob": "69c4f8a5a3b1fb1c4492a4323f44d4110dfb1ca8",
+          "bytes": 4502,
+          "sha256": "48e0b96aa364f4b8b8df543f17c24ec8a173632bee9572571ac37710b141d3b1",
+          "retained_source_name": "tag-src__kameorepowered_fp_guard.h"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_hooks.h",
+          "blob": "c509b7965090a9b795a1f5aca19d841007422976",
+          "bytes": 1495,
+          "sha256": "654c6989b486ef57ebec24fe3d59bf7c61f3bbbab21c679c4d8e522b098318b2",
+          "retained_source_name": "tag-src__kameorepowered_hooks.h"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_hooks_audio.cpp",
+          "blob": "047e8880b7a6a7f4dc688ba88fd9ff668f312cb0",
+          "bytes": 10903,
+          "sha256": "536848ccfa9b10eb32c4ae621979741a737995647b60ccd786746924ebe0bb6c",
+          "retained_source_name": "tag-src__kameorepowered_hooks_audio.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_hooks_combat.cpp",
+          "blob": "fa3db04d9944bff4a207b1092d1b9f08f443babf",
+          "bytes": 5700,
+          "sha256": "407bd1738b86d564c00bcc8084c8cbee171f020df871bceafdedb60f0bdeb6f3",
+          "retained_source_name": "tag-src__kameorepowered_hooks_combat.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_hooks_dlc.cpp",
+          "blob": "a386573c7e6b70309000adccdaad32c46c2da62b",
+          "bytes": 3406,
+          "sha256": "1a79aade6be524d61b752a0d219cbe6495629940851d120a783894b3aff522f6",
+          "retained_source_name": "tag-src__kameorepowered_hooks_dlc.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/kameorepowered_hooks_internal.h",
+          "blob": "ae41d006bbdc22711163b18d64bd2a4c45fc5201",
+          "bytes": 3747,
+          "sha256": "07a345127985f8f2203a4e8f900b15f6af3b470e5a8da372214ed517e7208042",
+          "retained_source_name": "tag-src__kameorepowered_hooks_internal.h"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "src/main.cpp",
+          "blob": "ebdb4fa5ca25ebc2d1adc108921ffdb83ba3ed56",
+          "bytes": 259,
+          "sha256": "288319c41be4ca43c3fa9b3fe67e9444f4cb69f2efad080e50123baac87b8e80",
+          "retained_source_name": "tag-src__main.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": ".github/workflows/_build.yml",
+          "blob": "04c9c3b5e012c581a5ab904ae7c34451628d2c97",
+          "bytes": 5093,
+          "sha256": "f695c647a21de138dd1950131d529f28db59e0eaf020f860facc7013b92a0e5b",
+          "retained_source_name": "current-.github__workflows___build.yml"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": ".github/workflows/ci.yml",
+          "blob": "573857247bcf3cc19779678e7f6537c671eda1a8",
+          "bytes": 750,
+          "sha256": "5b06eeac5cba13df56efa10e8922efd3ffe99b6465c74ee26dbb347d50bb93e5",
+          "retained_source_name": "current-.github__workflows__ci.yml"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": ".github/workflows/release.yml",
+          "blob": "56402dd977303dd500a02fad9accedf2d25b5065",
+          "bytes": 934,
+          "sha256": "1b7d1add159f8fb7e3edd2232e24fc86cb5e261316228b1482e23ce2a65dad21",
+          "retained_source_name": "current-.github__workflows__release.yml"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": ".sdk-version",
+          "blob": "f830497fb08f6dbec9453850e9eead79c76f5a49",
+          "bytes": 25,
+          "sha256": "43df078a4641af454c65863506498108013b189557005e952b224aa6f82aa381",
+          "retained_source_name": "current-.sdk-version"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "CMakeLists.txt",
+          "blob": "ba6838f17332bde72f40718036d0875af505fb1d",
+          "bytes": 1439,
+          "sha256": "0ce053967a1f3fbae90c5cd2626178ed59993e6e79b7b2f65fe3cd4f92bae236",
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "kameorepowered_manifest.toml",
+          "blob": "36748af0412736f29b9836b50293e65b85047e16",
+          "bytes": 243,
+          "sha256": "9ab2caed4c4593c953bb4fa9e21905c421dffe44a172e9d84994f5b8569ca91c",
+          "retained_source_name": "current-kameorepowered_manifest.toml"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_app.h",
+          "blob": "42001f7e26dffb0e16c08e7084b7d9853e38014e",
+          "bytes": 9383,
+          "sha256": "a34f9d85beb7ba5141caf163fd892c9dfcc7c0da043ee95b4c0b551c881bce9b",
+          "retained_source_name": "current-src__kameorepowered_app.h"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_dialogs.h",
+          "blob": "7f7635445fcdb3f80de461994121226a92f2f061",
+          "bytes": 7886,
+          "sha256": "d7da49eceaa84c4457161998f5ad67ff81a5d885da97499e71decdd261aea983",
+          "retained_source_name": "current-src__kameorepowered_dialogs.h"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_dlc_models.h",
+          "blob": "8b0d3e32d741575a681f76fcf0b9dd8b43c060a4",
+          "bytes": 4291,
+          "sha256": "0e09249f82e857ce15e39a377d136cc2ee9464db743a8e0e3524bb1a13a213d4",
+          "retained_source_name": "current-src__kameorepowered_dlc_models.h"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_dlc_swap.h",
+          "blob": "a5554218cdefe511f63359c104251896bf8867b6",
+          "bytes": 2976,
+          "sha256": "c188ab30487cd25b8854e2e3100ce487d0d2040ea88330a76d40d688845e0ca6",
+          "retained_source_name": "current-src__kameorepowered_dlc_swap.h"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_fp_guard.h",
+          "blob": "69c4f8a5a3b1fb1c4492a4323f44d4110dfb1ca8",
+          "bytes": 4502,
+          "sha256": "48e0b96aa364f4b8b8df543f17c24ec8a173632bee9572571ac37710b141d3b1",
+          "retained_source_name": "current-src__kameorepowered_fp_guard.h"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_hooks.h",
+          "blob": "c509b7965090a9b795a1f5aca19d841007422976",
+          "bytes": 1495,
+          "sha256": "654c6989b486ef57ebec24fe3d59bf7c61f3bbbab21c679c4d8e522b098318b2",
+          "retained_source_name": "current-src__kameorepowered_hooks.h"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_hooks_audio.cpp",
+          "blob": "047e8880b7a6a7f4dc688ba88fd9ff668f312cb0",
+          "bytes": 10903,
+          "sha256": "536848ccfa9b10eb32c4ae621979741a737995647b60ccd786746924ebe0bb6c",
+          "retained_source_name": "current-src__kameorepowered_hooks_audio.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_hooks_combat.cpp",
+          "blob": "fa3db04d9944bff4a207b1092d1b9f08f443babf",
+          "bytes": 5700,
+          "sha256": "407bd1738b86d564c00bcc8084c8cbee171f020df871bceafdedb60f0bdeb6f3",
+          "retained_source_name": "current-src__kameorepowered_hooks_combat.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_hooks_dlc.cpp",
+          "blob": "a386573c7e6b70309000adccdaad32c46c2da62b",
+          "bytes": 3406,
+          "sha256": "1a79aade6be524d61b752a0d219cbe6495629940851d120a783894b3aff522f6",
+          "retained_source_name": "current-src__kameorepowered_hooks_dlc.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/kameorepowered_hooks_internal.h",
+          "blob": "ae41d006bbdc22711163b18d64bd2a4c45fc5201",
+          "bytes": 3747,
+          "sha256": "07a345127985f8f2203a4e8f900b15f6af3b470e5a8da372214ed517e7208042",
+          "retained_source_name": "current-src__kameorepowered_hooks_internal.h"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "src/main.cpp",
+          "blob": "ebdb4fa5ca25ebc2d1adc108921ffdb83ba3ed56",
+          "bytes": 259,
+          "sha256": "288319c41be4ca43c3fa9b3fe67e9444f4cb69f2efad080e50123baac87b8e80",
+          "retained_source_name": "current-src__main.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "path": "README.md",
+          "blob": "137b43dc356b760d2fc6802a78a21c8d40272776",
+          "bytes": 5368,
+          "sha256": "0c50802ba5a8fd228d3257a830a4587fcc80a2bd1608a5367a9017cede971cca",
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "role": "tag",
+          "repository": "birabittoh/KameoRePowered",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "path": "README.md",
+          "blob": "4d7c1414f514388d25c50c4a38c1883080fd07ee",
+          "bytes": 5107,
+          "sha256": "e4291d007fac52dc7768b0655b6a2212ccacce3c1e9adabda3300e28830962d0",
+          "retained_source_name": "tag-README.md"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "LICENSE",
+          "blob": "989af8778ded5b67521da99f4ed0a71960ac9caa",
+          "bytes": 1659,
+          "sha256": "8e065be1da2ff9a16b1f063d4636d8b67e6a654bb90583ea4332e66ac421bb18",
+          "retained_source_name": "runtime-LICENSE"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "include/rex/rex_app.h",
+          "blob": "44fc9e6f626f0731c53db305084ea7d1735096b5",
+          "bytes": 10310,
+          "sha256": "a0fed8066ed66628f3153274d389b180273f5610892b7780a6e024ccbf038f02",
+          "retained_source_name": "runtime-include__rex__rex_app.h"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "src/codegen/config.cpp",
+          "blob": "c0b85790b42ca14563649061e241b22b6aa1b77d",
+          "bytes": 22315,
+          "sha256": "94c7c3175c16a0f58b210292453f8d930f5526afd4b401c93bb2c8974a3c1f56",
+          "retained_source_name": "runtime-src__codegen__config.cpp"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "src/kernel/xboxkrnl/xboxkrnl_xconfig.cpp",
+          "blob": "f4ad12674af2bf4914e3199c35576b9df90ebb3e",
+          "bytes": 4640,
+          "sha256": "ab86ce248d7c28c01c6ba218c891c4cc766acd82f9f75bc799fa917b50a4340a",
+          "retained_source_name": "runtime-src__kernel__xboxkrnl__xboxkrnl_xconfig.cpp"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "src/rexglue/commands/legacy_config.cpp",
+          "blob": "9deec0e24bd36a7b6d12114b31ca5196d4f1f1b9",
+          "bytes": 8225,
+          "sha256": "be836285e68d6660f1cfe5caa0bc2d4e0054c6188001f04df827421484456c92",
+          "retained_source_name": "runtime-src__rexglue__commands__legacy_config.cpp"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "src/ui/rex_app.cpp",
+          "blob": "c6fdbcf26201464088adff515a43c20ed68a6956",
+          "bytes": 15661,
+          "sha256": "69acfb446ac07afc4ed572bcdad855870dd29ac6cd5d51965436262bf59808f2",
+          "retained_source_name": "runtime-src__ui__rex_app.cpp"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "src/ui/windowed_app_main_win.cpp",
+          "blob": "69bc5e6c08e86f684614507a3fa23838455b4665",
+          "bytes": 3658,
+          "sha256": "8b9ea1a9aa62785e2d736cddfbf0dd6264a5b96adb1b10929c7a99540d6279c9",
+          "retained_source_name": "runtime-src__ui__windowed_app_main_win.cpp"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "src/core/cvar.cpp",
+          "blob": "6c675a8ccd724df331957dfe70986960f67c008c",
+          "bytes": 16110,
+          "sha256": "07a740c0b6c79cda0a0654d47f2a25eedb46cbf892bd0b042798d4c7188c4639",
+          "retained_source_name": "runtime-src__core__cvar.cpp"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "src/core/filesystem_win.cpp",
+          "blob": "c5a2c5d125f38fd3653ee490fd091c8a294f21b6",
+          "bytes": 8205,
+          "sha256": "4b8b3e0becd17d631d11693b9ccf264a20268e8286dbeb48b95bc03a33effb74",
+          "retained_source_name": "runtime-src__core__filesystem_win.cpp"
+        },
+        {
+          "repository": "rexglue/rexglue-sdk",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "path": "include/rex/cvar.h",
+          "blob": "c6abbfb1b011b84ec3eed93474c86ca2ca4f44ff",
+          "bytes": 27512,
+          "sha256": "045b92f99394f8e9d1e5fc561d8d320aa83185fe12b1a62ee7b5f4dbd532d649",
+          "retained_source_name": "runtime-include__rex__cvar.h"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "f3fc10331f42cfd0a44fe0a0d4ad2c996e212043",
+          "root_tree": "bfd4fe507724ff7c9ea4e65bd04d90dca3c984b3",
+          "entries": 44,
+          "truncated": false,
+          "sha256": "8ebd3a9ae4d762f885d598df0016e7e32ba5c1b8d83ad1861e5e4328c392854d",
+          "retained_name": "current-tree-by-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "29ebaeb0e630b061e880953aa41ab70be386eb3e",
+          "root_tree": "ec433a7f25c054631400c3b9d029dfe7b4ba4dad",
+          "entries": 42,
+          "truncated": false,
+          "sha256": "949b757c03a6d70cb7c012d18fdff075adec056cf0a154801efca297b0bd83a2",
+          "retained_name": "tag-tree-by-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "runtime",
+          "commit": "f22cd9dc360dda5700358f7452230af24c2c2e69",
+          "root_tree": "4eb143036c7767c70489048542ecf5b8903d1fd1",
+          "entries": 1429,
+          "truncated": false,
+          "sha256": "55c515a95c58b593e94f044b73998c95adc3cfbce25cf2279e510e9f0d3ff18c",
+          "retained_name": "runtime-tree-by-tree.json",
+          "gitlinks": [
+            {
+              "path": "thirdparty/FFmpeg",
+              "sha": "0604b464c7cb4ebc94940cf1f324a3b26b87717c"
+            },
+            {
+              "path": "thirdparty/catch2",
+              "sha": "88abf9bf325c798c33f54f6b9220ef885b267f4f"
+            },
+            {
+              "path": "thirdparty/cli11",
+              "sha": "bfffd37e1f804ca4fae1caae106935791696b6a9"
+            },
+            {
+              "path": "thirdparty/fmt",
+              "sha": "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f"
+            },
+            {
+              "path": "thirdparty/glslang",
+              "sha": "f4f1d8a352ca1908943aea2ad8c54b39b4879080"
+            },
+            {
+              "path": "thirdparty/imgui",
+              "sha": "6d910d5487d11ca567b61c7824b0c78c569d62f0"
+            },
+            {
+              "path": "thirdparty/inja",
+              "sha": "7d1b4600b68595085a949743331c2e5673f511ea"
+            },
+            {
+              "path": "thirdparty/libmspack",
+              "sha": "305907723a4e7ab2018e58040059ffb5e77db837"
+            },
+            {
+              "path": "thirdparty/o1heap",
+              "sha": "388a73fd9007300e5130c5fe352d9ce3288b6dde"
+            },
+            {
+              "path": "thirdparty/sdl3",
+              "sha": "8bf3b7215ad9fc3deb583c6a3a37c6c67f2e24e4"
+            },
+            {
+              "path": "thirdparty/simde",
+              "sha": "71fd833d9666141edcd1d3c109a80e228303d8d7"
+            },
+            {
+              "path": "thirdparty/snappy",
+              "sha": "6af9287fbdb913f0794d0148c6aa43b58e63c8e3"
+            },
+            {
+              "path": "thirdparty/spdlog",
+              "sha": "79524ddd08a4ec981b7fea76afd08ee05f83755d"
+            },
+            {
+              "path": "thirdparty/spirv-headers",
+              "sha": "04f10f650d514df88b76d25e83db360142c7b174"
+            },
+            {
+              "path": "thirdparty/spirv-tools",
+              "sha": "04d0b166dcd62e29509bf2aac3ca0c5ccdcb6929"
+            },
+            {
+              "path": "thirdparty/tomlplusplus",
+              "sha": "30172438cee64926dc41fdd9c11fb3ba5b2ba9de"
+            },
+            {
+              "path": "thirdparty/tracy",
+              "sha": "05cceee0df3b8d7c6fa87e9638af311dbabc63cb"
+            },
+            {
+              "path": "thirdparty/utfcpp",
+              "sha": "63d64de49fd6b829f7c8694df5ab2ee625cb7134"
+            },
+            {
+              "path": "thirdparty/volk",
+              "sha": "0b17a763ba5643e32da1b2152f8140461b3b7345"
+            },
+            {
+              "path": "thirdparty/vulkan-headers",
+              "sha": "49f1a381e2aec33ef32adf4a377b5a39ec016ec4"
+            },
+            {
+              "path": "thirdparty/vulkan-memory-allocator",
+              "sha": "1d8f600fd424278486eade7ed3e877c99f0846b1"
+            },
+            {
+              "path": "thirdparty/xxHash",
+              "sha": "e626a72bc2321cd320e953a0ccf1584cad60f363"
+            }
+          ]
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-.github__workflows___build.yml.api.json",
+          "bytes": 7312,
+          "sha256": "b3658a3aede0e4d56d83a14924a83d8ef2e45e81661a59a1800bafe4540cfffb"
+        },
+        {
+          "retained_name": "current-.github__workflows__ci.yml.api.json",
+          "bytes": 1325,
+          "sha256": "02585f08a031dd1dccbe2fada51f3b0d8a70a5632e019f4acd9822d99509162f"
+        },
+        {
+          "retained_name": "current-.github__workflows__release.yml.api.json",
+          "bytes": 1581,
+          "sha256": "7ef52df25eb0492e16987221072689c7dc03e9acc958d2099cb520d5af58e190"
+        },
+        {
+          "retained_name": "current-.sdk-version.api.json",
+          "bytes": 328,
+          "sha256": "2ab04edaa01227e7c2a5cd6682cf2afeed53cf59dd9710475a5e3c7ffb1f1a1f"
+        },
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 2276,
+          "sha256": "5c5c534929736f67363ab69b624d26a424dada88ecd6ac2d1cd1b7bf8ee55638"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 7692,
+          "sha256": "0c05c9a81dd81c801388af04cbe45c526fe540fe90f353e88d428dc0f912332b"
+        },
+        {
+          "retained_name": "current-kameorepowered_manifest.toml.api.json",
+          "bytes": 627,
+          "sha256": "4974030ef00aa4f8d25955b22a3abb4b67498002a07b6ca48a675cf2774558d7"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_app.h.api.json",
+          "bytes": 13222,
+          "sha256": "e1cf0e0517a24e48fad7745036d801593ddad01f675c3242b32bc36ef1e373ff"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_dialogs.h.api.json",
+          "bytes": 11160,
+          "sha256": "de65508fd74384af668f2a552bc2f470014820d4be7d2a3c8791d36142827c53"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_dlc_models.h.api.json",
+          "bytes": 6208,
+          "sha256": "e86f49bc9b9009c8fb0a542bb78848af4b00bee65da4280ec9c44c1bb3ea5d23"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_dlc_swap.h.api.json",
+          "bytes": 4394,
+          "sha256": "629dc5f1076c1d594baa8132159d5db8e33ff30f1f9f0b1b1c333cf7b5dd3787"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_fp_guard.h.api.json",
+          "bytes": 6498,
+          "sha256": "87d28eb7235f386b91a775435e132737a3741a54a254738cd5c9dfb5fe222b18"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_hooks.h.api.json",
+          "bytes": 2356,
+          "sha256": "8c082586fa820779094a8b8710300ce0aa64564b9907f11c3163b9ca4aec82ad"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_hooks_audio.cpp.api.json",
+          "bytes": 15319,
+          "sha256": "1d1c9387bbe2997338e24f38fc414b92c14571743ea22be3fa5ce26eb22f9b94"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_hooks_combat.cpp.api.json",
+          "bytes": 8146,
+          "sha256": "a86703507d843509225c21783efbd361e02b794c4a6da7629d73929d698c1118"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_hooks_dlc.cpp.api.json",
+          "bytes": 4988,
+          "sha256": "36158f15acf69bb4c1c3c80f56f034be4b813a4de0533477f077a4e54cf712c7"
+        },
+        {
+          "retained_name": "current-src__kameorepowered_hooks_internal.h.api.json",
+          "bytes": 5456,
+          "sha256": "1b0d828c0174b939ba508c97abe821e78a0d309192f112f662e93a1f06c716c4"
+        },
+        {
+          "retained_name": "current-src__main.cpp.api.json",
+          "bytes": 651,
+          "sha256": "5a848a1f5f17dc3f628b7b3e2dad0fe636f3bb712f1a7343e152df38d168a1ed"
+        },
+        {
+          "retained_name": "current-tree-by-tree.json",
+          "bytes": 10670,
+          "sha256": "8ebd3a9ae4d762f885d598df0016e7e32ba5c1b8d83ad1861e5e4328c392854d"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 10670,
+          "sha256": "8377c44f6850a021566c468dde69f11f4880c4704d29da0ae46a4aa4d042045a"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 5516,
+          "sha256": "6eb5616c15763455e05a55d28c912375ddd343183a0604694881dca34dfbd78a"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 9033,
+          "sha256": "918e14e0975922a65ec4177541e9845b9271fec17e985557da9bdf5c86664f88"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5595,
+          "sha256": "120b6e4c34d615d98894b7c6f29b7cd1d08d02ce2a44e61bd18e5ef5358037a0"
+        },
+        {
+          "retained_name": "runtime-LICENSE.api.json",
+          "bytes": 2571,
+          "sha256": "b676a58efef0e407c10380f2ea824d593ac124b0c7cb46270472b273f06d9b67"
+        },
+        {
+          "retained_name": "runtime-commit.json",
+          "bytes": 13029,
+          "sha256": "1241343feb4c4a6ceae84215213cf80dd112ddff80c6214f644b0466faa14651"
+        },
+        {
+          "retained_name": "runtime-include__rex__cvar.h.api.json",
+          "bytes": 38194,
+          "sha256": "7d9eb98aaa1c844a8219e9c2df84350e1d8599ae68c9e9f4b00b85d5229d2c61"
+        },
+        {
+          "retained_name": "runtime-include__rex__rex_app.h.api.json",
+          "bytes": 14494,
+          "sha256": "6aadbd4ba3624e923125a043ebbbc99711e4ccd4306f7e1fa901ef49664fd997"
+        },
+        {
+          "retained_name": "runtime-manifest.json",
+          "bytes": 4088,
+          "sha256": "cb8ccc840e0a84071d31627e8fff9ca1ffa4565e86b78b1ab64ce0e2a57895f9"
+        },
+        {
+          "retained_name": "runtime-src__codegen__config.cpp.api.json",
+          "bytes": 31034,
+          "sha256": "b24360b978be7d87d624ce7022f1848df5e54fa209b7f44b44f33c33c3c3a7d9"
+        },
+        {
+          "retained_name": "runtime-src__core__cvar.cpp.api.json",
+          "bytes": 22482,
+          "sha256": "71a836c5976b86a75f15581b4a8bc9d3548749ebaefca46fcb8907c5510b28c4"
+        },
+        {
+          "retained_name": "runtime-src__core__filesystem_win.cpp.api.json",
+          "bytes": 11591,
+          "sha256": "c4eb01fe60b260e07487af52403809ef113c1e80a69593975ea619f818a4e304"
+        },
+        {
+          "retained_name": "runtime-src__kernel__xboxkrnl__xboxkrnl_xconfig.cpp.api.json",
+          "bytes": 6681,
+          "sha256": "1db0d29f900e083e1d55820e9764520eb4202a5febac78ce0fb924765e63a451"
+        },
+        {
+          "retained_name": "runtime-src__rexglue__commands__legacy_config.cpp.api.json",
+          "bytes": 11619,
+          "sha256": "5b031f53d17f6218293eccd4ae292017afa548966343fef8c175f0b25dce23b2"
+        },
+        {
+          "retained_name": "runtime-src__ui__rex_app.cpp.api.json",
+          "bytes": 21868,
+          "sha256": "18ca99f90daef92024bf6b76ffb9f68d8442995cca7b05e5df3e4f217e808e8e"
+        },
+        {
+          "retained_name": "runtime-src__ui__windowed_app_main_win.cpp.api.json",
+          "bytes": 5329,
+          "sha256": "a5226a0a62259985e2c912e99bf7567be422d8e86fbb14d334197fcdb0886d99"
+        },
+        {
+          "retained_name": "runtime-tree-by-tree.json",
+          "bytes": 349856,
+          "sha256": "55c515a95c58b593e94f044b73998c95adc3cfbce25cf2279e510e9f0d3ff18c"
+        },
+        {
+          "retained_name": "runtime-tree.json",
+          "bytes": 349856,
+          "sha256": "330affa70a13f40292c9823c5991731bc6a06ab33a0d7a115a8893ae567980a0"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 15651,
+          "sha256": "dff4642408173706d9ac8190f4e0e0a0e47a210452f8711556ea7a0e3a67ea3c"
+        },
+        {
+          "retained_name": "tag-.github__workflows___build.yml.api.json",
+          "bytes": 7312,
+          "sha256": "b3658a3aede0e4d56d83a14924a83d8ef2e45e81661a59a1800bafe4540cfffb"
+        },
+        {
+          "retained_name": "tag-.github__workflows__ci.yml.api.json",
+          "bytes": 1325,
+          "sha256": "02585f08a031dd1dccbe2fada51f3b0d8a70a5632e019f4acd9822d99509162f"
+        },
+        {
+          "retained_name": "tag-.github__workflows__release.yml.api.json",
+          "bytes": 1581,
+          "sha256": "7ef52df25eb0492e16987221072689c7dc03e9acc958d2099cb520d5af58e190"
+        },
+        {
+          "retained_name": "tag-.sdk-version.api.json",
+          "bytes": 328,
+          "sha256": "e842eb935793f2be29cbb20de6b62510d1e8e557097339225c322b3811f80152"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 2276,
+          "sha256": "5c5c534929736f67363ab69b624d26a424dada88ecd6ac2d1cd1b7bf8ee55638"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 7332,
+          "sha256": "1209176db029ce2c9cbd31dfa6282c625419ace61aa6dab3ab285cd832a19a2e"
+        },
+        {
+          "retained_name": "tag-kameorepowered_manifest.toml.api.json",
+          "bytes": 627,
+          "sha256": "4974030ef00aa4f8d25955b22a3abb4b67498002a07b6ca48a675cf2774558d7"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_app.h.api.json",
+          "bytes": 13222,
+          "sha256": "e1cf0e0517a24e48fad7745036d801593ddad01f675c3242b32bc36ef1e373ff"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_dialogs.h.api.json",
+          "bytes": 11160,
+          "sha256": "de65508fd74384af668f2a552bc2f470014820d4be7d2a3c8791d36142827c53"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_dlc_models.h.api.json",
+          "bytes": 6208,
+          "sha256": "e86f49bc9b9009c8fb0a542bb78848af4b00bee65da4280ec9c44c1bb3ea5d23"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_dlc_swap.h.api.json",
+          "bytes": 4394,
+          "sha256": "629dc5f1076c1d594baa8132159d5db8e33ff30f1f9f0b1b1c333cf7b5dd3787"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_fp_guard.h.api.json",
+          "bytes": 6498,
+          "sha256": "87d28eb7235f386b91a775435e132737a3741a54a254738cd5c9dfb5fe222b18"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_hooks.h.api.json",
+          "bytes": 2356,
+          "sha256": "8c082586fa820779094a8b8710300ce0aa64564b9907f11c3163b9ca4aec82ad"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_hooks_audio.cpp.api.json",
+          "bytes": 15319,
+          "sha256": "1d1c9387bbe2997338e24f38fc414b92c14571743ea22be3fa5ce26eb22f9b94"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_hooks_combat.cpp.api.json",
+          "bytes": 8146,
+          "sha256": "a86703507d843509225c21783efbd361e02b794c4a6da7629d73929d698c1118"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_hooks_dlc.cpp.api.json",
+          "bytes": 4988,
+          "sha256": "36158f15acf69bb4c1c3c80f56f034be4b813a4de0533477f077a4e54cf712c7"
+        },
+        {
+          "retained_name": "tag-src__kameorepowered_hooks_internal.h.api.json",
+          "bytes": 5456,
+          "sha256": "1b0d828c0174b939ba508c97abe821e78a0d309192f112f662e93a1f06c716c4"
+        },
+        {
+          "retained_name": "tag-src__main.cpp.api.json",
+          "bytes": 651,
+          "sha256": "5a848a1f5f17dc3f628b7b3e2dad0fe636f3bb712f1a7343e152df38d168a1ed"
+        },
+        {
+          "retained_name": "tag-tree-by-tree.json",
+          "bytes": 10180,
+          "sha256": "949b757c03a6d70cb7c012d18fdff075adec056cf0a154801efca297b0bd83a2"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 10180,
+          "sha256": "561db29b65bbdabe336eebc33f39a0acd220a9e47efa9f809c8fc77bcd7a48ac"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 4017,
+          "sha256": "e0fa2925f67f42db7850f4895d9b364e9972d1a42de8cbb3339ee8880f5be498"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 130,
+      "bindings": [
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "CMakeLists.txt",
+          "blob": "c1529ef4146e47ac4c518cda98a96b99f4ef39fe",
+          "bytes": 1052,
+          "sha256": "c4a060a48dba62c3bb70ca7b76bc495d9c28029a71bbd9d2acf4d4e9a3e5de2f",
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "redahm_manifest.toml",
+          "blob": "15a4d061fa0bd040dee4bc7fc1af658652347002",
+          "bytes": 165,
+          "sha256": "a775f31d5caf948ab5d46b3906e26e42c43d08c1c57730f09b577ecb854f42aa",
+          "retained_source_name": "tag-redahm_manifest.toml"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/main.cpp",
+          "blob": "34e07605266f5ad0ddb3a0f692fdacc75ab025b0",
+          "bytes": 219,
+          "sha256": "7fe164579e81a158f43e4c7bd39b117c0e68ce75e66e80ced736783e2de9f3e5",
+          "retained_source_name": "tag-src__main.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_app.h",
+          "blob": "88a738e178c132e39fd8bdb0f9aec61acc211338",
+          "bytes": 2675,
+          "sha256": "d89123e0533873a0cf913541adbe6dbd6831ee615558f5db7d54b44799ae4224",
+          "retained_source_name": "tag-src__redahm_app.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/audio/xaudio2_audio_driver.cpp",
+          "blob": "79601c9fcbc7307a1b5e2c22827c71a45cd184be",
+          "bytes": 4427,
+          "sha256": "352f6f2e6a2f7272351210d507e733dd5abc3126882c542ee7914e2269125622",
+          "retained_source_name": "tag-src__redahm_engine__audio__xaudio2_audio_driver.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/audio/xaudio2_audio_driver.h",
+          "blob": "42bae7b491d4f83bf97d29292cba3932bd622edd",
+          "bytes": 1733,
+          "sha256": "9abaa936e6b44f0cb46a0a50681796f89433915162092110ede745759a68c077",
+          "retained_source_name": "tag-src__redahm_engine__audio__xaudio2_audio_driver.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/audio/xaudio2_audio_system.cpp",
+          "blob": "aa99a82d09b8634e69fb9b618606b2b0152496f8",
+          "bytes": 3287,
+          "sha256": "cb7a6315165120af048dae1d3f740b16c7333faac21235053e62283812d90402",
+          "retained_source_name": "tag-src__redahm_engine__audio__xaudio2_audio_system.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/audio/xaudio2_audio_system.h",
+          "blob": "abccb1b0ad5f9377ec4aa967c10d0eb5ed89ac2e",
+          "bytes": 935,
+          "sha256": "30d643827ea13f996e3aec4fb7f512bf41c09dd7887128144c9b2fb6eaff404e",
+          "retained_source_name": "tag-src__redahm_engine__audio__xaudio2_audio_system.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/console_exec.cpp",
+          "blob": "c9f4805c886b272d067fd271078b2c512453ce3a",
+          "bytes": 6031,
+          "sha256": "17bc9491c48f47b829194b76316ba297f6eb808b9b1518de0905acd94477bb5a",
+          "retained_source_name": "tag-src__redahm_engine__console_exec.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/console_exec.h",
+          "blob": "6186d57b279f3d94cce11f83ef7c255b8d139b84",
+          "bytes": 785,
+          "sha256": "a709e0b37ecc1dab5d75a835168c4c86b1f195016232f6adc8e675f49213dcf8",
+          "retained_source_name": "tag-src__redahm_engine__console_exec.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/dlc_unlock.cpp",
+          "blob": "559c06143d40058a8a51264dc520014105ac7248",
+          "bytes": 1033,
+          "sha256": "3fa044bfbdf29db5dd650a33a177ecccba25c5c9580a00fcceb576bece719d43",
+          "retained_source_name": "tag-src__redahm_engine__dlc_unlock.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/framerate.cpp",
+          "blob": "61c0acc2b73a71896fadc69aa7ca993a1b29ff2d",
+          "bytes": 2651,
+          "sha256": "5e64714cec4f80c4867579ff79c5abcb789c986ebda227de2ac5fbb8dbe7ec0b",
+          "retained_source_name": "tag-src__redahm_engine__framerate.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/hooks.cpp",
+          "blob": "a785413c78bdc01b1922c6d7ca904c4e117e48f2",
+          "bytes": 1293,
+          "sha256": "1d52edf33e0013b630f71db62d7b0008941521eb1dc52fbb413e617939e6c0a8",
+          "retained_source_name": "tag-src__redahm_engine__hooks.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/movie_sequence.cpp",
+          "blob": "87ce028e7e9f83b04620841a31cedd4ae7c91bbe",
+          "bytes": 7116,
+          "sha256": "b20dda1c00f905db63f38a7936f9eabd731373129db076a344122dd12c13d9af",
+          "retained_source_name": "tag-src__redahm_engine__movie_sequence.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/overlays/debug_command_overlay.h",
+          "blob": "83761795aca77da0f85410d1bfa71d5b440b5982",
+          "bytes": 4538,
+          "sha256": "b12742e1dc8c1f1ac4166c083f594cabe027a73497f1b368e6fb05a94b73e6d9",
+          "retained_source_name": "tag-src__redahm_engine__overlays__debug_command_overlay.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/overlays/fps_overlay.h",
+          "blob": "b151183ed7355e40944e2bf273212a4e5507ef9b",
+          "bytes": 2871,
+          "sha256": "9e06e63694b954874d63449f50b0de36a3ae4a0ebc7db6b9e3db62642b99f601",
+          "retained_source_name": "tag-src__redahm_engine__overlays__fps_overlay.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/overlays/redahm_logging_overlay.h",
+          "blob": "5db78e9f737f787289da00ab90e84eb161c3bd3a",
+          "bytes": 5411,
+          "sha256": "1f208366b20969676d742bab50aed515413343a491d8d3c094fa463783952aae",
+          "retained_source_name": "tag-src__redahm_engine__overlays__redahm_logging_overlay.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/path_config_store.h",
+          "blob": "a130d17cb1440fb35bf7f68f1f802ed86faa605f",
+          "bytes": 2658,
+          "sha256": "b5ca94cf8bb7fc23cfb00cf6f0edaef7397bfa8095521291dceb4ac54d2ae2ae",
+          "retained_source_name": "tag-src__redahm_engine__path_config_store.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/path_setup_wizard.h",
+          "blob": "be250ae964898e12a1e9228e18ef29f8c8ee13f1",
+          "bytes": 6755,
+          "sha256": "4e2bfd16a74d1348f645897d051e89c73ca2ecae7f373d88dc01103c15251f01",
+          "retained_source_name": "tag-src__redahm_engine__path_setup_wizard.h"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "src/redahm_engine/redahm_logging.h",
+          "blob": "a8fe382527d7bddfee048ad8fe597dd56090e424",
+          "bytes": 574,
+          "sha256": "3c68a9261794e7eeeaec166c62d2e7943fa34a7851b2fae2979d92696270cdd4",
+          "retained_source_name": "tag-src__redahm_engine__redahm_logging.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "CMakeLists.txt",
+          "blob": "ed05b9b91dca2cfc5cd68c9537f71fec7fbf8555",
+          "bytes": 926,
+          "sha256": "66f6a43bb9cd6fed2e163f15ffaeba87ff0ee480b550b702379b04c060786869",
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "redahm_manifest.toml",
+          "blob": "fc5343758be3774c6423fe8a617c9d879bb11792",
+          "bytes": 166,
+          "sha256": "6fd9c24a83647bfcb5a35a31d7c6fb5e6a3db9f15a85dadd19d822accd391c95",
+          "retained_source_name": "current-redahm_manifest.toml"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/main.cpp",
+          "blob": "34e07605266f5ad0ddb3a0f692fdacc75ab025b0",
+          "bytes": 219,
+          "sha256": "7fe164579e81a158f43e4c7bd39b117c0e68ce75e66e80ced736783e2de9f3e5",
+          "retained_source_name": "current-src__main.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_app.h",
+          "blob": "2e3738f4a5c8f26bfe0202a9d61997898d81af9d",
+          "bytes": 2477,
+          "sha256": "b55f7b985144a9bab8110a5f94de6ddeb7c07f373ed1593b230f4cc036a25fc7",
+          "retained_source_name": "current-src__redahm_app.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/console_exec.cpp",
+          "blob": "c9f4805c886b272d067fd271078b2c512453ce3a",
+          "bytes": 6031,
+          "sha256": "17bc9491c48f47b829194b76316ba297f6eb808b9b1518de0905acd94477bb5a",
+          "retained_source_name": "current-src__redahm_engine__console_exec.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/console_exec.h",
+          "blob": "6186d57b279f3d94cce11f83ef7c255b8d139b84",
+          "bytes": 785,
+          "sha256": "a709e0b37ecc1dab5d75a835168c4c86b1f195016232f6adc8e675f49213dcf8",
+          "retained_source_name": "current-src__redahm_engine__console_exec.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/dlc_unlock.cpp",
+          "blob": "559c06143d40058a8a51264dc520014105ac7248",
+          "bytes": 1033,
+          "sha256": "3fa044bfbdf29db5dd650a33a177ecccba25c5c9580a00fcceb576bece719d43",
+          "retained_source_name": "current-src__redahm_engine__dlc_unlock.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/framerate.cpp",
+          "blob": "61c0acc2b73a71896fadc69aa7ca993a1b29ff2d",
+          "bytes": 2651,
+          "sha256": "5e64714cec4f80c4867579ff79c5abcb789c986ebda227de2ac5fbb8dbe7ec0b",
+          "retained_source_name": "current-src__redahm_engine__framerate.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/hooks.cpp",
+          "blob": "a785413c78bdc01b1922c6d7ca904c4e117e48f2",
+          "bytes": 1293,
+          "sha256": "1d52edf33e0013b630f71db62d7b0008941521eb1dc52fbb413e617939e6c0a8",
+          "retained_source_name": "current-src__redahm_engine__hooks.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/movie_sequence.cpp",
+          "blob": "87ce028e7e9f83b04620841a31cedd4ae7c91bbe",
+          "bytes": 7116,
+          "sha256": "b20dda1c00f905db63f38a7936f9eabd731373129db076a344122dd12c13d9af",
+          "retained_source_name": "current-src__redahm_engine__movie_sequence.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/overlays/debug_command_overlay.h",
+          "blob": "83761795aca77da0f85410d1bfa71d5b440b5982",
+          "bytes": 4538,
+          "sha256": "b12742e1dc8c1f1ac4166c083f594cabe027a73497f1b368e6fb05a94b73e6d9",
+          "retained_source_name": "current-src__redahm_engine__overlays__debug_command_overlay.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/overlays/fps_overlay.h",
+          "blob": "b151183ed7355e40944e2bf273212a4e5507ef9b",
+          "bytes": 2871,
+          "sha256": "9e06e63694b954874d63449f50b0de36a3ae4a0ebc7db6b9e3db62642b99f601",
+          "retained_source_name": "current-src__redahm_engine__overlays__fps_overlay.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/overlays/redahm_logging_overlay.h",
+          "blob": "5db78e9f737f787289da00ab90e84eb161c3bd3a",
+          "bytes": 5411,
+          "sha256": "1f208366b20969676d742bab50aed515413343a491d8d3c094fa463783952aae",
+          "retained_source_name": "current-src__redahm_engine__overlays__redahm_logging_overlay.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/path_config_store.h",
+          "blob": "a130d17cb1440fb35bf7f68f1f802ed86faa605f",
+          "bytes": 2658,
+          "sha256": "b5ca94cf8bb7fc23cfb00cf6f0edaef7397bfa8095521291dceb4ac54d2ae2ae",
+          "retained_source_name": "current-src__redahm_engine__path_config_store.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/path_setup_wizard.h",
+          "blob": "be250ae964898e12a1e9228e18ef29f8c8ee13f1",
+          "bytes": 6755,
+          "sha256": "4e2bfd16a74d1348f645897d051e89c73ca2ecae7f373d88dc01103c15251f01",
+          "retained_source_name": "current-src__redahm_engine__path_setup_wizard.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "src/redahm_engine/redahm_logging.h",
+          "blob": "a8fe382527d7bddfee048ad8fe597dd56090e424",
+          "bytes": 574,
+          "sha256": "3c68a9261794e7eeeaec166c62d2e7943fa34a7851b2fae2979d92696270cdd4",
+          "retained_source_name": "current-src__redahm_engine__redahm_logging.h"
+        },
+        {
+          "role": "current",
+          "repository": "masterspike52/reDAHM",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "path": "README.md",
+          "blob": "135be044b86d54e8e8805787e42f74271dee1e5a",
+          "bytes": 1797,
+          "sha256": "777be3f18be9d347102aec6fb3f05b798b9d8d7c4ef4b0e14cc6063e493eaa74",
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "role": "tag",
+          "repository": "masterspike52/reDAHM",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "path": "README.md",
+          "blob": "ad65f605f9d130a9ed52ea4cc80fc9693d23d0ac",
+          "bytes": 2005,
+          "sha256": "b3725b7e3936f62df35700bcd574639d00597421daae72a121167308bcc7a823",
+          "retained_source_name": "tag-README.md"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "b1a326869113fb17045f1bf11f396adfcd59f727",
+          "root_tree": "73c42b7b9667378fee6c5b1d1f191d18cf597363",
+          "entries": 29,
+          "truncated": false,
+          "sha256": "59387fe7203fd2efc362eaf9aa7fbeb429f72f664bf6020f08bcd2eb7c1ecba7",
+          "retained_name": "current-tree-by-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "da958b288c6f8f42812b9f36b08c29ffdd7e48fd",
+          "root_tree": "446e23d775811a92986cb88f112bde7362047bc7",
+          "entries": 33,
+          "truncated": false,
+          "sha256": "6c66904abd79ce427f35d8350fcefe163b90ba7b65bbaca2852fdf619429f4dc",
+          "retained_name": "tag-tree-by-tree.json",
+          "gitlinks": []
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 1563,
+          "sha256": "4ddba430428b9e5aab938017d273375d0e3380b1da30239c2bcc19b05562a44c"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 2762,
+          "sha256": "4e41d5f8616d00c6cf346bd4969ad78f116f3012dc6212d82ebd8b3534b9abc9"
+        },
+        {
+          "retained_name": "current-redahm_manifest.toml.api.json",
+          "bytes": 517,
+          "sha256": "46c820be6766b5bdccc6be6ac2e1dca41a3253089078cfbda6f89108cfbcaab0"
+        },
+        {
+          "retained_name": "current-src__main.cpp.api.json",
+          "bytes": 587,
+          "sha256": "14b332aee60f38ce33c8a0be3ef5fa69958a8de5550f4a3739fce65af780842f"
+        },
+        {
+          "retained_name": "current-src__redahm_app.h.api.json",
+          "bytes": 3702,
+          "sha256": "b43e55f6d7ef7800e60c04fca6c7d251dba6af57673a4328b0f6439f6395e8d2"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__console_exec.cpp.api.json",
+          "bytes": 8600,
+          "sha256": "5cfe0fced2faa5e711dab7f5140da5c9ab0840d43d0748607926974ae6de645a"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__console_exec.h.api.json",
+          "bytes": 1369,
+          "sha256": "5caad4ede59043c700b63339c09400896e19a0702eeec825189ce5e6fd37d7f2"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__dlc_unlock.cpp.api.json",
+          "bytes": 1712,
+          "sha256": "7ccdd063dd5725925a46a56b60fa0b0c32fb714d692b7a0e157aefaee3eae68a"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__framerate.cpp.api.json",
+          "bytes": 3940,
+          "sha256": "de96bfc4dcad39ed0a2835caf0f3641f8d243bde29ac0482acc15f80f477f63d"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__hooks.cpp.api.json",
+          "bytes": 2068,
+          "sha256": "dcc700a30b7ce1463cbe15b0fd71791a8bd1e70e5574432633ce06ba22e1664b"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__movie_sequence.cpp.api.json",
+          "bytes": 10092,
+          "sha256": "de9293f761f359461134a7ea9b45e3cf4f5233dc1e05102c39cda03abe4af566"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__overlays__debug_command_overlay.h.api.json",
+          "bytes": 6540,
+          "sha256": "0a759c081ea9497aec8a1dd9480094809ed01c492674416b7a51c3082e561781"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__overlays__fps_overlay.h.api.json",
+          "bytes": 4242,
+          "sha256": "24eae6a087c066a44cfa9113cc9842416bc9f8019ecb5ee9981a60f7d5f52704"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__overlays__redahm_logging_overlay.h.api.json",
+          "bytes": 7744,
+          "sha256": "0c2e07567ac7b2f6dd92b894df40d1318bf77313c6a8ca027f914cab4e1b3c42"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__path_config_store.h.api.json",
+          "bytes": 3950,
+          "sha256": "585ff441115dccb3612d9abac95732a90970680c57f93d0c2c384da9b55ab2f5"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__path_setup_wizard.h.api.json",
+          "bytes": 9596,
+          "sha256": "1712fdd94ae07fc6bee0046e693f819cfecccfd257f4213d82dfffbdc696c6b9"
+        },
+        {
+          "retained_name": "current-src__redahm_engine__redahm_logging.h.api.json",
+          "bytes": 1079,
+          "sha256": "e916b6b298f2221128d21babad0726432e69a58690c38d78b9284898a3e9b225"
+        },
+        {
+          "retained_name": "current-tree-by-tree.json",
+          "bytes": 6968,
+          "sha256": "59387fe7203fd2efc362eaf9aa7fbeb429f72f664bf6020f08bcd2eb7c1ecba7"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 6968,
+          "sha256": "48a72cf188fbbdada9ab0779645bf285180acbd30e3724ab34e43e019341bd4a"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 6801,
+          "sha256": "80aeafefa57690072cb4af31c0d51529f00d6b0bfb7ac2f484edbb711873956e"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 4946,
+          "sha256": "f1dde21d1f9ef173ea6d4b274b6b267f3061710696421b7964d749d4d4f200f1"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5309,
+          "sha256": "2152d396bbce41c03df58cc37f1b880cbad20c47fcdf9dec9fec8eb4653179e7"
+        },
+        {
+          "retained_name": "runtime-commit-observation.json",
+          "bytes": 274,
+          "sha256": "d492b0eac371478d34e4b9559f767b7ed22993f43622671202b2b3b2541318b9"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 16835,
+          "sha256": "1786152faf63ddaee0e022e33c1dfcee196d6ac71c7f8ba8f1ec1f6c42a285a6"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 1738,
+          "sha256": "1e2d8140fdf75d0a573588b29c2e5c2dd9c1d3f7cd58b6623b16923709eaafd4"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 3052,
+          "sha256": "dd59dc888b0a380024e8d202ed7a53654003ae246d25ea55546e047ea75fd52a"
+        },
+        {
+          "retained_name": "tag-redahm_manifest.toml.api.json",
+          "bytes": 513,
+          "sha256": "235a1709bbdd3fe09fdd5e24ce641c46384ad30652e164a008a145714d9498c9"
+        },
+        {
+          "retained_name": "tag-src__main.cpp.api.json",
+          "bytes": 587,
+          "sha256": "14b332aee60f38ce33c8a0be3ef5fa69958a8de5550f4a3739fce65af780842f"
+        },
+        {
+          "retained_name": "tag-src__redahm_app.h.api.json",
+          "bytes": 3974,
+          "sha256": "2cb0753d909ff2d20345b2cd82e160eb7899eea230ee0cfd478ae838a9a76fb1"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__audio__xaudio2_audio_driver.cpp.api.json",
+          "bytes": 6388,
+          "sha256": "e701afd2a84daa4f0f6490b774faebfa64737d5bfc562134c395e99151006188"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__audio__xaudio2_audio_driver.h.api.json",
+          "bytes": 2676,
+          "sha256": "ed0f444936dad0da6d2c680f7d3b0880eb9e428bf56f62c26d46c6c00796684b"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__audio__xaudio2_audio_system.cpp.api.json",
+          "bytes": 4818,
+          "sha256": "cf532e31682a9a9ee60d20a31601ec8acf8904b41beb58b8a799de0ed6d33e27"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__audio__xaudio2_audio_system.h.api.json",
+          "bytes": 1575,
+          "sha256": "6ffcd37b07d40d0fcccae15d755ecb1fe77e2505be6208f00aa9666cfc769b6c"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__console_exec.cpp.api.json",
+          "bytes": 8600,
+          "sha256": "5cfe0fced2faa5e711dab7f5140da5c9ab0840d43d0748607926974ae6de645a"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__console_exec.h.api.json",
+          "bytes": 1369,
+          "sha256": "5caad4ede59043c700b63339c09400896e19a0702eeec825189ce5e6fd37d7f2"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__dlc_unlock.cpp.api.json",
+          "bytes": 1712,
+          "sha256": "7ccdd063dd5725925a46a56b60fa0b0c32fb714d692b7a0e157aefaee3eae68a"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__framerate.cpp.api.json",
+          "bytes": 3940,
+          "sha256": "de96bfc4dcad39ed0a2835caf0f3641f8d243bde29ac0482acc15f80f477f63d"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__hooks.cpp.api.json",
+          "bytes": 2068,
+          "sha256": "dcc700a30b7ce1463cbe15b0fd71791a8bd1e70e5574432633ce06ba22e1664b"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__movie_sequence.cpp.api.json",
+          "bytes": 10092,
+          "sha256": "de9293f761f359461134a7ea9b45e3cf4f5233dc1e05102c39cda03abe4af566"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__overlays__debug_command_overlay.h.api.json",
+          "bytes": 6540,
+          "sha256": "0a759c081ea9497aec8a1dd9480094809ed01c492674416b7a51c3082e561781"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__overlays__fps_overlay.h.api.json",
+          "bytes": 4242,
+          "sha256": "24eae6a087c066a44cfa9113cc9842416bc9f8019ecb5ee9981a60f7d5f52704"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__overlays__redahm_logging_overlay.h.api.json",
+          "bytes": 7744,
+          "sha256": "0c2e07567ac7b2f6dd92b894df40d1318bf77313c6a8ca027f914cab4e1b3c42"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__path_config_store.h.api.json",
+          "bytes": 3950,
+          "sha256": "585ff441115dccb3612d9abac95732a90970680c57f93d0c2c384da9b55ab2f5"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__path_setup_wizard.h.api.json",
+          "bytes": 9596,
+          "sha256": "1712fdd94ae07fc6bee0046e693f819cfecccfd257f4213d82dfffbdc696c6b9"
+        },
+        {
+          "retained_name": "tag-src__redahm_engine__redahm_logging.h.api.json",
+          "bytes": 1079,
+          "sha256": "e916b6b298f2221128d21babad0726432e69a58690c38d78b9284898a3e9b225"
+        },
+        {
+          "retained_name": "tag-tree-by-tree.json",
+          "bytes": 7998,
+          "sha256": "6c66904abd79ce427f35d8350fcefe163b90ba7b65bbaca2852fdf619429f4dc"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 7998,
+          "sha256": "7aac329b708bfc43ee2c2015a18e97cd702d545f614e92c2b59ec240224cc126"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 4133,
+          "sha256": "8d67161bb86afa1be000001ed67b53b9512c88925c1eb5fe32149ea29f364366"
+        }
+      ]
+    },
+    {
+      "canonical_issue": 131,
+      "bindings": [
+        {
+          "role": "tag",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "path": "CMakeLists.txt",
+          "blob": "5b1a1f5ef50dd9fa483fc96e4633f6f3e644f808",
+          "bytes": 362,
+          "sha256": "010e71d2567ac13436e72cf247f285c9941fdf96e4478da2d38ee0ce9210df23",
+          "retained_source_name": "tag-CMakeLists.txt"
+        },
+        {
+          "role": "tag",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "path": "DISCLAIMER.md",
+          "blob": "46a5bc504dc5da6b9e770fd21ea96cfed6f310b1",
+          "bytes": 2107,
+          "sha256": "633b4722eaa7f2e0eda9782b18aea73a891e1fd14a5e2aabb4bf3eccbec0cae3",
+          "retained_source_name": "tag-DISCLAIMER.md"
+        },
+        {
+          "role": "tag",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "path": "src/main.cpp",
+          "blob": "0e2a5b9274bf5a26af961aa3b70630a8f499b206",
+          "bytes": 137,
+          "sha256": "75a85f765bee7c9652084e7e0d358e15edb83ac150e5ff74a3a48c3d8ca09b50",
+          "retained_source_name": "tag-src__main.cpp"
+        },
+        {
+          "role": "tag",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "path": "src/svr07_app.h",
+          "blob": "f87715e89e2597c28dfc9f38637b1cc036cc0ee0",
+          "bytes": 1478,
+          "sha256": "bcf75a6be719533c112f050de8a1c23cc46373fe0537f5d59862bb09f47c9d91",
+          "retained_source_name": "tag-src__svr07_app.h"
+        },
+        {
+          "role": "tag",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "path": "svr07_config.toml",
+          "blob": "58c8ffaf82a4e50f3a5990c6566ae1312c6f45ee",
+          "bytes": 137,
+          "sha256": "6addae345a952eec23c9d878017838759312a9d62372c3060e6bcb022323d3be",
+          "retained_source_name": "tag-svr07_config.toml"
+        },
+        {
+          "role": "current",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "path": "CMakeLists.txt",
+          "blob": "cca390fe6c47810b8a92276b26fb1607e66b3728",
+          "bytes": 343,
+          "sha256": "e1e232f13ccfac022249dc5eff89492c3af29cdb1ebb8adcffeebd0f44e1256f",
+          "retained_source_name": "current-CMakeLists.txt"
+        },
+        {
+          "role": "current",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "path": "DISCLAIMER.md",
+          "blob": "59bd4eb3d1ea0d067ad54a601ebfb284c4937ad0",
+          "bytes": 4251,
+          "sha256": "9aef3b80e226be122f2a211a785f7ddaeccdda0557d0ff9a196e8e0aef6f5b75",
+          "retained_source_name": "current-DISCLAIMER.md"
+        },
+        {
+          "role": "current",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "path": "src/main.cpp",
+          "blob": "87b31cf6cfe33075839cf7098d2fef3c0a0747aa",
+          "bytes": 133,
+          "sha256": "da1a073c8c1dbb3432cb45197a8074766927186bca1b774204aa75bdbe3a5c37",
+          "retained_source_name": "current-src__main.cpp"
+        },
+        {
+          "role": "current",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "path": "src/svr07_app.h",
+          "blob": "805912c751ffe56ae46419d645fa35cd29ba6352",
+          "bytes": 1485,
+          "sha256": "e78b2951919c7153a533ad834a22c5c200c474207c7e06c2f79ae3bff39078fb",
+          "retained_source_name": "current-src__svr07_app.h"
+        },
+        {
+          "role": "current",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "path": "svr07_config.toml",
+          "blob": "b992d68b2235c2cceed0e5790b7eb28296220d69",
+          "bytes": 131,
+          "sha256": "ef6dd26fb9f6bda89b40099d106758b6439b4bef5d93b041c0612ea6fee63db2",
+          "retained_source_name": "current-svr07_config.toml"
+        },
+        {
+          "role": "current",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "path": "LICENSE",
+          "blob": "eb995ae804ae4933df4ad446491d5b79a5306302",
+          "bytes": 1522,
+          "sha256": "a0b0e5da39bafd241ceb7077f5d05acc0b1f3c0c73a9923f4a1c6ce717fde75c",
+          "retained_source_name": "current-LICENSE"
+        },
+        {
+          "role": "current",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "path": "README.md",
+          "blob": "f9e7f4687dc54533674db196a6bed8b9c95ca9e4",
+          "bytes": 5668,
+          "sha256": "d724ae02236c2e61bdd7ba3407ff723f333dec2939c46e50f3c402df35c31345",
+          "retained_source_name": "current-README.md"
+        },
+        {
+          "role": "tag",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "path": "LICENSE",
+          "blob": "eb995ae804ae4933df4ad446491d5b79a5306302",
+          "bytes": 1522,
+          "sha256": "a0b0e5da39bafd241ceb7077f5d05acc0b1f3c0c73a9923f4a1c6ce717fde75c",
+          "retained_source_name": "tag-LICENSE"
+        },
+        {
+          "role": "tag",
+          "repository": "HollywoodAkeem/SVR07-Recomp",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "path": "README.md",
+          "blob": "f8aa1b1eae9ea04bed88da2764957066c1342565",
+          "bytes": 5119,
+          "sha256": "66be8392e518a9e83230795a8459a27bc4a57916fde8bafedfde84196a6f92cf",
+          "retained_source_name": "tag-README.md"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "LICENSE",
+          "blob": "989af8778ded5b67521da99f4ed0a71960ac9caa",
+          "bytes": 1659,
+          "sha256": "8e065be1da2ff9a16b1f063d4636d8b67e6a654bb90583ea4332e66ac421bb18",
+          "retained_source_name": "runtime-LICENSE"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "include/rex/rex_app.h",
+          "blob": "e644ab383c0cb36eadd3a439de12f983ffbcce35",
+          "bytes": 5773,
+          "sha256": "e412da9930f116e775d7862dc4438fc2fbf4a9aab2b2dd910e45f568b297d228",
+          "retained_source_name": "runtime-include__rex__rex_app.h"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "src/codegen/config.cpp",
+          "blob": "09687fa31df808ef46da4271fdb6616fe0581724",
+          "bytes": 21976,
+          "sha256": "8d12cf5c7a22850b10d2d97a72902461b80ff7940449629631df015dcf6c3152",
+          "retained_source_name": "runtime-src__codegen__config.cpp"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "src/kernel/xboxkrnl/xboxkrnl_xconfig.cpp",
+          "blob": "de631565b0618f1a42c0de187a9b7c8c32cf17d2",
+          "bytes": 4749,
+          "sha256": "5da4b9fc43a41b580ce907e2d23ab89441da0fea1eebd55a90872bff3ecee3a1",
+          "retained_source_name": "runtime-src__kernel__xboxkrnl__xboxkrnl_xconfig.cpp"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "src/ui/rex_app.cpp",
+          "blob": "04a31de3bb4d44364dbcafedb36572ca239efe97",
+          "bytes": 10608,
+          "sha256": "6101cb66a934733111950c90005918409913a6035bc4a80163bcb515d983f68e",
+          "retained_source_name": "runtime-src__ui__rex_app.cpp"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "src/ui/windowed_app_main_win.cpp",
+          "blob": "33092ba0ad383959e6ac5f62e44bd7b2d82a1b75",
+          "bytes": 4045,
+          "sha256": "29947c5da06a358a5c6aae3c188e46c95c52fa4ba01b7429b62baac7c3a8daea",
+          "retained_source_name": "runtime-src__ui__windowed_app_main_win.cpp"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "src/core/cvar.cpp",
+          "blob": "314b388848fc2b5b33725a062d48607e95666647",
+          "bytes": 12751,
+          "sha256": "9c8d0d464a9b75c880a56aba14ea0a60eca4a8da73462581e4bcab45d5ce1d6f",
+          "retained_source_name": "runtime-src__core__cvar.cpp"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "src/core/filesystem_win.cpp",
+          "blob": "00dad0b728e9c90d4405a6e3b53054acd3bf9c22",
+          "bytes": 7983,
+          "sha256": "b4c753efa2b120d29ac82a0f9f7f31c90c119cd33a9739bbc654937fdf8c2760",
+          "retained_source_name": "runtime-src__core__filesystem_win.cpp"
+        },
+        {
+          "repository": "HollywoodAkeem/rexglue-sdk-yukes",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "path": "include/rex/cvar.h",
+          "blob": "82d23a82fe98db67c88ffc78418a1bb344510878",
+          "bytes": 22658,
+          "sha256": "d4443eb5a25810906a1f83dfc4ce58ad8b66eb5107d995c81e56e21a4c03c818",
+          "retained_source_name": "runtime-include__rex__cvar.h"
+        }
+      ],
+      "complete_trees": [
+        {
+          "role": "current",
+          "commit": "2cd2793d5d235c83f90f109410ad75dad2aee857",
+          "root_tree": "69a467e093ef68559c4baf47cadda97e0df39050",
+          "entries": 79,
+          "truncated": false,
+          "sha256": "a9bcaf486828081e2dee5f4fc1adbe5ef7bd5e1df822395d2a5b66f59930e7d5",
+          "retained_name": "current-tree-by-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "tag",
+          "commit": "c10ecdc7e5fea9dd1aaa23dfbf0c89b153890abc",
+          "root_tree": "54c55c40cd74343dcb87614c5c9f372104ce56dd",
+          "entries": 157,
+          "truncated": false,
+          "sha256": "e23b63740bc2fd52ca3793f64900264fa2bc75ec2b59bd6d93cef82f29066b82",
+          "retained_name": "tag-tree-by-tree.json",
+          "gitlinks": []
+        },
+        {
+          "role": "runtime",
+          "commit": "987593c0fc6612850a2e1b247b2b03aa5281e663",
+          "root_tree": "848d648d327d2d19e506530aabca0ec2438c7b76",
+          "entries": 1377,
+          "truncated": false,
+          "sha256": "0f105a20f222da6cf04fd7874c9d8baf1ade23767e61d5761de3309f11574013",
+          "retained_name": "runtime-tree-by-tree.json",
+          "gitlinks": [
+            {
+              "path": "thirdparty/FFmpeg",
+              "sha": "0604b464c7cb4ebc94940cf1f324a3b26b87717c"
+            },
+            {
+              "path": "thirdparty/catch2",
+              "sha": "88abf9bf325c798c33f54f6b9220ef885b267f4f"
+            },
+            {
+              "path": "thirdparty/cli11",
+              "sha": "bfffd37e1f804ca4fae1caae106935791696b6a9"
+            },
+            {
+              "path": "thirdparty/fmt",
+              "sha": "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f"
+            },
+            {
+              "path": "thirdparty/glslang",
+              "sha": "f4f1d8a352ca1908943aea2ad8c54b39b4879080"
+            },
+            {
+              "path": "thirdparty/imgui",
+              "sha": "6d910d5487d11ca567b61c7824b0c78c569d62f0"
+            },
+            {
+              "path": "thirdparty/inja",
+              "sha": "7d1b4600b68595085a949743331c2e5673f511ea"
+            },
+            {
+              "path": "thirdparty/libmspack",
+              "sha": "305907723a4e7ab2018e58040059ffb5e77db837"
+            },
+            {
+              "path": "thirdparty/o1heap",
+              "sha": "388a73fd9007300e5130c5fe352d9ce3288b6dde"
+            },
+            {
+              "path": "thirdparty/sdl3",
+              "sha": "8bf3b7215ad9fc3deb583c6a3a37c6c67f2e24e4"
+            },
+            {
+              "path": "thirdparty/simde",
+              "sha": "71fd833d9666141edcd1d3c109a80e228303d8d7"
+            },
+            {
+              "path": "thirdparty/snappy",
+              "sha": "6af9287fbdb913f0794d0148c6aa43b58e63c8e3"
+            },
+            {
+              "path": "thirdparty/spdlog",
+              "sha": "79524ddd08a4ec981b7fea76afd08ee05f83755d"
+            },
+            {
+              "path": "thirdparty/spirv-headers",
+              "sha": "04f10f650d514df88b76d25e83db360142c7b174"
+            },
+            {
+              "path": "thirdparty/spirv-tools",
+              "sha": "04d0b166dcd62e29509bf2aac3ca0c5ccdcb6929"
+            },
+            {
+              "path": "thirdparty/tomlplusplus",
+              "sha": "30172438cee64926dc41fdd9c11fb3ba5b2ba9de"
+            },
+            {
+              "path": "thirdparty/tracy",
+              "sha": "05cceee0df3b8d7c6fa87e9638af311dbabc63cb"
+            },
+            {
+              "path": "thirdparty/utfcpp",
+              "sha": "63d64de49fd6b829f7c8694df5ab2ee625cb7134"
+            },
+            {
+              "path": "thirdparty/volk",
+              "sha": "0b17a763ba5643e32da1b2152f8140461b3b7345"
+            },
+            {
+              "path": "thirdparty/vulkan-headers",
+              "sha": "49f1a381e2aec33ef32adf4a377b5a39ec016ec4"
+            },
+            {
+              "path": "thirdparty/vulkan-memory-allocator",
+              "sha": "1d8f600fd424278486eade7ed3e877c99f0846b1"
+            },
+            {
+              "path": "thirdparty/xxHash",
+              "sha": "e626a72bc2321cd320e953a0ccf1584cad60f363"
+            }
+          ]
+        }
+      ],
+      "retained_api_manifest": [
+        {
+          "retained_name": "current-CMakeLists.txt.api.json",
+          "bytes": 768,
+          "sha256": "6f76ab60b8576a503d5532df483c1f531c3abaf9e8014a23f85a547364138b84"
+        },
+        {
+          "retained_name": "current-DISCLAIMER.md.api.json",
+          "bytes": 6151,
+          "sha256": "a26bc97a2f24dc05a2e0148e695908ffbae8c993b8a48014d5e63226afae2810"
+        },
+        {
+          "retained_name": "current-LICENSE.api.json",
+          "bytes": 2393,
+          "sha256": "8ce105635db535ddd18c11e1bf8d66f0a9f36057d6268311f3af6593134a946e"
+        },
+        {
+          "retained_name": "current-README.md.api.json",
+          "bytes": 8105,
+          "sha256": "a02bcbf231dc3a14de97c0edeb564aed58ebbddd2698231d20f3b4bfbb75a162"
+        },
+        {
+          "retained_name": "current-src__main.cpp.api.json",
+          "bytes": 478,
+          "sha256": "fa04957153ce4ab088d60a944ad5c939d567d3398a96b545c40f5682e989c707"
+        },
+        {
+          "retained_name": "current-src__svr07_app.h.api.json",
+          "bytes": 2339,
+          "sha256": "3a48df74f7e1d4f9c7f0f7030ff0397f99d282b8f5d00a62374f4b8c40a20378"
+        },
+        {
+          "retained_name": "current-svr07_config.toml.api.json",
+          "bytes": 474,
+          "sha256": "1760141dbc8bc35916c280cc55d1f16c0464e8336b160ccbc11cce4793700863"
+        },
+        {
+          "retained_name": "current-tree-by-tree.json",
+          "bytes": 19558,
+          "sha256": "a9bcaf486828081e2dee5f4fc1adbe5ef7bd5e1df822395d2a5b66f59930e7d5"
+        },
+        {
+          "retained_name": "current-tree.json",
+          "bytes": 19558,
+          "sha256": "331f710673701c19c311fccb7a623a19dec6c4aa4986632e9700ebc4001c1227"
+        },
+        {
+          "retained_name": "current.json",
+          "bytes": 6847,
+          "sha256": "88a71584b97bd1e1127941da0a16db2f8b2309d9f548606ebc708a56c5900b2e"
+        },
+        {
+          "retained_name": "release.json",
+          "bytes": 3736,
+          "sha256": "8a0f73330c7c677e501ad79cfaf6d7697980b059a3f3da154e8d3005ca62db10"
+        },
+        {
+          "retained_name": "repository.json",
+          "bytes": 5771,
+          "sha256": "ed784e629e9223406b7de82a4d0db6a65933e9fc40e57059ecf4843b9de5d4a1"
+        },
+        {
+          "retained_name": "runtime-LICENSE.api.json",
+          "bytes": 2584,
+          "sha256": "7b941235c42ff48fb2cfdb4a9ce9cc76f4599c79632bec5a7048a92c3c456936"
+        },
+        {
+          "retained_name": "runtime-commit-observation.json",
+          "bytes": 4531,
+          "sha256": "7d4c357b2820e26515d0c54eba25c6b4d5c54629dadb4f2165d7b590db80ee1b"
+        },
+        {
+          "retained_name": "runtime-commit.json",
+          "bytes": 4110,
+          "sha256": "8e7c451785d17fb5695fa4072a7d3ab5c2eafed9e9c66f2445d2374ac951b96d"
+        },
+        {
+          "retained_name": "runtime-include__rex__cvar.h.api.json",
+          "bytes": 31519,
+          "sha256": "3f898e2df2fa3e57d5cb722741604741c650a2914e8308a929206af4497a3043"
+        },
+        {
+          "retained_name": "runtime-include__rex__rex_app.h.api.json",
+          "bytes": 8256,
+          "sha256": "0ec4edb8a7714284c1d37a65143963f5469ee3f7f0b1de56c6a06ff29f0b6aff"
+        },
+        {
+          "retained_name": "runtime-manifest.json",
+          "bytes": 3767,
+          "sha256": "7e314be818c6da5440bb6e2a12d62fd01a2ee11791bf6ce76dcb60db3a94d0a5"
+        },
+        {
+          "retained_name": "runtime-src__codegen__config.cpp.api.json",
+          "bytes": 30581,
+          "sha256": "f2cb2d0db94c4cabac1dd31258385708b5c6639074051b2f784a9396ac7be12e"
+        },
+        {
+          "retained_name": "runtime-src__core__cvar.cpp.api.json",
+          "bytes": 17871,
+          "sha256": "165ccdeb507102ac5b82b1e7ea57ec3a6b4a32418a89b33766bae43bea7239e5"
+        },
+        {
+          "retained_name": "runtime-src__core__filesystem_win.cpp.api.json",
+          "bytes": 11298,
+          "sha256": "7809af7c3df99ae056ea552d669b6ae641441676c2bc7386ccf7fa1b034bb754"
+        },
+        {
+          "retained_name": "runtime-src__kernel__xboxkrnl__xboxkrnl_xconfig.cpp.api.json",
+          "bytes": 6842,
+          "sha256": "1e0fd921d79c9846f486ce1b90c6422b37b16f9852b0c1cf0abb80044c76ee6c"
+        },
+        {
+          "retained_name": "runtime-src__ui__rex_app.cpp.api.json",
+          "bytes": 14915,
+          "sha256": "dc9727f1cce2e32afa6f105b0079c4d8d307392d73fcb84ed6111d22a7a343e3"
+        },
+        {
+          "retained_name": "runtime-src__ui__windowed_app_main_win.cpp.api.json",
+          "bytes": 5874,
+          "sha256": "5a8b1b0f446fb8df7b70fab165f2c74231220d4d571225afd09a82695b6486c2"
+        },
+        {
+          "retained_name": "runtime-tree-by-tree.json",
+          "bytes": 354868,
+          "sha256": "0f105a20f222da6cf04fd7874c9d8baf1ade23767e61d5761de3309f11574013"
+        },
+        {
+          "retained_name": "runtime-tree.json",
+          "bytes": 354868,
+          "sha256": "e36397510a1b89dd40f6a7b3acff29877f15fa22c07ec8fe244c38e54d696f02"
+        },
+        {
+          "retained_name": "source-manifest.json",
+          "bytes": 5739,
+          "sha256": "86810bb9e1f2266eac5a72f1649802444a010cf03f20f5f2f1dbf57ea1474cb2"
+        },
+        {
+          "retained_name": "tag-CMakeLists.txt.api.json",
+          "bytes": 794,
+          "sha256": "7b8a0c728e1c6779f1084a752d7c7fe81058f10035ecf870c7905382830418a3"
+        },
+        {
+          "retained_name": "tag-DISCLAIMER.md.api.json",
+          "bytes": 3199,
+          "sha256": "c5f7b16436818f47121e999c8d336f034587ceb0001d194aac870ba394b896da"
+        },
+        {
+          "retained_name": "tag-LICENSE.api.json",
+          "bytes": 2393,
+          "sha256": "8ce105635db535ddd18c11e1bf8d66f0a9f36057d6268311f3af6593134a946e"
+        },
+        {
+          "retained_name": "tag-README.md.api.json",
+          "bytes": 7349,
+          "sha256": "73d6c0892b9a89895c1b40a7b05cce0c4e876792ba2aaed79382d4423ff895eb"
+        },
+        {
+          "retained_name": "tag-src__main.cpp.api.json",
+          "bytes": 484,
+          "sha256": "e8ea65e28395aa939c7a21cc7520ed0ed75a38f1a64d37942165fe074c2f7b56"
+        },
+        {
+          "retained_name": "tag-src__svr07_app.h.api.json",
+          "bytes": 2331,
+          "sha256": "11adbb87253c5a89e22b92ae18fd6108aec825b572df040fd04c582066fac7ad"
+        },
+        {
+          "retained_name": "tag-svr07_config.toml.api.json",
+          "bytes": 484,
+          "sha256": "e8c08288b92c891d6e5e3d405df91ffb439eac13b56603c37afa112ae7e5a07f"
+        },
+        {
+          "retained_name": "tag-tree-by-tree.json",
+          "bytes": 40525,
+          "sha256": "e23b63740bc2fd52ca3793f64900264fa2bc75ec2b59bd6d93cef82f29066b82"
+        },
+        {
+          "retained_name": "tag-tree.json",
+          "bytes": 40525,
+          "sha256": "c0c075bd3b8f4d122d47a2058987c19f604af9f50bd2cb92aeec0e0aacfc8b04"
+        },
+        {
+          "retained_name": "tag.json",
+          "bytes": 11989,
+          "sha256": "cf133ac48435f303e0ea6144f005201cccc35fe6b6f5a1a4360f5da2ad36d58c"
+        }
+      ]
+    }
+  ],
+  "source_limits": [
+    "Kameo .sdk-version pins inspected SDK f22cd9dc360dda5700358f7452230af24c2c2e69; manifest also names0.8.1. No acquired binary-to-source certificate.",
+    "reDAHM README custom SolarRecomps SDK dev endpoint returnedHTTP404, retained exact observation. Selected/current title path-store/native entry inspected; no unbound SDK defaults imported.",
+    "SVR named SDK fork current987593c0fc6612850a2e1b247b2b03aa5281e663 is explicitly unbound to selected v1.0 binary. Preserve actual established roots, not inferred migration.",
+    "Recursive tree queries are complete at recorded roots, not exhaustive transitive dependency or package rights inspection. Original commit-ref query responses retained; actual root-tree queries reproduce their entries."
+  ],
+  "maintenance_limits": [
+    "Kameo host-side MIT expressly excludes redistribution of generated linked game binaries. Existing lawful working copies remain a separate use question; exact applicable fresh-acquisition condition enforced.",
+    "reDAHM same-tag current Windows asset34,942,774/9c90176d differs from accepted34,918,055/ae2d24a6. Prior acquired-byte qualification stays with original artifact; no freshly computed hash or source metadata substitutes for independent identity.",
+    "SVR current reported approximately10percent per-session GPU-device-loss crash remains unconfirmed fixed; source/probe checks do not establish stability."
+  ],
+  "exclusions": [
+    "#160 explicit owner-approved1.0/Planned deferral preserved; no new product deferral or release commitment change.",
+    "No game package/original/ROM/helper/compiler/game acquired or executed in this batch. No Core-managed creation/replacement/deletion or Supported promotion."
+  ],
+  "delivery_authority": "Final PR/individual receipts own actual source/base/composition, independent review, five exact-head contexts, case/artifact inventories, guarded merge/readback and canonical dispositions. Full Required umbrella acceptance remains open."
+}

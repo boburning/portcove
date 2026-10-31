@@ -1,3 +1,8 @@
+import {
+  inspectSelectedPublicationAuthorityConfiguration,
+  applicationReleaseProfile,
+} from "./release-authority-configuration-contract.mts";
+import { inspectReleaseProfile } from "./release-package-policy.mts";
 /** Read-only acknowledgement of a report-only workflow invocation. This never
  * grants admission, signing custody or publication eligibility. */
 import assert from "node:assert/strict";
@@ -59,24 +64,39 @@ export function inspectReportRepairIdentity(
   assert.equal(environment.GITHUB_REPOSITORY_ID, "1354613114");
   assert.equal(environment.GITHUB_EVENT_NAME, "workflow_dispatch");
   assert.equal(environment.GITHUB_RUN_ATTEMPT, "1");
-  assert.equal(environment.PORTCOVE_RELEASE_PROFILE, "initial-beta-win-linux");
   assert.equal(environment.GITHUB_SHA, candidate.prepared_commit);
   const authorities: unknown = JSON.parse(environment.PORTCOVE_RELEASE_AUTHORITIES ?? "null");
-  assert.ok(
-    isRecord(authorities) &&
+  assert.ok(isRecord(authorities));
+  const selected =
+    authorities.schema_version === 4
+      ? inspectSelectedPublicationAuthorityConfiguration(authorities)
+      : null;
+  if (selected) assert.equal(selected.purpose, "application");
+  else
+    assert.ok(
       authorities.repository_id === 1354613114 &&
-      isRecord(authorities.apps) &&
-      isRecord(authorities.apps.dispatch),
+        isRecord(authorities.apps) &&
+        isRecord(authorities.apps.dispatch),
+    );
+  const actor = selected
+    ? operation.executor_identity.actor_id
+    : isRecord(authorities.apps) && isRecord(authorities.apps.dispatch)
+      ? authorities.apps.dispatch.actor_id
+      : undefined;
+  assert.ok(typeof actor === "string" && /^[1-9][0-9]*$/u.test(actor));
+  assert.equal(
+    inspectReleaseProfile(environment.PORTCOVE_RELEASE_PROFILE),
+    selected ? applicationReleaseProfile(selected) : "initial-beta-win-linux",
   );
   const namespace = inspectCoordinatorRemoteNamespace({
     schema_version: 1,
-    namespace: authorities.namespace,
+    namespace: selected ? selected.journal.namespace : authorities.namespace,
   });
   assert.equal(
     environment.GITHUB_REF,
     `refs/tags/${namespace}-prepared/v${String(candidate.version)}`,
   );
-  assert.equal(environment.GITHUB_ACTOR_ID, authorities.apps.dispatch.actor_id);
+  assert.equal(environment.GITHUB_ACTOR_ID, actor);
   assert.equal(
     environment.GITHUB_WORKFLOW_REF,
     `boburning/portcove/.github/workflows/release.yml@${environment.GITHUB_REF}`,
@@ -96,8 +116,8 @@ export function inspectReportRepairIdentity(
   assert.equal(run.head_branch, environment.GITHUB_REF.slice("refs/tags/".length));
   assert.equal(run.run_attempt, 1);
   assert.ok(["in_progress", "completed"].includes(String(run.status)));
-  assert.equal(String(run.actor.id), authorities.apps.dispatch.actor_id);
-  assert.equal(String(run.triggering_actor.id), authorities.apps.dispatch.actor_id);
+  assert.equal(String(run.actor.id), actor);
+  assert.equal(String(run.triggering_actor.id), actor);
   assert.equal(run.display_title, `Report repair ${digest(proof)}`);
   assert.ok(Array.isArray(operation.completed_effects) && operation.completed_effects.length <= 1);
   if (operation.completed_effects.length === 1) {
@@ -132,7 +152,15 @@ async function main() {
   assert.ok(/^[1-9][0-9]*$/u.test(env.GITHUB_RUN_ID ?? ""));
   const authorities: unknown = JSON.parse(env.PORTCOVE_RELEASE_AUTHORITIES ?? "null");
   assert.ok(isRecord(authorities));
-  const configuration = { schema_version: 1, namespace: authorities.namespace };
+  const selected =
+    authorities.schema_version === 4
+      ? inspectSelectedPublicationAuthorityConfiguration(authorities)
+      : null;
+  if (selected) assert.equal(selected.purpose, "application");
+  const configuration = {
+    schema_version: 1,
+    namespace: selected ? selected.journal.namespace : authorities.namespace,
+  };
   inspectCoordinatorRemoteNamespace(configuration);
   const snapshot = await readRemoteCoordinatorSnapshot(process.cwd(), configuration, {
     transport: { cwd: process.cwd(), deadline },

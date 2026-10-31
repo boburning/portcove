@@ -65,6 +65,12 @@ The selected library, port and runtime registration remain Core-owned.
 | Read-only or unavailable files | Record the actual permission/storage failure. Do not elevate, remove locks, silently redirect writes or infer that every read-only source prevents launch: an already-prepared runtime may no longer need it.                            |
 | CLI missing/incompatible       | Repair the verified standalone CLI target. Steam's failure to start an executable is not a Core game session.                                                                                                                            |
 
+For a moved CLI, repair **both Target and Start In**, leaving the selected
+`--library` argument and stable port ID intact. If the target is absent, Steam may
+show only “Failed to start process for this game”; Core cannot publish a new
+session or diagnose the path until Steam can start the CLI. Check these fields
+before changing the game installation or using launch recovery.
+
 ## Exit, Stop and recovery
 
 Normal game exit returns through the existing Core supervisor and its exact
@@ -107,3 +113,9 @@ and ordinary Linux; include normal exit, crash, Stop, prepared offline launch,
 relocation, update/rollback, storage and recovery outcomes. Preserve every failed
 or not-run cell and its concrete resume condition on #290. WSL, process simulation
 and a controlled shortcut file do not establish an ordinary Linux Steam result.
+
+The [October 29 acceptance table and ordinary-Linux procedure](../qualification/manual-steam-slice6-acceptance-2026-10-29.md)
+retain the actual Windows application observations, separate installed-game
+preparation, failed/not-run cells and exact remaining interaction requirements.
+The Linux procedure is preparation until executed in its own usable Steam
+graphical session.

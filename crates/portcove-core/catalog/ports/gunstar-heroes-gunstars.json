@@ -3,11 +3,9 @@
   "listing": {
     "id": "gunstar-heroes-gunstars",
     "name": "Gunstar Heroes (gunstars)",
-    "summary": "Upstream route: Good simple portable-package and explicit-ROM candidate; native game/menu/save behavior remains upstream claim. Limits: Early0.2.2 native rewrite with portable packages; game/menu/save claims remain upstream observations. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 archive and universal macOS Intel/Apple-Silicon package. Original data: Own Gunstar Heroes USA 1 MB cartridge dump selected via file browser or --rom. Portcove setup/gameplay not verified.",
+    "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
     "original_game_title": "Gunstar Heroes",
     "project_url": "https://github.com/1nputs/gunstars",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/1nputs/gunstars",
     "issue_number": 2580
   },
@@ -22,5 +20,27 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "1nputs/gunstars",
+      "asset_hints": {
+        "windows-x86-64": ["-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["gunstar.exe"]
+    },
+    "persistent_paths": ["settings.ini", "states", "screenshots", "videos"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On Play, use the upstream in-process file browser to select your own Gunstar Heroes USA 1 MiB cartridge dump, or retain an established --rom argument. The selected engine checks size and CRC32 B813CF0D for compatibility; that is not Core cryptographic source authentication. Core does not acquire, copy or import the ROM. Keep it outside the engine directory and preserve it separately. The normal Windows player gunstar.exe keeps settings.ini, states (including slots/autosave and previews), screenshots and videos relative to its executable working directory; Core preserves these declared default paths across its engine maintenance. User-configured state/capture paths can point elsewhere and remain external, outside Core backup/removal. Retain every actual override location and compatible old runtime before changes; restore does not promise backward state compatibility. macOS Finder profile behavior is a separate unoffered platform. Normal local play is offered; multiplayer/replay/GIF/gameplay claims remain upstream-only. Existing external registrations keep their own replacement owner."
+    }
   }
 }

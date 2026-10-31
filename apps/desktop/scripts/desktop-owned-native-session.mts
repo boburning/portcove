@@ -305,6 +305,7 @@ export async function retainNativeCustody({
 
 export class OwnedNativeSession {
   private launchAttempted = false;
+  private driverStartupSequence = 0;
   driver: CapturedNativeProcess | undefined;
   application: CapturedNativeProcess | undefined;
   game: NativeManagedGame | undefined;
@@ -322,6 +323,84 @@ export class OwnedNativeSession {
     this.games = [];
     this.inventory = undefined;
     this.cleanup = undefined;
+  }
+
+  /** Admission refusal preserves the former proof; an attempted replacement
+   * invalidates it even when the caller-owned factory throws synchronously. */
+  startLaunch<Driver>({ admit, create }: { admit: () => void; create: () => Driver }): Driver {
+    admit();
+    this.beginLaunch();
+    return create();
+  }
+
+  /** Strict identity-bound restart. Actual observations and receipt publication
+   * stay caller capabilities; no fixture mutation precedes positive quiescence. */
+  async restart<Browser>({
+    capture,
+    close,
+    stop,
+    publish,
+    prepare,
+    start,
+    connect,
+    browser,
+  }: {
+    capture: () => Promise<void>;
+    close: () => Promise<void>;
+    stop: () => void;
+    publish: (cleanup: NativeSessionCleanup) => Promise<void>;
+    prepare: (() => Promise<void>) | undefined;
+    start: () => Promise<void>;
+    connect: () => Promise<void>;
+    browser: () => Browser;
+  }): Promise<Browser> {
+    await capture();
+    await close();
+    stop();
+    const cleanup = this.requireQuiescence();
+    await publish(cleanup);
+    if (prepare) await prepare();
+    await start();
+    await connect();
+    return browser();
+  }
+
+  captureDriverLaunch({
+    pid,
+    executable,
+    output,
+    name,
+    launchStarted,
+    artifacts,
+    observe,
+    now = Date.now,
+  }: {
+    pid: number | undefined;
+    executable: string;
+    output: string;
+    name: string;
+    launchStarted: number;
+    artifacts: string[];
+    observe: (mode: "SnapshotDriver", snapshot: string) => NativeProcessSnapshot;
+    now?: () => number;
+  }) {
+    // Failed observations consume their sequence too. A replacement launch or
+    // reused PID must never reuse an earlier immutable identity receipt.
+    const suffix = `-${++this.driverStartupSequence}-${pid}`;
+    const snapshot = path.join(output, `${name}-driver-startup${suffix}.json`);
+    const captured = observe("SnapshotDriver", snapshot);
+    assert.equal(captured.driver.pid, pid);
+    assert.equal(
+      path.resolve(captured.driver.path).toLowerCase(),
+      path.resolve(executable).toLowerCase(),
+    );
+    const created = Number(BigInt(captured.driver.started_filetime) / 10_000n) - 11_644_473_600_000;
+    assert.ok(
+      created >= launchStarted - 1 && created <= now(),
+      "Driver creation must belong to this launch",
+    );
+    this.driver = captured.driver;
+    artifacts.push(snapshot);
   }
 
   bindApplication(captured: NativeProcessSnapshot, executable: string) {

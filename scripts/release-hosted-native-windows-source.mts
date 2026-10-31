@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Held source preparation only. Public observations cannot mint an original
  * parent, runtime or source receipt; no account or native candidate is executed. */
 import { nativeQualificationWorkerPath } from "./release-native-qualification-contract.mts";
@@ -203,10 +204,87 @@ function inspectPlan(raw: unknown): Plan {
   return raw as Plan;
 }
 
+/** Live producer observations are bounded samples, never settled custody proof. */
+export function windowsPreparationEntryDisappeared(
+  error: unknown,
+  filename: string,
+  requiredRoot: string,
+  live: boolean,
+) {
+  if (!live || filename === requiredRoot || !isRecord(error)) return false;
+  if (error.code === "ENOENT") return true;
+  if (error.code !== "EBUSY") return false;
+  // Windows can report a sharing error while pnpm removes a staging directory.
+  // A still-present busy path, permissions failure or any other error refuses.
+  try {
+    lstatSync(filename);
+    return false;
+  } catch (after) {
+    return isRecord(after) && after.code === "ENOENT";
+  }
+}
+
+/** Only a live directory enumeration may defer a Windows sharing violation.
+ * This is not inventory coverage: settled scans and the final graph stay strict.
+ */
+export function windowsPreparationDirectoryEnumerationDeferred(
+  error: unknown,
+  filename: string,
+  requiredRoot: string,
+  live: boolean,
+) {
+  if (!live || filename === requiredRoot || !isRecord(error) || error.code !== "EBUSY")
+    return false;
+  // Recheck type after the enumeration failure. Never defer lstat failures,
+  // links, files, denied access or a required root.
+  const info = lstatSync(filename);
+  return info.isDirectory() && !info.isSymbolicLink();
+}
+
+export function inspectWindowsSourcePreparationInventory(
+  root: string,
+  active: () => void,
+  live = false,
+) {
+  let count = 0,
+    bytes = 0;
+  const pending = [root];
+  while (pending.length) {
+    active();
+    const current = pending.pop()!;
+    let entries;
+    try {
+      entries = readdirSync(current);
+    } catch (error) {
+      if (windowsPreparationEntryDisappeared(error, current, root, live)) continue;
+      throw error;
+    }
+    for (const name of entries) {
+      active();
+      const filename = path.join(current, name);
+      assert.ok(++count <= 32768);
+      let info;
+      try {
+        info = lstatSync(filename);
+      } catch (error) {
+        if (windowsPreparationEntryDisappeared(error, filename, root, live)) continue;
+        throw error;
+      }
+      assert.ok(!info.isSymbolicLink());
+      bytes += info.size;
+      assert.ok(
+        bytes <= 512 * 1024 ** 2 && (info.isDirectory() || (info.isFile() && info.nlink === 1)),
+      );
+      if (info.isDirectory()) pending.push(filename);
+    }
+  }
+  return { entries: count, bytes };
+}
+
 function preparationCommand(
   environment: Record<string, string>,
   cwd: string,
-  inventory: () => void,
+  inventory: (live?: boolean) => void,
 ) {
   return async (
     executable: string,
@@ -261,7 +339,7 @@ function preparationCommand(
       };
       const timer = setInterval(() => {
         try {
-          inventory();
+          inventory(true);
         } catch (error) {
           fail(error);
         }
@@ -320,25 +398,10 @@ async function acquireSource(planFile: string) {
   };
   // Detection can lag writes; this is deliberately not a hard filesystem quota.
   let inventoryEnabled = false;
-  const inventory = () => {
+  const inventory = (live = false) => {
     active();
     if (!inventoryEnabled) return;
-    let count = 0,
-      bytes = 0;
-    const pending = [plan.root];
-    while (pending.length) {
-      active();
-      for (const item of readdirSync(pending.pop()!, { withFileTypes: true })) {
-        const filename = path.join(item.parentPath, item.name),
-          stat = lstatSync(filename);
-        assert.ok(++count <= 32768 && !stat.isSymbolicLink());
-        bytes += stat.size;
-        assert.ok(
-          bytes <= 512 * 1024 ** 2 && (stat.isDirectory() || (stat.isFile() && stat.nlink === 1)),
-        );
-        if (stat.isDirectory()) pending.push(filename);
-      }
-    }
+    inspectWindowsSourcePreparationInventory(plan.root, active, live);
   };
   const command = preparationCommand(environment, path.dirname(plan.root), inventory);
   const script =
@@ -495,7 +558,7 @@ async function acquireDependencies(planFile: string) {
   phase("validated-inputs");
   let created = false;
   // Detection can lag writes; the original supervisor owns process-tree teardown.
-  const inventory = () => {
+  const inventory = (live = false) => {
     active();
     if (!created) return;
     const pending = [
@@ -509,7 +572,10 @@ async function acquireDependencies(planFile: string) {
       const current = pending.pop()!,
         info = lstatSync(current, { throwIfNoEntry: false });
       assert.ok(++count <= 100000);
-      if (!info) continue; // pnpm removes/renames live staging leaves.
+      if (!info) {
+        assert.notEqual(current, plan.root, "required dependency preparation root disappeared");
+        continue; // pnpm removes/renames live staging leaves; the final graph is strict.
+      }
       bytes += info.size;
       assert.ok(
         bytes <= 2 * 1024 ** 3 &&
@@ -521,7 +587,9 @@ async function acquireDependencies(planFile: string) {
         try {
           entries = readdirSync(current);
         } catch (error) {
-          if (isRecord(error) && error.code === "ENOENT") continue;
+          if (windowsPreparationEntryDisappeared(error, current, plan.root, live)) continue;
+          if (windowsPreparationDirectoryEnumerationDeferred(error, current, plan.root, live))
+            continue;
           throw error;
         }
         assert.ok(count + pending.length + entries.length <= 100000);
@@ -805,7 +873,7 @@ async function prepareWindowsOperation(
     const root = path.join(parent.directory, `windows-${operation}`),
       entry = path.join(tools.root, "scripts/release-hosted-native-windows-source.bundle.mjs"),
       setup = path.join(tools.root, "scripts/release-hosted-native-windows-setup.cs.txt");
-    const selected = parent.configuration.hosted_native["windows-x86_64"].producer;
+    const selected = selectedHostedNativePlatform(parent.configuration, "windows-x86_64").producer;
     assert.equal(selected.harness.path, harness);
     const sourcePlan: Plan = {
       schema_version: 1,

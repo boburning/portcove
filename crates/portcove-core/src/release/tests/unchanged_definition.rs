@@ -140,6 +140,110 @@ async fn bstone_definitions_keep_win64_identity_and_refuse_unqualified_metadata(
 }
 
 #[tokio::test]
+async fn devilution_definitions_follow_stable_win64_packages_and_refuse_unsafe_metadata() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let captured: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/devilution-release-selection-2026-10-29.json"
+    ))
+    .unwrap();
+    let observed = &captured["release"];
+    let name = "devilutionx-windows-x86_64.zip";
+    let selected = observed["assets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|asset| asset["name"] == name)
+        .unwrap();
+    for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+        let port = catalog.port(id).unwrap();
+        let definition = serde_json::to_value(port).unwrap();
+        // Only N is observed metadata. N+1 and its digest are controlled
+        // fixtures; they establish unchanged selection, not save compatibility.
+        let mut successor = observed.clone();
+        successor["tag_name"] = serde_json::json!("1.5.6");
+        for asset in successor["assets"].as_array_mut().unwrap() {
+            let next = asset["name"].as_str().unwrap().to_owned();
+            asset["browser_download_url"] =
+                serde_json::json!(format!("https://downloads.example.invalid/{next}"));
+            asset["digest"] = serde_json::json!(format!("sha256:{}", "b".repeat(64)));
+        }
+        let (root, requests, server) = serve_http(vec![
+            metadata(),
+            releases(std::slice::from_ref(observed)),
+            metadata(),
+            releases(std::slice::from_ref(&successor)),
+        ]);
+        let baseline = GithubReleaseProvider::with_api_root(root.clone())
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(baseline.version, "1.5.5");
+        assert_eq!(baseline.asset.name, name);
+        assert_eq!(baseline.asset.size, 10_482_049);
+        assert_eq!(
+            baseline.asset.sha256,
+            "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b"
+        );
+        let next = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        assert_eq!(next.version, "1.5.6");
+        assert_eq!(next.asset.name, name);
+        assert_eq!(next.asset.sha256, "b".repeat(64));
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+        for mutation in [
+            "wrong-cpu",
+            "wrong-platform",
+            "ambiguous",
+            "missing-integrity",
+        ] {
+            let mut player = selected.clone();
+            match mutation {
+                "wrong-cpu" => {
+                    player["name"] = serde_json::json!("devilutionx-windows-i686.zip");
+                }
+                "wrong-platform" => {
+                    player["name"] = serde_json::json!("devilutionx-linux-x86_64.zip");
+                }
+                "missing-integrity" => player["digest"] = serde_json::Value::Null,
+                _ => {}
+            }
+            let mut assets = vec![player.clone()];
+            if mutation == "ambiguous" {
+                player["id"] = serde_json::json!(999_999_999);
+                player["name"] = serde_json::json!("DevilutionX-windows-x86_64.zip");
+                player["browser_download_url"] = serde_json::json!(
+                    "https://downloads.example.invalid/DevilutionX-windows-x86_64.zip"
+                );
+                assets.push(player);
+            }
+            let (root, _, server) =
+                serve_http(vec![metadata(), releases(&[release("1.5.6", assets)])]);
+            let failure = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap_err();
+            assert_eq!(
+                failure.code,
+                match mutation {
+                    "ambiguous" => crate::ErrorCode::Conflict,
+                    "missing-integrity" => crate::ErrorCode::Verification,
+                    _ => crate::ErrorCode::NotFound,
+                },
+                "{id}: {mutation}"
+            );
+            server.join().unwrap();
+        }
+        assert_eq!(serde_json::to_value(port).unwrap(), definition);
+    }
+}
+
+#[tokio::test]
 async fn crispy_definitions_select_their_family_and_reject_unsafe_successors() {
     let catalog = crate::Catalog::embedded().unwrap();
     let observed: serde_json::Value = serde_json::from_str(include_str!(

@@ -16,6 +16,31 @@
       "image_sha256": "1d6ded24f1d8f9f48d0f69802e0bf5adfd1be143c3b90ba7bc2d95ba99daccfb",
       "game_slug": "metal-gear-solid-integral",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Drommedhar/mgs-reintegral/tree/c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "steps": [
+        {
+          "title": "Prepare a permitted completed Windows copy upstream",
+          "instruction": "Use a legally permitted complete RE:INTEGRAL Windows copy. The reviewed v0.3.0 package requires 64-bit Windows 10 22H2 or Windows 11 and .NET Framework 4.8. Follow the upstream Prepare.cmd and Play.cmd setup outside Portcove, including the required prepared renderer, Godot project, tool caches and data. Public package availability does not grant original-game or separately authored component rights; no compiler, helper download, installer or original-data operation is performed by this guide."
+        },
+        {
+          "title": "Keep the correct original-disc contract",
+          "instruction": "Use your own Japanese Metal Gear Solid Integral SLPM-86247 and SLPM-86248 discs, both represented as supported single-track MODE2/2352 BIN/CUE pairs. Plain ISO, another region and the VR Missions disc are not this contract. Retain every CUE and referenced BIN and any separately permitted language packs in their actual established locations. This is not admission of another MGS port or renderer."
+        },
+        {
+          "title": "Attach the normal completed launcher and choose Play separately",
+          "instruction": "After completing upstream preparation and normal start/quit with the intended copy, select its native RE-INTEGRAL.exe launcher with the established working directory and supported literal arguments. Do not attach a preparation batch file or bypass the launcher with an unprepared renderer. The reviewed launcher tracks its native game, handles its bounded restart path, and prevents normal launcher closure while a game or preparation is active; it also owns the renderer companion lifecycle. This source review is not an installed or forced-exit full-session certification. Review and consent to the attachment intent, then select Play separately."
+        },
+        {
+          "title": "Preserve the complete creating copy and player roots",
+          "instruction": "Keep the whole prepared installation, .tools cache, Godot project, mods, renderer packages and all original/disc or language-pack locations. Preserve the effective LocalAppData/RE-INTEGRAL profile, including bu00/bu10 memory cards, settings, logs and runtime caches, plus every custom root and SDK workspace. Close the actual launcher, native player and renderer before changes. The upstream owner performs deliberate compatible replacement; preserve the complete old creating runtime and data and review/relink any changed selected executable. Core provides attachment only, with no replacement, profile backup, conversion, migration or deletion. Gameplay, renderer correctness, actual memory cards and cross-version compatibility remain unqualified."
+        }
+      ],
+      "warnings": [
+        "This conditional guide applies only to a copy and components you are already permitted to use. Upstream MIT coverage excludes recovered game and SDK material; its notice does not establish FoxdieTeam repository-wide permission. The existing licensing/source-scope admission hold remains unresolved.",
+        "Preserve the complete creating runtime and every effective original, profile, mod, renderer and tool-cache root before changes. Another selected executable can share the same player data."
+      ]
     }
   }
 }

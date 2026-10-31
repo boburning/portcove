@@ -435,7 +435,7 @@ function CurrentOutputDestination({
           {pending
             ? "Checking availability…"
             : preview
-              ? outputAvailabilityLabel(preview.availability)
+              ? outputDestinationCheckLabel(preview.availability, safe)
               : "Availability not checked"}
         </span>
       </div>
@@ -576,7 +576,7 @@ function OutputLocationReview({
     preview.availability === "available" &&
     preview.validation_errors.length === 0 &&
     ["library_default", "unclaimed", "owned_by_port"].includes(preview.ownership);
-  const availability = outputAvailabilityLabel(preview.availability);
+  const availability = outputDestinationCheckLabel(preview.availability, safe);
   const capacity = outputCapacityLabel(preview);
   const ownership = outputOwnershipLabel(preview.ownership);
   const action = preview.reset_to_default
@@ -699,10 +699,13 @@ function OutputLocationReview({
   );
 }
 
-function outputAvailabilityLabel(value: OutputDestinationPreview["availability"]) {
+function outputDestinationCheckLabel(
+  value: OutputDestinationPreview["availability"],
+  safe: boolean,
+) {
   const labels: Record<OutputDestinationPreview["availability"], string> = {
     full: "Full · no free space",
-    available: "Available",
+    available: safe ? "Checks passed" : "Needs attention",
     unavailable: "Unavailable",
   };
   return Object.hasOwn(labels, value) ? labels[value] : "Availability result unavailable";

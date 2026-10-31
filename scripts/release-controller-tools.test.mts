@@ -622,9 +622,17 @@ void test("actual pinned pack inlines dynamic cycles and preserves Unicode modul
   const source = path.join(root, "source"),
     output = path.join(root, "output");
   await mkdir(path.join(source, "scripts"), { recursive: true });
+  const driver = await readFile(
+    new URL("./release-windows-webview-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const cliGuard = driver.slice(driver.lastIndexOf("\nif (process.argv[1]"));
+  assert.ok(cliGuard.includes("--prepare-bootstrap"));
   await writeFile(
     path.join(source, "scripts/imported.mts"),
-    'const label = "😀é"; export const location = import.meta.url; export {label}; export async function check(){return (await import("./cycle.mts")).echo((await import("./dynamic.mts")).read())};\n',
+    'import assert from "node:assert/strict"; import path from "node:path"; import {fileURLToPath} from "node:url"; async function prepareBootstrapWindowsWebviewDriver(){throw new Error("Imported driver CLI guard executed")};\n' +
+      'const label = "😀é"; export const location = import.meta.url; export {label}; export async function check(){return (await import("./cycle.mts")).echo((await import("./dynamic.mts")).read())};\n' +
+      cliGuard,
   );
   await writeFile(
     path.join(source, "scripts/dynamic.mts"),
@@ -878,7 +886,7 @@ function fixture(
     source_tree: "b".repeat(40),
     platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.3.0",
+    bundler: "vite-plus@1.4.0",
     tauri_cli_version: "2.12.2",
     files: [...bytes].map(([name, content]) => ({
       path: name,

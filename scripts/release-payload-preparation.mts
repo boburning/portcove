@@ -1,3 +1,9 @@
+import { applicationPublicBuildInputs } from "./release-authority-configuration-contract.mts";
+import {
+  isInitialBetaReleaseProfile,
+  nativePlatformsForReleaseProfile,
+} from "./release-package-policy.mts";
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 export { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 /** Read-only controller integration. Acquires existing authority observations;
@@ -183,7 +189,7 @@ export async function stageAggregateSigningInputs(
   if (archive.length > 512 * 1024 ** 2 || hash(archive) !== binding.aggregate_archive_sha256)
     throw new Error("verified aggregate archive binding differs");
   const { accepted, policy } = await inspectTrustedAssemblyInput(rawAssembly);
-  if (accepted.schema_version === 1 || accepted.release_profile !== "initial-beta-win-linux")
+  if (accepted.schema_version === 1 || !isInitialBetaReleaseProfile(accepted.release_profile))
     throw new Error("payload preparation requires the exact initial beta profile");
   const files = policy.packages
     .map((entry) => {
@@ -252,7 +258,8 @@ export async function stageAggregateSigningInputs(
       payloads.push({ filename: entry.name, bytes, request });
     }
   }
-  if (payloads.length !== 2) throw new Error("both beta updater payloads are required");
+  if (payloads.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length)
+    throw new Error("both beta updater payloads are required");
   await mkdir(directory, { mode: 0o700 });
   for (const payload of payloads)
     await writeFile(path.join(directory, payload.filename), payload.bytes, {
@@ -587,8 +594,20 @@ export async function runPayloadSigningController(
     throw new Error("payload signer and verified fixed tools differ");
   const selected = inspectPayloadPreparationConfiguration(config);
   const authorities = await requireControllerApplicationJobAuthorities("payload");
-  if (authorities.namespace !== selected.admission_configuration.namespace)
+  if (
+    authorities.namespace !== selected.admission_configuration.namespace ||
+    (selected.admission_configuration.release_profile ?? "initial-beta-win-linux") !==
+      applicationReleaseProfile(authorities.configuration)
+  )
     throw new Error("payload authority and actual coordinator namespace differ");
+  if (
+    applicationReleaseProfile(authorities.configuration) === "initial-beta-windows-x86_64-v1" &&
+    JSON.stringify(orderedJsonValue(selected.admission_configuration.public_build_inputs)) !==
+      JSON.stringify(orderedJsonValue(applicationPublicBuildInputs(authorities.configuration)))
+  )
+    throw new Error(
+      "payload public input configuration differs from ratified application authority",
+    );
   if (
     selected.projectRoot !== tools.root ||
     selected.aggregate.controller_revision !== tools.identity.controller_revision ||
@@ -602,7 +621,11 @@ export async function runPayloadSigningController(
   );
   if (closure.source_commit !== tools.identity.controller_revision)
     throw new Error("compiler closure differs from authenticated fixed controller source");
-  if (!Array.isArray(capturedNativeLocators) || capturedNativeLocators.length !== 2)
+  if (
+    !Array.isArray(capturedNativeLocators) ||
+    capturedNativeLocators.length !==
+      nativePlatformsForReleaseProfile(applicationReleaseProfile(authorities.configuration)).length
+  )
     throw new Error("fixed controller requires exactly two native invocation locators");
   const pinned = {
     node: { path: tools.node, sha256: hash(await readBounded(tools.node, 128 * 1024 ** 2)) },

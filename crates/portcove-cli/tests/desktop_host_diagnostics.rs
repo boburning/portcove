@@ -20,6 +20,8 @@ use tracing_subscriber::{Layer, layer::SubscriberExt};
 #[path = "../../../apps/desktop/src-tauri/src/host_startup.rs"]
 mod host_startup;
 
+const PREPARED_LOGGING: &str = "PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED";
+
 const PROCESS_TIMEOUT: Duration = Duration::from_secs(30);
 const HOLD_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -52,6 +54,7 @@ impl Fixture {
             .env("PORTCOVE_APPLICATION_RUNTIME_LOCK", &self.runtime)
             .env("PORTCOVE_LIBRARY", &self.library)
             .env_remove("PORTCOVE_DIAGNOSTICS_DEBUG")
+            .env_remove(PREPARED_LOGGING)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -73,6 +76,12 @@ impl Fixture {
             .env_remove("PORTCOVE_DESKTOP_HOST_LOG_ROOT")
             .env_remove("PORTCOVE_DESKTOP_HOST_HOLD")
             .env_remove("PORTCOVE_DESKTOP_HOST_SECOND_LIBRARY");
+        command
+    }
+
+    fn qualified_desktop(&self) -> Command {
+        let mut command = self.desktop();
+        command.env(PREPARED_LOGGING, "1");
         command
     }
 
@@ -203,6 +212,17 @@ fn publish_json(path: &Path, value: &Value) {
     fs::rename(temporary, path).unwrap();
 }
 
+fn assert_prepared_records(records: &[Value]) {
+    assert!(
+        records
+            .iter()
+            .any(|record| record["target"] == "portcove_diagnostics"
+                && record["fields"]["qualification_prepared"] == true
+                && record["fields"]["phase"] == "start"),
+        "positive logging fixture must observe the actual prepared constructor"
+    );
+}
+
 fn evidence(name: &str, result: Value) {
     let envelope = json!({
         "format_version": 1,
@@ -210,7 +230,7 @@ fn evidence(name: &str, result: Value) {
         "platform": std::env::consts::OS,
         "architecture": std::env::consts::ARCH,
         "crate_version": env!("CARGO_PKG_VERSION"),
-        "scope": "Owned subprocesses invoking the production Desktop startup helpers and shared host logger; no Tauri or installed UI qualification",
+        "scope": "Owned subprocesses invoking production Desktop startup helpers and shared host logger; prepared positive sinks exclude product bootstrap availability/latency; no Tauri or installed UI qualification",
         "result": result,
     });
     println!("host-diagnostics-evidence {name}: {envelope}");
@@ -265,6 +285,7 @@ fn desktop_host_fixture_child() {
     );
     summary["logging_enabled"] = json!(guard.is_some());
     summary["bootstrap_timed_out"] = json!(host.bootstrap_timed_out());
+    summary["qualification_prepared"] = json!(host.qualification_prepared());
     let health = guard
         .as_mut()
         .map(|guard| guard.shutdown(Duration::from_secs(2)))
@@ -319,6 +340,7 @@ fn desktop_startup(
             &root.join("desktop-ready.json"),
             &json!({
                 "session_id": host.session_id(),
+                "qualification_prepared": host.qualification_prepared(),
                 "slot": host.session_directory().unwrap().file_name().unwrap().to_string_lossy(),
             }),
         );
@@ -392,7 +414,7 @@ fn desktop_early_failures_keep_typed_phases_and_fixed_private_safe_stderr() {
         ),
     ] {
         let fixture = Fixture::new();
-        let mut command = fixture.desktop();
+        let mut command = fixture.qualified_desktop();
         let mut exclusive_runtime = None;
         match scenario {
             "preference_location" => {
@@ -466,9 +488,14 @@ fn desktop_early_failures_keep_typed_phases_and_fixed_private_safe_stderr() {
         let summary = fixture.summary();
         assert_eq!(summary["ok"], false);
         assert_eq!(summary["error_code"], json!(code));
+        assert_eq!(
+            summary["qualification_prepared"], true,
+            "available-sink fixture must select prepared logging"
+        );
         assert_eq!(summary["flush_complete"], true, "{scenario}: {summary}");
         let records = fixture.records(pid);
         assert!(!records.is_empty());
+        assert_prepared_records(&records);
         assert!(records.iter().all(|record| record["surface"] == "desktop"));
         assert_failed_phase(&records, "portcove_desktop::host_diagnostics", phase, code);
         if let Some(core_phase) = core_phase {
@@ -485,7 +512,7 @@ fn desktop_early_failures_keep_typed_phases_and_fixed_private_safe_stderr() {
     }
     evidence(
         "host-desktop-startup-failures",
-        json!({"cases": observed, "fixed_stderr": true, "private_canaries_absent": true}),
+        json!({"cases": observed, "fixed_stderr": true, "private_canaries_absent": true, "bootstrap_policy": "qualification_prepared"}),
     );
 }
 
@@ -500,6 +527,7 @@ fn desktop_valid_startup_survives_all_logging_sessions_being_busy() {
     assert!(output.stderr.is_empty());
     let summary = fixture.summary();
     assert_eq!(summary["ok"], true);
+    assert_eq!(summary["qualification_prepared"], false);
     assert_eq!(summary["logging_enabled"], false);
     assert_eq!(summary["records_written"], 0);
     assert!(fixture.records(pid).is_empty());
@@ -516,17 +544,22 @@ fn desktop_valid_startup_survives_all_logging_sessions_being_busy() {
     drop(leases);
     evidence(
         "host-desktop-unavailable-sink",
-        json!({"startup_succeeded": true, "stderr_empty": true, "library_identity_retained": true, "occupied_sessions_untouched": true}),
+        json!({"startup_succeeded": true, "stderr_empty": true, "library_identity_retained": true, "occupied_sessions_untouched": true, "bootstrap_policy": "production_250ms"}),
     );
 }
 
 #[test]
 fn simultaneous_desktop_and_cli_own_distinct_sessions_and_preserve_active_lease() {
     let fixture = Fixture::new();
-    let mut desktop = OwnedChild::spawn(fixture.desktop().env("PORTCOVE_DESKTOP_HOST_HOLD", "1"));
+    let mut desktop = OwnedChild::spawn(
+        fixture
+            .qualified_desktop()
+            .env("PORTCOVE_DESKTOP_HOST_HOLD", "1"),
+    );
     let desktop_pid = desktop.id();
     desktop.wait_for_ready(&fixture.temporary.path().join("desktop-ready.json"));
     let ready = read_json(&fixture.temporary.path().join("desktop-ready.json"));
+    assert_eq!(ready["qualification_prepared"], true);
     let slot = fixture.logs.join(ready["slot"].as_str().unwrap());
     let marker = fs::read(slot.join(SESSION_MARKER)).unwrap();
     assert_eq!(
@@ -542,7 +575,12 @@ fn simultaneous_desktop_and_cli_own_distinct_sessions_and_preserve_active_lease(
         probe.try_lock().is_err(),
         "Desktop lease must remain held while CLI starts"
     );
-    let cli = OwnedChild::spawn(fixture.cli().args(["--json", "about"]));
+    let cli = OwnedChild::spawn(
+        fixture
+            .cli()
+            .env(PREPARED_LOGGING, "1")
+            .args(["--json", "about"]),
+    );
     let cli_pid = cli.id();
     let cli_output = cli.finish();
     assert!(cli_output.status.success(), "{cli_output:?}");
@@ -558,6 +596,7 @@ fn simultaneous_desktop_and_cli_own_distinct_sessions_and_preserve_active_lease(
     );
     let cli_records = fixture.records(cli_pid);
     assert!(!cli_records.is_empty());
+    assert_prepared_records(&cli_records);
     let cli_session = cli_records[0]["session_id"].clone();
     assert_ne!(cli_session, ready["session_id"]);
     assert!(
@@ -571,6 +610,7 @@ fn simultaneous_desktop_and_cli_own_distinct_sessions_and_preserve_active_lease(
     assert!(desktop_output.stderr.is_empty());
     let desktop_records = fixture.records(desktop_pid);
     assert!(!desktop_records.is_empty());
+    assert_prepared_records(&desktop_records);
     assert!(desktop_records.iter().all(
         |record| record["surface"] == "desktop" && record["session_id"] == ready["session_id"]
     ));
@@ -582,7 +622,7 @@ fn simultaneous_desktop_and_cli_own_distinct_sessions_and_preserve_active_lease(
     fixture.assert_private_inputs_absent(&cli_records, &cli_output.stderr);
     evidence(
         "host-desktop-cli-isolation",
-        json!({"overlapping_processes": true, "distinct_sessions": true, "active_marker_preserved": true, "active_lease_preserved": true, "desktop_records": desktop_records.len(), "cli_records": cli_records.len()}),
+        json!({"overlapping_processes": true, "distinct_sessions": true, "active_marker_preserved": true, "active_lease_preserved": true, "desktop_records": desktop_records.len(), "cli_records": cli_records.len(), "bootstrap_policy": "qualification_prepared"}),
     );
 }
 
@@ -599,7 +639,7 @@ fn desktop_saved_library_switch_preserves_host_session_and_location() {
         .id;
     let child = OwnedChild::spawn(
         fixture
-            .desktop()
+            .qualified_desktop()
             .env("PORTCOVE_DESKTOP_HOST_SECOND_LIBRARY", &second),
     );
     let pid = child.id();
@@ -612,6 +652,7 @@ fn desktop_saved_library_switch_preserves_host_session_and_location() {
     assert_eq!(summary["library_ids"][1], second_id);
     assert_eq!(summary["session_id_before"], summary["session_id_after"]);
     assert_eq!(summary["slot_before"], summary["slot_after"]);
+    assert_eq!(summary["qualification_prepared"], true);
     assert_eq!(summary["flush_complete"], true);
     let saved = portcove_core::HostPreferenceStore::new(fixture.preferences.clone())
         .unwrap()
@@ -622,6 +663,7 @@ fn desktop_saved_library_switch_preserves_host_session_and_location() {
         fs::canonicalize(&second).unwrap()
     );
     let records = fixture.records(pid);
+    assert_prepared_records(&records);
     assert!(
         records
             .iter()
@@ -643,6 +685,6 @@ fn desktop_saved_library_switch_preserves_host_session_and_location() {
     fixture.assert_private_inputs_absent(&records, &output.stderr);
     evidence(
         "host-desktop-library-switch",
-        json!({"distinct_library_identities": true, "saved_selection_changed": true, "host_session_unchanged": true, "host_location_unchanged": true, "records": records.len()}),
+        json!({"distinct_library_identities": true, "saved_selection_changed": true, "host_session_unchanged": true, "host_location_unchanged": true, "records": records.len(), "bootstrap_policy": "qualification_prepared"}),
     );
 }

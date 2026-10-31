@@ -12,7 +12,10 @@ name = "portcove"
 path = "src/main.rs"
 
 [features]
-qualification-fixtures = ["portcove-core/qualification-fixtures"]
+qualification-fixtures = [
+  "portcove-core/qualification-fixtures",
+  "portcove-diagnostics/qualification-fixtures",
+]
 
 [dependencies]
 clap.workspace = true
@@ -29,6 +32,7 @@ tracing.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+portcove-diagnostics = { path = "../portcove-diagnostics", features = ["qualification-fixtures"] }
 async-trait.workspace = true
 rusqlite.workspace = true
 tempfile.workspace = true

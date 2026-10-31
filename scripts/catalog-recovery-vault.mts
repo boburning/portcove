@@ -13,6 +13,7 @@ import { inspectSelectedPublicationAuthorityConfiguration } from "./release-auth
 import { prepareRecoveryTools } from "./prepare-recovery-tools.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectInitialKeyCustodyInventory } from "./initial-key-custody-contract.mts";
 
 const hash = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
 const maximum = 1024 * 1024;
@@ -40,6 +41,7 @@ type PrivateInspector = (
   binding: Binding,
   material: Buffer,
 ) => Promise<{ public_key_id: string; authority: "none" }>;
+const initialPlans = new WeakSet<Plan>();
 const inspectors = new WeakMap<
   Plan,
   {
@@ -236,8 +238,25 @@ export async function prepareCatalogRecoveryPlan(request: {
       offline_targets_sha256: hash(top),
     }),
   );
+  const { command, inspectTuf } = recoveryInspector(work, verifier, options.verifierSha256);
+  const result = inspectCatalogRecoveryPlan({
+    configuration: options.configuration,
+    expectedConfigurationSha256: options.expectedConfigurationSha256,
+    appPublicCaptures: options.appPublicCaptures,
+    inventory: await command("inspect-catalog-key-inventory", path.join(work, "inventory.json")),
+  });
+  plans.add(result);
+  inspectors.set(result, {
+    inspectTuf,
+    source_commit: options.sourceCommit,
+    source_tree: options.sourceTree,
+    verifier_sha256: options.verifierSha256,
+  });
+  return result;
+}
+function recoveryInspector(work: string, verifier: string, verifierSha256: string) {
   const command = async (operation: string, config: string) => {
-    if (hash(await readPrivate(verifier, 128 * 1024 ** 2)) !== options.verifierSha256)
+    if (hash(await readPrivate(verifier, 128 * 1024 ** 2)) !== verifierSha256)
       throw new Error("recovery inspector changed");
     try {
       const result = await promisify(execFile)(verifier, [operation, config], {
@@ -250,12 +269,6 @@ export async function prepareCatalogRecoveryPlan(request: {
       throw new Error("read-only recovery inspector refused");
     }
   };
-  const result = inspectCatalogRecoveryPlan({
-    configuration: options.configuration,
-    expectedConfigurationSha256: options.expectedConfigurationSha256,
-    appPublicCaptures: options.appPublicCaptures,
-    inventory: await command("inspect-catalog-key-inventory", path.join(work, "inventory.json")),
-  });
   const inspectTuf: PrivateInspector = async (binding, material) => {
     const temporary = await mkdtemp(path.join(work, "private-inspection-"));
     try {
@@ -285,7 +298,59 @@ export async function prepareCatalogRecoveryPlan(request: {
       await rm(temporary, { recursive: true, force: true });
     }
   };
+  return { command, inspectTuf };
+}
+
+/** Appointed initial backup before any signed Root/Targets exist. Its explicit
+ * pre-payload scope cannot satisfy catalog publication or final release custody. */
+export async function prepareInitialKeyCustodyRecoveryPlan(options: {
+  inventory: Buffer;
+  expectedInventorySha256: string;
+  verifier: string;
+  verifierSha256: string;
+  sourceCommit: string;
+  sourceTree: string;
+  parent: string;
+}) {
+  const inventory = inspectInitialKeyCustodyInventory(
+    Buffer.from(options.inventory),
+    options.expectedInventorySha256,
+  );
+  digest(options.verifierSha256);
+  if (!/^[a-f0-9]{40}$/u.test(options.sourceCommit) || !/^[a-f0-9]{40}$/u.test(options.sourceTree))
+    throw new Error("independently ratified recovery inspector source required");
+  await privateParent(options.parent);
+  const stat = await lstat(options.verifier);
+  if (
+    !path.isAbsolute(options.verifier) ||
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.nlink !== 1 ||
+    stat.uid !== process.getuid?.() ||
+    (await realpath(options.verifier)) !== options.verifier
+  )
+    throw new Error("owned bounded initial custody inspector required");
+  const binary = await readControllerToolFile(options.verifier, 128 * 1024 ** 2, stat);
+  if (hash(binary) !== options.verifierSha256)
+    throw new Error("qualified recovery inspector differs");
+  const work = await mkdtemp(path.join(options.parent, "initial-custody-inspector-"));
+  const verifier = path.join(work, "inspector");
+  await durableFile(verifier, binary);
+  await chmod(verifier, 0o700);
+  const { inspectTuf } = recoveryInspector(work, verifier, options.verifierSha256);
+  const result: Plan = Object.freeze({
+    context_sha256: inventory.context_sha256,
+    bindings: Object.freeze(
+      inventory.bindings.map((binding) =>
+        Object.freeze({
+          ...binding,
+          public_key: freeze(binding.public_key),
+        }),
+      ),
+    ),
+  });
   plans.add(result);
+  initialPlans.add(result);
   inspectors.set(result, {
     inspectTuf,
     source_commit: options.sourceCommit,
@@ -294,6 +359,12 @@ export async function prepareCatalogRecoveryPlan(request: {
   });
   return result;
 }
+function recoveryKind(value: Plan) {
+  return initialPlans.has(value)
+    ? "initial-pre-payload-key-custody-v1"
+    : "catalog-owner-recovery-v1";
+}
+
 function plan(value: Plan) {
   if (!plans.has(value)) throw new Error("locally inspected catalog recovery plan required");
 }
@@ -729,7 +800,7 @@ function name(value: string) {
   return value;
 }
 
-export async function createCatalogRecoveryVault(
+async function createRecoveryVault(
   options: {
     plan: Plan;
     owner: CatalogRecoveryOwner;
@@ -769,7 +840,7 @@ export async function createCatalogRecoveryVault(
     plaintext = Buffer.from(
       JSON.stringify({
         schema_version: 1,
-        kind: "catalog-owner-recovery-v1",
+        kind: recoveryKind(options.plan),
         context_sha256: options.plan.context_sha256,
         keys,
       }),
@@ -783,11 +854,16 @@ export async function createCatalogRecoveryVault(
       options.signal,
     );
     options.signal?.throwIfAborted();
-    await durableFile(path.join(directory, "catalog.age"), encrypted);
+    await durableFile(
+      path.join(directory, initialPlans.has(options.plan) ? "initial-setup.age" : "catalog.age"),
+      encrypted,
+    );
     options.signal?.throwIfAborted();
     const result = {
       schema_version: 1,
-      operation: "create-catalog-recovery",
+      operation: initialPlans.has(options.plan)
+        ? "create-initial-pre-payload-custody-recovery"
+        : "create-catalog-recovery",
       encryption_profile: operation.kind,
       context_sha256: options.plan.context_sha256,
       encrypted_sha256: hash(encrypted),
@@ -810,7 +886,7 @@ export async function createCatalogRecoveryVault(
   }
 }
 
-export async function restoreCatalogRecoveryVault(
+async function restoreRecoveryVault(
   options: {
     plan: Plan;
     toolParent: string;
@@ -847,7 +923,7 @@ export async function restoreCatalogRecoveryVault(
     exact(bundle, "schema_version,kind,context_sha256,keys");
     if (
       bundle.schema_version !== 1 ||
-      bundle.kind !== "catalog-owner-recovery-v1" ||
+      bundle.kind !== recoveryKind(options.plan) ||
       bundle.context_sha256 !== options.plan.context_sha256 ||
       !Array.isArray(bundle.keys) ||
       bundle.keys.length !== options.plan.bindings.length
@@ -883,7 +959,9 @@ export async function restoreCatalogRecoveryVault(
     options.signal?.throwIfAborted();
     const result = {
       schema_version: 1,
-      operation: "restore-catalog-recovery",
+      operation: initialPlans.has(options.plan)
+        ? "restore-initial-pre-payload-custody-recovery"
+        : "restore-catalog-recovery",
       encryption_profile: operation.kind,
       context_sha256: options.plan.context_sha256,
       encrypted_sha256: hash(encrypted),
@@ -903,4 +981,35 @@ export async function restoreCatalogRecoveryVault(
     plaintext?.fill(0);
     for (const value of material) value.fill(0);
   }
+}
+
+/** Existing catalog API remains purpose closed. Initial snapshots use their own
+ * explicit entrypoints but share encryption, inspection and settlement. */
+export async function createCatalogRecoveryVault(
+  options: Parameters<typeof createRecoveryVault>[0],
+) {
+  plan(options.plan);
+  if (initialPlans.has(options.plan)) throw new Error("catalog-only recovery required");
+  return await createRecoveryVault(options);
+}
+export async function restoreCatalogRecoveryVault(
+  options: Parameters<typeof restoreRecoveryVault>[0],
+) {
+  plan(options.plan);
+  if (initialPlans.has(options.plan)) throw new Error("catalog-only recovery required");
+  return await restoreRecoveryVault(options);
+}
+export async function createInitialKeyCustodyRecoveryVault(
+  options: Parameters<typeof createRecoveryVault>[0],
+) {
+  plan(options.plan);
+  if (!initialPlans.has(options.plan)) throw new Error("initial pre-payload custody plan required");
+  return await createRecoveryVault(options);
+}
+export async function restoreInitialKeyCustodyRecoveryVault(
+  options: Parameters<typeof restoreRecoveryVault>[0],
+) {
+  plan(options.plan);
+  if (!initialPlans.has(options.plan)) throw new Error("initial pre-payload custody plan required");
+  return await restoreRecoveryVault(options);
 }

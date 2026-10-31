@@ -7,22 +7,31 @@ import { Icon } from "./ui";
 export function OperationProgress({
   operation,
   busy,
+  embedded = false,
+  announcePhase = true,
 }: {
   operation?: OperationEvent | undefined;
   busy: string;
+  embedded?: boolean;
+  announcePhase?: boolean;
 }) {
   const { label, detail, range } = progressPresentation(operation, busy);
   return (
-    <div className="operation-bar mb-4 grid grid-cols-[auto_minmax(8rem,_auto)_minmax(12rem,_1fr)] items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground">
+    <div
+      className={cn(
+        "operation-bar mb-4 grid grid-cols-[auto_minmax(8rem,_auto)_minmax(12rem,_1fr)] items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground",
+        embedded && "operation-progress-embedded",
+      )}
+    >
       <span className="text-pc-info-foreground motion-safe:[&_.icon]:animate-spin">
         <Icon glyph={LoaderCircle} />
       </span>
       <div className="min-w-0 break-words">
         <strong
           className="block font-medium text-pc-foreground"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
+          role={announcePhase ? "status" : undefined}
+          aria-live={announcePhase ? "polite" : undefined}
+          aria-atomic={announcePhase ? "true" : undefined}
         >
           {label}
         </strong>

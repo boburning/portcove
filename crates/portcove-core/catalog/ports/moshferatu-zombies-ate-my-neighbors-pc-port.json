@@ -3,11 +3,9 @@
   "listing": {
     "id": "moshferatu-zombies-ate-my-neighbors-pc-port",
     "name": "Zombies Ate My Neighbors / Zombies Ate My Neighbors PC Port (moshferatu)",
-    "summary": "Explore Zombies Ate My Neighbors / Zombies Ate My Neighbors PC Port (moshferatu) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "A Zombies Ate My Neighbors PC engine using your own original USA cartridge data.",
     "project_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port",
     "issue_number": 1914,
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port",
     "artwork": {
       "game_id": 2162,
@@ -16,6 +14,36 @@
       "image_sha256": "a91a1393cd7f8423249a643e0fb984acb90c75660bdd13030e70ebab68a58045",
       "game_slug": "zombies-ate-my-neighbors",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Zombies Ate My Neighbors"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "asset_hints": {
+        "windows-x86-64": ["zamn-windows-x86_64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["zamn_launcher.exe"]
+    },
+    "persistent_paths": [
+      "zamn.ini",
+      "zamn.ini.tmp",
+      "zamn.quicksave",
+      "zamn.quicksave.tmp",
+      "zamn.hiscore",
+      "zamn.hiscore.tmp"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe: select your ROM and settings there, then use its Play button. Keep zamn.exe, SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings."
     }
   }
 }

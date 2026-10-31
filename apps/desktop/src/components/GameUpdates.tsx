@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdateAcquisition, GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
@@ -572,6 +573,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
               }}
             >
               {pending && selectedIntent === "install" ? "Checking update…" : "Update now"}
+              <ArrowRight aria-hidden="true" />
             </Button>
             {!existingArchive && (
               <Button

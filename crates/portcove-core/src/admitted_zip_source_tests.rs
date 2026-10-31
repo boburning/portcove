@@ -242,7 +242,9 @@ fn cancellation_during_private_copy_retains_old_destination_and_cleans_staging()
     let record = record(source.clone(), &bytes, "game.md", &payload);
     let destination = temporary.path().join("game.bin");
     std::fs::write(&destination, b"previous").unwrap();
-    let copied = Cell::new(false);
+    let copied = Cell::new(0_u64);
+    // Windows enumeration metadata can retain a stale size while the writer is open.
+    // Query the owned staging path without following links and require a partial copy.
     let checkpoint = || {
         if std::fs::read_dir(temporary.path())?
             .filter_map(std::result::Result::ok)
@@ -251,17 +253,25 @@ fn cancellation_during_private_copy_retains_old_destination_and_cleans_staging()
                     .file_name()
                     .to_string_lossy()
                     .starts_with(".portcove-source-")
-                    && entry.metadata().is_ok_and(|metadata| metadata.len() > 0)
+                    && std::fs::symlink_metadata(entry.path()).is_ok_and(|metadata| {
+                        let size = metadata.len();
+                        if size == 0 || size >= payload.len() as u64 {
+                            return false;
+                        }
+                        copied.set(size);
+                        true
+                    })
             })
         {
-            copied.set(true);
             return Err(PortcoveError::conflict("qualification cancellation"));
         }
         Ok(())
     };
-    assert!(prepare(&record, &destination, &BTreeMap::new(), &checkpoint).is_err());
+    let error = prepare(&record, &destination, &BTreeMap::new(), &checkpoint).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert_eq!(error.message, "qualification cancellation");
     assert!(
-        copied.get(),
+        copied.get() > 0 && copied.get() < payload.len() as u64,
         "cancellation must occur during actual staged payload copying"
     );
     assert_eq!(std::fs::read(&destination).unwrap(), b"previous");

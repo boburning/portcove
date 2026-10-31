@@ -3,7 +3,7 @@
   "listing": {
     "id": "pokemon-yellow-recomp",
     "name": "Pokémon Yellow Recomp",
-    "summary": "Explore Pokémon Yellow Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Research the stock and extended Pokémon Yellow implementation; fresh acquisition remains held for the selected ROM-bearing package and unresolved code-permission basis.",
     "project_url": "https://github.com/mstan/PokemonYellowRecomp",
     "issue_number": 174,
     "platforms": [],
@@ -16,6 +16,7 @@
       "image_sha256": "4be67775dc5afbbffb9c1a81c7ac009368ef1a2cefefab08defa813f73790f02",
       "game_slug": "pokemon-yellow-version-special-pikachu-edition",
       "match_kind": "underlying-game"
-    }
+    },
+    "download_block_reason": "The selected public v0.0.4 ZIP contains original or ROM-derived game content despite the upstream private/source-only declaration. Do not acquire or mirror that package. Resume only with an attributable clean permitted package or a reviewed lawful owned-input build/use contract covering the selected glue and framework; private build/source-only wording does not establish that permission."
   }
 }

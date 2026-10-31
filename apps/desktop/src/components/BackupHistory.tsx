@@ -1,9 +1,10 @@
 import { cn } from "cn";
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronUp, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, ChevronUp, RotateCcw, Trash2 } from "lucide-react";
 import type { BackupInventory, BackupProblem, BackupRecord } from "../types";
 import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
+import { GhostshipLegacyRecovery } from "./GhostshipRecoveryReview";
 import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
 import { Button } from "./ui/button";
 import { FailureDetails } from "./FailureDetails";
@@ -11,6 +12,7 @@ import type { BackupReadState } from "../features/backups/use-port-backups";
 
 export function BackupHistory({
   gameName,
+  embedded = false,
   backups,
   problems = [],
   state = "healthy",
@@ -20,10 +22,12 @@ export function BackupHistory({
   busy,
   generation = 0,
   restore,
+  recoverGhostshipLegacy,
   remove,
   focusFallback,
 }: {
   gameName?: string | undefined;
+  embedded?: boolean;
   backups: BackupRecord[];
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
@@ -33,6 +37,7 @@ export function BackupHistory({
   busy?: string | undefined;
   generation?: number;
   restore: ApplyBackupAction;
+  recoverGhostshipLegacy?: ApplyBackupAction | undefined;
   remove: ApplyBackupAction;
   focusFallback?: () => HTMLElement | null;
 }) {
@@ -263,7 +268,23 @@ export function BackupHistory({
           {backupSummary(backups.length, problems.length, state, readState)}
         </small>
       </div>
-      <p>Backups include saves and settings managed by Portcove.</p>
+      {!embedded && <p>Backups include saves and settings managed by Portcove.</p>}
+      {backups.length === 0 &&
+        problems.length === 0 &&
+        state === "healthy" &&
+        readState?.status === "current" &&
+        readState.hasInventory && (
+          <div className="detail-backup-empty">
+            <Icon glyph={Archive} />
+            <div>
+              <strong>No backups yet</strong>
+              <p>
+                A backup will appear here after you back up this installation’s managed saves and
+                settings.
+              </p>
+            </div>
+          </div>
+        )}
       {renderReadStatus()}
       {renderInventoryNotice()}
       {renderRestoreAssessment()}
@@ -271,12 +292,12 @@ export function BackupHistory({
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
         return (
           <div
-            className="backup-row rounded-pc-md border border-[var(--color-transparent)] bg-[var(--color-bg-subtle)] p-[10px] hover:border-[var(--color-border)] hover:bg-[var(--color-bg-subtle-hover)]"
+            className="backup-row grid min-w-0 gap-3 border-b border-pc-border py-4"
             key={backup.id}
             data-backup-id={backup.id}
           >
             <span className="min-w-0">
-              <strong className="overflow-hidden text-[length:var(--text-xs)] text-ellipsis whitespace-nowrap">
+              <strong className="text-sm font-medium [overflow-wrap:anywhere]">
                 {createdLabel}
               </strong>
               <small className="mt-[3px] text-xs text-[var(--color-text-muted)]">
@@ -295,7 +316,7 @@ export function BackupHistory({
                 SHA-256 {backup.sha256}
               </small>
             </details>
-            <span className="backup-actions flex flex-none gap-[6px]">
+            <span className="backup-actions flex flex-wrap gap-2">
               <Button
                 data-focusable
                 data-backup-action="restore"
@@ -308,6 +329,19 @@ export function BackupHistory({
                 <Icon glyph={RotateCcw} />
                 Restore
               </Button>
+              {backup.port_id === "ghostship" && recoverGhostshipLegacy && (
+                <GhostshipLegacyRecovery
+                  key={`${backup.id}:${generation}`}
+                  backup={backup}
+                  generation={generation}
+                  apply={recoverGhostshipLegacy}
+                  disabled={
+                    Boolean(busy) ||
+                    state === "recovery_required" ||
+                    (readState !== undefined && readState.status !== "current")
+                  }
+                />
+              )}
               <Button
                 data-focusable
                 data-backup-action="delete"

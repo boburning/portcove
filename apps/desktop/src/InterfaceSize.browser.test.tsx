@@ -1,3 +1,4 @@
+import { captureParityState } from "../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -117,11 +118,15 @@ it("uses one owner for the picker, repeated enlargement and reset", async () => 
     </InterfaceSizeProvider>,
   );
   await page.getByRole("combobox", { name: "Interface size 100%" }).click();
+  await expect.element(page.getByRole("option", { name: "400%", exact: true })).toBeVisible();
+  await captureParityState("interface-size-picker-open");
   await page.getByRole("option", { name: "400%", exact: true }).click();
   await expect.element(page.getByRole("combobox", { name: "Interface size 400%" })).toBeVisible();
   expect(apply).toHaveBeenLastCalledWith(4);
+  await captureParityState("interface-size-selected-400");
   await userEvent.keyboard("{Control>}0{/Control}");
   await expect.element(page.getByRole("combobox", { name: "Interface size 100%" })).toBeVisible();
+  await captureParityState("interface-size-keyboard-reset");
   await userEvent.keyboard("{Control>}={/Control}");
   await expect.element(page.getByRole("combobox", { name: "Interface size 125%" })).toBeVisible();
   await userEvent.keyboard("{Control>}-{/Control}");
@@ -152,10 +157,12 @@ it("keeps failure recovery reachable and preserves a dialog draft during keyboar
   await draft.click();
   await userEvent.keyboard("{Control>}={/Control}");
   await vi.waitFor(() => expect(owner.getSnapshot().error).toBeDefined());
+  await captureParityState("interface-size-failed-apply-draft");
   await userEvent.keyboard("{Control>}0{/Control}");
   await vi.waitFor(() => expect(owner.getSnapshot().error).toBeUndefined());
   await expect.element(draft).toHaveFocus();
   await expect.element(draft).toHaveValue("D:/Games/Original");
   await expect.element(page.getByRole("dialog")).toBeVisible();
   expect(apply.mock.calls).toEqual([[1], [1.25], [1]]);
+  await captureParityState("interface-size-reset-preserved-draft");
 });

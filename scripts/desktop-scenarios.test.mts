@@ -206,7 +206,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     borderWidth: "1px",
     backgroundColor: "rgb(1, 1, 1)",
     dialogBackgroundColor: "rgb(2, 2, 2)",
-    labelFontWeight: "700",
+    labelFontWeight: "600",
   };
   const field = {},
     label = {},
@@ -226,7 +226,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     ["borderWidth", "0px"],
     ["backgroundColor", "rgba(0, 0, 0, 0)"],
     ["backgroundColor", valid.dialogBackgroundColor],
-    ["labelFontWeight", "699"],
+    ["labelFontWeight", "599"],
   ] as const) {
     observation = { ...valid, [key]: value };
     await assert.rejects(Promise.resolve(invokePresentation(browser, field, label, dialog)));
@@ -677,6 +677,19 @@ void test("history fixture helpers import without installed desktop packages", a
     ),
     native,
   );
+  // The shared loader always replaces this adjacent transport boundary. Supply
+  // only its resolution identity; real schema admission remains forbidden.
+  await writeFile(path.join(root, "apps/desktop/scripts/transport-values.mts"), "export {};\n", {
+    flag: "wx",
+  });
+  await mkdir(path.join(root, "scripts/fixtures"));
+  await copyFile(
+    new URL("./fixtures/desktop-module-fixture.mts", import.meta.url),
+    path.join(root, "scripts/fixtures/desktop-module-fixture.mts"),
+  );
+  const catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+  await mkdir(path.dirname(catalog), { recursive: true });
+  await copyFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), catalog);
   const guard = path.join(root, "no-packages.mjs");
   await writeFile(
     guard,
@@ -691,7 +704,19 @@ void test("history fixture helpers import without installed desktop packages", a
   );
   assert.ifError(execution.error);
   assert.equal(execution.status, 0, execution.stderr + execution.stdout);
-  assert.match(execution.stdout, /^# pass 3$/mu);
+  const observed: string[] = [];
+  for (const line of execution.stdout.split("\n")) {
+    const match = /^ok\s+\d+\s+-\s+(.+)$/u.exec(line);
+    if (match?.[1]) observed.push(match[1]);
+  }
+  const expected = [
+    "serialized historical read hook forwards unmatched bodies and retains original fetch",
+    "historical cleanup retains malformed replies after all cleanup and preserves primitive primary failure",
+    "history restoration validation retains mandatory observations and narrow malformed-reply refusals",
+    "history cleanup joins independent window restoration and evidence before settlement",
+    "actual history scenario restores after its Linux failure or refuses other platforms before I/O",
+  ];
+  assert.deepEqual([...observed].sort(), [...expected].sort());
   assert.match(execution.stdout, /^# skipped 0$/mu);
 });
 
@@ -2625,6 +2650,19 @@ void test("fixture-only reviews select without first-play while continuity keeps
       "native-preparation-review-and-play",
     ),
   );
+});
+
+void test("organization persistence selects the normal owned-fixture path without consent or preparation claims", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-library-organization-restart"],
+    platform: "win32",
+  });
+  assert.deepEqual(selection.selected_scenarios, ["native-library-organization-restart"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.ok(selection.prerequisites.includes("owned-fixture"));
+  assert.ok(selection.host_resources.includes("native-desktop"));
+  assert.ok(!selection.prerequisites.includes("native-dialog"));
+  assert.ok(!selection.prerequisites.includes("steam-fixture"));
 });
 
 void test("staged native composition installs its isolated fixture before review", () => {

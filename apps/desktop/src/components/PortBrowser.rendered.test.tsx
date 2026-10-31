@@ -308,7 +308,7 @@ describe("desktop components", () => {
     expect(empty).toContain("No games match the current filters and view.");
     expect(empty).not.toContain("The catalog itself has not been changed.");
     expect(empty).toContain("Reset view");
-    expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
+    expect(emptyLibrary).toContain("/brand/icons/portcove-mascot-transparent.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
     expect(emptyLibrary).toContain("using your original files");

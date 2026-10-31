@@ -35,18 +35,7 @@ $ErrorActionPreference = "Stop"
 if (-not $IsLinux) { throw "The AppImage update harness requires Linux" }
 if ($StartupTimeoutSeconds -lt 5 -or $StartupTimeoutSeconds -gt 120) { throw "StartupTimeoutSeconds must be between 5 and 120" }
 
-function Get-RootlessQualificationIdentity {
-    $userId = (& /usr/bin/id -u | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $userId -notmatch '^(0|[1-9]\d*)$') {
-        throw "Could not determine the qualification user ID"
-    }
-    if ($userId -eq '0') { throw "Root cannot qualify ordinary rootless AppImage updates" }
-    $groupId = (& /usr/bin/id -g | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $groupId -notmatch '^(0|[1-9]\d*)$') {
-        throw "Could not determine the qualification group ID"
-    }
-    return [ordered]@{ uid = $userId; gid = $groupId }
-}
+Import-Module (Join-Path $PSScriptRoot "native-qualification-posix-identity.psm1") -Force
 
 # Check the actual application caller before resolving inputs or creating state.
 # Privileged tmpfs setup below remains separate from application execution.
@@ -120,7 +109,7 @@ $libraryRoot = Join-Path $state "library"
 $updateRoot = Join-Path $state "update-state"
 $hostPreferences = Join-Path $state "host-preferences.json"
 $updatePreferences = Join-Path $state "application-update-preferences.json"
-$stable = Join-Path $installedRoot "Portcove.AppImage"
+$stable = Join-Path $installedRoot ('Portcove Public beta ' + [char]0x03b2 + '.AppImage')
 $desktopEntry = Join-Path $applicationsRoot "com.boburning.portcove.desktop"
 New-Item -ItemType Directory -Path $installedRoot, $applicationsRoot, $libraryRoot | Out-Null
 & /usr/bin/cp --preserve=mode,timestamps -- $predecessor $stable
@@ -436,7 +425,7 @@ function Wait-StablePredecessorRestart([string]$StagePath, [string]$RuntimeLockP
     throw "$FailureLabel predecessor restart did not release the runtime lock within $TimeoutSeconds seconds"
 }
 
-function Mount-BoundedTmpfs([string]$Path, [long]$SizeBytes) {
+function Mount-BoundedTmpfs([string]$Path, [long]$SizeBytes, [switch]$NoExec) {
     if ($SizeBytes -le 0) { throw "Bounded tmpfs size must be positive" }
     if (Test-Path -LiteralPath $Path) { throw "Bounded tmpfs mount path must be new" }
     New-Item -ItemType Directory -Path $Path | Out-Null
@@ -448,6 +437,7 @@ function Mount-BoundedTmpfs([string]$Path, [long]$SizeBytes) {
         throw "Could not determine the qualification user identity"
     }
     $mountOptions = "size=$SizeBytes,mode=0700,uid=$userId,gid=$groupId"
+    if ($NoExec) { $mountOptions += ',noexec' }
     & /usr/bin/sudo -n /usr/bin/mount -t tmpfs -o $mountOptions tmpfs $Path
     if ($LASTEXITCODE -ne 0) { throw "Could not mount the bounded full-disk qualification filesystem" }
 }
@@ -509,6 +499,35 @@ $fullAppImageMounted = $false
 $truncatedCandidate = Join-Path $state "truncated-candidate.AppImage"
 try {
     Remove-Item Env:APPIMAGE_EXTRACT_AND_RUN -ErrorAction SilentlyContinue
+    $noExecMount = Join-Path $state 'noexec-appimage-filesystem'
+    $noExecImage = Join-Path $noExecMount ('Portcove noexec ' + [char]0x03b2 + '.AppImage')
+    $noExecProbe = Join-Path $state 'noexec-probe.json'
+    Mount-BoundedTmpfs $noExecMount ((Get-Item -LiteralPath $stable).Length + 33554432) -NoExec
+    try {
+        & /usr/bin/cp --preserve=mode,timestamps -- $stable $noExecImage
+        if ($LASTEXITCODE -ne 0) { throw 'Could not prepare the exact noexec AppImage copy' }
+        & /usr/bin/chmod 755 -- $noExecImage
+        if ($LASTEXITCODE -ne 0) { throw 'Could not set the noexec AppImage execute bits' }
+        $noExecText = (& node (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-appimage-noexec-probe.mts') --root $state --image $noExecImage --sha256 $predecessorHash --output $noExecProbe | Out-String)
+        $noExecExit = $LASTEXITCODE
+        [IO.File]::WriteAllText((Join-Path $state 'noexec-probe-stdout.txt'), $noExecText)
+        $evidence.noexec = [ordered]@{ probe_exit_code = $noExecExit; original_stable_preserved = $false; original_data_preserved = $false; probe = $null }
+        Write-Evidence 'noexec-probe-returned'
+        if ($noExecExit -ne 0) { throw 'Ordinary noexec execution probe failed; retained report is not acceptance' }
+        $noExec = $noExecText | ConvertFrom-Json -NoEnumerate
+        if ($noExec -isnot [System.Management.Automation.PSCustomObject] -or $noExec.phase -cne 'noexec-refused' -or
+            [long]$noExec.caller.uid -ne [long]$qualificationIdentity.uid -or $noExec.execution.error_code -cne 'EACCES' -or
+            $noExec.image.sha256 -cne $predecessorHash -or $noExec.execution.pid -ne 0) {
+            throw 'Noexec observation differs from the exact ordinary-user refusal'
+        }
+        $evidence.noexec.probe = $noExec
+        $evidence.noexec.original_stable_preserved = (Get-FileHash -LiteralPath $stable -Algorithm SHA256).Hash.ToLowerInvariant() -ceq $predecessorHash
+        if (-not $evidence.noexec.original_stable_preserved) { throw 'Noexec refusal changed the original stable AppImage' }
+        $evidence.noexec.original_data_preserved = Assert-PreservedUserData $preservedDataPaths $preservedDataHashes 'Noexec refusal'
+        Write-Evidence 'noexec-refused-with-original-data'
+    } finally {
+        Dismount-BoundedTmpfs $noExecMount
+    }
     $selectionState = Join-Path $state "packaged-selection-state"
     $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $selectionState
     $selectionStderr = Join-Path $state "packaged-selection.stderr.log"

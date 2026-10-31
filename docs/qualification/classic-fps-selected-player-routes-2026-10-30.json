@@ -1,0 +1,350 @@
+{
+  "format_version": 1,
+  "kind": "three-classic-fps-selected-player-consumer-source-fit",
+  "owners": [2510, 2926],
+  "prior_guide_delivery": {
+    "pr": 3678,
+    "merge": "3f98ada592df0695a45a8ecb9425427580954983"
+  },
+  "baseline_commit": "dff0f94f3a3a3ced08e6824d823abe6e51662a1c",
+  "metadata_observed_at_utc": "2026-10-30T10:54:12.506770+00:00",
+  "scope": {
+    "existing_frozen_ids": 3,
+    "historical_1422_members": 0,
+    "listing_additions": 0,
+    "source_identity_additions": 0,
+    "baseline_definitions": 267,
+    "candidate_definitions": 270,
+    "supported_promotions": 0,
+    "actual_game_observations": 0,
+    "installed_or_protected_delivery": "not_evaluated"
+  },
+  "contract": "Existing staged-source-portable / user-prepared / user-selected. Stable names the manual registration contract; no fixed upstream package or stable game guarantee. Runtime/data remain upstream/player owned. Only the selected process is supervised.",
+  "qualification": "Three actual embedded-ID cases reuse the unchanged existing consent/stale-intent/single-owner/strict-definition/restart/Play/preserving-removal helper. Native inert programs establish those operation contracts, not actual game/native or protected delivery. Required exact-head CI/review/guarded merge/readback and individual reconciliation remain necessary.",
+  "legal": "Root source licenses and publisher attribution do not license originals or every component. PsyDoom observed ZIP hash is not expected authentication. D64 stays an already-permitted prepared-copy route; no new fresh-acquisition recommendation, blanket GPL classification or unsupported/illegal conclusion.",
+  "remaining": "Each issue retains three generic acceptance criteria. Complete the evidenced operation scope and individual Project/issue reconciliation; conditional future management and actual game/installed/protected observations are not invented narrower-route closure gates. Six retained compatibility rows and original-evidence holds stay separate.",
+  "rows": [
+    {
+      "id": "bodbdearg-psydoom",
+      "canonical_issue": 1873,
+      "frozen_cohort": "original-524",
+      "historical_1422_member": false,
+      "repository": "BodbDearg/PsyDoom",
+      "repository_id": 212505507,
+      "repository_node_id": "MDEwOlJlcG9zaXRvcnkyMTI1MDU1MDc=",
+      "tag": "releases/1.1.1",
+      "title_commit": "2c50690b6e0ae26cbb83ad9039d24748f76275f8",
+      "source_tree_complete": true,
+      "source_documents_and_entry_profiles": [
+        {
+          "path": "LICENSE",
+          "git_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149
+        },
+        {
+          "path": "README.md",
+          "git_blob": "f042ecbb1bab3b6c3e08758ac6fa170f5be5d47d",
+          "bytes": 8801
+        },
+        {
+          "path": "game/Doom/Base/i_main.cpp",
+          "git_blob": "009775f65b031342184eadfdf64fe048ac665e5b",
+          "bytes": 48039
+        },
+        {
+          "path": "game/Main_StandardCpp.cpp",
+          "git_blob": "ecb00766041abc753cd51751b1a3c4d327419992",
+          "bytes": 400
+        },
+        {
+          "path": "game/Main_Windows.cpp",
+          "git_blob": "a6cbdd1a87e12b6e3f1dbb32fed21de98ee23c72",
+          "bytes": 6284
+        },
+        {
+          "path": "game/PsyDoom/Launcher/Launcher.cpp",
+          "git_blob": "5a3fa49766cb0397d8d68883127bd59dfdedf96a",
+          "bytes": 21307
+        },
+        {
+          "path": "game/PsyDoom/Launcher/LauncherPrefs.cpp",
+          "git_blob": "c3b9ef6ef028f3f52e47b9d9fecd428c80bcb175",
+          "bytes": 7837
+        },
+        {
+          "path": "game/PsyDoom/Utils.cpp",
+          "git_blob": "7b96857842683d256972daf638b8c064f123612f",
+          "bytes": 19680
+        }
+      ],
+      "current_asset_metadata": {
+        "id": 112501908,
+        "name": "PsyDoom_1.1.1_Windows_x86_64.zip",
+        "size": 1540884,
+        "digest": null,
+        "browser_download_url": "https://github.com/BodbDearg/PsyDoom/releases/download/releases/1.1.1/PsyDoom_1.1.1_Windows_x86_64.zip",
+        "updated_at": "2023-06-13T06:12:08Z"
+      },
+      "retained_actual_artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:10.352055+00:00",
+        "repo": "BodbDearg/PsyDoom",
+        "tag": "releases/1.1.1",
+        "source": "2c50690b6e0ae26cbb83ad9039d24748f76275f8",
+        "asset_id": 112501908,
+        "url": "https://github.com/BodbDearg/PsyDoom/releases/download/releases/1.1.1/PsyDoom_1.1.1_Windows_x86_64.zip",
+        "bytes": 1540884,
+        "publisher_expected_digest": null,
+        "actual_sha256": "06145417179b16e0b10634a4ebafacd0fa2e93ec29f034090a6b0b51999bb35a",
+        "authenticated_by_publisher_digest": false,
+        "raw_metadata_budget": {
+          "raw_count": 1,
+          "central_directory_bytes": 93,
+          "compressed_bytes": 1540884
+        },
+        "expanded_bytes": 4059648,
+        "executable_headers": [
+          {
+            "path": "PsyDoom.exe",
+            "bytes": 4059648,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "artifact_observation_reuse": "Actual read-only ZIP/header observation captured October26; fresh October30 tag/asset metadata matches its exact source, asset ID, size and expected digest. Not relabeled as fresh download, extraction or execution. No binary/source reproducibility attestation.",
+      "selected_executable": "PsyDoom.exe",
+      "archive_executable_paths": ["PsyDoom.exe"],
+      "working_directory": "containing folder of the explicitly selected game executable",
+      "arguments": [],
+      "ordinary_options": "Normally no arguments; separately selected documented literal options require explicit execution intent.",
+      "lifetime": "Windows wWinMain returns Launcher::launcherMain or psx_main; launcher runGame calls psx_main in the same process, including launcher reset loop.",
+      "original_profile_boundary": "PS1 Doom/Final Doom supported CUE plus referenced track files; not a PC Doom WAD. Tagged Utils uses SDL_GetPrefPath(com.codelobster,PsyDoom): default Windows AppData/Roaming/com.codelobster/PsyDoom. Launcher prefs may use a local launcher.ini instead. Originals/mods, profile and recorded demos remain external.",
+      "conditional_future_managed_fit": "Managed fit unfinished: no independently expected digest established in complete official release assets/notes; full compatible writer/persistence contract would still need review. Computed inspection hash is not authentication.",
+      "predeclaration_guide_delivery": "#3678 / 3f98ada592df0695a45a8ecb9425427580954983; #3409 older UZDoom guide remains consumed",
+      "existing_platform_facts": "Prior Windows-only listing projection and all Linux/macOS/other upstream text remain in the original guide prefix; no other Core operation qualification inferred.",
+      "before_record_sha256": "b0d212ae65e7a1d097a3b98f80776539e8c338f7511b9bb03c911dcce9f093a3",
+      "record_sha256": "26dfac97b0fc3da8cce8d804299ad8826acb3cd67caeb44f3ab3112ed45e350f",
+      "actual_game_execution": "not_run",
+      "maintenance": "user-managed-update",
+      "operations": [
+        "consent-bound native executable/CWD/literal arguments registration and relink",
+        "retained restart intent",
+        "separate selected-process supervised Play",
+        "registration-only removal preserving all external files"
+      ],
+      "unoffered": [
+        "Core-managed acquisition",
+        "Update",
+        "Backup",
+        "Rollback",
+        "migration",
+        "external deletion",
+        "original authentication",
+        "whole-session/restarted-successor tracking"
+      ]
+    },
+    {
+      "id": "styd051-doom64-ex-plus-enhanced",
+      "canonical_issue": 1812,
+      "frozen_cohort": "original-524",
+      "historical_1422_member": false,
+      "repository": "Styd051/DOOM64-EX-Plus-Enhanced",
+      "repository_id": 995926965,
+      "repository_node_id": "R_kgDOO1yjtQ",
+      "tag": "V1.0.0.1",
+      "title_commit": "47fcfc08040df701e02e68a89d3ef5d1a5a7b0bc",
+      "source_tree_complete": true,
+      "source_documents_and_entry_profiles": [
+        {
+          "path": "COPYING",
+          "git_blob": "8df3d6ce964279db654c662146d631ded795d1d2",
+          "bytes": 5490
+        },
+        {
+          "path": "README.md",
+          "git_blob": "f861d0c6d6d8089ea99bf4127b00b39e50e0bc0e",
+          "bytes": 10106
+        },
+        {
+          "path": "src/engine/d_main.c",
+          "git_blob": "2b8c9144e8c13a8e7555e18b4dc6fa766c352b0a",
+          "bytes": 20177
+        },
+        {
+          "path": "src/engine/i_main.c",
+          "git_blob": "a1c67b11021ddf3be4c47886ecc66f5ebcd0573e",
+          "bytes": 6039
+        }
+      ],
+      "current_asset_metadata": {
+        "id": 309787204,
+        "name": "doom64ex-plus-enhanced-1.0.0.1-win64.zip",
+        "size": 17742435,
+        "digest": "sha256:b2a8f92f5885e48f283a402f96b9af303e064532d66ec1dbfec331843d291632",
+        "browser_download_url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced/releases/download/V1.0.0.1/doom64ex-plus-enhanced-1.0.0.1-win64.zip",
+        "updated_at": "2025-10-28T18:04:58Z"
+      },
+      "retained_actual_artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:11.391929+00:00",
+        "repo": "Styd051/DOOM64-EX-Plus-Enhanced",
+        "tag": "V1.0.0.1",
+        "source": "47fcfc08040df701e02e68a89d3ef5d1a5a7b0bc",
+        "asset_id": 309787204,
+        "url": "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced/releases/download/V1.0.0.1/doom64ex-plus-enhanced-1.0.0.1-win64.zip",
+        "bytes": 17742435,
+        "publisher_expected_digest": "sha256:b2a8f92f5885e48f283a402f96b9af303e064532d66ec1dbfec331843d291632",
+        "actual_sha256": "b2a8f92f5885e48f283a402f96b9af303e064532d66ec1dbfec331843d291632",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 14,
+          "central_directory_bytes": 2305,
+          "compressed_bytes": 17742435
+        },
+        "expanded_bytes": 23642553,
+        "executable_headers": [
+          {
+            "path": "doom64ex-plus-enhanced-1.0.0.1-win64/DOOM64EX+ENHANCED.exe",
+            "bytes": 1163264,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "artifact_observation_reuse": "Actual read-only ZIP/header observation captured October26; fresh October30 tag/asset metadata matches its exact source, asset ID, size and expected digest. Not relabeled as fresh download, extraction or execution. No binary/source reproducibility attestation.",
+      "selected_executable": "DOOM64EX+ENHANCED.exe",
+      "archive_executable_paths": ["doom64ex-plus-enhanced-1.0.0.1-win64/DOOM64EX+ENHANCED.exe"],
+      "working_directory": "containing folder of the explicitly selected game executable",
+      "arguments": [],
+      "ordinary_options": "Normally no arguments; separately selected documented literal options require explicit execution intent.",
+      "lifetime": "Native main calls D_DoomMain; its game loop and exit remain in that selected process. Registration offers no Core migration or original-data projection.",
+      "original_profile_boundary": "Authenticated Windows ZIP has one AMD64 DOOM64EX+ENHANCED.exe, companion Enhanced WAD/libraries and optional DoomBuilder configuration. Source requires DOOM64.WAD, Doom64.kpf and normally DOOMSND.DLS; searches GOG/Steam remaster data and rejects legacy ROM-derived WADs. Missing files error, not a demonstrated picker. Current config.cfg, doomsav*.dsg and screenshots use SDL_GetPrefPath(empty,doom64ex-plus); startup moves older local config/save/screenshot files to that external profile. Other EX+ runtimes can share it. No Core backup/update/deletion right.",
+      "conditional_future_managed_fit": "Managed fit unfinished despite accepted archive digest: pinned README/COPYING/source headers identify the original Doom Source License, not GPL. Exact applicable code/FMOD/Enhanced-WAD and separately attributed sprite grants, complete writer behavior and source/readiness remain unestablished. No universal Unsupported/illegality/product-deferral conclusion or new acquisition hold is manufactured.",
+      "predeclaration_guide_delivery": "#3678 / 3f98ada592df0695a45a8ecb9425427580954983; #3409 older UZDoom guide remains consumed",
+      "existing_platform_facts": "Prior Windows-only listing projection and all Linux/macOS/other upstream text remain in the original guide prefix; no other Core operation qualification inferred.",
+      "before_record_sha256": "72b5b44f45b277c941314d1862e44dc2b0560b005745efd364f8c60f82822b6b",
+      "record_sha256": "8541af550fbc731c103b15fad8d8ce401498d9670c4fd7d740c6a51c244b4808",
+      "actual_game_execution": "not_run",
+      "maintenance": "user-managed-update",
+      "operations": [
+        "consent-bound native executable/CWD/literal arguments registration and relink",
+        "retained restart intent",
+        "separate selected-process supervised Play",
+        "registration-only removal preserving all external files"
+      ],
+      "unoffered": [
+        "Core-managed acquisition",
+        "Update",
+        "Backup",
+        "Rollback",
+        "migration",
+        "external deletion",
+        "original authentication",
+        "whole-session/restarted-successor tracking"
+      ]
+    },
+    {
+      "id": "uzdoom-uzdoom",
+      "canonical_issue": 1899,
+      "frozen_cohort": "original-524",
+      "historical_1422_member": false,
+      "repository": "UZDoom/UZDoom",
+      "repository_id": 1076246580,
+      "repository_node_id": "R_kgDOQCY4NA",
+      "tag": "5.0.3",
+      "title_commit": "7910df7102033fd7754a317f3254f24101135926",
+      "source_tree_complete": true,
+      "source_documents_and_entry_profiles": [
+        {
+          "path": "LICENSE",
+          "git_blob": "fcb6e0bb123609c79a697020bdf520be9b9fac38",
+          "bytes": 33074
+        },
+        {
+          "path": "README.md",
+          "git_blob": "637c5cfa0b897e1b027e5bac783122ebe05747e3",
+          "bytes": 3999
+        },
+        {
+          "path": "src/common/platform/win32/i_main.cpp",
+          "git_blob": "762b59e1a338332b62069748c04197de9241ac6c",
+          "bytes": 18529
+        },
+        {
+          "path": "src/common/platform/win32/i_mainwindow.cpp",
+          "git_blob": "295b65c3bdc7b381d3ae57d64622b8979f8df7f6",
+          "bytes": 5047
+        }
+      ],
+      "current_asset_metadata": {
+        "id": 584674267,
+        "name": "Windows-UZDoom-Release-x86_64.zip",
+        "size": 29337585,
+        "digest": "sha256:3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+        "browser_download_url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/Windows-UZDoom-Release-x86_64.zip",
+        "updated_at": "2026-09-23T22:13:12Z"
+      },
+      "retained_actual_artifact_inspection": {
+        "observed_at": "2026-10-26T05:38:11.969204+00:00",
+        "repo": "UZDoom/UZDoom",
+        "tag": "5.0.3",
+        "source": "7910df7102033fd7754a317f3254f24101135926",
+        "asset_id": 584674267,
+        "url": "https://github.com/UZDoom/UZDoom/releases/download/5.0.3/Windows-UZDoom-Release-x86_64.zip",
+        "bytes": 29337585,
+        "publisher_expected_digest": "sha256:3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+        "actual_sha256": "3a41131845415bc4bb5474f8de301a77736bd858e2ab489926325a2675e8263f",
+        "authenticated_by_publisher_digest": true,
+        "raw_metadata_budget": {
+          "raw_count": 16,
+          "central_directory_bytes": 1565,
+          "compressed_bytes": 29337585
+        },
+        "expanded_bytes": 46026070,
+        "executable_headers": [
+          {
+            "path": "updater.exe",
+            "bytes": 113664,
+            "machine": "0x8664"
+          },
+          {
+            "path": "uzdoom.exe",
+            "bytes": 17872896,
+            "machine": "0x8664"
+          }
+        ],
+        "scope": "Bounded read-only official archive inspection. Absent publisher digests remain unauthenticated; computed hashes never substitute for publisher evidence. No extraction, helper, game or original execution."
+      },
+      "artifact_observation_reuse": "Actual read-only ZIP/header observation captured October26; fresh October30 tag/asset metadata matches its exact source, asset ID, size and expected digest. Not relabeled as fresh download, extraction or execution. No binary/source reproducibility attestation.",
+      "selected_executable": "uzdoom.exe",
+      "archive_executable_paths": ["uzdoom.exe"],
+      "working_directory": "containing folder of the explicitly selected game executable",
+      "arguments": [],
+      "ordinary_options": "Normally no arguments; separately selected documented literal options require explicit execution intent.",
+      "lifetime": "Windows wWinMain/GameMain ordinarily runs in the selected process. On the error pane, ShowErrorPane saves restartrequest; CheckForRestart invokes ShellExecuteW on the same executable after GameMain and retains no waited successor handle. Core root completion is not whole-game drain or tracked recovery.",
+      "original_profile_boundary": "Existing guide names uzdoom.exe as player and updater.exe as runtime replacement helper; first Play selects own supported IWAD/free data. Default Documents/My Games/UZDoom config and Saved Games/UZDoom saves, optional portable INI/Save/Screenshots and custom overrides remain upstream/player-owned. Fresh actual ZIP confirms separate player/updater and publisher digest; current tag matches the guide’s pinned source.",
+      "conditional_future_managed_fit": "Selected non-owning route remains appropriate; self-replacement is an existing useful capability and one runtime must retain one replacement owner. No management transition or fresh qualification is needed merely to rewrite an already useful guide.",
+      "predeclaration_guide_delivery": "#3678 / 3f98ada592df0695a45a8ecb9425427580954983; #3409 older UZDoom guide remains consumed",
+      "existing_platform_facts": "Prior Windows-only listing projection and all Linux/macOS/other upstream text remain in the original guide prefix; no other Core operation qualification inferred.",
+      "before_record_sha256": "17a07c494216ca20e4daad53824afb18e87cdb763fbd42939bd6432a175d0805",
+      "record_sha256": "6fa9c981200a0cd58da2252f49a1d79db8d78d6b8e5c3876bacea094aed1cadc",
+      "actual_game_execution": "not_run",
+      "maintenance": "user-managed-update",
+      "operations": [
+        "consent-bound native executable/CWD/literal arguments registration and relink",
+        "retained restart intent",
+        "separate selected-process supervised Play",
+        "registration-only removal preserving all external files"
+      ],
+      "unoffered": [
+        "Core-managed acquisition",
+        "Update",
+        "Backup",
+        "Rollback",
+        "migration",
+        "external deletion",
+        "original authentication",
+        "whole-session/restarted-successor tracking"
+      ]
+    }
+  ]
+}

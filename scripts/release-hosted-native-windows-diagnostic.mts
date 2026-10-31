@@ -49,6 +49,7 @@ import {
   readOriginalHostedWindowsDiagnosticInputs,
   requireOriginalHostedWindowsDiagnosticContext,
   readOrdinaryHostedWindowsDiagnosticDeadline,
+  projectHostedWindowsDiagnosticPreparationReserve,
   readBoundedDiagnosticProviderBody,
 } from "./release-hosted-native-windows-diagnostic-source.mts";
 import {
@@ -1727,6 +1728,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
                 phase: "preparation-before-original-controller",
                 controller_launch_requested: false,
                 error: projectDiagnosticStartupFailure(error),
+                reserve_observation: projectHostedWindowsDiagnosticPreparationReserve(error),
                 authority: "none",
                 automatic_retry: false,
               },

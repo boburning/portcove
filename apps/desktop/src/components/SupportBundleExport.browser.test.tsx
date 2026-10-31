@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -192,6 +193,7 @@ it("shows retained sections, unknown contents and incomplete capture without cla
     await expect.element(page.getByText(text, { exact: true })).toBeVisible();
   }
   expect(host.textContent).not.toMatch(/complete diagnostics|library recovered|0 records/iu);
+  await captureParityState("support-bundle-partial-contents-fixture");
 });
 
 it("describes included sections as a bounded snapshot without claiming complete diagnostics", async () => {
@@ -206,6 +208,7 @@ it("describes included sections as a bounded snapshot without claiming complete 
     "Only the available diagnostics within collection limits were saved.",
   );
   expect(host.textContent).not.toContain("Some diagnostics are partial or omitted.");
+  await captureParityState("support-bundle-export-receipt-fixture");
   expect(host.textContent).not.toContain("The library was unavailable");
   expect(host.textContent).not.toContain("complete diagnostics");
 });
@@ -244,6 +247,7 @@ it("keeps export failure separate from startup failure and retries without expos
   expect(host.textContent).toContain("The bundle destination could not be written.");
   expect(host.textContent).toContain("The library database could not be read.");
   expect(host.textContent).not.toContain("unrequested private export detail");
+  await captureParityState("support-bundle-export-failed-fixture");
   await click("Create support bundle");
   expect(create).toHaveBeenCalledTimes(2);
   expect(host.textContent).toContain("Support bundle saved to");

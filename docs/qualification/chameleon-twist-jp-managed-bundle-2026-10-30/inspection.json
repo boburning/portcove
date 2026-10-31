@@ -1,0 +1,53 @@
+{
+  "schema_version": 82,
+  "ok": true,
+  "command": "catalog.inspect-definition-publication",
+  "data": {
+    "publication_schema": 1,
+    "authority": "none",
+    "index_sha256": "fd4e815436c5a473d1a51c7ef363bf8875b2c2608d720aa3c88932b32360c88d",
+    "files": [
+      {
+        "target": "definitions/index.json",
+        "bytes": 707,
+        "sha256": "fd4e815436c5a473d1a51c7ef363bf8875b2c2608d720aa3c88932b32360c88d"
+      },
+      {
+        "target": "policy/official/chameleon-twist-jp-recompiled.json",
+        "bytes": 747,
+        "sha256": "ac13fd8701ee68b3904682295948578e412920e3b7d916aec4f5590cb9971039"
+      },
+      {
+        "target": "policy/official/chameleon-twist-jp-recompiled.launch.json",
+        "bytes": 229,
+        "sha256": "97f88f8031ce8d04ad237c9f1b362b6727416ee7094278dc1b10eaeb7b3c77df"
+      },
+      {
+        "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
+        "bytes": 5318,
+        "sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4"
+      },
+      {
+        "target": "sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json",
+        "bytes": 8325,
+        "sha256": "beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d"
+      }
+    ],
+    "definitions": [
+      {
+        "namespace": "official",
+        "stable_id": "chameleon-twist-jp-recompiled",
+        "revision": 1,
+        "definition_target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
+        "policy_target": "policy/official/chameleon-twist-jp-recompiled.json",
+        "policy_schema": 4,
+        "policy_revision": 1,
+        "grant_id": "managed-github-v1-chameleon-jp-proposal",
+        "launch_target": "policy/official/chameleon-twist-jp-recompiled.launch.json",
+        "launch_revision": 1
+      }
+    ],
+    "scope": "inert-managed-definition-publication-inspection"
+  },
+  "error": null
+}

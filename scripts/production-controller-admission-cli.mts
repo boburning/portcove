@@ -4,6 +4,7 @@ import path from "node:path";
 import { errorMessage } from "./runtime-values.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { requireControllerInputRoleConfiguration } from "./release-authority-configuration-contract.mts";
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import {
   admitProductionController,
   admitProductionCatalogController,
@@ -34,6 +35,8 @@ async function main() {
     if (!raw || Buffer.byteLength(raw) > 32768)
       refuse("complete protected input role configuration unavailable");
     const roles = requireControllerInputRoleConfiguration(JSON.parse(raw), admitted, purpose);
+    if (purpose === "application")
+      outputs += `release_profile=${applicationReleaseProfile(JSON.parse(raw))}\n`;
     outputs += `classification_transport=${roles.classification_transport}\nprotection_app_id=${roles.protection_app_id}\nprotection_installation_id=${roles.protection_installation_id}\n`;
   }
   if (environment.GITHUB_OUTPUT) await appendFile(environment.GITHUB_OUTPUT, outputs);

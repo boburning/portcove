@@ -180,9 +180,13 @@ rollback or external deletion.
 CLI and Tauri translate these same Core operations; React displays their
 assessments and review inputs. Artwork and favorites use the same stable listing
 identity, including a retained pending setup or registration after its current
-listing disappears. The first directory is bundled with the client. Delivery to
-an unchanged client remains with the existing protected definition-delivery
-boundary in [DEFINITION-DELIVERY.md](DEFINITION-DELIVERY.md), not a second feed.
+listing disappears. The first directory is bundled with the client.
+`listing_delivery.rs` already implements the signed descriptive-directory reader
+and its accepted local state; it is not awaiting a second feed implementation.
+Actual protected provisioning/publication and unchanged-client production
+acceptance remain with #246/#534 through the existing
+[descriptive-directory delivery contract](DEFINITION-DELIVERY.md#descriptive-directory-delivery).
+Reader implementation does not establish production delivery.
 
 `service/package_selection.rs` separates release choice from native asset ranking.
 The provider selects a channel or explicit release, inventories that release's
@@ -1192,7 +1196,13 @@ guards remain authoritative.
 
 Library selection and transfer share the same adapter initialization lock. Either
 in-flight handoff excludes another switch, move, import or recovery transfer before
-it can replace the active adapter state. Bootstrap captures the library and its
+it can replace the active adapter state. After blocking new adapter readers and
+dropping cached leases, both wait up to two seconds for previously dispatched reads
+of the actual outgoing library to settle. Explicit recovery paths are not probed
+before Core validates them. A transfer's failed wait still follows its existing
+reopening and generation invalidation; the subsequent Core operation independently acquires its
+exclusive lease and revalidates its plan or recovery state. This wait neither reserves authority nor
+retries a mutation. Bootstrap captures the library and its
 generation under that same lock; successful selection and every attempted transfer
 publish the reopened state and new generation together. A transfer error can follow
 committed changes or reopening through a relocation receipt, so it also expires
@@ -1268,6 +1278,19 @@ consequence, and applicable safety-backup branch. Changed data or library select
 requires another review.
 Closing a review makes no backup mutation. CLI backup review and authorization keep
 their existing core implementation and machine contract.
+
+Ghostship's separately named legacy recovery review consumes Core's qualified
+snapshot plan. Ordinary backup restore does not initiate this compound operation.
+The host compares the reviewed plan before native consent, then rechecks the
+library generation and replans before obtaining Core's one-use authorization.
+Core alone creates the fresh retained-runtime derivative, switches its pointer
+and restores the qualified snapshot while preserving both existing installations
+and independent canonical/runtime safety copies. Unqualified snapshots cannot
+produce an apply action. Native decline is cancellation only for this named
+nullable command. The operation result, workspace refresh and backup-inventory
+readback retain independently attributable outcomes; failed readback cannot undo
+a committed recovery. This client path does not supply installed or protected
+acceptance or expand the existing recovery's authority.
 
 ## Installed-game removal review
 
@@ -2778,6 +2801,20 @@ outlive the wait and retains any acquired lease until its work returns. Only
 a timely result can start the writer; late preparation is discarded without
 starting a writer or installing a subscriber. There is no automatic retry.
 Logging initialization failure never changes an otherwise valid startup outcome.
+
+Positive-sink qualification fixtures use the diagnostics crate's nondefault
+`qualification-fixtures` feature and an exact child-only
+`PORTCOVE_DIAGNOSTICS_QUALIFICATION_PREPARED=1` opt-in. They reuse actual location
+resolution, session allocation and writers with filesystem preparation outside
+the product bootstrap deadline. CLI's test dependency enables that feature for
+its real subprocess fixtures; ordinary release dependencies do not. Feature-off
+builds ignore the flag, and feature-enabled ordinary/unavailable cases clear it.
+Prepared construction reports its actual mode and emits a fixed
+boolean `qualification_prepared` startup observation; arbitrary text remains
+refused by the shared projection policy. These receipts prove owned sink,
+record and lease behavior, not production bootstrap availability or latency.
+The separate blocked-bootstrap and ordinary unavailable cases retain the 250 ms
+contract, no-late-writer behavior and finite subprocess cleanup.
 
 File filtering defaults to application INFO and dependency WARN. Exactly
 `PORTCOVE_DIAGNOSTICS_DEBUG=1`, or CLI `-vv`, enables application DEBUG for that

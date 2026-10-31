@@ -1,6 +1,106 @@
 use super::*;
 
 #[test]
+fn opentyrian_windows_paths_refuse_before_preparation_and_leave_linux_unchanged() {
+    use crate::Adapter;
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("opentyrian-opentyrian").unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let runtime = temporary.path().join("Library 日本語 Ω");
+    let error = check_output_root(port, Platform::WindowsX86_64, &runtime).unwrap_err();
+    assert_eq!(
+        error
+            .details
+            .get("runtime_path_requirement")
+            .map(String::as_str),
+        Some("printable-ascii-max-path")
+    );
+    assert!(!runtime.exists());
+
+    std::fs::create_dir(&runtime).unwrap();
+    let executable = runtime.join("opentyrian.exe");
+    std::fs::write(&executable, b"inert fixture; never executed").unwrap();
+    let request = crate::LaunchSpecRequest {
+        library: &library,
+        port,
+        platform: Platform::WindowsX86_64,
+        install_root: &runtime,
+        selected_executable: &executable,
+        source: None,
+        source_record: None,
+    };
+    let adapter = crate::adapter::standard(port.adapter);
+    for error in [
+        adapter
+            .launch_spec_with_executable(request, &|| Ok(()))
+            .unwrap_err(),
+        adapter
+            .prepare_launch_with_executable(request, &|| Ok(()))
+            .unwrap_err(),
+    ] {
+        assert_eq!(
+            error
+                .details
+                .get("runtime_path_requirement")
+                .map(String::as_str),
+            Some("printable-ascii-max-path")
+        );
+    }
+    assert!(!library.user_dir(&port.id).exists());
+    assert_eq!(
+        std::fs::read(executable).unwrap(),
+        b"inert fixture; never executed"
+    );
+    check_output_root(
+        port,
+        Platform::WindowsX86_64,
+        Path::new("C:\\Games with spaces"),
+    )
+    .unwrap();
+    check_output_root(port, Platform::LinuxX86_64, &runtime).unwrap();
+    let mut unrestricted = port.clone();
+    unrestricted.windows_runtime_path_policy = None;
+    check_output_root(&unrestricted, Platform::WindowsX86_64, &runtime).unwrap();
+}
+
+#[test]
+fn native_ascii_policy_checks_data_members_and_excludes_preparation_helpers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("opentyrian-opentyrian").unwrap();
+    validate(port).unwrap();
+    assert_eq!(minimum_capability(port), 7);
+    let root = Path::new("C:\\Games with spaces");
+    check_package_paths(
+        port,
+        Platform::WindowsX86_64,
+        root,
+        ["opentyrian/tyrian1.lvl"],
+    )
+    .unwrap();
+    for member in ["opentyrian/日本語.lvl".to_owned(), "x".repeat(260)] {
+        let error =
+            check_package_paths(port, Platform::WindowsX86_64, root, [&*member]).unwrap_err();
+        assert_eq!(
+            error
+                .details
+                .get("runtime_path_requirement")
+                .map(String::as_str),
+            Some("printable-ascii-max-path")
+        );
+        check_package_paths(port, Platform::LinuxX86_64, root, [&*member]).unwrap();
+    }
+    let mut helper = port.clone();
+    helper
+        .setup_executable_hints
+        .insert(Platform::WindowsX86_64, vec!["setup.exe".into()]);
+    assert!(validate(&helper).is_err());
+    let mut linux_only = port.clone();
+    linux_only.platforms = vec![Platform::LinuxX86_64];
+    assert!(validate(&linux_only).is_err());
+}
+
+#[test]
 fn native5_temp_coordinates_are_checked_even_when_immutable_executable_fits() {
     let mut port = crate::native_temp::tests::port();
     let temporary = "t".repeat(64);
@@ -177,7 +277,12 @@ fn adapter_refuses_lossy_runtime_before_creating_or_preparing_data() {
 #[cfg(windows)]
 #[test]
 fn move_previews_check_retained_policy_before_creating_destinations() {
+    let started = std::time::Instant::now();
     for constrained in [false, true] {
+        eprintln!(
+            "retained move policy constrained={constrained}: begin at {:?}",
+            started.elapsed()
+        );
         let temporary = tempfile::tempdir().unwrap();
         let library = crate::Library::open(temporary.path().join("library")).unwrap();
         let (catalog, port_id) = crate::test_fixture::post_client_catalog();
@@ -222,6 +327,10 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
         service.replace_catalog_for_test(
             crate::Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
         );
+        eprintln!(
+            "retained move policy constrained={constrained}: registered at {:?}",
+            started.elapsed()
+        );
         let library_destination = temporary.path().join("moved-ゲーム");
         let library_plan = service.plan_library_move(&library_destination);
         if constrained {
@@ -237,6 +346,10 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
             library_plan.unwrap();
         }
         assert!(!library_destination.exists());
+        eprintln!(
+            "retained move policy constrained={constrained}: library preview complete at {:?}",
+            started.elapsed()
+        );
         let output_destination = temporary.path().join("output-ゲーム");
         let plan = service
             .plan_output_relocation(&port_id, &output_destination)
@@ -250,9 +363,17 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
             );
         }
         assert!(!output_destination.exists());
+        eprintln!(
+            "retained move policy constrained={constrained}: output preview complete at {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             std::fs::read(install.path.join(&install.selected_executable)).unwrap(),
             original
+        );
+        eprintln!(
+            "retained move policy constrained={constrained}: assertions complete at {:?}",
+            started.elapsed()
         );
     }
 }
@@ -326,5 +447,6 @@ fn native_policy_checks_packaged_data_beyond_selected_executable() {
     assert!(validate(&bad).is_err());
     bad = port.clone();
     bad.windows_runtime_path_policy = Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
-    assert!(validate(&bad).is_err());
+    validate(&bad).unwrap();
+    assert_eq!(minimum_capability(&bad), 7);
 }

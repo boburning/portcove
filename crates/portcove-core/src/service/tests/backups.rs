@@ -28,6 +28,38 @@ fn data_copy_and_equal_bytes_sync_preserve_exact_modification_time() {
 }
 
 #[test]
+fn prepared_port_backup_refuses_unrestorable_names_before_publication() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library-ü")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let port = "diablo-devilutionx";
+    let profile = library.user_dir(port).join("profile");
+    fs::create_dir_all(&profile).unwrap();
+    let settings = profile.join("diablo.ini");
+    let unsupported = profile.join("owned-byte-witness-ü.dat");
+    fs::write(&settings, b"[Graphics]\nFullscreen=0\n").unwrap();
+    fs::write(&unsupported, b"owned witness").unwrap();
+
+    let error = service.create_backup(port).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Verification);
+    assert!(error.message.contains("ASCII"));
+    assert!(service.list_backups(port).unwrap().backups.is_empty());
+    assert_eq!(fs::read(&unsupported).unwrap(), b"owned witness");
+    assert_eq!(fs::read(&settings).unwrap(), b"[Graphics]\nFullscreen=0\n");
+
+    let supported = profile.join("owned-byte-witness.dat");
+    fs::rename(&unsupported, &supported).unwrap();
+    let backup = service.create_backup(port).unwrap();
+    assert_eq!(backup.file_count, 2);
+    fs::write(&settings, b"changed settings").unwrap();
+    fs::write(&supported, b"changed witness").unwrap();
+    restore_authorized(&service, port, &backup.id).unwrap();
+    assert_eq!(fs::read(&settings).unwrap(), b"[Graphics]\nFullscreen=0\n");
+    assert_eq!(fs::read(&supported).unwrap(), b"owned witness");
+    assert!(!unsupported.exists());
+}
+
+#[test]
 fn backup_round_trip_preserves_metadata_and_refuses_timestamp_only_changes() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();

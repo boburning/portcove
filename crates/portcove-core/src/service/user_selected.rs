@@ -647,21 +647,53 @@ mod tests {
             .unwrap();
     }
 
-    #[test]
-    fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
-        let (temporary, mut service, executable, working) = fixture("listing-only");
-        listing_only(&mut service);
-        assert!(service.catalog.port("listing-only").is_err());
-        let initial = service.listing_status("listing-only").unwrap();
+    // The listing-based contract retains its acquisition restriction without
+    // promoting the descriptive identity into a strict managed definition.
+    fn assert_listing_only_player_route(id: &str, embedded_download_hold: Option<bool>) {
+        let (temporary, mut service, executable, working) = fixture(id);
+        if let Some(download_hold) = embedded_download_hold {
+            service.catalog = Catalog::embedded().unwrap();
+            let listing = service.catalog.listing(id).unwrap();
+            assert!(listing.manual_setup.is_some());
+            assert_eq!(listing.download_block_reason.is_some(), download_hold);
+        } else {
+            listing_only(&mut service);
+        }
+        assert!(service.catalog.port(id).is_err());
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
+    }
+
+    fn assert_selected_listing_lifecycle(
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        executable: PathBuf,
+        working: PathBuf,
+        id: &str,
+    ) {
+        let expected_listing = service.catalog.listing(id).unwrap().clone();
+        let expected_definition = service
+            .catalog
+            .port(id)
+            .ok()
+            .map(|port| serde_json::to_value(port).unwrap());
+        let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action
                 == crate::ListingAction::AttachExisting
                 && action.allowed)
         );
-        let record = register(&service, "listing-only", &executable, &working);
+        let record = register(&service, id, &executable, &working);
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
         assert!(
             service
-                .preview_user_selected_runtime("listing-only", &executable, &working, &[])
+                .preview_user_selected_runtime(id, &executable, &working, &[])
                 .is_err()
         );
 
@@ -672,7 +704,7 @@ mod tests {
         let arguments = vec!["--help".into()];
         let preview = service
             .preview_user_selected_runtime_relink(
-                "listing-only",
+                id,
                 &replacement_executable,
                 &replacement,
                 &arguments,
@@ -681,7 +713,7 @@ mod tests {
         assert!(
             service
                 .authorize_user_selected_runtime_relink(
-                    "listing-only",
+                    id,
                     &replacement_executable,
                     &replacement,
                     &[],
@@ -691,7 +723,7 @@ mod tests {
         );
         let authorization = service
             .authorize_user_selected_runtime_relink(
-                "listing-only",
+                id,
                 &replacement_executable,
                 &replacement,
                 &arguments,
@@ -703,7 +735,7 @@ mod tests {
         fs::remove_file(&executable).unwrap();
         let relinked = service
             .relink_user_selected_runtime(
-                "listing-only",
+                id,
                 &replacement_executable,
                 &replacement,
                 &arguments,
@@ -712,10 +744,18 @@ mod tests {
             .unwrap();
         assert_eq!(relinked.id, record.id);
         assert_eq!(relinked.registered_at, record.registered_at);
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
         assert!(
             service
                 .relink_user_selected_runtime(
-                    "listing-only",
+                    id,
                     &replacement_executable,
                     &replacement,
                     &arguments,
@@ -731,6 +771,16 @@ mod tests {
         let root = service.library.root().to_path_buf();
         drop(service);
         let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        let (_, retained) = service
+            .library
+            .external_runtime_with_port(id)
+            .unwrap()
+            .unwrap();
+        assert!(retained.is_user_selected_listing(id));
+        assert_eq!(
+            serde_json::to_value(retained.listing(id).unwrap()).unwrap(),
+            serde_json::to_value(&expected_listing).unwrap()
+        );
         let workspace = service.workspace_snapshot(10).unwrap();
         assert!(
             workspace
@@ -738,48 +788,242 @@ mod tests {
                 .unwrap()
                 .listings
                 .iter()
-                .any(|listing| listing.id == "listing-only")
+                .any(|listing| listing.id == id)
         );
         assert!(
             workspace
                 .listing_statuses
                 .iter()
-                .any(|listing| listing.port_id == "listing-only"
-                    && listing.status.external_runtime.is_some())
+                .any(|listing| listing.port_id == id && listing.status.external_runtime.is_some())
         );
+        assert!(service.status(id).unwrap().readiness.unwrap().launchable);
         assert!(
             service
-                .status("listing-only")
-                .unwrap()
-                .readiness
-                .unwrap()
-                .launchable
-        );
-        assert!(
-            service
-                .supervise_launch("listing-only", None, &[], LaunchStdio::Null, |_| {})
+                .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
                 .unwrap()
                 .successful
         );
-        let removal = service.preview_external_removal("listing-only").unwrap();
+        let removal = service.preview_external_removal(id).unwrap();
         let consent = service
-            .authorize_external_removal("listing-only", &removal.preview_sha256)
+            .authorize_external_removal(id, &removal.preview_sha256)
             .unwrap();
-        service
-            .remove_external_runtime("listing-only", &consent.token)
-            .unwrap();
+        service.remove_external_runtime(id, &consent.token).unwrap();
         assert!(replacement_executable.is_file());
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
         );
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
+    }
+
+    #[test]
+    fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
+        assert_listing_only_player_route("listing-only", None);
+    }
+
+    #[test]
+    fn cannonball_route_120() {
+        assert_listing_only_player_route("cannonball-outrun", Some(true));
+    }
+
+    #[test]
+    fn cannonball_route_1132() {
+        assert_listing_only_player_route("cannonball-dx-outrun", Some(true));
+    }
+
+    #[test]
+    fn psx_permitted_player_route_826() {
+        assert_listing_only_player_route("mstan-battle-arena-toshinden-recomp", Some(true));
+    }
+
+    #[test]
+    fn psx_permitted_player_route_827() {
+        assert_listing_only_player_route("novapowers0-bloody-roar-ii-recomp", Some(true));
+    }
+
+    #[test]
+    fn verdite_prepared_player_route_1900() {
+        assert_listing_only_player_route("voicedrew11-verdite2", Some(false));
+    }
+
+    #[test]
+    fn verdite_prepared_player_route_1901() {
+        assert_listing_only_player_route("voicedrew11-verdite3", Some(false));
+    }
+
+    #[test]
+    fn snes_source_player_route_146() {
+        assert_listing_only_player_route("mega-man-x-snes-recomp", Some(true));
+    }
+
+    #[test]
+    fn snes_source_player_route_340() {
+        assert_listing_only_player_route("super-metroid-snesrev-sm", Some(false));
+    }
+
+    #[test]
+    fn nes_cycle_source_player_route_1840() {
+        assert_listing_only_player_route("mstan-legendofzeldanesrecomp", Some(false));
+    }
+
+    #[test]
+    fn nes_cycle_source_player_route_2739() {
+        assert_listing_only_player_route("mstan-yoshinesrecomp", Some(false));
+    }
+
+    #[test]
+    fn rechan_prepared_player_route_348() {
+        assert_listing_only_player_route("jackie-chan-stuntmaster-rechan", Some(false));
+    }
+
+    #[test]
+    fn crash_prepared_player_route_385() {
+        assert_listing_only_player_route("crash-bandicoot-crashbandicoot-launcher", Some(false));
+    }
+
+    #[test]
+    fn symphony_permitted_player_route_319() {
+        assert_listing_only_player_route(
+            "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn rage_permitted_player_route_349() {
+        assert_listing_only_player_route("rage-racer-rage-racer-pc", Some(true));
+    }
+
+    #[test]
+    fn kameo_permitted_player_route_129() {
+        assert_listing_only_player_route("kameo-repowered", Some(true));
+    }
+
+    #[test]
+    fn redahm_permitted_player_route_130() {
+        assert_listing_only_player_route(
+            "redahm-destroy-all-humans-path-of-the-furon",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn svr07_permitted_player_route_131() {
+        assert_listing_only_player_route("svr07-recomp-wwe-smackdown-vs-raw-2007", Some(false));
+    }
+
+    #[test]
+    fn valkyrie_prepared_product_route_491() {
+        assert_listing_only_player_route("alexbeav-valkyrie-profile-recomp", Some(false));
+    }
+
+    #[test]
+    fn dprecomp_permitted_prepared_runtime_route_812() {
+        assert_listing_only_player_route("deadly-premonition-dprecomp", Some(true));
+    }
+
+    #[test]
+    fn melee_static_prepared_player_route_814() {
+        assert_listing_only_player_route("melee-unlocked", Some(false));
+    }
+
+    #[test]
+    fn strikers_prepared_player_route_816() {
+        assert_listing_only_player_route("super-mario-strikers-strikers", Some(false));
+    }
+
+    #[test]
+    fn skate3_permitted_prepared_player_route_150() {
+        assert_listing_only_player_route("skate-3-recomp", Some(true));
+    }
+
+    #[test]
+    fn budokai3_prepared_player_route_366() {
+        assert_listing_only_player_route(
+            "dragon-ball-z-budokai-3-hd-budokai-3-hd-collection-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn triaevum_prepared_player_route_515() {
+        assert_listing_only_player_route("triaevum-ocarina-of-time-3d", Some(false));
+    }
+
+    #[test]
+    fn arwing2_installed_player_route_1946() {
+        assert_listing_only_player_route("star-fox-2-arwing2", Some(false));
+    }
+
+    #[test]
+    fn ackman_permitted_player_route_2881() {
+        assert_listing_only_player_route("go-go-ackman-go-go-ackman-recompiled", Some(true));
+    }
+
+    #[test]
+    fn strike_gunner_prepared_player_route_2713() {
+        assert_listing_only_player_route(
+            "strike-gunner-s-t-g-strike-gunner-stg-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn top_gear_direct_player_route_2905() {
+        assert_listing_only_player_route("top-gear-snes-top-gear-for-windows", Some(false));
+    }
+
+    #[test]
+    fn opentie_prepared_player_route_1975() {
+        assert_listing_only_player_route("star-wars-tie-fighter-opentie", Some(false));
+    }
+
+    #[test]
+    fn open_annihilation_settled_player_route_1635() {
+        assert_listing_only_player_route("total-annihilation-open-annihilation", Some(false));
+    }
+
+    #[test]
+    fn woodyre_prepared_player_route_1636() {
+        assert_listing_only_player_route("woody-woodpecker-woodyre", Some(false));
+    }
+
+    #[test]
+    fn reblue_prepared_player_preserves_strict_definition_route_56() {
+        let id = "re-blue";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        let declared = service.catalog.port(id).unwrap();
+        assert_eq!(declared.adapter, crate::AdapterKind::GeneratedCache);
+        assert_ne!(declared.release.provider, ReleaseSource::UserPrepared);
+        assert!(declared.source_profile.is_some());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
+    }
+
+    #[test]
+    fn redriver2_prepared_player_route_317() {
+        assert_listing_only_player_route("driver-2-redriver2", Some(false));
     }
 
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently
     // bounded by the ordinary harness; no case or assertion is sampled away.
-    fn assert_prepared_player_route(id: &str) {
+    fn assert_prepared_player_route(id: &str, selected_arguments: Option<&[&str]>) {
         let (_temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
         // A new managed offer does not rewrite an existing registration's
@@ -789,6 +1033,7 @@ mod tests {
             include_str!("../testdata/crispy-retained-selected-2026-10-29.json"),
             include_str!("../testdata/crispy-final-doom-retained-selected-2026-10-29.json"),
             include_str!("../testdata/bstone-retained-selected-2026-10-29.json"),
+            include_str!("../testdata/devilution-retained-selected-2026-10-29.json"),
         ]
         .into_iter()
         .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());
@@ -818,13 +1063,32 @@ mod tests {
                 .unwrap()
                 .is_some()
         );
+        #[cfg(not(windows))]
+        if declared
+            .release
+            .user_prepared
+            .contains_key(&Platform::current().unwrap())
+        {
+            assert!(
+                service
+                    .current_user_selected_definition(id)
+                    .unwrap()
+                    .is_some()
+            );
+        }
         let executable_before = fs::read(&executable).unwrap();
-        let arguments = vec![
-            "--record".into(),
-            "route-binding".into(),
-            id.into(),
-            "literal argument with spaces".into(),
-        ];
+        let selected_arguments = selected_arguments
+            .map(|arguments| {
+                arguments
+                    .iter()
+                    .map(|argument| (*argument).to_owned())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_else(|| vec![id.into(), "literal argument with spaces".into()]);
+        let arguments = ["--record".into(), "route-binding".into()]
+            .into_iter()
+            .chain(selected_arguments.iter().cloned())
+            .collect::<Vec<_>>();
         let preview = service
             .preview_user_selected_runtime(id, &executable, &working, &arguments)
             .unwrap();
@@ -933,7 +1197,7 @@ mod tests {
         assert!(launch.successful);
         assert_eq!(
             fs::read_to_string(working.join("route-binding")).unwrap(),
-            format!("{id}\nliteral argument with spaces")
+            selected_arguments.join("\n")
         );
         let removal = service.preview_external_removal(id).unwrap();
         let consent = service
@@ -947,7 +1211,7 @@ mod tests {
         );
         assert_eq!(
             fs::read_to_string(working.join("route-binding")).unwrap(),
-            format!("{id}\nliteral argument with spaces")
+            selected_arguments.join("\n")
         );
         assert!(
             service
@@ -962,10 +1226,110 @@ mod tests {
         ($name:ident, $id:literal) => {
             #[test]
             fn $name() {
-                assert_prepared_player_route($id);
+                assert_prepared_player_route($id, None);
+            }
+        };
+        ($name:ident, $id:literal, [$($argument:literal),+ $(,)?]) => {
+            #[test]
+            fn $name() {
+                assert_prepared_player_route($id, Some(&[$($argument),+]));
             }
         };
     }
+
+    prepared_player_case!(
+        cps_route_2769,
+        "cps2recomp-alien-vs-predator",
+        ["--play", "avsp"]
+    );
+    prepared_player_case!(
+        cps_route_2770,
+        "cps2recomp-cadillacs-and-dinosaurs",
+        ["--play", "dino"]
+    );
+    prepared_player_case!(
+        cps_route_2764,
+        "cps2recomp-marvel-super-heroes",
+        ["--play", "msh"]
+    );
+    prepared_player_case!(
+        cps_route_2763,
+        "cps2recomp-street-fighter-alpha-2",
+        ["--play", "sfa2"]
+    );
+    prepared_player_case!(
+        cps_route_2762,
+        "cps2recomp-street-fighter-alpha",
+        ["--play", "sfa"]
+    );
+    prepared_player_case!(
+        cps_route_2780,
+        "cps2recomp-super-gem-fighter-mini-mix",
+        ["--play", "pocket_fighter"]
+    );
+    prepared_player_case!(
+        cps_route_2765,
+        "cps2recomp-super-puzzle-fighter-ii-turbo",
+        ["--play", "puzzle_fighter"]
+    );
+    prepared_player_case!(
+        cps_route_2782,
+        "cps2recomp-vampire-hunter-2",
+        ["--play", "vhunt2"]
+    );
+    prepared_player_case!(
+        cps_route_2767,
+        "cps2recomp-vampire-savior-2",
+        ["--play", "vsav2"]
+    );
+    prepared_player_case!(
+        cps_route_2768,
+        "cps2recomp-vampire-savior-definitive",
+        ["--play", "vsav_definitive"]
+    );
+    prepared_player_case!(
+        cps_route_2766,
+        "cps2recomp-vampire-savior",
+        ["--play", "vampire_savior"]
+    );
+    prepared_player_case!(
+        cps_route_2781,
+        "cps2recomp-x-men-vs-street-fighter",
+        ["--play", "xmvsf"]
+    );
+
+    prepared_player_case!(render96_selected_native_route_519, "render96ex");
+
+    prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
+    prepared_player_case!(classic_pc_route_1793, "keriew-augustus");
+    prepared_player_case!(classic_pc_route_1790, "elasota-aerofoil");
+    prepared_player_case!(classic_pc_route_1826, "m-x-d-heretic2r");
+
+    prepared_player_case!(classic_fps_route_1873, "bodbdearg-psydoom");
+    prepared_player_case!(classic_fps_route_1812, "styd051-doom64-ex-plus-enhanced");
+    prepared_player_case!(classic_fps_route_1899, "uzdoom-uzdoom");
+
+    prepared_player_case!(wiicompiled_route_149, "mario-kart-wii-wiicompiled");
+    prepared_player_case!(
+        ringout_route_148,
+        "soulcalibur-ii-ring-out",
+        [
+            "--user-dir",
+            r"C:\Ring Out\userdata",
+            "--game",
+            r"C:\Ring Out\game",
+            "--module",
+            r"C:\Ring Out\bin\gGRSEAF_recomp.dll"
+        ]
+    );
+
+    prepared_player_case!(historical_pc_route_369, "doom-rpg-doomrpg-re");
+    prepared_player_case!(historical_pc_route_370, "doom-ii-rpg-doomiirpg-re");
+    prepared_player_case!(historical_pc_route_371, "wolfenstein-rpg-wolfensteinrpg-re");
+    prepared_player_case!(
+        historical_pc_route_725,
+        "openjkdf2-jedi-knight-dark-forces-ii"
+    );
 
     prepared_player_case!(historical_route_zelda3, "zelda3");
     prepared_player_case!(historical_route_smw, "super-mario-world-snesrev-smw");
@@ -1048,6 +1412,145 @@ mod tests {
         historical_route_stadium,
         "pokemon-stadium-ss-anne-pokemonstadiumrecomp"
     );
+
+    #[test]
+    fn cps_shared_player_keeps_independent_game_intent_and_removal() {
+        let ids = [
+            "cps2recomp-street-fighter-alpha",
+            "cps2recomp-alien-vs-predator",
+        ];
+        let (_temporary, mut service, executable, working) = fixture(ids[0]);
+        service.catalog = Catalog::embedded().unwrap();
+        let executable_before = fs::read(&executable).unwrap();
+        for (id, game, observation) in [
+            (ids[0], "sfa", "observed-sfa"),
+            (ids[1], "avsp", "observed-avsp"),
+        ] {
+            #[cfg(windows)]
+            assert!(
+                service
+                    .current_user_selected_definition(id)
+                    .unwrap()
+                    .is_some()
+            );
+            let arguments = vec![
+                "--record".into(),
+                observation.into(),
+                "--play".into(),
+                game.into(),
+            ];
+            let preview = service
+                .preview_user_selected_runtime(id, &executable, &working, &arguments)
+                .unwrap();
+            let authorization = service
+                .authorize_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &arguments,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            let other = if id == ids[0] { ids[1] } else { ids[0] };
+            assert!(
+                service
+                    .register_user_selected_runtime(
+                        other,
+                        &executable,
+                        &working,
+                        &arguments,
+                        &authorization.token,
+                    )
+                    .is_err()
+            );
+            let authorization = service
+                .authorize_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &arguments,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            service
+                .register_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &arguments,
+                    &authorization.token,
+                )
+                .unwrap();
+            assert!(
+                service
+                    .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
+                    .unwrap()
+                    .successful
+            );
+            assert_eq!(
+                fs::read_to_string(working.join(observation)).unwrap(),
+                format!("--play\n{game}")
+            );
+        }
+        let root = service.library.root().to_path_buf();
+        drop(service);
+        let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
+        for id in ids {
+            assert!(service.status(id).unwrap().readiness.unwrap().launchable);
+        }
+        let preview = service.preview_external_removal(ids[0]).unwrap();
+        let consent = service
+            .authorize_external_removal(ids[0], &preview.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(ids[0], &consent.token)
+            .unwrap();
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(ids[0])
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(ids[1])
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            service
+                .supervise_launch(ids[1], None, &[], LaunchStdio::Null, |_| {})
+                .unwrap()
+                .successful
+        );
+        assert_eq!(fs::read(&executable).unwrap(), executable_before);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+        assert_eq!(
+            fs::read_to_string(working.join("observed-sfa")).unwrap(),
+            "--play\nsfa"
+        );
+        assert_eq!(
+            fs::read_to_string(working.join("observed-avsp")).unwrap(),
+            "--play\navsp"
+        );
+        let preview = service.preview_external_removal(ids[1]).unwrap();
+        let consent = service
+            .authorize_external_removal(ids[1], &preview.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(ids[1], &consent.token)
+            .unwrap();
+        assert_eq!(fs::read(&executable).unwrap(), executable_before);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"player save"
+        );
+    }
 
     #[test]
     fn pre_declaration_selected_registration_keeps_its_creating_listing_contract() {
@@ -1238,6 +1741,46 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(retained.port("shipwright").is_err());
+    }
+
+    #[test]
+    fn vkquake_prepared_player_route_2697() {
+        assert_listing_only_player_route("quake-vkquake", Some(false));
+    }
+
+    #[test]
+    fn ironwail_prepared_player_route_2698() {
+        assert_listing_only_player_route("quake-ironwail", Some(false));
+    }
+
+    #[test]
+    fn fallout1_ce_prepared_player_route_2573() {
+        assert_listing_only_player_route("fallout-fallout-community-edition", Some(false));
+    }
+
+    #[test]
+    fn fallout2_ce_prepared_player_route_2574() {
+        assert_listing_only_player_route("fallout-2-fallout-2-community-edition", Some(false));
+    }
+
+    #[test]
+    fn arx_libertatis_prepared_player_route_2554() {
+        assert_listing_only_player_route("arx-fatalis-arx-libertatis", Some(false));
+    }
+
+    #[test]
+    fn iortcw_sp_prepared_player_route_2706() {
+        assert_listing_only_player_route("return-to-castle-wolfenstein-iortcw", Some(false));
+    }
+
+    #[test]
+    fn yamagi_direct_player_route_2700() {
+        assert_listing_only_player_route("quake-ii-yamagi-quake-ii", Some(false));
+    }
+
+    #[test]
+    fn sdlpop_permitted_player_route_2892() {
+        assert_listing_only_player_route("prince-of-persia-dos-sdlpop", Some(false));
     }
 
     #[test]
@@ -1743,5 +2286,188 @@ mod tests {
         let mut changed = original;
         changed["ports"][0]["launch_environment"] = json!({"SECRET":"value"});
         assert!(Catalog::from_json(&changed.to_string()).is_err());
+    }
+
+    #[test]
+    fn dune_ii_opendune_prepared_player_route_2674() {
+        assert_listing_only_player_route("dune-ii-opendune", Some(false));
+    }
+
+    #[test]
+    fn dune_ii_dune_dynasty_prepared_player_route_2569() {
+        assert_listing_only_player_route("dune-ii-dune-dynasty", Some(false));
+    }
+
+    #[test]
+    fn might_and_magic_vii_openenroth_prepared_player_route_2885() {
+        assert_listing_only_player_route("might-and-magic-vii-openenroth", Some(false));
+    }
+
+    #[test]
+    fn gothic_ii_night_of_the_raven_opengothic_prepared_player_route_2578() {
+        assert_listing_only_player_route("gothic-ii-night-of-the-raven-opengothic", Some(false));
+    }
+
+    #[test]
+    fn jazz_jackrabbit_2_jazz2_resurrection_prepared_player_route_2682() {
+        assert_listing_only_player_route("jazz-jackrabbit-2-jazz2-resurrection", Some(false));
+    }
+
+    #[test]
+    fn heroes_of_might_and_magic_ii_fheroes2_prepared_player_route_2582() {
+        assert_listing_only_player_route("heroes-of-might-and-magic-ii-fheroes2", Some(false));
+    }
+
+    #[test]
+    fn transport_tycoon_deluxe_openttd_upstream_prepared_player_route_2716() {
+        assert_listing_only_player_route("transport-tycoon-deluxe-openttd-upstream", Some(false));
+    }
+
+    #[test]
+    fn half_life_xash3d_fwgs_prepared_player_route_2678() {
+        assert_listing_only_player_route("half-life-xash3d-fwgs", Some(false));
+    }
+
+    #[test]
+    fn freespace_2_freespace_open_prepared_player_route_2677() {
+        assert_listing_only_player_route("freespace-2-freespace-open", Some(false));
+    }
+
+    #[test]
+    fn pharaoh_akhenaten_prepared_player_route_2891() {
+        assert_listing_only_player_route("pharaoh-akhenaten", Some(false));
+    }
+
+    #[test]
+    fn midtown_madness_sneak_preview_beta_build_1560_open1560_prepared_player_route_2884() {
+        assert_listing_only_player_route(
+            "midtown-madness-sneak-preview-beta-build-1560-open1560",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn need_for_speed_iii_hot_pursuit_nfs_recompiled_prepared_player_route_2888() {
+        assert_listing_only_player_route(
+            "need-for-speed-iii-hot-pursuit-nfs-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn smbx_13_thextech_prepared_player_route_2731() {
+        assert_listing_only_player_route("smbx-13-thextech", Some(false));
+    }
+
+    #[test]
+    fn ambermoon_permitted_copy_keeps_fresh_acquisition_held_2625() {
+        assert_listing_only_player_route("ambermoon-ambermoon-net", Some(true));
+    }
+    #[test]
+    fn cave_story_nxengine_evo_prepared_player_route_2647() {
+        assert_listing_only_player_route("cave-story-nxengine-evo", Some(false));
+    }
+
+    #[test]
+    fn chasm_the_rift_panzerchasm_prepared_player_route_2878() {
+        assert_listing_only_player_route("chasm-the-rift-panzerchasm", Some(false));
+    }
+
+    #[test]
+    fn urban_chaos_openchaos_prepared_player_route_2906() {
+        assert_listing_only_player_route("urban-chaos-openchaos", Some(false));
+    }
+
+    #[test]
+    fn tomb_raider_openlara_prepared_player_route_2904() {
+        assert_listing_only_player_route("tomb-raider-openlara", Some(false));
+    }
+    #[test]
+    fn need_for_speed_ii_special_edition_nfs_recompiled_prepared_player_route_2887() {
+        assert_listing_only_player_route(
+            "need-for-speed-ii-special-edition-nfs-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn the_operative_no_one_lives_forever_goty_nolf1_modern_nolfsrc_prepared_player_route_2902() {
+        assert_listing_only_player_route(
+            "the-operative-no-one-lives-forever-goty-nolf1-modern-nolfsrc",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn need_for_speed_ii_special_edition_nfsiise_prepared_player_route_2886() {
+        assert_listing_only_player_route("need-for-speed-ii-special-edition-nfsiise", Some(false));
+    }
+
+    #[test]
+    fn syndicate_wars_syndicate_wars_fan_expansion_prepared_player_route_2715() {
+        assert_listing_only_player_route(
+            "syndicate-wars-syndicate-wars-fan-expansion",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn heart_of_darkness_hode_prepared_player_route_2882() {
+        assert_listing_only_player_route("heart-of-darkness-hode", Some(false));
+    }
+
+    #[test]
+    fn master_of_orion_1oom_vanilla_branch_prepared_player_route_2883() {
+        assert_listing_only_player_route("master-of-orion-1oom-vanilla-branch", Some(false));
+    }
+
+    #[test]
+    fn elite_force_holomatch_lilium_voyager_prepared_player_route_1918() {
+        assert_listing_only_player_route("elite-force-holomatch-lilium-voyager", Some(false));
+    }
+
+    #[test]
+    fn wolfenstein_enemy_territory_et_legacy_prepared_player_route_2721() {
+        assert_listing_only_player_route("wolfenstein-enemy-territory-et-legacy", Some(false));
+    }
+
+    #[test]
+    fn zuma_deluxe_zuma_portable_circleshootapp_prepared_player_route_2912() {
+        assert_listing_only_player_route("zuma-deluxe-zuma-portable-circleshootapp", Some(false));
+    }
+
+    #[test]
+    fn cut_the_rope_dx_prepared_player_route_1128() {
+        assert_listing_only_player_route("cut-the-rope-dx", Some(false));
+    }
+
+    #[test]
+    fn metal_gear_solid_integral_reintegral_prepared_player_route_2106() {
+        assert_listing_only_player_route("metal-gear-solid-integral-reintegral", Some(false));
+    }
+
+    #[test]
+    fn sonic_unleashed_recompiled_prepared_player_route_126() {
+        assert_listing_only_player_route("sonic-unleashed-recompiled", Some(false));
+    }
+
+    #[test]
+    fn dead_rising_2_case_zero_recomp_prepared_player_route_1121() {
+        assert_listing_only_player_route("dead-rising-2-case-zero-recomp", Some(false));
+    }
+
+    #[test]
+    fn mega_man_x4_recompiled_prepared_player_route_144() {
+        assert_listing_only_player_route("mega-man-x4-recompiled", Some(false));
+    }
+
+    #[test]
+    fn viva_pinata_trouble_in_paradise_retip_prepared_player_route_158() {
+        assert_listing_only_player_route("viva-pinata-trouble-in-paradise-retip", Some(false));
+    }
+
+    #[test]
+    fn odrannnn_metroidprimeport_prepared_player_route_1846() {
+        assert_listing_only_player_route("odrannnn-metroidprimeport", Some(true));
     }
 }

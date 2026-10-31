@@ -14,9 +14,9 @@ component fixtures do not complete either production outcome.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
-The public inventory additionally advertises native portable versions 2–5,
+The public inventory additionally advertises native portable versions 2–7,
 managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–24. Staged-source creation
+staged-source portable versions 2–5, 8, 10–12 and 15–25. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -47,6 +47,17 @@ New and retained independent entries declaring this policy require minimum4;
 Direct-only version3 and earlier versions retain their separate meanings. This
 capability grants no additional publisher or protected-operation authority.
 
+Native portable version 7 consumes `printable-ascii-max-path` for native archives
+with Windows support and no original-source preparation or setup helpers. It
+refuses known unsuitable output roots, authenticated package members and selected
+launch coordinates using the existing Core path checks. Other declared platforms
+are unaffected. Indexed entries declaring this combination require minimum7;
+readers advertising only versions1 through6 refuse it. Those earlier contracts
+keep their meanings. Retained installations continue to use their creating
+definitions, so a new declaration does not retrofit historical manifests. This
+capability grants neither upstream Unicode support nor external-profile ownership
+or protected publication. See the [runtime path contract](CATALOG.md).
+
 Native portable version 5 consumes `windows_temp_directory`: a dedicated,
 declared Windows entry-data directory used internally for relative `TEMP`/`TMP`.
 Its ASCII basename and `relative-file-max-path` contract preserve the existing
@@ -62,6 +73,16 @@ normal unsupported-range refusal. Native1–4 and omitted-field serialization
 retain their meanings. Legacy retained catalog projection still checks complete
 canonical semantics; older readers cannot silently drop the field. This is an
 engine capability, separate from CLI/API envelope versions and publisher trust.
+
+Native portable version 6 consumes exact FileSet originals through the existing
+source-profile/target fields and SourceOnly preparation authority. Complete typed
+source variants and their enforced consumer contract, copied-member identities,
+selected executable-parent coordinates and outer receipts remain bound to the
+installation. The capability allows immutable copies separate from declared
+player data; it grants no source acquisition, per-title conversion or populated
+adoption authority. Prepared source/edition changes remain held. New and retained
+indexed entries declaring a native source profile require minimum version 6;
+older readers refuse the capability range. Native1–5 meanings are unchanged.
 
 Native portable version 2 observes an upstream-owned manual setup completion
 record beneath declared player data. New and retained indexed entries using
@@ -128,6 +149,20 @@ activation, recovered activation and rollback refuse a policy change. Data
 restore preflights complete package conflicts across all retained runtimes before
 publishing canonical data. This reuses the PS1 coexistence algorithm and grants
 no new publisher, executable, original-file or external-data authority.
+
+Version 25 supplies the bounded fresh-data isolation required by newer managed
+Sonic 3K, Sonic 1 and Mega Man X2 recipes. New indexed entries for these ready
+staged routes must declare `staged-source-portable` with `minimum_version: 25`
+and an inclusive `maximum_version` of at least 25. An interval starting at 24
+is insufficient: it would let a reader without the hold accept the recipe.
+The normal capability resolver therefore refuses these new entries on a
+version-24 inventory. Authors and publishers must emit that requirement; Core
+rejects underdeclared fresh entries rather than treating a guide as enforcement.
+The exact historical Direct package readers and retained entry projections keep
+their existing versions and bytes. Current Core applies its runtime compatibility
+checks independently of the retained envelope version. This is neither state ABI
+proof nor old flat-catalog, protected publication or #534 unchanged-client
+qualification. It introduces no new recipe field or console-family primitive.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique

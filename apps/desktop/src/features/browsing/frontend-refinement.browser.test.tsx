@@ -76,7 +76,7 @@ it.each(
       />,
     );
     await expect
-      .element(page.getByRole("textbox", { name: "Search Find games", exact: true }))
+      .element(page.getByRole("textbox", { name: "Search Discover", exact: true }))
       .toBeVisible();
     await page.getByRole("button", { name: "View port", exact: true }).first().click();
     expect(select).toHaveBeenCalledExactlyOnceWith(entries[0]!.id, "catalog:card:harbor-0:details");
@@ -87,7 +87,7 @@ it.each(
       const title = identity
         .querySelector<HTMLElement>(".collection-title")!
         .getBoundingClientRect();
-      const textSize = Number.parseFloat(getComputedStyle(identity).fontSize);
+      const textSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const compact = layout === "rows";
       expect(art.width).toBeGreaterThan(0);
       expect(art.width).toBeLessThanOrEqual(textSize * (compact ? 3 : 16));

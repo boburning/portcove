@@ -16,6 +16,7 @@ import { writeFile as writeFileAsync } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { windowsOwnerEnvironment } from "./release-windows-owner-mechanism.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import path from "node:path";
@@ -799,9 +800,11 @@ ConvertTo-Json -InputObject $results -Depth 4 -Compress
   },
 );
 
+// CI40973981141/a1 Windows helper job123797649680 hit its30s CSC fixture
+// cutoff before PATH assertions. Finite per-case compile/test room only.
 void test(
   "diagnostic controller resolves the PATH-first Node and refuses a wrong first version before effects",
-  { skip: process.platform !== "win32" },
+  { skip: process.platform !== "win32", timeout: 90000 },
   (t) => {
     const root = disposableDirectory(t, path.join(homedir(), ".pc-diagnostic-node-"));
     const first = path.join(root, "first node"),
@@ -820,7 +823,7 @@ void test(
     );
     const compile = spawnSync(compiler, ["/nologo", "/target:exe", `/out:${bad}`, badSource], {
       encoding: "utf8",
-      timeout: 30000,
+      timeout: 60000,
       windowsHide: true,
     });
     assert.equal(compile.status, 0, compile.stderr);
@@ -846,7 +849,7 @@ $observed=& ([scriptblock]::Create($code+';Write-Output $node'))
 if($observed -cne $commands[0].Source){throw 'PATH-first Node was not selected'}
 $env:PATH=$env:PORTCOVE_TEST_SECOND_NODE+';'+$env:PORTCOVE_TEST_FIRST_NODE+';'+$env:PATH
 $refused=$false
-try{& ([scriptblock]::Create($code))}catch{if(-not $_.Exception.Message.Contains('Fixed existing Node24.22.1 runtime required')){throw};$refused=$true}
+try{& ([scriptblock]::Create($code))}catch{if(-not $_.Exception.Message.Contains('Fixed existing pinned Node runtime required')){throw};$refused=$true}
 if(-not $refused){throw 'Wrong first Node version fell back or was accepted'}
 Write-Output 'actual-multiple-node-path-and-wrong-first-version-controls-pass'
 `;
@@ -929,7 +932,7 @@ void test(
       unsafeNode = path.join(unsafeNodeDirectory, "node.exe");
     writeFileSync(
       poisonSource,
-      'public static class UnsafeOriginalNode { public static int Main(string[] a) { System.IO.File.WriteAllText(System.Environment.GetEnvironmentVariable("PORTCOVE_OWNED_POISON_NODE"),"unexpected original runtime");System.Console.WriteLine("v24.22.1");return 0; } }',
+      `public static class UnsafeOriginalNode { public static int Main(string[] a) { System.IO.File.WriteAllText(System.Environment.GetEnvironmentVariable("PORTCOVE_OWNED_POISON_NODE"),"unexpected original runtime");System.Console.WriteLine("v${controllerNodeVersion}");return 0; } }`,
     );
     const poisonCompile = spawnSync(
       "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",

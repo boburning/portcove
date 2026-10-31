@@ -1,0 +1,1489 @@
+{
+  "format_version": 1,
+  "kind": "dated-source-static-package-and-operation-ownership-evidence",
+  "source_base": "af9d41262bf9bcea680160c4aeb4ff54e0d557d3",
+  "owning_issues": [2510, 2926, 1422],
+  "counts": {
+    "managed_additions": 3,
+    "conditional_prepared_copy_guides": 1,
+    "retained_open_partial_guide_owner": 1,
+    "unchanged_open_hold_owners": 4,
+    "distinct_source_bindings": 71,
+    "unique_blob_contents": 68,
+    "distinct_repo_role_commit_contexts": 10,
+    "owner_bound_tree_observations": 12,
+    "distinct_root_trees": 8,
+    "prior_strict_definitions": 282,
+    "resulting_strict_definitions": 285,
+    "listing_identities": 1424
+  },
+  "routes": [
+    {
+      "issue": 375,
+      "id": "street-fighter-iii-3rd-strike-3sxw",
+      "authored_path": "crates/portcove-core/catalog/ports/street-fighter-iii-3rd-strike-3sxw.json",
+      "decision": "managed",
+      "prior_record_sha256": "e21ecc7f8914c6b977c9020791d5e25bd3fdd90a93a8768648e0e57af386fb86",
+      "record_sha256": "db05bd1b91fa147f4cd86f59aef272a07af43a0554505bd5b232e8129acc9372",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "source_tree_references": [
+        {
+          "repository": "guimaraf/3sxw",
+          "role": "current",
+          "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+          "root_tree": "83e06e42a7eafefcf0f5bed553f0aa94315ff959"
+        },
+        {
+          "repository": "guimaraf/3sxw",
+          "role": "tag",
+          "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+          "root_tree": "83e06e42a7eafefcf0f5bed553f0aa94315ff959"
+        }
+      ],
+      "exact_offered_operation_case": "service::native_portable::tests::three_sxw_managed_progression_preserves_memory_cards_and_holds_interrupted_probe",
+      "canonical_boundary": "eligible only after full qualified finite delivery"
+    },
+    {
+      "issue": 1914,
+      "id": "moshferatu-zombies-ate-my-neighbors-pc-port",
+      "authored_path": "crates/portcove-core/catalog/ports/moshferatu-zombies-ate-my-neighbors-pc-port.json",
+      "decision": "managed",
+      "prior_record_sha256": "2d211b22d0b463b6643e440476a090960bde25f477949979756b95e4506fa884",
+      "record_sha256": "336a1020d8445694efa7b75b6bac6457e2dbdb618f39a718fbb406f01b55d2d8",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "source_tree_references": [
+        {
+          "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+          "role": "current",
+          "commit": "d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb",
+          "root_tree": "2910bfd5ed7fd5c1660dda0a990d1e35e9f15e5f"
+        },
+        {
+          "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+          "role": "tag",
+          "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+          "root_tree": "c837a7746f2496b58321a83521db9b9e9e8ee9c1"
+        }
+      ],
+      "exact_offered_operation_case": "service::native_portable::tests::zamn_managed_progression_preserves_interrupted_default_quicksave",
+      "canonical_boundary": "eligible only after full qualified finite delivery"
+    },
+    {
+      "issue": 1863,
+      "id": "kirby-letsgo-oracles-decomp",
+      "authored_path": "crates/portcove-core/catalog/ports/kirby-letsgo-oracles-decomp.json",
+      "decision": "managed",
+      "prior_record_sha256": "9c9ae2ad31bcd63df92c5a1a10d331d9139953824cfd9ac4115f8dc56d295629",
+      "record_sha256": "938184705ff972f9a91162f6897f58dd09ca9ed291ce0858e8533cafe952becd",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "source_tree_references": [
+        {
+          "repository": "kirby-letsgo/oracles-decomp",
+          "role": "current",
+          "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+          "root_tree": "05cd8b3c528478f65d4ba683354c7785b7599bc4"
+        },
+        {
+          "repository": "kirby-letsgo/oracles-decomp",
+          "role": "tag",
+          "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+          "root_tree": "05cd8b3c528478f65d4ba683354c7785b7599bc4"
+        }
+      ],
+      "exact_offered_operation_case": "service::native_portable::tests::oracles_managed_progression_preserves_unfinished_portable_profile",
+      "canonical_boundary": "eligible only after full qualified finite delivery"
+    },
+    {
+      "issue": 2106,
+      "id": "metal-gear-solid-integral-reintegral",
+      "authored_path": "crates/portcove-core/catalog/ports/metal-gear-solid-integral-reintegral.json",
+      "decision": "prepared-copy",
+      "prior_record_sha256": "5d60cf840a1abd5cc0744005736607665d82107481bd988aa4e80a528b66df03",
+      "record_sha256": "ff7348e04f1aab775b718d82315da1a0281332fffd4dcf94fe87f0b6a21bc8ee",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "source_tree_references": [
+        {
+          "repository": "Drommedhar/mgs-reintegral",
+          "role": "current",
+          "commit": "85b05f7ed64c26a2312ba322b5bf1cec419bbc8d",
+          "root_tree": "d12fd0c840560d08ebe4113b6f36b87e69b853ea"
+        },
+        {
+          "repository": "Drommedhar/mgs-reintegral",
+          "role": "tag",
+          "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+          "root_tree": "7025975493e045ebe5decd6dcedf89087e7c576f"
+        }
+      ],
+      "exact_offered_operation_case": "service::user_selected::tests::metal_gear_solid_integral_reintegral_prepared_player_route_2106",
+      "canonical_boundary": "OPEN/all typed fields unchanged; retained ancestry/licensing/source-scope condition"
+    },
+    {
+      "issue": 2584,
+      "id": "killer-instinct-arcade-ultracombo",
+      "authored_path": "crates/portcove-core/catalog/ports/killer-instinct-arcade-ultracombo.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "904e234a430f8e8dc00023eef9dbda0a9e7d6666446866605839e869113088c5",
+      "record_sha256": "904e234a430f8e8dc00023eef9dbda0a9e7d6666446866605839e869113088c5",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "source_tree_references": [
+        {
+          "repository": "thefixinhixon/UltraCombo",
+          "role": "current",
+          "commit": "b7ae26e7605efbe53cb60433ade26d5579900d8e",
+          "root_tree": "f435ff8596c546672d8a7f594c818470b15e114a"
+        },
+        {
+          "repository": "thefixinhixon/UltraCombo",
+          "role": "tag",
+          "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+          "root_tree": "ccd84c3e4b05c139f766622545e03e21add0f768"
+        }
+      ],
+      "exact_offered_operation_case": null,
+      "canonical_boundary": "OPEN/all typed fields and exact existing hold unchanged"
+    },
+    {
+      "issue": 2585,
+      "id": "killer-instinct-2-arcade-ultracombo",
+      "authored_path": "crates/portcove-core/catalog/ports/killer-instinct-2-arcade-ultracombo.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "ba3d4c0dac0a39087a81302ee9a7f0360928b649325889f779f18b50686de2dc",
+      "record_sha256": "ba3d4c0dac0a39087a81302ee9a7f0360928b649325889f779f18b50686de2dc",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "source_tree_references": [
+        {
+          "repository": "thefixinhixon/UltraCombo",
+          "role": "current",
+          "commit": "b7ae26e7605efbe53cb60433ade26d5579900d8e",
+          "root_tree": "f435ff8596c546672d8a7f594c818470b15e114a"
+        },
+        {
+          "repository": "thefixinhixon/UltraCombo",
+          "role": "tag",
+          "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+          "root_tree": "ccd84c3e4b05c139f766622545e03e21add0f768"
+        }
+      ],
+      "exact_offered_operation_case": null,
+      "canonical_boundary": "OPEN/all typed fields and exact existing hold unchanged"
+    },
+    {
+      "issue": 121,
+      "id": "projectr-san-francisco-rush-2049",
+      "authored_path": "crates/portcove-core/catalog/ports/projectr-san-francisco-rush-2049.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "e3d23367e32dbda852a3c33896ab9e748570309a893a7f4c6a18d58aa5b432c0",
+      "record_sha256": "e3d23367e32dbda852a3c33896ab9e748570309a893a7f4c6a18d58aa5b432c0",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "source_tree_references": [],
+      "exact_offered_operation_case": null,
+      "canonical_boundary": "OPEN/all typed fields and exact existing hold unchanged"
+    },
+    {
+      "issue": 132,
+      "id": "projectr-san-francisco-rush-the-rock",
+      "authored_path": "crates/portcove-core/catalog/ports/projectr-san-francisco-rush-the-rock.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "fb9d215ad46141c838c74471d6359678ba728d0e301acd0acb4419b5537897c3",
+      "record_sha256": "fb9d215ad46141c838c74471d6359678ba728d0e301acd0acb4419b5537897c3",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "source_tree_references": [],
+      "exact_offered_operation_case": null,
+      "canonical_boundary": "OPEN/all typed fields and exact existing hold unchanged"
+    }
+  ],
+  "source_bindings": [
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "CMakeLists.txt",
+      "blob": "8cebca4965a93cf8a7a2fe7694ca97c6b6d30f1e",
+      "bytes": 11565,
+      "sha256": "b98b64a0cd9f98498546d961abcd7390b66719fdbfd8e8dc31a2f47aca8ad99d",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/CMakeLists.txt"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "LICENSE",
+      "blob": "c852b780971176e14de873c2a68cf78988775fd8",
+      "bytes": 34595,
+      "sha256": "a8cad5b26533c599c22611746e28f9ddb8e73b64539792c50d71ab5a78544e20",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/LICENSE"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "README.md",
+      "blob": "cadb90b0f260d0481efa9d87020c58047b8a80c0",
+      "bytes": 29432,
+      "sha256": "e6bbc8a90f1b1cf949b7d702edc998b21690d5600fdbb0d455becd39e5740c2a",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/README.md"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/paths.c",
+      "blob": "6ff34495a99baba142c0c4c77e9516f4b39cca48",
+      "bytes": 4007,
+      "sha256": "a9e734d36ff34d59fb9146da098c75a65f9ca6027912b9d65e3eed186c27f737",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/paths.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/resources.c",
+      "blob": "d2d46335ccf3a2a42b1e3acb4576683d32ecb0c2",
+      "bytes": 13850,
+      "sha256": "b172697b2583905ce3d9fd541d5590b179c4bb698a54a9c40e38d2492a96bcc1",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/resources.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/config/config.c",
+      "blob": "38558dba82001921b1ae5e1d4c1c077e614fc3ed",
+      "bytes": 5544,
+      "sha256": "2ee2bc504d7055e4d723bce83ed914d4b2940d2055d06d14aad60bbb72915eeb",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/config/config.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/main.c",
+      "blob": "56f42bd0a18ee6a5e10ccdeb3164f5c12382fb51",
+      "bytes": 25735,
+      "sha256": "5038b6c8e368862e36e8c8d3ba7d03e070245b68dbc1eeee8442c3c538dc74c5",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/main.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "appConfig/src/main.c",
+      "blob": "1f383455df6f0d71c7be2a3e5bc2559f89f5bb17",
+      "bytes": 2151,
+      "sha256": "b2c7565ce133bd4a9446cde16a6af08e72b885f5bb392d1154aa1a2b26e8e08e",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/appConfig/src/main.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "docs/config.md",
+      "blob": "0cc20b5ded7b31e4abd1bb3326bd65b472c55271",
+      "bytes": 4844,
+      "sha256": "381c5bd1c2dd35495108563ea4695241aab536d0659d4aca602769b9801a04b5",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/docs/config.md"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/config/keymap.c",
+      "blob": "8b7ed657698296116769ce3463c5e7da53b24433",
+      "bytes": 5239,
+      "sha256": "d35f13f7353566c9148e398ae6ac5e06906b21be119879c26ee391cdcb6cae8a",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/config/keymap.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/debug/debug_log.c",
+      "blob": "26e4279645bb24a23f8dd4dbc1c2ba20768bd8a9",
+      "bytes": 65129,
+      "sha256": "1675eed9d5726730ab872c7a9ca32b255fa3c2ef60b2491ccf43a44b57a27709",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/debug/debug_log.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/sf33rd/Source/PS2/mc/savesub.c",
+      "blob": "c445fd719c8cc0100fde9dba85222bef3290d026",
+      "bytes": 60496,
+      "sha256": "2eb645042f9262dd8904cf967b9c5fbfe8df6badaa0784741cdc402b8a73975d",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/sf33rd/Source/PS2/mc/savesub.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/sdk/sdk_libmc.c",
+      "blob": "72dab5fa2b5af6738cf68e9ed95458f1bb4ccdcc",
+      "bytes": 19773,
+      "sha256": "4fcce5bfffdd08303a9db0da8ceca8fa1c269092dddaa9c1f1cc5fcbe17fd41e",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/sdk/sdk_libmc.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/sdl/sdl_app.c",
+      "blob": "5d9b535ba4fb169e011d80548b04017ef737f01d",
+      "bytes": 22217,
+      "sha256": "b04977a7cd34806830cea73afac4f41bbe081c1e1c3dc5ef79eff68498ccc7dc",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/sdl/sdl_app.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/sdl/sdl_screenshot.c",
+      "blob": "79dbffe06b26d1b5cdbde66558eba7549a642f73",
+      "bytes": 10757,
+      "sha256": "c7fa5de568eea51237e28054bd68253e8650e6f34a6c17533600b90b629b0c16",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/sdl/sdl_screenshot.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "src/port/utils.c",
+      "blob": "5914635998c764478022f29014760308afda45f2",
+      "bytes": 3715,
+      "sha256": "548e2ecaa27470d1ba65a8379a5238929ff20ebb86fef361b3358fa2a49b5654",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/src/port/utils.c"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "path": "appConfig/src/config_file.c",
+      "blob": "2947b3bca6804dc803e891b0279ba35b7c415c88",
+      "bytes": 14720,
+      "sha256": "0bb01447a504a2ab81b0e3b17a5d8a75d1c99b72d995b75e1b5ee39f1de87024",
+      "url": "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/appConfig/src/config_file.c"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb",
+      "path": "CMakeLists.txt",
+      "blob": "5b43f26b7caca4b597423603c6b7730edfb72b61",
+      "bytes": 33186,
+      "sha256": "7acf4e5f5a1f31d6013e35c8ce5c8e45ab1f9475adc20221885006c634a699c9",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb/CMakeLists.txt"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb",
+      "path": "README.md",
+      "blob": "9a5883bd2363594b3eeaa328c3f20fe1e65d1071",
+      "bytes": 2936,
+      "sha256": "7782caecc22da7544180edb33f0e2b64b0facf2f352bcf81b895dac050bd4111",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb/README.md"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "path": "CMakeLists.txt",
+      "blob": "3906a358cb05ae51ec3acbd4ded4161ea8de05e7",
+      "bytes": 31160,
+      "sha256": "a23fd0e2c59d999963d7e211a7757f0fa54a15cb43cbc1fc767ce6bfc4c5d78b",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/410454abfef1f48e0a2d4a142d81145ad9718b36/CMakeLists.txt"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "path": "README.md",
+      "blob": "9a5883bd2363594b3eeaa328c3f20fe1e65d1071",
+      "bytes": 2936,
+      "sha256": "7782caecc22da7544180edb33f0e2b64b0facf2f352bcf81b895dac050bd4111",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/410454abfef1f48e0a2d4a142d81145ad9718b36/README.md"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "path": "src/launcher.c",
+      "blob": "a8a78dc09da5a95340240bf572c60891d79b40be",
+      "bytes": 92047,
+      "sha256": "1da66c31dce19afa5ebd16296518285de449481fd281fedebe76520b0119ccfb",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/410454abfef1f48e0a2d4a142d81145ad9718b36/src/launcher.c"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "path": "src/main_sdl.c",
+      "blob": "38cf11366c1e40d126a55fd61d6e8847e0c62b5e",
+      "bytes": 125039,
+      "sha256": "ad0f8351add09b64e8fa491e90671ef9ad94318331c008f7e1804327cf6cefb4",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/410454abfef1f48e0a2d4a142d81145ad9718b36/src/main_sdl.c"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "path": "src/config.h",
+      "blob": "819af1c2307d7c04b64b707b577ea32b37df77c5",
+      "bytes": 53928,
+      "sha256": "9e3b0269d36b74105fac30bf8a6e30b1a9e284ceadc1bf122c1b4660ea31bfa0",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/410454abfef1f48e0a2d4a142d81145ad9718b36/src/config.h"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "path": "src/quicksave.h",
+      "blob": "d8d859355c14a22c3af0b46596bc3b873cb97255",
+      "bytes": 5850,
+      "sha256": "d16b8f07684c41f2eca2ba66b1149caf2fb9b0912239e4d8e0f28e732bf09acc",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/410454abfef1f48e0a2d4a142d81145ad9718b36/src/quicksave.h"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "path": "src/hiscore.h",
+      "blob": "a4ec34d01a52e2c53d3f39022baea49fc2f8f81c",
+      "bytes": 7623,
+      "sha256": "04a73a4188e61d8903f97a47fc64eba710665f1d84c5c0fc83921d9b73f9ca12",
+      "url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/blob/410454abfef1f48e0a2d4a142d81145ad9718b36/src/hiscore.h"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": ".gitmodules",
+      "blob": "708bee9a4557d71f19329815245a91a6a3af70be",
+      "bytes": 112,
+      "sha256": "91653124b5266ae7fb2254fd9c573ffdbca0f36444209d5c2c7aaab49799c3f9",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/.gitmodules"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "CMakeLists.txt",
+      "blob": "dab62ca2b6da487bcfe1b3deaa99fa1e47ba31a7",
+      "bytes": 23101,
+      "sha256": "700dda67464c2b5401ac29a75a2e2ff37999fd706bd1d442837161b2e30b93eb",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/CMakeLists.txt"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/LICENSE"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "README.md",
+      "blob": "4b7515a4ca572ebca767f55e60b6b0844f0c80f4",
+      "bytes": 15478,
+      "sha256": "dc6be5702b1dab856e0304ce584bcdd39194d60f21846ccb77269d19defaefbe",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/README.md"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/platform/app.c",
+      "blob": "ede92896cf53326f27d697f04c33bc830c4cf7ee",
+      "bytes": 112212,
+      "sha256": "38dc25fd905a5d235633d98dfcee82eea16acf4f7d9da147409f2ef1d50114ac",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/platform/app.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/platform/sdl_main.c",
+      "blob": "9cce47337ed096ef1d1e03dae66c433e6afe15ab",
+      "bytes": 11662,
+      "sha256": "6c7056ae7eb9df29120010d4dd3a08dca80a3b70a71841637a5747d24ede3951",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/platform/sdl_main.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/platform/setup.c",
+      "blob": "b4cb5f971a0bd7ecd0ad4c6cf5ff4ace17ef250a",
+      "bytes": 4044,
+      "sha256": "ab130bf0ac17794d6365450ef0f5f78f7f2d8e1a1a3d9e2354fe093bf6b21443",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/platform/setup.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/platform/setup.h",
+      "blob": "54c9edbb8fb1d9ffae4e14cab9440feba3ccbb5e",
+      "bytes": 451,
+      "sha256": "51a079abd2a9d9d72aa272383e170b6791e16c0d5bdcac9f3bc1839abd462184",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/platform/setup.h"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/platform/error_log.c",
+      "blob": "325c250ba3018572ee66d6da7d11b9b057bd022e",
+      "bytes": 1427,
+      "sha256": "e3811c10af7a93f22e7e493756b7f9602d201362ba17ca749c16c8403e32a708",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/platform/error_log.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/platform/sync_client.c",
+      "blob": "ce68dce806a1b552b9a38682a4e3f1af96dcc49c",
+      "bytes": 16371,
+      "sha256": "eb86087c68abb8ba7f8ebecfaf2aab10781871098353cd644ed1c29117ecd4b5",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/platform/sync_client.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/gui/sync.c",
+      "blob": "5b499917e579e6886bf4f03453f03f6867998a74",
+      "bytes": 5673,
+      "sha256": "7b733be7d81123f53c69050a7361c92d8db2861323b396f88c1f1d8459225139",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/gui/sync.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/sync/update.c",
+      "blob": "c4cb77dd1e8f2faeff5827300ea448be45cfe9d9",
+      "bytes": 3997,
+      "sha256": "a2f34048c61a90a1fa2f5c7e03f9a92e19dbaa664108f8363ca87cea2f5a19f0",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/sync/update.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/sync/update.h",
+      "blob": "53a338f674b1742a281c741b16421d43ea2141c8",
+      "bytes": 1464,
+      "sha256": "006638c10221b573e6e5f968ae87b1eceab78b8702f1fc25213300d8cd8657da",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/sync/update.h"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/sync/sync.c",
+      "blob": "4663d8ac1410bb036b051ee925a1559abe542c9a",
+      "bytes": 4292,
+      "sha256": "9dc884366fb21490a206594293656d209fe7850d88f90d85c163bd1a20e6f860",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/sync/sync.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/ui/settings.c",
+      "blob": "08a34c8be0e03d0d9c4411b1c8ec152e6a2b3bd7",
+      "bytes": 6177,
+      "sha256": "f3fc515a3918224777340894713384f07b90db568f95bac14414dc63f521bb2e",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/ui/settings.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/ui/savefile.c",
+      "blob": "fe4b9fa5fd21f153789c71f98349c51dba710d05",
+      "bytes": 3057,
+      "sha256": "3edba42873bc9ca7436bdd09ace301317cfe7528f317ca6c01224b891eed4a71",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/ui/savefile.c"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": "src/sync/sync.h",
+      "blob": "b91e7be93a4504ede9ce778900460144eb75e679",
+      "bytes": 2725,
+      "sha256": "17cfb5890161d92967fb8c014b97af0700f819f4c445892c32579d400eb87400",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/src/sync/sync.h"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "path": ".github/workflows/release.yml",
+      "blob": "286f957124a21e648dea96629f3e94b1a17e14b8",
+      "bytes": 8755,
+      "sha256": "df437b909f2f523118ac28b3f47ab33579fa68ca90e5638ef24a1e21176f119e",
+      "url": "https://github.com/kirby-letsgo/oracles-decomp/blob/20e7494a44b360325106bf45d12f6f2b78afcc0c/.github/workflows/release.yml"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "85b05f7ed64c26a2312ba322b5bf1cec419bbc8d",
+      "path": "CMakeLists.txt",
+      "blob": "2e4145cfcb836c70d52ef378d480b146fd58699d",
+      "bytes": 87665,
+      "sha256": "f3920775174653275c6e7137dbda7d51003b650eb28d162e1362b60cffb05c8a",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/85b05f7ed64c26a2312ba322b5bf1cec419bbc8d/CMakeLists.txt"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "85b05f7ed64c26a2312ba322b5bf1cec419bbc8d",
+      "path": "LICENSE",
+      "blob": "3d9e04c6e8355ef5f1fb09f8915540c607c2f906",
+      "bytes": 1755,
+      "sha256": "8d63b758ca1376ee0da2d48c35cfd6b796a0d06f63ebe5ad9721cb55f75b3a92",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/85b05f7ed64c26a2312ba322b5bf1cec419bbc8d/LICENSE"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "85b05f7ed64c26a2312ba322b5bf1cec419bbc8d",
+      "path": "README.md",
+      "blob": "eb96642f30a63ff390baff289be068f14f8b8485",
+      "bytes": 16660,
+      "sha256": "4ef09548586f9cf3915126dcb20215c021055dcb265fd0d1c4df570df55a5554",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/85b05f7ed64c26a2312ba322b5bf1cec419bbc8d/README.md"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "CMakeLists.txt",
+      "blob": "df3b796ab40db0503c45cf6a6d0ba66d02f85000",
+      "bytes": 87458,
+      "sha256": "1d0e8b0c41e90a167ad9c6ad33d6817575a5573cb82eccadb6972391e32015db",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/CMakeLists.txt"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "LICENSE",
+      "blob": "3d9e04c6e8355ef5f1fb09f8915540c607c2f906",
+      "bytes": 1755,
+      "sha256": "8d63b758ca1376ee0da2d48c35cfd6b796a0d06f63ebe5ad9721cb55f75b3a92",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/LICENSE"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "README.md",
+      "blob": "3b2525b1aa8840aec3d27446818511bd5ecf67a4",
+      "bytes": 16041,
+      "sha256": "45367a2ed7ca701305b639948a777ad25d96eb965bf43cf141ea2d3dcd6d51db",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/README.md"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "docs/PLAYER_GUIDE.md",
+      "blob": "99fb363d06ada8ba459f85b0d685fb09d74c872a",
+      "bytes": 11148,
+      "sha256": "b6041ac98ada44a997db519618c616a866d5a3580489d417da4bb7810ce62a76",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/docs/PLAYER_GUIDE.md"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "docs/NATIVE_SAVES.md",
+      "blob": "d7d15f5e06e6b145e244e22e7a35840bbaaa9b46",
+      "bytes": 5485,
+      "sha256": "8246fe4cd90e7ef3cc01f8e8195640ca61701c9c5fe061d5ab95e5fc5992bc59",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/docs/NATIVE_SAVES.md"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "docs/SETTINGS_CONTRACT.md",
+      "blob": "148d82aedbf7bcfd8fd98e784b402c1fbc3081b4",
+      "bytes": 12608,
+      "sha256": "f215fe22007870d5b0e4ae17204d7e12e02e294aa6e6e67ce49907bd5bd8c14b",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/docs/SETTINGS_CONTRACT.md"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "launcher/GameLaunch.cs",
+      "blob": "dc2e56074b77555d9199076843b480bdcc660270",
+      "bytes": 6510,
+      "sha256": "4b8b5e08360c69940b892392060d48b75be1acb9e9598d34e891cef413db1ef3",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/launcher/GameLaunch.cs"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "launcher/GodotSession.cs",
+      "blob": "5e93197cfde3f954cc5f2d82600fd5f72966dd2f",
+      "bytes": 10957,
+      "sha256": "68691fbfca30679ffbe9a5238a2ca537a9b0ea7c89c49a7bba721e8c009d172c",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/launcher/GodotSession.cs"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "launcher/Launcher.Game.cs",
+      "blob": "83ddaf6e023c7824c8d32e3d75ebaa3066544c41",
+      "bytes": 8912,
+      "sha256": "553c82ed9c6d2112a1628addbf1acbeaaaff54bf2768600d117f5dd691ce5e79",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/launcher/Launcher.Game.cs"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "path": "launcher/Launcher.cs",
+      "blob": "cc68af024a3b4fec0967d7267b353377f46bb011",
+      "bytes": 15941,
+      "sha256": "bf5ea14c4de425ba74d3d303dd0226469b2b800fb54870ccad2dc81dd5bdfa03",
+      "url": "https://github.com/Drommedhar/mgs-reintegral/blob/c2eeb607ed58c8df20f1161da0a54002c7425cc9/launcher/Launcher.cs"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "b7ae26e7605efbe53cb60433ade26d5579900d8e",
+      "path": "LICENSE",
+      "blob": "891bd61e9f4faa85b1a88160e1155354a53a566c",
+      "bytes": 1070,
+      "sha256": "a0e5aad2569763903598c9fd0590212530792e63d96c7955502e36a47e0c13de",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/b7ae26e7605efbe53cb60433ade26d5579900d8e/LICENSE"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "b7ae26e7605efbe53cb60433ade26d5579900d8e",
+      "path": "README.md",
+      "blob": "e769fc6f129e42f25efcda23b4286042a0dc177c",
+      "bytes": 21246,
+      "sha256": "94ece18df4b62fccb2819b0588228f73619730697fb2396fd9fefe28c9e25d5b",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/b7ae26e7605efbe53cb60433ade26d5579900d8e/README.md"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "LICENSE",
+      "blob": "891bd61e9f4faa85b1a88160e1155354a53a566c",
+      "bytes": 1070,
+      "sha256": "a0e5aad2569763903598c9fd0590212530792e63d96c7955502e36a47e0c13de",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/LICENSE"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "README.md",
+      "blob": "c38c0f63ca394b4d71c5855411b2c29dd6ad0017",
+      "bytes": 19499,
+      "sha256": "7846e6eb2d1f3344ca63a65b0fb1b2a9e98724d8f694056710775924a0b4044a",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "src/main.c",
+      "blob": "8c95c44639eb4fef008adebf7fa1f67e8b5199b6",
+      "bytes": 40069,
+      "sha256": "a320fc53f94e9016af73ed1909d697dda1f9537e0220f22d4ceebb865c07eeda",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/src/main.c"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "src/config.c",
+      "blob": "8fc4b4903c96a253d3d9cb37e7e282df0a332a35",
+      "bytes": 16648,
+      "sha256": "640cc81d91b3caf690d1ed4e89e023d729eaf1561cb12eccbe516e65c4150b98",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/src/config.c"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "src/config.h",
+      "blob": "2d234e9a78f66a0e4e3fe8f8ea17e1e8e1d200fd",
+      "bytes": 3494,
+      "sha256": "7aa083dd9cbb6e196e1831a537e48335cdd073fcf8fee0afe3d84f18ab6e9533",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/src/config.h"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "tools/dist-readme.txt",
+      "blob": "1745a71115cbbb11af5bd0d9410d64797c222c01",
+      "bytes": 2672,
+      "sha256": "ae5fdf683ab629badfc7a537a4977523405bc36d70cd7e09dc8e02d867168e9d",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/tools/dist-readme.txt"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "tools/run-readme.txt",
+      "blob": "830feabbeb1bb851b3915b65fcbb01afab02c59b",
+      "bytes": 1258,
+      "sha256": "e9df0df4e82eac60cb6878995a1a5358e8baa8b4b8a3718a2d881245c95aee4a",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/tools/run-readme.txt"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "Makefile",
+      "blob": "dc01c5b6d933a39fbdd5f49bd197f386ec0074d7",
+      "bytes": 8087,
+      "sha256": "2f9b2a7ce97912a22876186d8f822c975f2dcd7fab4833c6260cfbe37051b0e9",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/Makefile"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "src/rec_build.c",
+      "blob": "4bb68f24ff2dfd952240d326a14817b6c9657db5",
+      "bytes": 21165,
+      "sha256": "e6422159bee5b3c8f038f0c77ba90d1803105053d54f68512e9c7c0699d1c868",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/src/rec_build.c"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "src/rec_build.h",
+      "blob": "5ace3e65afd93b0a5c3ff007998518a0e8f2b13c",
+      "bytes": 1017,
+      "sha256": "68d9fc4a9c00120e96373935bb8c718f90b2535a2d758b0a4ab19f72f603b34f",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/src/rec_build.h"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "src/game.c",
+      "blob": "75a86d271dc0df2f82fe7a53598afd3168f1c46f",
+      "bytes": 392,
+      "sha256": "5b763ee70559b38b27cbc94710599a8791a811e9b5bdce0feb9240e52b923a61",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/src/game.c"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "path": "src/state.c",
+      "blob": "c8218408b9739ac9664ac8845d6b3d97ffbb3f2f",
+      "bytes": 11476,
+      "sha256": "dae654ca3e27a55b18b43ac8d18bdffa5fa1f41b69fea72d90da951fc83090b7",
+      "url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/src/state.c"
+    }
+  ],
+  "complete_tree_contexts": [
+    {
+      "repository": "guimaraf/3sxw",
+      "role": "current",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "root_tree": "83e06e42a7eafefcf0f5bed553f0aa94315ff959",
+      "complete_recursive_inventory_sha256": "737382cd9738b2615444c5630eb93571a513e104ad1846a77441d2c1662ff1aa",
+      "entries": 1340,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "guimaraf/3sxw",
+      "role": "tag",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "root_tree": "83e06e42a7eafefcf0f5bed553f0aa94315ff959",
+      "complete_recursive_inventory_sha256": "737382cd9738b2615444c5630eb93571a513e104ad1846a77441d2c1662ff1aa",
+      "entries": 1340,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "role": "current",
+      "commit": "d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb",
+      "root_tree": "2910bfd5ed7fd5c1660dda0a990d1e35e9f15e5f",
+      "complete_recursive_inventory_sha256": "3929d90d5b72224bfe07f33d50fb03602fa3b403b174690e3b378d82c6d969db",
+      "entries": 474,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "role": "tag",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "root_tree": "c837a7746f2496b58321a83521db9b9e9e8ee9c1",
+      "complete_recursive_inventory_sha256": "b8940b1b2fa33607091e8ea67638004cb008d24113c7d9d7d3acd78ec2ae00a5",
+      "entries": 451,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "role": "current",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "root_tree": "05cd8b3c528478f65d4ba683354c7785b7599bc4",
+      "complete_recursive_inventory_sha256": "b4cc6600ccc7509d7aaa3772820015252441c93ca358459fe9eccf78ad8940b6",
+      "entries": 1518,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "kirby-letsgo/oracles-decomp",
+      "role": "tag",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "root_tree": "05cd8b3c528478f65d4ba683354c7785b7599bc4",
+      "complete_recursive_inventory_sha256": "b4cc6600ccc7509d7aaa3772820015252441c93ca358459fe9eccf78ad8940b6",
+      "entries": 1518,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "role": "current",
+      "commit": "85b05f7ed64c26a2312ba322b5bf1cec419bbc8d",
+      "root_tree": "d12fd0c840560d08ebe4113b6f36b87e69b853ea",
+      "complete_recursive_inventory_sha256": "9d9040aafc5412bdf7135befa79e93485db3f6fc164e4c4daff552995c4bb9fd",
+      "entries": 1927,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "Drommedhar/mgs-reintegral",
+      "role": "tag",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "root_tree": "7025975493e045ebe5decd6dcedf89087e7c576f",
+      "complete_recursive_inventory_sha256": "4f302b20db0194f8bb52ac53cfdf1c259799a6961dbca40ae9b9977f14986cca",
+      "entries": 1923,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "role": "current",
+      "commit": "b7ae26e7605efbe53cb60433ade26d5579900d8e",
+      "root_tree": "f435ff8596c546672d8a7f594c818470b15e114a",
+      "complete_recursive_inventory_sha256": "88e586bdc93bfd60ac3cee46e96735b2975e5e3934dffa316dd3e7670824e097",
+      "entries": 211,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "repository": "thefixinhixon/UltraCombo",
+      "role": "tag",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "root_tree": "ccd84c3e4b05c139f766622545e03e21add0f768",
+      "complete_recursive_inventory_sha256": "aafe64327e999161d9e6af6907fe08ac0b73c8ef2af00e22282e3136d9982676",
+      "entries": 209,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    }
+  ],
+  "owner_bound_tree_observations": [
+    {
+      "issue": 375,
+      "repository": "guimaraf/3sxw",
+      "role": "current",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "root_tree": "83e06e42a7eafefcf0f5bed553f0aa94315ff959",
+      "complete_recursive_inventory_sha256": "737382cd9738b2615444c5630eb93571a513e104ad1846a77441d2c1662ff1aa",
+      "entries": 1340,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 375,
+      "repository": "guimaraf/3sxw",
+      "role": "tag",
+      "commit": "c6b8e98b00ef03796008a4130039819db568115b",
+      "root_tree": "83e06e42a7eafefcf0f5bed553f0aa94315ff959",
+      "complete_recursive_inventory_sha256": "737382cd9738b2615444c5630eb93571a513e104ad1846a77441d2c1662ff1aa",
+      "entries": 1340,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 1914,
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "role": "current",
+      "commit": "d4f2adc70ab1d773e5a8f5c68c7fcb8fb900eecb",
+      "root_tree": "2910bfd5ed7fd5c1660dda0a990d1e35e9f15e5f",
+      "complete_recursive_inventory_sha256": "3929d90d5b72224bfe07f33d50fb03602fa3b403b174690e3b378d82c6d969db",
+      "entries": 474,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 1914,
+      "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+      "role": "tag",
+      "commit": "410454abfef1f48e0a2d4a142d81145ad9718b36",
+      "root_tree": "c837a7746f2496b58321a83521db9b9e9e8ee9c1",
+      "complete_recursive_inventory_sha256": "b8940b1b2fa33607091e8ea67638004cb008d24113c7d9d7d3acd78ec2ae00a5",
+      "entries": 451,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 1863,
+      "repository": "kirby-letsgo/oracles-decomp",
+      "role": "current",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "root_tree": "05cd8b3c528478f65d4ba683354c7785b7599bc4",
+      "complete_recursive_inventory_sha256": "b4cc6600ccc7509d7aaa3772820015252441c93ca358459fe9eccf78ad8940b6",
+      "entries": 1518,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 1863,
+      "repository": "kirby-letsgo/oracles-decomp",
+      "role": "tag",
+      "commit": "20e7494a44b360325106bf45d12f6f2b78afcc0c",
+      "root_tree": "05cd8b3c528478f65d4ba683354c7785b7599bc4",
+      "complete_recursive_inventory_sha256": "b4cc6600ccc7509d7aaa3772820015252441c93ca358459fe9eccf78ad8940b6",
+      "entries": 1518,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 2106,
+      "repository": "Drommedhar/mgs-reintegral",
+      "role": "current",
+      "commit": "85b05f7ed64c26a2312ba322b5bf1cec419bbc8d",
+      "root_tree": "d12fd0c840560d08ebe4113b6f36b87e69b853ea",
+      "complete_recursive_inventory_sha256": "9d9040aafc5412bdf7135befa79e93485db3f6fc164e4c4daff552995c4bb9fd",
+      "entries": 1927,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 2106,
+      "repository": "Drommedhar/mgs-reintegral",
+      "role": "tag",
+      "commit": "c2eeb607ed58c8df20f1161da0a54002c7425cc9",
+      "root_tree": "7025975493e045ebe5decd6dcedf89087e7c576f",
+      "complete_recursive_inventory_sha256": "4f302b20db0194f8bb52ac53cfdf1c259799a6961dbca40ae9b9977f14986cca",
+      "entries": 1923,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 2584,
+      "repository": "thefixinhixon/UltraCombo",
+      "role": "current",
+      "commit": "b7ae26e7605efbe53cb60433ade26d5579900d8e",
+      "root_tree": "f435ff8596c546672d8a7f594c818470b15e114a",
+      "complete_recursive_inventory_sha256": "88e586bdc93bfd60ac3cee46e96735b2975e5e3934dffa316dd3e7670824e097",
+      "entries": 211,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 2584,
+      "repository": "thefixinhixon/UltraCombo",
+      "role": "tag",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "root_tree": "ccd84c3e4b05c139f766622545e03e21add0f768",
+      "complete_recursive_inventory_sha256": "aafe64327e999161d9e6af6907fe08ac0b73c8ef2af00e22282e3136d9982676",
+      "entries": 209,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 2585,
+      "repository": "thefixinhixon/UltraCombo",
+      "role": "current",
+      "commit": "b7ae26e7605efbe53cb60433ade26d5579900d8e",
+      "root_tree": "f435ff8596c546672d8a7f594c818470b15e114a",
+      "complete_recursive_inventory_sha256": "88e586bdc93bfd60ac3cee46e96735b2975e5e3934dffa316dd3e7670824e097",
+      "entries": 211,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    },
+    {
+      "issue": 2585,
+      "repository": "thefixinhixon/UltraCombo",
+      "role": "tag",
+      "commit": "aca9a93825b93ecfc9fc55df3dfcb1bc08be7608",
+      "root_tree": "ccd84c3e4b05c139f766622545e03e21add0f768",
+      "complete_recursive_inventory_sha256": "aafe64327e999161d9e6af6907fe08ac0b73c8ef2af00e22282e3136d9982676",
+      "entries": 209,
+      "scope": "complete actual repository tree inventory, not full transitive source or binary qualification"
+    }
+  ],
+  "core_inspection": {
+    "ports": 285,
+    "listings": 1424,
+    "port_input_sha256": "9e3c2965c8ec105f4eb52ef087857ae74941b07a9c90386b0ede05bb69816c51",
+    "listing_input_sha256": "849008a7225ed00c576bf70136fb0290de5c72af7dd6337a3976d0de5073eddd",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "f3fa9cada8bfdbaf3c960742e8bd50feaaf6ee1244b71fcf4245d08e1b903b06",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 285,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    }
+  },
+  "static_public_package_observations": [
+    {
+      "observed_at": "2026-10-31T11:27:01.415736+00:00",
+      "release_id": 427419039,
+      "tag": "v1.1.1",
+      "asset_id": 687171490,
+      "asset": "3SX-c6b8e98-windows.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "73c1a0e004000f6f1e0ff72f2c639c9a33fd5f0ca24041dd25da6f89657ed4a0",
+      "observed_sha256": "73c1a0e004000f6f1e0ff72f2c639c9a33fd5f0ca24041dd25da6f89657ed4a0",
+      "bytes": 15660564,
+      "raw_preparser_bounds": {
+        "records": 16,
+        "central_bytes": 1054,
+        "declared_expanded_bytes": 36057394
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "bin/avcodec-62.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/avutil-60.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/libiconv-2.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/SDL3.dll",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/SF3.exe",
+          "machine": "0x8664",
+          "sections": 18,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/sf3config.exe",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/swresample-6.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "bin/zlib1.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 375,
+      "offer": "managed candidate",
+      "release_url": "https://github.com/guimaraf/3sxw/releases/tag/v1.1.1",
+      "asset_url": "https://github.com/guimaraf/3sxw/releases/download/v1.1.1/3SX-c6b8e98-windows.zip",
+      "full_private_inventory_sha256": "05389f9c43de986c1571e73fc28a7ba5e1bc0298477d9c2d57246559a675cab6",
+      "member_count": 16,
+      "full_member_inventory_retained_in_private_custody": true,
+      "documentation_bindings": [
+        {
+          "path": "bin/licenses/LICENSE",
+          "decoded_utf8_bytes": 35258,
+          "decoded_utf8_sha256": "866972243873fd37205faca7f39b271cbb87f4150786b0abc24c143ee1e187e8"
+        },
+        {
+          "path": "bin/licenses/THIRD_PARTY_NOTICES.txt",
+          "decoded_utf8_bytes": 1968,
+          "decoded_utf8_sha256": "b363b46ad3f263225779108309f1d6ad862f0b2a2c45819b08f371edd5098fe4"
+        }
+      ]
+    },
+    {
+      "observed_at": "2026-10-31T11:27:01.691111+00:00",
+      "release_id": 427137541,
+      "tag": "20261028",
+      "asset_id": 686193997,
+      "asset": "zamn-windows-x86_64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "e4fdfed4e898c939e99fdbc132bda9bcc6a12deba0b84e6e0a0eb099dbffeffb",
+      "observed_sha256": "e4fdfed4e898c939e99fdbc132bda9bcc6a12deba0b84e6e0a0eb099dbffeffb",
+      "bytes": 1580223,
+      "raw_preparser_bounds": {
+        "records": 5,
+        "central_bytes": 459,
+        "declared_expanded_bytes": 4610011
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "zamn_launcher.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "zamn.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL2.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 256,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1914,
+      "offer": "managed candidate",
+      "release_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/tag/20261028",
+      "asset_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port/releases/download/20261028/zamn-windows-x86_64.zip",
+      "full_private_inventory_sha256": "93a28465979432a957aec7f7d202145a09ad07d023a0295ac26cb4d133b9a984",
+      "member_count": 5,
+      "full_member_inventory_retained_in_private_custody": true,
+      "documentation_bindings": [
+        {
+          "path": "LakeSnes-LICENSE.txt",
+          "decoded_utf8_bytes": 1109,
+          "decoded_utf8_sha256": "a2d4569a3c31e7116dc4c8cfe693d222f33c1b444eafb771f157efdea34d90c3"
+        },
+        {
+          "path": "SDL2-LICENSE.txt",
+          "decoded_utf8_bytes": 902,
+          "decoded_utf8_sha256": "70346efb24a6550150129898440401410c562c86e672f51d4d8c5f10aeaa6d2e"
+        }
+      ]
+    },
+    {
+      "observed_at": "2026-10-31T11:27:02.064001+00:00",
+      "release_id": 429600592,
+      "tag": "v1.0.5",
+      "asset_id": 693808245,
+      "asset": "Oracles-windows-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "4115711490c0a91d7d1ffeb5531da61f8d481129f69a4dd4225fe5fb977f5299",
+      "observed_sha256": "4115711490c0a91d7d1ffeb5531da61f8d481129f69a4dd4225fe5fb977f5299",
+      "bytes": 10995552,
+      "raw_preparser_bounds": {
+        "records": 2,
+        "central_bytes": 167,
+        "declared_expanded_bytes": 31064197
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "Oracles/Oracles.exe",
+          "machine": "0x8664",
+          "sections": 20,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1863,
+      "offer": "managed candidate",
+      "release_url": "https://github.com/kirby-letsgo/oracles-decomp/releases/tag/v1.0.5",
+      "asset_url": "https://github.com/kirby-letsgo/oracles-decomp/releases/download/v1.0.5/Oracles-windows-x64.zip",
+      "full_private_inventory_sha256": "8dbf355f5fbebea36bdd947949371dd04fc60180122f9cb82f40df0ee10f4fe2",
+      "member_count": 2,
+      "full_member_inventory_retained_in_private_custody": true,
+      "documentation_bindings": []
+    },
+    {
+      "observed_at": "2026-10-31T11:27:00.850479+00:00",
+      "release_id": 422122672,
+      "tag": "v1.1.0",
+      "asset_id": 669848044,
+      "asset": "UltraCombo-Windows.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "ca8671419bbc452f8200013e5de60483534a8ad470092175e5f7e6c56bad5c23",
+      "observed_sha256": "ca8671419bbc452f8200013e5de60483534a8ad470092175e5f7e6c56bad5c23",
+      "bytes": 77732107,
+      "raw_preparser_bounds": {
+        "records": 5971,
+        "central_bytes": 824119,
+        "declared_expanded_bytes": 301162849
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "UltraCombo-Windows/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "UltraCombo-Windows/UltraCombo.exe",
+          "machine": "0x8664",
+          "sections": 21,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "UltraCombo-Windows/tools/tcc/libtcc.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "UltraCombo-Windows/tools/zig/zig.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 2584,
+      "offer": "HELD UltraCombo context; not an offered route or the MGS package",
+      "release_url": "https://github.com/thefixinhixon/UltraCombo/releases/tag/v1.1.0",
+      "asset_url": "https://github.com/thefixinhixon/UltraCombo/releases/download/v1.1.0/UltraCombo-Windows.zip",
+      "full_private_inventory_sha256": "1587776d73c34cc6d6e7b8d6e8695f2dcb9a4c05201e44c071f6e4657d899948",
+      "member_count": 5971,
+      "full_member_inventory_retained_in_private_custody": true,
+      "documentation_bindings": [
+        {
+          "path": "UltraCombo-Windows/shaders/lola-retro/LICENSE",
+          "decoded_utf8_bytes": 1061,
+          "decoded_utf8_sha256": "35a17ed7de836c4706e8fc876d15a41fd4b327f32431b60bd48a0d3df335228b"
+        },
+        {
+          "path": "UltraCombo-Windows/shaders/README.txt",
+          "decoded_utf8_bytes": 1055,
+          "decoded_utf8_sha256": "bc6ad1dc57514f9438b4373043d8f28779fda0e9473fe58649356d987e7da352"
+        },
+        {
+          "path": "UltraCombo-Windows/README.md",
+          "decoded_utf8_bytes": 19499,
+          "decoded_utf8_sha256": "7846e6eb2d1f3344ca63a65b0fb1b2a9e98724d8f694056710775924a0b4044a"
+        },
+        {
+          "path": "UltraCombo-Windows/licenses/SDL2-LICENSE.txt",
+          "decoded_utf8_bytes": 884,
+          "decoded_utf8_sha256": "97f35b302b361680ec1e891e95d2d52097bb95abff361434916d99dc1305f127"
+        },
+        {
+          "path": "UltraCombo-Windows/licenses/TinyCC-COPYING.txt",
+          "decoded_utf8_bytes": 26428,
+          "decoded_utf8_sha256": "512d2d21b6b3384ba64781abb0208a1b87740bc31e2df48e2b206ddb7e4d5779"
+        },
+        {
+          "path": "UltraCombo-Windows/licenses/Zig-LICENSE.txt",
+          "decoded_utf8_bytes": 1080,
+          "decoded_utf8_sha256": "5c537d6853e005298a285d508cff9ac7192cea23576c840d485b2b586a7ff177"
+        },
+        {
+          "path": "UltraCombo-Windows/licenses/UltraCombo-LICENSE.txt",
+          "decoded_utf8_bytes": 1070,
+          "decoded_utf8_sha256": "a0e5aad2569763903598c9fd0590212530792e63d96c7955502e36a47e0c13de"
+        },
+        {
+          "path": "UltraCombo-Windows/tools/zig/lib/libc/mingw/libarm32/oemlicense.def",
+          "decoded_utf8_bytes": 214,
+          "decoded_utf8_sha256": "dd9587784d052881ac8d1320413fba3b60529ef92cf92b8f08831dafe36fc301"
+        },
+        {
+          "path": "UltraCombo-Windows/tools/zig/lib/libc/mingw/COPYING",
+          "decoded_utf8_bytes": 2326,
+          "decoded_utf8_sha256": "99a69660981156c21336fdb5661f89341b013c94e4bf9e1c7467b4745718397f"
+        }
+      ]
+    }
+  ],
+  "test_contracts": {
+    "execution": "Not run at this source checkpoint. New exact-head hosted CI owns subsequent execution; parent R17 passing CI is not R19 qualification.",
+    "existing_helpers_and_assertions": "Both Rust modules retain all old bytes except the final module-closing brace; four actual-ID cases are appended. The shared managed progression and non-owning selected-registration helpers are unchanged.",
+    "managed": "Unchanged-definition install\u2192changed-artifact update\u2192rollback and declared synthetic local-data preservation. 3SXW also preserves an unknown interrupted portable-storage probe and refuses update/stale-consented removal. ZAMN witnesses an unfinished default quicksave; Oracles witnesses an unfinished portable-profile staging tree. Fixtures are inert and do not establish upstream file formats, game sessions, original import, linked saves or real compatibility.",
+    "selected_copy": "Existing complete selected-player registration helper, actual MGS identity, no definition-owned acquisition/replacement and external-file retention."
+  },
+  "maintenance_boundaries": {
+    "375": "Actual stable bin/SF3.exe, not CrowdedStreet3sx.exe. Exe-parent resources/SF33RD.AFS and narrow data/saves/config/keymap/error.log/debug/prints preserved; stock bezel images stay immutable. Release source CHECKSUM expects f9fa50f3a124ec9fa9465aa9c8546c2d867887eb39f711a070762a0324ba5604; no every-region or Core original-auth/binary-source reproduction claim. SDK temporary card writes stay inside preserved savedir; unknown storage/config probes outside declarations hold maintenance.",
+    "1914": "Normal zamn_launcher.exe tracks/reaps zamn.exe and returns to launcher UI after normal exit. Exact ownUSA1MiB original compatibility hash is not Core authentication. Local config/quicksave/highscore and tmp companions preserved; every external override/creating tuple remains user-owned. Hybrid native/hardware implementation, not whole-native or forced-exit certification.",
+    "1863": "Configure one own supported Ages or Seasons input first; title/region/linked-save identities stay separate and unqualified. Actual native Windows app with default external SDL profile and optional portable.txt/oracles-data/oracles-data.part local paths. Mode switch copies only to empty destination and retains source; no overwrite of populated destination, no Core migration. Windows updater opens upstream URL; Linux AppImage replacement is unoffered.",
+    "2106": "Conditional already-permitted completed-copy attachment only. Exact Japanese Integral two-disc BIN/CUE contract, launcher+native+renderer normal lifetime, effective LocalAppData memory cards/settings/logs and whole runtime/tool/mod/data roots retained. Package itself NOT downloaded/inspected. Operative ancestry/permission/source-scope criterion remains unresolved: MIT excludes recovered game/SDK material and missing FoxdieTeam grant is not supplied by a generic guide. Owner OPEN/all fields unchanged.",
+    "2584/2585": "Current UltraCombo source performs ROM-derived host-code compilation and Windows _execv Back-to-picker without an explicit retained-parent wait. Windows CRT/Core process-handoff fit is unestablished, not an observed binary failure or blanket private-use ban. Preserve one upstream runtime owner; no compiler/game execution, broad mutable host-code-cache declaration, useful-menu disablement or speculative family infrastructure. Exact upstream supported full-session handoff is the resume boundary.",
+    "121/132": "Official ProjectR v0.7.1 Windows installer exists at the primary website. Exact installed executable, normal session lifetime and effective player-data coordinates are not established here; no installer was downloaded or run. Existing own-data and ownership conditions remain. Physical B1 GUI stop is unresumed, not evidence of upstream impossibility or a family-framework exclusion."
+  },
+  "CRT_primary_reference": {
+    "url": "https://learn.microsoft.com/en-us/cpp/c-runtime-library/exec-wexec-functions?view=msvc-170",
+    "observed_date": "2026-10-31",
+    "supported_fact": "Windows exec-family functions use CreateProcess; unestablished UltraCombo/Core handoff is a source-level inference, not observed execution"
+  },
+  "ProjectR_primary_observation": {
+    "url": "https://t3hd0gg.com/project-r/",
+    "observed_date": "2026-10-31",
+    "kind": "rendered primary website; no locally retained HTML-byte SHA or installer inspection claimed",
+    "installer_url": "https://t3hd0gg.com/project-r/0.7.1/project-r-0.7.1-windows-x86_64.exe"
+  },
+  "preservation": {
+    "all_282_prior_definitions_exact": true,
+    "source_catalog_exact": true,
+    "all_original_identity_artwork_and_lineage_exact": true,
+    "compatibility_prior_215_ordered_prefix_and_source_ids_exact": true,
+    "hold_records_2584_2585_121_132_byte_exact": true,
+    "full_frozen_distinct_cohort": 858,
+    "cohort_denominators": "524 original +312 affected +22 Roadmap-only; historical317 rows/316 identities overlap, not additive",
+    "source_profiles_not_added_or_changed": true,
+    "no_production_Core_adapter_UI_or_new_framework_change": true
+  },
+  "preparation_evidence": {
+    "all_four_final_accepted_records_equal_reviewed_candidates": true,
+    "375_and1863_final_records": "genuine source-condition precision revisions, re-prepared in owned checkpoints; initial completed revisions retained",
+    "2106_required_warnings": "initial omission refused by Core status13 before admission; only incomplete guide resumed after required actual permission/profile warnings; other completed records not retried",
+    "initial_private_parent_directory_refusal": "375 checkpoint mkdir ENOENT before checkpoint created; retained, missing owned parent created, initial work continued",
+    "source_worktree_unchanged_by_preparations": true
+  },
+  "scope": "Source/inert first-party fixtures/static public engine packages only. No original/private-save acquisition, upstream player/helper/compiler/tool/installer execution, native GUI, game/linked-save/actual compatibility, installed Desktop, physical/human, Supported, signing/publication/protected activation or full858 completion claim. Existing physical GUI stop remains. Three finite owner closures are conditional on full actual delivery and later canonical review; MGS and four other hold owners stay open."
+}

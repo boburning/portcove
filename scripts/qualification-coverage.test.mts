@@ -27,7 +27,43 @@ function requiredFixture<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
   return value;
 }
+function isReporterStep(step: Record<string, unknown>) {
+  return (
+    typeof step.run === "string" &&
+    step.run.split(/\r?\n/u).some((line) => {
+      const statement = line.trim();
+      return (
+        statement.startsWith("node scripts/qualification-nextest.mts ") ||
+        statement.startsWith(
+          "/usr/bin/time -lp -o work/test-results/intel-resource-usage.txt node scripts/qualification-nextest.mts ",
+        )
+      );
+    })
+  );
+}
 const workflow = await readWorkflow(new URL("../.github/workflows/ci.yml", import.meta.url));
+
+void test("Intel accounting retains fixed locale and source/run/attempt artifact context", () => {
+  const job = workflowJob("intel_tests");
+  const caller = requiredFixture(steps(job).find(isReporterStep));
+  assert.ok(isRecord(caller.env));
+  assert.equal(caller.env.LC_ALL, "C");
+  assert.ok(typeof caller.run === "string");
+  assert.match(
+    caller.run,
+    /\/usr\/bin\/time -lp -o work\/test-results\/intel-resource-usage\.txt node/u,
+  );
+  assert.equal(record(job.env).PORTCOVE_HEAD_SHA, "${{ needs.classify.outputs.head }}");
+  const retained = requiredFixture(
+    steps(job).find((step) => String(step.uses).startsWith("actions/upload-artifact@")),
+  );
+  assert.equal(retained.if, "always()");
+  assert.equal(record(retained.with).path, "work/test-results/");
+  assert.equal(
+    record(retained.with).name,
+    "qualification-intel-${{ strategy.job-index }}-${{ github.run_id }}-${{ github.run_attempt }}",
+  );
+});
 
 void test("qualification inventory is nonzero and exactly covers exhaustive jobs", () => {
   const counts = validateQualificationCoverage(inventory, workflow);
@@ -44,6 +80,33 @@ void test("qualification inventory is nonzero and exactly covers exhaustive jobs
     qualificationJobs(workflow),
     [...inventory.jobs, ...inventory.pull_request_jobs].sort(),
   );
+});
+
+void test("native qualification skips only an explicitly unselected non-Windows matrix", () => {
+  for (const condition of [
+    "needs.classify.outputs.mode == 'qualification'",
+    "needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'linux-x86_64')",
+    "needs.classify.outputs.mode == 'qualification' && needs.classify.outputs.release_profile != 'initial-beta-windows-x86_64-v1'",
+    "false",
+  ]) {
+    const changed = editedWorkflow((jobs) => {
+      record(jobs.native_rust).if = condition;
+    });
+    assert.throws(() => validateQualificationCoverage(inventory, changed));
+  }
+  const windows = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: "a".repeat(40),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+    releaseProfile: "initial-beta-windows-x86_64-v1",
+  });
+  assert.deepEqual(qualificationMatrices(windows), {
+    native: [],
+    docs: [{ platform: "windows-x86_64", runner: "windows-latest" }],
+  });
+  assert.equal(validateQualificationCoverage(inventory, workflow).platforms, 4);
 });
 
 void test("macOS qualification recognizes only the maintained portability input routes", () => {
@@ -73,6 +136,32 @@ void test("macOS qualification recognizes only the maintained portability input 
 });
 
 void test("qualification reporter callers cannot change mode, partition, runtime setup or failure handling", () => {
+  const spaced = editedWorkflow((jobs) => {
+    for (const name of ["native_rust", "intel_tests", "rust_workspace_tests"]) {
+      const caller = requiredFixture(steps(jobs[name]).find(isReporterStep));
+      assert.ok(typeof caller.run === "string");
+      caller.run =
+        "\n# Harmless recipe annotation\n" +
+        caller.run
+          .split("\n")
+          .map((line) => "  " + line)
+          .join("\n") +
+        "\n";
+    }
+  });
+  validateQualificationCoverage(inventory, spaced);
+  const wrapped = editedWorkflow((jobs) => {
+    const caller = requiredFixture(steps(jobs.intel_tests).find(isReporterStep));
+    assert.ok(typeof caller.run === "string");
+    caller.run = caller.run.replace(
+      " node scripts/qualification-nextest.mts",
+      " \\\n  node scripts/qualification-nextest.mts",
+    );
+  });
+  validateQualificationCoverage(inventory, wrapped);
+  // YAML normalizes physical CRLF source; a literal CR in a run value is different.
+  validateQualificationCoverage(inventory, workflow.replaceAll(/\r?\n/gu, "\r\n"));
+
   for (const name of ["native_rust", "intel_tests", "rust_workspace_tests"])
     for (const mutation of [
       "disabled",
@@ -80,16 +169,21 @@ void test("qualification reporter callers cannot change mode, partition, runtime
       "wrong-mode",
       "extra-selector",
       "missing-runtime",
+      "comment-only",
+      "hidden-command",
+      "suppressed-status",
+      "split-runtime-token",
+      "split-script-token",
+      "non-shell-separator",
+      "literal-carriage-return",
+      "literal-cr-continuation",
+      ...(name === "intel_tests"
+        ? ["missing-accounting", "missing-host", "wrong-metrics-path", "merged-statements"]
+        : []),
     ]) {
       const changed = editedWorkflow((jobs) => {
         const job = jobs[name];
-        const caller = requiredFixture(
-          steps(job).find(
-            (step) =>
-              typeof step.run === "string" &&
-              step.run.startsWith("node scripts/qualification-nextest.mts "),
-          ),
-        );
+        const caller = requiredFixture(steps(job).find((step) => isReporterStep(step)));
         const originalCommand = caller.run;
         assert.ok(typeof originalCommand === "string");
         if (mutation === "disabled") caller.if = false;
@@ -97,6 +191,43 @@ void test("qualification reporter callers cannot change mode, partition, runtime
         if (mutation === "wrong-mode")
           caller.run = "node scripts/qualification-nextest.mts foreign";
         if (mutation === "extra-selector") caller.run = originalCommand + " --profile hidden";
+        if (mutation === "comment-only")
+          caller.run = originalCommand
+            .split("\n")
+            .map((line) => "# " + line)
+            .join("\n");
+        if (mutation === "hidden-command")
+          caller.run = "if false; then\n" + originalCommand + "\nfi";
+        if (mutation === "suppressed-status") caller.run = originalCommand.trim() + " || true";
+        if (mutation === "non-shell-separator")
+          caller.run = originalCommand.replace("node scripts/", "node\u00a0scripts/");
+        if (mutation === "literal-carriage-return") caller.run = originalCommand.trimEnd() + "\r";
+        if (mutation === "literal-cr-continuation")
+          caller.run = originalCommand.replace("node scripts/", "node \\\r\n  scripts/");
+        if (mutation === "split-runtime-token")
+          caller.run = originalCommand.replace("node scripts/", "no\\\n  de scripts/");
+        if (mutation === "split-script-token")
+          caller.run = originalCommand.replace(
+            "qualification-nextest.mts",
+            "qualific\\\n  ation-nextest.mts",
+          );
+        if (mutation === "missing-accounting")
+          caller.run = originalCommand.replace(
+            "/usr/bin/time -lp -o work/test-results/intel-resource-usage.txt ",
+            "",
+          );
+        if (mutation === "missing-host")
+          caller.run = originalCommand
+            .split("\n")
+            .filter((line) => !line.includes("/usr/sbin/sysctl"))
+            .join("\n");
+        if (mutation === "merged-statements")
+          caller.run = originalCommand.trim().replaceAll("\n", " ");
+        if (mutation === "wrong-metrics-path")
+          caller.run = originalCommand.replace(
+            "-o work/test-results/intel-resource-usage.txt",
+            "-o unretained-metrics.txt",
+          );
         if (mutation === "missing-runtime") {
           const setup = requiredFixture(
             steps(job).find((step) => step.uses === "./.github/actions/setup-rust"),
@@ -517,12 +648,7 @@ void test("qualification case reporting preserves original scopes and transitive
     const setupIndex = steps.findIndex(
       (step: unknown) => isRecord(step) && step.uses === "./.github/actions/setup-rust",
     );
-    const executeIndex = steps.findIndex(
-      (step: unknown) =>
-        isRecord(step) &&
-        typeof step.run === "string" &&
-        step.run.startsWith("node scripts/qualification-nextest.mts "),
-    );
+    const executeIndex = steps.findIndex((step: unknown) => isRecord(step) && isReporterStep(step));
     assert.ok(setupIndex >= 0 && executeIndex > setupIndex);
     const input = steps[setupIndex] as unknown;
     assert.ok(isRecord(input) && isRecord(input.with));

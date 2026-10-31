@@ -8,7 +8,7 @@ import { Checkbox } from "./ui/checkbox";
 
 export type DetailOrganization = ReturnType<typeof useOrganization>;
 
-function ChoiceFailure({ organization }: { organization: DetailOrganization }) {
+export function ChoiceFailure({ organization }: { organization: DetailOrganization }) {
   return organization.failure ? (
     <p role="alert" className="mt-3 text-sm">
       {organization.failure === "read"

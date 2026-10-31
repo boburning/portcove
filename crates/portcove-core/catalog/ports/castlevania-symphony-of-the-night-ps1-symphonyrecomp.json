@@ -3,12 +3,43 @@
   "listing": {
     "id": "castlevania-symphony-of-the-night-ps1-symphonyrecomp",
     "name": "Castlevania: Symphony of the Night — PS1 / SymphonyRecomp",
-    "summary": "Explore Castlevania: Symphony of the Night — PS1 / SymphonyRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an already permitted working SymphonyRecomp v0.5.1b Windows player with your own US disc, preserving its existing .NET host, actual profile, cards, mods and upstream updater.",
     "project_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
     "issue_number": 319,
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
+    "original_game_title": "Castlevania: Symphony of the Night",
+    "manual_setup": {
+      "help_url": "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/16859f39abbeca905dcd6ab062617f19a7285fe6/README.md",
+      "steps": [
+        {
+          "title": "Use an already permitted working official copy",
+          "instruction": "Use an already permitted official v0.5.1b Windows x64 sotn.exe copy in the scope of the publisher’s explicit released-player invitation and own-original instructions. That narrower context is not a top-level/mod source or redistribution license; RecompOne MIT does not license the whole project/mod package. Keep actual selected-copy use conditions and all applicable notices. This route does not clear the broader existing distribution/source-grant conditions."
+        },
+        {
+          "title": "Keep the existing runtime and native entry",
+          "instruction": "Retain the complete working copy, adjacent DLL/native dependencies and its functioning player-owned .NET10 runtime context. Select sotn.exe, not sotn.dll, system dotnet.exe, a generator or updater staging helper. This release is framework-dependent; Portcove does not install/configure a nested .NET runtime or synthesize DOTNET_ROOT. Finish normal upstream setup outside Core before registration."
+        },
+        {
+          "title": "Bind the actual profile and owned original",
+          "instruction": "Use your own North-American Symphony of the Night SLUS-00067/SLUS_000.67 CHD or CUE with all referenced data/audio BIN tracks. Preserve the complete original set/path for streaming; do not substitute known Japanese/European or Nocturne/XBLA inputs. Select the actual established writable runtime/profile working directory, normally the extracted root, and one literal argument token containing the absolute CHD/CUE path. Preserve spaces inside that token and the creating custom CWD. No --rom/--config/--no-updater or profile environment switch is established."
+        },
+        {
+          "title": "Review intent and choose Play separately",
+          "instruction": "Review and consent to the exact executable, working directory and one original-path argument; registration does not prepare or start the game. Choose Play separately. Ordinary runtime is in the same apphost; upstream self-update stages/replaces/relaunches through successors outside Core’s selected-process observation. Its bounded wait is not proof the original exited or that successor arguments/custom profile are preserved. Let upstream finish and close all actual players before manual changes/relink. Upstream/player retains runtime replacement; Core does not compete with it."
+        },
+        {
+          "title": "Preserve the whole creating profile and custom cards",
+          "instruction": "Keep the full runtime, original and actual CWD-relative settings.json/interface.ini, carda.sav/cardb.sav, all .sav/backup/config files, disc and mods including shipped executable sources/.cache and player edits, diagnostics and all unknown/custom outputs. Preserve absolute CardAPath/CardBPath targets separately; relative cards follow actual CWD. Preserve any upstream-owned external updater/recovery evidence. No new managed mod merge, backup, state migration or cross-build compatibility is granted. Removing registration removes only Core metadata and preserves external bytes."
+        }
+      ],
+      "warnings": [
+        "The inspected upstream boot-identity checks are not full-disc cryptographic authentication. Earlier actual v0.5.1b Windows CHD/window/normal-close observations keep their exact scope; this batch adds no game execution or gameplay/save/load qualification and inherits nothing from another Castlevania port.",
+        "The selected tag uses AutoUpdateEnabled in interface.ini; current-source updater options differ. No CLI/environment disable is established, and non-owning registration need not disable the upstream updater. Managed host provisioning, pre-check updater control, mod ownership/merge and actual lifecycle qualification remain unresolved stronger work.",
+        "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, package/build/source authenticity, exclusive successor-session or sandbox guarantee is offered. Project/mod source and redistribution applicability remain distinct from an already permitted player copy; selection itself grants no rights or Supported/native/installed/protected acceptance."
+      ]
+    },
     "artwork": {
       "game_id": 1128,
       "cover_id": 237968,

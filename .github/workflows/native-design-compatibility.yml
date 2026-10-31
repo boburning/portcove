@@ -10,6 +10,8 @@ on:
         options:
           [
             compatibility,
+            presentation,
+            product-workflows,
             linux-namespace-preflight,
             linux-package-boundary,
             linux-preparation-continuity,
@@ -475,7 +477,7 @@ jobs:
         shell: pwsh
         run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
       - name: Provision existing pinned prebuilt quality tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
       - name: Install locked packages and existing pinned native tools
@@ -493,6 +495,279 @@ jobs:
           just desktop-verify --scenario native-backup-delete-focus --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Native acceptance failed; retain original evidence.' }
       - name: Retain lossless native evidence in ordinary job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
+
+  presentation:
+    if: ${{ inputs.operation == 'presentation' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    name: native-presentation (${{ matrix.selection }})
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        selection: [presentation, interface-size]
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-presentation-${{ matrix.selection }}
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-presentation-${{ matrix.selection }}
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind clean source and interactive hosted session before setup
+        shell: pwsh
+        env:
+          NATIVE_SELECTION: ${{ matrix.selection }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native source identity differs.' }
+          $status = git status --porcelain=v1 --untracked-files=all
+          if ($LASTEXITCODE -ne 0 -or $status) { throw 'Native source must be clean.' }
+          $identity = [ordered]@{
+            source_head = $source
+            workflow = $env:GITHUB_WORKFLOW_REF
+            selection = $env:NATIVE_SELECTION
+            run_id = $env:GITHUB_RUN_ID
+            run_attempt = $env:GITHUB_RUN_ATTEMPT
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+            scope = 'Normal Tauri application in an isolated hosted development fixture; no physical controller, installed package or minimum OS claim.'
+          }
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          if (-not $identity.user_interactive -or $identity.session_id -le 0) {
+            throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
+          }
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Read existing prebuilt quality-tool pins
+        id: native-quality-pins
+        shell: pwsh
+        run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
+      - name: Provision existing pinned prebuilt quality tools
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
+      - name: Install locked packages and existing pinned native tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
+          ./scripts/bootstrap-quality-tools.ps1 -Desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned native bootstrap failed.' }
+      - name: Observe the maintained normal-app presentation profile
+        if: matrix.selection == 'presentation'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          just desktop-verify --profile presentation --require-clean --plan
+          if ($LASTEXITCODE -ne 0) { throw 'Presentation plan failed.' }
+          just desktop-verify --profile presentation --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Native presentation failed; retain original evidence.' }
+      - name: Observe standalone native interface sizing
+        if: matrix.selection == 'interface-size'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          just desktop-verify --scenario native-interface-size --require-clean --plan
+          if ($LASTEXITCODE -ne 0) { throw 'Interface-size plan failed.' }
+          just desktop-verify --scenario native-interface-size --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Native interface sizing failed; retain original evidence.' }
+      - name: Retain bounded lossless native evidence in ordinary job logs
+        if: always()
+        shell: pwsh
+        run: |
+          node scripts/native-backup-evidence.mts emit "$env:PORTCOVE_OUTPUT_DIR"
+          if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
+
+  product_workflows:
+    if: ${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    name: native-product-workflows (${{ matrix.selection }})
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - selection: owned-ready
+            scenarios:
+              - native-external-cli-reconciliation
+              - native-ready-detail-composition
+              - native-game-return-continuity
+              - native-game-update-review
+              - native-missing-readiness-recovery
+              - native-retained-contract-repair-state
+              - native-update-settings-save-without-execution
+              - native-release-channel-selection-and-restart
+          - selection: owned-recovery
+            scenarios:
+              - native-preparation-cancellation
+              - native-interrupted-preparation-recovery
+          - selection: owned-backups
+            scenarios:
+              - native-reviewed-backup-restore-and-delete
+              - native-reviewed-installed-game-removal
+          - selection: owned-steam
+            scenarios:
+              - native-reviewed-steam-entry-add-and-remove
+              - native-reviewed-steam-batch-add
+          - selection: owned-sources
+            scenarios:
+              - native-source-intake-and-discovery-dialogs
+              - native-primary-file-pickers
+              - native-reviewed-source-reference-removal
+          - selection: owned-handoff
+            scenarios:
+              - native-reviewed-existing-install-copy
+              - native-library-move-invalidates-prior-reviews
+              - native-contextual-cli-handoff
+          - selection: library-layout
+            scenarios:
+              - native-library-layout
+          - selection: library-organization
+            scenarios:
+              - native-library-organization-restart
+          - selection: selected-setup
+            scenarios:
+              - native-selected-setup-completion
+          - selection: update-acquisition
+            scenarios:
+              - native-update-acquisition-lifecycle
+          - selection: staged-update
+            scenarios:
+              - native-staged-update-composition
+          - selection: external-runtime
+            scenarios:
+              - native-external-runtime-review
+          - selection: artwork
+            scenarios:
+              - native-local-artwork-picker-and-recovery
+          - selection: restart
+            scenarios:
+              - appearance-restart
+              - native-workspace-refresh-recovery
+          - selection: startup-preferences
+            scenarios:
+              - native-startup-preferences-recovery
+          - selection: startup-library
+            scenarios:
+              - native-startup-library-recovery
+          - selection: library-switch
+            scenarios:
+              - native-library-switch-recovery
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}
+      NATIVE_SCENARIOS: ${{ toJSON(matrix.scenarios) }}
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind clean source and interactive hosted session before setup
+        shell: pwsh
+        env:
+          NATIVE_SELECTION: ${{ matrix.selection }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native source identity differs.' }
+          $status = git status --porcelain=v1 --untracked-files=all
+          if ($LASTEXITCODE -ne 0 -or $status) { throw 'Native source must be clean.' }
+          $identity = [ordered]@{
+            source_head = $source
+            workflow = $env:GITHUB_WORKFLOW_REF
+            selection = $env:NATIVE_SELECTION
+            requested_scenarios = @($env:NATIVE_SCENARIOS | ConvertFrom-Json)
+            run_id = $env:GITHUB_RUN_ID
+            run_attempt = $env:GITHUB_RUN_ATTEMPT
+            image_os = $env:ImageOS
+            image_version = $env:ImageVersion
+            os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            session_id = [Diagnostics.Process]::GetCurrentProcess().SessionId
+            user_interactive = [Environment]::UserInteractive
+            scope = 'Normal Tauri application in an isolated hosted development fixture; no physical controller, installed package or minimum OS claim.'
+          }
+          $identity | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/host.json"
+          if (-not $identity.user_interactive -or $identity.session_id -le 0) {
+            throw 'Hosted interactive desktop is unavailable; preserve the feasibility failure.'
+          }
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Read existing prebuilt quality-tool pins
+        id: native-quality-pins
+        shell: pwsh
+        run: node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT
+      - name: Provision existing pinned prebuilt quality tools
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: ${{ steps.native-quality-pins.outputs.required_prebuilt }}
+      - name: Install locked packages and existing pinned native tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { throw 'Locked package installation failed.' }
+          ./scripts/bootstrap-quality-tools.ps1 -Desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned native bootstrap failed.' }
+      - name: Plan and observe the fixed owned product scenarios
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          $selectedScenarios = @($env:NATIVE_SCENARIOS | ConvertFrom-Json)
+          if ($selectedScenarios.Count -eq 0) { throw 'Fixed scenario selection is missing.' }
+          $scenarioArguments = @()
+          foreach ($scenario in $selectedScenarios) {
+            if ($scenario -isnot [string] -or $scenario -cnotmatch '^[a-z][a-z0-9-]+$') { throw 'Invalid fixed scenario name.' }
+            $scenarioArguments += @('--scenario', $scenario)
+          }
+          just desktop-verify @scenarioArguments --require-clean --plan
+          if ($LASTEXITCODE -ne 0) { throw 'Owned product scenario plan failed.' }
+          just desktop-verify @scenarioArguments --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Owned native product scenario failed; retain original evidence.' }
+      - name: Require the isolated singleton Settings entry evidence
+        if: matrix.selection == 'owned-steam'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runs = @(Get-ChildItem -LiteralPath "$env:PORTCOVE_OUTPUT_DIR/desktop-verify" -Directory)
+          if ($runs.Count -ne 1) { throw 'Exactly one isolated native run is required.' }
+          $report = Get-Content -LiteralPath (Join-Path $runs[0].FullName 'native/steam-entry-result.json') -Raw | ConvertFrom-Json
+          $eligible = @($report.eligible_installed_port_ids)
+          if ($report.entry_route -cne 'settings-integrations' -or $eligible.Count -ne 1 -or $eligible[0] -cne $report.port_id) {
+            throw 'The singleton Steam lane must exercise the actual Settings entry with one eligible installation.'
+          }
+      - name: Retain bounded lossless native evidence in ordinary job logs
         if: always()
         shell: pwsh
         run: |
@@ -711,11 +986,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
@@ -791,11 +1066,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
@@ -869,11 +1144,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin
@@ -947,11 +1222,11 @@ jobs:
         working-directory: source
         run: bash ./scripts/install-linux-desktop-prerequisites.sh
       - name: Install source pinned prebuilt tools
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.required_prebuilt }}
       - name: Install source pinned rscheck
-        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037 # v2.87.32
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.local-pins.outputs.rscheck_spec }}
       - name: Read source aqua pin

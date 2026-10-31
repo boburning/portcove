@@ -3,12 +3,43 @@
   "listing": {
     "id": "jackie-chan-stuntmaster-rechan",
     "name": "Jackie Chan Stuntmaster / ReChan",
-    "summary": "Explore Jackie Chan Stuntmaster / ReChan and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an already prepared ReChan Windows player with your own SLUS-00684 original, preserving its actual data folder, saves, mods and upstream-owned updater.",
     "project_url": "https://github.com/SilverwireGames/ReChan",
     "issue_number": 348,
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/SilverwireGames/ReChan",
+    "original_game_title": "Jackie Chan Stuntmaster",
+    "manual_setup": {
+      "help_url": "https://github.com/SilverwireGames/ReChan/blob/ecd39935559d024992b2049576ea0ecc3b204b8c/README.md",
+      "steps": [
+        {
+          "title": "Prepare a permitted completed upstream copy",
+          "instruction": "Use an already working permitted completed ReChan Windows x86-64 copy under the applicable project MIT and component terms and upstream original-game conditions. The reviewed official v1.0.1 source and current source are distinct creating contracts; neither code grant covers the original game/assets or certifies arbitrary binaries. Keep the completed executable with its shipped support files. Upstream/player owns preparation, repair and runtime replacement."
+        },
+        {
+          "title": "Finish upstream owned-disc preparation first",
+          "instruction": "Follow upstream preparation outside Portcove using your own legally obtained NTSC-U Jackie Chan Stuntmaster SLUS-00684 BIN or ISO, with only one image in discimage beside the runtime. Its first launch verifies the version and extracts required data locally; no separate extraction utility is required by the selected source. Complete that supported first launch before registering this already prepared copy. Do not substitute PAL, another game, CHD/CUE or another port’s source contract. This guide establishes no Core-authenticated original hash or package/build equivalence."
+        },
+        {
+          "title": "Select the actual completed player and data working directory",
+          "instruction": "Select rechan.exe with zero launch arguments and explicitly choose its actual prepared runtime root containing shipped pc support and the extracted game roots as working directory. Official v1.0.1 has no executable-folder fallback; do not rely on one. Preserve a correctly working custom data working directory rather than changing its profile merely to register. Newer inspected source uses working-directory pc first and only then executable-parent pc; that behavior must not be applied to v1.0.1. Do not add disc, export, verification, autotest or crash-test flags to ordinary Play."
+        },
+        {
+          "title": "Review intent and choose Play explicitly",
+          "instruction": "Review and consent to the exact native executable, working directory and empty argument list; registration itself does not run preparation or the game. Choose Play separately. Portcove observes the selected process, not an exclusive full process family. The ordinary upstream self-updater owns replacement and may replace files and start a successor; let it finish and close every actual player before changing or relinking the copy. Review an upstream executable replacement through a new relink."
+        },
+        {
+          "title": "Preserve the complete creating copy and player data",
+          "instruction": "Keep the whole actual runtime, shipped pc support and extracted fe/rchars/rtarget/scr/sound/tim/xc roots and other extracted files, your original/discimage, userfiles including jcsSAVE*.sav, jcsAUTOSAVE.sav and game.ini, ~mods including mods.ini and exported assets, any minidumps/rechan-crash reports, rechan.log when present and every unknown/custom path. Preserve existing external updater/recovery evidence under its upstream ownership. Do not delete the original merely because upstream permits removing an extracted image. No old/new save-format or mod compatibility is established here. Removing registration removes only Portcove metadata and preserves all external bytes."
+        }
+      ],
+      "warnings": [
+        "The project’s MIT grant applies to its codebase, not original game data or every third-party component. Source declarations about newly authored support files do not certify arbitrary historical/current release contents; earlier package-integrity evidence retains its exact version and scope. Upstream/player must supply a permitted, already prepared copy.",
+        "The upstream extractor/updater and ordinary runtime writes remain upstream-owned. No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, network sandbox or full successor-session guarantee is offered. Do not use its crash/export/test modes as a qualification shortcut.",
+        "Source review and the owned inert Core probe do not execute this game or establish gameplay, save/load, state/mod compatibility, other-platform, installed-app or protected delivery acceptance. Preserve each creating build and profile."
+      ]
+    },
     "artwork": {
       "game_id": 18943,
       "cover_id": 113058,

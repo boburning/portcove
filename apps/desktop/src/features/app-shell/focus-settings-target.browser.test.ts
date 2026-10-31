@@ -87,3 +87,14 @@ it("focuses Add folder after saved folders load only while focus remains on Game
   await Promise.resolve();
   expect(document.activeElement?.textContent).toBe("Another action");
 });
+
+it("routes History diagnostics to the support-bundle control with a safe disabled fallback", () => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  document.body.innerHTML = `<section data-settings-group="advanced"><h2 id="settings-advanced-heading" tabindex="-1">Advanced</h2><button data-settings-control="diagnostics">Create support bundle</button></section>`;
+  expect(settingsCategoryForTarget("diagnostics")).toBe("advanced");
+  focusSettingsTarget("diagnostics");
+  expect(document.activeElement?.textContent).toBe("Create support bundle");
+  document.querySelector("button")!.disabled = true;
+  focusSettingsTarget("diagnostics");
+  expect(document.activeElement?.id).toBe("settings-advanced-heading");
+});

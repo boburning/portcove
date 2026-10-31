@@ -43,7 +43,7 @@ function rows(workflow: string, bytes: Buffer) {
     );
     const alternatives =
       typeof timeout === "string"
-        ? /^\$\{\{\s*(?:inputs\.report_only_repair|needs\.identity\.outputs\.release_profile\s*==\s*'initial-beta-win-linux')\s*&&\s*([1-9][0-9]*)\s*\|\|\s*([1-9][0-9]*)\s*\}\}$/u.exec(
+        ? /^\$\{\{\s*(?:inputs\.report_only_repair|needs\.identity\.outputs\.release_profile\s*(?:==\s*'initial-beta-win-linux'|!=\s*'full'))\s*&&\s*([1-9][0-9]*)\s*\|\|\s*([1-9][0-9]*)\s*\}\}$/u.exec(
             timeout,
           )
         : null;

@@ -17,7 +17,36 @@
       "game_slug": "freespace-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2677
+    "issue_number": 2677,
+    "manual_setup": {
+      "help_url": "https://github.com/scp-fs2open/fs2open.github.com/tree/feed085710869ccd8d998fc07a04ffccc8ed479a",
+      "steps": [
+        {
+          "title": "Prepare the FreeSpace 2 retail route upstream",
+          "instruction": "Use your own complete FreeSpace 2 retail v1.2 data, prepared using the official FreeSpace installation guide. Keep the retail VP files in the actual game root, including root_fs2.vp, smarty_fs2.vp, sparky_fs2.vp, sparky_hi_fs2.vp, stu_fs2.vp, tango1_fs2.vp, tango2_fs2.vp, tango3_fs2.vp and warble_fs2.vp, with permitted cutscenes in data/movies. Preserve complete originals. A separately licensed standalone campaign is a different setup and does not supply the FreeSpace 2 campaign."
+        },
+        {
+          "title": "Select the actual player and CPU build",
+          "instruction": "Prepare a complete official Windows FreeSpace Open player copy compatible with your CPU and data, keeping its DLLs. The reviewed release_26_2_0-RC3 is a release candidate; choose that channel deliberately. The inspected x64 SSE2 package’s normal player is fs2_open_26_2_0_RC3_x64_SSE2.exe; select the actual compatible fs2_open player executable from your prepared copy, not FRED, a dedicated server, installer or mod manager. Keep the retail root as working directory and the established literal -mod and other supported arguments. Launcher-only setup is not reproduced by selecting an engine executable."
+        },
+        {
+          "title": "Retain all creating data and preference roots",
+          "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+        },
+        {
+          "title": "Check the prepared copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

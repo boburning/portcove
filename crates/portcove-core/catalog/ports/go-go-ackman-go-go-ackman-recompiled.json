@@ -9,7 +9,38 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/catmidori/gogoackman1recomp",
-    "issue_number": 2881
+    "issue_number": 2881,
+    "manual_setup": {
+      "help_url": "https://github.com/catmidori/gogoackman1recomp/blob/9f12ba1e59185e6fbe70eb7822338c7709f0c86a/README.md",
+      "steps": [
+        {
+          "title": "Keep an already permitted complete native-host player",
+          "instruction": "Use an already permitted working v1.0 Windows x64 AckmanRecomp.exe copy and its complete creating files under applicable project/framework/component and noncommercial personal-use terms. Source proves reachable compiled game dispatch alongside an active interpreter/hardware core; it does not measure runtime native coverage or establish emulation-free/full-game equivalence. Fresh package acquisition remains conditioned on applicable source-bound embedded English translation payload/translation metadata permission; existing permitted private Japanese base-game use is a separate question."
+        },
+        {
+          "title": "Preserve the exact owned Japanese original",
+          "instruction": "Use your own Go Go Ackman Japanese SNES ROM, unheadered 1,310,720 bytes / upstream SHA256 e8a33b6c8e15cf0aa60e9694471a51926fb97ad895d4714384c6abff28a33a1f. Upstream normalizes an optional 512-byte header and verifies the original. Complete the official picker and a working normal launch outside Core. English/PT-BR translations, IPS conversion, native mod packages and external MSU/audio have separate inputs/rights; no patch or translated-ROM acquisition or compatibility is offered by Core."
+        },
+        {
+          "title": "Select the normal supervised application",
+          "instruction": "Select AckmanRecomp.exe, zero arguments for its already configured normal ROM choice, and its actual established writable containing installation-root CWD. Preserve already required supported --config plus its absolute path or ROM positional argument as separate literal tokens when needed; keep path spaces in each token. The normal entry supervises and waits for its child/recovery lifecycle. Do not select private child/watchdog/restart flags, setup/build scripts or finite diagnostics to bypass that upstream lifecycle. Registration itself does not prepare or launch anything."
+        },
+        {
+          "title": "Review intent and keep recovery upstream-owned",
+          "instruction": "Review and consent to the exact native executable, actual working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns setup, profiles, repair and actual replacement. Close every real instance before changing files, keep the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves all external files. Shader/driver/mod changes can cold-boot a child, restore checkpoints or use fallback config candidates; the parent supervisor waits for the upstream child, while Core observes only its selected process. This is not a process-family sandbox or Core recovery guarantee. Finish real recovery/replacement upstream before reviewing/relinking a changed executable."
+        },
+        {
+          "title": "Retain the complete creating profile and all recovery data",
+          "instruction": "Keep the whole runtime/original and actual config.ini/custom --config, rom/ and external original path, saves/slots/custom states/GGA1_autosave.sav and emergency checkpoints, mods/native packages/MSU audio/player edits, shaders, screenshots, logs/status files, fallback configuration backups and all unknown/custom files. Windows writable assets/profile use the actual executable-side root; changing CWD alone is not a profile redirect. This cartridge declares no battery SRAM; native states are not interchangeable emulator saves. Keep state/mod/recovery history with its creating build. Metadata removal preserves every external byte."
+        }
+      ],
+      "warnings": [
+        "Project/framework PolyForm Noncommercial and retained component notices apply within their scope; no original-ROM or external translation/audio grant is created. Selected source compiles an embedded English translation table and English/PT-BR metadata; PT-BR metadata alone is not evidence that the full PT-BR patch payload is embedded. Source review does not certify exact unacquired package contents or clear those component permissions.",
+        "Release v1.0 source also declares an experimental game build version. Native dispatch is source-evidenced hybrid behavior, not measured native coverage or native game execution here. Preserve interpreter fallback and upstream recovery/known limits; no gameplay/save/state/mod/stability/installed/protected or Supported qualification.",
+        "No Core-managed acquisition/source extraction/translation/generation/Install/Update/Backup/Rollback/migration/deletion or new family framework. Existing private-copy use does not clear the fresh-acquisition component condition."
+      ]
+    },
+    "download_block_reason": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question."
   },
   "upstream_lineage": {
     "format_version": 1,

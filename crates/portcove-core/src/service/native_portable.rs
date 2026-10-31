@@ -91,6 +91,7 @@ impl PortcoveService {
             || retained.launch_environment != to.launch_environment
             || retained.user_data_environment != to.user_data_environment
             || retained.source_profile != to.source_profile
+            || retained.runtime_source_set != to.runtime_source_set
             || retained.runtime_source_filename != to.runtime_source_filename
             || retained.runtime_source_materialization != to.runtime_source_materialization
             || retained.runtime_source_hashes != to.runtime_source_hashes
@@ -104,6 +105,26 @@ impl PortcoveService {
                     && to.setup_marker.is_none()))
         {
             return Err(portable_data_change());
+        }
+        if crate::preparation::source::native(&retained) {
+            let installer = Installer::new(self.library.clone())?;
+            if installer.retained_preparation_mode(from)?
+                == Some(crate::PreparationMode::SourceOnly)
+            {
+                // Registered originals cannot replace the source authority sealed
+                // into this installation, including a same-profile edition change.
+                crate::preparation::source::require_publication(&self.library, from, None)
+                    .map_err(|_| portable_data_change())?;
+                if let Some(previous) = retained_rollback {
+                    if installer.retained_preparation_mode(previous)?
+                        != Some(crate::PreparationMode::SourceOnly)
+                    {
+                        return Err(portable_data_change());
+                    }
+                    crate::preparation::source::require_publication(&self.library, previous, None)
+                        .map_err(|_| portable_data_change())?;
+                }
+            }
         }
         if retained.persistent_paths != to.persistent_paths {
             if let Some(previous) = retained_rollback
@@ -129,6 +150,18 @@ impl PortcoveService {
         let to = self.installed_port(target)?;
         self.require_portable_transition(from, &to)?;
         let retained = self.installed_port(from)?;
+        if crate::preparation::source::native(&retained)
+            && Installer::new(self.library.clone())?.retained_preparation_mode(from)?
+                == Some(crate::PreparationMode::SourceOnly)
+        {
+            if Installer::new(self.library.clone())?.retained_preparation_mode(target)?
+                != Some(crate::PreparationMode::SourceOnly)
+            {
+                return Err(portable_data_change());
+            }
+            crate::preparation::source::require_publication(&self.library, target, None)
+                .map_err(|_| portable_data_change())?;
+        }
         if crate::persistence::ready_staged_archive(&retained)
             && crate::persistence::ready_staged_archive(&to)
             && retained.persistent_paths != to.persistent_paths
@@ -205,6 +238,7 @@ impl PortcoveService {
             self.persistence_contract_for_install(target)?;
             roots.push(self.persistence_root(target_port, &target.path)?);
         }
+        self.require_direct_empty_expansion(retained, to, &roots)?;
         for path in added {
             for root in &roots {
                 crate::persistence::require_absent_path(root, path).map_err(|error| {
@@ -1168,6 +1202,7 @@ mod tests {
     #[tokio::test]
     async fn ready_archive_profile_times_survive_update_backup_and_runtime_rollback() {
         const ID: &str = "infinite-undiscovery-doc-haz";
+        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -1178,10 +1213,18 @@ mod tests {
             "InfiniteUndiscoveryRecomp.exe",
         ))));
         let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        eprintln!(
+            "Native portable profile fixture ready: {:?}",
+            started.elapsed()
+        );
         let first = service
             .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
             .await
             .unwrap();
+        eprintln!(
+            "Native portable profile initial install complete: {:?}",
+            started.elapsed()
+        );
         let relative = "USA/assets/disc1/owned-original.bin";
         let original = first.path.join(relative);
         fs::create_dir_all(original.parent().unwrap()).unwrap();
@@ -1210,6 +1253,10 @@ mod tests {
         .unwrap();
         assert!(!first.path.join(LAUNCH_MARKER).exists());
         let backup = service.create_backup(ID).unwrap();
+        eprintln!(
+            "Native portable profile backup complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::metadata(backup.path.join("data").join(relative))
                 .unwrap()
@@ -1221,9 +1268,17 @@ mod tests {
         *provider.0.lock().unwrap() =
             server.release_in_folder("v1.0.0-rc2", 2, "", "InfiniteUndiscoveryRecomp.exe");
         let update = service.update(ID, None, None, false, |_| {}).await.unwrap();
+        eprintln!(
+            "Native portable profile update staged: {:?}",
+            started.elapsed()
+        );
         assert!(update.staged);
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         let second = service.activate_staged(ID).unwrap();
+        eprintln!(
+            "Native portable profile activation complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::read(second.path.join(relative)).unwrap(),
             b"inert owned data, not retail content"
@@ -1242,6 +1297,10 @@ mod tests {
         assert!(!second.path.join("USA/shaders/old-cache").exists());
         fs::write(second.path.join("USA/saves/progress"), b"newest progress").unwrap();
         let previous = service.rollback(ID).unwrap();
+        eprintln!(
+            "Native portable profile rollback complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(previous.id, first.id);
         assert_eq!(
             fs::read(previous.path.join("USA/saves/progress")).unwrap(),
@@ -1276,12 +1335,20 @@ mod tests {
         );
         // No package executable, original media wizard or game is run.
         assert!(!previous.path.join(LAUNCH_MARKER).exists());
+        eprintln!(
+            "Native portable profile interrupted import refused: {:?}",
+            started.elapsed()
+        );
         let fresh_library = Library::open(temporary.path().join("fresh-library")).unwrap();
         let fresh = PortcoveService::with_provider(fresh_library, provider).unwrap();
         let newest = fresh
             .install(ID, Some(ReleaseChannel::Beta), None, None, true, |_| {})
             .await
             .unwrap();
+        eprintln!(
+            "Native portable profile fresh install complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(newest.version, "v1.0.0-rc2");
         assert!(!newest.path.join(relative).exists());
         assert!(!newest.path.join(LAUNCH_MARKER).exists());
@@ -1680,6 +1747,7 @@ mod tests {
     #[tokio::test]
     async fn ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults() {
         const ID: &str = "alariq-mc2";
+        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -1692,11 +1760,16 @@ mod tests {
         let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
         let port = service.catalog.port(ID).unwrap();
         assert!(crate::persistence::ready_staged_archive(port));
+        eprintln!("Ready staged fixture ready: {:?}", started.elapsed());
         let first = service
             .install(ID, None, None, None, true, |_| {})
             .await
             .unwrap();
         let root = first.path.join("mc2-win64-v0.1.3");
+        eprintln!(
+            "Ready staged fixture initial install complete: {:?}",
+            started.elapsed()
+        );
         assert!(psx_mod_data::initialized(&first).unwrap());
         fs::write(root.join("options.cfg"), b"before first Play").unwrap();
         fs::create_dir_all(root.join("data/multiplayer")).unwrap();
@@ -1713,6 +1786,10 @@ mod tests {
         .unwrap();
         assert!(!first.path.join(LAUNCH_MARKER).exists());
         let backup = service.create_backup(ID).unwrap();
+        eprintln!(
+            "Ready staged fixture backup complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::read(backup.path.join("data/options.cfg")).unwrap(),
             b"before first Play"
@@ -1723,8 +1800,16 @@ mod tests {
             server.release_in_folder("v0.1.4", 2, "mc2-win64-v0.1.4/", "mc2.exe");
         let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
         assert!(staged.staged);
+        eprintln!(
+            "Ready staged fixture successor staged: {:?}",
+            started.elapsed()
+        );
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         let second = service.activate_staged(ID).unwrap();
+        eprintln!(
+            "Ready staged fixture successor activated: {:?}",
+            started.elapsed()
+        );
         let second_root = second.path.join("mc2-win64-v0.1.4");
         assert_eq!(
             fs::read(second_root.join("options.cfg")).unwrap(),
@@ -1748,6 +1833,10 @@ mod tests {
             .prepare_launch_for_install(port, &second, None, None)
             .unwrap();
         assert_eq!(spec.working_directory, second_root);
+        eprintln!(
+            "Ready staged fixture launch preparation complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(
             fs::read(library.user_dir(ID).join("options.cfg")).unwrap(),
             b"deliberate successor choice"
@@ -1755,6 +1844,10 @@ mod tests {
         // Preparation returns a specification; no fixture executable is run.
         assert!(!second.path.join(LAUNCH_MARKER).exists());
         let restored = service.rollback(ID).unwrap();
+        eprintln!(
+            "Ready staged fixture runtime rollback complete: {:?}",
+            started.elapsed()
+        );
         assert_eq!(restored.id, first.id);
         assert_eq!(
             fs::read(root.join("options.cfg")).unwrap(),
@@ -1773,6 +1866,10 @@ mod tests {
                 .contains("unrecognized files")
         );
         assert!(service.update(ID, None, None, true, |_| {}).await.is_err());
+        eprintln!(
+            "Ready staged fixture unknown-file update refused: {:?}",
+            started.elapsed()
+        );
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, first.id);
         assert_eq!(
             fs::read(root.join("unknown-player-file")).unwrap(),
@@ -3367,6 +3464,374 @@ mod tests {
         catalog
     }
 
+    #[test]
+    fn mmx2_diagnostic_package_has_exact_source_admission_and_retains_older_bindings() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("mega-man-x2-snes-recomp").unwrap();
+        let release = &port.release.direct[&Platform::WindowsX86_64];
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| {
+                contract.port_id == port.id
+                    && contract.role == crate::source_catalog::PortSourceRole::Game
+            })
+            .unwrap();
+        assert_eq!(release.version, "v0.2.1");
+        assert!(contract.applies_to_release(&release.version, &release.sha256));
+        assert!(!contract.applies_to_release(&release.version, &"a".repeat(64)));
+        assert!(!contract.applies_to_release("unreviewed-version", &release.sha256));
+        for (version, sha256) in [
+            (
+                "v0.1.4",
+                "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+            ),
+            (
+                "v0.1.5",
+                "dcfc7bee4e817cff7fd95c315800732ab4cc877df1c5225afd314585eac9494d",
+            ),
+        ] {
+            assert!(contract.applies_to_release(version, sha256));
+        }
+        assert!(crate::persistence::requires_fresh_direct_data_guard(port));
+    }
+
+    fn mmx2_diagnostic_fixture(current: bool, original: &[u8]) -> Catalog {
+        // Retain the exact 0.1.5 definition independently of the evolving catalog.
+        // Only source authority is substituted with inert first-party bytes.
+        let mut port: PortDefinition = if current {
+            Catalog::embedded()
+                .unwrap()
+                .port("mega-man-x2-snes-recomp")
+                .unwrap()
+                .clone()
+        } else {
+            serde_json::from_str(include_str!(
+                "../../tests/fixtures/mmx2-015-historical.json"
+            ))
+            .unwrap()
+        };
+        let profile = port.source_profile.clone().unwrap();
+        let hash = hex::encode(Sha256::digest(original));
+        port.runtime_source_hashes
+            .insert("game.sfc".into(), hash.clone());
+        Catalog::from_json(
+            &serde_json::json!({
+                "schema_version": 1,
+                "source_profiles": [{"id": profile, "label": "Mega Man X2 (USA) exact headerless SNES original",
+                    "kind": "file", "accepted_extensions": ["sfc"], "accepted_sha256": [hash]}],
+                "ports": [port]
+            })
+            .to_string(),
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn mmx2_diagnostic_expansion_preserves_empty_source_and_refuses_populated_or_shrinking_scope()
+     {
+        const ID: &str = "mega-man-x2-snes-recomp";
+        let original = b"inert source fixture, never a retail original";
+        for blocked in [
+            None,
+            Some("active-save"),
+            Some("canonical-config"),
+            Some("added-logs"),
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let source = temporary.path().join("fixture.sfc");
+            fs::write(&source, original).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+                "v0.1.5",
+                1,
+                "",
+                "MegaManX2SNESRecomp.exe",
+            ))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(mmx2_diagnostic_fixture(false, original));
+            service
+                .register_source("mega-man-x2-snes-usa", &source)
+                .unwrap();
+            let old = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let old_port = service.installed_port(&old).unwrap();
+            service
+                .prepare_launch_for_install(&old_port, &old, None, None)
+                .unwrap();
+            assert_eq!(fs::read(old.path.join("game.sfc")).unwrap(), original);
+            let manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
+            let retained = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
+            let protected = blocked.map(|case| match case {
+                "active-save" => old.path.join("saves"),
+                "canonical-config" => library.user_dir(ID).join("config.ini"),
+                _ => library.user_dir(ID).join("logs"),
+            });
+            if let Some(path) = &protected {
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                fs::write(path, b"retain exact player bytes").unwrap();
+            }
+            service.replace_catalog_for_test(mmx2_diagnostic_fixture(true, original));
+            let current = service.catalog.port(ID).unwrap().clone();
+            assert_eq!(current.persistent_paths.len(), 9);
+            assert_eq!(
+                &current.persistent_paths[..8],
+                old_port.persistent_paths.as_slice()
+            );
+            assert_eq!(current.persistent_paths[8], "logs");
+            *provider.0.lock().unwrap() =
+                server.release_in_folder("v0.2.1", 2, "", "MegaManX2SNESRecomp.exe");
+            let update = service.update(ID, None, None, true, |_| {}).await;
+            if let Some(path) = protected {
+                assert_eq!(
+                    update.unwrap_err().presentation().presentation_key,
+                    "portable_data_contract_changed"
+                );
+                assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+                assert_eq!(fs::read(path).unwrap(), b"retain exact player bytes");
+                assert_eq!(library.all_installs().unwrap().len(), 1);
+            } else {
+                let next = update.unwrap();
+                assert_eq!(service.status(ID).unwrap().active.unwrap().id, next.id);
+                assert_eq!(fs::read(next.path.join("game.sfc")).unwrap(), original);
+                fs::create_dir_all(next.path.join("logs")).unwrap();
+                fs::write(next.path.join("logs/session.replay"), b"private diagnostic").unwrap();
+                // An ordinary downgrade cannot silently shrink the creating scope.
+                assert!(
+                    service
+                        .require_portable_transition(&next, &old_port)
+                        .is_err()
+                );
+                assert!(
+                    service
+                        .require_portable_rollback_transition(&next, &old)
+                        .is_err()
+                );
+                assert_eq!(
+                    fs::read(next.path.join("logs/session.replay")).unwrap(),
+                    b"private diagnostic"
+                );
+            }
+            assert_eq!(
+                fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+                manifest
+            );
+            assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), retained);
+        }
+    }
+
+    fn sonic3k_compatibility_fixture(legacy: bool) -> Catalog {
+        // Synthetic package with the historical reader selector, not game data.
+        let catalog = ready_persistence_catalog(!legacy, !legacy);
+        let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        document["ports"][0]["id"] = serde_json::json!("sonic-3-and-knuckles-recomp");
+        document["ports"][0]["channels"] = serde_json::json!(["stable"]);
+        if legacy {
+            document["ports"][0]["release"] = serde_json::json!({
+                "provider": "direct-manifest", "direct": { "windows-x86-64": {
+                    "version": "v0.5.3", "url": "https://example.invalid/legacy.zip", "size": 1,
+                    "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+                }}
+            });
+        }
+        Catalog::from_json(&document.to_string()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn sonic3k_expansion_refuses_populated_common_data_and_preserves_legacy_play_contract() {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        for canonical in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(sonic3k_compatibility_fixture(true));
+            let old = service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
+            let receipt = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
+            let root = if canonical {
+                library.user_dir(ID)
+            } else {
+                old.path.clone()
+            };
+            fs::create_dir_all(&root).unwrap();
+            fs::write(root.join("settings.ini"), b"preserve common legacy data").unwrap();
+            service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+            *provider.0.lock().unwrap() = server.release("v2", 2);
+            let failure = service
+                .update(ID, None, None, false, |_| {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                failure.presentation().presentation_key,
+                "portable_data_contract_changed"
+            );
+            assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+            assert_eq!(
+                fs::read(root.join("settings.ini")).unwrap(),
+                b"preserve common legacy data"
+            );
+            assert_eq!(
+                fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+                manifest
+            );
+            assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), receipt);
+            assert!(!root.join("campaign.dat").exists());
+            service
+                .require_direct_fresh_data(&service.installed_port(&old).unwrap())
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn sonic3k_fresh_creation_and_recovery_refuse_unproven_canonical_data() {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v2", 2))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"unknown creating runtime",
+        )
+        .unwrap();
+        assert!(
+            service
+                .install(ID, None, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+        fs::remove_file(library.user_dir(ID).join("settings.ini")).unwrap();
+        let staged = service
+            .install(ID, None, None, None, false, |_| {})
+            .await
+            .unwrap();
+        // An attacker or interrupted/manual copy cannot acquire creating-runtime
+        // authority from a launch marker or a new manifest alone.
+        let receipt = staged.path.join(PSX_DATA_RECEIPT);
+        if receipt.exists() {
+            fs::remove_file(&receipt).unwrap();
+        }
+        fs::write(staged.path.join(LAUNCH_MARKER), b"").unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"unknown creating runtime",
+        )
+        .unwrap();
+        assert!(service.prepare_retained_install_data(&staged).is_err());
+        assert!(service.activate_staged(ID).is_err());
+        assert!(!receipt.exists());
+        assert!(!staged.path.join("settings.ini").exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("settings.ini")).unwrap(),
+            b"unknown creating runtime"
+        );
+        assert!(service.status(ID).unwrap().active.is_none());
+    }
+
+    #[tokio::test]
+    async fn sonic3k_backup_restore_cannot_initialize_unknown_data_but_retains_established_restore()
+    {
+        const ID: &str = "sonic-3-and-knuckles-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release("v2", 2))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
+        let current = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let port = service.installed_port(&current).unwrap();
+        service.restore_user_data_to(&port, &current.path).unwrap();
+        let receipt = fs::read(current.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::create_dir_all(library.user_dir(ID)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"established bytes",
+        )
+        .unwrap();
+        fs::write(current.path.join("settings.ini"), b"established bytes").unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        fs::write(library.user_dir(ID).join("settings.ini"), b"newer bytes").unwrap();
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &consent.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(current.path.join("settings.ini")).unwrap(),
+            b"established bytes"
+        );
+        assert_eq!(
+            fs::read(current.path.join(PSX_DATA_RECEIPT)).unwrap(),
+            receipt
+        );
+        // Remove only the task fixture's initialization authority. The next
+        // restore must refuse BEFORE canonical publication or runtime writes.
+        fs::remove_file(current.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::write(
+            library.user_dir(ID).join("settings.ini"),
+            b"preserve canonical",
+        )
+        .unwrap();
+        fs::write(current.path.join("settings.ini"), b"preserve runtime").unwrap();
+        assert!(
+            service
+                .require_psx_restore_preflight(ID, &backup.path.join("data"))
+                .is_err()
+        );
+        assert!(service.synchronize_restored_user_data(ID).is_err());
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        assert!(
+            service
+                .restore_backup(ID, &backup.id, &consent.token)
+                .is_err()
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("settings.ini")).unwrap(),
+            b"preserve canonical"
+        );
+        assert_eq!(
+            fs::read(current.path.join("settings.ini")).unwrap(),
+            b"preserve runtime"
+        );
+        assert!(!current.path.join(PSX_DATA_RECEIPT).exists());
+    }
+
     #[tokio::test]
     async fn empty_ready_persistence_expansion_preserves_preplay_data_and_committed_recovery() {
         const ID: &str = "portable-fixture";
@@ -4756,5 +5221,362 @@ mod tests {
             fs::read(first.path.join("data/original.rom")).unwrap(),
             b"authorized synthetic original"
         );
+    }
+
+    // Inert packages exercise the actual managed definition without running the
+    // upstream original-data picker, player or any external original files.
+    #[tokio::test]
+    async fn wc1_managed_progression_keeps_supported_gui_without_core_source_inputs() {
+        let id = "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re";
+        let program_name = "wc1-modern.exe";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let release = |version: &str, revision| {
+            let mut release = server.release_in_folder(version, revision, "", program_name);
+            release.asset.name = format!("wc1-re-{version}-windows-x86_64-sdl2.zip");
+            release
+        };
+        let provider = Arc::new(Provider(Mutex::new(release("v1", 1))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
+        let assert_launch = |record: &InstallRecord| {
+            let retained = service.installed_port(record).unwrap();
+            assert_eq!(serde_json::to_value(&retained).unwrap(), definition);
+            assert!(retained.source_profile.is_none());
+            assert!(retained.persistent_paths.is_empty());
+            let spec = crate::adapter::standard(AdapterKind::NativePortable)
+                .launch_spec(
+                    &library,
+                    &retained,
+                    Platform::WindowsX86_64,
+                    &record.path,
+                    None,
+                )
+                .unwrap();
+            assert_eq!(
+                spec.executable.file_name(),
+                Some(std::ffi::OsStr::new(program_name))
+            );
+            assert_eq!(spec.working_directory, record.path);
+            assert_eq!(spec.arguments, ["--gui"]);
+            assert_eq!(spec.process_spec().fixed_arguments, ["--gui"]);
+        };
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_launch(&first);
+        *provider.0.lock().unwrap() = release("v2", 2);
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(second.version, "v2");
+        assert_ne!(first.artifact.sha256, second.artifact.sha256);
+        assert_launch(&second);
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        assert_launch(&previous);
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            definition
+        );
+        assert_eq!(fs::read(previous.path.join("package.txt")).unwrap(), [1]);
+        assert!(second.path.join(program_name).is_file());
+    }
+    // These first-party inert packages exercise retained definitions and fallback
+    // preservation. They do not run SDL, upstream setup, a player or original data.
+    async fn assert_profile_engine_progression(
+        id: &str,
+        executable: &str,
+        asset_name: &str,
+        wrapped: bool,
+        local_state: Option<&str>,
+        fault_file: Option<&str>,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let release = |version: &str, revision| {
+            let folder = if wrapped {
+                format!("engine-{version}/")
+            } else {
+                String::new()
+            };
+            let mut release = server.release_in_folder(version, revision, &folder, executable);
+            release.asset.name = asset_name.to_string();
+            release
+        };
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port(id).unwrap();
+        let rolling_tag = port.release.rolling_tag.as_deref();
+        let first_version = rolling_tag.unwrap_or("v1");
+        let second_version = rolling_tag.unwrap_or("v2");
+        if local_state.is_none() {
+            assert!(port.persistent_paths.is_empty());
+            assert!(port.persistent_file_patterns.is_empty());
+        }
+        let provider = Arc::new(Provider(Mutex::new(release(first_version, 1))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
+        let launch = |record: &InstallRecord| {
+            let retained = service.installed_port(record).unwrap();
+            assert_eq!(serde_json::to_value(&retained).unwrap(), definition);
+            assert!(retained.source_profile.is_none());
+            assert!(retained.setup_marker.is_none());
+            let spec = crate::adapter::standard(AdapterKind::NativePortable)
+                .launch_spec(
+                    &library,
+                    &retained,
+                    Platform::WindowsX86_64,
+                    &record.path,
+                    None,
+                )
+                .unwrap();
+            assert_eq!(
+                spec.executable.file_name(),
+                Some(std::ffi::OsStr::new(executable))
+            );
+            assert_eq!(
+                spec.executable.parent(),
+                Some(spec.working_directory.as_path())
+            );
+            assert!(spec.arguments.is_empty());
+            assert!(spec.process_spec().fixed_arguments.is_empty());
+            spec.working_directory
+        };
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let first_root = launch(&first);
+        if let Some(local_state) = local_state {
+            let state = first_root.join(local_state);
+            fs::create_dir_all(state.parent().unwrap()).unwrap();
+            fs::write(&state, b"synthetic local user state").unwrap();
+        }
+        *provider.0.lock().unwrap() = release(second_version, 2);
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(second.version, second_version);
+        assert_ne!(first.id, second.id);
+        if let Some(tag) = rolling_tag {
+            assert_eq!(first.version, tag);
+            assert_eq!(second.version, tag);
+            assert_eq!(first.channel, crate::ReleaseChannel::Rolling);
+            assert_eq!(second.channel, crate::ReleaseChannel::Rolling);
+        }
+        assert_ne!(first.artifact.sha256, second.artifact.sha256);
+        let second_root = launch(&second);
+        if let Some(local_state) = local_state {
+            assert_eq!(
+                fs::read(second_root.join(local_state)).unwrap(),
+                b"synthetic local user state"
+            );
+        }
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        let previous_root = launch(&previous);
+        if let Some(local_state) = local_state {
+            assert_eq!(
+                fs::read(previous_root.join(local_state)).unwrap(),
+                b"synthetic local user state"
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            definition
+        );
+        assert!(second_root.join(executable).is_file());
+        if let Some(name) = fault_file {
+            let preview = service.preview_removal(id).unwrap();
+            let consent = service
+                .authorize_removal(id, &preview.preview_sha256)
+                .unwrap();
+            let unknown = previous_root.join(name);
+            fs::write(&unknown, b"unclaimed fallback pilot; preserve exact bytes").unwrap();
+            let error = service
+                .update(id, None, None, true, |_| {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.presentation().presentation_key,
+                "portable_runtime_modified"
+            );
+            assert!(service.preview_removal(id).is_err());
+            let removal = service.remove(id, &consent.token).unwrap_err();
+            assert_eq!(
+                removal.presentation().presentation_key,
+                "portable_runtime_modified"
+            );
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            assert_eq!(
+                fs::read(unknown).unwrap(),
+                b"unclaimed fallback pilot; preserve exact bytes"
+            );
+            if let Some(local_state) = local_state {
+                assert_eq!(
+                    fs::read(previous_root.join(local_state)).unwrap(),
+                    b"synthetic local user state"
+                );
+            }
+            assert_eq!(fs::read(previous_root.join("package.txt")).unwrap(), [1]);
+            assert!(previous_root.join(executable).is_file());
+            assert!(second_root.join(executable).is_file());
+        }
+    }
+
+    #[tokio::test]
+    async fn atlantis_native_managed_progression_preserves_dedicated_fallback_without_source_import()
+     {
+        assert_profile_engine_progression(
+            "atlantis-the-lost-tales-atlantis-native",
+            "atlantis-native.exe",
+            "atlantis-native-windows-x64.zip",
+            false,
+            Some("atlantis-native-data/games.txt"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxw_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-openxw",
+            "OpenXW.exe",
+            "openxw-test-windows-x86_64-release.zip",
+            true,
+            Some("config.yaml"),
+            Some("PILOT.PLT"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxvt_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+            "OpenXvT.exe",
+            "openxvt-test-windows-x86_64-release.zip",
+            true,
+            Some("config.yaml"),
+            Some("pilot.pl2"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxwa_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-alliance-openxwa",
+            "OpenXWA.exe",
+            "openxwa-test-windows-x86_64-release.zip",
+            true,
+            Some("config.yaml"),
+            Some("Pilot0.plt"),
+        )
+        .await;
+    }
+    #[tokio::test]
+    async fn gunstars_managed_progression_preserves_default_paths_without_core_rom_import() {
+        assert_profile_engine_progression(
+            "gunstar-heroes-gunstars",
+            "gunstar.exe",
+            "gunstars-test-windows-x64.zip",
+            true,
+            Some("states/slot1.state"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn atomic_bomberman_managed_progression_preserves_local_free_assets_with_external_profile()
+     {
+        assert_profile_engine_progression(
+            "elraro-atomic-bomberman",
+            "atomic.exe",
+            "atomic-bomberman-modern-windows-x64.zip",
+            true,
+            Some("free-assets/free-assets.txt"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn ja2_stracciatella_managed_progression_keeps_external_profiles_unowned() {
+        assert_profile_engine_progression(
+            "jagged-alliance-2-ja2-stracciatella",
+            "ja2.exe",
+            "ja2-stracciatella_fixture_win-msvc64-142.zip",
+            true,
+            None,
+            Some("unexpected-local-profile.dat"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openvyruz_managed_progression_preserves_only_declared_local_fallback() {
+        assert_profile_engine_progression(
+            "vyruz-destruction-of-the-untel-empire-openvyruz",
+            "Vyruz.exe",
+            "OpenVyruz-fixture-windows-x64.zip",
+            true,
+            Some("OpenVyruz/game-folder.txt"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn three_sx_rolling_progression_replaces_changed_artifact_at_unchanged_tag() {
+        assert_profile_engine_progression(
+            "street-fighter-iii-3rd-strike-3sx",
+            "3sx.exe",
+            "3SX-fixture-windows.zip",
+            true,
+            None,
+            Some("unexpected-local-profile.dat"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn three_sxw_managed_progression_preserves_memory_cards_and_holds_interrupted_probe() {
+        assert_profile_engine_progression(
+            "street-fighter-iii-3rd-strike-3sxw",
+            "SF3.exe",
+            "3SX-fixture-windows.zip",
+            true,
+            Some("data/saves/slot1/card.save"),
+            Some("data/.3sx-write-test-0000000000000001-00000002.tmp"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn zamn_managed_progression_preserves_interrupted_default_quicksave() {
+        assert_profile_engine_progression(
+            "moshferatu-zombies-ate-my-neighbors-pc-port",
+            "zamn_launcher.exe",
+            "zamn-windows-x86_64.zip",
+            true,
+            Some("zamn.quicksave.tmp"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn oracles_managed_progression_preserves_unfinished_portable_profile() {
+        assert_profile_engine_progression(
+            "kirby-letsgo-oracles-decomp",
+            "Oracles.exe",
+            "Oracles-windows-x64.zip",
+            true,
+            Some("oracles-data.part/retained/in-progress.dat"),
+            None,
+        )
+        .await;
     }
 }

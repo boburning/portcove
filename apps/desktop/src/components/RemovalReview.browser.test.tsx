@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -127,6 +128,7 @@ it("lists every affected path, removed settings and preserved data before explic
     expect(dialog().textContent).toContain(text);
   expect(dialog().textContent).toContain("original folders used for copied installations");
   expect(dialog().textContent?.toLowerCase()).not.toContain("adoption");
+  await captureParityState("removal-reviewed-fixture");
   await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
   await click("Uninstall all versions");
   expect(apply).toHaveBeenCalledExactlyOnceWith("reviewed-installations");
@@ -175,8 +177,10 @@ it("blocks duplicate removal and requires a new review after failure", async () 
   await click("Cancel");
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
+  await captureParityState("removal-pending-fixture");
   await act(async () => finish(false));
   expect(dialog().querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  await captureParityState("removal-failed-fixture");
   expect(
     [...dialog().querySelectorAll("button")].some(
       (button) => button.textContent === "Uninstall all versions",

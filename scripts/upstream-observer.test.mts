@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   ObservationFailure,
   observationHash,
+  githubDirectPin,
   observeUpstream,
   validateObserverConfig,
 } from "./upstream-observer.mts";
@@ -24,6 +25,7 @@ type MonitoringArtifactRule = {
   platform: string;
   repository: string;
   port_contract_sha256: string;
+  url: string;
 };
 type RetainedArtifact = (typeof retainedArtifacts.artifacts)[number];
 const artifactKey = (id: string, platform: string) => JSON.stringify([id, platform]);
@@ -48,8 +50,9 @@ function assertArtifactMonitoringBindings(
     assert.ok(isRecord(port) && isRecord(port.release));
     const inputs = healthPortInputs(port);
     const release = port.release;
-    if (Object.hasOwn(inputs.release.direct, rule.platform)) {
-      // A changed active artifact must never fall back to historical facts.
+    const currentArtifact = inputs.release.direct[rule.platform];
+    if (currentArtifact?.url === rule.url) {
+      // The same URL with changed bytes or version cannot fall back to history.
       assert.equal(
         healthArtifactHash(port, rule.platform),
         rule.port_contract_sha256,
@@ -58,12 +61,17 @@ function assertArtifactMonitoringBindings(
       current++;
       continue;
     }
-    assert.equal(release.provider, "github");
-    assert.equal(release.repository, rule.repository);
-    assert.ok(isRecord(release.asset_hints));
-    const hints = release.asset_hints[rule.platform];
-    assert.ok(Array.isArray(hints) && hints.length > 0);
-    assert.ok(hints.every((hint: unknown) => typeof hint === "string" && hint.length > 0));
+    if (currentArtifact) {
+      assert.equal(release.provider, "direct-manifest");
+      assert.equal(githubDirectPin(currentArtifact.url).repository, rule.repository);
+    } else {
+      assert.equal(release.provider, "github");
+      assert.equal(release.repository, rule.repository);
+      assert.ok(isRecord(release.asset_hints));
+      const hints = release.asset_hints[rule.platform];
+      assert.ok(Array.isArray(hints) && hints.length > 0);
+      assert.ok(hints.every((hint: unknown) => typeof hint === "string" && hint.length > 0));
+    }
     const key = artifactKey(rule.port_id, rule.platform);
     const row = requiredFixture(retained.get(key));
     assert.equal(
@@ -77,6 +85,7 @@ function assertArtifactMonitoringBindings(
       rule.port_contract_sha256,
       rule.port_id,
     );
+    assert.ok(!used.has(key), "retained projection must be used once");
     used.add(key);
   }
   assert.deepEqual(
@@ -591,9 +600,54 @@ void test("monitoring bindings reject changed active pins and malformed retained
     retained: 0,
     total: 1,
   });
-  await t.test("changed active bytes cannot use a matching historical projection", () => {
-    const changed = structuredClone(active);
-    changed.release.direct[row.platform]!.sha256 = "0".repeat(64);
+  for (const [field, value] of [
+    ["sha256", "0".repeat(64)],
+    ["size", row.artifact.size + 1],
+    ["version", "changed"],
+  ] as const)
+    await t.test(`changed active ${field} cannot use a matching historical projection`, () => {
+      const changed = structuredClone(active);
+      Object.assign(changed.release.direct[row.platform]!, { [field]: value });
+      assert.throws(
+        () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+        assert.AssertionError,
+      );
+    });
+  const replacement = structuredClone(active);
+  replacement.release.direct[row.platform]!.url = row.artifact.url.replace(
+    "/releases/download/",
+    "/releases/download/superseding-",
+  );
+  await t.test(
+    "a superseded URL retains its exact historical projection without approving the replacement",
+    () => {
+      assert.deepEqual(assertArtifactMonitoringBindings([replacement], [rule], [row]), {
+        current: 0,
+        retained: 1,
+        total: 1,
+      });
+    },
+  );
+  await t.test("a superseded URL still requires its historical projection", () => {
+    assert.throws(
+      () => assertArtifactMonitoringBindings([replacement], [rule], []),
+      assert.AssertionError,
+    );
+  });
+  for (const repository of ["foreign/project", `${rule.repository}-spoof`])
+    await t.test(`a superseded URL rejects changed repository ${repository}`, () => {
+      const changed = structuredClone(replacement);
+      changed.release.direct[row.platform]!.url = changed.release.direct[row.platform]!.url.replace(
+        rule.repository,
+        repository,
+      );
+      assert.throws(
+        () => assertArtifactMonitoringBindings([changed], [rule], [row]),
+        assert.AssertionError,
+      );
+    });
+  await t.test("same URL provider drift cannot use historical facts", () => {
+    const changed = { ...active, release: { ...active.release, provider: "github" } };
     assert.throws(
       () => assertArtifactMonitoringBindings([changed], [rule], [row]),
       assert.AssertionError,

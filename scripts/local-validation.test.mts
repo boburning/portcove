@@ -72,6 +72,10 @@ const allFilesExist = () => true;
 void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const consumers: [string, string[]][] = [
+    [
+      "desktop-linux-native-session.mts",
+      ["desktop-linux-native-session", "desktop-linux-stop", "desktop-boundary-wiring"],
+    ],
     ["native-linux-isolated-session.mts", ["native-linux-isolated-plan", "desktop-linux-stop"]],
     ["native-linux-isolated-plan.mts", ["native-linux-isolated-plan"]],
     ["native-linux-public-plan.mts", ["native-linux-public-plan"]],
@@ -730,6 +734,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/fixture-module-closure.test.mts",
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
+    "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -1615,6 +1620,7 @@ void test("current and historical catalog authorities select their generator con
     "scripts/catalog-artwork-lifecycle.test.mts",
     "scripts/catalog-artwork-provider.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/generate-catalog.test.mts",
   ]);
@@ -1627,6 +1633,7 @@ void test("current and historical catalog authorities select their generator con
     "scripts/catalog-artwork-lifecycle.test.mts",
     "scripts/catalog-artwork-provider.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/generate-catalog.test.mts",
     "scripts/release-native-source-contract.test.mts",
@@ -3235,6 +3242,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const broad = [
     "scripts/generate-catalog.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-artwork-dispatch.test.mts",
@@ -3245,6 +3253,7 @@ void test("catalog generator families retain shared inputs and narrow authoring 
   ];
   const authoring = [
     "scripts/generate-catalog.test.mts",
+    "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-artwork-dispatch.test.mts",
@@ -3367,6 +3376,63 @@ void test("isolated executor recovery fixture edits retain the local and hosted 
     );
   }
   assert.ok(!classifyChanges([{ status: "M", path: "docs/README.md" }]).nodeTests.has(consumer));
+});
+
+void test("isolated signing fixtures retain local and hosted signer/getter coverage", async () => {
+  for (const [file, consumer] of [
+    [
+      "scripts/fixtures/signing-context-artifact-fixture.mts",
+      "scripts/release-signing-context-artifact.test.mts",
+    ],
+    [
+      "scripts/fixtures/signing-context-receiver-fixture.mts",
+      "scripts/release-signing-context-artifact.test.mts",
+    ],
+    ["scripts/fixtures/tuf-prekey-fixture.mts", "scripts/release-tuf-signing.test.mts"],
+    [
+      "scripts/fixtures/tuf-controller-guard-fixture.mts",
+      "scripts/release-tuf-controller.test.mts",
+    ],
+  ] as const) {
+    const { baselineContractTests } = await import("./ci-baseline.mts");
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const selected = classifyChanges(
+        [
+          {
+            status: change.status,
+            path: change.newPath,
+            ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
+          },
+        ],
+        { fileExists: () => false },
+      );
+      assert.ok(selected.nodeTests.has(consumer), variant);
+      assert.ok(!selected.unknown.has(file), variant);
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      assert.equal(
+        baselineContractTests(plan, { fileExists: () => false }).filter(
+          (value) => value === consumer,
+        ).length,
+        1,
+        variant,
+      );
+    }
+    assert.ok(!classifyChanges([{ status: "M", path: "docs/README.md" }]).nodeTests.has(consumer));
+  }
 });
 
 void test("coordinator phase diagnostics select their integration consumer without historical siblings", async () => {
@@ -3970,11 +4036,18 @@ void test("native transport producers retain their actual Node consumers across 
       "apps/desktop/scripts/desktop-macos-installed-update-test.mts",
     ].map((file): [string, string[]] => [
       file,
-      ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+      [
+        "scripts/desktop-scenarios.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+        "apps/desktop/scripts/desktop-windows-update.native.test.mts",
+      ],
     ]),
     [
       "apps/desktop/scripts/desktop-qualification-history-test.mts",
-      ["scripts/desktop-scenarios.test.mts"],
+      [
+        "scripts/desktop-scenarios.test.mts",
+        "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+      ],
     ],
     [
       "apps/desktop/scripts/desktop-host-publication-test.mts",
@@ -4034,6 +4107,13 @@ void test("native transport producers retain their actual Node consumers across 
       ],
     ],
     [
+      "scripts/fixtures/native-fetch-probe-fixture.mts",
+      [
+        "apps/desktop/scripts/desktop-readiness.native.test.mts",
+        "apps/desktop/scripts/desktop-install.native.test.mts",
+      ],
+    ],
+    [
       "scripts/fixtures/desktop-module-fixture.mts",
       [
         "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
@@ -4050,6 +4130,12 @@ void test("native transport producers retain their actual Node consumers across 
         "apps/desktop/scripts/desktop-artwork.native.test.mts",
         "apps/desktop/scripts/desktop-macos-installed-update.native.test.mts",
         "scripts/capture-target.test.mts",
+        "apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts",
+        "apps/desktop/scripts/desktop-install.native.test.mts",
+        "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
+        "apps/desktop/scripts/desktop-readiness.native.test.mts",
+        "scripts/desktop-staged-layout.test.mts",
+        "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
       ],
     ],
   ];
@@ -4077,7 +4163,11 @@ void test("native transport producers retain their actual Node consumers across 
         head: "b".repeat(40),
         checkout: "b".repeat(40),
       });
-      if (file === "scripts/fixtures/desktop-module-fixture.mts") {
+      if (
+        file === "scripts/fixtures/desktop-module-fixture.mts" ||
+        file === "scripts/fixtures/native-fetch-probe-fixture.mts" ||
+        file === "apps/desktop/scripts/desktop-qualification-history-test.mts"
+      ) {
         assert.equal(windowsHelperChecksRequired(plan), true, variant);
         assert.equal(windowsNativeToolsRequired(plan), true, variant);
       }
@@ -4139,5 +4229,139 @@ void test("desktop launcher changes retain evidence, CLI entry and package consu
         "scripts/retained-package.test.mts",
       ])
         assert.ok(selected.has(test), `${variant}: missing ${test}`);
+  }
+});
+
+void test("diagnostic provider and preparation changes retain budget and observer owners across every lifecycle status", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    "scripts/release-hosted-native-windows-diagnostic-source.mts",
+    "scripts/release-hosted-native-windows-diagnostic-preparation.mts",
+    "scripts/release-hosted-native-windows-diagnostic.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const oldPath = variant === "R-new" ? "docs/moved.md" : file,
+        newPath = variant === "R-old" ? "docs/moved.md" : file;
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath,
+        newPath,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ ...change, path: newPath, ...(oldPath !== newPath ? { previousPath: oldPath } : {}) }],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      for (const selected of [
+        local.nodeTests,
+        new Set(baselineContractTests(plan, { fileExists: () => false })),
+      ])
+        for (const consumer of [
+          "scripts/release-hosted-native-windows-session.test.mts",
+          "scripts/hosted-native-continuity.test.mts",
+        ])
+          assert.ok(selected.has(consumer), `${variant}/${file}/${consumer}`);
+    }
+});
+
+void test("native runtime owners retain direct behavior and caller contracts on every path operation", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  for (const file of [
+    "apps/desktop/scripts/desktop-owned-native-session.mts",
+    "apps/desktop/scripts/desktop-real-runtime-test.mts",
+    "apps/desktop/scripts/desktop-test.mts",
+  ])
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved-native-runtime.md" : file,
+        newPath: variant === "R-old" ? "docs/moved-native-runtime.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [
+          {
+            status: change.status,
+            path: change.newPath,
+            ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
+          },
+        ],
+        { fileExists: () => false },
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        base: "a".repeat(40),
+        mergeBase: "a".repeat(40),
+        head: "b".repeat(40),
+        checkout: "b".repeat(40),
+      });
+      const hosted = baselineContractTests(plan, { fileExists: () => false });
+      for (const consumer of [
+        "scripts/desktop-real-runtime.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+        ...(file !== "apps/desktop/scripts/desktop-real-runtime-test.mts"
+          ? ["apps/desktop/scripts/desktop-native-observations.native.test.mts"]
+          : []),
+      ]) {
+        assert.ok(local.nodeTests.has(consumer), `${file}:${variant}:${consumer}`);
+        assert.equal(
+          hosted.filter((value) => value === consumer).length,
+          1,
+          `${file}:${variant}:${consumer}`,
+        );
+      }
+      assert.ok(!local.unknown.has(file), `${file}:${variant}`);
+    }
+});
+
+void test("POSIX qualification identity module retains its public caller tests on every path operation", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const file = "scripts/native-qualification-posix-identity.psm1";
+  const consumer = "scripts/updater-artifact-inventory.test.mts";
+  for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+    const change = {
+      status: variant.startsWith("R") ? "R100" : variant,
+      oldPath: variant === "R-new" ? "docs/moved-posix-identity.md" : file,
+      newPath: variant === "R-old" ? "docs/moved-posix-identity.md" : file,
+      oldMode: variant === "A" ? "000000" : "100644",
+      newMode: variant === "D" ? "000000" : "100644",
+    };
+    const local = classifyChanges(
+      [
+        {
+          status: change.status,
+          path: change.newPath,
+          ...(change.oldPath !== change.newPath ? { previousPath: change.oldPath } : {}),
+        },
+      ],
+      { fileExists: () => false },
+    );
+    assert.ok(local.nodeTests.has(consumer), variant);
+    assert.ok(!local.unknown.has(file), variant);
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(
+      baselineContractTests(plan, { fileExists: () => false }).filter((value) => value === consumer)
+        .length,
+      1,
+      variant,
+    );
   }
 });

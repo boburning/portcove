@@ -170,3 +170,72 @@ before a visual claim. Codec unit PNGs, a file reference, truncated tool text or
 unreadable logs never establish native acceptance. Failure or an exceeded retention
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
+
+## Normal-app presentation and interface sizing
+
+The fixed manual `presentation` operation in `native-design-compatibility.yml`
+uses two isolated standard public `windows-2022` jobs: the maintained
+`presentation` profile and the standalone `native-interface-size` scenario.
+The latter cannot share a selection/library with the profile. Each job records
+its exact source and hosted session before setup, uses the repository-pinned
+quality/native bootstrap and the normal `desktop-verify` plan/build/run owner,
+and retains existing resource, signature, process-identity and cleanup guards.
+The 60-minute job allocation leaves setup/build headroom without changing child
+or product deadlines. A failure in one selection does not cancel the other.
+
+The workflow accepts no command, scenario or source override for these jobs.
+On Windows these two fixed selections use the existing identity-bound driver
+capture, chronological process inventory and positive-exit owner before release;
+failure keeps the original evidence and cannot fall back to unchecked PID cleanup.
+A noninteractive desktop, unavailable supported WebView/driver or failed bootstrap
+stops that job with original evidence. The bounded lossless job-log codec retains
+one isolated run per job under its existing byte/file limits, with no cache or
+artifact upload. Recover each complete job log separately, verify its source and
+executable identities, and inspect the actual images before claiming appearance.
+A retention-bound refusal remains incomplete acceptance, never permission to
+omit screenshots or raise storage bounds silently.
+
+These runs observe the ordinary Tauri renderer and native keyboard/size controls.
+Injected controller and expanded-text cases remain synthetic input observations;
+they do not establish physical controller, installed-package, minimum-OS or game
+workflow acceptance. Owned lifecycle and screen-specific visual acceptance remain
+separate where required by the owning issue.
+
+## Fixed owned product workflow selections
+
+The manual `product-workflows` operation uses the same clean-source, interactive
+standard public Windows setup and native runner as `presentation`. A source-owned
+matrix contains fixed scenario arrays; no dispatch input supplies commands,
+scenario names or alternate source. Each group receives a fresh hosted machine
+and output/temp roots. At most four groups run concurrently, each with a finite
+60-minute outer allowance and unchanged native child deadlines.
+
+Six bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, preparation recovery,
+backup/removal, singleton and batch Steam, source intake/removal/pickers, and
+adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+report to show the Settings integration entry and exactly one matching eligible
+installation; the broad-profile Manage fallback cannot qualify this group.
+The workflow contract resolves each group through
+the actual Windows scenario planner and checks the union against that profile.
+Separate fresh groups cover Library layout, collection/membership/favorite persistence
+through restart, selected setup completion, update
+acquisition, staged update composition, inert external-runtime registration,
+artwork picking, appearance restart/refresh recovery, and each of the three
+standalone startup-preferences/startup-library/library-switch recovery journeys.
+This preserves the planner's standalone and incompatible-fixture refusals.
+
+These scenarios exercise real Core/native mutations in disposable first-party
+fixtures. Streamed installation/update bytes, owned process launch and native
+backup/restore/removal remain distinct from gameplay. Steam uses an isolated
+synthetic profile and qualification-only closed-client observation; no actual
+Steam client is launched. External-runtime registration uses inert executable
+bytes and never claims to launch that game. Controlled read failures and injected
+input observations retain their fixture labels. No private originals, real user
+profile, release signing or physical controller are required by this selection.
+
+Every group keeps the existing bounded evidence codec and one-run rule. Splitting
+coverage does not relax any scenario assertion, process cleanup, source custody
+or retention limit. A real packet that exceeds the bound remains a failed
+retention obligation; recover and inspect each job's exact images independently.
+The operation supplies no required CI replacement or automatic acceptance claim.

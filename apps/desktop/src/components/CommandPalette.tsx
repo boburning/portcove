@@ -9,6 +9,7 @@ export interface PaletteCommand {
   id: string;
   label: string;
   description: string;
+  group?: string;
   icon: LucideIcon;
   shortcut?: string;
   keywords?: string;
@@ -148,6 +149,11 @@ function OpenCommandPalette({
           />
           <Shortcut>Esc</Shortcut>
         </label>
+        {filtered.length > 0 && (
+          <h3 className="m-0 px-5 pt-4 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]">
+            {query.trim() ? "Search results" : "Quick actions"}
+          </h3>
+        )}
         <div
           className="palette-results max-h-[min(27rem,_58vh)] overflow-auto p-2"
           id="command-palette-results"
@@ -162,39 +168,53 @@ function OpenCommandPalette({
               {query.trim() ? `No command matches “${query}”.` : "No commands are available."}
             </p>
           ) : (
-            filtered.map((command) => (
-              <Button
-                id={`command-${command.id}`}
-                role="option"
-                aria-selected={activeId === command.id}
-                data-focusable
-                key={command.id}
-                ref={activeId === command.id ? activeCommand : undefined}
-                onFocus={() => setSelectedId(command.id)}
-                variant={activeId === command.id ? "selected" : "ghost"}
-                className="palette-command grid w-full grid-cols-[auto_minmax(0,1fr)_auto] justify-start gap-3 px-3 py-2 text-start font-normal"
-                disabled={command.disabled}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.repeat || event.nativeEvent.isComposing || event.keyCode === 229)
-                  )
-                    event.preventDefault();
-                }}
-                onMouseMove={() => setSelectedId(command.id)}
-                onClick={() => run(command)}
-              >
-                <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] rounded-pc-sm bg-[var(--color-bg-raised)] text-[var(--color-interactive-text)]">
-                  <Icon glyph={command.icon} />
-                </span>
-                <span>
-                  <strong className="block text-[length:var(--text-sm)]">{command.label}</strong>
-                  <small className="mt-[0.15rem] block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
-                    {command.description}
-                  </small>
-                </span>
-                {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
-              </Button>
+            contiguousCommandGroups(filtered).map((group) => (
+              <div key={group.commands[0]!.id} role="group" aria-label={group.label}>
+                {group.label && (
+                  <div
+                    aria-hidden="true"
+                    className="px-3 pt-3 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]"
+                  >
+                    {group.label}
+                  </div>
+                )}
+                {group.commands.map((command) => (
+                  <Button
+                    id={`command-${command.id}`}
+                    role="option"
+                    aria-selected={activeId === command.id}
+                    data-focusable
+                    key={command.id}
+                    ref={activeId === command.id ? activeCommand : undefined}
+                    onFocus={() => setSelectedId(command.id)}
+                    variant={activeId === command.id ? "selected" : "ghost"}
+                    className="palette-command grid w-full grid-cols-[auto_minmax(0,1fr)_auto] justify-start gap-3 px-3 py-2 text-start font-normal"
+                    disabled={command.disabled}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.repeat || event.nativeEvent.isComposing || event.keyCode === 229)
+                      )
+                        event.preventDefault();
+                    }}
+                    onMouseMove={() => setSelectedId(command.id)}
+                    onClick={() => run(command)}
+                  >
+                    <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] text-[var(--color-text-muted)]">
+                      <Icon glyph={command.icon} />
+                    </span>
+                    <span>
+                      <strong className="block text-[length:var(--text-sm)]">
+                        {command.label}
+                      </strong>
+                      <small className="mt-[0.15rem] block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+                        {command.description}
+                      </small>
+                    </span>
+                    {command.shortcut && <Shortcut>{command.shortcut}</Shortcut>}
+                  </Button>
+                ))}
+              </div>
             ))
           )}
         </div>
@@ -218,4 +238,15 @@ export function filterCommands(commands: PaletteCommand[], query: string) {
 
 function preferredCommandId(commands: PaletteCommand[]) {
   return commands.find((command) => !command.disabled)?.id;
+}
+
+// Presentation must never reorder the registry: repeated groups stay separate.
+export function contiguousCommandGroups(commands: PaletteCommand[]) {
+  const groups: { label: string | undefined; commands: PaletteCommand[] }[] = [];
+  for (const command of commands) {
+    const previous = groups[groups.length - 1];
+    if (previous && previous.label === command.group) previous.commands.push(command);
+    else groups.push({ label: command.group, commands: [command] });
+  }
+  return groups;
 }

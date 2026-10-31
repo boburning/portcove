@@ -75,7 +75,7 @@ async function bundleFixedControllerEntries(
     !version ||
     typeof version !== "object" ||
     !("version" in version) ||
-    version.version !== "1.3.0"
+    version.version !== "1.4.0"
   )
     throw new Error("repository-pinned pack version differs");
   await mkdir(path.join(outputRoot, "scripts"), { recursive: true, mode: 0o700 });
@@ -486,7 +486,7 @@ export async function buildControllerTools(
         source_tree: expected.tree,
         platform,
         node_version: controllerNodeVersion,
-        bundler: "vite-plus@1.3.0",
+        bundler: "vite-plus@1.4.0",
         tauri_cli_version: "2.12.2",
         files,
       },

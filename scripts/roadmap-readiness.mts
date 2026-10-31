@@ -6,6 +6,7 @@ import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { QualificationCatalogObservation } from "./roadmap-qualification.mts";
 import { catalogQualificationSummary } from "./roadmap-qualification.mts";
 import { decide706, validateApproval706 } from "./linux-beta-risk-706.mts";
+import { inspectReleaseProfile } from "./release-package-policy.mts";
 import {
   diagnosticText,
   issueNumber,
@@ -59,23 +60,49 @@ export function dependencyCycles(items: readonly RoadmapIssueItem[]) {
   return cycles;
 }
 
+export function inspectReadinessReleaseProfile(
+  input: unknown,
+  release: string,
+  linuxRisk706 = false,
+) {
+  const profile = inspectReleaseProfile(input);
+  if (profile !== "full" && release !== "Public beta")
+    throw new Error("initial-beta release profile requires Public beta readiness");
+  if (profile === "initial-beta-windows-x86_64-v1" && linuxRisk706)
+    throw new Error("Windows application profile cannot consume a Linux #706 disposition");
+  return profile;
+}
+
 export function analyzeReleaseReadiness(
   items: readonly RoadmapIssueItem[],
   release: string,
   {
     candidateIssues = null,
-    risk706Approval = JSON.parse(
-      readFileSync(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8"),
-    ),
+    risk706Approval,
     risk706Evidence = null,
+    releaseProfile: inputProfile = "full",
     now = new Date().toISOString(),
   }: {
     candidateIssues?: readonly number[] | null;
     risk706Approval?: unknown;
     risk706Evidence?: unknown;
+    releaseProfile?: unknown;
     now?: string;
   } = {},
 ) {
+  const releaseProfile = inspectReadinessReleaseProfile(
+    inputProfile,
+    release,
+    risk706Evidence !== null && risk706Evidence !== undefined,
+  );
+  const windowsOnly = releaseProfile === "initial-beta-windows-x86_64-v1";
+  if (releaseProfile !== "full" && candidateIssues !== null)
+    throw new Error("release profile cannot replace explicit candidate issue scope");
+  const approval: unknown = windowsOnly
+    ? undefined
+    : risk706Approval === undefined
+      ? JSON.parse(readFileSync(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8"))
+      : risk706Approval;
   if (
     candidateIssues !== null &&
     (!Array.isArray(candidateIssues) ||
@@ -113,16 +140,19 @@ export function analyzeReleaseReadiness(
     : targeted.filter((item) => fieldValue(item, "Release commitment") === "Required");
   const relevantUnclassified = targeted.filter((item) => !fieldValue(item, "Release commitment"));
   let approvedPlanning706 = false;
-  try {
-    // Planning identity is stable after expiry; only the actual release evaluator checks time.
-    validateApproval706(risk706Approval, qualificationField(risk706Approval, "approvedAt"));
-    approvedPlanning706 = release === "Public beta" && !candidateIssues;
-  } catch {
-    /* Missing or altered canonical record retains the ordinary safety rules. */
+  if (!windowsOnly) {
+    try {
+      // Planning identity is stable after expiry; only the actual release evaluator checks time.
+      validateApproval706(approval, qualificationField(approval, "approvedAt"));
+      approvedPlanning706 = release === "Public beta" && !candidateIssues;
+    } catch {
+      /* Missing or altered canonical record retains the ordinary safety rules. */
+    }
   }
-  const scopedRemediation706 = targeted.filter(
+  const linuxRisk706Nodes = targeted.filter(
     (item) =>
-      approvedPlanning706 &&
+      release === "Public beta" &&
+      !candidateIssues &&
       [49, 706].some((number) => number === issueNumber(item)) &&
       itemUrl(item) === `https://github.com/boburning/portcove/issues/${issueNumber(item)}` &&
       fieldValue(item, "Target release") === "Public beta" &&
@@ -132,6 +162,8 @@ export function analyzeReleaseReadiness(
       fieldValue(item, "Release commitment") === "Planned" &&
       !itemDone(item),
   );
+  const excludedLinuxRisk706 = windowsOnly ? linuxRisk706Nodes : [];
+  const scopedRemediation706 = !windowsOnly && approvedPlanning706 ? linuxRisk706Nodes : [];
   // Planning is not candidate eligibility. Only the existing complete release evaluator
   // may satisfy these two still-open remediation nodes for this ordinary Linux candidate.
   let candidateDisposition706: ReturnType<typeof decide706> | null = null;
@@ -146,7 +178,7 @@ export function analyzeReleaseReadiness(
       scan: risk706Evidence.scan,
       releases: risk706Evidence.releases,
       purpose: "release",
-      approval: risk706Approval,
+      approval,
       now,
     });
   }
@@ -157,6 +189,7 @@ export function analyzeReleaseReadiness(
       fieldValue(item, "Status") === "Blocked" &&
       fieldValue(item, "Work type") === "Security" &&
       fieldValue(item, "Release commitment") !== "Required" &&
+      !excludedLinuxRisk706.includes(item) &&
       !scopedRemediation706.includes(item),
   );
   const planned = targeted.filter((item) =>
@@ -238,6 +271,8 @@ export function analyzeReleaseReadiness(
     repositoryStatusConflict,
   );
   return {
+    releaseProfile,
+    excludedLinuxRisk706: excludedLinuxRisk706.filter((item) => !effectiveRequired.includes(item)),
     release: candidateIssues
       ? "Candidate implementation scope (not publication approval)"
       : release,
@@ -302,7 +337,15 @@ export function renderReadinessSummary(analysis: ReturnType<typeof analyzeReleas
       (item) => `- Repository/Project status mismatch: ${itemLine(item)}`,
     ),
   );
-  return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Scoped Linux beta disposition\n\n${section(analysis.scopedRemediation706)}\n\n${analysis.candidateDisposition706 ? `Exact candidate ${analysis.candidateDisposition706.candidate}: accepted risk under ${analysis.candidateDisposition706.approvalUrl}; raw scan remains failed.` : analysis.pendingRiskDispositions.length ? 'Pending: run readiness --release "Public beta" --linux-beta-706 against the actual candidate with its reviewed GITHUB_REF_NAME. Planned remediation alone does not establish eligibility.' : "No scoped disposition recorded."}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(analysis.planned)}\n`;
+  const profileNote =
+    analysis.releaseProfile === "full"
+      ? ""
+      : `- Application profile: \`${analysis.releaseProfile}\`\n`;
+  const excludedNote =
+    analysis.releaseProfile === "initial-beta-windows-x86_64-v1"
+      ? `## Linux-only advisory nodes excluded from automatic promotion\n\n${section(analysis.excludedLinuxRisk706)}\n\nThese nodes remain planned; explicit required roots and blocking dependencies remain enforced. No Linux risk disposition is consumed.\n\n`
+      : "";
+  return `# ${analysis.release} readiness\n\n${profileNote}- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n${excludedNote}## Scoped Linux beta disposition\n\n${section(analysis.scopedRemediation706)}\n\n${analysis.candidateDisposition706 ? `Exact candidate ${analysis.candidateDisposition706.candidate}: accepted risk under ${analysis.candidateDisposition706.approvalUrl}; raw scan remains failed.` : analysis.pendingRiskDispositions.length ? 'Pending: run readiness --release "Public beta" --linux-beta-706 against the actual candidate with its reviewed GITHUB_REF_NAME. Planned remediation alone does not establish eligibility.' : "No scoped disposition recorded."}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(analysis.planned)}\n`;
 }
 
 export function completionEvidenceLinks(items: readonly RoadmapIssueItem[]) {

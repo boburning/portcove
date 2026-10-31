@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import {
   filterChoice,
   closeFilterPanel,
@@ -290,6 +291,7 @@ it.each(["dark", "light"])(
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(await filterChoice("Windows (2)"));
     await userEvent.click(await filterChoice("Preview (1)"));
+    await captureParityState("discover-filters-expanded");
     await expect
       .element(await filterChoice("Linux (2)"))
       .not.toHaveAttribute("aria-disabled", "true");
@@ -299,6 +301,7 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Filters (2)")).toHaveFocus();
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
+    await captureParityState("discover-selected-filter-chips");
     await openDiscoverPort("both");
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
@@ -321,6 +324,7 @@ it.each(["dark", "light"])(
       .not.toHaveAttribute("aria-disabled", "true");
     await closeFilters();
     await expect.element(roleButton("Filters (1)")).toHaveFocus();
+    await captureParityState("discover-zero-results");
     const chip = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Preview filter"]',
     )!;
@@ -413,6 +417,9 @@ it.each(["dark", "light"])(
   },
 );
 
+// macOS job 123627550913 exceeded the 15s harness budget for this multi-step
+// return/restart/library-isolation journey; the light case completed in 11.1s.
+// Keep every assertion, cleanup and zero retries; allow 30s for this family only.
 it.each(["dark", "light"])(
   "composes installation attention with return, restart, unavailable correction and zero IPC in %s",
   async (theme) => {
@@ -467,6 +474,7 @@ it.each(["dark", "light"])(
     await closeFilters();
     expect(invoke).not.toHaveBeenCalled();
   },
+  30_000,
 );
 
 it.each(["dark", "light"])(
