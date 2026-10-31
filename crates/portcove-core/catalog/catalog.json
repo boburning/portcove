@@ -17153,6 +17153,39 @@
             }
           ]
         },
+        "manual_setup": {
+          "help_url": "https://github.com/zolaware/reblue/blob/85aae686489dff775890fb8100ab525d7b7427b0/README.md",
+          "steps": [
+            {
+              "title": "Keep a permitted complete installed Windows player",
+              "instruction": "Use an already permitted, fully working v1.3.1 Windows x86-64 reblue.exe installation with all of its creating runtime, original-derived base, profiles, mods and companions. Select the installed executable at its established root, not the freshly extracted setup copy or a repair/updater/build helper. The ordinary release uses DirectX12; a separately built Vulkan variant is not inherited. Project BSD3 terms do not license original game data, optional DLC or all private/generated/component material."
+            },
+            {
+              "title": "Complete all three supported originals upstream",
+              "instruction": "Finish the normal upstream wizard with all three disc images from your own supported Global US/EU Blue Dragon copy before registration. Keep one supported set, its originals, recorded fingerprints and full resulting installation; Asia/JP or arbitrary cross-region/revision mixing is not established. Upstream marker/container/title checks and fingerprints are not Core exact three-disc authentication. The wizard copies itself, restarts, installs game files and writes its registration outside Core; wait for that preparation and any repair to finish. Core does not parse/assemble/generate/admit the triple."
+            },
+            {
+              "title": "Settle replacement and recovery before selecting",
+              "instruction": "Finish any pending upstream update or recovery and a normal upstream start/quit before registration. Do not delete or ignore .update staging, ready markers, replaced-file or recovery history as a workaround: startup can apply a staged update and relaunch before the update-check setting is read. Turn the normal upstream startup update/content check off for this route. A new download, update, repair or backend/warm reboot must be completed externally before the next reviewed Play; Core does not adopt its successor."
+            },
+            {
+              "title": "Select the installed entry with exact explicit coordinates",
+              "instruction": "Select root/reblue.exe with the actual installed-root working directory and one literal --game_data_root=<absolute installed base directory> argument (normally the base directory containing default.xex), --profile=<actual existing profile name>, and --no-bd_update_check. Keep spaces inside each single token; these are arguments, not a shell command. Explicit game_data_root selects that installation independently of shared install lookup; default.xex presence alone is not full original or private-output validation. The bound normal Windows entry runs its application/message loop in process. Keep any other supported working flags exactly; generic SDK user_data_root/cache_root flags do not override the title’s profile/cache routing."
+            },
+            {
+              "title": "Preserve every actual original and player root",
+              "instruction": "Keep the whole external install, complete originals/private output, base, mods, installed DLC/content, logs, root/cache, profiles/<actual name>/reblue.toml, profile saves/achievements/content and unknown files, plus all legacy roots and existing shared HKCU installation registration. Preserve actual bd_saves_path and bd_cache_path overrides separately. The title uses the selected installation’s profiles/name as its user root; save/cache overrides and prior layouts are distinct. Do not reset profile/configuration, repoint shared registration or regenerate a private copy merely to register. Core neither backs up these roots nor claims safe save/profile migration or rollback."
+            },
+            {
+              "title": "Review native intent and keep ownership separate",
+              "instruction": "Consent to the exact native executable, working directory and literal arguments, then choose Play separately. A current library-owned installation or active registration/launch cannot be bypassed by this alternative. Existing managed/source contracts remain unchanged; selecting an external copy grants no managed generation, immutable private-output certification or source admission. The program can make normal profile/DLC/cache writes, and its UI can reenable checks; this is not a sandbox or an all-network-off promise. Normal ordered shutdown has a default1.5second forced-exit watchdog, so process exit is not clean-save certification. Close all real instances before upstream changes, retain the old creating runtime/data together and relink changed executables. Registration-only removal preserves all external files."
+            }
+          ],
+          "warnings": [
+            "This is the conditional Windows existing-player route. No game package/original/private save/compiler/installer/upstream helper/game was acquired or executed for this source/fixture batch; actual game/save/DLC/profile compatibility, installed Desktop, physical/human, other-platform and protected acceptance remain separate.",
+            "No Core-managed installation, three-disc preparation, generation, update, backup, rollback, migration, registry rewrite or external deletion is offered. The existing strict definition/source history and all earlier failures/qualification facts remain intact; no Supported or other-platform promotion."
+          ]
+        },
         "artwork": {
           "game_id": 415482,
           "cover_id": 599565,
