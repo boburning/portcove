@@ -83,8 +83,8 @@ export async function cliHandoffScenario({
         await click(By.css(`[data-detail-game-id="${port.id}"]`));
       }
       await revealDetailSection(browser, "Manage");
-      const technical = By.css(
-        ".detail-tab-panel:not([hidden]) > .advanced-settings > .advanced-summary",
+      const technical = By.xpath(
+        '//*[@data-detail-workspace]//*[@role="tabpanel" and not(@hidden)]/details/summary[starts-with(normalize-space(.), "Technical details")]',
       );
       const technicalControl = await browser.wait(until.elementLocated(technical), 10_000);
       const technicalText = await executeBrowserScript(
