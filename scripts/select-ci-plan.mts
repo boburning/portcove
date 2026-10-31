@@ -13,6 +13,7 @@ import { execFileSync } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspectReleaseProfile } from "./release-package-policy.mts";
 import {
   windowsHelperChecksRequired,
   windowsNativeToolsRequired,
@@ -104,9 +105,10 @@ export function discoverCiPlan(
     execFileSync("git", args, { cwd: projectRoot, ...options }),
 ): ValidationPlan {
   const checkout = checkedSha(checkoutSha, "checkout SHA");
-  const releasePlatforms = qualificationPlatformsForProfile(releaseProfile);
+  const selectedProfile = inspectReleaseProfile(releaseProfile);
+  const releasePlatforms = qualificationPlatformsForProfile(selectedProfile);
   if (
-    releaseProfile !== "full" &&
+    selectedProfile !== "full" &&
     (!forceQualification ||
       qualificationCaller !== "release" ||
       callerWorkflow !== "release.yml" ||
@@ -125,7 +127,7 @@ export function discoverCiPlan(
       groups: fastGroups,
       platforms: releasePlatforms,
       qualification_required: true,
-      ...(releaseProfile === "initial-beta-win-linux" ? { release_profile: releaseProfile } : {}),
+      ...(selectedProfile !== "full" ? { release_profile: selectedProfile } : {}),
     };
     delete replacement.digest;
     return { ...replacement, digest: digestValidationPlan(replacement) };
