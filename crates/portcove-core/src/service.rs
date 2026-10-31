@@ -16891,10 +16891,15 @@ fn main() {
 
     #[test]
     fn staged_and_rollback_tamper_leave_install_pointers_unchanged() {
+        let started = std::time::Instant::now();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", true);
         register_zelda_install(&library, "v2", false);
+        eprintln!(
+            "Tamper lifecycle staged fixtures ready: {:?}",
+            started.elapsed()
+        );
         let staged_before = library
             .status("zelda64-recomp", ReleaseChannel::Stable)
             .unwrap();
@@ -16918,11 +16923,19 @@ fn main() {
             staged_after.staged.as_ref().map(|install| &install.id),
             staged_before.staged.as_ref().map(|install| &install.id)
         );
+        eprintln!(
+            "Tamper lifecycle staged refusal verified: {:?}",
+            started.elapsed()
+        );
 
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", true);
         register_zelda_install(&library, "v2", true);
+        eprintln!(
+            "Tamper lifecycle rollback fixtures ready: {:?}",
+            started.elapsed()
+        );
         let rollback_before = library
             .status("zelda64-recomp", ReleaseChannel::Stable)
             .unwrap();
@@ -16946,6 +16959,10 @@ fn main() {
         assert_eq!(
             serde_json::to_value(library.activity_feed(200).unwrap()).unwrap(),
             original_activity
+        );
+        eprintln!(
+            "Tamper lifecycle allowed preflight verified: {:?}",
+            started.elapsed()
         );
         let previous = rollback_before.previous.as_ref().unwrap();
         let previous_executable = previous.path.join(&previous.selected_executable);
@@ -16973,6 +16990,10 @@ fn main() {
             serde_json::to_value(library.activity_feed(200).unwrap()).unwrap(),
             original_activity
         );
+        eprintln!(
+            "Tamper lifecycle held preflight verified: {:?}",
+            started.elapsed()
+        );
 
         let error = service.rollback("zelda64-recomp").unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Verification);
@@ -16987,6 +17008,10 @@ fn main() {
             rollback_after.previous.as_ref().map(|install| &install.id),
             rollback_before.previous.as_ref().map(|install| &install.id)
         );
+        eprintln!(
+            "Tamper lifecycle rollback refusal verified: {:?}",
+            started.elapsed()
+        );
         fs::write(&previous_executable, &original_executable).unwrap();
         crate::permissions::normalize_archive_entry(&previous_executable, false, true).unwrap();
         assert_eq!(
@@ -16994,6 +17019,10 @@ fn main() {
             observed
         );
         assert_eq!(service.rollback("zelda64-recomp").unwrap().id, previous.id);
+        eprintln!(
+            "Tamper lifecycle recovered rollback verified: {:?}",
+            started.elapsed()
+        );
     }
 
     struct CancelLaunchAt {
