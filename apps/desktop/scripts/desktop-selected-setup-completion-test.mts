@@ -1157,11 +1157,11 @@ export async function selectedSetupCompletionScenario({
       report.observations.result_focus = await browser.wait(
         () => executeBrowserScript(browser, observeCompletionResultFocus, port.name),
         5_000,
-        "Preparation must restore natural focus to the next step when compatibility is unconfirmed",
+        "Preparation must restore natural focus to the current file summary when compatibility is unconfirmed",
       );
       assert.ok(report.observations.result_focus);
       assert.equal(report.observations.result_focus.tag, "H3");
-      assert.equal(report.observations.result_focus.text, "Next step");
+      assert.equal(report.observations.result_focus.text, "Files need checking");
       await screenshot("selected-setup-prepared");
       await enlargedStage("prepared-completion");
       await click(By.css("[data-detail-back]"));
