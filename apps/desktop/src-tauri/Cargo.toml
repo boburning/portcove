@@ -50,7 +50,7 @@ url.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
-aws-lc-rs = "1.18.2"
+aws-lc-rs = "1.19.0"
 flate2.workspace = true
 rusqlite.workspace = true
 tar.workspace = true
