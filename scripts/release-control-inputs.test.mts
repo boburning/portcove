@@ -361,6 +361,8 @@ void test("held CLI source admission runs without installed dependencies and ref
     "release-signing-job-budget.mts",
     "release-authority-configuration.mts",
     "release-authority-configuration-contract.mts",
+    "release-public-build-binding-contract.mts",
+    "release-package-policy.mts",
     "release-catalog-publication-contract.mts",
     "release-metadata-contract.mts",
     "controller-node-runtime.mts",
