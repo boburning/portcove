@@ -147,6 +147,11 @@ export async function librarySwitchRecoveryScenario({
       assert.deepEqual(await readFile(fixture[key]), await readFile(fixture.before[key]), key);
   };
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  const storageCategory = By.xpath(
+    '//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Library and storage"]',
+  );
+  await browser.wait(until.elementLocated(storageCategory), 15_000);
+  await browser.findElement(storageCategory).click();
   const trigger = By.xpath('//button[normalize-space(.)="Choose another library"]');
   const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
   const selectAndReview = async (target: string, name: string) => {
