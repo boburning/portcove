@@ -15,6 +15,8 @@ import {
 import { RoadmapClient, portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { DiscoveryBudget } from "./discovery-budget.mts";
+import { discoveryInventoryCost } from "./daily-discovery-session.mts";
 import {
   collectRoadmapInventory,
   requireRoadmapInventory,
@@ -322,7 +324,11 @@ function fixture(candidates = [candidate]) {
         },
       };
     let nodes: unknown[];
-    if (query.includes("RepositoryIssueMarker"))
+    if (query.includes("IntakeIssueUpdates"))
+      nodes = structuredClone(issues).toSorted(
+        (a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.number - a.number,
+      );
+    else if (query.includes("RepositoryIssueMarker"))
       nodes = issues.slice(-1).map(({ id, number }) => ({ id, number }));
     else if (query.includes("UPDATED_AT"))
       nodes = issues.slice(-1).map(({ id, updatedAt }) => ({ id, updatedAt }));
@@ -1092,4 +1098,42 @@ void test("a second explicit reconciliation preserves the original marker and th
   };
   assert.equal(data.body_request_comment, 100);
   assert.equal(data.delivery[2]!.status, "create-attempted");
+});
+void test("insufficient warm confirmation admission preserves created IDs and publishes a prepared hold before POST", async () => {
+  const f = await partialFixture(),
+    budget = new DiscoveryBudget("cold");
+  budget.usage.bytes = budget.limits.bytes - 256 * 1024;
+  Object.defineProperty(f.bridge, "admitWarmInventory", {
+    value: (cache: Parameters<typeof discoveryInventoryCost>[0]) => {
+      const c = discoveryInventoryCost(cache);
+      budget.admit(c.requests + 6, c.bytes + 512 * 1024);
+    },
+  });
+  f.bridge.inventory = HostedIntakeBridge.prototype.inventory.bind(f.bridge);
+  let failure: unknown;
+  try {
+    await f.bridge.process(f.request, f.all());
+  } catch (error) {
+    failure = error;
+  }
+  assert(failure instanceof GitHubApiError);
+  assert.equal(failure.code, "budget_exhausted");
+  assert.equal(f.creations, 2);
+  assert.deepEqual(
+    f.issues.map((x) => x.number),
+    [200, 201],
+  );
+  const comment = f
+    .all()
+    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:100 -->"))!;
+  const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    status: string;
+    delivery: { status: string; created_issue?: number }[];
+  };
+  assert.equal(receipt.status, "incomplete");
+  assert.equal(receipt.delivery[2]!.status, "prepared");
+  assert.equal(receipt.delivery[2]!.created_issue, undefined);
+  f.bridge.diagnostic(f.request, failure, f.all());
+  assert(f.all().some((c) => c.body.startsWith("<!-- portcove-hosted-intake-diagnostic:100 -->")));
+  assert.equal(f.bridge.continuation(failure), "budget_exhausted");
 });

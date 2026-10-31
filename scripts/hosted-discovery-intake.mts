@@ -405,6 +405,7 @@ export class HostedIntakeBridge {
   readonly research: (repository: string) => ReturnType<typeof investigateDiscoveryUpstream>;
   readonly save: (name: string, value: unknown) => void;
   readonly admitRecollection: (cache?: RoadmapInventory) => void;
+  readonly admitWarmInventory: (cache: RoadmapInventory) => void;
   constructor(
     client: RoadmapClient,
     head: string,
@@ -413,12 +414,14 @@ export class HostedIntakeBridge {
     admitRecollection: (cache?: RoadmapInventory) => void = () => {
       throw new Error("Inventory recollection admission is not configured");
     },
+    admitWarmInventory: (cache: RoadmapInventory) => void = () => {},
   ) {
     this.client = client;
     this.head = head;
     this.research = research;
     this.save = save;
     this.admitRecollection = admitRecollection;
+    this.admitWarmInventory = admitWarmInventory;
   }
   get prefix() {
     return `repos/${this.client.config.repository}/issues`;
@@ -543,6 +546,7 @@ export class HostedIntakeBridge {
     };
   }
   inventory(cache?: RoadmapInventory, full = false) {
+    if (cache) this.admitWarmInventory(cache);
     this.client._completeProjectContext = undefined;
     this.client._projectContext = undefined;
     let first: ReturnType<typeof sanitizeOperationError> | undefined;
@@ -997,15 +1001,19 @@ async function main() {
       resetAt: new Date(rate.reset * 1000).toISOString(),
     });
   }
+  const admitInventory = (cache?: RoadmapInventory) => {
+    const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
+    // Leave enough existing capacity to restore prepared and publish a bounded
+    // receipt/diagnostic if preflight cannot fit; this is not a usage reset.
+    budget.admit(cost.requests + 6, cost.bytes + 512 * 1024);
+  };
   const bridge = new HostedIntakeBridge(
     client,
     head,
     (repo) => investigateDiscoveryUpstream({ api, budget, http: project, save }, repo),
     save,
-    (cache) => {
-      const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
-      budget.admit(cost.requests, cost.bytes);
-    },
+    admitInventory,
+    admitInventory,
   );
   try {
     const inputs = object(event).inputs;

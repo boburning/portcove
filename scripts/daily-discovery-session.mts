@@ -203,7 +203,12 @@ export function discoveryInventoryCost(inventory: RoadmapInventory) {
       (intake ? 2 : 1) +
     Buffer.byteLength(JSON.stringify(inventory.issues.map((i) => ({ ...i, body: undefined })))) +
     (intake ? 0 : Buffer.byteLength(JSON.stringify(foreign.map((issue) => issue.body))));
-  return { requests: pages, bytes: thin };
+  return {
+    requests: pages + (intake ? Math.max(1, Math.ceil(inventory.issues.length / 50)) + 2 : 0),
+    // The inclusive watermark can contain every issue. Admit that known full
+    // body envelope, even though ordinary comment deltas are much smaller.
+    bytes: thin + (intake ? Buffer.byteLength(JSON.stringify(inventory.issues)) : 0),
+  };
 }
 export function discoveryDeliveryCost(
   inventory: RoadmapInventory,
