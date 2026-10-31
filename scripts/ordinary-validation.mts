@@ -358,6 +358,7 @@ for (const [file, tests] of [
   [
     "scripts/fixtures/desktop-module-fixture.mts",
     [
+      "apps/desktop/scripts/desktop-harness.native.test.mts",
       "apps/desktop/scripts/desktop-catalog-update.native.test.mts",
       "apps/desktop/scripts/desktop-default-cover.native.test.mts",
       "apps/desktop/scripts/desktop-reload.native.test.mts",
@@ -1684,6 +1685,14 @@ for (const [file, tests] of [
     ["scripts/desktop-input-observation.test.mts"],
   ],
   [
+    "scripts/desktop-linux-media.mts",
+    [
+      "scripts/desktop-linux-native-session.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "apps/desktop/scripts/desktop-harness.native.test.mts",
+    ],
+  ],
+  [
     "apps/desktop/scripts/desktop-owned-native-session.mts",
     [
       "scripts/desktop-real-runtime.test.mts",
@@ -1698,6 +1707,7 @@ for (const [file, tests] of [
   [
     "apps/desktop/scripts/desktop-test.mts",
     [
+      "apps/desktop/scripts/desktop-harness.native.test.mts",
       "scripts/desktop-real-runtime.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",

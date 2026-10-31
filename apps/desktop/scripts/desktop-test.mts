@@ -1434,11 +1434,8 @@ async function connectObservedDriver() {
   if (linuxPackagedInspector) {
     const evidence = path.join(output, "linux-webkit-inspector.json");
     artifacts.push(evidence);
-    const {
-      assertApplicationMediaReadiness,
-      awaitApplicationMediaReadiness,
-      verifyApplicationMediaInputs,
-    } = await import("../../../scripts/desktop-linux-media.mts");
+    const { awaitApplicationMediaReadiness, verifyConnectedApplicationMedia } =
+      await import("../../../scripts/desktop-linux-media.mts");
     const launch = required(linuxPublication.launch);
     let readiness: unknown;
     const inspector = await connectLinuxInspector({
@@ -1455,17 +1452,15 @@ async function connectObservedDriver() {
         );
       },
     });
-    browser = inspector;
-    await verifyApplicationMediaInputs(inputs, admission);
-    const media = object(readiness);
-    for (const value of [media.configuration, media.source]) {
-      const binding = object(value);
-      const captured = inputs.find((input) => input.path === binding.path);
-      assert.ok(captured, "Application media readiness requires captured configuration/source");
-      assert.equal(binding.sha256, captured.sha256);
-      assert.equal(binding.bytes, captured.bytes);
-    }
-    assertApplicationMediaReadiness(readiness, inspector.ownedProcessIdentity);
+    await verifyConnectedApplicationMedia({
+      inspector,
+      retain: (connected) => {
+        browser = connected;
+      },
+      inputs,
+      admission,
+      readiness,
+    });
     return;
   }
   const finishObservation =
