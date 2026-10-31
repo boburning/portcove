@@ -659,8 +659,23 @@ mod tests {
         } else {
             listing_only(&mut service);
         }
-        let expected_listing = service.catalog.listing(id).unwrap().clone();
         assert!(service.catalog.port(id).is_err());
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
+    }
+
+    fn assert_selected_listing_lifecycle(
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        executable: PathBuf,
+        working: PathBuf,
+        id: &str,
+    ) {
+        let expected_listing = service.catalog.listing(id).unwrap().clone();
+        let expected_definition = service
+            .catalog
+            .port(id)
+            .ok()
+            .map(|port| serde_json::to_value(port).unwrap());
         let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action
@@ -668,6 +683,14 @@ mod tests {
                 && action.allowed)
         );
         let record = register(&service, id, &executable, &working);
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
         assert!(
             service
                 .preview_user_selected_runtime(id, &executable, &working, &[])
@@ -721,6 +744,14 @@ mod tests {
             .unwrap();
         assert_eq!(relinked.id, record.id);
         assert_eq!(relinked.registered_at, record.registered_at);
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
+        );
         assert!(
             service
                 .relink_user_selected_runtime(
@@ -781,6 +812,14 @@ mod tests {
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
+        );
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| serde_json::to_value(port).unwrap()),
+            expected_definition
         );
     }
 
@@ -954,6 +993,30 @@ mod tests {
     #[test]
     fn woodyre_prepared_player_route_1636() {
         assert_listing_only_player_route("woody-woodpecker-woodyre", Some(false));
+    }
+
+    #[test]
+    fn reblue_prepared_player_preserves_strict_definition_route_56() {
+        let id = "re-blue";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        let declared = service.catalog.port(id).unwrap();
+        assert_eq!(declared.adapter, crate::AdapterKind::GeneratedCache);
+        assert_ne!(declared.release.provider, ReleaseSource::UserPrepared);
+        assert!(declared.source_profile.is_some());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
+    }
+
+    #[test]
+    fn redriver2_prepared_player_route_317() {
+        assert_listing_only_player_route("driver-2-redriver2", Some(false));
     }
 
     // Bind the real embedded identities to Core's offered operations with an
