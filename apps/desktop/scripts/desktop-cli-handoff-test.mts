@@ -128,7 +128,7 @@ export async function cliHandoffScenario({
     assert.ok(versionSummary.includes(required(installedStatus.active).version));
     assert.doesNotMatch(versionSummary, /Latest version at last check/);
     assert.match(
-      await browser.findElement(By.css("#detail-updates")).findElement(By.xpath("..")).getText(),
+      await browser.findElement(By.css('section[aria-labelledby="detail-updates"]')).getText(),
       /No update check is saved for this installation and channel/,
     );
     await revealDetailSection(browser, "Manage");

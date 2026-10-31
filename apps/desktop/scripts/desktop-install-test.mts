@@ -456,6 +456,75 @@ export async function installScenarios({
     artifacts.push(report);
     const accessibility = path.join(output, "install-cancellation-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
+
+    // Completed records normally stay in History. Exposing this exact record in
+    // Tasks witnesses the invocation owner's actual Activity destination.
+    const destinationFeed = transportValue("activity", success(await invoke("get_activities")));
+    assert.equal(destinationFeed.active_and_actionable_complete, true);
+    const protectedIds = [
+      ...destinationFeed.current_activity_ids,
+      ...destinationFeed.attention_required_activity_ids,
+      ...destinationFeed.recovery_required_activity_ids,
+    ];
+    assert.equal(protectedIds.includes(succeeded.id), false);
+    assert.equal(succeeded.failure ?? null, null);
+    const invocation = await browser.findElement(
+      By.css(`[data-invocation-id="${completedInvocationId}"]`),
+    );
+    await clickVisible(
+      browser,
+      await invocation.findElement(By.xpath('.//button[normalize-space(.)="View in Activity"]')),
+    );
+    await browser.wait(until.elementLocated(By.css('[data-activity-section="tasks"]')), 10_000);
+    const destination = await browser.wait(
+      until.elementLocated(By.css(`.activity-row[data-activity-id="${succeeded.id}"]`)),
+      10_000,
+    );
+    await browser.wait(until.elementIsVisible(destination), 10_000);
+    assert.equal(
+      await executeBrowserScript(
+        browser,
+        (element) => element.closest('[hidden], [inert], [aria-hidden="true"]') === null,
+        destination,
+      ),
+      true,
+    );
+    assert.ok(
+      required(await destination.getAttribute("class"))
+        .split(/\s+/)
+        .includes("succeeded"),
+    );
+    assert.match(await destination.getText(), /Installation/);
+    assert.equal(await destination.findElement(By.css(".activity-status")).getText(), "Completed");
+    const routeReport = path.join(output, "install-activity-destination.json");
+    await writeFile(
+      routeReport,
+      JSON.stringify(
+        {
+          invocation_id: completedInvocationId,
+          expected_core_activity_id: succeeded.id,
+          actual_visible_activity_id: await destination.getAttribute("data-activity-id"),
+          selected_section: "tasks",
+          protected_activity_ids: protectedIds,
+          active_and_actionable_complete: destinationFeed.active_and_actionable_complete,
+          core_operation: succeeded.operation,
+          core_status: succeeded.status,
+          focused_element: await executeBrowserScript(browser, () => ({
+            tag: document.activeElement?.tagName,
+            id: document.activeElement?.id,
+            role: document.activeElement?.getAttribute("role"),
+          })),
+          scope:
+            "Actual invocation-owned View in Activity route; independently known Core UUID. Numeric invocation identity is not equated with a Core UUID.",
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+    artifacts.push(routeReport);
+    const routeAccessibility = path.join(output, "install-activity-destination-accessibility.json");
+    await captureAccessibilityReport(browser, routeAccessibility, artifacts);
   });
 
   await scenario("install-commit-refresh-recovery", async () => {
