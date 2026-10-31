@@ -82,8 +82,23 @@ export function planDesktopExecution(
     (selection.profile === "presentation" ||
       (selection.selected_scenarios.length === 1 &&
         selection.selected_scenarios[0] === "native-interface-size"));
+  const reviewedWorkflowSession =
+    platform === "win32" &&
+    selection.selected_scenarios.some((id) =>
+      [
+        "native-reviewed-existing-install-copy",
+        "native-library-move-invalidates-prior-reviews",
+        "native-contextual-cli-handoff",
+        "native-library-layout",
+        "native-staged-update-composition",
+        "native-local-artwork-picker-and-recovery",
+        "appearance-restart",
+        "native-workspace-refresh-recovery",
+      ].includes(id),
+    );
   const identityBoundSession =
     presentationSession ||
+    reviewedWorkflowSession ||
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-interrupted-preparation-recovery")) ||
     organizationRestart ||
@@ -193,7 +208,9 @@ export function planDesktopExecution(
         ? "organization-restart"
         : presentationSession && preferredCleanupName === "backup-focus"
           ? "presentation"
-          : preferredCleanupName;
+          : reviewedWorkflowSession && preferredCleanupName === "backup-focus"
+            ? "native-review"
+            : preferredCleanupName;
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,
@@ -422,6 +439,7 @@ export function planDesktopExecution(
       ordinaryCloseSession,
       minimizedPreparationSession,
       normalPackageSession,
+      reviewedWorkflowSession,
       identityBoundSession,
       cleanupName,
     },

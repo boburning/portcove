@@ -284,6 +284,7 @@ const {
   ordinaryCloseSession,
   minimizedPreparationSession,
   normalPackageSession,
+  reviewedWorkflowSession,
   identityBoundSession: plannedIdentityBoundSession,
   cleanupName,
 } = executionPlan.session;
@@ -701,6 +702,7 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
   const suffix =
     cleanupName === "presentation" ||
     cleanupName === "organization-restart" ||
+    reviewedWorkflowSession ||
     interruptedPreparationSession
       ? `-${++cleanupCaptureSequence}-${driver.pid}`
       : hostInterruptionSession ||
@@ -1668,7 +1670,15 @@ async function restartApplication(
       !preferencesRecoverySession &&
       !hostPublicationSession &&
       !acquisitionRestart &&
-      !(interruptedPreparationSession && name === "interrupted-preparation-fixture")
+      !(
+        reviewedWorkflowSession &&
+        selection.selected_scenarios.includes("native-staged-update-composition") &&
+        name === "native-staged-update-composition"
+      ) &&
+      !(
+        interruptedPreparationSession &&
+        (name === "interrupted-preparation-fixture" || name === "journal-only-preparation-recovery")
+      )
     )
       assert.equal(
         prepareWhileStopped,
@@ -1678,7 +1688,10 @@ async function restartApplication(
     return await ownedSession.restart({
       capture: async () => {
         const inventory = captureBackupFocusCleanup(
-          selectedSetupRestart || acquisitionRestart || interruptedPreparationSession
+          selectedSetupRestart ||
+            acquisitionRestart ||
+            interruptedPreparationSession ||
+            reviewedWorkflowSession
             ? name
             : cleanupName,
         );
@@ -4447,6 +4460,7 @@ try {
       shutdown?: NativeExitObservation;
       connected?: string;
       preference_preserved?: boolean;
+      owned_restart_receipt?: string;
     }
     const observations: AppearanceRestartObservation[] = [];
     try {
@@ -4457,17 +4471,27 @@ try {
           shutdown_request: "identity-bound-isolated-driver-tree-termination",
         };
         observations.push(observation);
-        const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
-        if (process.platform === "win32") {
-          observeNativeSession("Snapshot", snapshot);
-          artifacts.push(snapshot);
+        if (process.platform === "win32" && identityBoundSession) {
+          const name = `appearance-restart-${cycle + 1}`;
+          await restartApplication(name);
+          const receipt = path.join(output, `${name}-restart.json`);
+          observation.owned_restart_receipt = receipt;
+          const cleanup: unknown = JSON.parse(await readFile(receipt, "utf8"));
+          assert.ok(isRecord(cleanup));
+          observation.shutdown = readNativeSessionObservation("Wait", cleanup.exited);
+        } else {
+          const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
+          if (process.platform === "win32") {
+            observeNativeSession("Snapshot", snapshot);
+            artifacts.push(snapshot);
+          }
+          observation.driver_stop = await requestApplicationShutdown(snapshot);
+          observation.session_delete_completed = new Date().toISOString();
+          if (process.platform === "win32")
+            observation.shutdown = observeNativeSession("Wait", snapshot);
+          await startDriver();
+          await connect();
         }
-        observation.driver_stop = await requestApplicationShutdown(snapshot);
-        observation.session_delete_completed = new Date().toISOString();
-        if (process.platform === "win32")
-          observation.shutdown = observeNativeSession("Wait", snapshot);
-        await startDriver();
-        await connect();
         observation.connected = new Date().toISOString();
         assert.equal(
           await executeBrowserScript(driverBrowser(), () => document.documentElement.dataset.theme),

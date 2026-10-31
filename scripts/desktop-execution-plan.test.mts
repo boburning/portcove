@@ -433,6 +433,21 @@ void test("execution planning preserves the independently reviewed pre-change or
 
     if (!row.harness_admission.error) {
       const expectedSession = structuredClone(row.harness_admission);
+      const reviewedWorkflowSession =
+        row.platform === "win32" &&
+        selection.selected_scenarios.some((id) =>
+          [
+            "native-reviewed-existing-install-copy",
+            "native-library-move-invalidates-prior-reviews",
+            "native-contextual-cli-handoff",
+            "native-library-layout",
+            "native-staged-update-composition",
+            "native-local-artwork-picker-and-recovery",
+            "appearance-restart",
+            "native-workspace-refresh-recovery",
+          ].includes(id),
+        );
+      Object.assign(expectedSession, { reviewedWorkflowSession });
       // Retain the historical oracle while making interrupted recovery use the
       // existing Windows identity capture and positive-exit custody owner.
       if (
@@ -524,6 +539,11 @@ void test("execution planning preserves the independently reviewed pre-change or
         selection.selected_scenarios.includes("native-default-cover-cache-conditions")
       )
         expectedSession.historySession = true;
+      if (reviewedWorkflowSession) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "native-review";
+      }
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
@@ -1426,4 +1446,37 @@ void test("Windows interrupted preparation uses positive exit custody without qu
     { platform: "win32" },
   );
   assert.equal(cancellationOnly.session.identityBoundSession, false);
+});
+
+void test("remaining reviewed Windows workflows use existing positive exit custody", () => {
+  for (const id of [
+    "native-reviewed-existing-install-copy",
+    "native-library-move-invalidates-prior-reviews",
+    "native-contextual-cli-handoff",
+    "native-library-layout",
+    "native-staged-update-composition",
+    "native-local-artwork-picker-and-recovery",
+    "appearance-restart",
+    "native-workspace-refresh-recovery",
+  ]) {
+    for (const platform of ["win32", "darwin", "linux"] as const) {
+      const selection = resolveDesktopSelection({ scenarios: [id], platform });
+      const plan = planDesktopExecution(selection, { platform });
+      assert.equal(plan.session.reviewedWorkflowSession, platform === "win32");
+      assert.equal(plan.session.identityBoundSession, platform === "win32");
+      assert.equal(
+        plan.session.cleanupName,
+        platform === "win32" ? "native-review" : "backup-focus",
+      );
+    }
+  }
+  const combined = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-library-layout", "native-game-update-review"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(combined.session.reviewedWorkflowSession, true);
+  assert.equal(combined.session.cleanupName, "game-update-review");
 });
