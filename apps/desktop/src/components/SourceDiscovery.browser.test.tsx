@@ -193,6 +193,12 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       "Searching does not upload or move your files. After finding a match, choose whether to use it where it is, copy it into Portcove, or move it.",
     );
     await page.getByRole("combobox", { name: /^Required files/ }).click();
+    // The portal can mount after the browser click completes its input events.
+    await expect
+      .poll(() =>
+        document.body.querySelector<HTMLElement>('[data-slot="select-content"][data-open]'),
+      )
+      .not.toBeNull();
     const openPopup = document.body.querySelector<HTMLElement>(
       '[data-slot="select-content"][data-open]',
     );
