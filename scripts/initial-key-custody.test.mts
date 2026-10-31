@@ -146,7 +146,6 @@ void test(
   "actual complete vault reprojects a disposable Tauri payload and restores all sixteen roles without primary keys",
   {
     skip:
-      process.platform !== "linux" ||
       !process.env.PORTCOVE_COMPLETE_CUSTODY_QUALIFICATION_TOOL ||
       !process.env.PORTCOVE_CATALOG_RECOVERY_TOOL_PARENT,
     timeout: 360000,
