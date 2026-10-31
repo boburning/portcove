@@ -639,6 +639,10 @@ SHA do not replace age authentication. Bundle size is at most 1 MiB and each
 private key at most 32 KiB. Caller custody callbacks must themselves be bounded
 and return a fresh transferred buffer; returned buffers are cleared after
 consumption. JavaScript heap strings do not provide guaranteed secure erasure.
+The recovery bootstrap retains its own pinned Aqua archive/source/version,
+separate from the ordinary quality manager's `.aqua-version`. Updating that
+quality manager cannot retarget recovery tools; recovery archive, checksum,
+binary-version and source-bound proof checks still run unchanged.
 
 `scripts/catalog-recovery-vault-cli.mts` accepts a closed public JSON configuration:
 
@@ -728,6 +732,35 @@ Ciphertext-only transport may use a shared recovery volume: its bounded
 single-link/canonical read, retained digest and age authentication remain required,
 while Linux 0700/0600 custody requirements apply only to plaintext working and
 quarantine material. This adapter does not provision or copy to that storage.
+
+Initial setup can back up the existing application and catalog keys together
+before signed Root/Targets metadata exists. The separate
+`initial-pre-payload-owner-passphrase-tty-v1` CLI profile uses the same vault
+engine, age process, private terminal, key inspectors and durable recovery
+boundary. Its public configuration replaces `configuration`,
+`app_public_captures` and `public_inputs` with an independently pinned
+`inventory: { "path": "/absolute/initial-inventory.json", "sha256": "REVIEWED_SHA256" }`;
+the inspector, tool/private parents and complete distinct `key_paths` stay explicit.
+It does not satisfy the existing catalog-only API or publication configuration.
+
+The closed `initial-pre-payload-key-custody-v1` inventory binds repository ID,
+source commit/tree, the initial creation receipt digest, exactly seven application
+and six catalog TUF public keys, and the two measured App/installation/SPKI tuples.
+Canonical Ed25519 public identities, complete roles and distinct material are
+checked before private reads. Each key is reprojected with the pinned inspector
+or captured App SPKI during backup and after authenticated decryption. Its
+explicit `payload_credential: "not-created-not-covered"` describes an initial
+snapshot, never completed production custody. Creating a payload credential later
+requires a separately reviewed complete backup generation; this snapshot cannot
+silently claim it is covered. No key is generated, signed, installed or appointed
+by an inventory, parser or backup.
+
+The create-only output is `initial-setup.age` plus its public completion receipt;
+restore uses a fresh quarantine directory. Missing/extra/aliased roles, changed
+inventory pins, wrong keys, foreign purpose and reused outputs refuse. The
+existing catalog profile and `catalog.age` wire format remain unchanged. Both
+profiles require the separate actual custody grant and local unrecorded passphrase
+entry; fixture or initial-backup success supplies no Root or publication authority.
 
 For that explicitly selected profile, `top_level_targets_profile:
 "online-unchanged-authority-v1"` permits separately isolated Targets signing only
