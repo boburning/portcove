@@ -18,10 +18,7 @@ function rolePermissions(role: HostedReleaseAppRole) {
 export function prepareHostedReleaseAppManifest(role: HostedReleaseAppRole) {
   const permissions = rolePermissions(role);
   return {
-    name:
-      role === "semantic"
-        ? "Portcove Independent Semantic Producer"
-        : "Portcove Protection Observer",
+    name: role === "semantic" ? "Portcove Semantic Producer" : "Portcove Protection Observer",
     url: "https://github.com/boburning/portcove",
     public: false,
     hook_attributes: { url: "https://github.com/boburning/portcove", active: false },
