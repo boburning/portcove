@@ -23104,6 +23104,34 @@
         "image_sha256": "8bbd7446c8888c8f3ae1b04c135a9e43acd76f643356bfb133ea7090a41df1d5",
         "game_slug": "kileak-the-dna-imperative",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/NJH-1001/KTDIR/releases/tag/v0.1.1",
+        "steps": [
+          {
+            "title": "Complete the owned-input KTDIR setup upstream",
+            "instruction": "Use your own USA Kileak: The DNA Imperative PlayStation disc, SCUS-94102, as its Redump-style CUE and every referenced BIN. The official Windows setup ZIP is an owned-input build kit: it does not ship a ready game, original disc, extracted game executable or generated game code. Upstream’s own wizard selects the matching CUE and uses OpenBIOS by default, then generates/rebuilds locally with its supported Python/toolchain. Complete that process outside Portcove. This guide runs no compiler/helper, imports no original and grants no retail BIOS rights."
+          },
+          {
+            "title": "Keep the reviewed kit and its configuration identity together",
+            "instruction": "Keep the complete KTDIR-setup-0.1.1-windows-x64.zip setup kit with your completed build and original inputs. The published kit has updated digital controller settings under the same version label; the older tag-source archive has different settings. Preserve the working configuration instead of replacing it from that older archive."
+          },
+          {
+            "title": "Attach the completed product rather than the setup host",
+            "instruction": "After the upstream build, use the supported completed product under build-release/Kileak__The_DNA_Imperative_Recompiled.exe, with the established kit/project root as working directory and supported --launcher literal argument, preserving any actual source selections. Upstream’s root setup executable forwards there and exits on Windows; attaching that setup host is not equivalent to tracking the completed player. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; stop the actual player/companions first, preserve data and review/relink changed selected bytes."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+          },
+          {
+            "title": "Preserve the whole kit, built runtime and effective player data",
+            "instruction": "Keep both the complete source/setup kit and build-release product, including disc, generated source, framework/UI/BIOS/toolchain resources, mods, configs and every external/custom path. This is upstream-owned local generation, not a Core build or mutable native-code-cache trust grant. The packaged default is memcard_dir=saves; settings or explicit card paths can override it. Preserve actual memory cards, states, settings.toml, game.toml/game_options.toml, input.ini/keybinds.ini, diagnostics/caches, and every creating layout. Relative or generated paths can depend on the established executable/project coordinates; Core does not relocate or rewrite them. Retain the old runtime before updates, rollback or moving a copy; no cross-version save/state compatibility, controller/device observation or title gameplay result is supplied."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+        ]
       }
     },
     {
@@ -24147,7 +24175,33 @@
         "image_sha256": "df0c33bcf2e824cd8b53ee21229a8b3899fc9254578202299d1ec99d1eeaafd2",
         "game_slug": "lollipop-chainsaw",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/MaxDeadBear/Re-Cherry/releases/tag/beta",
+        "steps": [
+          {
+            "title": "Prepare only a permitted completed Re-Cherry copy",
+            "instruction": "This conditional guide applies only where you are already permitted to use the actual runtime and components. The canonical applicable grant/notices and exact source/runtime/configuration condition remains unresolved; a new Beta ZIP or checksum does not supply that basis. For a permitted completed copy, upstream’s current Beta instructions use your own extracted Lollipop Chainsaw Xbox 360 ISO: assets/default.xex plus the AshGame folder. Keep the complete data tree; another game or unestablished retail variant is not certified by a matching filename. Core acquires/extracts/authenticates no original and performs no runtime/DLL assembly or build."
+          },
+          {
+            "title": "Keep the actual native player and package together",
+            "instruction": "The selected public source and Beta release instructions identify re_cherry.exe with its companion runtime/renderer files, requiring a suitable Direct3D 12 or Vulkan GPU. Complete upstream setup outside Portcove, then keep the existing configuration and supported native player together. Source uses an explicit game_data_root when present, otherwise searches executable ancestors for assets/default.xex. This source observation is not an inspected executable payload or full backend/companion certification."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+          },
+          {
+            "title": "Retain the complete creating source/configuration/profile tuple",
+            "instruction": "Preserve the whole runtime/package, own original and extracted assets, AshGame, assets/SkinMods, re_cherry.toml, actual SDK user/profile/save/account/cache roots, logs and every custom/override path. Public title code puts shader_dump beside the game-data root and pipelines.bin beside its effective config; actual SDK roots remain those belonging to your completed copy. Do not substitute ReStuff’s SDK defaults or guess a profile location. Renderer changes may require restart; close actual processes before deliberate upstream changes and relink/review changed selected bytes. No private access, online login, compiler, mod download, capture/upload, profile migration or original-data operation is authorized by this attachment guide."
+          }
+        ],
+        "warnings": [
+          "The existing applicable component/grant/notices and exact source/runtime/configuration condition remains unresolved. This conditional guide supplies no permission and does not remove that hold.",
+          "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+        ]
+      },
+      "download_block_reason": "The canonical selected-runtime/component use/grant/notices and exact source/runtime/configuration condition remains unresolved. Fresh self-service acquisition resumes after an attributable applicable basis and the exact selected assembly/mapping are reviewed, or a reviewed clean alternative resolves that condition. This supplies no permission for another copy and does not rewrite permitted existing-use contracts."
     },
     {
       "id": "lost-odyssey-recomp",
@@ -27537,6 +27591,30 @@
         "image_sha256": "3ff4e67c5834bd7ffcb8f87696001633bd9bf0c45d9be1719d9fa0d5c10baf70",
         "game_slug": "naughty-bear-gold-edition",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff/releases/tag/release_v1.5.1",
+        "steps": [
+          {
+            "title": "Prepare your own Gold Edition data upstream",
+            "instruction": "Use your legally obtained Naughty Bear: Gold Edition Xbox 360 data. The inspected release_v1.5.1 Windows package’s own README supports a standalone setup: extract the complete disc contents directly into assets beside restuff.exe so assets/Default.xex exists. Keep the files together rather than inside an extra nested folder. Core does not acquire, extract or authenticate the game. The older repository README also describes Goopie extraction/installation; a completed standalone copy need not run through that general launcher."
+          },
+          {
+            "title": "Use the actual standalone Windows player",
+            "instruction": "Keep restuff.exe, restuff.toml, all SDK/GPU/shader DLLs and packaged data together. Use restuff.exe with its established executable-directory working coordinates. prewarm_shaders.bat is an optional GPU-cache helper, not the normal game entry; do not attach or run it through this guide. Normal first launch performs its own shader/pipeline warming, so prior helper execution is not an added requirement."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+          },
+          {
+            "title": "Preserve all source, profile, cache and customization roots",
+            "instruction": "Retain the complete creating runtime, own extracted assets/Default.xex tree, restuff.toml, texture_mods, optional texture_dump/glsl_dump, shader_spv.bin, pipeline_cache.bin, pipeline_prewarm.bin and their temporary/build-ID companions. The selected public SDK source defaults Windows user data to the redirected Documents/restuff folder and cache beneath it; user_data_root, cache_root, update_data_root and metadata_root can select other effective roots. If Windows known-folder resolution fails, preserve any actual relative fallback location too. Keep existing original, game_data_root and all custom/environment paths. Normal SDK config is executable-local restuff.toml; diagnostic paths include its configured restuff_dbg.log and the source’s /tmp/restuff_drive location or CWD restuff_mergelog fallback, with optional per-process names. Data/paths from another SDK version are not imputed to your copy. Preserve every effective root and old runtime before deliberate compatible upstream replacement; review package defaults instead of assuming extraction over old settings is lossless. Core does not migrate saves or claim that a previous version can read newer profiles. GPU cache/source observations do not qualify native rendering, driver behavior or actual progress."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+        ]
       }
     },
     {
@@ -35326,6 +35404,34 @@
         "image_sha256": "9ea8041580cca072ba9695fa11d3accd1a3ca312eefd452d8f87a0a52856f220",
         "game_slug": "sexy-parodius",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/NJH-1001/SexyParoRecomp/releases/tag/v0.2.0",
+        "steps": [
+          {
+            "title": "Complete the own-disc Sexy Parodius kit upstream",
+            "instruction": "Use your legally obtained Japanese Sexy Parodius PlayStation disc, SLPM-86009, represented as its CUE and every referenced BIN. The 0.2.0 Windows ZIP is an owned-input build kit with OpenBIOS, not a ready game or retail BIOS distribution. Complete upstream’s Generate and Rebuild flow with its supported Python/toolchain outside Portcove. A bare setup download is not a completed player. Core does not acquire originals, run compilers/helpers, generate game code or download a toolchain."
+          },
+          {
+            "title": "Keep the actual published kit and local source patches",
+            "instruction": "Keep the complete sexyparo-0.2.0-windows-x64.zip setup kit with its completed build, original inputs, settings and CRT/controller resources. The published kit contains framework changes beyond its declared base version; reconstructing it from a framework pin or source tag alone can give a different result. Preserve the actual working kit and built output together."
+          },
+          {
+            "title": "Select the supported completed Windows product",
+            "instruction": "Use the completed build-release/Sexy_Parodius_Recompiled.exe, with the established kit/project root as working directory and supported --launcher literal argument, retaining any actual source/custom arguments. The root setup host starts a Windows successor and exits; do not attach it as the normal game player. The completed game-dispatch branch returns from that initial forwarder. Stop the player and all compiler/helper processes before deliberately using upstream Generate/Rebuild or replacing its SDK/runtime; relink and review changed selected bytes. Core provides no builder or per-title waiting wrapper."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+          },
+          {
+            "title": "Preserve the full creating runtime and every data root",
+            "instruction": "Keep the entire kit and built product, original disc/BIOS locations, generated code, locally patched SDK/UI, shader/mod resources and all actual overrides. Preserve the default saves directory plus any explicit memory-card paths, settings.toml/game_options.toml, input.ini/keybinds.ini where present, states, captures/diagnostics and version-specific caches. Keep old and new roots intact before changing paths or versions; raw paths and compiled defaults may belong to the creating layout. No Core-managed backup, migration, rollback or native-code cache whitelist is offered, and no future or backwards save/mod compatibility is inferred."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+        ]
       }
     },
     {

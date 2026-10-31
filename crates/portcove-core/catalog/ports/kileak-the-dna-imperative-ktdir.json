@@ -16,6 +16,34 @@
       "image_sha256": "8bbd7446c8888c8f3ae1b04c135a9e43acd76f643356bfb133ea7090a41df1d5",
       "game_slug": "kileak-the-dna-imperative",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/NJH-1001/KTDIR/releases/tag/v0.1.1",
+      "steps": [
+        {
+          "title": "Complete the owned-input KTDIR setup upstream",
+          "instruction": "Use your own USA Kileak: The DNA Imperative PlayStation disc, SCUS-94102, as its Redump-style CUE and every referenced BIN. The official Windows setup ZIP is an owned-input build kit: it does not ship a ready game, original disc, extracted game executable or generated game code. Upstream’s own wizard selects the matching CUE and uses OpenBIOS by default, then generates/rebuilds locally with its supported Python/toolchain. Complete that process outside Portcove. This guide runs no compiler/helper, imports no original and grants no retail BIOS rights."
+        },
+        {
+          "title": "Keep the reviewed kit and its configuration identity together",
+          "instruction": "Keep the complete KTDIR-setup-0.1.1-windows-x64.zip setup kit with your completed build and original inputs. The published kit has updated digital controller settings under the same version label; the older tag-source archive has different settings. Preserve the working configuration instead of replacing it from that older archive."
+        },
+        {
+          "title": "Attach the completed product rather than the setup host",
+          "instruction": "After the upstream build, use the supported completed product under build-release/Kileak__The_DNA_Imperative_Recompiled.exe, with the established kit/project root as working directory and supported --launcher literal argument, preserving any actual source selections. Upstream’s root setup executable forwards there and exits on Windows; attaching that setup host is not equivalent to tracking the completed player. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; stop the actual player/companions first, preserve data and review/relink changed selected bytes."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+        },
+        {
+          "title": "Preserve the whole kit, built runtime and effective player data",
+          "instruction": "Keep both the complete source/setup kit and build-release product, including disc, generated source, framework/UI/BIOS/toolchain resources, mods, configs and every external/custom path. This is upstream-owned local generation, not a Core build or mutable native-code-cache trust grant. The packaged default is memcard_dir=saves; settings or explicit card paths can override it. Preserve actual memory cards, states, settings.toml, game.toml/game_options.toml, input.ini/keybinds.ini, diagnostics/caches, and every creating layout. Relative or generated paths can depend on the established executable/project coordinates; Core does not relocate or rewrite them. Retain the old runtime before updates, rollback or moving a copy; no cross-version save/state compatibility, controller/device observation or title gameplay result is supplied."
+        }
+      ],
+      "warnings": [
+        "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+      ]
     }
   }
 }

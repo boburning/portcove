@@ -16,6 +16,34 @@
       "image_sha256": "9ea8041580cca072ba9695fa11d3accd1a3ca312eefd452d8f87a0a52856f220",
       "game_slug": "sexy-parodius",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/NJH-1001/SexyParoRecomp/releases/tag/v0.2.0",
+      "steps": [
+        {
+          "title": "Complete the own-disc Sexy Parodius kit upstream",
+          "instruction": "Use your legally obtained Japanese Sexy Parodius PlayStation disc, SLPM-86009, represented as its CUE and every referenced BIN. The 0.2.0 Windows ZIP is an owned-input build kit with OpenBIOS, not a ready game or retail BIOS distribution. Complete upstream’s Generate and Rebuild flow with its supported Python/toolchain outside Portcove. A bare setup download is not a completed player. Core does not acquire originals, run compilers/helpers, generate game code or download a toolchain."
+        },
+        {
+          "title": "Keep the actual published kit and local source patches",
+          "instruction": "Keep the complete sexyparo-0.2.0-windows-x64.zip setup kit with its completed build, original inputs, settings and CRT/controller resources. The published kit contains framework changes beyond its declared base version; reconstructing it from a framework pin or source tag alone can give a different result. Preserve the actual working kit and built output together."
+        },
+        {
+          "title": "Select the supported completed Windows product",
+          "instruction": "Use the completed build-release/Sexy_Parodius_Recompiled.exe, with the established kit/project root as working directory and supported --launcher literal argument, retaining any actual source/custom arguments. The root setup host starts a Windows successor and exits; do not attach it as the normal game player. The completed game-dispatch branch returns from that initial forwarder. Stop the player and all compiler/helper processes before deliberately using upstream Generate/Rebuild or replacing its SDK/runtime; relink and review changed selected bytes. Core provides no builder or per-title waiting wrapper."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
+        },
+        {
+          "title": "Preserve the full creating runtime and every data root",
+          "instruction": "Keep the entire kit and built product, original disc/BIOS locations, generated code, locally patched SDK/UI, shader/mod resources and all actual overrides. Preserve the default saves directory plus any explicit memory-card paths, settings.toml/game_options.toml, input.ini/keybinds.ini where present, states, captures/diagnostics and version-specific caches. Keep old and new roots intact before changing paths or versions; raw paths and compiled defaults may belong to the creating layout. No Core-managed backup, migration, rollback or native-code cache whitelist is offered, and no future or backwards save/mod compatibility is inferred."
+        }
+      ],
+      "warnings": [
+        "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
+      ]
     }
   }
 }
