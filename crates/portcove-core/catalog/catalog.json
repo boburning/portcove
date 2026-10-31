@@ -29294,6 +29294,45 @@
       }
     },
     {
+      "id": "kirby-letsgo-oracles-decomp",
+      "name": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons / Oracles Decomp (kirby-letsgo)",
+      "summary": "A native Oracles engine for your own Oracle of Ages and Oracle of Seasons data.",
+      "project_url": "https://github.com/kirby-letsgo/oracles-decomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "kirby-letsgo/oracles-decomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "oracles-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Oracles.exe"
+        ]
+      },
+      "persistent_paths": [
+        "portable.txt",
+        "oracles-data",
+        "oracles-data.part"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance.",
+        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons"
+      }
+    },
+    {
       "id": "knuckles-chaotix-recompiled",
       "name": "Knuckles' Chaotix Recompiled",
       "summary": "Explore Knuckles' Chaotix Recompiled and follow the upstream project for requirements, downloads and setup.",
@@ -30102,6 +30141,56 @@
           ],
           "warnings": [],
           "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+        }
+      }
+    },
+    {
+      "id": "moshferatu-zombies-ate-my-neighbors-pc-port",
+      "name": "Zombies Ate My Neighbors / Zombies Ate My Neighbors PC Port (moshferatu)",
+      "summary": "A Zombies Ate My Neighbors PC engine using your own original USA cartridge data.",
+      "project_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+        "asset_hints": {
+          "windows-x86-64": [
+            "zamn-windows-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "zamn_launcher.exe"
+        ]
+      },
+      "persistent_paths": [
+        "zamn.ini",
+        "zamn.ini.tmp",
+        "zamn.quicksave",
+        "zamn.quicksave.tmp",
+        "zamn.hiscore",
+        "zamn.hiscore.tmp"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe: select your ROM and settings there, then use its Play button. Keep zamn.exe, SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
+        "original_game_title": "Zombies Ate My Neighbors",
+        "artwork": {
+          "game_id": 2162,
+          "cover_id": 129525,
+          "image_id": "co2rxx",
+          "image_sha256": "a91a1393cd7f8423249a643e0fb984acb90c75660bdd13030e70ebab68a58045",
+          "game_slug": "zombies-ate-my-neighbors",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -33952,6 +34041,58 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "This is the deliberately selected rolling prerelease, with upstream bugs and instability expected. Complete the normal in-process setup wizard using your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2, or prepare the exact SF33RD.AFS from THIRD/ in the upstream resources location. A CPS-3/MAME set, future arcade-ROM-only roadmap or a different edition is not the current source contract. The selected Windows player 3sx.exe lives in bin/ and uses its executable parent as the launch working directory; keep all packaged dependencies. Normal resources, configuration, cache, logs and user storage live under AppData/Roaming/CrowdedStreet/3SX; preserve the whole actual profile and any custom effective roots. Upstream checks the expected AFS when its checksum option is enabled; Core does not authenticate, acquire, copy or import original data. Core owns engine replacement on the declared rolling provider channel; upstream owns original-data preparation and shared external profiles. Core supplies no external-profile backup, migration or deletion. Preserve the complete old runtime and compatible actual player data before changes. Rolling tag/assets can change; published provider identity and reviewed current selection remain required, and ambiguity or missing independent identity must refuse. No netplay, rollback gameplay, actual original import, save compatibility or physical-platform acceptance is claimed.",
+        "original_game_title": "Street Fighter III: 3rd Strike",
+        "artwork": {
+          "game_id": 243243,
+          "cover_id": 294724,
+          "image_id": "co6bes",
+          "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
+          "game_slug": "street-fighter-iii-3rd-strike--2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "street-fighter-iii-3rd-strike-3sxw",
+      "name": "Street Fighter III: 3rd Strike / 3SXW",
+      "summary": "A Street Fighter III: 3rd Strike engine using your own PlayStation 2 data.",
+      "project_url": "https://github.com/guimaraf/3sxw",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "guimaraf/3sxw",
+        "asset_hints": {
+          "windows-x86-64": [
+            "3sx-",
+            "-windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SF3.exe"
+        ]
+      },
+      "persistent_paths": [
+        "resources/SF33RD.AFS",
+        "data/saves",
+        "data/config",
+        "data/keymap",
+        "data/error.log",
+        "data/debug",
+        "prints"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Use your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2. Complete upstream's in-process ISO wizard, or its documented SF33RD.AFS setup; a CPS-3/MAME set is not this source contract. Core does not acquire or authenticate original data. The actual Windows player is bin/SF3.exe, with its executable parent as the launch directory; keep every packaged DLL and companion file, including sf3config.exe. This fork stores resources/SF33RD.AFS, data/saves (both memory-card slots), data/config, data/keymap, data/error.log, optional data/debug diagnostics and prints beside that player. Core preserves those declared paths across engine maintenance; its packaged data/img bezel images remain runtime content. Interrupted storage probes or configuration temporary files outside the declared paths deliberately hold maintenance for inspection; do not delete unknown files to bypass that hold. Preserve the complete creating runtime and all actual originals, profiles and unknown files before changes. The selected source enables its expected AFS SHA-256 check in Release builds (f9fa50f3a124ec9fa9465aa9c8546c2d867887eb39f711a070762a0324ba5604); use a compatible original that passes upstream validation. Unestablished region/revision coverage is not a claim that every PS2 edition works, and no exact-binary/source reproducibility is established here. This is a separate portable fork, not a migration of CrowdedStreet/3SX's external AppData profile. Upstream original-file checksum checks do not establish Core source authentication, memory-card compatibility, gameplay or netplay qualification. Core owns engine replacement; upstream owns data preparation. Diagnostics can contain paths and inputs and are not uploaded by this route.",
         "original_game_title": "Street Fighter III: 3rd Strike",
         "artwork": {
           "game_id": 243243,

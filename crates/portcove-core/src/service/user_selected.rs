@@ -2440,4 +2440,9 @@ mod tests {
     fn cut_the_rope_dx_prepared_player_route_1128() {
         assert_listing_only_player_route("cut-the-rope-dx", Some(false));
     }
+
+    #[test]
+    fn metal_gear_solid_integral_reintegral_prepared_player_route_2106() {
+        assert_listing_only_player_route("metal-gear-solid-integral-reintegral", Some(false));
+    }
 }

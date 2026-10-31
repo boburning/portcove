@@ -5540,4 +5540,43 @@ mod tests {
         )
         .await;
     }
+
+    #[tokio::test]
+    async fn three_sxw_managed_progression_preserves_memory_cards_and_holds_interrupted_probe() {
+        assert_profile_engine_progression(
+            "street-fighter-iii-3rd-strike-3sxw",
+            "SF3.exe",
+            "3SX-fixture-windows.zip",
+            true,
+            Some("data/saves/slot1/card.save"),
+            Some("data/.3sx-write-test-0000000000000001-00000002.tmp"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn zamn_managed_progression_preserves_interrupted_default_quicksave() {
+        assert_profile_engine_progression(
+            "moshferatu-zombies-ate-my-neighbors-pc-port",
+            "zamn_launcher.exe",
+            "zamn-windows-x86_64.zip",
+            true,
+            Some("zamn.quicksave.tmp"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn oracles_managed_progression_preserves_unfinished_portable_profile() {
+        assert_profile_engine_progression(
+            "kirby-letsgo-oracles-decomp",
+            "Oracles.exe",
+            "Oracles-windows-x64.zip",
+            true,
+            Some("oracles-data.part/retained/in-progress.dat"),
+            None,
+        )
+        .await;
+    }
 }
