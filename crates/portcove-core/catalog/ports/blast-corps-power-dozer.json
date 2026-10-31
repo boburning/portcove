@@ -3,13 +3,12 @@
   "listing": {
     "id": "blast-corps-power-dozer",
     "name": "Blast Corps (Power Dozer)",
-    "summary": "Upstream route: Treat separately from SlaveOfIDO/blastcorps-recomp unless lineage review proves same identity. Limits: Native beta candidate v0.84; retained upstream attract/runtime checks are not a Portcove gameplay pass. Upstream platforms: Windows x86-64 ZIP and Linux x86-64 tar.gz; Vulkan and SSSE3/SSE4.1 required, Linux glibc2.38+. Original data: Own USA Rev 1 ROM; z64/v64/n64 or single-ROM ZIP. Linux x64, glibc2.38+, Vulkan; Windows x64 VC++ runtime. Portcove setup/gameplay not verified.",
+    "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 package and preserves its default local game data; upstream owns original-game import.",
     "original_game_title": "Blast Corps",
     "project_url": "https://github.com/djultra64/Power-Dozer",
     "issue_number": 2557,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/djultra64/Power-Dozer",
+    "availability": "packages",
+    "setup_url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/README.md",
     "artwork": {
       "game_id": 3424,
       "cover_id": 104010,
@@ -17,6 +16,30 @@
       "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
       "game_slug": "blast-corps",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/djultra64/Power-Dozer/releases/tag/v0.84",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your own original on first Play",
+          "instruction": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it."
+        },
+        {
+          "title": "Use the complete Windows package",
+          "instruction": "The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned."
+        },
+        {
+          "title": "Preserve game data and external diagnostics",
+          "instruction": "For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes."
+        },
+        {
+          "title": "Keep one replacement owner",
+          "instruction": "Use Portcove for the managed copy and upstream/player ownership for separately registered installations. Existing external copies and custom profile paths retain their own update and preservation responsibility. Package integrity and first-party fixtures do not establish gameplay, real-save restoration or every graphics device."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/README.md"
     }
   },
   "upstream_lineage": {
@@ -30,5 +53,30 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "djultra64/Power-Dozer",
+      "asset_hints": {
+        "windows-x86-64": ["power-dozer-", "-windows-x86_64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["power-dozer.exe"]
+    },
+    "persistent_paths": ["data"],
+    "launch_environment": {
+      "BLASTCORPS_DATA_DIR": "data"
+    },
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it. The official v0.84 Windows ZIP is an experimental beta despite its stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. No game compiler, installer or command wrapper is required for the normal native entry. Other platforms remain upstream-owned. For the managed Windows route, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate %LOCALAPPDATA%/blastcorps-feasibility RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes. Use Portcove for the managed copy and upstream/player ownership for separately registered installations. Existing external copies and custom profile paths retain their own update and preservation responsibility. Package integrity and first-party fixtures do not establish gameplay, real-save restoration or every graphics device."
+    }
   }
 }

@@ -1820,3 +1820,101 @@ async fn retained_releases_expose_old_filename_pins_without_guessing_a_successor
     assert_eq!(serde_json::to_vec(&port).unwrap(), definition);
     server.join().unwrap();
 }
+
+#[tokio::test]
+async fn power_dozer_unchanged_definition_selects_windows_runtime_and_refuses_unsafe_variants_2557()
+{
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("blast-corps-power-dozer").unwrap();
+    let definition = serde_json::to_value(port).unwrap();
+    let captured: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/blast-corps-release-selection-2026-10-31.json"
+    ))
+    .unwrap();
+    let observed = &captured["release"];
+    let name = "power-dozer-v0.84-windows-x86_64.zip";
+    let selected = observed["assets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|asset| asset["name"] == name)
+        .unwrap();
+    let mut next = observed.clone();
+    next["tag_name"] = serde_json::json!("v0.85");
+    for asset in next["assets"].as_array_mut().unwrap() {
+        let name = asset["name"].as_str().unwrap().replace("v0.84", "v0.85");
+        asset["name"] = serde_json::json!(name);
+        asset["browser_download_url"] =
+            serde_json::json!(format!("https://downloads.example.invalid/{name}"));
+        asset["digest"] = serde_json::json!(format!("sha256:{}", "b".repeat(64)));
+    }
+    let (root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(std::slice::from_ref(observed)),
+        metadata(),
+        releases(&[next]),
+    ]);
+    let old = GithubReleaseProvider::with_api_root(root.clone())
+        .unwrap()
+        .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(old.version, "v0.84");
+    assert_eq!(old.asset.name, name);
+    assert_eq!(old.asset.size, 14_232_529);
+    assert_eq!(
+        old.asset.sha256,
+        "5b25d339376065442d82972917c921fa25f3b9e2f5bb87252389a993a4723533"
+    );
+    let next = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(next.version, "v0.85");
+    assert_eq!(next.asset.name, "power-dozer-v0.85-windows-x86_64.zip");
+    assert_eq!(next.asset.sha256, "b".repeat(64));
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 4);
+    for mutation in [
+        "wrong-cpu",
+        "wrong-platform",
+        "ambiguous",
+        "missing-integrity",
+    ] {
+        let mut player = selected.clone();
+        match mutation {
+            "wrong-cpu" => {
+                player["name"] = serde_json::json!("power-dozer-v0.85-windows-arm64.zip")
+            }
+            "wrong-platform" => {
+                player["name"] = serde_json::json!("power-dozer-v0.85-linux-x86_64.zip")
+            }
+            "missing-integrity" => player["digest"] = serde_json::Value::Null,
+            _ => {}
+        }
+        let mut candidates = vec![player.clone()];
+        if mutation == "ambiguous" {
+            player["name"] = serde_json::json!("power-dozer-v0.85-alternate-windows-x86_64.zip");
+            candidates.push(player);
+        }
+        let (root, _, server) =
+            serve_http(vec![metadata(), releases(&[release("v0.85", candidates)])]);
+        let error = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.code,
+            match mutation {
+                "ambiguous" => crate::ErrorCode::Conflict,
+                "missing-integrity" => crate::ErrorCode::Verification,
+                _ => crate::ErrorCode::NotFound,
+            },
+            "{mutation}"
+        );
+        server.join().unwrap();
+    }
+    assert_eq!(serde_json::to_value(port).unwrap(), definition);
+}

@@ -3,13 +3,13 @@
   "listing": {
     "id": "blast-corps-blastcorps-recompiled",
     "name": "Blast Corps (BlastCorps: Recompiled)",
-    "summary": "Upstream route: Official 1.0.0 packages: Windows ZIP, Linux Flatpak ZIP, macOS ZIP; ROM selection at launch. Limits: Packaged1.0.0 release; upstream native route established, gameplay untested by Portcove. Upstream platforms: Windows ZIP, Linux binary/Flatpak ZIP and macOS ZIP. macOS supports Apple Silicon and Intel requirements; selected Windows/Linux archive architectures unknown in frozen release research. Original data: Owned North American revision 1.1 ROM. Game assets are not bundled. Portcove setup/gameplay not verified.",
+    "summary": "A native Blast Corps player for an owned North American revision 1.1 dump. Keep an existing copy you are permitted to use; fresh acquisition is held on the separate packaged font permission condition.",
     "original_game_title": "Blast Corps",
     "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
     "issue_number": 2558,
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
     "artwork": {
       "game_id": 3424,
       "cover_id": 104010,
@@ -17,6 +17,32 @@
       "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
       "game_slug": "blast-corps",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/releases/tag/1.1.1",
+    "download_block_reason": "The selected 1.1.1 Windows package includes Suplexmentary Comic NC.ttf, the exact separate font retained in the Banjo-Tooie font permission condition. Its applicable distribution grant remains unestablished; the official RecompFrontend GPLv3 grant does not license this font. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible font permission or a reviewed released package removing or replacing the affected font.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep a complete permitted Windows player",
+          "instruction": "Use an already completed BlastCorps Recompiled 1.1.1 Windows copy and components you are permitted to use. Keep BlastCorpsRecompiled.exe, assets, matching DLLs and notices together. The ordinary published player does not need a game compiler or separate installer. Fresh acquisition remains held on the packaged font condition."
+        },
+        {
+          "title": "Select your own supported original",
+          "instruction": "Choose your own North American revision 1.1 Blast Corps ROM through the upstream player. The selected game is bc.n64.us. Keep the original separately; this guide does not acquire, copy, authenticate or convert the ROM through Core."
+        },
+        {
+          "title": "Review the actual player and execution intent",
+          "instruction": "For a completed permitted copy, select BlastCorpsRecompiled.exe, its established package directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation and runtime replacement stay with the player/upstream. Removing the registration preserves every external file; Core supplies no external engine update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the actual profile before maintenance",
+          "instruction": "The normal Windows profile is %LOCALAPPDATA%/BlastCorpsRecompiled. A portable.txt marker chooses the working directory; failed known-folder lookup can also fall back to a relative folder. Preserve the actual selected location, including cached bc.n64.us.z64 original, saves, settings/config JSON and backups/temporary files, mods and mod configuration. Keep a complete separate backup and compatible creating engine; runtime replacement does not rewind saves or certify mods. A custom profile remains external. Close the actual player before deliberate replacement and review/relink a changed executable."
+        }
+      ],
+      "warnings": [
+        "The font condition stays open. Conditional permitted-copy guidance does not grant acquisition or component permission, gameplay, real-save, installed-app or protected-publication acceptance."
+      ],
+      "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
     }
   },
   "upstream_lineage": {

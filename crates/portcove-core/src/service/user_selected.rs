@@ -2528,4 +2528,9 @@ mod tests {
     fn cbfd_recompiled_sciaschi_frontend_license_player_route_1216() {
         assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(false));
     }
+
+    #[test]
+    fn blast_corps_recompiled_permitted_player_route_2558() {
+        assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(true));
+    }
 }
