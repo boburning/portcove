@@ -2490,4 +2490,42 @@ mod tests {
     fn sexy_parodius_sexyparorecomp_prepared_player_route_325() {
         assert_listing_only_player_route("sexy-parodius-sexyparorecomp", Some(false));
     }
+
+    #[test]
+    fn snowboard_kids_frontend_license_player_route_1354() {
+        assert_listing_only_player_route("snowboard-kids", Some(true));
+    }
+
+    #[test]
+    fn cdlewis_snowboardkids_recomp_frontend_license_player_route_1886() {
+        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(true));
+    }
+
+    #[test]
+    fn vidanox_banjotooierecompiled_frontend_license_player_route_1795() {
+        assert_listing_only_player_route("vidanox-banjotooierecompiled", Some(true));
+    }
+
+    #[test]
+    fn dahsidiabdallah_conkerbfdreloaded_frontend_license_player_route_1806() {
+        assert_listing_only_player_route("dahsidiabdallah-conkerbfdreloaded", Some(false));
+    }
+
+    #[test]
+    fn danielgomesvieira2000_beetle_adventure_racing_recomp_frontend_license_player_route_1800() {
+        assert_listing_only_player_route(
+            "danielgomesvieira2000-beetle-adventure-racing-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn body_harvest_recompiled_frontend_license_player_route_1448() {
+        assert_listing_only_player_route("body-harvest-recompiled", Some(false));
+    }
+
+    #[test]
+    fn cbfd_recompiled_sciaschi_frontend_license_player_route_1216() {
+        assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(false));
+    }
 }

@@ -18119,11 +18119,32 @@ fn main() {
 
     #[tokio::test]
     async fn update_reuses_a_matching_rollback_version_without_downloading() {
+        let started = std::time::Instant::now();
+        eprintln!(
+            "Rollback reuse fixture: setup began at {:?}",
+            started.elapsed()
+        );
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
+        eprintln!(
+            "Rollback reuse fixture: library opened at {:?}",
+            started.elapsed()
+        );
         register_zelda_install(&library, "v1", true);
+        eprintln!(
+            "Rollback reuse fixture: first version registered at {:?}",
+            started.elapsed()
+        );
         register_zelda_install(&library, "v2", true);
+        eprintln!(
+            "Rollback reuse fixture: second version registered at {:?}",
+            started.elapsed()
+        );
         library.rollback("zelda64-recomp").unwrap();
+        eprintln!(
+            "Rollback reuse fixture: rollback prepared at {:?}",
+            started.elapsed()
+        );
         let service = service_with_release(library, "v2");
 
         let staged = service
@@ -18136,6 +18157,10 @@ fn main() {
         assert_eq!(status.active.unwrap().version, "v1");
         assert_eq!(status.previous.unwrap().version, "v2");
         assert_eq!(status.staged.unwrap().version, "v2");
+        eprintln!(
+            "Rollback reuse fixture: staging assertions complete at {:?}",
+            started.elapsed()
+        );
 
         let activated = service
             .update("zelda64-recomp", None, None, true, |_| {})
@@ -18146,6 +18171,10 @@ fn main() {
         assert_eq!(status.active.unwrap().version, "v2");
         assert_eq!(status.previous.unwrap().version, "v1");
         assert!(status.staged.is_none());
+        eprintln!(
+            "Rollback reuse fixture: activation assertions complete at {:?}",
+            started.elapsed()
+        );
     }
 
     #[tokio::test]

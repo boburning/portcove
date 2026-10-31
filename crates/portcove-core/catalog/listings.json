@@ -10213,8 +10213,7 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
-      },
-      "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
+      }
     },
     {
       "id": "bof4-recomp-plaught-armor-breath-of-fire-iv",
@@ -11586,8 +11585,7 @@
         ],
         "warnings": [],
         "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md"
-      },
-      "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
+      }
     },
     {
       "id": "cdlewis-snowboardkids-recomp",
@@ -11648,7 +11646,7 @@
         ],
         "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md"
       },
-      "download_block_reason": "The released player links cdlewis/RecompFrontend at fa4f0ca42ba2efaca631203ef1e0753f2be78985, whose applicable grant remains unestablished. The parent game-project GPL does not settle that separate component. Keep an existing copy you are permitted to use. Reconsider acquisition with an attributable compatible grant or a reviewed replacement component/package."
+      "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend fa4f0ca42ba2efaca631203ef1e0753f2be78985 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package."
     },
     {
       "id": "celosia-henrykun55-shadow-of-the-colossus",
@@ -13654,8 +13652,7 @@
           "The Linux package instructions call the build experimental and describe only upstream WSL/software-graphics testing; this is not Portcove native or Steam Deck acceptance."
         ],
         "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md"
-      },
-      "download_block_reason": "The player links N64Recomp/RecompFrontend at b1a1477c6556aeb7ed45defbfb5924f721efebc1 without an established applicable grant for that separately authored component. Parent MIT/GPL notices and licensed nested libraries do not settle this scope. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible permission or a released replacement of the affected component."
+      }
     },
     {
       "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
@@ -13704,8 +13701,7 @@
           "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification."
         ],
         "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md"
-      },
-      "download_block_reason": "The Windows player links vendored RecompFrontend code whose applicable permission remains unestablished. The project AGPL and licensed nested dependencies do not themselves establish a grant for that separately authored frontend. Keep an existing copy you are permitted to use. Reconsider acquisition with attributable compatible permission or an appropriately licensed replacement package."
+      }
     },
     {
       "id": "danilopaulinodasilva-kof98recomp",
@@ -35947,6 +35943,31 @@
         "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
         "game_slug": "snowboard-kids",
         "match_kind": "underlying-game"
+      },
+      "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend e85b912d9df677b04f9358867dd010c8af27ea05 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package.",
+      "manual_setup": {
+        "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
+        "steps": [
+          {
+            "title": "Keep a complete permitted Windows player",
+            "instruction": "Use an already completed Snowboard Kids (HikariLucy) Windows copy you are permitted to use. Keep SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs together. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
+          },
+          {
+            "title": "Select your own supported original on Play",
+            "instruction": "Choose your own supported Snowboard Kids (USA), game code NSKE, through the upstream ROM chooser. Upstream ROM-IDENTITY.md specifies its normalized identity and supported N64 byte orders. Preserve that original separately. Portcove does not acquire, upload, copy, patch or authenticate the ROM through this attachment route."
+          },
+          {
+            "title": "Review the engine, working directory and intent",
+            "instruction": "Select the completed native SnowboardKidsEngine.exe with the established package root as working directory and only its supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the actual profile and active module",
+            "instruction": "Keep the complete creating package, original and effective profile before maintenance. The normal Windows profile is %APPDATA%/SnowboardKids; SBK_USER_DATA_DIR can select another root, and resolver fallbacks must be preserved in their actual locations. Retain all configuration, remembered source paths, Controller Pak .mpk files, .sbks states, modules, logs and custom paths. Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy and components you are permitted to use. The official base frontend GPLv3 resolution does not establish the separate modified cdlewis fork grant; fresh acquisition stays held. Source/first-party checks are not gameplay, real-save, installed or protected acceptance."
+        ]
       }
     },
     {
@@ -43669,7 +43690,7 @@
         ],
         "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
       },
-      "download_block_reason": "The v1.0.1 source/package recipe links N64Recomp/RecompFrontend without an established applicable grant and includes Suplexmentary Comic NC.ttf, which upstream expressly identifies as carrying no license and an all-rights-reserved notice. The project GPL does not settle those separate works. Keep a permitted existing copy. Reconsider with attributable compatible grants or a released package replacing the affected components."
+      "download_block_reason": "The selected v1.0.1 source/package recipe includes Suplexmentary Comic NC.ttf, which upstream identifies without a license and with an all-rights-reserved notice. The official RecompFrontend base now has a GPLv3 grant; that does not license this separate font. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible font permission or a reviewed released package removing or replacing the affected font."
     },
     {
       "id": "viewtiful-joe-2-recompiled-goldilocks00-viewtiful-joe-2",

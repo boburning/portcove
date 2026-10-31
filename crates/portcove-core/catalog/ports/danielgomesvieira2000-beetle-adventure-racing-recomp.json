@@ -42,7 +42,6 @@
         "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification."
       ],
       "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md"
-    },
-    "download_block_reason": "The Windows player links vendored RecompFrontend code whose applicable permission remains unestablished. The project AGPL and licensed nested dependencies do not themselves establish a grant for that separately authored frontend. Keep an existing copy you are permitted to use. Reconsider acquisition with attributable compatible permission or an appropriately licensed replacement package."
+    }
   }
 }

@@ -44,6 +44,6 @@
       ],
       "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
     },
-    "download_block_reason": "The v1.0.1 source/package recipe links N64Recomp/RecompFrontend without an established applicable grant and includes Suplexmentary Comic NC.ttf, which upstream expressly identifies as carrying no license and an all-rights-reserved notice. The project GPL does not settle those separate works. Keep a permitted existing copy. Reconsider with attributable compatible grants or a released package replacing the affected components."
+    "download_block_reason": "The selected v1.0.1 source/package recipe includes Suplexmentary Comic NC.ttf, which upstream identifies without a license and with an all-rights-reserved notice. The official RecompFrontend base now has a GPLv3 grant; that does not license this separate font. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible font permission or a reviewed released package removing or replacing the affected font."
   }
 }
