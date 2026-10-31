@@ -5289,7 +5289,7 @@ mod tests {
         executable: &str,
         asset_name: &str,
         wrapped: bool,
-        local_state: &str,
+        local_state: Option<&str>,
         fault_file: Option<&str>,
     ) {
         let temporary = tempfile::tempdir().unwrap();
@@ -5305,7 +5305,16 @@ mod tests {
             release.asset.name = asset_name.to_string();
             release
         };
-        let provider = Arc::new(Provider(Mutex::new(release("v1", 1))));
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port(id).unwrap();
+        let rolling_tag = port.release.rolling_tag.as_deref();
+        let first_version = rolling_tag.unwrap_or("v1");
+        let second_version = rolling_tag.unwrap_or("v2");
+        if local_state.is_none() {
+            assert!(port.persistent_paths.is_empty());
+            assert!(port.persistent_file_patterns.is_empty());
+        }
+        let provider = Arc::new(Provider(Mutex::new(release(first_version, 1))));
         let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
         let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
         let launch = |record: &InstallRecord| {
@@ -5339,25 +5348,38 @@ mod tests {
             .await
             .unwrap();
         let first_root = launch(&first);
-        let state = first_root.join(local_state);
-        fs::create_dir_all(state.parent().unwrap()).unwrap();
-        fs::write(&state, b"synthetic local user state").unwrap();
-        *provider.0.lock().unwrap() = release("v2", 2);
+        if let Some(local_state) = local_state {
+            let state = first_root.join(local_state);
+            fs::create_dir_all(state.parent().unwrap()).unwrap();
+            fs::write(&state, b"synthetic local user state").unwrap();
+        }
+        *provider.0.lock().unwrap() = release(second_version, 2);
         let second = service.update(id, None, None, true, |_| {}).await.unwrap();
-        assert_eq!(second.version, "v2");
+        assert_eq!(second.version, second_version);
+        assert_ne!(first.id, second.id);
+        if let Some(tag) = rolling_tag {
+            assert_eq!(first.version, tag);
+            assert_eq!(second.version, tag);
+            assert_eq!(first.channel, crate::ReleaseChannel::Rolling);
+            assert_eq!(second.channel, crate::ReleaseChannel::Rolling);
+        }
         assert_ne!(first.artifact.sha256, second.artifact.sha256);
         let second_root = launch(&second);
-        assert_eq!(
-            fs::read(second_root.join(local_state)).unwrap(),
-            b"synthetic local user state"
-        );
+        if let Some(local_state) = local_state {
+            assert_eq!(
+                fs::read(second_root.join(local_state)).unwrap(),
+                b"synthetic local user state"
+            );
+        }
         let previous = service.rollback(id).unwrap();
         assert_eq!(previous.id, first.id);
         let previous_root = launch(&previous);
-        assert_eq!(
-            fs::read(previous_root.join(local_state)).unwrap(),
-            b"synthetic local user state"
-        );
+        if let Some(local_state) = local_state {
+            assert_eq!(
+                fs::read(previous_root.join(local_state)).unwrap(),
+                b"synthetic local user state"
+            );
+        }
         assert_eq!(
             serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
             definition
@@ -5389,10 +5411,12 @@ mod tests {
                 fs::read(unknown).unwrap(),
                 b"unclaimed fallback pilot; preserve exact bytes"
             );
-            assert_eq!(
-                fs::read(previous_root.join(local_state)).unwrap(),
-                b"synthetic local user state"
-            );
+            if let Some(local_state) = local_state {
+                assert_eq!(
+                    fs::read(previous_root.join(local_state)).unwrap(),
+                    b"synthetic local user state"
+                );
+            }
             assert_eq!(fs::read(previous_root.join("package.txt")).unwrap(), [1]);
             assert!(previous_root.join(executable).is_file());
             assert!(second_root.join(executable).is_file());
@@ -5407,7 +5431,7 @@ mod tests {
             "atlantis-native.exe",
             "atlantis-native-windows-x64.zip",
             false,
-            "atlantis-native-data/games.txt",
+            Some("atlantis-native-data/games.txt"),
             None,
         )
         .await;
@@ -5420,7 +5444,7 @@ mod tests {
             "OpenXW.exe",
             "openxw-test-windows-x86_64-release.zip",
             true,
-            "config.yaml",
+            Some("config.yaml"),
             Some("PILOT.PLT"),
         )
         .await;
@@ -5433,7 +5457,7 @@ mod tests {
             "OpenXvT.exe",
             "openxvt-test-windows-x86_64-release.zip",
             true,
-            "config.yaml",
+            Some("config.yaml"),
             Some("pilot.pl2"),
         )
         .await;
@@ -5446,7 +5470,7 @@ mod tests {
             "OpenXWA.exe",
             "openxwa-test-windows-x86_64-release.zip",
             true,
-            "config.yaml",
+            Some("config.yaml"),
             Some("Pilot0.plt"),
         )
         .await;
@@ -5458,7 +5482,7 @@ mod tests {
             "gunstar.exe",
             "gunstars-test-windows-x64.zip",
             true,
-            "states/slot1.state",
+            Some("states/slot1.state"),
             None,
         )
         .await;
@@ -5472,8 +5496,47 @@ mod tests {
             "atomic.exe",
             "atomic-bomberman-modern-windows-x64.zip",
             true,
-            "free-assets/free-assets.txt",
+            Some("free-assets/free-assets.txt"),
             None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn ja2_stracciatella_managed_progression_keeps_external_profiles_unowned() {
+        assert_profile_engine_progression(
+            "jagged-alliance-2-ja2-stracciatella",
+            "ja2.exe",
+            "ja2-stracciatella_fixture_win-msvc64-142.zip",
+            true,
+            None,
+            Some("unexpected-local-profile.dat"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openvyruz_managed_progression_preserves_only_declared_local_fallback() {
+        assert_profile_engine_progression(
+            "vyruz-destruction-of-the-untel-empire-openvyruz",
+            "Vyruz.exe",
+            "OpenVyruz-fixture-windows-x64.zip",
+            true,
+            Some("OpenVyruz/game-folder.txt"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn three_sx_rolling_progression_replaces_changed_artifact_at_unchanged_tag() {
+        assert_profile_engine_progression(
+            "street-fighter-iii-3rd-strike-3sx",
+            "3sx.exe",
+            "3SX-fixture-windows.zip",
+            true,
+            None,
+            Some("unexpected-local-profile.dat"),
         )
         .await;
     }

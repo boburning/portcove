@@ -28919,6 +28919,50 @@
       }
     },
     {
+      "id": "jagged-alliance-2-ja2-stracciatella",
+      "name": "Jagged Alliance 2 (JA2 Stracciatella)",
+      "summary": "A native engine for Jagged Alliance 2 using your own original installation.",
+      "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ja2-stracciatella/ja2-stracciatella",
+        "asset_hints": {
+          "windows-x86-64": [
+            "win-msvc64",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ja2.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own complete original Jagged Alliance 2 installation and matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty or Russian Gold. Keep the originals outside this engine package. Run the bundled ja2-launcher.exe upstream once to set JA2 Data Directory and localization, then use normal ja2.exe for Play. Alternatively let ja2.exe create ja2.json, close it, and configure game_dir and the supported localization upstream before Play. Missing configuration is not successful setup. The selected Windows source prefers the existing AppData/JA2 profile; if absent it retains an existing Documents/JA2 profile, otherwise it chooses AppData/JA2. The older README names only Documents/JA2. Preserve the actual selected home, ja2.json, SavedGames, mods and custom save_game_dir overrides; diagnostic logs use the account temporary directory. These external shared locations are not isolated by another engine copy and Core does not back them up, migrate or delete them. Core replaces only the official MSVC x64 portable engine and its packaged assets/dependencies, not the original game or optional original-game data. Keep the complete compatible old runtime and every effective profile/original/custom root before changes. Original SFI code, later contributions and bundled libraries retain distinct terms; public engine downloads do not grant original-game rights. No title, launcher, actual-save or backward-format qualification is claimed.",
+        "original_game_title": "Jagged Alliance 2",
+        "artwork": {
+          "game_id": 9,
+          "cover_id": 104633,
+          "image_id": "co28qh",
+          "image_sha256": "109586380e0da3f1864eae530857f25cb828f4c74790171e47d4fe47e7fa129a",
+          "game_slug": "jagged-alliance-2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "jgrennison-openttd-patches",
       "name": "OpenTTD / OpenTTD-patches (JGRennison)",
       "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
@@ -33875,6 +33919,50 @@
       }
     },
     {
+      "id": "street-fighter-iii-3rd-strike-3sx",
+      "name": "Street Fighter III: 3rd Strike / 3SX",
+      "summary": "A native Street Fighter III: 3rd Strike engine using your own PlayStation 2 data.",
+      "project_url": "https://github.com/crowded-street/3sx",
+      "support_tier": "beta",
+      "channels": [
+        "rolling"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "crowded-street/3sx",
+        "asset_hints": {
+          "windows-x86-64": [
+            "3sx-",
+            "-windows.zip"
+          ]
+        },
+        "rolling_tag": "rolling-pre-release"
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "3sx.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "This is the deliberately selected rolling prerelease, with upstream bugs and instability expected. Complete the normal in-process setup wizard using your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2, or prepare the exact SF33RD.AFS from THIRD/ in the upstream resources location. A CPS-3/MAME set, future arcade-ROM-only roadmap or a different edition is not the current source contract. The selected Windows player 3sx.exe lives in bin/ and uses its executable parent as the launch working directory; keep all packaged dependencies. Normal resources, configuration, cache, logs and user storage live under AppData/Roaming/CrowdedStreet/3SX; preserve the whole actual profile and any custom effective roots. Upstream checks the expected AFS when its checksum option is enabled; Core does not authenticate, acquire, copy or import original data. Core owns engine replacement on the declared rolling provider channel; upstream owns original-data preparation and shared external profiles. Core supplies no external-profile backup, migration or deletion. Preserve the complete old runtime and compatible actual player data before changes. Rolling tag/assets can change; published provider identity and reviewed current selection remain required, and ambiguity or missing independent identity must refuse. No netplay, rollback gameplay, actual original import, save compatibility or physical-platform acceptance is claimed.",
+        "artwork": {
+          "game_id": 243243,
+          "cover_id": 294724,
+          "image_id": "co6bes",
+          "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
+          "game_slug": "street-fighter-iii-3rd-strike--2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "strife-crispy-doom-family",
       "name": "Strife (Crispy Doom family)",
       "summary": "Install the official Crispy Strife Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
@@ -35589,6 +35677,51 @@
             "Portcove tracks the player you selected. If UZDoom’s error window restarts it, the new player can keep running after Portcove reports the original process finished. Close any remaining UZDoom players before choosing Play again or updating files. Removing the registration does not confirm that restarted players have stopped and leaves every external file untouched."
           ],
           "help_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md"
+        }
+      }
+    },
+    {
+      "id": "vyruz-destruction-of-the-untel-empire-openvyruz",
+      "name": "Vyruz: Destruction of the Untel Empire (OpenVyruz)",
+      "summary": "A native engine for Vyruz using the original game data from your own copy.",
+      "project_url": "https://github.com/Solessfir/OpenVyruz",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "Solessfir/OpenVyruz",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Vyruz.exe"
+        ]
+      },
+      "persistent_paths": [
+        "OpenVyruz"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own vz-data.rsc outside the engine directory; Intro.avi beside it supplies the optional original intro. The normal in-process folder picker selects that game folder and remembers it in game-folder.txt under AppData/OpenVyruz. Do not select a data folder inside the managed engine: the upstream player writes vzconf.txt, session/ and vz.sco into the selected original-game folder and can share or overwrite settings, saves and scores with the original. Preserve that complete writable folder and compatible old runtime before the first start or any change; source format compatibility is not an observed save roundtrip. Normal remembered paths and co-op data use the external user directory. If APPDATA is unavailable, the selected Windows source falls back to an OpenVyruz directory relative to the creating working directory; Core conservatively preserves this declared local directory, including unknown files. External profiles, originals, custom paths and any configured data roots remain outside Core backup/rollback/removal. Core replaces only the official Windows x64 engine. Existing registrations retain upstream replacement ownership. Vulkan/graphics, intro decoding, co-op/network, actual gameplay and real-save behavior remain unqualified; no original import, archive conversion or upstream helper is performed.",
+        "original_game_title": "Vyruz: Destruction of the Untel Empire",
+        "artwork": {
+          "game_id": 112224,
+          "cover_id": 382135,
+          "image_id": "co86uv",
+          "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+          "game_slug": "vyruz-destruction-of-the-untel-empire",
+          "match_kind": "underlying-game"
         }
       }
     },

@@ -16,6 +16,35 @@
       "image_sha256": "833aaed27ddfd1e1511a3e35b277f163917c29a50acbb1152f4cccbcd4dcb150",
       "game_slug": "cut-the-rope",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/yell0wsuit/cuttherope-dx/tree/3fb70e70a92dc13da263cee0db5f4ef19c686bc6",
+      "steps": [
+        {
+          "title": "Choose a permitted completed desktop copy",
+          "instruction": "Use a permitted completed native Windows x64 Cut the Rope DX desktop copy and all required runtime/content components. The reviewed v2.50.1 release now provides a digest-bearing Windows 7z, separate AppImage and macOS packages; public release availability does not grant rights to ZeptoLab game assets or all bundled media. Finish upstream extraction/setup outside Portcove. This is a conditional prepared-copy guide, not Core acquisition, a new 7z parser or whole-package rights qualification."
+        },
+        {
+          "title": "Select desktop Play separately",
+          "instruction": "Select the actual prepared desktop player with its established working directory and supported literal arguments, retaining the complete companion content and dependencies. Do not substitute the web/PWA edition or a build script. Upstream .NET/AOT/source-build requirements do not authorize a compiler or helper run here."
+        },
+        {
+          "title": "Keep every save location used by the creating copy",
+          "instruction": "Desktop preferences and save-slot files use CutTheRopeDX_SaveData next to the executable when writable, then Documents/CutTheRopeDX_SaveData, then LocalApplicationData/CutTheRopeDX_SaveData, with the creating current directory as the final failure fallback. Before the first start, preserve old loose saves: upstream can move existing preferences and recognized slot files from the executable directory into its new writable save directory when the destination file is absent. This is upstream migration, not Portcove-managed migration or a backup. Preserve ctr_preferences.json, all ctrsave_slot files and the whole actual save directory, plus custom levels, runtime/content and unknown files. A later permissions or installation change can select another root; retain every effective old and new location. Browser localStorage is separate and is not migrated by desktop attachment. Keep the complete old compatible copy before upstream replacement; actual gameplay, saves and cross-version compatibility remain unqualified."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
+        },
+        {
+          "title": "Retain one upstream replacement owner",
+          "instruction": "Close actual player instances before changes. Preserve the whole old creating runtime and every effective original/profile/custom/unknown root, make deliberate compatible changes upstream, then review and relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises the selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files. This route supplies no Core acquisition, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
+        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+      ]
     }
   }
 }
