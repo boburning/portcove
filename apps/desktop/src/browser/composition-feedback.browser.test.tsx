@@ -91,18 +91,30 @@ it("shows one identity-bound completion without replaying old success after dism
       dismissInvocation={dismiss}
     />
   );
-  const view = await render(show([first]));
-  await expect
-    .element(page.getByRole("status"))
-    .toHaveTextContent("Save setting · Portcove: finished.");
+  const view = await render(show([]));
+  const announcements = page.getByRole("status", { name: "Task updates" }).element();
+  expect(announcements.textContent).toBe("");
+  const visibleCompletions = () =>
+    document.querySelectorAll('[data-invocation-id] [data-slot="notice-body"]');
+  await view.rerender(show([first]));
+  expect(visibleCompletions()).toHaveLength(1);
+  expect(visibleCompletions()[0]?.textContent).toBe("Save setting · Portcove: finished.");
+  const firstMessage = announcements.querySelector('[data-announcement-invocation-id="1"]');
+  expect(firstMessage?.textContent).toBe("Save setting · Portcove: finished.");
   await view.rerender(show([first, second]));
-  await expect
-    .element(page.getByRole("status"))
-    .toHaveTextContent("Check updates · Portcove: finished.");
+  expect(visibleCompletions()).toHaveLength(1);
+  expect(visibleCompletions()[0]?.textContent).toBe("Check updates · Portcove: finished.");
+  expect(announcements.querySelector('[data-announcement-invocation-id="1"]')).toBe(firstMessage);
+  expect(announcements.querySelector('[data-announcement-invocation-id="2"]')?.textContent).toBe(
+    "Check updates · Portcove: finished.",
+  );
   await page.getByRole("button", { name: "Dismiss completion for Check updates" }).click();
   expect(dismiss).toHaveBeenCalledExactlyOnceWith(2);
   await view.rerender(show([first]));
-  await expect.element(page.getByRole("status")).not.toBeInTheDocument();
+  expect(visibleCompletions()).toHaveLength(0);
+  expect(page.getByRole("status", { name: "Task updates" }).element()).toBe(announcements);
+  expect(announcements.querySelector('[data-announcement-invocation-id="1"]')).toBe(firstMessage);
+  expect(announcements.querySelector('[data-announcement-invocation-id="2"]')).toBeNull();
 });
 
 it("provides supplemental keyboard help in a direction-aware portal without changing the action name", async () => {
