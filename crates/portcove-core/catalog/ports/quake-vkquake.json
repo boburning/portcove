@@ -3,13 +3,43 @@
   "listing": {
     "id": "quake-vkquake",
     "name": "Quake (vkQuake)",
-    "summary": "Upstream route: Maintained Vulkan source port with recent Windows/Linux packages. Limits: Original data required; choose alongside other Quake implementations deliberately. Upstream platforms: Windows package, Linux AppImage/source routes and ARM64 Windows CI build configuration documented. Selected release package CPUs unknown in frozen evidence; Vulkan required. Original data: Original data required; choose alongside other Quake implementations deliberately. Portcove setup/gameplay not verified.",
+    "summary": "Windows prepared-player route: use a complete permitted vkQuake1.37.0 copy with your own compatible Quake data. Upstream owns preparation, store/data selection, actual profile roots and replacement; Core offers explicit nonowning registration and selected-process Play. Original, mod, save and other-platform qualification remain separate.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/Novum/vkQuake",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Novum/vkQuake",
-    "issue_number": 2697
+    "issue_number": 2697,
+    "manual_setup": {
+      "help_url": "https://github.com/Novum/vkQuake/tree/749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+      "steps": [
+        {
+          "title": "Keep the complete upstream player",
+          "instruction": "Use an already permitted Windows x64 vkQuake1.37.0 installation or complete official Windows x64 ZIP, including its libraries/resources. Select the native vkQuake.exe player, not the installer, launcher shortcut or dedicated-server invocation. The normal source entry owns the Host_Frame loop in that process. Vulkan-capable hardware is required; this guide does not qualify your GPU or game."
+        },
+        {
+          "title": "Finish your own Quake data setup upstream",
+          "instruction": "Prepare your own supported classic or rerelease Quake data using the upstream installer/store discovery or complete portable-copy instructions. Keep actual base/id1 PAKs and selected expansions/mods with their compatible data. Finish the upstream picker and normal start/quit before registration. Do not overwrite your only retained copy while changing engines. Engine licensing does not license original assets or arbitrary mods; Core does not acquire, hash-admit or import these originals."
+        },
+        {
+          "title": "Retain the established launch coordinates",
+          "instruction": "Use the actual prepared runtime directory as working directory and the same supported literal arguments as your working setup. Preserve an actually used -basedir plus its absolute path as separate tokens, existing game/edition and -multiuser choices; do not introduce another profile or choose a different store edition merely to register it. Review exact intent/consent, then choose Play separately."
+        },
+        {
+          "title": "Preserve both portable and discovered profile roots",
+          "instruction": "Standalone copies can write beneath the prepared base/game directories, but store selection or -multiuser uses the actual SDL vkQuake preference directory (normally APPDATA/vkQuake on Windows). Preserve that actual root and basedirs.txt, global vkQuake.cfg, game-local configs, saves/autosaves/screenshots/demos, all base/id1/mod files, the complete runtime and unknowns. Keep relevant existing Steam/GOG/Epic/Nightdive and Steam-userdata/custom roots too; another runtime folder is not proof of independent state."
+        },
+        {
+          "title": "Keep replacement and removal ownership clear",
+          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+        }
+      ],
+      "warnings": [
+        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

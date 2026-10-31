@@ -3,7 +3,7 @@
   "listing": {
     "id": "fallout-2-fallout-2-community-edition",
     "name": "Fallout 2 (Fallout 2 Community Edition)",
-    "summary": "Upstream route: Upstream calls it fully working; downloadable Windows/Linux/macOS builds. Limits: Upstream calls Fallout2CE fully working; Restoration Project, EtTu and Olympus2207 unsupported. Upstream platforms: Windows/Linux/macOS runtime packages; native Intel and Apple-Silicon macOS documented. Windows/Linux selected package CPU architectures unknown in frozen research. Original data: Owned Fallout 2 data; Restoration Project, Et Tu and Olympus 2207 explicitly unsupported. Portcove setup/gameplay not verified.",
+    "summary": "Windows prepared-player route: use Fallout2 Community Edition1.3.0 in a permitted complete original Fallout2 installation. Preserve actual working directory, fallout2.cfg, DAT/patch/music and custom save roots. Upstream owns setup/replacement; Core offers nonowning registration/Play, without original rights, sfall/mod or managed save qualification.",
     "original_game_title": "Fallout 2",
     "project_url": "https://github.com/alexbatalov/fallout2-ce",
     "platforms": [],
@@ -17,7 +17,41 @@
       "game_slug": "fallout-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2574
+    "issue_number": 2574,
+    "manual_setup": {
+      "help_url": "https://github.com/alexbatalov/fallout2-ce/tree/9fb917c357b20d95d597bed4d67904c29cd5c753",
+      "steps": [
+        {
+          "title": "Use the actual Community Edition player",
+          "instruction": "Keep a complete already permitted Fallout2 Community Edition1.3.0 Windows x64 copy and supported original Fallout2 installation. Upstream documents fallout2-ce.exe as the drop-in player in that folder. Select it directly, not fallout2.exe, an installer or another mod engine. Native Windows entry owns the game loop and uses the shared GNW95MUTEX; another such running instance can prevent startup."
+        },
+        {
+          "title": "Finish supported original setup upstream",
+          "instruction": "Use your own complete supported original game installation including master.dat/critter.dat/patch000.dat/data and other required files; keep the whole creating runtime/data tuple. Finish configuration and a normal upstream start/quit before registration. Restoration Project, EtTu and Olympus2207 are unsupported by the selected upstream contract; do not infer sfall features or compatibility for other mods. Core neither imports nor authenticates the original set or generated/private outputs."
+        },
+        {
+          "title": "Retain the real working directory and configuration",
+          "instruction": "Use the actual prepared game folder as working directory and preserve its supported literal arguments. Windows entry does not chdir for you. fallout2.cfg is located from the executable path while actual DAT/patch/music paths can be relative or absolute. Keep those real paths and selected mod setup; do not rewrite a host root or force a fresh profile. Review exact consent and choose Play separately."
+        },
+        {
+          "title": "Preserve every actual player-data root",
+          "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
+        },
+        {
+          "title": "Retain the engine license and original rights separately",
+          "instruction": "The selected engine uses Sustainable Use License1.0, not GPL/MIT. Personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original/mod asset, repackaging or redistribution grant; attach only a copy you are already permitted to use."
+        },
+        {
+          "title": "Keep replacement and removal ownership clear",
+          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+        }
+      ],
+      "warnings": [
+        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

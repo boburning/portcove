@@ -3,13 +3,43 @@
   "listing": {
     "id": "quake-ii-yamagi-quake-ii",
     "name": "Quake II (Yamagi Quake II)",
-    "summary": "Upstream route: Official Yamagi Windows 8.70a binary archive, or upstream 8.70 source build; own original Quake II data and separately selected expansion data/code. Limits: Official README describes mature enhanced client and addon repositories. GitHub Releases empty; official distribution site and expansion package handling need follow-up. Upstream platforms: Official Windows8.70a binary download and Linux/BSD source builds; code is64-bit clean but selected Windows artifact CPU unknown in frozen web page. macOS is community-supported. Original data: Original-data contract remains Unknown in the retained Yamagi Quake II README: establish the classic Quake II retail installation/data set and accepted patch/revision before offering setup. The Reckoning and Ground Zero are separate add-on implementations/data, and Quake II Remaster assets use a separate Yamagi remaster project; do not assume they substitute for classic base-game files. Portcove setup/gameplay not verified.",
+    "summary": "Windows prepared-player route: use a permitted official Yamagi8.70a copy (8.70 engine with SDL repack) and your own classic QuakeII data prepared with the required3.20 full CTF patch. Select yquake2.exe, preserve real data/profile/DLL roots, and keep expansion/remaster contracts separate. Core offers nonowning registration/Play; original and save qualification remain separate.",
     "original_game_title": "Quake II",
     "project_url": "https://github.com/yquake2/yquake2",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/yquake2/yquake2",
-    "issue_number": 2700
+    "issue_number": 2700,
+    "manual_setup": {
+      "help_url": "https://github.com/yquake2/yquake2/tree/76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+      "steps": [
+        {
+          "title": "Select the actual Yamagi player",
+          "instruction": "Use an already permitted complete official Yamagi Windows8.70a copy matching your architecture, including its compatible renderer/game/SDL libraries. The official site identifies8.70a as an SDL-library repack of engine8.70; this source binding is not new artifact-byte verification. Select yquake2.exe itself. On Windows quake2.exe is a wrapper that starts and waits for yquake2.exe; it is not the direct game entry, and the original retail executable shares that wrapper name. Do not select q2ded or infer player identity from a basename alone."
+        },
+        {
+          "title": "Finish classic original-data and patch preparation",
+          "instruction": "Follow upstream8.70 installation instructions in a separate recoverable working copy. Classic retail/CD/QuakeIV/Steam/GOG data still requires the full QuakeII3.20 CTF patch. Your own baseq2/pak0.pak and video directory combine with the required patch pak1.pak/pak2.pak and compatible engine/game DLLs; incorrect/mixed patch sets can crash. Upstream instructions about replacing old executables/DLLs apply to that separate prepared copy, not deletion of your only originals by Core. Core invokes no patch EXE/extraction/helper and authenticates no original data."
+        },
+        {
+          "title": "Keep expansions and remaster data separate",
+          "instruction": "The Reckoning/xatrix and Ground Zero/rogue each need their own original pak/video and matching addon code; do not infer those from base-game setup. QuakeII Remaster uses a separate Yamagi project/data contract and is not a substitute for classic assets. Keep complete original and prepared sets plus each compatible addon/runtime tuple recoverable. Engine/component terms do not grant rights to originals, music, mods or sibling renderer packages."
+        },
+        {
+          "title": "Retain actual working, data and profile choices",
+          "instruction": "Use the actual prepared runtime directory as working directory and retain established supported literal arguments, including actual -datadir, -cfgdir and -portable choices. The default Windows user root is actual Documents/YamagiQ2; -cfgdir changes its selected subdirectory and -portable omits that home-profile search. Do not force portable mode or rewrite a host root during registration. Preserve complete runtime/DLLs, baseq2 and other selected game directories, actual config/saves/screenshots/demos/music/mods/custom/legacy roots and unknowns. Finish upstream normal start/quit, review intent/consent and choose Play separately. No actual backward-save or addon compatibility is certified."
+        },
+        {
+          "title": "Keep replacement and removal ownership clear",
+          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+        }
+      ],
+      "warnings": [
+        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

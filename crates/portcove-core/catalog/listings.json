@@ -2606,6 +2606,31 @@
         ],
         "source_editions": []
       },
+      "manual_setup": {
+        "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533",
+        "steps": [
+          {
+            "title": "Prepare the working copy upstream",
+            "instruction": "Use an existing permitted Windows native Render96 installation prepared through upstream instructions with your own matching Super Mario 64 original. Finish extraction, compilation and a working normal start and quit upstream before adding it. Portcove does not run the build or import the original. Optional model and texture packs have separate content requirements and are not required for registration."
+          },
+          {
+            "title": "Choose the actual native player",
+            "instruction": "Select the executable produced by your working build, not its compiler, build script or a detached launcher. The inspected standard Windows build normally produces build/us_pc/sm64.us.exe for the US flavor; region and renderer options can change its name. Keep its complete resources and companions. Preserve the working directory and literal arguments from that working installation, then save launch details and choose Play separately."
+          },
+          {
+            "title": "Keep the creating save and configuration paths",
+            "instruction": "Keep your existing profile choices. The inspected SDL2 build uses the sm64ex preferences folder by default and can copy an older sm64pc save/configuration into it when the newer save is absent. Another executable folder does not guarantee independent saves. Preserve actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Retain established --savepath, --configfile and --gamedir arguments only where supported by your working build; ! in the supported save path expands to the executable directory. Do not redirect or migrate a profile merely to register it."
+          },
+          {
+            "title": "Leave runtime and data management with upstream",
+            "instruction": "You or upstream own replacement, optional packs, resource preparation and recovery. Keep the complete working runtime, originals, resources, dynos/packs, modifications, saves, settings and unknown files before changing it. Portcove supervises the selected process and removes only its registration; it does not manage replacement, backup, rollback, migration or deletion of this external copy. Older Portcove-built installations retain their original contracts."
+          }
+        ],
+        "warnings": [
+          "Use only originals, prepared copies and optional packs that you are permitted to use. Registration does not authenticate the entire prepared package or grant content rights.",
+          "The source guidance describes the inspected build. Keep the actual paths and behavior of your working copy; other build options and platforms need separate assessment."
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -8281,7 +8306,7 @@
     {
       "id": "arx-fatalis-arx-libertatis",
       "name": "Arx Fatalis (Arx Libertatis)",
-      "summary": "Upstream route: Cross-platform source port with Windows/Linux release packages and documented data paths. Limits: Established Arx Fatalis source-port route; exact data case/config/save behavior remains integration work. Upstream platforms: Windows/Linux official release packages and macOS source route; exact selected package architectures are unknown in frozen research. Original data: Original Arx Fatalis data; assess case normalization and config/save paths. Portcove setup/gameplay not verified.",
+      "summary": "Windows prepared-player route: use a complete permitted Arx Libertatis1.2.1 copy after upstream-supported original/demo data preparation. Preserve separate data, user and config roots and existing migration choices. Core offers nonowning registration/Play; upstream owns setup, profile writes and replacement, without original or managed save qualification.",
       "original_game_title": "Arx Fatalis",
       "project_url": "https://github.com/arx/ArxLibertatis",
       "issue_number": 2554,
@@ -8295,6 +8320,36 @@
         "image_sha256": "cfaa293da985e2010ca7a1b8c62eb0a6647a6af9b83379396f6b21d5f412b33b",
         "game_slug": "arx-fatalis",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/arx/ArxLibertatis/tree/b054123cd0ac280c1e1b42479c52ea32e25c7965",
+        "steps": [
+          {
+            "title": "Keep the complete native Arx player",
+            "instruction": "Use an already permitted complete Arx Libertatis1.2.1 Windows installation or ZIP, including compatible libraries/resources. Select arx.exe directly, not arxtool, arxsavetool, arxunpak, a crash reporter or installer. Normal GUI entry runs the game in that process; a diagnostic/crash helper is a separate upstream process and is not adopted by Core."
+          },
+          {
+            "title": "Finish upstream data preparation first",
+            "instruction": "Use your own permitted supported full Arx Fatalis data or separately permitted demo with the upstream preparation path for that edition/language. The reviewed installer script distinguishes CD/ISO preparation needing1.21 patch data, already installed/GOG alternatives, Japanese and demo branches; do not mix their data sets or assume one minimal PAK list. Finish the upstream setup and normal start/quit before registration. Core invokes no extraction/patch/helper and grants no original/demo asset rights."
+          },
+          {
+            "title": "Preserve the established directory choices",
+            "instruction": "Use the actual prepared working directory and existing supported literal data/user/config arguments. Actual Windows Saved Games/Arx Libertatis (older Documents/My Games fallback), registry UserDir/DataDir, config dir, executable/data search and custom/environment roots can differ. Keep established --data-dir/--user-dir/--config-dir values where used. The documented --no-data-dir --user-dir=. --config-dir=. portable combination is an existing upstream option, not a command to move your profile or force a new one. Review intent/consent and choose Play separately."
+          },
+          {
+            "title": "Retain all state before upstream writes or migration",
+            "instruction": "Preserve complete runtime, original/demo data, actual user/config/data roots, cfg.ini, saves, screenshots, mods, logs, crash reports and unknown/custom/legacy files. First use can lowercase used files in the user tree; startup prunes old crash reports and writes logs. Keep a recoverable old copy before those upstream operations. No actual save roundtrip or harmless read-only startup is promised. Engine GPL3+ and component/additional terms remain separate from original data rights."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
       }
     },
     {
@@ -17206,7 +17261,7 @@
     {
       "id": "fallout-2-fallout-2-community-edition",
       "name": "Fallout 2 (Fallout 2 Community Edition)",
-      "summary": "Upstream route: Upstream calls it fully working; downloadable Windows/Linux/macOS builds. Limits: Upstream calls Fallout2CE fully working; Restoration Project, EtTu and Olympus2207 unsupported. Upstream platforms: Windows/Linux/macOS runtime packages; native Intel and Apple-Silicon macOS documented. Windows/Linux selected package CPU architectures unknown in frozen research. Original data: Owned Fallout 2 data; Restoration Project, Et Tu and Olympus 2207 explicitly unsupported. Portcove setup/gameplay not verified.",
+      "summary": "Windows prepared-player route: use Fallout2 Community Edition1.3.0 in a permitted complete original Fallout2 installation. Preserve actual working directory, fallout2.cfg, DAT/patch/music and custom save roots. Upstream owns setup/replacement; Core offers nonowning registration/Play, without original rights, sfall/mod or managed save qualification.",
       "original_game_title": "Fallout 2",
       "project_url": "https://github.com/alexbatalov/fallout2-ce",
       "platforms": [],
@@ -17220,12 +17275,46 @@
         "game_slug": "fallout-2",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2574
+      "issue_number": 2574,
+      "manual_setup": {
+        "help_url": "https://github.com/alexbatalov/fallout2-ce/tree/9fb917c357b20d95d597bed4d67904c29cd5c753",
+        "steps": [
+          {
+            "title": "Use the actual Community Edition player",
+            "instruction": "Keep a complete already permitted Fallout2 Community Edition1.3.0 Windows x64 copy and supported original Fallout2 installation. Upstream documents fallout2-ce.exe as the drop-in player in that folder. Select it directly, not fallout2.exe, an installer or another mod engine. Native Windows entry owns the game loop and uses the shared GNW95MUTEX; another such running instance can prevent startup."
+          },
+          {
+            "title": "Finish supported original setup upstream",
+            "instruction": "Use your own complete supported original game installation including master.dat/critter.dat/patch000.dat/data and other required files; keep the whole creating runtime/data tuple. Finish configuration and a normal upstream start/quit before registration. Restoration Project, EtTu and Olympus2207 are unsupported by the selected upstream contract; do not infer sfall features or compatibility for other mods. Core neither imports nor authenticates the original set or generated/private outputs."
+          },
+          {
+            "title": "Retain the real working directory and configuration",
+            "instruction": "Use the actual prepared game folder as working directory and preserve its supported literal arguments. Windows entry does not chdir for you. fallout2.cfg is located from the executable path while actual DAT/patch/music paths can be relative or absolute. Keep those real paths and selected mod setup; do not rewrite a host root or force a fresh profile. Review exact consent and choose Play separately."
+          },
+          {
+            "title": "Preserve every actual player-data root",
+            "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
+          },
+          {
+            "title": "Retain the engine license and original rights separately",
+            "instruction": "The selected engine uses Sustainable Use License1.0, not GPL/MIT. Personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original/mod asset, repackaging or redistribution grant; attach only a copy you are already permitted to use."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
+      }
     },
     {
       "id": "fallout-fallout-community-edition",
       "name": "Fallout (Fallout Community Edition)",
-      "summary": "Upstream route: Upstream calls it fully working; downloadable Windows/Linux/macOS builds. Limits: Upstream calls Fallout Community Edition fully working; original game data required and general mod compatibility not implied. Upstream platforms: Windows/Linux/macOS runtime packages; native Intel and Apple-Silicon macOS documented. Windows/Linux selected package CPU architectures unknown in frozen research. Original data: Owned original Fallout installation; do not imply base-game mods all work. Portcove setup/gameplay not verified.",
+      "summary": "Windows prepared-player route: use Fallout Community Edition1.1.0 in a permitted complete original Fallout installation. Preserve actual working directory, fallout.cfg, original DAT/patch/music paths and save roots. Upstream owns preparation and replacement; Core offers nonowning registration/Play, without granting original rights or managed save compatibility.",
       "original_game_title": "Fallout",
       "project_url": "https://github.com/alexbatalov/fallout1-ce",
       "platforms": [],
@@ -17239,7 +17328,41 @@
         "game_slug": "fallout-a-post-nuclear-role-playing-game",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2573
+      "issue_number": 2573,
+      "manual_setup": {
+        "help_url": "https://github.com/alexbatalov/fallout1-ce/tree/a8c37ea47f3dd1c60bd1fa56b82e688ab4643856",
+        "steps": [
+          {
+            "title": "Use the actual Community Edition player",
+            "instruction": "Keep a complete already permitted Fallout Community Edition1.1.0 Windows x64 copy and its supported original Fallout installation. Upstream documents fallout-ce.exe as the drop-in player in that game folder. Select it directly, not the original DOS/Windows executable, installer or another mod engine. Native Windows entry runs the game in the selected process; it uses the shared GNW95MUTEX and can decline to start when another such instance exists."
+          },
+          {
+            "title": "Prepare original data outside Core",
+            "instruction": "Finish the upstream setup using your own complete supported original game installation, with original master.dat/critter.dat, patch/data/music and all other necessary files. Keep the whole creating runtime/data tuple rather than reconstruct a guessed minimal folder. Start/quit upstream normally before registration. Core neither imports nor authenticates those originals or private outputs."
+          },
+          {
+            "title": "Preserve the established working directory and config",
+            "instruction": "Select the actual game folder as working directory and preserve supported existing literal arguments. Windows entry does not change directory for you. fallout.cfg is located using the executable path; actual master/critter DAT, patch and music locations can be relative or custom absolute paths. Keep the exact established paths rather than rewriting a host root or forcing a new portable profile. Review consent and choose Play separately."
+          },
+          {
+            "title": "Keep all actual save and data roots",
+            "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+          },
+          {
+            "title": "Keep the separate license and asset boundaries",
+            "instruction": "The selected engine uses Sustainable Use License1.0, not GPL/MIT. Its personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original-asset, mod, repackaging or redistribution grant; attach only a copy you are already permitted to use."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
+      }
     },
     {
       "id": "fatal-frame-mikupan",
@@ -31232,13 +31355,43 @@
     {
       "id": "prince-of-persia-dos-sdlpop",
       "name": "Prince of Persia (DOS) (SDLPoP)",
-      "summary": "Research listing. Upstream route: Native disassembly-derived port; official README links desktop builds externally. Limits: Review complete package contents and lawful original-data handling before managed admission. Upstream platforms: Official external desktop builds and documented Windows/Unix/macOS source compilation. Selected package CPU architectures unknown in frozen research. Original data: Original-data/package contract remains Unknown for this SDLPoP route: establish whether the selected distribution already includes necessary Prince of Persia DOS data and which original v1.0/modified DAT set is accepted. Retained README supports original/mod DAT files and MIDISND*.DAT music, but does not establish a separate player-owned executable/ROM requirement. Do not impose one without evidence; asset permission review remains separate. Portcove setup/gameplay not verified.",
+      "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Core offers nonowning registration/Play while upstream owns setup, actual state roots and replacement.",
       "original_game_title": "Prince of Persia (DOS)",
       "project_url": "https://github.com/NagyD/SDLPoP",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/NagyD/SDLPoP",
-      "issue_number": 2892
+      "issue_number": 2892,
+      "manual_setup": {
+        "help_url": "https://github.com/NagyD/SDLPoP/tree/3c5add5fb7f83d4ceb542823ab66d00146c4271b",
+        "steps": [
+          {
+            "title": "Use only an already permitted working native copy",
+            "instruction": "Use a complete SDLPoP Windows copy that you are already permitted to use, with its actual working data/libraries/resources. Select the modern native prince.exe, not the same-named DOS original, a download helper or installer. Selected current source enters pop_main in the game process, but does not certify an external binary. Official README links desktop builds externally; no selected GitHub release does not mean there is no distribution."
+          },
+          {
+            "title": "Keep the unresolved asset condition explicit",
+            "instruction": "Fresh managed-package admission remains unavailable while exact official distribution contents, accepted original/mod DAT set and applicable original asset permissions are unresolved. README supports original/mod DAT and MIDISND data but does not establish a separate player-owned original EXE or ROM requirement; do not invent one. The engine GPL/disassembly classification does not grant proprietary asset rights. This conditional existing-copy route neither downloads assets nor resolves that open permission/data question."
+          },
+          {
+            "title": "Keep the creating working directory and options",
+            "instruction": "Complete upstream preparation and a normal start/quit before registration. Select the actual prepared working directory and established supported literal arguments/mod choices. Keep SDLPoP.ini and actual resource/levelset setup; do not substitute a replay-validator/headless/helper invocation for the normal player. Review exact intent/consent and choose Play separately. No Core environment injection or forced profile migration is supplied."
+          },
+          {
+            "title": "Preserve all actual save, mod and replay roots",
+            "instruction": "On Windows normal PRINCE.SAV/QUICKSAVE.SAV/PRINCE.HOF writes can use the actual working directory. Existing SDLPOP_SAVE_PATH redirects save/HOF output, including a levelset subdirectory; without it a custom levelset can use its actual mod_data_path. Preserve all those roots, full runtime/DAT/MIDISND/mod data, SDLPoP.ini, configured replays_folder and recordings, legacy and unknown files. Keep the old creating runtime/data/config tuple before updates; no save/replay/mod compatibility or isolated profile is certified."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
+      }
     },
     {
       "id": "project-eleven-theplayer14-11eyes-crossover",
@@ -31952,13 +32105,43 @@
     {
       "id": "quake-ii-yamagi-quake-ii",
       "name": "Quake II (Yamagi Quake II)",
-      "summary": "Upstream route: Official Yamagi Windows 8.70a binary archive, or upstream 8.70 source build; own original Quake II data and separately selected expansion data/code. Limits: Official README describes mature enhanced client and addon repositories. GitHub Releases empty; official distribution site and expansion package handling need follow-up. Upstream platforms: Official Windows8.70a binary download and Linux/BSD source builds; code is64-bit clean but selected Windows artifact CPU unknown in frozen web page. macOS is community-supported. Original data: Original-data contract remains Unknown in the retained Yamagi Quake II README: establish the classic Quake II retail installation/data set and accepted patch/revision before offering setup. The Reckoning and Ground Zero are separate add-on implementations/data, and Quake II Remaster assets use a separate Yamagi remaster project; do not assume they substitute for classic base-game files. Portcove setup/gameplay not verified.",
+      "summary": "Windows prepared-player route: use a permitted official Yamagi8.70a copy (8.70 engine with SDL repack) and your own classic QuakeII data prepared with the required3.20 full CTF patch. Select yquake2.exe, preserve real data/profile/DLL roots, and keep expansion/remaster contracts separate. Core offers nonowning registration/Play; original and save qualification remain separate.",
       "original_game_title": "Quake II",
       "project_url": "https://github.com/yquake2/yquake2",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/yquake2/yquake2",
-      "issue_number": 2700
+      "issue_number": 2700,
+      "manual_setup": {
+        "help_url": "https://github.com/yquake2/yquake2/tree/76e81f9f3fc3ed859006d81904bfeb6cb33fb525",
+        "steps": [
+          {
+            "title": "Select the actual Yamagi player",
+            "instruction": "Use an already permitted complete official Yamagi Windows8.70a copy matching your architecture, including its compatible renderer/game/SDL libraries. The official site identifies8.70a as an SDL-library repack of engine8.70; this source binding is not new artifact-byte verification. Select yquake2.exe itself. On Windows quake2.exe is a wrapper that starts and waits for yquake2.exe; it is not the direct game entry, and the original retail executable shares that wrapper name. Do not select q2ded or infer player identity from a basename alone."
+          },
+          {
+            "title": "Finish classic original-data and patch preparation",
+            "instruction": "Follow upstream8.70 installation instructions in a separate recoverable working copy. Classic retail/CD/QuakeIV/Steam/GOG data still requires the full QuakeII3.20 CTF patch. Your own baseq2/pak0.pak and video directory combine with the required patch pak1.pak/pak2.pak and compatible engine/game DLLs; incorrect/mixed patch sets can crash. Upstream instructions about replacing old executables/DLLs apply to that separate prepared copy, not deletion of your only originals by Core. Core invokes no patch EXE/extraction/helper and authenticates no original data."
+          },
+          {
+            "title": "Keep expansions and remaster data separate",
+            "instruction": "The Reckoning/xatrix and Ground Zero/rogue each need their own original pak/video and matching addon code; do not infer those from base-game setup. QuakeII Remaster uses a separate Yamagi project/data contract and is not a substitute for classic assets. Keep complete original and prepared sets plus each compatible addon/runtime tuple recoverable. Engine/component terms do not grant rights to originals, music, mods or sibling renderer packages."
+          },
+          {
+            "title": "Retain actual working, data and profile choices",
+            "instruction": "Use the actual prepared runtime directory as working directory and retain established supported literal arguments, including actual -datadir, -cfgdir and -portable choices. The default Windows user root is actual Documents/YamagiQ2; -cfgdir changes its selected subdirectory and -portable omits that home-profile search. Do not force portable mode or rewrite a host root during registration. Preserve complete runtime/DLLs, baseq2 and other selected game directories, actual config/saves/screenshots/demos/music/mods/custom/legacy roots and unknowns. Finish upstream normal start/quit, review intent/consent and choose Play separately. No actual backward-save or addon compatibility is certified."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
+      }
     },
     {
       "id": "quake-iii-arena-ioquake3",
@@ -32055,24 +32238,84 @@
     {
       "id": "quake-ironwail",
       "name": "Quake (Ironwail)",
-      "summary": "Upstream route: Native Quake implementation with desktop packages. Limits: Distinct alternative to vkQuake, not another game; preserve per-implementation identity. Upstream platforms: Windows/Linux native desktop packages/source builds, exact selected CPUs unknown in frozen evidence. macOS explicitly unsupported due to OpenGL4.3 requirements. Original data: Use original Quake game data. Retained Ironwail README supports the 2021 rerelease and installed Steam Quake/add-ons through automatic discovery when no valid local Quake installation is present. Exact required classic/release PAK set and accepted data revision are not established by that README; mods/add-ons are separate data. Portcove setup/gameplay not verified.",
+      "summary": "Windows prepared-player route: use a complete permitted Ironwail0.8.2 copy and your own compatible Quake data. Preserve actual portable, store-selected and migrated profile roots; upstream owns migration and replacement. Core offers explicit nonowning registration and selected-process Play, without original/mod/save or other-platform qualification.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/andrei-drexler/ironwail",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/andrei-drexler/ironwail",
-      "issue_number": 2698
+      "issue_number": 2698,
+      "manual_setup": {
+        "help_url": "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+        "steps": [
+          {
+            "title": "Keep the complete upstream player",
+            "instruction": "Use an already permitted complete Ironwail0.8.2 Windows win64 copy with its accompanying files. Select ironwail.exe itself, not an installer, shortcut or dedicated-server mode. Its native main owns the normal Host_Frame loop. Upstream engine licensing does not license original Quake assets or arbitrary mods."
+          },
+          {
+            "title": "Finish the actual original or rerelease setup",
+            "instruction": "Use your own compatible classic or rerelease Quake data and finish upstream discovery/picker/configuration plus a normal start/quit before registration. Preserve the selected original/rerelease flavor and actual base/id1/expansion/mod set. Do not point at another edition, relabel data or replace your only creating copy to make a registration succeed. Core does not acquire, validate original PAK identities or prepare the game."
+          },
+          {
+            "title": "Keep the working player coordinates",
+            "instruction": "Use the actual prepared runtime working directory and established supported literal arguments/data/edition choices. Preserve existing absolute -basedir and custom game/root choices where used. Review exact intent and consent, then choose Play separately. No Core environment rewrite or forced portable mode is supplied."
+          },
+          {
+            "title": "Preserve old and new migration roots before changes",
+            "instruction": "Standalone copies may use their base/game folders; Windows store-selected copies can use actual Saved Games/Ironwail/original or Saved Games/Ironwail/rerelease. Keep the actual known-folder location, old Nightdive Studios/Quake tree, standalone/store/custom roots, ironwail.cfg and all saves/autosaves/screenshots/demos/mod/addon files and unknowns. Startup migration can rename episode directories and move recognized files, writing a new config and removing its old copy; it is not a read-only import. Finish any chosen upstream migration first and keep the full pre-migration tree recoverable. No cross-version mod/save/replay roundtrip is certified."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
+      }
     },
     {
       "id": "quake-vkquake",
       "name": "Quake (vkQuake)",
-      "summary": "Upstream route: Maintained Vulkan source port with recent Windows/Linux packages. Limits: Original data required; choose alongside other Quake implementations deliberately. Upstream platforms: Windows package, Linux AppImage/source routes and ARM64 Windows CI build configuration documented. Selected release package CPUs unknown in frozen evidence; Vulkan required. Original data: Original data required; choose alongside other Quake implementations deliberately. Portcove setup/gameplay not verified.",
+      "summary": "Windows prepared-player route: use a complete permitted vkQuake1.37.0 copy with your own compatible Quake data. Upstream owns preparation, store/data selection, actual profile roots and replacement; Core offers explicit nonowning registration and selected-process Play. Original, mod, save and other-platform qualification remain separate.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/Novum/vkQuake",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Novum/vkQuake",
-      "issue_number": 2697
+      "issue_number": 2697,
+      "manual_setup": {
+        "help_url": "https://github.com/Novum/vkQuake/tree/749b4fd43fe8b8554b34163dc9469c4a08a4def1",
+        "steps": [
+          {
+            "title": "Keep the complete upstream player",
+            "instruction": "Use an already permitted Windows x64 vkQuake1.37.0 installation or complete official Windows x64 ZIP, including its libraries/resources. Select the native vkQuake.exe player, not the installer, launcher shortcut or dedicated-server invocation. The normal source entry owns the Host_Frame loop in that process. Vulkan-capable hardware is required; this guide does not qualify your GPU or game."
+          },
+          {
+            "title": "Finish your own Quake data setup upstream",
+            "instruction": "Prepare your own supported classic or rerelease Quake data using the upstream installer/store discovery or complete portable-copy instructions. Keep actual base/id1 PAKs and selected expansions/mods with their compatible data. Finish the upstream picker and normal start/quit before registration. Do not overwrite your only retained copy while changing engines. Engine licensing does not license original assets or arbitrary mods; Core does not acquire, hash-admit or import these originals."
+          },
+          {
+            "title": "Retain the established launch coordinates",
+            "instruction": "Use the actual prepared runtime directory as working directory and the same supported literal arguments as your working setup. Preserve an actually used -basedir plus its absolute path as separate tokens, existing game/edition and -multiuser choices; do not introduce another profile or choose a different store edition merely to register it. Review exact intent/consent, then choose Play separately."
+          },
+          {
+            "title": "Preserve both portable and discovered profile roots",
+            "instruction": "Standalone copies can write beneath the prepared base/game directories, but store selection or -multiuser uses the actual SDL vkQuake preference directory (normally APPDATA/vkQuake on Windows). Preserve that actual root and basedirs.txt, global vkQuake.cfg, game-local configs, saves/autosaves/screenshots/demos, all base/id1/mod files, the complete runtime and unknowns. Keep relevant existing Steam/GOG/Epic/Nightdive and Steam-userdata/custom roots too; another runtime folder is not proof of independent state."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
+      }
     },
     {
       "id": "r-e-l-i-v-e-oddworld-abe-s-exoddus",
@@ -33120,7 +33363,7 @@
     {
       "id": "return-to-castle-wolfenstein-iortcw",
       "name": "Return to Castle Wolfenstein (iortcw)",
-      "summary": "Upstream route: Established source port with original-data copy instructions and desktop release archives. Limits: Latest published release is old; separate SP/MP and patch-data dependencies. Upstream platforms: Windows/Linux/macOS source-port archives. Mac universal-binary build instructions documented; exact selected archive CPUs unknown in frozen evidence. Original data: Supply original Return to Castle Wolfenstein Main/ assets: SP needs pak0.pk3 and sp_pak1.pk3 through sp_pak3.pk3; MP needs the documented mp_bin/mp_pak/mp_pakmaps files from the owned installation. Merge upstream patch-data-141.zip (or the documented newer patch data); German/Spanish/French/Italian SP additionally use matching language patches. Keep SP/MP data separate. Portcove setup/gameplay not verified.",
+      "summary": "Windows prepared-player route: use the iortcw1.51c x64 single-player client with your own correctly prepared RTCW Main and applicable patch/locale data. Preserve actual base/home/game roots. Core offers nonowning registration/Play; upstream owns setup/replacement. Multiplayer, original assets and save compatibility remain separate.",
       "original_game_title": "Return to Castle Wolfenstein",
       "project_url": "https://github.com/iortcw/iortcw",
       "platforms": [],
@@ -33134,7 +33377,37 @@
         "game_slug": "return-to-castle-wolfenstein",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2706
+      "issue_number": 2706,
+      "manual_setup": {
+        "help_url": "https://github.com/iortcw/iortcw/tree/c42648b0d30c1e560cdbeea1018f28990d0d69c5",
+        "steps": [
+          {
+            "title": "Choose the single-player native client",
+            "instruction": "Use an already permitted complete iortcw1.51c Windows x64 package with matching game/renderer libraries. Select iowolfsp.x64.exe: the selected Windows producer uses the x64 suffix. Do not substitute original WolfSP, the dedicated server, another architecture or the separate multiplayer client. Its native SP main owns the normal frame loop."
+          },
+          {
+            "title": "Prepare your own complete RTCW data upstream",
+            "instruction": "Finish upstream single-player setup with your own supported RTCW Main data, including pak0.pk3 and applicable sp_pak1/sp_pak2/sp_pak3 and patch-data-141/locale files. Use the upstream instructions matching the actual edition/language; keep compatible code/data together in a separate recoverable working copy. Multiplayer requires its own data/code and is outside this SP route. Core neither downloads patches nor imports/authenticates original PK3s or runs a setup script."
+          },
+          {
+            "title": "Keep actual launch and profile coordinates",
+            "instruction": "Use the actual prepared working directory and same supported literal arguments. Preserve established fs_basepath/fs_homepath/fs_game choices and absolute custom roots as actually configured. Review exact intent/consent, then choose Play separately. Do not override the host profile root or force an unrelated empty profile to attach the player."
+          },
+          {
+            "title": "Preserve complete external state",
+            "instruction": "Default Windows home data follows the actual Documents/RTCW known-folder location; configured roots and Main/game subdirectories may differ. Preserve the whole runtime and original data plus actual configs/profiles/saves/screenshots/demos/mods/unknown files in every base/home/game/custom/legacy root. Keep the old creating tuple before any upstream replacement. GPL engine and additional SP/component terms do not license the original game; no multiplayer, mod, or cross-version save compatibility follows from this registration."
+          },
+          {
+            "title": "Keep replacement and removal ownership clear",
+            "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          }
+        ],
+        "warnings": [
+          "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
+          "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
+          "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        ]
+      }
     },
     {
       "id": "ridge-racer-6-ridge-racer-6-recomp",

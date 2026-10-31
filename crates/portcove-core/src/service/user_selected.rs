@@ -1298,6 +1298,8 @@ mod tests {
         ["--play", "xmvsf"]
     );
 
+    prepared_player_case!(render96_selected_native_route_519, "render96ex");
+
     prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
     prepared_player_case!(classic_pc_route_1793, "keriew-augustus");
     prepared_player_case!(classic_pc_route_1790, "elasota-aerofoil");
@@ -1739,6 +1741,46 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(retained.port("shipwright").is_err());
+    }
+
+    #[test]
+    fn vkquake_prepared_player_route_2697() {
+        assert_listing_only_player_route("quake-vkquake", Some(false));
+    }
+
+    #[test]
+    fn ironwail_prepared_player_route_2698() {
+        assert_listing_only_player_route("quake-ironwail", Some(false));
+    }
+
+    #[test]
+    fn fallout1_ce_prepared_player_route_2573() {
+        assert_listing_only_player_route("fallout-fallout-community-edition", Some(false));
+    }
+
+    #[test]
+    fn fallout2_ce_prepared_player_route_2574() {
+        assert_listing_only_player_route("fallout-2-fallout-2-community-edition", Some(false));
+    }
+
+    #[test]
+    fn arx_libertatis_prepared_player_route_2554() {
+        assert_listing_only_player_route("arx-fatalis-arx-libertatis", Some(false));
+    }
+
+    #[test]
+    fn iortcw_sp_prepared_player_route_2706() {
+        assert_listing_only_player_route("return-to-castle-wolfenstein-iortcw", Some(false));
+    }
+
+    #[test]
+    fn yamagi_direct_player_route_2700() {
+        assert_listing_only_player_route("quake-ii-yamagi-quake-ii", Some(false));
+    }
+
+    #[test]
+    fn sdlpop_permitted_player_route_2892() {
+        assert_listing_only_player_route("prince-of-persia-dos-sdlpop", Some(false));
     }
 
     #[test]
