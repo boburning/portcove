@@ -1048,7 +1048,7 @@ export async function selectedSetupCompletionScenario({
       report.observations.installed = { activity: installedActivity, status: installed };
       await enlargedStage("installed-next-step");
 
-      await click(button("Review game preparation"));
+      await click(button("Review setup"));
       const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
       await browser.wait(until.elementLocated(preparationDialog), 15_000);
       await browser.wait(

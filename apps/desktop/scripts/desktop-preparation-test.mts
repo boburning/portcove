@@ -742,16 +742,17 @@ async function assertReviewedUpdateOutcomes({
         await reviewGameUpdateDisposition(browser, "prepare");
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         await browser.wait(async () => (await review.getText()).includes(explanation), 5_000);
+        // Outline alternatives request a fresh review; only the primary action applies it.
         assert.equal(
           (
             await review.findElements(
               By.xpath(
-                './/button[normalize-space(.)="Download archive for later" or normalize-space(.)="Prepare update for later" or normalize-space(.)="Keep saved update for later" or normalize-space(.)="Download and install update" or normalize-space(.)="Update now" or normalize-space(.)="Use saved update"]',
+                './/button[@data-variant="primary" and (normalize-space(.)="Download archive for later" or normalize-space(.)="Prepare update for later" or normalize-space(.)="Keep saved update for later" or normalize-space(.)="Download and install update" or normalize-space(.)="Update now" or normalize-space(.)="Use saved update")]',
               ),
             )
           ).length,
           0,
-          "Held or waiting assessment must offer no update execution action",
+          "Held or waiting assessment must offer no primary update execution action",
         );
         const admitted = required(await probe.capture());
         assert.equal(admitted.plans, 1);
@@ -765,6 +766,19 @@ async function assertReviewedUpdateOutcomes({
       } catch (error) {
         scenarioError = error;
         observation.failure = errorMessage(error);
+        try {
+          const image = path.join(
+            output,
+            `reviewed-update-${reason}-failure-before-restoration.png`,
+          );
+          await writeFile(image, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(image);
+        } catch (captureError) {
+          observation.failure_capture_error = errorMessage(captureError);
+        }
         throw error;
       } finally {
         const cleanup = await probe.restore();
@@ -1168,7 +1182,7 @@ export async function preparationScenarios({
     await clickVisible(browser, await browser.findElement(card));
     if (waitForPreparation) {
       await revealDetailSection(browser, "Game files");
-      await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
+      await browser.wait(until.elementLocated(button("Review setup")), 15_000);
     }
   }
   async function openReadinessOptions(filters: WebElement) {
@@ -1229,14 +1243,14 @@ export async function preparationScenarios({
     const preparationHierarchy = await executeBrowserScript(browser, () => {
       const actions = document.querySelector('section[aria-label="Game actions"]');
       return {
-        heading: actions?.querySelector("h2")?.textContent,
+        heading: actions?.querySelector('[data-slot="current-state-summary"] h3')?.textContent,
         firstAction: actions?.querySelector("button:not(:disabled)")?.textContent?.trim(),
         disabledPlaceholder: actions?.textContent?.includes("Prepare game data first"),
         owner: actions?.getAttribute("data-task-owner"),
       };
     });
-    assert.equal(preparationHierarchy.heading, "Next step: prepare game data");
-    assert.equal(preparationHierarchy.firstAction, "Review game preparation");
+    assert.equal(preparationHierarchy.heading, "Setup needed");
+    assert.equal(preparationHierarchy.firstAction, "Review setup");
     assert.equal(preparationHierarchy.disabledPlaceholder, false);
     assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
     await revealDetailSection(browser, "Manage");
@@ -1300,7 +1314,7 @@ export async function preparationScenarios({
       "review must not move versions",
     );
     await revealDetailSection(browser, "Game files");
-    await browser.findElement(button("Review game preparation")).click();
+    await browser.findElement(button("Review setup")).click();
     const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
@@ -1452,7 +1466,7 @@ export async function preparationScenarios({
       );
       await browser.manage().window().setRect(reviewWindow);
     }
-    await clickVisible(browser, await browser.findElement(button("Review game preparation")));
+    await clickVisible(browser, await browser.findElement(button("Review setup")));
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
@@ -1464,7 +1478,7 @@ export async function preparationScenarios({
       () =>
         executeBrowserScript(
           browser,
-          'return document.activeElement?.textContent?.trim() === "Review game preparation";',
+          'return document.activeElement?.textContent?.trim() === "Review setup";',
         ),
       5_000,
       "Preparation review trigger did not regain focus after Escape",
@@ -1474,7 +1488,7 @@ export async function preparationScenarios({
       install.id,
       "dismissal must not prepare",
     );
-    await browser.findElement(button("Review game preparation")).click();
+    await browser.findElement(button("Review setup")).click();
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.findElement(button("Prepare game data")).click();
     await browser.wait(async () => required((await status(port.id)).readiness).launchable, 15_000);
@@ -3065,7 +3079,7 @@ export async function preparationScenarios({
           bytes: bytes.length,
         });
       }
-      await browser.findElement(button("Review game preparation")).click();
+      await browser.findElement(button("Review setup")).click();
       await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
       await browser.findElement(button("Prepare game data")).click();
       let observedFailure: ActivityRecord | undefined;
@@ -3219,7 +3233,7 @@ export async function preparationScenarios({
           sha256: createHash("sha256").update(bytes).digest("hex"),
         });
       }
-      await browser.findElement(button("Review game preparation")).click();
+      await browser.findElement(button("Review setup")).click();
       await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
       await browser.findElement(button("Prepare game data")).click();
       let activity: ActivityRecord | undefined;

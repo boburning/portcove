@@ -1448,14 +1448,16 @@ async function scenario(name: string, action: () => unknown) {
     });
     return;
   }
+  let failed = false;
   await observeDesktopScenario(action, {
     record: ({ outcome, ...details }) => {
+      failed = outcome === "failed";
       recordScenario(target, name, outcome, { ...details, duration_scope: "scenario-action" });
       if (outcome === "failed") process.exitCode = 1;
     },
     diagnostics: () => captureScenarioDiagnostics(name, target.setup),
     screenshot: async () => {
-      if (!target.setup) await captureScenarioScreenshot(name);
+      if (!target.setup || failed) await captureScenarioScreenshot(name, failed);
     },
   });
 }
