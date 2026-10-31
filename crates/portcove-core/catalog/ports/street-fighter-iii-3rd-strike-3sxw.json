@@ -3,11 +3,9 @@
   "listing": {
     "id": "street-fighter-iii-3rd-strike-3sxw",
     "name": "Street Fighter III: 3rd Strike / 3SXW",
-    "summary": "Explore Street Fighter III: 3rd Strike / 3SXW and follow the upstream project for requirements, downloads and setup.",
+    "summary": "A Street Fighter III: 3rd Strike engine using your own PlayStation 2 data.",
     "project_url": "https://github.com/guimaraf/3sxw",
     "issue_number": 375,
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/guimaraf/3sxw",
     "artwork": {
       "game_id": 243243,
@@ -16,6 +14,37 @@
       "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
       "game_slug": "street-fighter-iii-3rd-strike--2",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Street Fighter III: 3rd Strike"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "guimaraf/3sxw",
+      "asset_hints": {
+        "windows-x86-64": ["3sx-", "-windows.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["SF3.exe"]
+    },
+    "persistent_paths": [
+      "resources/SF33RD.AFS",
+      "data/saves",
+      "data/config",
+      "data/keymap",
+      "data/error.log",
+      "data/debug",
+      "prints"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Use your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2. Complete upstream's in-process ISO wizard, or its documented SF33RD.AFS setup; a CPS-3/MAME set is not this source contract. Core does not acquire or authenticate original data. The actual Windows player is bin/SF3.exe, with its executable parent as the launch directory; keep every packaged DLL and companion file, including sf3config.exe. This fork stores resources/SF33RD.AFS, data/saves (both memory-card slots), data/config, data/keymap, data/error.log, optional data/debug diagnostics and prints beside that player. Core preserves those declared paths across engine maintenance; its packaged data/img bezel images remain runtime content. Interrupted storage probes or configuration temporary files outside the declared paths deliberately hold maintenance for inspection; do not delete unknown files to bypass that hold. Preserve the complete creating runtime and all actual originals, profiles and unknown files before changes. The selected source enables its expected AFS SHA-256 check in Release builds (f9fa50f3a124ec9fa9465aa9c8546c2d867887eb39f711a070762a0324ba5604); use a compatible original that passes upstream validation. Unestablished region/revision coverage is not a claim that every PS2 edition works, and no exact-binary/source reproducibility is established here. This is a separate portable fork, not a migration of CrowdedStreet/3SX's external AppData profile. Upstream original-file checksum checks do not establish Core source authentication, memory-card compatibility, gameplay or netplay qualification. Core owns engine replacement; upstream owns data preparation. Diagnostics can contain paths and inputs and are not uploaded by this route."
     }
   }
 }
