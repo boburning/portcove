@@ -17,7 +17,36 @@
       "game_slug": "zuma-deluxe",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2912
+    "issue_number": 2912,
+    "manual_setup": {
+      "help_url": "https://github.com/kyle-sylvestre/CircleShootApp/tree/090dc13912c8bb2b0f55dbdf3c6ff79cfe694ef2",
+      "steps": [
+        {
+          "title": "Use a completed permitted Zuma desktop copy",
+          "instruction": "Use an already working native Windows Zuma Portable/CircleShootApp copy prepared upstream with your own Zuma Deluxe data and its matching BASS dependency. For 32-bit use the supported original BASS 1.8 DLL or deliberately configured BASS 2.4; 64-bit requires BASS 2.4. No player asset is attached to the selected 0.9 GitHub release. Upstream bootstrap scripts download legacy MSVC tools: this guide does not run them or grant their distribution rights. A permitted prepared copy avoids requiring Portcove to acquire that toolchain. Exact Steam-data compatibility and every original revision are not certified here."
+        },
+        {
+          "title": "Select the native player and preserve its setup",
+          "instruction": "Select the actual completed Zuma.exe, not a bootstrap/build script or the original executable used as a reverse-engineering reference. Keep all runtime DLLs and the creating working directory and supported arguments. Finish upstream setup and a normal start/quit first. The selected source contains platform-specific folder discovery and multiple framework storage paths; use the actual prepared build’s effective locations rather than substituting a browser/mobile layout."
+        },
+        {
+          "title": "Preserve originals and all effective player storage",
+          "instruction": "Before the first start or changes, retain original userdata and the complete creating runtime, registry settings, actual per-user AppData/ZumaPortable including gamefolder.txt, ProgramData/PopCap Games/Zuma-related storage where used, installation-relative userdata, profiles, saves, captures and custom roots. The selected Windows startup can discover installed original-data locations and automatically copy an existing userdata tree into its new profile when the destination is absent. That is upstream behavior, not Portcove-managed migration or proof of backward save compatibility. Preserve every actual source and destination; no external backup or sandbox is supplied."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
+        },
+        {
+          "title": "Retain one upstream replacement owner",
+          "instruction": "Close actual player instances before changes. Preserve the whole old creating runtime and every effective original/profile/custom/unknown root, make deliberate compatible changes upstream, then review and relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises the selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files. This route supplies no Core acquisition, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
+        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
