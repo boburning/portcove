@@ -16,6 +16,30 @@
       "image_sha256": "f6a5e21c272dc44262fc053e5e56608331bbb8fdcb59c0caa18c49d3bdf299fb",
       "game_slug": "unleashed-recompiled",
       "match_kind": "port"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/hedge-dev/UnleashedRecomp/tree/325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "steps": [
+        {
+          "title": "Prepare your own international Xbox 360 game upstream",
+          "instruction": "Use your legally obtained US or EU Sonic Unleashed Xbox 360 base game plus its matching-region required Title Update. The Japanese, PS3 and Wii editions are not this contract; DLC is optional. Use upstream’s normal in-process installer: Add Files accepts dumped Xbox 360 containers/images; Add Folder accepts the exact requested raw content directory and does not recursively search for it. Modified inputs are rejected upstream. Core does not acquire or authenticate these originals, apply title updates or build the port."
+        },
+        {
+          "title": "Select the established Unleashed player",
+          "instruction": "Use the completed UnleashedRecomp.exe with its installation directory as the established working directory. The selected source defaults game content to the current working directory, so an arbitrary working directory is not equivalent. Preserve the existing package and completed installer outputs. The reviewed v1.0.3 Windows asset has no published GitHub digest: this guide does not authenticate or enroll a fresh managed download."
+        },
+        {
+          "title": "Attach the completed native player and choose Play separately",
+          "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+        },
+        {
+          "title": "Retain upstream ownership and every effective profile",
+          "instruction": "Upstream remains the single engine/data-preparation owner. Preserve the complete creating installation, original base/update/DLC inputs, mods and all effective profiles before deliberate compatible changes. Default Windows settings are in the Roaming AppData UnleashedRecomp directory, with config.toml and save/SYS-DATA; a portable.txt beside the player switches the profile to its executable directory. Hedge Mod Manager can redirect saves, including mlsave or another configured path. Preserve both old/new roots before changing portable mode. A failed Windows known-folder lookup can leave relative profile paths, so preserve the actual effective location. Upstream’s version-replacement guidance is not a Portcove promise of cross-version save or mod compatibility; relink and review any changed selected executable."
+        }
+      ],
+      "warnings": [
+        "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+      ]
     }
   }
 }

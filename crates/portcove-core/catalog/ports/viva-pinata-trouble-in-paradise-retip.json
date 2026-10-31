@@ -16,6 +16,30 @@
       "image_sha256": "93f7b41ce3e73eec6cc473613c0716b8a32d28e22dc0df0d0ebe35cda6adf517",
       "game_slug": "viva-pinata-trouble-in-paradise",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/SolarCookies/TiP-Recomp/tree/be5e91c8a83da21d976902962c61688c849cf29d",
+      "steps": [
+        {
+          "title": "Complete the own-retail-disc ReTiP setup upstream",
+          "instruction": "Use your legally obtained retail Viva Piñata: Trouble in Paradise Xbox 360 disc ISO, retaining the canonical world-region source contract. Follow upstream’s normal ISO-selection/extraction flow outside Portcove. The public release documentation does not establish that every disc revision or another game is compatible. Core does not extract, build or authenticate original data. The standalone GitHub build is documented as the same game build without GameJolt integration; select the already prepared copy you intend to keep."
+        },
+        {
+          "title": "Select the native standalone player and keep the whole package",
+          "instruction": "The reviewed 1.14.0 Windows AMD64 package contains retip.exe, retip.toml, the retip directory, retip_pipelines.bin, rex runtime/DXC DLLs and crash reporter companions. Attach the completed retip.exe with its established package working directory. Public title code uses an in-process ReXApp/windowed-app entry and opens the prepared game through its launch menu; the customized backend/native renderer is not public, so this is not a full backend or companion-process certification. No private backend access, build, GameJolt login or compiler execution is requested."
+        },
+        {
+          "title": "Attach the completed native player and choose Play separately",
+          "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+        },
+        {
+          "title": "Preserve the complete upstream-owned copy and actual data roots",
+          "instruction": "Keep the whole creating package, retail ISO, extracted game_data_root, default.xex, retip.toml, mods, textures, caches, logs, captures, saves/settings and every actual SDK/account/custom root belonging to that copy. The packaged TOML allows game-relative writes and records enabled mods; it does not establish the closed backend’s default save/profile directory. Do not infer a default path or Core backup/delete rights from another public ReXGlue version. Locate and retain the effective roots configured by your already prepared copy before changes. Upstream owns compatible replacement, data preparation and any mod/update integration; avoid competing updaters for one copy, preserve old runtime/data and review/relink a changed selected executable. Optional networking, mod downloads, credential use and crash uploads are not enabled or qualified by attachment."
+        }
+      ],
+      "warnings": [
+        "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+      ]
     }
   }
 }

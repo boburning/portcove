@@ -16,6 +16,30 @@
       "image_sha256": "22e890538e151ec8aea2d259904c84ae177f3c0db27159fb6185e1352f577615",
       "game_slug": "dead-rising-2-case-zero",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/tree/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "steps": [
+        {
+          "title": "Prepare the own-game offline Windows copy upstream",
+          "instruction": "Use your legally obtained Xbox Live Arcade Dead Rising 2: Case Zero package, Title ID 58410A8D: the approximately 825 MB extensionless package under Content/0000000000000000/58410A8D/000D0000, not the full Dead Rising 2 game. Follow the standalone package’s first-run instructions outside Portcove. Its native runtime performs STFS extraction, shader preparation and game-data overlays; no external compiler or setup helper is run by this guide. The project’s PolyForm Noncommercial grant covers its own work, not the original game or separately licensed components."
+        },
+        {
+          "title": "Select the actual offline native runtime",
+          "instruction": "The reviewed v1.1.3 Windows x86-64 ZIP contains CaseZeroRecomp/cz_runtime.exe, its DLLs and the initial assets/package marker. Attach the completed cz_runtime.exe with its executable directory as the established working directory. An online XenonLive launcher is not required for this offline entry; do not enroll one copy under competing runtime updaters. The package’s independent published SHA-256 is recorded in the source dossier, but attachment is explicit user-selected trust, not curated tree certification."
+        },
+        {
+          "title": "Attach the completed native player and choose Play separately",
+          "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+        },
+        {
+          "title": "Preserve source outputs, profiles and private SDK data",
+          "instruction": "Keep the complete creating installation and all actual original or derived data. HostPaths normally finds the assets directory by walking from the executable; an existing CZ_ROOT can select another root. Retain assets/package, assets/game, assets/save, assets/shader_spv, game_patched/game_kbm/game_bootskip outputs, config, all other generated files and unfinished writes in their effective locations. Normal Windows saves/settings use the redirected Saved Games known folder under Dead Rising 2 Case Zero, with USERPROFILE/Saved Games and executable-local fallbacks. Saves begin in its default subdirectory; an SDK-selected gamertag can choose another sanitized profile, while cz_settings.txt stays at the game-folder level. A present CZ_SAVE_DIR overrides both roots and prevents profile switching; preserve its actual configured location. Startup can copy legacy assets/save container directories into a root with no existing container directories and copy settings only if absent, retaining old copies and leaving loose legacy files. Keep all old/new and unfinished roots: this is upstream behavior, not a Core migration or compatibility promise. Retain cz_settings.txt, cz_runtime.log and rotated/diagnostic files, CZ_LOG_FILE overrides and any existing bug-report captures. The bundled SDK’s complete effective user/account/capture paths are not established by the public source: preserve the actual roots belonging to that copy, including custom SDK locations. Do not infer backup or cleanup permission. Reports can contain private paths or saves; this route does not enable collection/upload, online login, private SDK access or credential use. Upstream owns deliberate compatible updates; retain the old creating runtime and review/relink changed executables."
+        }
+      ],
+      "warnings": [
+        "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+      ]
     }
   }
 }
