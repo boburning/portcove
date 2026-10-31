@@ -248,6 +248,9 @@ export async function artworkCorrectionScenario({
     const dialog = By.css('[aria-labelledby="catalog-update-title"]');
     const open = async () => {
       await click(By.xpath('//nav//button[contains(., "Settings")]'));
+      await click(
+        By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-advanced"]'),
+      );
       await click(button("Manage catalog updates"));
       await browser.wait(until.elementLocated(dialog), 10000);
       await browser.wait(until.elementLocated(By.id("catalog-public-key")), 10000);
