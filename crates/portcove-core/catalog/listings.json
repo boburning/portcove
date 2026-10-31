@@ -16405,6 +16405,31 @@
         "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
         "game_slug": "dune-ii-the-building-of-a-dynasty",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/gameflorist/dunedynasty/tree/9e447c4667b3f41097279d24819a11a46087050c",
+        "steps": [
+          {
+            "title": "Finish Dune Dynasty setup before attaching it",
+            "instruction": "Use a permitted complete Windows Dune Dynasty copy with your own European Dune II 1.07 PAK files, following upstream’s FILELIST.TXT. Keep those data files in the prepared data directory or the actual personal Dune Dynasty/data directory used by the copy. Missing original data makes normal startup fail; attaching the engine alone does not prepare it. Optional music, soundfonts and enhancements have separate requirements and rights."
+          },
+          {
+            "title": "Keep the existing portable or personal profile choice",
+            "instruction": "Select native dunedynasty.exe and its actual prepared working directory. Keep dunedynasty.cfg: an existing executable-side config selects portable state; otherwise Windows normally uses the current account’s roaming AppData/Dune Dynasty profile. Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
       }
     },
     {
@@ -16424,7 +16449,32 @@
         "game_slug": "dune-ii-the-building-of-a-dynasty",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2674
+      "issue_number": 2674,
+      "manual_setup": {
+        "help_url": "https://github.com/OpenDUNE/OpenDUNE/tree/af3f3239eca1073ac9d621286014fba282c1dc5a",
+        "steps": [
+          {
+            "title": "Prepare the supported Dune II data upstream",
+            "instruction": "Use a complete permitted OpenDUNE Windows copy for your CPU, with your own Dune II 1.07 data, including dune2.exe, prepared in data/. Upstream accepts eu, hs and us 1.07 sets; French needs eu/hs and German needs eu. Dune 2000 is a different game. Keep the complete original files; select native opendune.exe rather than the original DOS dune2.exe or an installer."
+          },
+          {
+            "title": "Retain the creating data and save paths",
+            "instruction": "Keep the actual prepared runtime directory as working directory. Retain opendune.ini and its [opendune] datadir and savedir choices. On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails. Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "dw2-pc-wyrelade-digimon-world-2",
@@ -19409,7 +19459,32 @@
         "game_slug": "gothic-ii-the-night-of-the-raven--1",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2578
+      "issue_number": 2578,
+      "manual_setup": {
+        "help_url": "https://github.com/Try/OpenGothic/tree/2855fa51957bac9e7ce83f938ec127a0ab3badce",
+        "steps": [
+          {
+            "title": "Prepare the Night of the Raven runtime and data",
+            "instruction": "Use a complete permitted OpenGothic Windows copy and your own Gothic II: Night of the Raven data. Select native Gothic2Notr.exe with its matching resources/libraries. Gothic I, Gothic II Classic and existing 32-bit Union/AST/Ikarus plugins do not inherit compatibility from this route. Finish setup upstream rather than selecting an installer or a helper."
+          },
+          {
+            "title": "Preserve the actual working directory as well as game data",
+            "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection. The selected Windows code uses working-directory Gothic.ini and log.txt, separately from original System/Gothic.ini, and writes save_slot_0.sav/save_slot_N.sav relative to the working directory. Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "gow-ascension-pc-otavix010-otavix010-god-of-war-ascension",
@@ -20292,7 +20367,32 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/FWGS/xash3d-fwgs",
-      "issue_number": 2678
+      "issue_number": 2678,
+      "manual_setup": {
+        "help_url": "https://github.com/FWGS/xash3d-fwgs/tree/a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
+        "steps": [
+          {
+            "title": "Keep the complete compatible Half-Life engine tuple",
+            "instruction": "Use a permitted complete official FWGS Windows copy with your own compatible Half-Life valve data and the game libraries matching that engine. Select native xash3d.exe with its companion engine DLLs/resources. The normal launcher loads the engine in the same process. The default Windows engine is 32-bit for Steam game-DLL compatibility; a 64-bit engine needs compatible game libraries and does not automatically run 32-bit DLLs. Keep an already working tuple rather than mixing architectures, substituting a DLL/server, rebuilding an SDK or assuming arbitrary GoldSrc mods work."
+          },
+          {
+            "title": "Retain the creating root and write directories",
+            "instruction": "Keep the actual prepared working directory, established game arguments and original valve/game trees. The engine can resolve its root from existing XASH3D_BASEDIR, otherwise its SDL base path with a working-directory fallback; it then changes to that root. An existing -rodir argument or XASH3D_RODIR can select a separate read-only data root. Preserve the creating environment and both actual roots; Portcove does not inject environment variables or force a new data layout. Keep the full writable game directory, saves, configuration, custom downloads/mods, logs and unknown files, plus all matching runtime libraries and read-only originals. Do not assume Steam’s profile or another runtime folder owns all state."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "halo-3-linux-systemlink-summers-aaron-halo-3-xbox-360",
@@ -20745,7 +20845,32 @@
         "game_slug": "heroes-of-might-and-magic-ii-the-succession-wars",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2582
+      "issue_number": 2582,
+      "manual_setup": {
+        "help_url": "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775",
+        "steps": [
+          {
+            "title": "Finish the supported Windows resource setup upstream",
+            "instruction": "Use a permitted complete fheroes2 Windows copy with its matching libraries and your own supported Heroes of Might and Magic II resources, or a demo you are separately permitted to use. The Windows ZIP instructions require upstream resource extraction or the documented manual ANIM/DATA/MAPS/MUSIC copy before normal play. The Linux Flatpak first-start resource picker is a different route. Portcove does not run the extraction BAT, acquire demo/original assets or install Windows redistributables for this prepared-copy route. Select native fheroes2.exe after setup."
+          },
+          {
+            "title": "Retain the actual resource and profile search paths",
+            "instruction": "Keep the creating working directory, complete runtime/resources and all original/custom maps and music. Windows profile selection checks an existing HOME environment first, using HOME/.fheroes2, then APPDATA/fheroes2, with an SDL preference fallback. Preserve the actual creating account/environment and selected config/data directories rather than assuming AppData is always used; Portcove does not inject environment variables. Keep fheroes2.cfg, the full data/profile tree including files/save, saves, custom files and unknowns. Do not force a new portable profile or treat the missing-resource error window as an original-data picker."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "heromachine-breakdown-recompilation",
@@ -22092,7 +22217,36 @@
         "game_slug": "jazz-jackrabbit-2",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2682
+      "issue_number": 2682,
+      "manual_setup": {
+        "help_url": "https://github.com/deathkiller/jazz2-native/tree/81f315f1f62d1716c489df349e5ebfdc017603da",
+        "steps": [
+          {
+            "title": "Prepare the official desktop variant and your own Source data",
+            "instruction": "The source project links official desktop packages from deathkiller/jazz2. Use a permitted complete Windows package for your CPU and chosen renderer, including its companion DLLs and Content directory. The 3.9.0 archive has separate x64, x86 and ARM64 trees; select the actual working tree’s normal Jazz2.exe, not Jazz2.Server.exe or a different renderer/CPU by filename alone. Follow upstream’s instructions to copy your permitted supported Jazz Jackrabbit 2 original/shareware data into that tree’s Source directory before running."
+          },
+          {
+            "title": "Complete preparation without replacing your state",
+            "instruction": "Keep the selected tree as working directory so Content, Source and Cache resolve together. Missing Anims.j2a/AnimsSw.j2a does not produce a playable installation. With originals present, upstream converts data during startup, can replace converted cache contents, and records its own binary Source.idx; that is not a Portcove setup receipt. Preserve the full original Source, custom Content, complete Cache and unknown files before changing versions. The package-owned Source/_Readme.txt does not make the entire Source directory disposable."
+          },
+          {
+            "title": "Keep the creating settings and progress location",
+            "instruction": "Retain an existing working-directory Jazz2.config or the actual per-user Jazz² Resurrection settings directory used by the copy. If already configured, preserve the literal /config argument and its actual path; it is /config, not --config. Do not create a portable config or use /reset-config just to attach the game. Preserve the full selected config/user directory, progress, resume state and runtime/cache trees, including shader/download/custom content, before upstream updates. Another renderer or runtime folder can still use the same user profile."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "jedeyesniv-art-pacman-ce-pc-recomp",
@@ -25624,7 +25778,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/OpenEnroth/OpenEnroth",
-      "issue_number": 2885
+      "issue_number": 2885,
+      "manual_setup": {
+        "help_url": "https://github.com/OpenEnroth/OpenEnroth/tree/a644b752f05af0cdbb1c5d96d120d6967bd8b790",
+        "steps": [
+          {
+            "title": "Use a complete compatible Might and Magic VII copy",
+            "instruction": "Prepare OpenEnroth upstream using your own supported Might and Magic VII installation and its ANIMS, DATA, MUSIC and SOUNDS trees. Planned Might and Magic VI/VIII support does not make their data interchangeable. Choose the actual compatible Windows CPU/build variant and native OpenEnroth.exe, retaining its libraries and resources. A moving nightly name does not establish compatibility with an arbitrary copy."
+          },
+          {
+            "title": "Retain the separate data and user coordinates",
+            "instruction": "Keep the actual working directory and established literal --data-path and --user-path arguments. --portable defaults both paths to the working directory; an existing .portable file can also select portable mode. Do not add either merely to register. Existing OPENENROTH_MM7_PATH and upstream automatic discovery can affect data selection; Portcove does not inject that environment. Windows normally uses Saved Games/OpenEnroth for user state, with a working-directory fallback when the known-folder lookup is unavailable. Preserve the actual selected paths and openenroth.ini."
+          },
+          {
+            "title": "Preserve both sides of upstream save copying",
+            "instruction": "When the data and user roots differ and the destination saves directory is empty, startup can copy regular files from the data saves directory into the user saves directory. It leaves the originals in place and skips copying into a nonempty destination. Keep both complete trees, all configuration, saves, modifications and unknown files before running a changed build. This upstream copying does not establish backward-save compatibility or a Portcove migration."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "mind-over-recomp-maxilure-crash-mind-over-mutant",
@@ -40615,7 +40798,36 @@
         "game_slug": "transport-tycoon-deluxe",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2716
+      "issue_number": 2716,
+      "manual_setup": {
+        "help_url": "https://github.com/OpenTTD/OpenTTD/tree/14ec60f248547d4d062a1160f0fc26d742319888",
+        "steps": [
+          {
+            "title": "Prepare the upstream OpenTTD variant",
+            "instruction": "Use a permitted complete official upstream OpenTTD Windows copy for your CPU and finish its documented setup. Free OpenGFX graphics and OpenSFX sound can be used; original Transport Tycoon Deluxe data is not mandatory, and OpenMSX music is optional. Upstream can offer a base-graphics download at startup when its network/font/UI prerequisites are available; finish that setup before attaching an existing copy. Select native openttd.exe, retaining its package resources. JGR Patch Pack is a separate variant, not an interchangeable update."
+          },
+          {
+            "title": "Retain the actual personal or portable directories",
+            "instruction": "Keep the creating working directory and established literal arguments, including an existing -c config selection. Do not create an executable-side openttd.cfg merely to register. Windows normally searches the current account’s Documents/OpenTTD personal directory as well as package/working locations; an existing portable/config choice changes the selected root. Preserve every actual config and personal directory, openttd.cfg, private.cfg/secrets.cfg, saves, scenarios, heightmaps, orders, NewGRFs, scripts, screenshots, content_download, custom files and unknowns. Keep secrets private. Other OpenTTD variants can share those paths; a separate runtime folder does not isolate them."
+          },
+          {
+            "title": "Keep compatible versions and content recoverable",
+            "instruction": "Before changing an engine, close all clients using the actual shared profile, retain its old creating runtime, configuration, saves and exact content sets, and follow upstream’s compatibility guidance. Do not assume JGR/upstream, multiplayer, NewGRF or backward-save compatibility. This route does not freeze an arbitrary CDN version or turn a locally computed download hash into a publisher-approved identity; upstream/player remains the runtime replacement owner."
+          },
+          {
+            "title": "Check the working copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "triaevum-ocarina-of-time-3d",

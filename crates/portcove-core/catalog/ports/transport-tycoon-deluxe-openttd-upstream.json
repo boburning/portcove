@@ -17,7 +17,36 @@
       "game_slug": "transport-tycoon-deluxe",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2716
+    "issue_number": 2716,
+    "manual_setup": {
+      "help_url": "https://github.com/OpenTTD/OpenTTD/tree/14ec60f248547d4d062a1160f0fc26d742319888",
+      "steps": [
+        {
+          "title": "Prepare the upstream OpenTTD variant",
+          "instruction": "Use a permitted complete official upstream OpenTTD Windows copy for your CPU and finish its documented setup. Free OpenGFX graphics and OpenSFX sound can be used; original Transport Tycoon Deluxe data is not mandatory, and OpenMSX music is optional. Upstream can offer a base-graphics download at startup when its network/font/UI prerequisites are available; finish that setup before attaching an existing copy. Select native openttd.exe, retaining its package resources. JGR Patch Pack is a separate variant, not an interchangeable update."
+        },
+        {
+          "title": "Retain the actual personal or portable directories",
+          "instruction": "Keep the creating working directory and established literal arguments, including an existing -c config selection. Do not create an executable-side openttd.cfg merely to register. Windows normally searches the current account’s Documents/OpenTTD personal directory as well as package/working locations; an existing portable/config choice changes the selected root. Preserve every actual config and personal directory, openttd.cfg, private.cfg/secrets.cfg, saves, scenarios, heightmaps, orders, NewGRFs, scripts, screenshots, content_download, custom files and unknowns. Keep secrets private. Other OpenTTD variants can share those paths; a separate runtime folder does not isolate them."
+        },
+        {
+          "title": "Keep compatible versions and content recoverable",
+          "instruction": "Before changing an engine, close all clients using the actual shared profile, retain its old creating runtime, configuration, saves and exact content sets, and follow upstream’s compatibility guidance. Do not assume JGR/upstream, multiplayer, NewGRF or backward-save compatibility. This route does not freeze an arbitrary CDN version or turn a locally computed download hash into a publisher-approved identity; upstream/player remains the runtime replacement owner."
+        },
+        {
+          "title": "Check the working copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
