@@ -1664,7 +1664,7 @@
     "retained_refusal_sha256": "0eee0d22d3969aed5f27bd0a97cd60f9195277edc479980115010a7995bb3cdc"
   },
   "operation_checks": {
-    "status": "Not run at source checkpoint; fresh exact-head hosted CI required",
+    "status": "Original source CI41231549702/a1 observed all14newcases passing, while required Rust FAILED on an existing rollback-reuse fixture at30.219s. Repaired-source exact-head qualification remains pending; selected passes do not qualify the failing full suite.",
     "cases": "Seven actual-ID unchanged full non-owning attachment helpers, four resolved-base local-provider options/review/extraction/pending-setup cases and three remaining fork/font zero-provider refusals",
     "boundary": "Synthetic first-party fixture bytes are not actual upstream packages or license/gameplay/native/protected qualification"
   },
@@ -1675,5 +1675,35 @@
     "reason_1216": "Earlier promised curated local-build/immutable-output acceptance remains operative.",
     "reason_1275": "Matched base grant credit only; separate actual package-notices applicability and offered-operation acceptance retained alongside D3D12 close failure/Vulkan Unknown/scoped H: missing-index observation/HUMAN B1 GUI stop. No new universal gameplay requirement."
   },
-  "overall_B1_complete": false
+  "overall_B1_complete": false,
+  "retained_validation_failure": {
+    "source": "5ec88d8827272d22d0f46047d64a6582a1ead971",
+    "run": 41231549702,
+    "attempt": 1,
+    "actual_checkout": "083887183d6ed6a8dea5f7c11ef160d70ff8cf8d",
+    "actual_tree": "54298593028458c7e12b109fbd3198d8948c6aeb",
+    "producer_job": 124627765253,
+    "producer_log_sha256": "57de53c447a34249b9274d0e357e250eac77adbc797c48278cde9e3b0560f308",
+    "native_failure": {
+      "format_version": 1,
+      "invocation_id": "9ea0c066-c96b-4b3c-8f1e-20faf472f01c",
+      "source": "5ec88d8827272d22d0f46047d64a6582a1ead971",
+      "checkout": "083887183d6ed6a8dea5f7c11ef160d70ff8cf8d",
+      "run": "41231549702",
+      "attempt": "1",
+      "job": "fast_rust_tests",
+      "platform": "win32",
+      "arch": "x64",
+      "identity": "[\"portcove-core\",\"portcove-core\",\"service::tests::update_reuses_a_matching_rollback_version_without_downloading\"]",
+      "outcome": "failed",
+      "duration_ms": 30218.800900000002,
+      "failure": "time limit exceeded",
+      "failure_truncated": false,
+      "failure_raw_source": "original nextest JSON stdout"
+    },
+    "new_case_scope": "All14actual-ID cases passed at the original failed source; required Rust result remained FAILED.",
+    "diagnosis": "Original exact internal phase/timing cause UNKNOWN; no internal diagnostics were emitted. Same case passed9.773s on earlier R21 source, separately retained.",
+    "repair": "Test-only monotonic phases and exact Windows30\u219260second nextest harness allowance, with existing configuration contract. Every staging/activation assertion, cleanup, slots, zero retries and product deadline retained. A later pass proves completion under that finite budget rather than a causal speedup.",
+    "reused_evidence": "Unchanged record/generation/Core input hashes, maintained1354preparation, source grants/static packages and full prior source review remain applicable; repair/current-target review and fresh exact-head checks are required."
+  }
 }

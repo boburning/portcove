@@ -371,6 +371,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
   const currentFullBaselineBudgets = [
     {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
+        "package(portcove-core) & test(/^service::tests::update_reuses_a_matching_rollback_version_without_downloading$/)",
+      periods: 12,
+    },
+    {
       platform: "x86_64-unknown-linux-gnu",
       filter:
         "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",

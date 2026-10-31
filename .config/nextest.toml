@@ -1217,3 +1217,15 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & (test(/^game_file_query::tests::retained_launch_uses_verified_platform_and_marks_unreadable_context_unavailable$/) | test(/^library_move::sequence_tests::copying_resume_resume$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_published_permitted_artifact_commits_once$/) | test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::activated_abort_resume$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_resume$/) | test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
+
+# CI 41231549702/a1 Windows shard 8 (job 124627765253) cut this rollback-
+# reuse fixture off at 30.219s without internal phase output. The unchanged
+# case passed in 9.773s in 41221767406/a1; the timing cause remains unknown.
+# Retain the failure, staging/activation assertions, cleanup, four hosted/two
+# local slots and zero retries. Test-only phase diagnostics and Windows-only
+# 60s room establish completion under that budget, not a causal speedup.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::update_reuses_a_matching_rollback_version_without_downloading$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
