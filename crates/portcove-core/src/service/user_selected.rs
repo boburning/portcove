@@ -2327,4 +2327,40 @@ mod tests {
     fn half_life_xash3d_fwgs_prepared_player_route_2678() {
         assert_listing_only_player_route("half-life-xash3d-fwgs", Some(false));
     }
+
+    #[test]
+    fn freespace_2_freespace_open_prepared_player_route_2677() {
+        assert_listing_only_player_route("freespace-2-freespace-open", Some(false));
+    }
+
+    #[test]
+    fn pharaoh_akhenaten_prepared_player_route_2891() {
+        assert_listing_only_player_route("pharaoh-akhenaten", Some(false));
+    }
+
+    #[test]
+    fn midtown_madness_sneak_preview_beta_build_1560_open1560_prepared_player_route_2884() {
+        assert_listing_only_player_route(
+            "midtown-madness-sneak-preview-beta-build-1560-open1560",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn need_for_speed_iii_hot_pursuit_nfs_recompiled_prepared_player_route_2888() {
+        assert_listing_only_player_route(
+            "need-for-speed-iii-hot-pursuit-nfs-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn smbx_13_thextech_prepared_player_route_2731() {
+        assert_listing_only_player_route("smbx-13-thextech", Some(false));
+    }
+
+    #[test]
+    fn ambermoon_permitted_copy_keeps_fresh_acquisition_held_2625() {
+        assert_listing_only_player_route("ambermoon-ambermoon-net", Some(true));
+    }
 }
