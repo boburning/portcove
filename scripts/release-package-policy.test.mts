@@ -13,10 +13,37 @@ import {
   releaseBuildArtifactName,
   selectReleasePackagePolicy,
   releaseBuildMatrix,
+  inspectReleaseProfile,
+  nativePlatformsForReleaseProfile,
   validatePackagePolicy,
 } from "./release-package-policy.mts";
 
 const policy = await loadPackagePolicy();
+
+void test("Windows first beta selects only its exact installer and CLI without widening historical profiles", () => {
+  const profile = "initial-beta-windows-x86_64-v1";
+  const original = structuredClone(policy);
+  const selected = selectReleasePackagePolicy(policy, profile);
+  assert.equal(inspectReleaseProfile(profile), profile);
+  assert.deepEqual(selected.packages.map((p) => `${p.interface}:${p.platform_label}:${p.format}`), [
+    "desktop:windows-x86_64:nsis", "cli:windows-x86_64:zip",
+  ]);
+  assert.deepEqual(releaseBuildMatrix(profile).include, [
+    { os: "windows-latest", label: "windows-x86_64", bundles: "nsis", target: "" },
+  ]);
+  assert.deepEqual(nativePlatformsForReleaseProfile(profile), ["windows-x86_64"]);
+  assert.deepEqual(nativePlatformsForReleaseProfile("initial-beta-win-linux"), ["windows-x86_64", "linux-x86_64"]);
+  assert.throws(() => nativePlatformsForReleaseProfile("full"), /explicit initial beta/);
+  for (const alias of ["initial-beta-windows", "windows", "initial-beta-windows-aarch64-v1", ""])
+    assert.throws(() => inspectReleaseProfile(alias), /unknown trusted release profile/);
+  for (const format of ["nsis", "zip"])
+    assert.throws(() => selectReleasePackagePolicy({ ...policy, packages: policy.packages.filter(
+      (p) => p.platform_label !== "windows-x86_64" || p.format !== format,
+    ) }, profile));
+  assert.deepEqual(policy, original);
+  assert.equal(selectReleasePackagePolicy(policy, "initial-beta-win-linux").packages.length, 6);
+  assert.equal(selectReleasePackagePolicy(policy, "full").packages.length, 10);
+});
 
 void test("initial beta derives six mandatory Windows/Linux packages from the complete policy", () => {
   const beta = selectReleasePackagePolicy(policy, "initial-beta-win-linux");
