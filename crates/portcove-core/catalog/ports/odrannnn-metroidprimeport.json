@@ -16,6 +16,32 @@
       "image_sha256": "a1edc2e606ed753e2749ccf5b4a544c087ebda7fb00866c4592d8f013aa016c4",
       "game_slug": "metroid-prime",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Odrannnn/MetroidPrimePort/tree/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "steps": [
+        {
+          "title": "Use only an already permitted completed Windows copy",
+          "instruction": "This conditional guide applies only to a copy and components you are already permitted to use. The reviewed v0.36.0 LICENSE/NOTICE covers the project’s own platform/tooling work but expressly excludes recovered Metroid Prime game code, console SDK/runtime and symbol data; it asserts no redistribution permission for those components. Public package availability and its checksum do not resolve the canonical package-use/acquisition condition. This guide performs no download, build, installer or rights acquisition."
+        },
+        {
+          "title": "Keep the actual supported original-disc and player contract",
+          "instruction": "The Windows x86-64 player is metroid_prime_port.exe; retain its complete package, DLLs and licenses. Base upstream setup uses your own GameCube USA GM8E01 1.00/1.01/1.02 or PAL GM8P01, or the documented Trilogy USA R3ME01/PAL R3MP01, in a supported ISO/GCM/RVZ/WBFS/CISO/NKIT representation. Follow upstream’s existing disc-selection flow outside Portcove. Preserve originals separately; Core does not authenticate or import them. Optional Remastered/Dread/Switch content, keys, FFmpeg imports, mods and networking are outside this base attachment guide."
+        },
+        {
+          "title": "Attach the completed native player and choose Play separately",
+          "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+        },
+        {
+          "title": "Retain all creating profile and memory-card locations",
+          "instruction": "Preserve the complete creating installation, own-disc inputs, every current and legacy profile and all custom roots before changes. MP_USER_PATH overrides the normal data root. A writable Windows copy normally uses executable-local user; legacy settings can retain the Roaming AppData Metroid Prime profile, and read-only installs fall back to SDL’s user preference path. Memory-card resolution has separate executable-local user behavior, so a profile override does not prove card redirection. Upstream’s loose-data migration renames recognized files into user only when their targets are absent, leaving unknown or conflicting items; this guide promises no migration. Preserve cards, states, settings, shader/cache databases and their WAL/SHM/journal siblings, mods/textures, imports, logs, randomizer/sync configuration and credentials in every effective root. The Windows update UI opens the upstream URL in a browser, not an observed automatic runtime replacement. Retain one upstream replacement owner, keep the old runtime and review/relink changed executables. State/card compatibility, multiplayer, gameplay and installed/protected acceptance remain unqualified."
+        }
+      ],
+      "warnings": [
+        "The existing recovered-game/SDK package-use condition remains unresolved. This conditional guide supplies no permission to acquire, register or run a copy. Use it only where the particular copy and components are already permitted.",
+        "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+      ]
+    },
+    "download_block_reason": "The selected LICENSE/NOTICE excludes recovered game code, console SDK/runtime and symbol data and asserts no applicable permission for their distribution. Fresh self-service acquisition remains held until an attributable permitted basis for the exact selected package/components is reviewed, or a reviewed clean alternative resolves that condition. This does not grant or prohibit use of another already permitted copy."
   }
 }

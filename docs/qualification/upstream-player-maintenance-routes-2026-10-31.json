@@ -1,0 +1,1725 @@
+{
+  "format_version": 1,
+  "kind": "dated source/static-package and non-owning operation-boundary evidence",
+  "source_base": "dcfcc7a4249b0a26c21426356f52afb0e3a1718f",
+  "owning_issues": [2510, 2926, 1422],
+  "counts": {
+    "guides": 5,
+    "unchanged_hold_records": 2,
+    "prior_and_current_strict_definitions": 285,
+    "listing_identities": 1424,
+    "source_bindings": 105,
+    "unique_source_contents": 94,
+    "tree_contexts": 16
+  },
+  "routes": [
+    {
+      "issue": 126,
+      "id": "sonic-unleashed-recompiled",
+      "authored_path": "crates/portcove-core/catalog/ports/sonic-unleashed-recompiled.json",
+      "decision": "prepared-copy",
+      "prior_record_sha256": "f3540f659babe1fea51bfa4d9b3b3f8000139042469549fd31ed695309564445",
+      "record_sha256": "9305e37ec969bd0e174e2612d9e989b44b210f3fdc04d51ad15590cb7914fc8f",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::sonic_unleashed_recompiled_prepared_player_route_126",
+      "canonical_boundary": "eligible only after qualified finite delivery"
+    },
+    {
+      "issue": 343,
+      "id": "star-wars-shadows-of-the-empire-n64-sote-recomp",
+      "authored_path": "crates/portcove-core/catalog/ports/star-wars-shadows-of-the-empire-n64-sote-recomp.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "e9753bf697848b203956202812d2d3d3e735e3f32bd9653658491d41d7643140",
+      "record_sha256": "e9753bf697848b203956202812d2d3d3e735e3f32bd9653658491d41d7643140",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": null,
+      "canonical_boundary": "OPEN/all typed planning unchanged; actual source/package-use condition retained"
+    },
+    {
+      "issue": 1121,
+      "id": "dead-rising-2-case-zero-recomp",
+      "authored_path": "crates/portcove-core/catalog/ports/dead-rising-2-case-zero-recomp.json",
+      "decision": "prepared-copy",
+      "prior_record_sha256": "0f2c3dc154f7f10693f138c7416f0a73e3c1414d8bb4f7d8fc13f4dbdb1d68df",
+      "record_sha256": "4a9fcf0ce197ce1d4562777cc25ddebdf85778fd05243082ee262283d953b0ad",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::dead_rising_2_case_zero_recomp_prepared_player_route_1121",
+      "canonical_boundary": "eligible only after qualified finite delivery"
+    },
+    {
+      "issue": 144,
+      "id": "mega-man-x4-recompiled",
+      "authored_path": "crates/portcove-core/catalog/ports/mega-man-x4-recompiled.json",
+      "decision": "prepared-copy-stronger-owner-open",
+      "prior_record_sha256": "cbeb9cf0d92d48483508f60a2702554da04625e32c7d78223c735d496fb4769d",
+      "record_sha256": "a6659579eb5fe38664bc9e95dab6246d37707091d840140dac9883582b6c8ab2",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::mega_man_x4_recompiled_prepared_player_route_144",
+      "canonical_boundary": "OPEN/all typed planning unchanged; stronger actual acceptance retained"
+    },
+    {
+      "issue": 158,
+      "id": "viva-pinata-trouble-in-paradise-retip",
+      "authored_path": "crates/portcove-core/catalog/ports/viva-pinata-trouble-in-paradise-retip.json",
+      "decision": "prepared-copy",
+      "prior_record_sha256": "6c4d0801fb22008954b8abd37b7a9022c6744a3c6fcb691c81e58760b589c477",
+      "record_sha256": "9ddd3ded77aad396b8590952445d2371501bf146b5d36397255e274e884ed690",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": "service::user_selected::tests::viva_pinata_trouble_in_paradise_retip_prepared_player_route_158",
+      "canonical_boundary": "eligible only after qualified finite delivery"
+    },
+    {
+      "issue": 1846,
+      "id": "odrannnn-metroidprimeport",
+      "authored_path": "crates/portcove-core/catalog/ports/odrannnn-metroidprimeport.json",
+      "decision": "conditional-prepared-copy-open",
+      "prior_record_sha256": "37ac672dfa6437329eac8f883a5e857464fc469a5ffadc4cabee8fd1e595bed9",
+      "record_sha256": "e84fa45015f5f8d652334b2483e8bdf64117dc674dcf38f3d486237bf8d4260a",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "case": "service::user_selected::tests::odrannnn_metroidprimeport_prepared_player_route_1846",
+      "canonical_boundary": "OPEN/all typed planning unchanged; actual source/package-use condition retained"
+    },
+    {
+      "issue": 128,
+      "id": "zelda-link-s-awakening-dx-hd",
+      "authored_path": "crates/portcove-core/catalog/ports/zelda-link-s-awakening-dx-hd.json",
+      "decision": "retained-hold",
+      "prior_record_sha256": "723e2b23828a0bef097cf7bafd30eace4bc7f4b29cdf5d0130147ec1bbb2cae5",
+      "record_sha256": "723e2b23828a0bef097cf7bafd30eace4bc7f4b29cdf5d0130147ec1bbb2cae5",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "case": null,
+      "canonical_boundary": "OPEN/all typed planning unchanged; actual source/package-use condition retained"
+    }
+  ],
+  "source_bindings": [
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c",
+      "path": ".gitmodules",
+      "blob": "b4b2dba85f0531cf3321867f28b6e4aa932077b5",
+      "bytes": 2300,
+      "sha256": "fe0f869a21b2ebc65c74b6b88f9ef4329dc86e1e31c795f943071611564137e3",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c/.gitmodules"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c",
+      "path": "CMakeLists.txt",
+      "blob": "6a06ffb140c28777aa0d6bf1b3309f424733c020",
+      "bytes": 1641,
+      "sha256": "fd094cf5e620c4a16aab03ff012d631ea60a3231134155e09f2b168c3818ea7e",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c/CMakeLists.txt"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c",
+      "path": "COPYING",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c/COPYING"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c",
+      "path": "README.md",
+      "blob": "995b73f914034e603f391d1c4b9e92eb133f4b49",
+      "bytes": 38331,
+      "sha256": "2f67af787a595778f1c6723714615110b060f1cd6e387eadd2066ee167144754",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c/README.md"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": ".gitmodules",
+      "blob": "367a42b0436991b92fdb96a0046c55dd5f183323",
+      "bytes": 2474,
+      "sha256": "ed8525cae68fdf26a98a79f7ce1128145726944ac7454e2d1d603606ef348fd6",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/.gitmodules"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": "CMakeLists.txt",
+      "blob": "9032d762db7a2e0f36bf75fbb93d8cd5dfe56405",
+      "bytes": 1088,
+      "sha256": "2258200a85f0533dbe6d1b006216225ed31a757ca1ed2a77f05a80c9a3fb2513",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/CMakeLists.txt"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": "COPYING",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/COPYING"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": "README.md",
+      "blob": "af378c0dc5622f362cfdb5a26e9abf136be4a4e0",
+      "bytes": 38105,
+      "sha256": "fb57f434bb113863583ead9e7c0ad533fa412f11e7348734fccfeb458a5ae70b",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/README.md"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": "UnleashedRecomp/user/paths.cpp",
+      "blob": "13a8588d893270cf071392dad6e1b2954c2e345d",
+      "bytes": 1423,
+      "sha256": "5b1f30e30fe533bcc703218a7e3d9950af3c43499aae75c2723a0da39aa84198",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/UnleashedRecomp/user/paths.cpp"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": "UnleashedRecomp/user/config.cpp",
+      "blob": "bd622b7f87ad3eec340c80b6694935eeb517a4c1",
+      "bytes": 26910,
+      "sha256": "3c0ac68b04499c035d3d6c931424bbdbd9f3225af2099849b04334736b2e19bb",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/UnleashedRecomp/user/config.cpp"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": "UnleashedRecomp/user/paths.h",
+      "blob": "c0835204fbe9496f6bfdcee2350733c68291a7c9",
+      "bytes": 947,
+      "sha256": "7d3609341b37b0d2b98126094f0031421269d5e32768be7ab8ff664612e5ae70",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/UnleashedRecomp/user/paths.h"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "path": "UnleashedRecomp/CMakeLists.txt",
+      "blob": "10863c02afbe53b4b30184040eb9ca4c6110a1a5",
+      "bytes": 36460,
+      "sha256": "6dbb9eadae477324946f12ff6ca502d4819d152b2d1c70e33684e2c86a4b3541",
+      "url": "https://github.com/hedge-dev/UnleashedRecomp/blob/325e4d34a0adaa34808b7212594c0f25b88bfb96/UnleashedRecomp/CMakeLists.txt"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "path": ".gitmodules",
+      "blob": "f5b457628a5c61218e8b027f2efd2dd1880d205d",
+      "bytes": 453,
+      "sha256": "52f6d586c53533743347f340c28a13cec7e3f1fccf6b75b7b33e1bd0352a7a4c",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/.gitmodules"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "path": "CMakeLists.txt",
+      "blob": "ea14f742fb429bea00553c20f13cf90aa027ff27",
+      "bytes": 10078,
+      "sha256": "b45b9d6b710ca29d1fe757da6ce76c13f9b36f4960f472fda5833fd94bf2b983",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/CMakeLists.txt"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "path": "LICENSE",
+      "blob": "c21bd49182ad6f67f10893f06b905e088efda435",
+      "bytes": 1066,
+      "sha256": "adc16903adcc1158ff1e052f3e1d686e574a3c4d2537652dfac18383f2004081",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/LICENSE"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "path": "LICENSES.md",
+      "blob": "45a8c52cc18d57b8696b23a11b5dc557c612e9c9",
+      "bytes": 1599,
+      "sha256": "f0d216f7cb9907667aa724972baf61622bff3ab5927efcd47fe09d086b4670a3",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/LICENSES.md"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "path": "README.md",
+      "blob": "f0c46fdcbb06dcb77ac7fa3ec20f6e0fecd28538",
+      "bytes": 20094,
+      "sha256": "d86dcaf0246c9a79e9d53ccdc757d003abf0a2170b60f1e293ffceb7725654a3",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/README.md"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "path": "README_CONTROL_REBINDING.txt",
+      "blob": "20508159d6d0f7459f4afde55a3eda50f1ec01c2",
+      "bytes": 1832,
+      "sha256": "4ab1d993edfa294e2143b3c7bf52d416cdd3ca0636d6a20899a121ce55be71fd",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/README_CONTROL_REBINDING.txt"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "path": "README_MENU_REVAMP.txt",
+      "blob": "20508159d6d0f7459f4afde55a3eda50f1ec01c2",
+      "bytes": 1832,
+      "sha256": "4ab1d993edfa294e2143b3c7bf52d416cdd3ca0636d6a20899a121ce55be71fd",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141/README_MENU_REVAMP.txt"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": ".gitmodules",
+      "blob": "f5b457628a5c61218e8b027f2efd2dd1880d205d",
+      "bytes": 453,
+      "sha256": "52f6d586c53533743347f340c28a13cec7e3f1fccf6b75b7b33e1bd0352a7a4c",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/.gitmodules"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "CMakeLists.txt",
+      "blob": "c095436a3f4f8c0e2084c2027db69599aaec688d",
+      "bytes": 9618,
+      "sha256": "6e822a6a8598b0d8d1e8220a79b5935fa6c5b92e9b841c07f6d61c815330860e",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/CMakeLists.txt"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "LICENSE",
+      "blob": "c21bd49182ad6f67f10893f06b905e088efda435",
+      "bytes": 1066,
+      "sha256": "adc16903adcc1158ff1e052f3e1d686e574a3c4d2537652dfac18383f2004081",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/LICENSE"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "LICENSES.md",
+      "blob": "45a8c52cc18d57b8696b23a11b5dc557c612e9c9",
+      "bytes": 1599,
+      "sha256": "f0d216f7cb9907667aa724972baf61622bff3ab5927efcd47fe09d086b4670a3",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/LICENSES.md"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "README.md",
+      "blob": "dfcda96d53dc86dcf250fc0e753639c708675244",
+      "bytes": 18176,
+      "sha256": "193d38554873e98a4d8b6f9fb1c28850e220aa4d4e03658340107f07c1f477d3",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/README.md"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "README_CONTROL_REBINDING.txt",
+      "blob": "20508159d6d0f7459f4afde55a3eda50f1ec01c2",
+      "bytes": 1832,
+      "sha256": "4ab1d993edfa294e2143b3c7bf52d416cdd3ca0636d6a20899a121ce55be71fd",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/README_CONTROL_REBINDING.txt"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "README_MENU_REVAMP.txt",
+      "blob": "20508159d6d0f7459f4afde55a3eda50f1ec01c2",
+      "bytes": 1832,
+      "sha256": "4ab1d993edfa294e2143b3c7bf52d416cdd3ca0636d6a20899a121ce55be71fd",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/README_MENU_REVAMP.txt"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "src/main.cpp",
+      "blob": "8fd7c9856515ba10292f3b603664f6ba523799d0",
+      "bytes": 205804,
+      "sha256": "5900626ecb8be3e4f9a4a88ad721c66735ae35cef62128a59c2981ec75322622",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/src/main.cpp"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "path": "src/frontend.cpp",
+      "blob": "87e7fd2448f98a3b78c8fcb3d81ce7967bf01342",
+      "bytes": 69920,
+      "sha256": "1b3e5a4758a18307c5d9ad18b57385b6513d8dff9adaec9c71ccc2c1df6b1a3f",
+      "url": "https://github.com/GTTeancum/SotE-Recomp/blob/80f2feff1a6c08c676f897b6221e5f91277a2de5/src/frontend.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "10d45b0952dd1b7f53f29dbff0795a27abb81ff7",
+      "path": "LICENSE",
+      "blob": "282625065bc840227a373851bbfa0add8872120b",
+      "bytes": 5989,
+      "sha256": "462cb9daa6278e4fa742903683a1907e8f2bdb046e4eef2d30cf5c35193135bf",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/10d45b0952dd1b7f53f29dbff0795a27abb81ff7/LICENSE"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "10d45b0952dd1b7f53f29dbff0795a27abb81ff7",
+      "path": "README.md",
+      "blob": "b35c33272e9a61ccbefbceda83e4ab6cae22e25c",
+      "bytes": 13344,
+      "sha256": "07816b357b6a8714209ecb917e283a6229703614b6e1a921fcc2fbc7a4accd0d",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/10d45b0952dd1b7f53f29dbff0795a27abb81ff7/README.md"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "LICENSE",
+      "blob": "282625065bc840227a373851bbfa0add8872120b",
+      "bytes": 5989,
+      "sha256": "462cb9daa6278e4fa742903683a1907e8f2bdb046e4eef2d30cf5c35193135bf",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/LICENSE"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "README.md",
+      "blob": "b35c33272e9a61ccbefbceda83e4ab6cae22e25c",
+      "bytes": 13344,
+      "sha256": "07816b357b6a8714209ecb917e283a6229703614b6e1a921fcc2fbc7a4accd0d",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/README.md"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/host_paths.cpp",
+      "blob": "563283d4691a5ef19ab695c605ef2115ee244054",
+      "bytes": 10078,
+      "sha256": "8e1faa8fd5d5a80dacc45d233ac33b2bcc09d69080c38b6b2e5cd885ccc91992",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/host_paths.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/first_run.cpp",
+      "blob": "a520dfb05b0ca74834b5cfa751de12fab4c66d7a",
+      "bytes": 8464,
+      "sha256": "01dd64ff03cad213f0df2736e832a6d996bcc35362ecb805c9b4092243fa3bac",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/first_run.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/settings.cpp",
+      "blob": "1784c11bca79f50c8c95a523045abb6eda03dff5",
+      "bytes": 25208,
+      "sha256": "32103372988f73d176c5fe14160f5a26fe87903c9b18391a8de41f6e84d5f7da",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/settings.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/main.cpp",
+      "blob": "0106a2381cf0eeee94bdf82853e4d58146584f5f",
+      "bytes": 46088,
+      "sha256": "9ee74d90e5db1078c66b19f551540bb51dad4d485805c933aa4beee01c45dd5b",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/main.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/host_paths.h",
+      "blob": "de8c8c88c3a9f08cc4f625579ba0d14df6bfe96e",
+      "bytes": 5628,
+      "sha256": "a893dc33689f66bf051bd029903b228ef9b1e19f6930b632aa2e91c28da2f250",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/host_paths.h"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/stfs_extract.cpp",
+      "blob": "e140d3feb601fa010277d83d3533c66c834e9215",
+      "bytes": 12483,
+      "sha256": "f76585ed3648fc7a7a263928f6339bb98b9709fa9e1c5d9106e271b0fe302f6d",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/stfs_extract.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/overlay_gen.cpp",
+      "blob": "1e20c7b9a86b0036c2283ed645811a20d0f9ff8e",
+      "bytes": 84571,
+      "sha256": "8e96edd274fb1528870399d09ee0ed2ac63f79f742040cda0fc5595b828905dc",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/overlay_gen.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/log_file.cpp",
+      "blob": "3f6d7f0009cf4ff68a34725fba483df3370009df",
+      "bytes": 14269,
+      "sha256": "2ea841d5b1081432cbc758e213970743665b01610fdb96b25e6dad535138ce25",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/log_file.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/bug_report.cpp",
+      "blob": "61cbe91a39bcd28cb9170cab2a3c0c48c5986f90",
+      "bytes": 27937,
+      "sha256": "185ac1bf81ab3ed68b4e45c081aa5362eced17126115c20cae7749005337542c",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/host/bug_report.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/xlive_glue.cpp",
+      "blob": "db689e0be496708726e71bf541ab09f7c9e492ce",
+      "bytes": 19015,
+      "sha256": "99988ff0ef2299c2b84964433cb9d1e027e093829fe1a8b85697d03df4d8a377",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/kernel/xlive_glue.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/xlive_glue.h",
+      "blob": "2a54dce1c26f3d5bcd6074c40dfd275bc145f8a1",
+      "bytes": 6843,
+      "sha256": "019a02feac54cd0f1e4a7a784131b5d9949193c05e8817695582bae89d018759",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/kernel/xlive_glue.h"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": ".github/workflows/build.yml",
+      "blob": "ddb812dff891930c46d21c0abd12fbf6f2c7a83b",
+      "bytes": 12581,
+      "sha256": "0ed4ccfd7943a0654c24ac7698d37998c04da55da3ae0b07a4ca875812e83e03",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/.github/workflows/build.yml"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "THIRD_PARTY.md",
+      "blob": "2287d1bc863b0cd5db08e1009689e721c3218e3a",
+      "bytes": 4624,
+      "sha256": "7d1ca1f3968f442bef309fe320a7dae66067e74c0206b168ca7dfc3b002eebc7",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/THIRD_PARTY.md"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "tools/release_package_windows.ps1",
+      "blob": "54832fb49c5a8b9f7b838a23fa58f06a90ba96a9",
+      "bytes": 13070,
+      "sha256": "2496c087ad8479582488f749ba0acbcb740d068145e9d6010dfa14b19ea0fe77",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/tools/release_package_windows.ps1"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/content.cpp",
+      "blob": "74754f48d1a8bfe4ef6b78ca2b9458d3cbaa8220",
+      "bytes": 42842,
+      "sha256": "99fa4668b811a0bdaca023a29873e1cd6614d79f643bcd21d341c2d24e5f5af0",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/kernel/content.cpp"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/content.h",
+      "blob": "d482e0ac8ce2eeb0efe1a81e7af5cda8cb546202",
+      "bytes": 3518,
+      "sha256": "1b0b750700548b321ee2ef1a61f3be1ddd93a6ebc4f12c5dae58cd0189ab1888",
+      "url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/blob/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82/runtime/kernel/content.h"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": ".gitmodules",
+      "blob": "9b01620035bc701652b11c177135eb8e75dc5345",
+      "bytes": 196,
+      "sha256": "80b5b87c6b9592884f98699e654114b869aade03533dce4c24c942de5299e0a9",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/.gitmodules"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "CMakeLists.txt",
+      "blob": "c55a8458592489f7c05fc13eec61807c768cd420",
+      "bytes": 25704,
+      "sha256": "bfc2879c663a4e7f628369e8b462bf7fd7d81777c1f5deabc21346a5f10ccd4b",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/CMakeLists.txt"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "LICENSE",
+      "blob": "77f167989091d6707cc7cd1437b9417479fc28fb",
+      "bytes": 1093,
+      "sha256": "f3c52fc52e49c3d0618c115b99927ae880b2e9e9d2a08a06b949b9b4be898894",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/LICENSE"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "README.md",
+      "blob": "6da22ff8acc903970a012d5fbe7844f8c479f7bf",
+      "bytes": 8738,
+      "sha256": "2439f19f5d1180ead3a1553fdf200b5a2c02f11c19fcfbeb1a73c1f3f90de59e",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/README.md"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "DISC.md",
+      "blob": "8b335d34c48831cb51b7df3c7be4fbbbe8014778",
+      "bytes": 2451,
+      "sha256": "ac3d7549771f1e366c0c04d28041c1dd8ff1ccb635db5250bf80f1a8723026bc",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/DISC.md"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "game.toml",
+      "blob": "750444bd92c027fe5059c5612be11531b14a9f62",
+      "bytes": 8166,
+      "sha256": "ea102aa2b183ebd7cf84a943a6b434ae6956dd63aa83af09cef74790a6d5d1a5",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/game.toml"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "packaging/release.toml",
+      "blob": "2479ce48a909cb01d77ba268bf14a3835e4c2d3e",
+      "bytes": 3825,
+      "sha256": "54872864cb4965f35df6bcb4ffa605731285771948a5c849a15d4773cfcb064c",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/packaging/release.toml"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "packaging/release/game.toml",
+      "blob": "1b586bf851f1046db057296c660ebfbd16c96419",
+      "bytes": 5807,
+      "sha256": "3aca052c9e7ee8df0a3c2b8dc61436e62d728d7959024007888f4f68750dcae8",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/packaging/release/game.toml"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "docs/PLAYTESTING.md",
+      "blob": "889eaea58383f171c0ff6f6fce26dd79bd561225",
+      "bytes": 7718,
+      "sha256": "275e62b8f65f9aa85d5e4ce946f712eece15ade2857f366deb1571f31c0c39fd",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/docs/PLAYTESTING.md"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "path": "packaging/release/START_HERE.txt",
+      "blob": "ee5b75330f65d648fb27f5996281006372ee8c71",
+      "bytes": 7326,
+      "sha256": "56c5828a874130d9a88d905a648cfc668ce4225d11698f2e326fb1578cbd2964",
+      "url": "https://github.com/mstan/MegaManX4Recomp/blob/81612a235bac1cd39720988c7a69866cb01cf613/packaging/release/START_HERE.txt"
+    },
+    {
+      "repository": "SolarCookies/TiP-Recomp",
+      "commit": "be5e91c8a83da21d976902962c61688c849cf29d",
+      "path": "CMakeLists.txt",
+      "blob": "99c61b0df4dbae06df2cd3141ad1a241450a2d18",
+      "bytes": 1480,
+      "sha256": "933352c261d8b966d399a97a9c160693c812896f2bf51a8ad0b640e21258b7ba",
+      "url": "https://github.com/SolarCookies/TiP-Recomp/blob/be5e91c8a83da21d976902962c61688c849cf29d/CMakeLists.txt"
+    },
+    {
+      "repository": "SolarCookies/TiP-Recomp",
+      "commit": "be5e91c8a83da21d976902962c61688c849cf29d",
+      "path": "README.md",
+      "blob": "fb542edd91fd593866f4a45fc45e77c56dfd7296",
+      "bytes": 4464,
+      "sha256": "1b8d496e3fd88aecc320fc79512fb3a00a0309940ab5b7add8837d83e8bb83da",
+      "url": "https://github.com/SolarCookies/TiP-Recomp/blob/be5e91c8a83da21d976902962c61688c849cf29d/README.md"
+    },
+    {
+      "repository": "SolarCookies/TiP-Recomp",
+      "commit": "be5e91c8a83da21d976902962c61688c849cf29d",
+      "path": "src/main.cpp",
+      "blob": "c8ce3dac47b998a9095e418cb53ccc6abbf9e896",
+      "bytes": 1187,
+      "sha256": "74a4eb15f2274b4f312b774367b102b0edb3e0f1e67e1a509ebe19b24857a610",
+      "url": "https://github.com/SolarCookies/TiP-Recomp/blob/be5e91c8a83da21d976902962c61688c849cf29d/src/main.cpp"
+    },
+    {
+      "repository": "SolarCookies/TiP-Recomp",
+      "commit": "be5e91c8a83da21d976902962c61688c849cf29d",
+      "path": "src/retip_app.h",
+      "blob": "bcc7e406516145a03446ff6708b7e8f19da7e270",
+      "bytes": 5887,
+      "sha256": "75acb34144b068696c47d3835a90d9036ae9017952d28756dc746956a1f12fb6",
+      "url": "https://github.com/SolarCookies/TiP-Recomp/blob/be5e91c8a83da21d976902962c61688c849cf29d/src/retip_app.h"
+    },
+    {
+      "repository": "SolarCookies/TiP-Recomp",
+      "commit": "be5e91c8a83da21d976902962c61688c849cf29d",
+      "path": "src/tip_engine/Overlays/LaunchMenu.cpp",
+      "blob": "ad41297234763baa7cda1d6fe3ce3051db0cb361",
+      "bytes": 16054,
+      "sha256": "6405e7c77c16ba067ccb583fe5bca72c286f47191f44c91db20c3bff35a46e3a",
+      "url": "https://github.com/SolarCookies/TiP-Recomp/blob/be5e91c8a83da21d976902962c61688c849cf29d/src/tip_engine/Overlays/LaunchMenu.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "aea6b2196fdafafac168ea87aeab104069e70bda",
+      "path": "CMakeLists.txt",
+      "blob": "fe0dca7ddb4a3ccb877b7e2c5d3e08c8cc92e5a5",
+      "bytes": 91593,
+      "sha256": "496f462125530de7e751fc98987f30928416199bdc5783d43deeeadfe28d9185",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/aea6b2196fdafafac168ea87aeab104069e70bda/CMakeLists.txt"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "aea6b2196fdafafac168ea87aeab104069e70bda",
+      "path": "LICENSE",
+      "blob": "e3119095bf956c36378f618c0dfb368d362a992c",
+      "bytes": 1314,
+      "sha256": "7992814b29ee74633a078960e16c46f593f61b1a1e3ecca199087dae7814886e",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/aea6b2196fdafafac168ea87aeab104069e70bda/LICENSE"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "aea6b2196fdafafac168ea87aeab104069e70bda",
+      "path": "NOTICE",
+      "blob": "262f4d8c654a927b95df9f65d2a72e324729ccd0",
+      "bytes": 6711,
+      "sha256": "0f6a59dda45e82afce54208de7b858f8df77ba01a416b4bb0555a65ff5f2b971",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/aea6b2196fdafafac168ea87aeab104069e70bda/NOTICE"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "aea6b2196fdafafac168ea87aeab104069e70bda",
+      "path": "README.md",
+      "blob": "4182853eb4e129d51b1dc32953bb35573788fd7b",
+      "bytes": 9273,
+      "sha256": "74943ca8153d07c8e13cd4be0f0c735a2b50676bbb1fc94a846c288b82000454",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/aea6b2196fdafafac168ea87aeab104069e70bda/README.md"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "CMakeLists.txt",
+      "blob": "03ca627c7eee12a63258145c21da2b80cc41bb80",
+      "bytes": 91392,
+      "sha256": "d2c438951e8a4420095bb117fb9cefe54ddeac83fc166199fd89e4052330fd82",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/CMakeLists.txt"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "LICENSE",
+      "blob": "e3119095bf956c36378f618c0dfb368d362a992c",
+      "bytes": 1314,
+      "sha256": "7992814b29ee74633a078960e16c46f593f61b1a1e3ecca199087dae7814886e",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/LICENSE"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "NOTICE",
+      "blob": "262f4d8c654a927b95df9f65d2a72e324729ccd0",
+      "bytes": 6711,
+      "sha256": "0f6a59dda45e82afce54208de7b858f8df77ba01a416b4bb0555a65ff5f2b971",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/NOTICE"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "README.md",
+      "blob": "9d6b3ec90ed1634f9f4f0086e7832f946c382807",
+      "bytes": 7177,
+      "sha256": "708bca9f55506a48ed87854feea691d2076c15c497842b2972df5590c9c578f6",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/README.md"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/main.cpp",
+      "blob": "4ef33dbc53e4ef25e0b64dc1ebf11f7ec566a827",
+      "bytes": 71509,
+      "sha256": "eaf5c9386e8bb0e1c10cef63fc2dbaa2f7645f728bbf6e824533a5c38ca3cba5",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/main.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/port_data_folder.cpp",
+      "blob": "51eb0c70e0300307520d696416028564cb5050c9",
+      "bytes": 20826,
+      "sha256": "f2eebd40f88f1e38f3e388115b00d392f2602f589f6f062f0f649d8f9715e87e",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/port_data_folder.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/port_update_check.cpp",
+      "blob": "56778d04c7c5a6143eb31e7698c1ae765e193c73",
+      "bytes": 9097,
+      "sha256": "62145f617aff7c5a2e1d52cf67a35ce6705be646e2ed6fde5d0525c39e46a581",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/port_update_check.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/port_disc_verify.cpp",
+      "blob": "81e95350950ac5c47822fd170c700e62b573607e",
+      "bytes": 7258,
+      "sha256": "d1eadd0f046c70a75330f731bbcf7457cf0cb6ef50e62a7eec50ce7e6e02019d",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/port_disc_verify.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/port_savestate_format.cpp",
+      "blob": "772c9434fb24cb298e3a423c4a0ee3ea49818c19",
+      "bytes": 24033,
+      "sha256": "8d373da47d15bb53da0bca0d5f8d86702c3619c8462e72872cdf54efdc880ad5",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/port_savestate_format.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "docs/SAVESTATE_SCHEMA.md",
+      "blob": "fa3089e3e802cd3e5f7038877067eb91ebe87f8b",
+      "bytes": 3453,
+      "sha256": "511e366abb49b75383e1cbb1e266fa122afba9425bf8d142c97d1c0da5fd7aab",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/docs/SAVESTATE_SCHEMA.md"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/include/port_paths.h",
+      "blob": "c55040dcc27ddcb531322c791980f285c92db0bc",
+      "bytes": 13087,
+      "sha256": "348ad1cdf9497f6aaa27701cd2491b656acaa2b09c17a8eeda85a379f1eb79b1",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/include/port_paths.h"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/include/port_update_check.h",
+      "blob": "451595f1015c4c554589fc1ce553ea9f4da34fe1",
+      "bytes": 1674,
+      "sha256": "54405fb029117335ceff1a82c5637051743ba6bb61cf21d49945d372e9701a1b",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/include/port_update_check.h"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui/runtime.cpp",
+      "blob": "27aaf723a374e215c8bd391d1702afb12e1dbb27",
+      "bytes": 25288,
+      "sha256": "7924a20fbf405ed7eeda916d55229d70387d96362d08a5c69c1aee96ee075fd3",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui/runtime.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/port_remastered_ffmpeg.cpp",
+      "blob": "8a00d1f98bdb713b1a0c3866f1d4e673e5fe58c6",
+      "bytes": 5418,
+      "sha256": "6b548ef281753900e711aefcf5fcde72b9c35f6b1e360acb401525bfa7079bf7",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/port_remastered_ffmpeg.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/port_log_file.cpp",
+      "blob": "7525cbb913efdf15ce25820c726f7302117789e0",
+      "bytes": 25366,
+      "sha256": "d22b70a4d4522fc4cf4dde8001bca3d268ab92f79cef061cbc41aded70c25143",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/port_log_file.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui.cpp",
+      "blob": "8e35944299e171f2c07f2dfe0b3e8be3a9467cab",
+      "bytes": 22535,
+      "sha256": "f2584883853a53d6923bff8783ce8aae0950eb66fc0afceb8c4928e9640cba33",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui/tabs.cpp",
+      "blob": "9fe32846f6e146674f2a8bd8cf628a688c95886f",
+      "bytes": 9903,
+      "sha256": "3c53de9e38723704c97450b4c456bc7ab3762fbbf84382120ce76e0bf250a892",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui/tabs.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui/options.cpp",
+      "blob": "1473b2c33f9857bb5c6306be86cbb272334e7e8b",
+      "bytes": 37457,
+      "sha256": "7571d5cfed2810668dc0a76d5d8b0372156987a2d1c5bd141e2c6525990d2ab8",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui/options.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui/settings.cpp",
+      "blob": "667db4488e651338d3d284bae623abe5e15f1591",
+      "bytes": 35039,
+      "sha256": "44e0d87172863e078f335d613684ba175ff13b08648b7ed75a13d1c19430b419",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui/settings.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui/ui_common.cpp",
+      "blob": "53a214c9c29cd4e89f590d6872963aa40f478d46",
+      "bytes": 24722,
+      "sha256": "73fc29a37f1eff1d9a8ccea0ffa081a1af8cd5d297758117cbc5112eecd63bb1",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui/ui_common.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui/overlays.cpp",
+      "blob": "cb71259d9555eec072e1984dee0a8447538ccc06",
+      "bytes": 28333,
+      "sha256": "61b6d02c5a68638f920eb44460407c8f687c70dbc8f7c9321e37596ead51f3f1",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui/overlays.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "platform/debug_ui/window.cpp",
+      "blob": "52bf17aa3e8c5091d6778c5a940e4761ce39deb6",
+      "bytes": 14811,
+      "sha256": "95c8032564a9f410f3202c6f24b177d9556fd79eb771780bef6a86b5e6e58c62",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/platform/debug_ui/window.cpp"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "path": "docs/MODS.md",
+      "blob": "4b963bfbffe34733c2ca5cd2105c5dd7f447ca51",
+      "bytes": 23518,
+      "sha256": "054da421d013e0847dd32b917e9a4d412cb08444f2e8711db34e9d0171a739cd",
+      "url": "https://github.com/Odrannnn/MetroidPrimePort/blob/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8/docs/MODS.md"
+    },
+    {
+      "repository": "ryancheung/Zelda-LA-DX-HD",
+      "commit": "a336c66ea2b6cd76735f1b85cb8edb2368a1871e",
+      "path": "README.md",
+      "blob": "4105b3f9e6fcf38e5137d7ccdb278f46eadf461c",
+      "bytes": 9899,
+      "sha256": "51d3b08b2b246bb0561b1aed09f9a7b2e941e98b7b6f500ba4083665895744f0",
+      "url": "https://github.com/ryancheung/Zelda-LA-DX-HD/blob/a336c66ea2b6cd76735f1b85cb8edb2368a1871e/README.md"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "path": "LICENSE",
+      "blob": "a4e60e1cc9c426120561d3ab85b58fcc9201a3ef",
+      "bytes": 1072,
+      "sha256": "676252c9efb0849cc08cdba279318b4d62ae144c19a52a0aa7ab5ca845ae5ddc",
+      "url": "https://github.com/mstan/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/LICENSE"
+    },
+    {
+      "repository": "mstan/recomp-ui",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "path": "README.md",
+      "blob": "8e2de37d1ccdc463777982213e173e2f604dcc04",
+      "bytes": 34693,
+      "sha256": "eac4bd20c64f0dd8950ed09e1c04e91e61cf49d668116e3080f86251f26705e3",
+      "url": "https://github.com/mstan/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/README.md"
+    },
+    {
+      "repository": "RetroPortingToolKit/recomp-ui",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "path": "src/recomp_launcher.h",
+      "blob": "1611349ada10d35a68d8dccc80705c0b8aed24c2",
+      "bytes": 142096,
+      "sha256": "153938845c2eaa829d7bc4f987f7da83d6c8ef97d5989a7c2c3f98fc7e62a957",
+      "url": "https://github.com/RetroPortingToolKit/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/src/recomp_launcher.h"
+    },
+    {
+      "repository": "RetroPortingToolKit/recomp-ui",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "path": "src/common/launcher_settings.h",
+      "blob": "3b5b7666e116cc8e0cc5661f1494da204fca0e55",
+      "bytes": 810,
+      "sha256": "3585290e74be241002df1e82869345fe5f53230ae65b28136204e842e76f6dc7",
+      "url": "https://github.com/RetroPortingToolKit/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/src/common/launcher_settings.h"
+    },
+    {
+      "repository": "RetroPortingToolKit/recomp-ui",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "path": "src/launcher_profile.h",
+      "blob": "3056014bc933f1aafbeb7cbae8859b329963676c",
+      "bytes": 4314,
+      "sha256": "ad2c62ade78b9c614e53855c485b006e3e5d4a9edc9763ed52680dc677c0dbdc",
+      "url": "https://github.com/RetroPortingToolKit/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/src/launcher_profile.h"
+    },
+    {
+      "repository": "RetroPortingToolKit/recomp-ui",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "path": "src/consoles/psx/psx_profile.h",
+      "blob": "c041fbbf336eab9a36bad12ba9b0612e249154d5",
+      "bytes": 10017,
+      "sha256": "bf29b7ec2c63ded1477643ba57be2622aba4023ac726059a878e4dca54b54ab0",
+      "url": "https://github.com/RetroPortingToolKit/recomp-ui/blob/3f1d6f122a58823614abce14f5b86f4d165a629c/src/consoles/psx/psx_profile.h"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "LICENSE",
+      "blob": "bb43759dce58708f103779981ed41998b0c16075",
+      "bytes": 3892,
+      "sha256": "133629d3a7fa3543e96e27cc8c03c27dd6cd6c395e0a02fc1eda307d1d206cc6",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/LICENSE"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "README.md",
+      "blob": "d5df50715d1d7b7edee239fbaed6965cb4563fc6",
+      "bytes": 45113,
+      "sha256": "e0db3f138b06f65530131768544fa5dedeea709faed2af42d7e90dbb3a15ce99",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/README.md"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "runtime/src/main.cpp",
+      "blob": "886c0db0e1bdc3ab1284a6ff9b920d6a3f75440d",
+      "bytes": 1088689,
+      "sha256": "0aff2f74aafc8fdf5ef2d240cd91da426a44acdba6dfdfcf7535644793d1bef2",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/runtime/src/main.cpp"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "recompiler/include/host_path.h",
+      "blob": "1dc0b9659f3ae68e345ed71cb1cfb6ea18705bfc",
+      "bytes": 1967,
+      "sha256": "1589011edee3f47546b7ffaec85a1dbd86cfb7d0ae00af1b384e13bda4947889",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/recompiler/include/host_path.h"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "runtime/include/playtest_diagnostic_paths.h",
+      "blob": "f7c407d75ef29d73398f73537b96c81f27cb1917",
+      "bytes": 2444,
+      "sha256": "356072a38e7780574b4aaa141b7aad9b321fa83eccc758279fd3ec1440d23557",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/runtime/include/playtest_diagnostic_paths.h"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "docs/config_schema.md",
+      "blob": "43a12dec00b80bc18b5ad1b0e54b71a6c8b6219d",
+      "bytes": 73346,
+      "sha256": "ad75623b69a246842a54a0cece4734b5da6b4c0795c58e1eb7c2fc5d69f17352",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/docs/config_schema.md"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "docs/OVERLAY_CACHE_V2.md",
+      "blob": "6fdc42aa0e608c3edc9f8d7e4af17a5c86f85f2f",
+      "bytes": 14536,
+      "sha256": "f2626a1b07bf7ba0317d0514228e089c22f2cc44ebf8c5e86c8f24c1d0fdfc62",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/docs/OVERLAY_CACHE_V2.md"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "path": "docs/LAUNCH_DISC_PATH.md",
+      "blob": "e6deecab3a566bbfa8803a1d6cc11a3d87369e81",
+      "bytes": 1186,
+      "sha256": "44cb9275a0a3bc17106c6881bd4f98681a87fa63c8652761d99864cdb7bd9740",
+      "url": "https://github.com/RetroPortingToolKit/psxrecomp/blob/09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded/docs/LAUNCH_DISC_PATH.md"
+    }
+  ],
+  "complete_tree_contexts": [
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "repository_id": 865232212,
+      "role": "current",
+      "commit": "cf829a9eca8fb680fba4b0409ddeb6ca92f22e3c",
+      "tree": "14f1bd3756796aa78aa05efebe68b79c31edb2da",
+      "entries": 329,
+      "complete_tree_inventory_sha256": "94096a1672a109b9d3e6fb7fcbaac6b38917506c3d570fa5ed8dd6fcfdb023b6",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "hedge-dev/UnleashedRecomp",
+      "repository_id": 865232212,
+      "role": "tag",
+      "commit": "325e4d34a0adaa34808b7212594c0f25b88bfb96",
+      "tree": "faf7398bda586bef64fce070bbf90e941400e105",
+      "entries": 322,
+      "complete_tree_inventory_sha256": "6e77abd08ba0c659f7640f85a146d3b8852fd4a599552f54ab80922f95390409",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "repository_id": 1321194722,
+      "role": "current",
+      "commit": "bfab37bd1e28ccfb8c6491d9d42a12c4bfb3e141",
+      "tree": "b995609cba5d15018ec6c8bdf429b831266e9239",
+      "entries": 287,
+      "complete_tree_inventory_sha256": "265b98e8624ecc6f90e9af3dc0f91f6d4e7b4b964853e1fe7e93ee7905aab83e",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "GTTeancum/SotE-Recomp",
+      "repository_id": 1321194722,
+      "role": "tag",
+      "commit": "80f2feff1a6c08c676f897b6221e5f91277a2de5",
+      "tree": "7ab25cbf6de85955ebbc088c377041c030c3209b",
+      "entries": 283,
+      "complete_tree_inventory_sha256": "b3e62e70f3e5476d921c459a45f2359af3a7328e2e5d54b9faba58511d61cb16",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "repository_id": 1323091678,
+      "role": "current",
+      "commit": "10d45b0952dd1b7f53f29dbff0795a27abb81ff7",
+      "tree": "25b27e687242c226c8e36b719763fefe7468475d",
+      "entries": 726,
+      "complete_tree_inventory_sha256": "ad40a17f4c94aefa49acb97f48ce458f45668dc9b154c36fa1ba35dbcb696123",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "repository_id": 1323091678,
+      "role": "tag",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "tree": "caffeed4800d07b107cda4ba244eaac0aa45dbba",
+      "entries": 725,
+      "complete_tree_inventory_sha256": "8a2df2f7a6fe21f2caf4e6a1517d471d3ee68e9c86084f03c5fa328ce1c6ff15",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "repository_id": 1290451017,
+      "role": "current",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "tree": "f2c2cad01a3e3a217283e5604a785e20798f293c",
+      "entries": 344,
+      "complete_tree_inventory_sha256": "ac359735490da1e6fb85d3e2ae5ff652e350f27909e5cb0e67f1d9bfc92c87af",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "mstan/MegaManX4Recomp",
+      "repository_id": 1290451017,
+      "role": "tag",
+      "commit": "81612a235bac1cd39720988c7a69866cb01cf613",
+      "tree": "f2c2cad01a3e3a217283e5604a785e20798f293c",
+      "entries": 344,
+      "complete_tree_inventory_sha256": "ac359735490da1e6fb85d3e2ae5ff652e350f27909e5cb0e67f1d9bfc92c87af",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "SolarCookies/TiP-Recomp",
+      "repository_id": 1181687250,
+      "role": "current",
+      "commit": "be5e91c8a83da21d976902962c61688c849cf29d",
+      "tree": "309b2edacc6fef7ee3c7a54024673a49e1796ed0",
+      "entries": 145,
+      "complete_tree_inventory_sha256": "05697624643996717e70cf14cabd801556fb01e51751bebdbca3ef1f5e85060a",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "SolarCookies/TiP-Recomp",
+      "repository_id": 1181687250,
+      "role": "tag",
+      "commit": "be5e91c8a83da21d976902962c61688c849cf29d",
+      "tree": "309b2edacc6fef7ee3c7a54024673a49e1796ed0",
+      "entries": 145,
+      "complete_tree_inventory_sha256": "05697624643996717e70cf14cabd801556fb01e51751bebdbca3ef1f5e85060a",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "repository_id": 1377235029,
+      "role": "current",
+      "commit": "aea6b2196fdafafac168ea87aeab104069e70bda",
+      "tree": "deed49c2781e6087bed17bd6b20de982b476de01",
+      "entries": 4102,
+      "complete_tree_inventory_sha256": "0ef166a928f509956964ecfca8de3fecbf37624f2fd136f520e72a5a9ea00cbd",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "Odrannnn/MetroidPrimePort",
+      "repository_id": 1377235029,
+      "role": "tag",
+      "commit": "91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+      "tree": "03244f42428ba50353322c2fcdb0ff4fe6c34410",
+      "entries": 4098,
+      "complete_tree_inventory_sha256": "a9200e6c5c6b70532c536880b9f60679ab62d6c2783efd7df8988be9b6b9ea37",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "ryancheung/Zelda-LA-DX-HD",
+      "repository_id": 1175764054,
+      "role": "current",
+      "commit": "a336c66ea2b6cd76735f1b85cb8edb2368a1871e",
+      "tree": "1b02777b09c7527757da93ae41ca90eced80158f",
+      "entries": 2835,
+      "complete_tree_inventory_sha256": "4302e044b19d41e8c4af5087657eaa0d5f09983ef0e3136452bd56d63b1468b0",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "ryancheung/Zelda-LA-DX-HD",
+      "repository_id": 1175764054,
+      "role": "tag",
+      "commit": "a336c66ea2b6cd76735f1b85cb8edb2368a1871e",
+      "tree": "1b02777b09c7527757da93ae41ca90eced80158f",
+      "entries": 2835,
+      "complete_tree_inventory_sha256": "4302e044b19d41e8c4af5087657eaa0d5f09983ef0e3136452bd56d63b1468b0",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "RetroPortingToolKit/recomp-ui",
+      "repository_id": 1303343930,
+      "role": "pinned",
+      "commit": "3f1d6f122a58823614abce14f5b86f4d165a629c",
+      "tree": "1297299d43251974644578d9da795022385dea85",
+      "entries": 293,
+      "complete_tree_inventory_sha256": "30da08b65cef252c092ce2d41a8fd102d68ffccd648d5cbbf51612cba4dfbd3d",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    },
+    {
+      "repository": "RetroPortingToolKit/psxrecomp",
+      "repository_id": 1172059725,
+      "role": "pinned",
+      "commit": "09ba00ed7ad9d5e7d88ca428e2c7dc23822a2ded",
+      "tree": "37b3d551ec8b869c99349dafdc8834436e3d6be7",
+      "entries": 2973,
+      "complete_tree_inventory_sha256": "1094d289c619c711d07d35ce7aea8deb0a58317de694ff44d3c55feec8ede111",
+      "scope": "complete untruncated repository tree; not complete transitive source or binary certification"
+    }
+  ],
+  "static_public_package_observations": [
+    {
+      "observed_at": "2026-10-31T12:31:50.416069+00:00",
+      "release_id": 411995299,
+      "tag": "v1.1.3",
+      "asset_id": 639723296,
+      "asset": "CaseZeroRecomp-windows-x86_64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "f821dd717c08baa83b06ae11ece1963835bbe07816b43a52792f3040cfd99a28",
+      "observed_sha256": "f821dd717c08baa83b06ae11ece1963835bbe07816b43a52792f3040cfd99a28",
+      "bytes": 24956419,
+      "raw_preparser_bounds": {
+        "records": 46,
+        "central_bytes": 3708,
+        "declared_expanded_bytes": 71221031
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "CaseZeroRecomp/avcodec-62.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 320,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/avutil-60.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/cz_runtime.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/libcurl-x64.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/msvcp140.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 264,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 256,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/vcruntime140.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/vcruntime140_1.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1121,
+      "scope": "static public package context only; not management, permission, installed, game or real-data acceptance",
+      "asset_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/releases/download/v1.1.3/CaseZeroRecomp-windows-x86_64.zip",
+      "release_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/releases/tag/v1.1.3",
+      "private_full_inventory_sha256": "7fe18ac2fc7a7b0b54f0ca7fd9ad8ea2a048d015b4142f011c7e3396f200706b",
+      "members": 46
+    },
+    {
+      "observed_at": "2026-10-31T12:31:51.120240+00:00",
+      "release_id": 429848282,
+      "tag": "v1.0.22",
+      "asset_id": 694985001,
+      "asset": "MegaManX4Recomp-v1.0.22-windows-x64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "f4821f1fef9108de3ef85c47762d18f11678a2baa4ba9b20f00224cde04338d4",
+      "observed_sha256": "f4821f1fef9108de3ef85c47762d18f11678a2baa4ba9b20f00224cde04338d4",
+      "bytes": 38230472,
+      "raw_preparser_bounds": {
+        "records": 548,
+        "central_bytes": 46726,
+        "declared_expanded_bytes": 118188960
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "MegaManX4Recomp.exe",
+          "machine": "0x8664",
+          "sections": 19,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/libgcc_s_seh-1.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/libstdc++-6.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/psxrecomp-bios.exe",
+          "machine": "0x8664",
+          "sections": 19,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/psxrecomp-game.exe",
+          "machine": "0x8664",
+          "sections": 19,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/libcrypto-3.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/libffi-8.dll",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/libssl-3.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/python.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/python3.dll",
+          "machine": "0x8664",
+          "sections": 2,
+          "header_bytes_read": 216,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/python313.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/pythonw.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/sqlite3.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/vcruntime140.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 264,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/python/vcruntime140_1.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 264,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/tcc/i386-win32-tcc.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/tcc/libtcc.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "overlay_toolchain/tcc/tcc.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 144,
+      "scope": "static public package context only; not management, permission, installed, game or real-data acceptance",
+      "asset_url": "https://github.com/mstan/MegaManX4Recomp/releases/download/v1.0.22/MegaManX4Recomp-v1.0.22-windows-x64.zip",
+      "release_url": "https://github.com/mstan/MegaManX4Recomp/releases/tag/v1.0.22",
+      "private_full_inventory_sha256": "76aab499ddd0f72c99d54abc38ea450de39cad8a3b2722489c7fe926a045ec20",
+      "members": 548
+    },
+    {
+      "observed_at": "2026-10-31T12:31:52.535325+00:00",
+      "release_id": 422715696,
+      "tag": "1.14.0",
+      "asset_id": 672203955,
+      "asset": "retip_1.14.0_windows_amd64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "b7ca2843078de1e9b25b24ca2ccacc0809f8e816b44dc1b3e9eb4c1465d4135c",
+      "observed_sha256": "b7ca2843078de1e9b25b24ca2ccacc0809f8e816b44dc1b3e9eb4c1465d4135c",
+      "bytes": 71114628,
+      "raw_preparser_bounds": {
+        "records": 4677,
+        "central_bytes": 484457,
+        "declared_expanded_bytes": 143339959
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "retip.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "rexcrashreporter.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "rexruntimerd.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "sentry-crash.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "sentry-wer.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 158,
+      "scope": "static public package context only; not management, permission, installed, game or real-data acceptance",
+      "asset_url": "https://github.com/SolarCookies/TiP-Recomp/releases/download/1.14.0/retip_1.14.0_windows_amd64.zip",
+      "release_url": "https://github.com/SolarCookies/TiP-Recomp/releases/tag/1.14.0",
+      "private_full_inventory_sha256": "46e8abdc039193b71a6f36475810a218c1b74c746136cf6cee013a019a625d5a",
+      "members": 4677
+    },
+    {
+      "observed_at": "2026-10-31T12:31:53.660743+00:00",
+      "release_id": 428484091,
+      "tag": "v0.36.0",
+      "asset_id": 690201676,
+      "asset": "metroid-prime-port-0.36.0-windows-x86_64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "16c3c96941c9d294368990b70aa88e07290359727c9c9b54f693f7d39780737e",
+      "observed_sha256": "16c3c96941c9d294368990b70aa88e07290359727c9c9b54f693f7d39780737e",
+      "bytes": 73737453,
+      "raw_preparser_bounds": {
+        "records": 87,
+        "central_bytes": 8467,
+        "declared_expanded_bytes": 266905845
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "bounded_PE_headers": [
+        {
+          "path": "metroid_prime_port.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "ffmpeg.exe",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "webgpu_dawn.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libusb-1.0.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 1846,
+      "scope": "static public package context only; not management, permission, installed, game or real-data acceptance",
+      "asset_url": "https://github.com/Odrannnn/MetroidPrimePort/releases/download/v0.36.0/metroid-prime-port-0.36.0-windows-x86_64.zip",
+      "release_url": "https://github.com/Odrannnn/MetroidPrimePort/releases/tag/v0.36.0",
+      "private_full_inventory_sha256": "730ef89bc96600d237c832438d9e36be86aa84857b129aa689923d2ac92c2db4",
+      "members": 87
+    }
+  ],
+  "packaged_retip_config": {
+    "asset": "retip_1.14.0_windows_amd64.zip",
+    "asset_sha256": "b7ca2843078de1e9b25b24ca2ccacc0809f8e816b44dc1b3e9eb4c1465d4135c",
+    "member": "retip.toml",
+    "bytes": 1089,
+    "sha256": "d6eb896bf0b04d676d95f91cea998e864435de46f72f940eb8f6edb6073914c8",
+    "physical_preflight_reused": "/home/boburning/code/portcove-workstreams/b1-research-20261031-r20/inspect-158-windows-archive.py",
+    "extraction_writes": 0,
+    "execution": false
+  },
+  "core_inspection": {
+    "ports": 285,
+    "listings": 1424,
+    "port_input_sha256": "9e3c2965c8ec105f4eb52ef087857ae74941b07a9c90386b0ede05bb69816c51",
+    "listing_input_sha256": "6f063e1758376ff8871c8aac9df628dac73281bd2cb6fcf77f035f08628fdf41",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "f3fa9cada8bfdbaf3c960742e8bd50feaaf6ee1244b71fcf4245d08e1b903b06",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 285,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    }
+  },
+  "boundaries_snapshot_scope": "Historical private decision snapshot before maintained preparation and source application; its initial status is preserved verbatim, while this dossier and Core inspection bind the current source checkpoint",
+  "boundaries": {
+    "base": "dcfcc7a4249b0a26c21426356f52afb0e3a1718f",
+    "status": "private proposals; not prepared/applied/qualified",
+    "authored_candidates": [126, 1121, 144, 158, 1846],
+    "unmodified_holds": [343, 128],
+    "planned_finite_closures": [126, 1121, 158],
+    "planned_partial_open": [144, 1846],
+    "strict_definition_change": false,
+    "no_GUI_upstream_code_or_game_execution": true,
+    "decision_basis": {
+      "126": "Upstream explicitly owns normal game installation and requests distribution only through its official channels; missing published v1.0.3 digest blocks managed authentication, not already permitted-copy attachment. CWD game root and portable/external/mod profiles explicit.",
+      "1121": "Official offline ready package exists; public source establishes in-process preparation and host paths, but SDK/capture/profile scope and potential external updater ownership favor bounded upstream-owned prepared attachment; no private SDK access or speculative Xbox capability needed.",
+      "144": "Existing working-copy attachment avoids adopting runtime native overlay/compiler trust and mutable toolchain ownership; full package/upstream preparation retained, no universal PS1 campaign.",
+      "158": "Public title lifecycle plus static native entry identified; customized backend paths are unknown. Prepared copy retains actual external SDK/profile roots; no asserted default, SDK backup, private access or full containment certification.",
+      "1846": "Technically ready package/user data layout but operative recovered-game/SDK permission condition persists; conditional useful guide only, no managed admission or issue closure.",
+      "343": "Existing package-texture provenance condition unchanged; no new guide bypass.",
+      "128": "Withdrawn original assets and attributable source/use mapping still unresolved; preserve exact acquisition restriction."
+    }
+  },
+  "offered_operation_tests": {
+    "status": "Not run at source checkpoint; exact-head hosted CI still required",
+    "cases": "Five actual embedded listing IDs reuse the unchanged complete explicit-intent registration/relink/session/removal helper. One actual-ID Metroid guide-present acquisition hold reuses the unchanged zero-provider download discovery/preview/mutation refusal helper.",
+    "not_evidence_of": "upstream game, compiler/helper, source preparation, actual save migration, whole-session forced-exit, installed/GUI/human, Supported or protected acceptance"
+  },
+  "preservation": "All old strict definitions, source and independent compatibility inputs, accepted artwork/lineage and existing helper/assertion bytes retain exact source. The two held authored records are byte-identical. No family adapter, managed runtime replacement or speculative infrastructure gate added.",
+  "overall_B1_complete": false
+}

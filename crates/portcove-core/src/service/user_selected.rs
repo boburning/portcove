@@ -2445,4 +2445,29 @@ mod tests {
     fn metal_gear_solid_integral_reintegral_prepared_player_route_2106() {
         assert_listing_only_player_route("metal-gear-solid-integral-reintegral", Some(false));
     }
+
+    #[test]
+    fn sonic_unleashed_recompiled_prepared_player_route_126() {
+        assert_listing_only_player_route("sonic-unleashed-recompiled", Some(false));
+    }
+
+    #[test]
+    fn dead_rising_2_case_zero_recomp_prepared_player_route_1121() {
+        assert_listing_only_player_route("dead-rising-2-case-zero-recomp", Some(false));
+    }
+
+    #[test]
+    fn mega_man_x4_recompiled_prepared_player_route_144() {
+        assert_listing_only_player_route("mega-man-x4-recompiled", Some(false));
+    }
+
+    #[test]
+    fn viva_pinata_trouble_in_paradise_retip_prepared_player_route_158() {
+        assert_listing_only_player_route("viva-pinata-trouble-in-paradise-retip", Some(false));
+    }
+
+    #[test]
+    fn odrannnn_metroidprimeport_prepared_player_route_1846() {
+        assert_listing_only_player_route("odrannnn-metroidprimeport", Some(true));
+    }
 }

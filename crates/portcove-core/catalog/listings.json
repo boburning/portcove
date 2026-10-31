@@ -14122,6 +14122,30 @@
         "image_sha256": "22e890538e151ec8aea2d259904c84ae177f3c0db27159fb6185e1352f577615",
         "game_slug": "dead-rising-2-case-zero",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/tree/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+        "steps": [
+          {
+            "title": "Prepare the own-game offline Windows copy upstream",
+            "instruction": "Use your legally obtained Xbox Live Arcade Dead Rising 2: Case Zero package, Title ID 58410A8D: the approximately 825 MB extensionless package under Content/0000000000000000/58410A8D/000D0000, not the full Dead Rising 2 game. Follow the standalone package’s first-run instructions outside Portcove. Its native runtime performs STFS extraction, shader preparation and game-data overlays; no external compiler or setup helper is run by this guide. The project’s PolyForm Noncommercial grant covers its own work, not the original game or separately licensed components."
+          },
+          {
+            "title": "Select the actual offline native runtime",
+            "instruction": "The reviewed v1.1.3 Windows x86-64 ZIP contains CaseZeroRecomp/cz_runtime.exe, its DLLs and the initial assets/package marker. Attach the completed cz_runtime.exe with its executable directory as the established working directory. An online XenonLive launcher is not required for this offline entry; do not enroll one copy under competing runtime updaters. The package’s independent published SHA-256 is recorded in the source dossier, but attachment is explicit user-selected trust, not curated tree certification."
+          },
+          {
+            "title": "Attach the completed native player and choose Play separately",
+            "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+          },
+          {
+            "title": "Preserve source outputs, profiles and private SDK data",
+            "instruction": "Keep the complete creating installation and all actual original or derived data. HostPaths normally finds the assets directory by walking from the executable; an existing CZ_ROOT can select another root. Retain assets/package, assets/game, assets/save, assets/shader_spv, game_patched/game_kbm/game_bootskip outputs, config, all other generated files and unfinished writes in their effective locations. Normal Windows saves/settings use the redirected Saved Games known folder under Dead Rising 2 Case Zero, with USERPROFILE/Saved Games and executable-local fallbacks. Saves begin in its default subdirectory; an SDK-selected gamertag can choose another sanitized profile, while cz_settings.txt stays at the game-folder level. A present CZ_SAVE_DIR overrides both roots and prevents profile switching; preserve its actual configured location. Startup can copy legacy assets/save container directories into a root with no existing container directories and copy settings only if absent, retaining old copies and leaving loose legacy files. Keep all old/new and unfinished roots: this is upstream behavior, not a Core migration or compatibility promise. Retain cz_settings.txt, cz_runtime.log and rotated/diagnostic files, CZ_LOG_FILE overrides and any existing bug-report captures. The bundled SDK’s complete effective user/account/capture paths are not established by the public source: preserve the actual roots belonging to that copy, including custom SDK locations. Do not infer backup or cleanup permission. Reports can contain private paths or saves; this route does not enable collection/upload, online login, private SDK access or credential use. Upstream owns deliberate compatible updates; retain the old creating runtime and review/relink changed executables."
+          }
+        ],
+        "warnings": [
+          "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+        ]
       }
     },
     {
@@ -25318,6 +25342,30 @@
         "image_sha256": "641e4110a697e73bcabbfe73b36b82fe7b234943615f7badf6f216d84f7874f9",
         "game_slug": "mega-man-x4",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/MegaManX4Recomp/tree/81612a235bac1cd39720988c7a69866cb01cf613",
+        "steps": [
+          {
+            "title": "Prepare the exact own-disc Mega Man X4 copy upstream",
+            "instruction": "Use your own unmodified USA Mega Man X4 PlayStation disc, serial SLUS-00561, represented as its CUE plus every referenced BIN. Keep the complete disc set and follow upstream’s normal release setup outside Portcove. A patched/undubbed disc, another region or a bare filename is not this accepted source contract. Upstream documents compatibility SHA-256 3ceab06ac99add4035f912188bcbf5b16c02056f46a33d38ff0c8dbce6cb613b; Core does not acquire or authenticate original media. The release includes OpenBIOS; separately owned retail BIOS and optional Japanese movie inputs remain optional and separate."
+          },
+          {
+            "title": "Keep the completed player and toolchain together",
+            "instruction": "The reviewed v1.0.22 Windows x64 package’s native player is MegaManX4Recomp.exe. Keep game.toml, input.ini, bios, assets, mods and the complete overlay_toolchain beside it. Runtime-native overlay generation/caching can invoke bundled psxrecomp helpers and compiler components upstream; this guide neither runs those helpers nor gives Core authority to build or trust a mutable native-code cache. Attach only the intended completed native player, with its established working directory."
+          },
+          {
+            "title": "Attach the completed native player and choose Play separately",
+            "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+          },
+          {
+            "title": "Retain the creating runtime, cards, states and mod/cache tuple",
+            "instruction": "Upstream remains the single runtime, toolchain and data owner. Preserve the entire installation, original disc/BIOS inputs and every effective profile before changes. Selected Windows source reads settings.toml beside the executable; the release game.toml sets memcard_dir to saves, while settings or --memcard-dir and explicit per-card paths can override it. Relative card directories resolve from the executable; the framework fallback without a configured directory is the executable directory. Preserve both card slots, states/rewind data, settings.toml.bad, mods, generated native overlays and all custom paths. State/rewind compatibility depends on the creating release and mod layout, and co-op/netplay profile behavior is not qualified here. Optional diagnostics can include initial private cards under executable-local saves/diagnostics independently of a card override; leave capture disabled and preserve any existing diagnostics-location.txt and reports. Updating the selected executable requires deliberate upstream-compatible replacement and fresh attachment review, not a Core migration or universal PS1 infrastructure campaign."
+          }
+        ],
+        "warnings": [
+          "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+        ]
       }
     },
     {
@@ -28521,7 +28569,33 @@
         "image_sha256": "a1edc2e606ed753e2749ccf5b4a544c087ebda7fb00866c4592d8f013aa016c4",
         "game_slug": "metroid-prime",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Odrannnn/MetroidPrimePort/tree/91dda660de2fa5fea4dfabb5afe1eb6c38ce19d8",
+        "steps": [
+          {
+            "title": "Use only an already permitted completed Windows copy",
+            "instruction": "This conditional guide applies only to a copy and components you are already permitted to use. The reviewed v0.36.0 LICENSE/NOTICE covers the project’s own platform/tooling work but expressly excludes recovered Metroid Prime game code, console SDK/runtime and symbol data; it asserts no redistribution permission for those components. Public package availability and its checksum do not resolve the canonical package-use/acquisition condition. This guide performs no download, build, installer or rights acquisition."
+          },
+          {
+            "title": "Keep the actual supported original-disc and player contract",
+            "instruction": "The Windows x86-64 player is metroid_prime_port.exe; retain its complete package, DLLs and licenses. Base upstream setup uses your own GameCube USA GM8E01 1.00/1.01/1.02 or PAL GM8P01, or the documented Trilogy USA R3ME01/PAL R3MP01, in a supported ISO/GCM/RVZ/WBFS/CISO/NKIT representation. Follow upstream’s existing disc-selection flow outside Portcove. Preserve originals separately; Core does not authenticate or import them. Optional Remastered/Dread/Switch content, keys, FFmpeg imports, mods and networking are outside this base attachment guide."
+          },
+          {
+            "title": "Attach the completed native player and choose Play separately",
+            "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+          },
+          {
+            "title": "Retain all creating profile and memory-card locations",
+            "instruction": "Preserve the complete creating installation, own-disc inputs, every current and legacy profile and all custom roots before changes. MP_USER_PATH overrides the normal data root. A writable Windows copy normally uses executable-local user; legacy settings can retain the Roaming AppData Metroid Prime profile, and read-only installs fall back to SDL’s user preference path. Memory-card resolution has separate executable-local user behavior, so a profile override does not prove card redirection. Upstream’s loose-data migration renames recognized files into user only when their targets are absent, leaving unknown or conflicting items; this guide promises no migration. Preserve cards, states, settings, shader/cache databases and their WAL/SHM/journal siblings, mods/textures, imports, logs, randomizer/sync configuration and credentials in every effective root. The Windows update UI opens the upstream URL in a browser, not an observed automatic runtime replacement. Retain one upstream replacement owner, keep the old runtime and review/relink changed executables. State/card compatibility, multiplayer, gameplay and installed/protected acceptance remain unqualified."
+          }
+        ],
+        "warnings": [
+          "The existing recovered-game/SDK package-use condition remains unresolved. This conditional guide supplies no permission to acquire, register or run a copy. Use it only where the particular copy and components are already permitted.",
+          "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+        ]
+      },
+      "download_block_reason": "The selected LICENSE/NOTICE excludes recovered game code, console SDK/runtime and symbol data and asserts no applicable permission for their distribution. Fresh self-service acquisition remains held until an attributable permitted basis for the exact selected package/components is reviewed, or a reviewed clean alternative resolves that condition. This does not grant or prohibit use of another already permitted copy."
     },
     {
       "id": "ogdanimal-goemon64recomp-android",
@@ -36262,6 +36336,30 @@
         "image_sha256": "f6a5e21c272dc44262fc053e5e56608331bbb8fdcb59c0caa18c49d3bdf299fb",
         "game_slug": "unleashed-recompiled",
         "match_kind": "port"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/hedge-dev/UnleashedRecomp/tree/325e4d34a0adaa34808b7212594c0f25b88bfb96",
+        "steps": [
+          {
+            "title": "Prepare your own international Xbox 360 game upstream",
+            "instruction": "Use your legally obtained US or EU Sonic Unleashed Xbox 360 base game plus its matching-region required Title Update. The Japanese, PS3 and Wii editions are not this contract; DLC is optional. Use upstream’s normal in-process installer: Add Files accepts dumped Xbox 360 containers/images; Add Folder accepts the exact requested raw content directory and does not recursively search for it. Modified inputs are rejected upstream. Core does not acquire or authenticate these originals, apply title updates or build the port."
+          },
+          {
+            "title": "Select the established Unleashed player",
+            "instruction": "Use the completed UnleashedRecomp.exe with its installation directory as the established working directory. The selected source defaults game content to the current working directory, so an arbitrary working directory is not equivalent. Preserve the existing package and completed installer outputs. The reviewed v1.0.3 Windows asset has no published GitHub digest: this guide does not authenticate or enroll a fresh managed download."
+          },
+          {
+            "title": "Attach the completed native player and choose Play separately",
+            "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+          },
+          {
+            "title": "Retain upstream ownership and every effective profile",
+            "instruction": "Upstream remains the single engine/data-preparation owner. Preserve the complete creating installation, original base/update/DLC inputs, mods and all effective profiles before deliberate compatible changes. Default Windows settings are in the Roaming AppData UnleashedRecomp directory, with config.toml and save/SYS-DATA; a portable.txt beside the player switches the profile to its executable directory. Hedge Mod Manager can redirect saves, including mlsave or another configured path. Preserve both old/new roots before changing portable mode. A failed Windows known-folder lookup can leave relative profile paths, so preserve the actual effective location. Upstream’s version-replacement guidance is not a Portcove promise of cross-version save or mod compatibility; relink and review any changed selected executable."
+          }
+        ],
+        "warnings": [
+          "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+        ]
       }
     },
     {
@@ -43788,6 +43886,30 @@
         "image_sha256": "93f7b41ce3e73eec6cc473613c0716b8a32d28e22dc0df0d0ebe35cda6adf517",
         "game_slug": "viva-pinata-trouble-in-paradise",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/SolarCookies/TiP-Recomp/tree/be5e91c8a83da21d976902962c61688c849cf29d",
+        "steps": [
+          {
+            "title": "Complete the own-retail-disc ReTiP setup upstream",
+            "instruction": "Use your legally obtained retail Viva Piñata: Trouble in Paradise Xbox 360 disc ISO, retaining the canonical world-region source contract. Follow upstream’s normal ISO-selection/extraction flow outside Portcove. The public release documentation does not establish that every disc revision or another game is compatible. Core does not extract, build or authenticate original data. The standalone GitHub build is documented as the same game build without GameJolt integration; select the already prepared copy you intend to keep."
+          },
+          {
+            "title": "Select the native standalone player and keep the whole package",
+            "instruction": "The reviewed 1.14.0 Windows AMD64 package contains retip.exe, retip.toml, the retip directory, retip_pipelines.bin, rex runtime/DXC DLLs and crash reporter companions. Attach the completed retip.exe with its established package working directory. Public title code uses an in-process ReXApp/windowed-app entry and opens the prepared game through its launch menu; the customized backend/native renderer is not public, so this is not a full backend or companion-process certification. No private backend access, build, GameJolt login or compiler execution is requested."
+          },
+          {
+            "title": "Attach the completed native player and choose Play separately",
+            "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+          },
+          {
+            "title": "Preserve the complete upstream-owned copy and actual data roots",
+            "instruction": "Keep the whole creating package, retail ISO, extracted game_data_root, default.xex, retip.toml, mods, textures, caches, logs, captures, saves/settings and every actual SDK/account/custom root belonging to that copy. The packaged TOML allows game-relative writes and records enabled mods; it does not establish the closed backend’s default save/profile directory. Do not infer a default path or Core backup/delete rights from another public ReXGlue version. Locate and retain the effective roots configured by your already prepared copy before changes. Upstream owns compatible replacement, data preparation and any mod/update integration; avoid competing updaters for one copy, preserve old runtime/data and review/relink a changed selected executable. Optional networking, mod downloads, credential use and crash uploads are not enabled or qualified by attachment."
+          }
+        ],
+        "warnings": [
+          "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+        ]
       }
     },
     {
