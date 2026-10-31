@@ -92,6 +92,28 @@ export function readArtworkGeometry(browser: Pick<ScenarioContext["browser"], "e
   });
 }
 
+export async function waitForArtworkImage(
+  browser: Pick<ScenarioContext["browser"], "wait" | "executeScript">,
+  selector: string,
+  revealSelector = selector.replace(/ img$/, ""),
+) {
+  const frame = await browser.wait(until.elementLocated(By.css(revealSelector)), 10_000);
+  await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "center" });', frame);
+  await browser.wait(
+    () =>
+      executeBrowserScript(
+        browser,
+        (selector) => {
+          const image = document.querySelector<HTMLImageElement>(selector);
+          return Boolean(image?.complete && image.naturalWidth > 0);
+        },
+        selector,
+      ),
+    10_000,
+    `Core thumbnail must render in ${selector}`,
+  );
+}
+
 export async function artworkScenario({
   browser,
   invoke,
@@ -263,30 +285,6 @@ export async function artworkScenario({
           10_000,
         );
       };
-      const waitImage = async (selector: string) => {
-        const frame = await browser.wait(
-          until.elementLocated(By.css(selector.replace(/ img$/, ""))),
-          10_000,
-        );
-        await executeBrowserScript(
-          browser,
-          'arguments[0].scrollIntoView({ block: "center" });',
-          frame,
-        );
-        await browser.wait(
-          () =>
-            executeBrowserScript(
-              browser,
-              (selector) => {
-                const image = document.querySelector<HTMLImageElement>(selector);
-                return Boolean(image?.complete && image.naturalWidth > 0);
-              },
-              selector,
-            ),
-          10_000,
-          `Core thumbnail must render in ${selector}`,
-        );
-      };
       await open();
       const before = await state("cover");
       assert.equal(before.resolved_source.kind, "generated_fallback");
@@ -345,8 +343,13 @@ export async function artworkScenario({
           5000,
         );
       }
-      await waitImage(".wide-artwork img");
-      await waitImage(".game-hero-detail .game-hero-foreground img");
+      await waitForArtworkImage(browser, ".wide-artwork img");
+      // Reveal the always-mounted hero before waiting for its lazy foreground.
+      await waitForArtworkImage(
+        browser,
+        ".game-hero-detail .game-hero-foreground img",
+        ".game-hero-detail",
+      );
       const cover = await state("cover"),
         detail = await state("detail");
       assert.equal(cover.choice.revision, before.choice.revision + 1);
@@ -419,7 +422,7 @@ export async function artworkScenario({
       }
       command(["artwork", "clear-cache"], required(bootstrap.library_root));
       await open();
-      await waitImage(".wide-artwork img");
+      await waitForArtworkImage(browser, ".wide-artwork img");
       assert.equal((await state("cover")).choice.asset_sha256, null);
       assert.deepEqual(await state("detail"), detail);
       assert.deepEqual(await readFile(source), bytes);
