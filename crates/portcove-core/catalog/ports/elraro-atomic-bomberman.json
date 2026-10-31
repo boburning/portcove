@@ -3,11 +3,9 @@
   "listing": {
     "id": "elraro-atomic-bomberman",
     "name": "Atomic Bomberman (Atomic Bomberman — Modern)",
-    "summary": "Upstream route: Upstream runtime package for Atomic Bomberman — Modern; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes original-rule reimplementation with free replacement or optional original assets. Network latency caveats remain; complete gameplay untested here. Windows/Linux x64 runtime and dedicated servers distinct. Native remake of existing game, not excluded solely because replacement assets allow play without commercial data. Upstream platforms: Windows/Linux x86-64 runtimes and separate dedicated servers. SDL3/OpenGL 3.3 source engine. Original data: Atomic Bomberman 1997; optional original PC data; free replacement assets permit standalone play. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A native Atomic Bomberman recreation with its own generated graphics and sound.",
     "original_game_title": "Atomic Bomberman",
     "project_url": "https://github.com/elraro/atomic-bomberman",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/elraro/atomic-bomberman",
     "artwork": {
       "game_id": 18153,
@@ -30,5 +28,27 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "elraro/atomic-bomberman",
+      "asset_hints": {
+        "windows-x86-64": ["atomic-bomberman-modern-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["atomic.exe"]
+    },
+    "persistent_paths": ["free-assets"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Start the normal atomic.exe player, not the companion atomic_server.exe dedicated server. No original game files are required for the code-generated free asset set. An OpenGL 3.3 graphics driver is required. Optional original Atomic Bomberman (1997) data and --import-assets preparation remain upstream/player-owned; do not treat an engine install as permission to acquire that content. The normal writable SDL profile for atomic-bomberman-modern/atomic holds options.ini, schemes, anims.lst and imported/generated assets under the current account’s AppData; copies share it and Core does not back it up, migrate or delete it. If preference lookup fails, free assets fall back to free-assets beside the creating player; Core retains this declared local directory, including unknown/custom files during its maintenance. Upstream rewrites its known generated files when the free-assets version changes; its free-assets.txt marker is internal, not a Core completion or save-compatibility certificate. Failed profile lookup disables normal settings persistence and can send editor scheme saves to a drive-root /name.sch path outside the engine. Stop editor saving and repair the profile upstream if that occurs; preserve any actual external outputs. This managed offer requires the normal writable profile, does not sandbox the player and does not claim free-assets captures every fault output. Preserve the whole creating runtime, all effective profiles, custom files and originals before changes. No actual game, editor, import or network behavior is qualified."
+    }
   }
 }

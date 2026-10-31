@@ -17117,11 +17117,9 @@
     {
       "id": "elraro-atomic-bomberman",
       "name": "Atomic Bomberman (Atomic Bomberman — Modern)",
-      "summary": "Upstream route: Upstream runtime package for Atomic Bomberman — Modern; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes original-rule reimplementation with free replacement or optional original assets. Network latency caveats remain; complete gameplay untested here. Windows/Linux x64 runtime and dedicated servers distinct. Native remake of existing game, not excluded solely because replacement assets allow play without commercial data. Upstream platforms: Windows/Linux x86-64 runtimes and separate dedicated servers. SDL3/OpenGL 3.3 source engine. Original data: Atomic Bomberman 1997; optional original PC data; free replacement assets permit standalone play. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "A native Atomic Bomberman recreation with its own generated graphics and sound.",
       "original_game_title": "Atomic Bomberman",
       "project_url": "https://github.com/elraro/atomic-bomberman",
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/elraro/atomic-bomberman",
       "artwork": {
         "game_id": 18153,
@@ -17131,7 +17129,11 @@
         "game_slug": "atomic-bomberman",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2756
+      "issue_number": 2756,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "enchantedarmspc-iandrewjj-enchanted-arms",
@@ -20354,13 +20356,15 @@
     {
       "id": "gunstar-heroes-gunstars",
       "name": "Gunstar Heroes (gunstars)",
-      "summary": "Upstream route: Good simple portable-package and explicit-ROM candidate; native game/menu/save behavior remains upstream claim. Limits: Early0.2.2 native rewrite with portable packages; game/menu/save claims remain upstream observations. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 archive and universal macOS Intel/Apple-Silicon package. Original data: Own Gunstar Heroes USA 1 MB cartridge dump selected via file browser or --rom. Portcove setup/gameplay not verified.",
+      "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
       "original_game_title": "Gunstar Heroes",
       "project_url": "https://github.com/1nputs/gunstars",
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/1nputs/gunstars",
-      "issue_number": 2580
+      "issue_number": 2580,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "gvport-johnnygentoo-gundam-versus",
@@ -20887,7 +20891,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/usineur/hode",
-      "issue_number": 2882
+      "issue_number": 2882,
+      "manual_setup": {
+        "help_url": "https://github.com/usineur/hode/tree/912594e84cee8bcb4075e19520fed7c61dc9a078",
+        "steps": [
+          {
+            "title": "Prepare a coherent desktop Heart of Darkness copy upstream",
+            "instruction": "Use a permitted, already working native desktop hode build with your own supported Windows Heart of Darkness data: hod.paf, setup.dat and the matching *_hod.lvl, *_hod.sss and *_hod.mst files. Keep the complete same-edition tree. The selected source’s RELEASES.yaml records specific French/German/Italian/Japanese Win32 sets and separate demo/promotion/PlayStation tuples; those are not interchangeable or evidence for every retail patch. Observed official Switch/Vita binaries are not desktop packages. Complete any upstream desktop build outside Portcove; no compiler or converter is run here."
+          },
+          {
+            "title": "Select the actual desktop player and paths",
+            "instruction": "Select the prepared native hode player for the current host, not hode.nro, hode.vpk, a setup script or original-game executable. The selected desktop Makefile produces hode; an actual Windows build must be prepared upstream rather than inferred from console assets. Keep its established working directory and literal --datapath=ABS and --savepath=ABS options if configured; defaults use the working directory."
+          },
+          {
+            "title": "Retain progress and the creating data roots",
+            "instruction": "Keep hode.ini in the creating working directory, setup.cfg and screenshot-*.bmp in the effective save path, complete originals, runtime dependencies, custom and unknown files. The source writes setup.cfg through that selected save path; a relative save path depends on the creating working directory. Keep compatible old runtime and saves; no backward-save or full-campaign observation is claimed."
+          },
+          {
+            "title": "Review the completed player and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          },
+          {
+            "title": "Retain upstream replacement and external ownership",
+            "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+          "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "heretic-crispy-doom-family",
@@ -24757,7 +24790,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/1oom-fork/1oom",
-      "issue_number": 2883
+      "issue_number": 2883,
+      "manual_setup": {
+        "help_url": "https://github.com/1oom-fork/1oom/tree/a956a6f73f75e6cd26b701afcd04bd4973650520",
+        "steps": [
+          {
+            "title": "Choose the actual vanilla RC5 lineage",
+            "instruction": "Use a permitted completed Windows copy of the reviewed 1oom vanilla-RC5 beta/testing package and your own Master of Orion version 1.3 LBX data. The exact tag and current master-vanilla-beta-RC5 branch resolve to a956a6f73f75e6cd26b701afcd04bd4973650520. The discontinued default branch/latest v1.11.9 and the separately referenced newer SourceCraft project do not inherit this guide. A provider prerelease flag of false does not remove the beta/RC/testing scope. No version pin or automatic managed replacement of this lineage is offered."
+          },
+          {
+            "title": "Select the native graphical player",
+            "instruction": "Select the prepared graphical 1oom_classic_sdl2.exe (or the actual prepared SDL1 graphical variant), keeping the complete companion DLLs and chosen MOO data directory. Do not select lbxview, saveconv, the command-line demonstration, a DOS executable or emulator. Retain established -data ABS and -user ABS as separate literal arguments when configured; they select distinct data and user roots."
+          },
+          {
+            "title": "Preserve original-format slots and configuration",
+            "instruction": "Preserve the whole creating runtime, all LBX originals, CONFIG.MOO and every SAVE*.GAM or 1oom_save*.bin slot in the actual user root. Selected Windows source defaults that root to the working directory, not an invented literal User subfolder; -user can redirect it. Original-format saves are enabled by default and use the original MOO slot names, so running inside the original installation can overwrite those existing slots. Keep an independent recoverable copy before running/changing engines. Source support for a format is not observed backward compatibility or permission to migrate saves."
+          },
+          {
+            "title": "Review the completed player and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          },
+          {
+            "title": "Retain upstream replacement and external ownership",
+            "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+          "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "maxiboostport-johnnygentoo-mobile-suit-gundam-extreme-vs-maxiboost-on",
@@ -27466,7 +27528,36 @@
         "game_slug": "need-for-speed-ii-special-edition",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2887
+      "issue_number": 2887,
+      "manual_setup": {
+        "help_url": "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+        "steps": [
+          {
+            "title": "Prepare the NFS II SE implementation upstream",
+            "instruction": "Use a permitted completed native Windows NFS Recompiled copy with your own complete Need for Speed II Special Edition installation and CD Fedata/GameData content. The reviewed v1.0.1 public ZIP contains distinct AMD64 nfs2se.exe and nfs3hp.exe players; choose the NFS II SE player. The original nfs2sen.exe and eacsnd.dll are source-generation inputs, not the native player to attach. No original acquisition or compiler/helper is run here. Upstream calls this a toy project."
+          },
+          {
+            "title": "Keep explicit installation and CD root arguments",
+            "instruction": "Select native nfs2se.exe with its complete companions and established working directory. Retain the absolute original installation path as one literal argument, and a second absolute CD-data path when separate; one argument uses the same root for both. With no arguments the selected entry derives roots from argv[0], so do not assume an arbitrary working directory selects the right data. NFS III and the separate NFSIISE wrapper are different implementations."
+          },
+          {
+            "title": "Preserve every mapped writable root",
+            "instruction": "Keep the complete creating runtime, writable original installation, CD roots, configuration, saves, replays, mods/custom and unknown files. The shared file backend maps relative Win32 paths to the installation and drive-letter paths to the CD root, including writes/removal. Preserve both actual roots and compatible old copy before upstream changes; a registry stub is not proof of a registry-based save backup. Static Windows headers do not qualify the separately documented Linux build."
+          },
+          {
+            "title": "Review the completed player and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          },
+          {
+            "title": "Retain upstream replacement and external ownership",
+            "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+          "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "need-for-speed-ii-special-edition-nfsiise",
@@ -27485,7 +27576,36 @@
         "game_slug": "need-for-speed-ii-special-edition",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2886
+      "issue_number": 2886,
+      "manual_setup": {
+        "help_url": "https://github.com/zaps166/NFSIISE/tree/6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+        "steps": [
+          {
+            "title": "Prepare the exact Special Edition wrapper upstream",
+            "instruction": "Use a permitted complete Windows x86 NFSIISE v1.4.0-style copy with its matching 32-bit SDL2/OpenGL dependencies and your own Need for Speed II Special Edition fedata and gamedata trees. Ordinary Need for Speed II and NFS III are different inputs. The project combines retained original code with a modern wrapper; it is not a generic 64-bit rebuild. Complete upstream setup first; the selected release has no independently published accepted digest for managed install."
+          },
+          {
+            "title": "Select the native player and creating directory",
+            "instruction": "Select the prepared nfs2se.exe with the full Need For Speed II SE directory as working directory, retaining runtime files, nfs2se.conf.template and established options. A clean/open-config batch file or source-generation/compiler helper is not the player. Selecting one executable does not reconstruct an installer’s registry or dependency changes."
+          },
+          {
+            "title": "Retain both profile and original fallback data",
+            "instruction": "Keep the entire creating game directory, original fedata/gamedata, replay and custom/unknown files, plus the effective current account AppData/.nfs2se directory: config, save, stats including stats/prh, tmptrk and nfs2se.conf. The source copies the template on first use; only a usable profile config activates remapping of those original Win32 paths. Without it, writes can remain in the creating game paths. Preserve both effective locations and compatible old engine before changes; exact language/patch and real-save compatibility remain unobserved."
+          },
+          {
+            "title": "Review the completed player and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          },
+          {
+            "title": "Retain upstream replacement and external ownership",
+            "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+          "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "need-for-speed-iii-hot-pursuit-nfs-recompiled",
@@ -38472,7 +38592,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/swfans/syndwarsfx",
-      "issue_number": 2715
+      "issue_number": 2715,
+      "manual_setup": {
+        "help_url": "https://github.com/swfans/syndwarsfx/tree/a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+        "steps": [
+          {
+            "title": "Complete the supported PC Syndicate Wars setup upstream",
+            "instruction": "Use a permitted complete Windows Syndicate Wars Fan Expansion/Port copy with your own supported PC CD/digital data and required upstream graphics, sound and level packages. The reviewed setup distinguishes the tested European multilingual/US data, German-language disc requirements and unsupported Asian fonts; retain the chosen language and edition. Windows installer/setup archives and patch archives are different. Finish all upstream original-data installation, dependencies and preparation first; no installer, helper or original-data fetch is run here."
+          },
+          {
+            "title": "Select the player and established launch coordinates",
+            "instruction": "Select the actual native Windows swars.exe with its completed runtime/data directory and supported established arguments; /g is the documented Windows-style normal-start option and is no longer mandatory. Do not select an installer or setup archive. Keep the actual 32-bit SDL/OpenAL/render dependencies for that copy; a 64-bit OS alone does not replace those components."
+          },
+          {
+            "title": "Preserve user, installation and CD locations separately",
+            "instruction": "Keep the whole creating runtime/data/CD setup, config.ini, conf/, qdata/savegame, qdata/screenshots, all user/profile INI files, saves, replays, custom and unknown files. Source resolves installation data from the actual registry-backed setup or working-directory fallback. On Windows it uses AppData/Syndicate Wars for user paths only when that installation lookup and AppData succeed; otherwise it falls back to the working directory. The mapped save/screenshot roots follow that choice. Preserve every actual effective root and compatible old runtime before upstream changes; no profile/registry migration or backward-save qualification is offered."
+          },
+          {
+            "title": "Review the completed player and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          },
+          {
+            "title": "Retain upstream replacement and external ownership",
+            "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+          "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "syphon-filter-2-syphon-filter-2-recompiled",
@@ -39773,7 +39922,36 @@
         "game_slug": "the-operative-no-one-lives-forever",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2902
+      "issue_number": 2902,
+      "manual_setup": {
+        "help_url": "https://github.com/nolffan/nolfsrc/tree/6f61ddcfe33ff374f984264ff357a74a81291ffe",
+        "steps": [
+          {
+            "title": "Prepare the clean public modern copy with your own GOTY discs",
+            "instruction": "Use an already permitted complete native Windows NOLF Modern copy prepared from the clean public archive in a new empty directory with your own two European Game of the Year Edition disc images, corresponding to the documented redump discs 42823 and 42561. Complete upstream installation/checksum verification outside Portcove. The original-data-fetching rez submodule workflow is excluded. Other regions/editions do not inherit this setup. Nightly builds and alpha releases must be chosen deliberately; no original image, installer, compiler or game helper is run here."
+          },
+          {
+            "title": "Select the direct player that waits for the game",
+            "instruction": "Select normal NOLF.exe in the completed Windows game directory, keeping all companion binaries and established settings. The selected modern direct entry sets its working directory to its own folder and waits for its lithtech.exe child, retaining that process lifetime. NOLFLauncher.exe is the separate configuration launcher; do not substitute a setup batch file or a launcher that merely hands off and exits. Linux/macOS paths use Wine/Proton/CrossOver and are not native platform qualifications here."
+          },
+          {
+            "title": "Keep the whole creating installation and permitted components",
+            "instruction": "Retain Save/, autoexec.cfg, launcher.ini, nolfcmds.txt, logs including modern.log/nolfsrc.log, captures, custom files and the complete old installation. Upstream says each new archive is a whole installation, not an overlay patch; preserve the old copy and deliberately copy compatible saves into a separately completed new copy before relinking. Monolith/GameSpy, OpenMiles GPL, Bink/FFmpeg LGPL and DirectMusic have distinct terms; the upstream license notes retain distribution-compatibility questions. A public download or engine-code license is not a whole-package/IP grant, and this guide does not infer a blanket ban on an independently permitted copy."
+          },
+          {
+            "title": "Review the completed player and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          },
+          {
+            "title": "Retain upstream replacement and external ownership",
+            "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+          "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "the-order-1886-pc-port-igoraugustohh-the-order-1886",

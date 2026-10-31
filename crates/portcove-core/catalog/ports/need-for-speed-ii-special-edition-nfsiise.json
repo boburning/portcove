@@ -17,7 +17,36 @@
       "game_slug": "need-for-speed-ii-special-edition",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2886
+    "issue_number": 2886,
+    "manual_setup": {
+      "help_url": "https://github.com/zaps166/NFSIISE/tree/6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+      "steps": [
+        {
+          "title": "Prepare the exact Special Edition wrapper upstream",
+          "instruction": "Use a permitted complete Windows x86 NFSIISE v1.4.0-style copy with its matching 32-bit SDL2/OpenGL dependencies and your own Need for Speed II Special Edition fedata and gamedata trees. Ordinary Need for Speed II and NFS III are different inputs. The project combines retained original code with a modern wrapper; it is not a generic 64-bit rebuild. Complete upstream setup first; the selected release has no independently published accepted digest for managed install."
+        },
+        {
+          "title": "Select the native player and creating directory",
+          "instruction": "Select the prepared nfs2se.exe with the full Need For Speed II SE directory as working directory, retaining runtime files, nfs2se.conf.template and established options. A clean/open-config batch file or source-generation/compiler helper is not the player. Selecting one executable does not reconstruct an installer’s registry or dependency changes."
+        },
+        {
+          "title": "Retain both profile and original fallback data",
+          "instruction": "Keep the entire creating game directory, original fedata/gamedata, replay and custom/unknown files, plus the effective current account AppData/.nfs2se directory: config, save, stats including stats/prh, tmptrk and nfs2se.conf. The source copies the template on first use; only a usable profile config activates remapping of those original Win32 paths. Without it, writes can remain in the creating game paths. Preserve both effective locations and compatible old engine before changes; exact language/patch and real-save compatibility remain unobserved."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
