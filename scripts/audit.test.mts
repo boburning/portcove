@@ -216,7 +216,6 @@ void test("a clean local-policy transition keeps fresh contracts and complete ho
 void test("maintained hosted routing delegates unchanged suites only with exhaustive qualification", () => {
   for (const pathname of [
     "scripts/validation-plan.mts",
-    "scripts/release-package-policy.mts",
     "scripts/validation-plan.test.mts",
     "scripts/select-ci-plan.mts",
     "scripts/select-ci-plan.test.mts",
@@ -299,6 +298,7 @@ void test("candidate coverage constants cannot authorize their own reduced trans
     "scripts/postmerge-ci.mts",
     "scripts/workflow-provenance.mts",
     "scripts/validation-plan.mts",
+    "scripts/release-package-policy.mts",
     "scripts/release-native-source-contract.mts",
     "scripts/windows-helper-checks.mts",
     "scripts/node-test-suites.json",
