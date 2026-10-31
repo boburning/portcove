@@ -579,7 +579,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "native-local-artwork-picker-and-recovery",
     "Local artwork uses the native picker safely.",
     {
-      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      prerequisites: ["desktop", "owned-fixture", "native-dialog", "install-fixture"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-artwork-test.mts",
     },

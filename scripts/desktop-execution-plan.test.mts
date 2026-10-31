@@ -16,7 +16,12 @@ import { fileURLToPath } from "node:url";
 import { stripTypeScriptTypes } from "node:module";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { fileIdentity } from "./development-evidence.mts";
-import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-execution-plan.mts";
+import {
+  resolveDesktopHarnessSelection,
+  parseDesktopHarnessOptions,
+  planDesktopExecution,
+  nativeTransportReceiptSources,
+} from "./desktop-execution-plan.mts";
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
@@ -393,9 +398,16 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
     assert.ok(!selection.selected_scenarios.includes("native-update-acquisition-lifecycle"));
     assert.ok(selection.excluded_scenarios.includes("native-update-acquisition-lifecycle"));
-    assert.deepEqual(historicalSelection(selection), row.selection);
+    // Keep the frozen oracle bytes. Local artwork now explicitly receives the
+    // private fixture its running-app catalog lookup has always required.
+    const artworkFixtureAdded =
+      selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") &&
+      !row.selection.prerequisites.includes("install-fixture");
+    const expectedSelection = structuredClone(row.selection);
+    if (artworkFixtureAdded) expectedSelection.prerequisites.push("install-fixture");
+    assert.deepEqual(historicalSelection(selection), expectedSelection);
     const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
-    assert.deepEqual(historicalSelection(plan.selection), row.selection);
+    assert.deepEqual(historicalSelection(plan.selection), expectedSelection);
     // Frozen oracle retains every historical input. Registry additions and
     // deduplication affect receipt identities only, never dispatch/acceptance.
     const actualInputs = plan.receiptInputs.map((input) =>
@@ -423,6 +435,11 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
+          (artworkFixtureAdded &&
+            [
+              "apps/desktop/scripts/desktop-install-fixture.mts",
+              "apps/desktop/scripts/desktop-install-test.mts",
+            ].includes(added)) ||
           added === nativeHelperRegistryPath ||
           (added === "apps/desktop/scripts/desktop-qualification-history-test.mts" &&
             row.platform === "linux" &&
@@ -549,7 +566,9 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
     assert.deepEqual(
       plan.build.qualificationFeatures,
-      row.serialized_verify_plan.qualification_features,
+      artworkFixtureAdded
+        ? ["qualification-fixtures"]
+        : row.serialized_verify_plan.qualification_features,
     );
     assert.deepEqual(
       plan.fixtureFamilies.filter((entry) => entry.family).map((entry) => entry.family),
@@ -572,6 +591,10 @@ void test("execution planning preserves the independently reviewed pre-change or
         ...structuredClone(row.serialized_verify_plan),
         harness_deadline_ms: desktopHarnessDeadlineMs(selection),
       }; // Deliberately retained pre-change deadline owner.
+      if (artworkFixtureAdded) {
+        expected.prerequisites.push("install-fixture");
+        expected.qualification_features = ["qualification-fixtures"];
+      }
       // This prerequisite now runs before lease/build; preserve the old oracle.
       Reflect.deleteProperty(actual, "frontend_command");
       // Admission metadata is independently checked by the current runner tests.
@@ -1479,4 +1502,40 @@ void test("remaining reviewed Windows workflows use existing positive exit custo
   );
   assert.equal(combined.session.reviewedWorkflowSession, true);
   assert.equal(combined.session.cleanupName, "game-update-review");
+});
+
+void test("local artwork owns its exact private catalog fixture without enabling fixture CLI", () => {
+  const id = "native-local-artwork-picker-and-recovery";
+  const selections = [
+    resolveDesktopSelection({ scenarios: [id], platform: "win32" }),
+    resolveDesktopSelection({ profile: "artwork", platform: "win32" }),
+    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(["--artwork-only"]).values),
+  ];
+  for (const selection of selections) {
+    const plan = planDesktopExecution(selection, { platform: "win32" });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.ok(selection.prerequisites.includes("install-fixture"));
+    assert.ok(selection.prerequisites.includes("native-dialog"));
+    assert.equal(plan.fixtures.install, true);
+    assert.equal(plan.fixtures.owned, true);
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) =>
+          input.kind === "file" &&
+          input.path === "apps/desktop/scripts/desktop-install-fixture.mts",
+      ),
+    );
+    assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+    assert.deepEqual(plan.build.cliFeatures, []);
+    assert.equal(plan.session.reviewedWorkflowSession, true);
+    assert.equal(plan.session.identityBoundSession, true);
+  }
+  for (const scenarios of [["empty-library"], ["native-artwork-catalog-correction"]]) {
+    const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+      platform: "win32",
+    });
+    assert.equal(plan.fixtures.install, false);
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+  }
 });
