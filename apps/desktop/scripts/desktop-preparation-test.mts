@@ -4008,6 +4008,23 @@ export async function preparationScenarios({
     };
     const more = () => By.xpath(`//button[@data-detail-origin="library:card-more:${port.id}"]`);
     const favorite = () => By.xpath(`//button[@aria-label="Favorite ${gameIdentityLabel(port)}"]`);
+    const closeMembershipMenu = async () => {
+      // Checkbox membership intentionally keeps the modal menu open.
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () =>
+          (await browser.findElement(more()).getAttribute("aria-expanded")) === "false" &&
+          (
+            await browser.findElements(
+              By.xpath(
+                `//*[@role="menu" and @aria-label="More actions for ${gameIdentityLabel(port)}"]`,
+              ),
+            )
+          ).length === 0,
+        5_000,
+        "Collection membership menu must close before another workspace control is used",
+      );
+    };
     try {
       await browser.manage().window().setRect({ width: 1280, height: 900 });
       await libraryView();
@@ -4042,6 +4059,7 @@ export async function preparationScenarios({
         async () => (await organization()).collections[collectionId]?.port_ids.includes(port.id),
         15_000,
       );
+      await closeMembershipMenu();
       await click(favorite());
       await browser.wait(async () => (await favorites()).includes(port.id), 15_000);
       await click(By.css(`button[aria-label="Collection: ${collectionName}"]`));
@@ -4067,6 +4085,7 @@ export async function preparationScenarios({
         async () => (await organization()).collections[collectionId]?.port_ids.length === 0,
         15_000,
       );
+      await closeMembershipMenu();
       await manageCollections();
       await click(button("All games"));
       await click(
