@@ -114,6 +114,7 @@ export interface DetailActions {
   openSetupFolder?: AsyncAction;
   reviewInstall: AsyncAction;
   restoreBackup: ApplyBackupAction;
+  recoverGhostshipLegacy?: ApplyBackupAction | undefined;
   rollback: AsyncAction;
   remove: ApplyRemoval;
   setChannel: (channel: ReleaseChannel) => Promise<PortStatus | undefined>;
@@ -1021,6 +1022,7 @@ function SavesStorageGroup({
           retryRead={retryBackupRead}
           busy={busy}
           restore={actions.restoreBackup}
+          recoverGhostshipLegacy={actions.recoverGhostshipLegacy}
           remove={actions.deleteBackup}
           focusFallback={() => heading.current}
         />

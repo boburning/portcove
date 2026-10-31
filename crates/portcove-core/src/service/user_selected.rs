@@ -1298,6 +1298,8 @@ mod tests {
         ["--play", "xmvsf"]
     );
 
+    prepared_player_case!(render96_selected_native_route_519, "render96ex");
+
     prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
     prepared_player_case!(classic_pc_route_1793, "keriew-augustus");
     prepared_player_case!(classic_pc_route_1790, "elasota-aerofoil");

@@ -1273,6 +1273,19 @@ requires another review.
 Closing a review makes no backup mutation. CLI backup review and authorization keep
 their existing core implementation and machine contract.
 
+Ghostship's separately named legacy recovery review consumes Core's qualified
+snapshot plan. Ordinary backup restore does not initiate this compound operation.
+The host compares the reviewed plan before native consent, then rechecks the
+library generation and replans before obtaining Core's one-use authorization.
+Core alone creates the fresh retained-runtime derivative, switches its pointer
+and restores the qualified snapshot while preserving both existing installations
+and independent canonical/runtime safety copies. Unqualified snapshots cannot
+produce an apply action. Native decline is cancellation only for this named
+nullable command. The operation result, workspace refresh and backup-inventory
+readback retain independently attributable outcomes; failed readback cannot undo
+a committed recovery. This client path does not supply installed or protected
+acceptance or expand the existing recovery's authority.
+
 ## Installed-game removal review
 
 Desktop presents uninstall as removal of all Portcove-managed versions and lists

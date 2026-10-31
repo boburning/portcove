@@ -61,6 +61,8 @@ import type {
   ApplicationUpdateProductionTransitionResult,
   ApplicationUpdateRecoveryArea,
   ApplicationUpdateStatus,
+  GhostshipRecoveryPlan,
+  GhostshipRecoveryResult,
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
@@ -509,6 +511,14 @@ export const desktopApi = {
       portId,
       backupId,
       expectedPreview,
+      generation,
+    }),
+  planGhostshipLegacyRecovery: (backupId: string, generation: number) =>
+    invoke<GhostshipRecoveryPlan>("plan_ghostship_legacy_recovery", { backupId, generation }),
+  recoverGhostshipLegacyData: (backupId: string, expectedPlan: string, generation: number) =>
+    invoke<GhostshipRecoveryResult | null>("recover_ghostship_legacy_data", {
+      backupId,
+      expectedPlan,
       generation,
     }),
   deleteBackup: (portId: string, backupId: string, expectedPreview: string, generation: number) =>
