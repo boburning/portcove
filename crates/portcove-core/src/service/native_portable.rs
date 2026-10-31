@@ -5282,4 +5282,173 @@ mod tests {
         assert_eq!(fs::read(previous.path.join("package.txt")).unwrap(), [1]);
         assert!(second.path.join(program_name).is_file());
     }
+    // These first-party inert packages exercise retained definitions and fallback
+    // preservation. They do not run SDL, upstream setup, a player or original data.
+    async fn assert_profile_engine_progression(
+        id: &str,
+        executable: &str,
+        asset_name: &str,
+        wrapped: bool,
+        local_state: &str,
+        fault_file: Option<&str>,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let release = |version: &str, revision| {
+            let folder = if wrapped {
+                format!("engine-{version}/")
+            } else {
+                String::new()
+            };
+            let mut release = server.release_in_folder(version, revision, &folder, executable);
+            release.asset.name = asset_name.to_string();
+            release
+        };
+        let provider = Arc::new(Provider(Mutex::new(release("v1", 1))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
+        let launch = |record: &InstallRecord| {
+            let retained = service.installed_port(record).unwrap();
+            assert_eq!(serde_json::to_value(&retained).unwrap(), definition);
+            assert!(retained.source_profile.is_none());
+            assert!(retained.setup_marker.is_none());
+            let spec = crate::adapter::standard(AdapterKind::NativePortable)
+                .launch_spec(
+                    &library,
+                    &retained,
+                    Platform::WindowsX86_64,
+                    &record.path,
+                    None,
+                )
+                .unwrap();
+            assert_eq!(
+                spec.executable.file_name(),
+                Some(std::ffi::OsStr::new(executable))
+            );
+            assert_eq!(
+                spec.executable.parent(),
+                Some(spec.working_directory.as_path())
+            );
+            assert!(spec.arguments.is_empty());
+            assert!(spec.process_spec().fixed_arguments.is_empty());
+            spec.working_directory
+        };
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let first_root = launch(&first);
+        let state = first_root.join(local_state);
+        fs::create_dir_all(state.parent().unwrap()).unwrap();
+        fs::write(&state, b"synthetic local user state").unwrap();
+        *provider.0.lock().unwrap() = release("v2", 2);
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(second.version, "v2");
+        assert_ne!(first.artifact.sha256, second.artifact.sha256);
+        let second_root = launch(&second);
+        assert_eq!(
+            fs::read(second_root.join(local_state)).unwrap(),
+            b"synthetic local user state"
+        );
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        let previous_root = launch(&previous);
+        assert_eq!(
+            fs::read(previous_root.join(local_state)).unwrap(),
+            b"synthetic local user state"
+        );
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            definition
+        );
+        assert!(second_root.join(executable).is_file());
+        if let Some(name) = fault_file {
+            let preview = service.preview_removal(id).unwrap();
+            let consent = service
+                .authorize_removal(id, &preview.preview_sha256)
+                .unwrap();
+            let unknown = previous_root.join(name);
+            fs::write(&unknown, b"unclaimed fallback pilot; preserve exact bytes").unwrap();
+            let error = service
+                .update(id, None, None, true, |_| {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.presentation().presentation_key,
+                "portable_runtime_modified"
+            );
+            assert!(service.preview_removal(id).is_err());
+            let removal = service.remove(id, &consent.token).unwrap_err();
+            assert_eq!(
+                removal.presentation().presentation_key,
+                "portable_runtime_modified"
+            );
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            assert_eq!(
+                fs::read(unknown).unwrap(),
+                b"unclaimed fallback pilot; preserve exact bytes"
+            );
+            assert_eq!(
+                fs::read(previous_root.join(local_state)).unwrap(),
+                b"synthetic local user state"
+            );
+            assert_eq!(fs::read(previous_root.join("package.txt")).unwrap(), [1]);
+            assert!(previous_root.join(executable).is_file());
+            assert!(second_root.join(executable).is_file());
+        }
+    }
+
+    #[tokio::test]
+    async fn atlantis_native_managed_progression_preserves_dedicated_fallback_without_source_import()
+     {
+        assert_profile_engine_progression(
+            "atlantis-the-lost-tales-atlantis-native",
+            "atlantis-native.exe",
+            "atlantis-native-windows-x64.zip",
+            false,
+            "atlantis-native-data/games.txt",
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxw_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-openxw",
+            "OpenXW.exe",
+            "openxw-test-windows-x86_64-release.zip",
+            true,
+            "config.yaml",
+            Some("PILOT.PLT"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxvt_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+            "OpenXvT.exe",
+            "openxvt-test-windows-x86_64-release.zip",
+            true,
+            "config.yaml",
+            Some("pilot.pl2"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxwa_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-alliance-openxwa",
+            "OpenXWA.exe",
+            "openxwa-test-windows-x86_64-release.zip",
+            true,
+            "config.yaml",
+            Some("Pilot0.plt"),
+        )
+        .await;
+    }
 }

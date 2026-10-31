@@ -23473,6 +23473,51 @@
       }
     },
     {
+      "id": "atlantis-the-lost-tales-atlantis-native",
+      "name": "Atlantis: The Lost Tales (Atlantis Native)",
+      "summary": "A native engine for Atlantis: The Lost Tales using your own original game data.",
+      "project_url": "https://github.com/ripleyXLR8/atlantis-native",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ripleyXLR8/atlantis-native",
+        "asset_hints": {
+          "windows-x86-64": [
+            "atlantis-native-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "atlantis-native.exe"
+        ]
+      },
+      "persistent_paths": [
+        "atlantis-native-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, use the upstream in-process library and original-data picker with your own supported Atlantis: The Lost Tales copy: the edition-matched atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original tree and supported language/build together; GOG and supported CD editions are alternatives, not interchangeable executables. Upstream can prepare your own discs/images; no game content is downloaded by this engine operation. This offer is Atlantis I only. Normal logs, games.txt, per-build players/checkpoints/settings live under the current account’s AppData/atlantis-native; when that location is unavailable the dedicated atlantis-native-data directory is relative to the creating runtime. Core preserves that declared local directory; it does not import or back up the shared external profile or originals. Preserve all actual original/profile roots and the compatible creating engine before changes. Normal start remains in one process; adding a second engine copy does not isolate shared profiles.",
+        "original_game_title": "Atlantis: The Lost Tales",
+        "artwork": {
+          "game_id": 2209,
+          "cover_id": 471922,
+          "image_id": "coa44y",
+          "image_sha256": "4e2c467092c10bfa470dbaba2b4f9f933903085fb9ef8f74c8d7afdcf59e1660",
+          "game_slug": "atlantis-the-lost-tales",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "baldur-s-gate-ii-original-gemrb",
       "name": "Baldur's Gate II (original) (GemRB)",
       "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
@@ -33550,6 +33595,134 @@
           "warnings": [],
           "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
         }
+      }
+    },
+    {
+      "id": "star-wars-x-wing-alliance-openxwa",
+      "name": "Star Wars: X-Wing Alliance (OpenXWA)",
+      "summary": "A native engine for X-Wing Alliance using your own original game data.",
+      "project_url": "https://github.com/elyosh/OpenXWA",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elyosh/OpenXWA",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-release.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenXWA.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.yaml",
+        "config.cfg"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing Alliance GOG/Steam installation. Preserve the complete original data and package resources, shaders and DLLs. Native 64-bit engine replacement is separate from original-game patch/mod preparation. Multiplayer is not implemented by the selected upstream; no network or mod compatibility is promised. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXWA; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
+        "original_game_title": "Star Wars: X-Wing Alliance",
+        "artwork": {
+          "game_id": 169,
+          "cover_id": 106711,
+          "image_id": "co2ac7",
+          "image_sha256": "4f854c49f23fcebf0b87c3c6ea7feecd10c57769c2b3e35518122cdd6bbba40a",
+          "game_slug": "star-wars-x-wing-alliance",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "star-wars-x-wing-openxw",
+      "name": "Star Wars: X-Wing (OpenXW)",
+      "summary": "A native engine for Star Wars: X-Wing using your own original game data.",
+      "project_url": "https://github.com/elyosh/OpenXW",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elyosh/OpenXW",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-release.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenXW.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.yaml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, keep the normal in-process setup picker. Select your own complete 1994 Collector’s CD-ROM and/or 1998 Windows X-Wing installation; 1998 uses the main folder containing X-Wing Data, IVFiles and MUSIC. Combining 1994 menus/music and 1998 flight assets is optional. The separate 1993/B-Wing mode still needs 1994 or 1998 menus; it is not a substitute for either required supported installation. Built-in AdLib/OPL3 is available: optional MT-32/SC-55 ROMs and SoundFonts are not mandatory inputs. Keep all package resources, shaders and DLLs intact. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXW; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
+        "original_game_title": "Star Wars: X-Wing",
+        "artwork": {
+          "game_id": 168,
+          "cover_id": 128843,
+          "image_id": "co2rez",
+          "image_sha256": "da2c90f595b7d0d9532960cda18520fcaab4c0c59530e22f6bffc1fdbb7aafcb",
+          "game_slug": "star-wars-x-wing",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+      "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
+      "summary": "A native engine for X-Wing vs. TIE Fighter with your own Balance of Power game data.",
+      "project_url": "https://github.com/elyosh/OpenXvT",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elyosh/OpenXvT",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-release.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenXvT.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.yaml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing vs. TIE Fighter installation with its BalanceOfPower subfolder. Balance of Power is required by this implementation; the base game alone is not the offered tuple. Keep the full original root, package resources, DLLs, shaders and established control/music choices. Optional explicit setup/import arguments are upstream tools, not forced on each start. Multiplayer and save compatibility have not been qualified here. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXvT; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
+        "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power"
       }
     },
     {
