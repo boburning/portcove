@@ -1233,12 +1233,29 @@ export async function selectedSetupCompletionScenario({
       await enlargedStage("returned-selection");
       await selectPrimaryNavigation(browser, "Settings");
       await selectGameFilesSettings(browser);
+      const sourceHealthRow = `.source-health-row[data-source-profile="${owned.profiles[0]}"]`;
+      await click(
+        By.xpath(
+          `//*[@data-source-profile="${owned.profiles[0]}" and contains(@class,"source-health-row")]//button[normalize-space(.)="Check file"]`,
+        ),
+      );
+      await browser.wait(
+        async () => {
+          const resultBadges = await browser.findElements(
+            By.css(`${sourceHealthRow} .source-result`),
+          );
+          const displayed = await Promise.all(resultBadges.map((badge) => badge.isDisplayed()));
+          return displayed.some(Boolean);
+        },
+        15_000,
+        "The explicitly requested source inspection must display its actual result for axe",
+      );
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
       await captureAccessibilityReport(browser, accessibilityFile, artifacts);
       const accessibilityValue: unknown = JSON.parse(await readFile(accessibilityFile, "utf8"));
       const accessibility = object(accessibilityValue);
       assert.ok(Array.isArray(accessibility.violations) && Array.isArray(accessibility.incomplete));
-      const resultBadges = await browser.findElements(By.css(".source-result"));
+      const resultBadges = await browser.findElements(By.css(`${sourceHealthRow} .source-result`));
       const displayedBadges = await Promise.all(resultBadges.map((badge) => badge.isDisplayed()));
       assert.ok(displayedBadges.some(Boolean), "An actual source result must be displayed for axe");
       const violations: unknown[] = accessibility.violations,
