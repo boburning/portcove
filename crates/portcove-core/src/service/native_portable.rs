@@ -5222,4 +5222,64 @@ mod tests {
             b"authorized synthetic original"
         );
     }
+
+    // Inert packages exercise the actual managed definition without running the
+    // upstream original-data picker, player or any external original files.
+    #[tokio::test]
+    async fn wc1_managed_progression_keeps_supported_gui_without_core_source_inputs() {
+        let id = "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re";
+        let program_name = "wc1-modern.exe";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let release = |version: &str, revision| {
+            let mut release = server.release_in_folder(version, revision, "", program_name);
+            release.asset.name = format!("wc1-re-{version}-windows-x86_64-sdl2.zip");
+            release
+        };
+        let provider = Arc::new(Provider(Mutex::new(release("v1", 1))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
+        let assert_launch = |record: &InstallRecord| {
+            let retained = service.installed_port(record).unwrap();
+            assert_eq!(serde_json::to_value(&retained).unwrap(), definition);
+            assert!(retained.source_profile.is_none());
+            assert!(retained.persistent_paths.is_empty());
+            let spec = crate::adapter::standard(AdapterKind::NativePortable)
+                .launch_spec(
+                    &library,
+                    &retained,
+                    Platform::WindowsX86_64,
+                    &record.path,
+                    None,
+                )
+                .unwrap();
+            assert_eq!(
+                spec.executable.file_name(),
+                Some(std::ffi::OsStr::new(program_name))
+            );
+            assert_eq!(spec.working_directory, record.path);
+            assert_eq!(spec.arguments, ["--gui"]);
+            assert_eq!(spec.process_spec().fixed_arguments, ["--gui"]);
+        };
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_launch(&first);
+        *provider.0.lock().unwrap() = release("v2", 2);
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(second.version, "v2");
+        assert_ne!(first.artifact.sha256, second.artifact.sha256);
+        assert_launch(&second);
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        assert_launch(&previous);
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            definition
+        );
+        assert_eq!(fs::read(previous.path.join("package.txt")).unwrap(), [1]);
+        assert!(second.path.join(program_name).is_file());
+    }
 }
