@@ -454,6 +454,7 @@ void test("execution planning preserves the independently reviewed pre-change or
         row.platform === "win32" &&
         selection.selected_scenarios.some((id) =>
           [
+            "install-progress-cancellation",
             "native-reviewed-existing-install-copy",
             "native-library-move-invalidates-prior-reviews",
             "native-contextual-cli-handoff",
@@ -1473,6 +1474,7 @@ void test("Windows interrupted preparation uses positive exit custody without qu
 
 void test("remaining reviewed Windows workflows use existing positive exit custody", () => {
   for (const id of [
+    "install-progress-cancellation",
     "native-reviewed-existing-install-copy",
     "native-library-move-invalidates-prior-reviews",
     "native-contextual-cli-handoff",

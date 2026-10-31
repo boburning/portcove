@@ -86,6 +86,7 @@ export function planDesktopExecution(
     platform === "win32" &&
     selection.selected_scenarios.some((id) =>
       [
+        "install-progress-cancellation",
         "native-reviewed-existing-install-copy",
         "native-library-move-invalidates-prior-reviews",
         "native-contextual-cli-handoff",

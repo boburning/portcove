@@ -116,7 +116,7 @@ export async function cliHandoffScenario({
       ),
     );
     assert.equal(
-      installedStatus.last_update_check,
+      installedStatus.last_update_check ?? null,
       null,
       "The adopted handoff fixture has not checked for updates",
     );

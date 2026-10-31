@@ -418,11 +418,14 @@ export async function installScenarios({
             const record = [...document.querySelectorAll<HTMLElement>("[data-invocation-id]")].find(
               (element) => element.dataset.invocationId === id,
             );
+            const announcement = [
+              ...document.querySelectorAll<HTMLElement>(
+                "[data-invocation-announcements] [data-announcement-invocation-id]",
+              ),
+            ].find((element) => element.dataset.announcementInvocationId === id);
             return (
-              record
-                ?.querySelector('p[role="status"]')
-                ?.textContent?.trim()
-                .endsWith(": finished.") === true
+              record !== undefined &&
+              announcement?.textContent?.trim().endsWith(": finished.") === true
             );
           },
           completedInvocationId,
