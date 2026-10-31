@@ -216,6 +216,7 @@ void test("a clean local-policy transition keeps fresh contracts and complete ho
 void test("maintained hosted routing delegates unchanged suites only with exhaustive qualification", () => {
   for (const pathname of [
     "scripts/validation-plan.mts",
+    "scripts/release-package-policy.mts",
     "scripts/validation-plan.test.mts",
     "scripts/select-ci-plan.mts",
     "scripts/select-ci-plan.test.mts",
