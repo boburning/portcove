@@ -5451,4 +5451,30 @@ mod tests {
         )
         .await;
     }
+    #[tokio::test]
+    async fn gunstars_managed_progression_preserves_default_paths_without_core_rom_import() {
+        assert_profile_engine_progression(
+            "gunstar-heroes-gunstars",
+            "gunstar.exe",
+            "gunstars-test-windows-x64.zip",
+            true,
+            "states/slot1.state",
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn atomic_bomberman_managed_progression_preserves_local_free_assets_with_external_profile()
+     {
+        assert_profile_engine_progression(
+            "elraro-atomic-bomberman",
+            "atomic.exe",
+            "atomic-bomberman-modern-windows-x64.zip",
+            true,
+            "free-assets/free-assets.txt",
+            None,
+        )
+        .await;
+    }
 }
