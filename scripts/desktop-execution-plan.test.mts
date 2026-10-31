@@ -461,6 +461,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-library-layout",
             "native-staged-update-composition",
             "native-local-artwork-picker-and-recovery",
+            "native-artwork-catalog-correction",
             "appearance-restart",
             "native-workspace-refresh-recovery",
           ].includes(id),
@@ -1481,6 +1482,7 @@ void test("remaining reviewed Windows workflows use existing positive exit custo
     "native-library-layout",
     "native-staged-update-composition",
     "native-local-artwork-picker-and-recovery",
+    "native-artwork-catalog-correction",
     "appearance-restart",
     "native-workspace-refresh-recovery",
   ]) {
