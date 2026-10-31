@@ -720,29 +720,34 @@ export async function installScenarios({
     const libraryCard = await browser.wait(async () => {
       return executeBrowserScript(
         browser,
-        (portId) => {
+        (portId, expectedLabel) => {
           const card = [...document.querySelectorAll("article.port-card")].find(
             (item) =>
               item.querySelector<HTMLButtonElement>("[data-detail-game-id]")?.dataset
                 .detailGameId === portId,
           );
-          if (!card || card.querySelector(".readiness")?.textContent?.trim() !== "Ready to play")
-            return null;
+          const play = card?.querySelector<HTMLButtonElement>(".library-card-play");
+          // Ready cards with an update summary intentionally omit the duplicate
+          // readiness badge; retain exact accessible identity and launch action.
+          if (!card || card.getAttribute("aria-label") !== expectedLabel || !play) return null;
           return {
             label: card.getAttribute("aria-label"),
-            state: card.querySelector(".readiness")?.textContent?.trim(),
+            play_enabled: !play.disabled && play.getAttribute("aria-disabled") !== "true",
+            play_label: play.textContent?.trim(),
             attention: [
               ...card.querySelectorAll(".collection-state button, .collection-state p"),
             ].map((item) => item.textContent?.trim()),
           };
         },
         port.id,
+        `${gameIdentityLabel(port)}. Ready to play.`,
       );
     }, 15_000);
     assert.ok(libraryCard);
-    assert.equal(libraryCard.state, "Ready to play");
+    assert.equal(libraryCard.play_enabled, true);
+    assert.equal(libraryCard.play_label, "Play");
     assert.equal(libraryCard.label, `${gameIdentityLabel(port)}. Ready to play.`);
-    assert.ok(libraryCard.attention.includes("Review prepared update"));
+    assert.ok(libraryCard.attention.includes("Update saved for later"));
     assert.equal(
       libraryCard.attention.includes("Another update available at last check"),
       false,
@@ -750,18 +755,31 @@ export async function installScenarios({
     );
     const stagedLink = await browser.findElement(
       By.xpath(
-        `//article[.//button[@data-detail-game-id="${port.id}"]]//button[normalize-space(.)="Review prepared update"]`,
+        `//article[.//button[@data-detail-game-id="${port.id}"]]//button[normalize-space(.)="Update saved for later"]`,
       ),
     );
     await stagedLink.click();
     await browser.wait(
       async () => {
-        const section = await browser.findElement(
-          By.css(
-            `.detail-panel[data-detail-port-id="${port.id}"] section[aria-label="Apply saved update"]`,
+        const detail = await browser.findElement(
+          By.css(`.detail-panel[data-detail-port-id="${port.id}"]`),
+        );
+        const selectedVersions = await detail.findElements(
+          By.xpath(
+            './/*[@role="tab" and @aria-selected="true" and normalize-space(.)="Versions & updates"]',
           ),
         );
-        return (await section.getText()).includes(nextVersion);
+        const activation = await detail.findElements(
+          By.xpath(
+            `.//*[@role="tabpanel" and not(@hidden) and not(@inert)]//button[normalize-space(.)="Apply update · ${nextVersion}"]`,
+          ),
+        );
+        return (
+          selectedVersions.length === 1 &&
+          activation.length === 1 &&
+          (await required(activation[0]).isDisplayed()) &&
+          (await required(activation[0]).isEnabled())
+        );
       },
       5000,
       "Downloaded-update link must open the same game's saved update",
