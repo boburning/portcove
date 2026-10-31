@@ -80,6 +80,7 @@ import path from "node:path";
 import {
   revealDetailSection,
   reviewGameUpdateDisposition,
+  clickVisible,
   selectCatalogPort,
 } from "./desktop-review-controls.mts";
 import { By, Key, until } from "selenium-webdriver";
@@ -1327,7 +1328,16 @@ export async function installScenarios({
         15_000,
       );
       await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-      await click("Game updates");
+      const gameUpdates = await browser.findElement(
+        By.xpath(
+          '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="Game updates"]]',
+        ),
+      );
+      await clickVisible(browser, gameUpdates);
+      await browser.wait(
+        async () => (await gameUpdates.getAttribute("aria-selected")) === "true",
+        5_000,
+      );
       const row = await browser.wait(
         until.elementLocated(By.css(`[data-retained-update-archive-port-id="${port.id}"]`)),
         15_000,

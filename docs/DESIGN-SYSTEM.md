@@ -11,6 +11,11 @@ inline. Keep location dismisses the inline region and returns focus to its
 trigger. Cancellation is neutral and changed impact requires renewed intent.
 Other destructive reviews retain their own consent contracts.
 
+Current and reviewed output destinations summarize all existing eligibility checks.
+Raw filesystem availability cannot announce passed checks when ownership or
+validation refuses the folder. Full, unavailable and unknown results remain
+explicit; the host retains apply authorization and preimage checks.
+
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative

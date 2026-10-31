@@ -143,6 +143,7 @@ import {
   reviewControls,
   selectPrimaryNavigation,
   selectCatalogPort,
+  openCatalogFilters,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
@@ -954,7 +955,7 @@ export function assertPreparedLibrarySummary(
   }
   assert.equal(
     text.replace(/\s+/gu, " ").trim(),
-    `${installed.length} ${installed.length === 1 ? "entry" : "entries"} · On this computer`,
+    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"}`,
   );
 }
 
@@ -1154,28 +1155,14 @@ export async function preparationScenarios({
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
       Key.BACK_SPACE,
     );
-    const filters = await browser.wait(
-      until.elementLocated(By.css('[aria-label="Library filters"]')),
-      15_000,
+    await clickVisible(
+      browser,
+      await browser.findElement(
+        By.xpath(
+          '//*[@aria-label="Library quick views"]//button[text()[normalize-space(.)="All games"]]',
+        ),
+      ),
     );
-    const allButtons = await filters.findElements(
-      By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
-    );
-    let visibleAll: WebElement | undefined;
-    for (const candidate of allButtons) if (await candidate.isDisplayed()) visibleAll = candidate;
-    if (visibleAll) await clickVisible(browser, visibleAll);
-    else {
-      const { picker, list, listId } = await openReadinessOptions(filters);
-      const all = await list.findElement(
-        By.xpath('.//*[@role="option"][starts-with(normalize-space(.),"All (")]'),
-      );
-      await clickVisible(browser, all);
-      await waitReadinessClosed(picker, listId);
-    }
-    for (const favorite of await browser.findElements(
-      By.css('[data-favorites-filter][aria-pressed="true"]'),
-    ))
-      await clickVisible(browser, favorite);
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await clickVisible(browser, await browser.findElement(card));
@@ -1253,12 +1240,6 @@ export async function preparationScenarios({
     assert.equal(preparationHierarchy.disabledPlaceholder, false);
     assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
     await revealDetailSection(browser, "Manage");
-    await clickVisible(
-      browser,
-      await browser.findElement(
-        By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'),
-      ),
-    );
     await clickVisible(
       browser,
       await browser.findElement(
@@ -1566,6 +1547,12 @@ export async function preparationScenarios({
       15_000,
     );
     const headerText = await libraryHeader.getText();
+    assert.equal(
+      await executeBrowserScript(browser, () =>
+        document.querySelector(".sidebar-library small")?.textContent?.trim(),
+      ),
+      "On this computer",
+    );
     const libraryStatuses = await invoke("get_statuses");
     assert.equal(libraryStatuses.ok, true);
     assertPreparedLibrarySummary(
@@ -1576,7 +1563,14 @@ export async function preparationScenarios({
     const installedCount = transportValues("status", libraryStatuses.value).filter(
       (item) => item.active || item.external_runtime,
     ).length;
-    const libraryFilters = await browser.findElement(By.css('[aria-label="Library filters"]'));
+    const filterPanel = await openCatalogFilters(browser);
+    const advanced = await filterPanel.findElement(
+      By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
+    );
+    if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
+      await clickVisible(browser, advanced);
+    const libraryFilters = await filterPanel.findElement(By.css('[aria-label="Library filters"]'));
+    await browser.wait(until.elementIsVisible(libraryFilters), 5_000);
     const readinessButtons = await libraryFilters.findElements(
       By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
     );
@@ -1600,6 +1594,11 @@ export async function preparationScenarios({
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await waitReadinessClosed(compactReadiness.picker, compactReadiness.listId);
     }
+    await clickVisible(
+      browser,
+      await filterPanel.findElement(By.xpath('.//button[normalize-space(.)="Done"]')),
+    );
+    await browser.wait(until.stalenessOf(filterPanel), 5_000);
     const card = await browser.wait(
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
       15_000,
@@ -1689,9 +1688,9 @@ export async function preparationScenarios({
     } = cardActions;
     assert.deepEqual(cardStructure, {
       tag: "ARTICLE",
-      details: `Jak and Daxter: The Precursor Legacy Port: ${port.name}`,
+      details: `Jak and Daxter: The Precursor Legacy ${port.name}`,
       details_tag: "BUTTON",
-      details_label: `View details for Jak and Daxter: The Precursor Legacy Port: ${port.name}`,
+      details_label: `View details for Jak and Daxter: The Precursor Legacy ${port.name}`,
       details_slot: null,
       details_variant: null,
       play: "Try launch",
@@ -2288,21 +2287,19 @@ export async function preparationScenarios({
           );
           await revealDetailSection(browser, "Versions & updates");
           const facts = await executeBrowserScript(browser, () => {
-            const strip = document.querySelector(".installation-facts");
-            strip?.scrollIntoView({ block: "center", behavior: "instant" });
+            const summary = document.querySelector(".detail-version-stage");
+            if (!(summary instanceof HTMLElement)) throw new Error("Version summary is missing");
+            summary.scrollIntoView({ block: "center", behavior: "instant" });
+            const current = summary.querySelector(".detail-version-current");
             return {
-              items: [...(strip?.querySelectorAll(":scope > div") ?? [])].map((item) => [
-                item.querySelector("dt")?.textContent?.trim(),
-                item.querySelector("dd")?.textContent?.trim(),
-              ]),
-              horizontalOverflow: Boolean(strip && strip.scrollWidth > strip.clientWidth + 1),
+              version: current?.querySelector("strong")?.textContent?.trim(),
+              channel: current?.querySelector(".identity-chip")?.textContent?.trim(),
+              horizontalOverflow: summary.scrollWidth > summary.clientWidth + 1,
             };
           });
-          assert.deepEqual(facts.items, [
-            ["Installed version", readyStatus.active.version],
-            ["Release channel", "Stable"],
-            ["Installed folder", readyStatus.active.path],
-          ]);
+          assert.equal(facts.version, readyStatus.active.version);
+          assert.equal(readyStatus.active.channel, "stable");
+          assert.equal(facts.channel, "Stable");
           assert.equal(facts.horizontalOverflow, false);
           const factsScreenshot = path.join(output, `game-details-facts-${theme}-${width}.png`);
           await writeFile(factsScreenshot, await browser.takeScreenshot(), {
@@ -2310,6 +2307,34 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(factsScreenshot);
+          await revealDetailSection(browser, "Manage");
+          const installation = await browser.findElement(
+            By.xpath(
+              '//*[@data-slot="current-state-summary" and .//h3[normalize-space(.)="Managed installation"]]',
+            ),
+          );
+          const folder = await executeBrowserScript(
+            browser,
+            (summary) => {
+              summary.scrollIntoView({ block: "center", behavior: "instant" });
+              return {
+                path: summary.querySelector("p.select-text")?.textContent?.trim(),
+                horizontalOverflow: summary.scrollWidth > summary.clientWidth + 1,
+              };
+            },
+            installation,
+          );
+          assert.equal(folder.path, readyStatus.active.path);
+          assert.equal(folder.horizontalOverflow, false);
+          const folderScreenshot = path.join(
+            output,
+            `game-details-installation-folder-${theme}-${width}.png`,
+          );
+          await writeFile(folderScreenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(folderScreenshot);
           await executeBrowserScript(browser, () => {
             const workspace = document.querySelector('main[data-focus-region="workspace"]');
             const owner =
