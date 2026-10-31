@@ -12,6 +12,51 @@ import {
 } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 
+void test("Windows-only protected source proposal preserves shared controls and stays held outside effective resource policy", async () => {
+  const [production, wake, candidate] = await Promise.all(
+    ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(
+      (name) => readFile(new URL(`../.github/workflows/${name}`, import.meta.url)),
+    ),
+  );
+  const { prepareReleaseResourceAmendmentProposal: prepare } =
+    await import("./release-resource-amendment-proposal.mts");
+  const result = prepare(production!, wake!, candidate!, "initial-beta-windows-x86_64-v1");
+  const source: unknown = parse(result.proposedWorkflow.toString("utf8"));
+  assert.ok(isRecord(source) && isRecord(source.jobs));
+  const jobs = source.jobs;
+  assert.equal(jobs.native_linux, undefined);
+  assert.ok(isRecord(jobs.native_windows) && typeof jobs.native_windows.if === "string");
+  assert.match(jobs.native_windows.if, /false &&/);
+  assert.match(jobs.native_windows.if, /initial-beta-windows-x86_64-v1/);
+  assert.ok(isRecord(jobs.release_publication) && Array.isArray(jobs.release_publication.needs));
+  assert.ok(jobs.release_publication.needs.includes("native_windows"));
+  assert.ok(!jobs.release_publication.needs.includes("native_linux"));
+  assert.match(String(jobs.release_publication.if), /needs.native_windows.result == 'success'/);
+  assert.doesNotMatch(String(jobs.release_publication.if), /needs.native_linux/);
+  for (const shared of [
+    "tool_bootstrap",
+    "attest",
+    "payload_signing",
+    "protection_observation",
+    "tuf_timestamp",
+    "site_publication",
+    "catalog_timestamp",
+  ])
+    assert.ok(isRecord(jobs[shared]), shared);
+  assert.equal(result.proposal.authority, "none");
+  assert.equal(result.proposal.status, "PROPOSAL ONLY; NOT RATIFIED");
+  assert.equal(result.proposal.effective_policy_digest, slice4CapacityResourceDigest);
+  assert.equal(result.proposal.observation.accounting.application, 140);
+  assert.equal(result.proposal.observation.accounting.catalog_alternative, 40);
+  assert.equal(result.proposal.observation.accounting.policy_envelope, 100);
+  assert.equal(result.proposal.observation.policy_matches_workflow, false);
+  assert.equal(
+    prepare(production!, wake!, candidate!).proposal.observation.accounting.application,
+    165,
+  );
+  assert.throws(() => prepare(production!, wake!, candidate!, "windows"));
+});
+
 void test("resource observations reconcile current purposes and keep provider, billing and measured gaps separate", async () => {
   const [production, wake, candidate] = await Promise.all(
     ["application-update-production.yml", "application-update-wake.yml", "release.yml"].map(

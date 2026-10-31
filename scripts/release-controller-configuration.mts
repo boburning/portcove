@@ -1,3 +1,4 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Closed fixed-DAG locator serialization. Every result is inert routing data;
  * existing consumers independently authenticate artifacts, jobs and authority. */
 import { isRecord } from "./runtime-values.mts";
@@ -98,11 +99,12 @@ function contextLocator(raw: unknown, fixed: Fixed) {
     throw new Error("distinct context attestation required");
   return value;
 }
-function nativeLocators(raw: unknown) {
+function nativeLocators(raw: unknown, profile: unknown) {
+  const platforms = nativePlatformsForReleaseProfile(profile);
   // The named actual consumers resolve this automatic marker from their
   // authenticated source tuple; it never imports a positive native result.
   if (raw === null) return null;
-  if (!Array.isArray(raw) || raw.length !== 2)
+  if (!Array.isArray(raw) || raw.length !== platforms.length)
     throw new Error("two fixed native locators required");
   const values: unknown[] = raw;
   const seen = new Set<string>(),
@@ -111,7 +113,7 @@ function nativeLocators(raw: unknown) {
     if (
       !isRecord(entry) ||
       Object.keys(entry).sort().join(",") !== "check_id,invocation_id,platform_label" ||
-      !["windows-x86_64", "linux-x86_64"].includes(String(entry.platform_label)) ||
+      !platforms.some((platform) => platform === entry.platform_label) ||
       typeof entry.check_id !== "number" ||
       !Number.isSafeInteger(entry.check_id) ||
       entry.check_id < 1 ||
@@ -258,7 +260,10 @@ export function prepareFixedControllerConfiguration(input: {
     return {
       configuration: admission,
       tools,
-      native_locators: nativeLocators(input.native_locators),
+      native_locators: nativeLocators(
+        input.native_locators,
+        admission.release_profile ?? "initial-beta-win-linux",
+      ),
     };
   const phase = operation === "payload" ? "payload" : operation;
   const profile = releaseControlPhaseProfile(phase);
@@ -318,7 +323,10 @@ export function prepareFixedControllerConfiguration(input: {
       },
       signer_identity: identity,
       tools,
-      native_locators: nativeLocators(input.native_locators),
+      native_locators: nativeLocators(
+        input.native_locators,
+        admission.release_profile ?? "initial-beta-win-linux",
+      ),
     };
   if (coordinated.mode !== "release" && coordinated.mode !== "metadata")
     throw new Error("fixed coordinator mode unavailable");
@@ -382,7 +390,10 @@ export function prepareFixedControllerConfiguration(input: {
       configuration: {
         admission_configuration: admission,
         aggregate: aggregate(),
-        native_locators: nativeLocators(input.native_locators),
+        native_locators: nativeLocators(
+          input.native_locators,
+          admission.release_profile ?? "initial-beta-win-linux",
+        ),
       },
       context,
       identity,

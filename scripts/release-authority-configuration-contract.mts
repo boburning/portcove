@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Closed configuration/source contracts only. No environment reads or live controller execution. */
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -348,8 +349,9 @@ export function inspectFixedJobJournalAuthorities(raw: unknown) {
   };
 }
 
-function inspectSelectedHostedNative(raw: unknown) {
-  exact(raw, [...platforms].sort().join(","));
+function inspectSelectedHostedNative(raw: unknown, profile: unknown = "initial-beta-win-linux") {
+  const selected = nativePlatformsForReleaseProfile(profile);
+  exact(raw, [...selected].sort().join(","));
   const inspectPlatform = (platform: (typeof platforms)[number]) => {
     const value = raw[platform];
     exact(value, "compatibility,engine,minimum_platform,producer");
@@ -386,7 +388,7 @@ function inspectSelectedHostedNative(raw: unknown) {
   };
   return {
     "windows-x86_64": inspectPlatform("windows-x86_64"),
-    "linux-x86_64": inspectPlatform("linux-x86_64"),
+    ...(selected.length === 2 ? { "linux-x86_64": inspectPlatform("linux-x86_64") } : {}),
   };
 }
 
@@ -413,6 +415,7 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
             "hosted_native",
             "native_prepublication_profile",
             "publication",
+            ...(Object.hasOwn(value, "release_profile") ? ["release_profile"] : []),
             ...(Object.hasOwn(value, "linux_risk_profile") ? ["linux_risk_profile"] : []),
           ]
         : ["catalog"]),
@@ -429,6 +432,13 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
   const journal = inspectFixedJobJournalAuthorities(value.journal);
   const common = { schema_version: 4 as const, kind: "two-app-fixed-jobs-v1" as const, journal };
   if (application) {
+    if (
+      Object.hasOwn(value, "release_profile") &&
+      value.release_profile !== "initial-beta-windows-x86_64-v1"
+    )
+      throw new Error("selected application release profile differs");
+    if (value.release_profile !== undefined && value.linux_risk_profile !== undefined)
+      throw new Error("Windows-only application profile cannot select Linux publication risk");
     if (value.native_prepublication_profile !== nativePrepublicationProfile)
       throw new Error("selected native prepublication profile differs");
     const publication = inspectPublicationAuthorities(value.publication, 2);
@@ -439,7 +449,10 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
       purpose: "application" as const,
       publication,
       native_prepublication_profile: nativePrepublicationProfile,
-      hosted_native: inspectSelectedHostedNative(value.hosted_native),
+      ...(value.release_profile === undefined
+        ? {}
+        : { release_profile: "initial-beta-windows-x86_64-v1" as const }),
+      hosted_native: inspectSelectedHostedNative(value.hosted_native, value.release_profile),
       ...(value.linux_risk_profile === undefined
         ? {}
         : {
@@ -474,6 +487,29 @@ export function inspectBoundSelectedPublicationAuthorities(
     configuration_sha256,
     journal_configuration_sha256: releaseCanonicalDigest(configuration.journal),
   };
+}
+
+/** Exact profile from the independently source-bound authority record. Legacy
+ * records retain their historical platform pair; payloads cannot select it. */
+export function applicationReleaseProfile(raw: unknown) {
+  if (isRecord(raw) && raw.schema_version === 4) {
+    const selected = inspectSelectedPublicationAuthorityConfiguration(raw);
+    if (selected.purpose !== "application") throw new Error("application profile source required");
+    return selected.release_profile ?? "initial-beta-win-linux";
+  }
+  inspectReleaseAuthorityConfiguration(raw);
+  return "initial-beta-win-linux" as const;
+}
+
+export function selectedHostedNativePlatform(
+  configuration: ReturnType<typeof inspectSelectedPublicationAuthorityConfiguration>,
+  platform: (typeof platforms)[number],
+) {
+  if (configuration.purpose !== "application")
+    throw new Error("application native profile required");
+  const selected = configuration.hosted_native[platform];
+  if (!selected) throw new Error("native platform is outside ratified application release profile");
+  return selected;
 }
 
 function boundInputRoles(

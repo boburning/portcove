@@ -320,7 +320,7 @@ void test("manual rehearsal verifies every finalized checksum without release wr
 void test("tag releases attest exact final bytes and the SBOM before draft mutation", () => {
   assert.equal(
     workflowData.jobs.attest?.if,
-    "${{ !inputs.report_only_repair && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')) }}",
+    "${{ !inputs.report_only_repair && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1'))) }}",
   );
   needs("attest", ["identity", "assemble"]);
   assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 3);
@@ -331,7 +331,7 @@ void test("tag releases attest exact final bytes and the SBOM before draft mutat
   );
   assert.equal(
     compilerAttest?.if,
-    "needs.identity.outputs.release_profile == 'initial-beta-win-linux'",
+    "(needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')",
   );
   assert.match(
     attestSection,

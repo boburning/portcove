@@ -1,3 +1,7 @@
+import {
+  nativePlatformsForReleaseProfile,
+  type ReleaseProfile,
+} from "../release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -17,8 +21,9 @@ const json = (value: unknown) => Buffer.from(`${JSON.stringify(value, null, 2)}\
 export async function releasePublicBuildProvenanceFixture(
   t: test.TestContext,
   singleOwner = false,
+  profile: Exclude<ReleaseProfile, "full"> = "initial-beta-win-linux",
 ) {
-  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const f = await trustedAssemblyFixture(t, profile);
   const configurationRoot = path.join(f.root, "public-configuration");
   await mkdir(configurationRoot);
   const role = { keyids: ["fixture"], threshold: 1 };
@@ -86,7 +91,7 @@ export async function releasePublicBuildProvenanceFixture(
   const publicZip = () =>
     createAuditZip([...publicFiles].map(([name, bytes]) => [name, bytes, { descriptor: true }]));
   const blobs = new Map<number, Buffer>();
-  const archives = ["windows-x86_64", "linux-x86_64"].map((platform, i) => {
+  const archives = nativePlatformsForReleaseProfile(profile).map((platform, i) => {
     const bytes = createAuditZip(
       f.request.files
         .filter((file) => file.platform_label === platform)
@@ -99,7 +104,11 @@ export async function releasePublicBuildProvenanceFixture(
     blobs.set(i + 1, bytes);
     return { platform, artifact_id: i + 1, bytes: bytes.length, sha256: hash(bytes) };
   });
-  const publicArtifacts = ["linux-x86_64", "windows-x86_64"].map((platform, i) => {
+  const publicArtifacts = (
+    profile === "initial-beta-windows-x86_64-v1"
+      ? ["windows-x86_64"]
+      : ["linux-x86_64", "windows-x86_64"]
+  ).map((platform, i) => {
     const bytes = publicZip();
     blobs.set(10 + i, bytes);
     return { platform, artifact_id: 10 + i, bytes: bytes.length, sha256: hash(bytes) };
@@ -171,7 +180,7 @@ export async function releasePublicBuildProvenanceFixture(
       else if (route === "/actions/runs/12345/attempts/1/jobs") body = { total_count: 0, jobs: [] };
       else if (route === "/actions/runs/12345/artifacts") {
         state.reads++;
-        body = { total_count: 4, artifacts: providerArtifacts() };
+        body = { total_count: providerArtifacts().length, artifacts: providerArtifacts() };
       } else throw new Error(`unexpected provenance fixture route ${route}`);
       return { status: 200, headers: new Map<string, string>(), body };
     },

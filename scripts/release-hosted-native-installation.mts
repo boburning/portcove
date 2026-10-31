@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Original hosted parent only. JSON installation records grant no execution,
  * issuer, candidate or acceptance authority. Existing partial state never retries. */
 import assert from "node:assert/strict";
@@ -47,7 +48,7 @@ export async function prepareActualHostedLinuxInstallation(
   assert.equal(tools.identity.controller_ref, parent.producer.controller_ref);
   assert.equal(String(tools.identity.run_id), String(parent.producer.run_id));
   assert.equal(tools.identity.run_attempt, parent.producer.run_attempt);
-  const selected = parent.configuration.hosted_native["linux-x86_64"].producer;
+  const selected = selectedHostedNativePlatform(parent.configuration, "linux-x86_64").producer;
   const nativeSource = path.join(workspace, "native-source");
   const harness = path.join(nativeSource, selected.harness.path);
   let sourceCustody: ReturnType<typeof inspectNativeRuntimeCustody> | undefined;

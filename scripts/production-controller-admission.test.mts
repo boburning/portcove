@@ -30,6 +30,63 @@ import {
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
+  applicationReleaseProfile,
+  selectedHostedNativePlatform,
+} from "./release-authority-configuration-contract.mts";
+
+void test("Windows application authority binds its exact selected native set and cannot reuse broader ratification", () => {
+  const broad = selectedPublicationAuthoritiesFixture("application");
+  assert.ok(broad.purpose === "application");
+  const proposal = {
+    ...broad,
+    release_profile: "initial-beta-windows-x86_64-v1",
+    hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
+  };
+  const selected = inspectSelectedPublicationAuthorityConfiguration(proposal);
+  assert.equal(applicationReleaseProfile(selected), "initial-beta-windows-x86_64-v1");
+  assert.equal(applicationReleaseProfile(broad), "initial-beta-win-linux");
+  assert.deepEqual(
+    selectedHostedNativePlatform(selected, "windows-x86_64"),
+    broad.hosted_native["windows-x86_64"],
+  );
+  assert.throws(() => selectedHostedNativePlatform(selected, "linux-x86_64"), /outside ratified/);
+  assert.throws(() =>
+    inspectSelectedPublicationAuthorityConfiguration({
+      ...proposal,
+      hosted_native: broad.hosted_native,
+    }),
+  );
+  assert.throws(() =>
+    inspectSelectedPublicationAuthorityConfiguration({ ...proposal, hosted_native: {} }),
+  );
+  assert.throws(() =>
+    inspectSelectedPublicationAuthorityConfiguration({
+      ...proposal,
+      release_profile: "initial-beta-windows",
+    }),
+  );
+  assert.throws(() =>
+    inspectSelectedPublicationAuthorityConfiguration({ ...proposal, linux_risk_profile: {} }),
+  );
+  const source = {
+    mode: "bounded-application-release",
+    authority_configuration_sha256: releaseCanonicalDigest(broad),
+    grant_sha256: "a".repeat(64),
+  };
+  assert.throws(
+    () => inspectBoundSelectedPublicationAuthorities(selected, source, "application"),
+    /ratification/,
+  );
+  assert.deepEqual(
+    inspectBoundSelectedPublicationAuthorities(
+      selected,
+      { ...source, authority_configuration_sha256: releaseCanonicalDigest(selected) },
+      "application",
+    ).configuration,
+    selected,
+  );
+});
+import {
   inspectReleaseAuthorityConfiguration,
   requireControllerJobSourceConfiguration,
   requireFixedControllerJobSourceConfiguration,

@@ -1,3 +1,4 @@
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Exact public record-set association for the existing owned publisher. This
  * is not a generic receipt importer: actual preparation below requires private
  * producer, tool and settled-publication custody. */
@@ -45,7 +46,7 @@ export async function inspectPublicationRecordAssociation(
     facts = rawManifest.facts;
   const { accepted, policy, labels } = await inspectTrustedAssemblyInput(rawFacts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
     binding.version !== accepted.version ||
     binding.source_commit !== accepted.source_commit ||
     binding.source_tree !== accepted.source_tree ||

@@ -1,3 +1,4 @@
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, mkdir, mkdtemp, open, readFile } from "node:fs/promises";
@@ -46,7 +47,7 @@ function request(raw: unknown) {
         Object.keys(raw).sort().join(",") ===
           "files,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version") ||
       (raw.schema_version === 3 &&
-        raw.release_profile === "initial-beta-win-linux" &&
+        isInitialBetaReleaseProfile(raw.release_profile) &&
         Object.keys(raw).sort().join(",") ===
           "files,public_build_inputs,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version")
     ) ||
@@ -62,6 +63,8 @@ function request(raw: unknown) {
     raw.files.length > 64
   )
     throw new Error("assembly input schema or count exceeds its bound");
+  if (raw.release_profile === "initial-beta-windows-x86_64-v1" && raw.schema_version !== 3)
+    throw new Error("Windows initial beta requires independently bound public build inputs");
   hex(raw.source_commit, 40);
   hex(raw.source_tree, 40);
   const files: InputFile[] = [];

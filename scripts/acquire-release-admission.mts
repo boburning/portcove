@@ -1,3 +1,5 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import {
   createReleasePublicationReader,
   peelReleaseReference,
@@ -261,7 +263,7 @@ function configuration(raw: unknown) {
       (value.schema_version === 2 &&
         Object.keys(value).sort().join(",") === "namespace,release_profile,schema_version") ||
       (value.schema_version === 3 &&
-        value.release_profile === "initial-beta-win-linux" &&
+        isInitialBetaReleaseProfile(value.release_profile) &&
         Object.keys(value).sort().join(",") ===
           "namespace,public_build_inputs,release_profile,schema_version")
     ) ||
@@ -270,6 +272,8 @@ function configuration(raw: unknown) {
     value.namespace.length > 64
   )
     throw new Error("admission needs separately ratified coordinator configuration");
+  if (value.release_profile === "initial-beta-windows-x86_64-v1" && value.schema_version !== 3)
+    throw new Error("Windows initial beta requires independently bound public build inputs");
   return {
     schema_version: value.schema_version,
     namespace: value.namespace,
@@ -782,7 +786,7 @@ export async function acquireReleaseAdmission(
           download: options.download,
         })
       : null;
-    if (config.release_profile === "initial-beta-win-linux" && !publicBinding)
+    if (isInitialBetaReleaseProfile(config.release_profile) && !publicBinding)
       holds.add("ratified-public-build-inputs-unavailable");
     if (
       publicBinding?.artifacts.some((item) =>
@@ -1447,7 +1451,8 @@ async function acquireBuildingEligibility(
   const configured = configuration(capturedConfiguration);
   if (
     configured.namespace !== authorities.namespace ||
-    configured.release_profile !== "initial-beta-win-linux"
+    configured.release_profile !== applicationReleaseProfile(authorities.configuration) ||
+    !isInitialBetaReleaseProfile(configured.release_profile)
   )
     throw new Error(
       "qualifying source requires the actual ratified namespace and selected package profile",

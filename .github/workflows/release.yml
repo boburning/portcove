@@ -10,7 +10,7 @@ on:
         description: Trusted declared distribution inventory.
         type: choice
         default: full
-        options: [full, initial-beta-win-linux]
+        options: [full, initial-beta-win-linux, initial-beta-windows-x86_64-v1]
       report_only_repair:
         description: Restrict this invocation to an existing journal-bound report repair.
         type: boolean
@@ -65,7 +65,7 @@ jobs:
           PORTCOVE_RELEASE_AUTHORITIES: ${{ vars.PORTCOVE_RELEASE_AUTHORITIES }}
         run: node scripts/release-report-repair-identity.mts
       - name: Bind separately ratified public application build inputs
-        if: steps.build-plan.outputs.profile == 'initial-beta-win-linux'
+        if: (steps.build-plan.outputs.profile == 'initial-beta-win-linux' || steps.build-plan.outputs.profile == 'initial-beta-windows-x86_64-v1')
         id: public-input-identity
         env:
           PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION: ${{ vars.PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION }}
@@ -185,7 +185,7 @@ jobs:
   build:
     if: ${{ !inputs.report_only_repair }}
     name: Build ${{ matrix.label }}
-    timeout-minutes: ${{ needs.identity.outputs.release_profile == 'initial-beta-win-linux' && 60 || 360 }}
+    timeout-minutes: ${{ needs.identity.outputs.release_profile != 'full' && 60 || 360 }}
     needs: [identity, validate]
     permissions:
       contents: read
@@ -209,7 +209,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        if: needs.identity.outputs.release_profile != 'initial-beta-win-linux'
+        if: needs.identity.outputs.release_profile == 'full'
         with:
           shared-key: release-${{ matrix.label }}
       - name: Install Linux desktop prerequisites
@@ -217,18 +217,18 @@ jobs:
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
       - name: Read existing scanner pin for the same producing Linux job
-        if: runner.os == 'Linux' && needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        if: runner.os == 'Linux' && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
         id: compiler-scanner-pin
         shell: bash
         run: echo "spec=cargo-deny@$(node scripts/quality-tools.mts --version cargo-deny)" >> "$GITHUB_OUTPUT"
       - name: Install the pinned scanner in the credential-free compiler job
-        if: runner.os == 'Linux' && needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        if: runner.os == 'Linux' && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
         uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: ${{ steps.compiler-scanner-pin.outputs.spec }}
       - run: pnpm install --frozen-lockfile
       - name: Read immutable public application configuration without executing it
-        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        if: (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: boburning/portcove
@@ -237,14 +237,14 @@ jobs:
           sparse-checkout: release-public-inputs
           persist-credentials: false
       - name: Prepare secret-free updater-capable public build configuration
-        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        if: (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
         env:
           PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION: ${{ needs.identity.outputs.public_configuration_revision }}
           PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256: ${{ needs.identity.outputs.public_configuration_sha256 }}
           PORTCOVE_PUBLIC_CONFIGURATION_CHECKOUT: ${{ github.workspace }}/work/release-public-configuration
         run: node scripts/release-public-build-inputs.mts
       - name: Retain exact public build inputs and configuration provenance
-        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        if: (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-public-build-inputs-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -272,7 +272,7 @@ jobs:
           & cargo @arguments
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain direct CLI compiler observation including failed or partial results
-        if: always() && needs.identity.outputs.release_profile == 'initial-beta-win-linux' && env.PORTCOVE_RELEASE_COMPILER_CLI_DIRECTORY != ''
+        if: always() && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1') && env.PORTCOVE_RELEASE_COMPILER_CLI_DIRECTORY != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-compiler-observation-cli-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -314,7 +314,7 @@ jobs:
           & pnpm @arguments
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain direct compiler observation including failed or partial results
-        if: always() && needs.identity.outputs.release_profile == 'initial-beta-win-linux' && env.PORTCOVE_RELEASE_COMPILER_DESKTOP_DIRECTORY != ''
+        if: always() && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1') && env.PORTCOVE_RELEASE_COMPILER_DESKTOP_DIRECTORY != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-compiler-observation-desktop-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -576,7 +576,7 @@ jobs:
         run: sha256sum --check --strict ../release-attestation/sbom-subject-checksums.txt
 
   attest:
-    if: ${{ !inputs.report_only_repair && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')) }}
+    if: ${{ !inputs.report_only_repair && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1'))) }}
     needs: [identity, assemble]
     runs-on: ubuntu-22.04
     permissions:
@@ -586,14 +586,14 @@ jobs:
       id-token: write
     steps:
       - name: Download inert beta compiler observations from the exact completed matrix
-        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        if: (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: release-compiler-observation-*-${{ github.run_id }}-${{ github.run_attempt }}
           path: release-compiler-observations
           merge-multiple: true
       - name: Attest retained compiler report bytes without claiming compiler or native acceptance
-        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        if: (needs.identity.outputs.release_profile == 'initial-beta-win-linux' || needs.identity.outputs.release_profile == 'initial-beta-windows-x86_64-v1')
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: release-compiler-observations/compiler-result-*.json

@@ -1,3 +1,5 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { catalogListingContextFileBound } from "./release-catalog-publication-contract.mts";
 /** Same-process release record preparation. This is neither publication admission
  * nor a constructor for imported qualification reports. */
@@ -323,7 +325,7 @@ export async function prepareReleaseSigningContext(
   );
   const { accepted, policy } = await inspectTrustedAssemblyInput(payload.context.facts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
     prior.verifier_sha256 !== hash(await readControllerToolFile(payload.tools.rust))
   )
     throw new Error("release context requires selected actual tools and package profile");
@@ -364,7 +366,7 @@ export async function prepareReleaseSigningContext(
   let nativeCheckpoint: string | undefined;
   const hosted = payload.native.filter((report) => report.hosted_job);
   if (hosted.length) {
-    if (hosted.length !== 2)
+    if (hosted.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length)
       throw new Error("record cannot mix current native transport authorities");
     const locator = inspectNativeCheckpointLocator(payload.aggregate.native_custody);
     const custody = await requirePreparedHostedNativeCustody(

@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Closed wire custody only. Parsing or preparing these bytes grants no job,
  * native, signature, archival, execution or publication authority. */
 import { inspectHostedWindowsOperatingSystem } from "./release-hosted-native-windows-host.mts";
@@ -169,7 +170,7 @@ export function prepareHostedNativeProofSubject(
   if (authorities.purpose !== "application")
     throw new Error("hosted native application authority required");
   const producer = inspectHostedNativeProducer(rawProducer, report.platform_label);
-  const fixed = authorities.hosted_native[report.platform_label];
+  const fixed = selectedHostedNativePlatform(authorities, report.platform_label);
   const hostObservation = hostIdentity(rawHostObservation, report, fixed.minimum_platform);
   const continuityOnly = fixed.minimum_platform === hostedWindowsContinuityPlatform;
   const { invocation_id: _invocation, started_at: _started, ...actualProducer } = report.producer;
