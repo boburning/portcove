@@ -247,12 +247,30 @@ export function releaseLabels(policy: ReleasePackagePolicy) {
   return [...new Set(policy.packages.map((entry) => entry.platform_label))];
 }
 
-export type ReleaseProfile = "full" | "initial-beta-win-linux";
+export type ReleaseProfile = "full" | "initial-beta-win-linux" | "initial-beta-windows-x86_64-v1";
 
 export function inspectReleaseProfile(value: unknown = "full"): ReleaseProfile {
-  if (value !== "full" && value !== "initial-beta-win-linux")
+  if (
+    value !== "full" &&
+    value !== "initial-beta-win-linux" &&
+    value !== "initial-beta-windows-x86_64-v1"
+  )
     throw new Error("unknown trusted release profile");
   return value;
+}
+
+export function isInitialBetaReleaseProfile(value: unknown) {
+  return value === "initial-beta-win-linux" || value === "initial-beta-windows-x86_64-v1";
+}
+
+/** Closed native launch set. Full releases retain their separate qualification
+ * route; neither missing artifacts nor execution host may choose this profile. */
+export function nativePlatformsForReleaseProfile(rawProfile: unknown) {
+  const profile = inspectReleaseProfile(rawProfile);
+  if (profile === "full") throw new Error("explicit initial beta native profile required");
+  return profile === "initial-beta-windows-x86_64-v1"
+    ? (["windows-x86_64"] as const)
+    : (["windows-x86_64", "linux-x86_64"] as const);
 }
 
 /** Select only after validating the complete repository-owned package policy.
@@ -271,7 +289,7 @@ export function selectReleasePackagePolicy(
         (entry) =>
           profile === "full" ||
           entry.platform_label === "windows-x86_64" ||
-          entry.platform_label === "linux-x86_64",
+          (profile === "initial-beta-win-linux" && entry.platform_label === "linux-x86_64"),
       )
       .map((entry) => ({ ...entry })),
   };
@@ -294,6 +312,15 @@ export function selectReleasePackagePolicy(
       )
   )
     throw new Error("initial beta must declare the exact six Windows/Linux distributions");
+  if (
+    profile === "initial-beta-windows-x86_64-v1" &&
+    JSON.stringify(
+      selected.packages
+        .map((entry) => `${entry.interface}:${entry.platform_label}:${entry.format}`)
+        .sort(),
+    ) !== JSON.stringify(["cli:windows-x86_64:zip", "desktop:windows-x86_64:nsis"])
+  )
+    throw new Error("Windows initial beta must declare the exact two Windows x86-64 distributions");
   return selected;
 }
 
@@ -302,7 +329,9 @@ export function releaseBuildMatrix(rawProfile: unknown = "full") {
   return {
     include: [
       { os: "windows-latest", label: "windows-x86_64", bundles: "nsis", target: "" },
-      { os: "ubuntu-24.04", label: "linux-x86_64", bundles: "appimage,deb,rpm", target: "" },
+      ...(profile === "initial-beta-windows-x86_64-v1"
+        ? []
+        : [{ os: "ubuntu-24.04", label: "linux-x86_64", bundles: "appimage,deb,rpm", target: "" }]),
       ...(profile === "full"
         ? [
             {

@@ -5,7 +5,7 @@ import { controlClassName, controlFocus, controlMotion } from "./control-style";
 
 const buttonVariants = cva(
   cn(
-    "group/button inline-flex max-w-full shrink-0 items-center justify-center rounded-pc-md border border-transparent bg-clip-padding text-sm font-normal [overflow-wrap:anywhere] whitespace-normal transition-[color,background-color,border-color,box-shadow,transform] select-none active:bg-[var(--color-bg-active)] active:shadow-(--shadow-pressed) active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:border-pc-border disabled:bg-pc-surface-muted disabled:text-pc-muted-foreground disabled:opacity-70 disabled:shadow-none aria-busy:pointer-events-none aria-busy:opacity-70 aria-invalid:border-pc-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "group/button inline-flex max-w-full shrink-0 items-center justify-center rounded-pc-sm border border-transparent bg-clip-padding text-xs font-medium [overflow-wrap:anywhere] whitespace-normal transition-[color,background-color,border-color,box-shadow,transform] select-none active:bg-[var(--color-bg-active)] active:shadow-(--shadow-pressed) active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:border-pc-border disabled:bg-pc-surface-muted disabled:text-pc-muted-foreground disabled:opacity-70 disabled:shadow-none aria-busy:pointer-events-none aria-busy:opacity-70 aria-invalid:border-pc-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
     controlFocus,
     controlMotion,
   ),
@@ -30,10 +30,10 @@ const buttonVariants = cva(
       },
       size: {
         default:
-          "min-h-(--control-height-md) gap-1.5 px-2.5 has-data-[icon=inline-end]:pe-2 has-data-[icon=inline-start]:ps-2",
+          "min-h-(--control-height-md) gap-2 px-3.5 has-data-[icon=inline-end]:pe-3 has-data-[icon=inline-start]:ps-3",
         xs: "min-h-(--control-height-xs) gap-1 rounded-pc-sm px-2 text-xs has-data-[icon=inline-end]:pe-1.5 has-data-[icon=inline-start]:ps-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "min-h-(--control-height-sm) gap-1 rounded-pc-sm px-2.5 text-xs has-data-[icon=inline-end]:pe-1.5 has-data-[icon=inline-start]:ps-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "min-h-(--control-height-lg) gap-1.5 px-2.5 has-data-[icon=inline-end]:pe-2 has-data-[icon=inline-start]:ps-2",
+        lg: "min-h-(--control-height-lg) gap-2 px-3.5 has-data-[icon=inline-end]:pe-3 has-data-[icon=inline-start]:ps-3",
         icon: "size-(--control-height-md)",
         "icon-xs": "size-(--control-height-xs) rounded-pc-sm [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":

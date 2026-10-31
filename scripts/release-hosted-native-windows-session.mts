@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** One original controller realm owns the persistent Windows credential process. */
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -280,8 +281,10 @@ export async function startActualHostedWindowsSession(installationReceipt: objec
       node_created_filetime: readWindowsNativeProcessFiletime(process.pid, parent.deadline),
       run_id: process.env.GITHUB_RUN_ID,
       run_attempt: 1,
-      source_commit: parent.configuration.hosted_native["windows-x86_64"].producer.source_commit,
-      source_tree: parent.configuration.hosted_native["windows-x86_64"].producer.source_tree,
+      source_commit: selectedHostedNativePlatform(parent.configuration, "windows-x86_64").producer
+        .source_commit,
+      source_tree: selectedHostedNativePlatform(parent.configuration, "windows-x86_64").producer
+        .source_tree,
     };
   const contextBytes = await retain(path.join(root, "owner-context.json"), context);
   const readbackSource = path.join(root, "original-station-readback.cs.txt"),
@@ -611,7 +614,7 @@ async function observeHost(state: State) {
     ),
   );
   assert.equal(state.parent.configuration.purpose, "application");
-  const selected = state.parent.configuration.hosted_native["windows-x86_64"];
+  const selected = selectedHostedNativePlatform(state.parent.configuration, "windows-x86_64");
   assert.ok(
     selected.minimum_platform === "windows-11-26h2-x64" ||
       selected.minimum_platform === "windows-server-2022-x64-continuity",
@@ -838,8 +841,8 @@ async function prepareStage(
           sha256: hash(await readControllerToolFile(windowsSourceSystemExecutables.git)),
         },
       },
-      worker_sha256:
-        state.parent.configuration.hosted_native["windows-x86_64"].producer.harness.sha256,
+      worker_sha256: selectedHostedNativePlatform(state.parent.configuration, "windows-x86_64")
+        .producer.harness.sha256,
       remaining_milliseconds: Math.floor(state.deadline - performance.now() - 30000),
     });
     const workerInput = path.join(directory, "worker-input.json"),

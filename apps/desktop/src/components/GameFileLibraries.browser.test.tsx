@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
@@ -139,6 +140,7 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   expect(document.body.textContent).toContain("D:/Games/game.z64");
   expect(document.body.textContent).toContain("File and folder count");
   expect(document.body.textContent).toContain("Remove or update saved folders");
+  await captureParityState("game-files-scan-results-fixture");
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
@@ -167,6 +169,7 @@ it("continues Core's saved frontier without discarding matches or changing scan 
   expect(document.body.textContent).toContain("These totals cover 2 scan batches.");
   expect(document.body.textContent).toContain("The number of remaining entries is unknown.");
   expect(document.body.textContent).toContain("Earlier matches were kept.");
+  await captureParityState("game-files-scan-continuation-fixture");
   expect(document.body.textContent).not.toContain("Remove or update saved folders");
   expect(document.body.textContent).toContain("D:/Games/game.z64");
   await click("Continue scan");
@@ -502,6 +505,7 @@ it("keeps stale resumable results from advertising continuation", async () => {
   expect(button("Scan saved folders")).toBeDefined();
   expect(document.body.textContent).not.toContain("Continue the scan to check another");
   expect(document.body.textContent).toContain("Scan again before using these results.");
+  await captureParityState("game-files-stale-snapshot-fixture");
 });
 
 it("presents a required restart separately from another resumable batch", async () => {
@@ -512,6 +516,7 @@ it("presents a required restart separately from another resumable batch", async 
   await click("Refresh folders");
   expect(button("Start new scan")).toBeDefined();
   expect(document.body.textContent).toContain("The saved scan cannot continue.");
+  await captureParityState("game-files-scan-restart-required-fixture");
   await click("Start new scan");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
 });
@@ -1135,6 +1140,7 @@ it("retains a progressive scan across selected game details without starting ano
   expect(button("Scan saved folders").disabled).toBe(true);
   expect(button("Cancel scan")).toBeDefined();
   expect(button("View Game A details")).toBeDefined();
+  await captureParityState("game-files-streamed-scan-running-fixture");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
   await act(async () => {
     vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
@@ -1386,6 +1392,7 @@ it("retains a scan failure that arrives while selected game details are open", a
     "The selected drive disconnected",
   );
   expect(button("Scan saved folders").disabled).toBe(false);
+  await captureParityState("game-files-scan-failed-fixture");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
 });
 
@@ -1461,6 +1468,7 @@ it("preserves a saved root until removal is confirmed", async () => {
   const remove = vi.spyOn(desktopApi, "removeGameFileRoot").mockResolvedValue(true);
   await click("Remove");
   expect(remove).not.toHaveBeenCalled();
+  await captureParityState("game-files-remove-root-reviewed-fixture");
   await click("Keep folder");
   expect(remove).not.toHaveBeenCalled();
   await click("Remove");
@@ -1646,6 +1654,7 @@ it("uses core root mutations for chosen folders and relinks the same root identi
   expect(add).toHaveBeenCalledWith("E:/More Games", 1);
   await click("Relink");
   expect(relink).toHaveBeenCalledWith(saved.id, "E:/More Games", 1);
+  await captureParityState("game-files-root-relinked-fixture");
 });
 
 it("does not offer review from a snapshot whose inputs changed", async () => {

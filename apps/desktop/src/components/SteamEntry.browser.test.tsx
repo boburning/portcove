@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
@@ -103,6 +104,21 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
     "Add shortcut",
   ])
     expect(document.body.textContent).toContain(value);
+  const fields = document.querySelector(".steam-profile-fields")!;
+  const reviewedChange = document.querySelector('[aria-label="Reviewed Steam shortcut change"]')!;
+  expect(
+    reviewedChange.getBoundingClientRect().top - fields.getBoundingClientRect().bottom,
+  ).toBeGreaterThanOrEqual(23);
+  for (const group of [fields, reviewedChange, reviewedChange.querySelector("dl")!]) {
+    const children = Array.from(group.children);
+    for (let index = 1; index < children.length; index++) {
+      expect(
+        children[index]!.getBoundingClientRect().top -
+          children[index - 1]!.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(11);
+    }
+  }
+  await captureParityState("steam-singleton-reviewed-fixture");
   await click("Add or repair shortcut");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     port.id,
@@ -132,6 +148,28 @@ it("blocks apply while Steam is running and clears a review when the target chan
     (candidate) => candidate.textContent === "Add or repair shortcut",
   );
   expect(applyButton?.disabled).toBe(true);
+  await captureParityState("steam-running-client-refusal-fixture");
+  const refusal = page.getByText(
+    "Close Steam, then choose Check again. Portcove will not close Steam for you.",
+    { exact: true },
+  );
+  refusal.element().scrollIntoView({ block: "center" });
+  await expect.element(refusal).toBeVisible();
+  const checkAgain = page.getByRole("button", { name: "Check again", exact: true });
+  await expect
+    .poll(() =>
+      [refusal.element(), checkAgain.element(), applyButton!].every((element) => {
+        const bounds = element.getBoundingClientRect();
+        return (
+          bounds.top >= 0 &&
+          bounds.bottom <= innerHeight &&
+          bounds.left >= 0 &&
+          bounds.right <= innerWidth
+        );
+      }),
+    )
+    .toBe(true);
+  await captureParityState("steam-running-client-refusal-lower-fixture");
   preview.mockResolvedValue({ ...review, steam_client_state: "closed" });
   await click("Check again");
   expect(preview).toHaveBeenCalledTimes(2);
@@ -157,6 +195,7 @@ it("selects an explicit discovered profile and clears it when the installation c
   expect(document.body.querySelector<HTMLInputElement>("#steam-profile")?.value).toBe("");
   await click("12345");
   expect(document.body.querySelector<HTMLInputElement>("#steam-profile")?.value).toBe("12345");
+  await captureParityState("steam-discovered-profile-selected-fixture");
   await click("Review shortcut setup");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
     port.id,
@@ -197,6 +236,7 @@ it("keeps the reviewed plan visible when native consent is declined", async () =
   await click("Add or repair shortcut");
   expect(document.body.textContent).toContain(review.shortcuts_path);
   expect(document.body.querySelector('[role="alert"]')).toBeNull();
+  await captureParityState("steam-consent-declined-fixture");
 });
 
 it("offers owned-shortcut removal after uninstall without offering Add or Repair", async () => {
@@ -272,6 +312,7 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     7,
   );
   expect(document.body.textContent).toContain("Selected: Another Port");
+  await captureParityState("steam-batch-reviewed-fixture");
   await click("Add or repair selected shortcuts");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     {

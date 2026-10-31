@@ -1,4 +1,5 @@
-import { Star } from "lucide-react";
+import { Heart } from "lucide-react";
+import { gameGroupId } from "./features/browsing/original-game";
 import {
   addRequiredSource,
   replaceRegisteredSource,
@@ -73,7 +74,7 @@ import {
 } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
-import { PortBrowser } from "./components/PortBrowser";
+import { PortBrowser, SteamBatchLibraryAction } from "./components/PortBrowser";
 import { ListingDetailPanel } from "./components/ListingDetailPanel";
 import { SelfServiceSetup } from "./components/SelfServiceSetup";
 import { catalogEntries, usesSelfServiceDetail } from "./features/browsing/catalog-entry";
@@ -492,6 +493,15 @@ function useWorkspace(props: WorkspaceProps) {
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
   const [addGamesStarted, setAddGamesStarted] = useState(false);
+  const [organizationViews, setOrganizationViews] = useState({ library: "all", catalog: "all" });
+  const organizationKey = ui.view === "catalog" ? "catalog" : "library";
+  const setOrganizationView = (value: string) =>
+    setOrganizationViews((current) => ({ ...current, [organizationKey]: value }));
+  const selectLibraryCollection = (value: string) => {
+    setOrganizationViews((current) => ({ ...current, library: value }));
+    setAddGamesOpen(false);
+    setPrimaryView("library");
+  };
   const detailBackLabel =
     addGamesOpen && detailOpening?.originKey?.startsWith("add-games:")
       ? "Back to Add games"
@@ -680,6 +690,18 @@ function useWorkspace(props: WorkspaceProps) {
         key={model.entry.id}
         opening={detailOpening}
         entry={model.entry}
+        groupPorts={model.entries.filter(
+          (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
+        )}
+        favoriteControl={
+          model.status?.external_runtime
+            ? renderSelectedPortFavoriteControl({
+                favorites,
+                favoritePortId: model.entry.id,
+                displayPort: model.entry,
+              })
+            : undefined
+        }
         status={model.status}
         generation={bootstrap.generation}
         perform={operations.perform}
@@ -751,6 +773,10 @@ function useWorkspace(props: WorkspaceProps) {
         onAddGames={openAddGames}
         collection={collection}
         organization={organization}
+        organizationSelection={{
+          value: organizationViews[organizationKey],
+          onChange: setOrganizationView,
+        }}
         favorites={favorites}
         data={data}
         ui={{ ...ui, setView: setPrimaryView }}
@@ -814,6 +840,8 @@ function useWorkspace(props: WorkspaceProps) {
     bootstrap,
     data,
     organization,
+    organizationViews,
+    selectLibraryCollection,
     setupSource,
     setSetupSource,
     operations,
@@ -879,6 +907,18 @@ function WorkspaceView({ workspace, ...model }: ReturnType<typeof useWorkspace>)
               }).length
             }
             activities={model.data.activities}
+            organization={model.organization}
+            collectionView={model.organizationViews.library}
+            onSelectCollection={model.selectLibraryCollection}
+            libraryRoot={model.bootstrap.library_root ?? undefined}
+            collectionActions={
+              installedSteamBatchPorts(model.data, model.model).length >= 2 ? (
+                <SteamBatchLibraryAction
+                  ports={installedSteamBatchPorts(model.data, model.model)}
+                  generation={model.bootstrap.generation}
+                />
+              ) : undefined
+            }
           />
           <main
             className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10"
@@ -1202,6 +1242,7 @@ function CurrentView({
   collection,
   favorites,
   organization,
+  organizationSelection,
   data,
   ui,
   model,
@@ -1224,6 +1265,7 @@ function CurrentView({
   collection: ReturnType<typeof useCollectionLayout>;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
+  organizationSelection: { value: string; onChange: (value: string) => void };
   data: DataState;
   ui: UiState;
   model: ReturnType<typeof useAppModel>;
@@ -1314,6 +1356,7 @@ function CurrentView({
       collectionLayoutFailure={collection.failure}
       favorites={favorites}
       organization={organization}
+      organizationSelection={organizationSelection}
       catalogUniverse={model.entries}
       view={ui.view}
       ports={model.visible}
@@ -1404,6 +1447,7 @@ function CurrentSettingsView({
 >) {
   return (
     <SettingsView
+      steamPorts={installedSteamBatchPorts(data, model)}
       category={ui.settingsCategory}
       onCategoryChange={ui.setSettingsCategory}
       generation={bootstrap.generation}
@@ -1460,7 +1504,11 @@ function CurrentSettingsView({
             const path = await pickMetadataExportPath();
             return path ? desktopApi.exportLibraryMetadata(path) : undefined;
           },
-          { refresh: "none", invalidateDiagnostics: false },
+          {
+            refresh: "none",
+            invalidateDiagnostics: false,
+            cancelledResult: (result) => result === undefined,
+          },
         )
       }
       sourceOutcomes={sourceHealth.outcomes}
@@ -1537,7 +1585,10 @@ function renderSelectedPortFavoriteControl({
         aria-busy={favorites.busy}
         onClick={() => void favorites.toggle(favoritePortId)}
       >
-        <Star aria-hidden="true" />
+        <Heart
+          aria-hidden="true"
+          fill={favorites.ids?.has(favoritePortId) ? "currentColor" : "none"}
+        />
       </Button>
       {favorites.failure && (
         <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">

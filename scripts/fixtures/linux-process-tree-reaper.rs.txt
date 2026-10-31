@@ -206,6 +206,24 @@ fn close_group(group: i32) -> io::Result<()> {
     Ok(())
 }
 
+fn reap_exited_adoptees(anchor: i32) -> io::Result<()> {
+    let own_pid = i32::try_from(std::process::id()).map_err(|_| io::Error::other("invalid reaper PID"))?;
+    let deadline = Instant::now() + Duration::from_secs(1);
+    for pid in direct_children(Path::new("/proc"), own_pid, deadline)? {
+        // Keep the original supervisor PID unreaped: it pins the cleanup group.
+        // waitpid on other direct children never signals a live process, and
+        // cannot reap a descendant that still belongs to its original parent.
+        if pid == anchor { continue; }
+        if Instant::now() >= deadline { return Err(io::Error::other("adopted child reaping exceeded deadline")); }
+        let mut status = 0;
+        if unsafe { waitpid(pid, &mut status, 1) } < 0 {
+            let error = last_error();
+            if error.raw_os_error() != Some(4) && error.raw_os_error() != Some(10) { return Err(error); }
+        }
+    }
+    Ok(())
+}
+
 fn drain_and_prove_absence(group: i32) -> io::Result<()> {
     let deadline = Instant::now() + Duration::from_millis(5_000);
     loop {
@@ -298,6 +316,7 @@ fn run(args: &[String], group: &mut Option<i32>) -> io::Result<()> {
     ))?;
     loop {
         if pipe_lost()? || stat(pid)?[0] == "Z" { break; }
+        reap_exited_adoptees(pid)?;
         match fs::symlink_metadata(&args[1]) {
             Ok(status) if status.is_file() => break,
             Ok(_) => return Err(io::Error::other("supervisor status is not a regular file")),

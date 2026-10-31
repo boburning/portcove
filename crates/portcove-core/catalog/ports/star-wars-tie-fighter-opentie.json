@@ -16,6 +16,35 @@
       "image_sha256": "1817c06919cfe45d9e98238a1667db2f898e07d27a62a372fdef4bb0e65d910b",
       "game_slug": "star-wars-tie-fighter",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/elyosh/OpenTIE/blob/8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11/README.md",
+      "steps": [
+        {
+          "title": "Prepare the complete upstream Windows copy",
+          "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating copy; no new package or original was acquired or tested by Portcove."
+        },
+        {
+          "title": "Finish original-data and pilot setup upstream",
+          "instruction": "Use your own complete 1995 Collector\u2019s CD-ROM TIE95 and/or 1998 Windows TIE98 installation; finish the normal upstream folder picker and its validation before registration. It remembers those folders and imports compatible pilot files. Preserve both originals and every existing pilot/profile before setup: source-reviewed import/config conversion is not a Portcove save-compatibility test. Older DOS editions, other revisions and optional SC-55 ROMs are not silently included."
+        },
+        {
+          "title": "Select the normal native player",
+          "instruction": "Select OpenTIE.exe with its actual established installation working directory. Keep the supported --tie95-data, --tie98-data and --resource-root directory flags only when your working setup uses them; each directory is its own literal absolute token, including spaces. There is no positional ROM argument. main calls the application and frame loop in the same process through normal shutdown; no setup/helper successor is adopted by Core."
+        },
+        {
+          "title": "Preserve the full actual user and original roots",
+          "instruction": "Preserve the whole external installation/resources, both complete selected originals, original pilot files and the actual Aeron/SDL user root for organization TotallyOpen and application OpenTIE, including config.yaml, pilots, progress, records, recordings, temporary files, optional music/model resources and unknown files. The user-root location is resolved by the creating runtime; keep any redirected or fallback location separately. Its temporary root defaults to the same user root. Upstream config loading can migrate keyboard bindings and reset older controller bindings; close every instance and retain the pre-change copy before upstream updates. Core does not relocate or migrate these files."
+        },
+        {
+          "title": "Review intent and leave replacement upstream",
+          "instruction": "Consent to the exact executable, working directory and literal arguments, then choose Play separately. Core observes the selected native process; it is not an exclusive session or sandbox. Complete upstream maintenance outside Core, close all real instances, keep the old runtime and data together and relink changed executables for fresh intent review. Registration-only removal preserves every external byte; no managed acquisition, update, backup, rollback or deletion is offered."
+        }
+      ],
+      "warnings": [
+        "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
+        "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+      ]
     }
   }
 }

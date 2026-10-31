@@ -480,8 +480,8 @@ function SteamProfileFields({
     }
   };
   return (
-    <>
-      <Field label="Steam installation folder" className="mb-3">
+    <div className="steam-profile-fields mt-6 grid gap-3">
+      <Field label="Steam installation folder">
         <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
             data-focusable
@@ -565,7 +565,7 @@ function SteamProfileFields({
         exact local profile or enter its numeric folder ID. Portcove does not guess another profile
         or library.
       </p>
-    </>
+    </div>
   );
 }
 
@@ -604,7 +604,10 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
 
 function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamBatchReview }) {
   return (
-    <section className="removal-review-details" aria-label="Reviewed Steam shortcut change">
+    <section
+      className="removal-review-details mt-6 grid gap-3"
+      aria-label="Reviewed Steam shortcut change"
+    >
       <p className="[overflow-wrap:anywhere]">
         <strong>
           {review.writes_required
@@ -614,7 +617,7 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
               : "The Portcove shortcut already matches this setup."}
         </strong>
       </p>
-      <dl>
+      <dl className="grid gap-3 [&>div]:grid [&>div]:gap-1">
         <div>
           <dt>Steam profile</dt>
           <dd>{review.steam_user_id}</dd>

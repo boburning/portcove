@@ -206,7 +206,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     borderWidth: "1px",
     backgroundColor: "rgb(1, 1, 1)",
     dialogBackgroundColor: "rgb(2, 2, 2)",
-    labelFontWeight: "700",
+    labelFontWeight: "600",
   };
   const field = {},
     label = {},
@@ -226,7 +226,7 @@ void test("shared review presentation preserves native visual acceptance thresho
     ["borderWidth", "0px"],
     ["backgroundColor", "rgba(0, 0, 0, 0)"],
     ["backgroundColor", valid.dialogBackgroundColor],
-    ["labelFontWeight", "699"],
+    ["labelFontWeight", "599"],
   ] as const) {
     observation = { ...valid, [key]: value };
     await assert.rejects(Promise.resolve(invokePresentation(browser, field, label, dialog)));
@@ -2650,6 +2650,19 @@ void test("fixture-only reviews select without first-play while continuity keeps
       "native-preparation-review-and-play",
     ),
   );
+});
+
+void test("organization persistence selects the normal owned-fixture path without consent or preparation claims", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-library-organization-restart"],
+    platform: "win32",
+  });
+  assert.deepEqual(selection.selected_scenarios, ["native-library-organization-restart"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.ok(selection.prerequisites.includes("owned-fixture"));
+  assert.ok(selection.host_resources.includes("native-desktop"));
+  assert.ok(!selection.prerequisites.includes("native-dialog"));
+  assert.ok(!selection.prerequisites.includes("steam-fixture"));
 });
 
 void test("staged native composition installs its isolated fixture before review", () => {

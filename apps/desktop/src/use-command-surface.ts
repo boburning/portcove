@@ -42,6 +42,7 @@ export function commandSurfaceCommands({
   return [
     {
       id: "library",
+      group: "Navigation",
       label: "Open library",
       description: "View installed ports and launch readiness",
       icon: Library,
@@ -51,6 +52,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "catalog",
+      group: "Navigation",
       label: "Open Find games",
       description: "Browse native game ports",
       icon: Boxes,
@@ -60,6 +62,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "search-library",
+      group: "Navigation",
       label: "Search library",
       description: "Find a game or port in your library",
       icon: Search,
@@ -67,6 +70,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "search",
+      group: "Navigation",
       label: "Search Find games",
       description: "Find a port by title, installation method, or platform",
       icon: Search,
@@ -74,6 +78,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "updates",
+      group: "Navigation",
       label: "Open Activity",
       description: "Review tasks, history and recovery",
       icon: Download,
@@ -83,6 +88,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "game-updates",
+      group: "Navigation",
       label: "Review game updates",
       description: "Open the Updates section in Activity",
       icon: Download,
@@ -91,6 +97,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "check",
+      group: "Library actions",
       label: "Check installed ports for updates",
       description:
         installedCount === 0
@@ -107,6 +114,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "adopt",
+      group: "Library actions",
       label: "Copy an existing installation",
       description: "Review and copy a supported installation into Portcove",
       icon: FolderSearch,
@@ -115,6 +123,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "settings",
+      group: "Preferences",
       label: "Open settings",
       description: "Manage game files, GitHub, storage, and appearance",
       icon: Settings,
@@ -124,6 +133,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "continue",
+      group: "Recent game",
       label: "Open recent game",
       description: recent
         ? `Open ${gameIdentityLabel(recent.port)}`

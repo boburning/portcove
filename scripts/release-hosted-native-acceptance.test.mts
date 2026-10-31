@@ -1,3 +1,4 @@
+import type { ReleaseProfile } from "./release-package-policy.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
@@ -40,8 +41,9 @@ async function root(t: test.TestContext) {
 function fixture(
   platform: "windows-x86_64" | "linux-x86_64" = "windows-x86_64",
   profile: "client-minimum" | "server-continuity" = "client-minimum",
+  releaseProfile: Exclude<ReleaseProfile, "full"> = "initial-beta-win-linux",
 ) {
-  const f = hostedNativeProofFixture(platform, "payload-signing", profile);
+  const f = hostedNativeProofFixture(platform, "payload-signing", profile, releaseProfile);
   const { grant_sha256: _grant, ...checkpointProducer } = f.producer;
   const provider = checkpointProofFixture(undefined, undefined, {
     ...checkpointProducer,
@@ -675,79 +677,88 @@ for (const fault of ["none", "retained-bytes", "changed-job", "expired"] as cons
   });
 }
 
-for (const expireFirst of [false, true]) {
-  void test(`synthetic default provider pair custody preserves private originals and all original deadlines: ${expireFirst}`, async (t) => {
-    const directory = await root(t),
-      fixtures = [fixture("linux-x86_64"), fixture("windows-x86_64")];
-    const before = process.env.GH_TOKEN;
-    process.env.GH_TOKEN = "inert-native-custody-reader";
-    t.after(() => {
-      if (before === undefined) delete process.env.GH_TOKEN;
-      else process.env.GH_TOKEN = before;
-      t.mock.restoreAll();
-      syncBuiltinESMExports();
-    });
-    let selected = fixtures[0]!;
-    let expireOnSecond = false,
-      clockShift = 0;
-    const originalNow = performance.now.bind(performance);
-    t.mock.method(performance, "now", () => originalNow() + clockShift);
-    const byDirectory = new Map<string, typeof selected>();
-    t.mock.method(
-      childProcess,
-      "spawnSync",
-      (command: string, args: readonly string[], settings: SpawnSyncOptionsWithStringEncoding) => {
-        assert.equal(settings.env?.GH_TOKEN, "inert-native-custody-reader");
-        assert.ok(settings.cwd && typeof settings.cwd === "string");
-        const f = byDirectory.get(settings.cwd) ?? selected;
-        byDirectory.set(settings.cwd, f);
-        if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
-        if (expireOnSecond && f === fixtures[1] && args[2]?.includes("/actions/jobs/"))
-          clockShift = 31000;
-        const response = f.options.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
-      },
-    );
-    syncBuiltinESMExports();
-    await withReadOnlyReleaseChildren(directory, async () => {
-      const proofs = [];
-      for (const f of fixtures) {
-        selected = f;
-        proofs.push(
-          await collectHostedNativeReleaseQualification(
-            directory,
-            f.authorities,
-            f.expected,
-            f.files,
-            performance.now() + (f === fixtures[0] ? 30000 : 60000),
-          ),
-        );
-      }
-      const custody = await prepareHostedNativeCustody(proofs);
-      assert.equal(custody.durable_custody, "not-established");
-      if (expireFirst) {
-        expireOnSecond = true;
-        await assert.rejects(requirePreparedHostedNativeCustody(custody), /deadline/);
-        for (const [i, proof] of proofs.entries())
-          assert.deepEqual(
-            await readFile(path.join(proof.capture_directory, "capture.json")),
-            fixtures[i]!.files.capture,
-          );
-        return;
-      }
-      const captured = await requirePreparedHostedNativeCustody(custody);
-      assert.equal(captured.sha256, custody.sha256);
-      assert.equal(captured.proofs.length, 2);
-      await assert.rejects(
-        requirePreparedHostedNativeCustody(structuredClone(custody)),
-        /actual prepared/,
+for (const releaseProfile of ["initial-beta-win-linux", "initial-beta-windows-x86_64-v1"] as const)
+  for (const expireFirst of [false, true]) {
+    void test(`synthetic default provider ${releaseProfile} custody preserves private originals and all original deadlines: ${expireFirst}`, async (t) => {
+      const directory = await root(t),
+        fixtures =
+          releaseProfile === "initial-beta-windows-x86_64-v1"
+            ? [fixture("windows-x86_64", "client-minimum", releaseProfile)]
+            : [fixture("linux-x86_64"), fixture("windows-x86_64")];
+      const before = process.env.GH_TOKEN;
+      process.env.GH_TOKEN = "inert-native-custody-reader";
+      t.after(() => {
+        if (before === undefined) delete process.env.GH_TOKEN;
+        else process.env.GH_TOKEN = before;
+        t.mock.restoreAll();
+        syncBuiltinESMExports();
+      });
+      let selected = fixtures[0]!;
+      let expireOnSecond = false,
+        clockShift = 0;
+      const originalNow = performance.now.bind(performance);
+      t.mock.method(performance, "now", () => originalNow() + clockShift);
+      const byDirectory = new Map<string, typeof selected>();
+      t.mock.method(
+        childProcess,
+        "spawnSync",
+        (
+          command: string,
+          args: readonly string[],
+          settings: SpawnSyncOptionsWithStringEncoding,
+        ) => {
+          assert.equal(settings.env?.GH_TOKEN, "inert-native-custody-reader");
+          assert.ok(settings.cwd && typeof settings.cwd === "string");
+          const f = byDirectory.get(settings.cwd) ?? selected;
+          byDirectory.set(settings.cwd, f);
+          if (args[0] === "attestation") return f.options.attestation.spawn(command, args);
+          if (expireOnSecond && f === fixtures[1] && args[2]?.includes("/actions/jobs/"))
+            clockShift = 31000;
+          const response = f.options.api.request("GET", args[2]!);
+          return {
+            status: 0,
+            stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
+            stderr: "",
+          };
+        },
       );
-      await appendFile(path.join(proofs[0]!.capture_directory, "capture.json"), "\n");
-      await assert.rejects(requirePreparedHostedNativeCustody(custody), /retained proof changed/);
+      syncBuiltinESMExports();
+      await withReadOnlyReleaseChildren(directory, async () => {
+        const proofs = [];
+        for (const f of fixtures) {
+          selected = f;
+          proofs.push(
+            await collectHostedNativeReleaseQualification(
+              directory,
+              f.authorities,
+              f.expected,
+              f.files,
+              performance.now() + (f === fixtures[0] ? 30000 : 60000),
+            ),
+          );
+        }
+        const custody = await prepareHostedNativeCustody(proofs);
+        assert.equal(custody.durable_custody, "not-established");
+        if (expireFirst) {
+          expireOnSecond = true;
+          if (fixtures.length === 1) clockShift = 31000;
+          await assert.rejects(requirePreparedHostedNativeCustody(custody), /deadline/);
+          for (const [i, proof] of proofs.entries())
+            assert.deepEqual(
+              await readFile(path.join(proof.capture_directory, "capture.json")),
+              fixtures[i]!.files.capture,
+            );
+          return;
+        }
+        const captured = await requirePreparedHostedNativeCustody(custody);
+        assert.equal(captured.sha256, custody.sha256);
+        assert.equal(captured.proofs.length, fixtures.length);
+        await assert.rejects(
+          requirePreparedHostedNativeCustody(structuredClone(custody)),
+          /actual prepared/,
+        );
+        await appendFile(path.join(proofs[0]!.capture_directory, "capture.json"), "\n");
+        await assert.rejects(requirePreparedHostedNativeCustody(custody), /retained proof changed/);
+      });
     });
-  });
-}
+  }

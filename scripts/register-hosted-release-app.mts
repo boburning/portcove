@@ -107,7 +107,7 @@ export function createAppRegistrationHandler(options: {
       const result = await options.capture(incoming);
       reply(
         200,
-        "<h1>App identity captured privately</h1><p>Return to Portcove setup. Installation, custody and protected activation are separate.</p>",
+        `<h1>App created. Install it next.</h1><p>Repository installation is still required.</p><p><a href="${escaped(result.install_url)}">Install this App on boburning/portcove</a></p><p>Choose <strong>Only select repositories</strong>, select <strong>boburning/portcove</strong>, then click <strong>Install</strong>.</p><p>Return to Portcove setup after installation. Production remains held.</p>`,
       );
       await options.finish(result);
     } catch {

@@ -3,7 +3,7 @@
   "listing": {
     "id": "novapowers0-bloody-roar-ii-recomp",
     "name": "Bloody Roar II Recompiled / novapowers0",
-    "summary": "Explore Bloody Roar II Recompiled / novapowers0 and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register your permitted noncommercial prepared Bloody Roar II Windows player with your own USA original and preserved external data.",
     "project_url": "https://github.com/novapowers0/BloodyRoar2Recomp",
     "issue_number": 827,
     "platforms": [],
@@ -16,6 +16,38 @@
       "image_sha256": "1d9da18c25e734f649a742ed62e39893226d02633e7d65ec18752fd6b4736072",
       "game_slug": "bloody-roar-2",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Bloody Roar II",
+    "download_block_reason": "Fresh package acquisition remains held pending exact notice-complete artifact qualification. The retained v0.7.0 ZIP omitted project/consolidated notices; the newer v0.7.1 is not assumed notice-complete. Register only a permitted noncommercial prepared copy with applicable project/framework/component notices. No original-game redistribution is authorized.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the actual copy and terms",
+          "instruction": "Use an already permitted noncommercial working copy with its applicable notices. The title project is MIT-licensed, but its selected PSX framework is PolyForm Noncommercial; the complete runtime is not a blanket commercial-use MIT grant. Preserve all project/framework/component notices and original-file rights."
+        },
+        {
+          "title": "Finish upstream setup with your originals",
+          "instruction": "Use your own supported USA SCUS-94424 original. The retained exact USA data track is 552,729,408 bytes, SHA-1 75a13364ae026fe555e9c666c7c3434e5b403cc8, SHA-256 fbad8aef53b160abfcebddced9f9d69dcf39df00d8853b4c11f231b37220fc57. Keep its complete CUE/BIN set. The earlier v0.7.0 verifier accepted the owned USA CHD and normalized CUE/BIN, but that does not qualify every representation or another build. Complete upstream preparation and establish a working copy first."
+        },
+        {
+          "title": "Select the completed player",
+          "instruction": "Choose the prepared universal BloodyRoar2_Recompiled.exe, or the completed USA source-build product BloodyRoar2_Recompiled_USA.exe, with that player's complete folder as the working directory. Do not select an unprepared root/setup host, compiler or generation tool. This route covers the novapowers0 USA player. The separate Alexbeav implementation has its own setup and identity; Japan/Asia remains outside this route."
+        },
+        {
+          "title": "Preserve your established source and save coordinates",
+          "instruction": "For the ordinary direct route use three literal argument tokens: --no-launcher, --disc, and the absolute path to your supported USA CUE. Keep spaces inside the CUE path token. Preserve the working copy's existing BIOS choice, card/state/settings and custom locations. Do not add a new --memcard-dir merely to register: it clears explicit custom slot paths. Retain that override only if it was already part of your established working invocation, with its exact existing directory."
+        },
+        {
+          "title": "Review, consent, Play and preserve ownership",
+          "instruction": "Review the exact executable, working directory and literal arguments and consent to that execution intent. Registration does not start the game; choose Play separately. Portcove retains registration/relink across restart and observes the selected process. Upstream/player own preparation, repair and runtime replacement. Close every actual player and preserve all files before upstream changes. Removing the registration removes only Portcove metadata and preserves every external file."
+        }
+      ],
+      "warnings": [
+        "Preserve all originals/tracks, generated runtime and source, BIOS files and notices, executable-parent settings.toml, config.ini, input.ini, keybinds.ini, mods/state, diagnostics/heartbeat, cache/captures and every actual custom card/state/profile path. --memcard-dir is not an all-writes redirect. A different executable folder can change active settings; registration does not migrate data or prove state compatibility. Keep quickstates with their creating runtime; unchanged originals or current licensing do not establish build-state compatibility.",
+        "Configured setup/rebuild, overlay compiler/toolchain/command modes and relaunches remain upstream-owned. The ordinary direct player is the selected process; successors can require separate closure. Registration is not a sandbox or an exclusive lock over all external players. Network/debug behavior depends on the build, settings and environment; no offline/no-listener, netplay or public-relay qualification is promised.",
+        "Core does not authenticate the disc set, generated code, component rights or build provenance. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay/save-load, new native game runs, other platforms and installed/protected-client delivery remain unqualified by this route."
+      ],
+      "help_url": "https://github.com/novapowers0/BloodyRoar2Recomp#readme"
     }
   }
 }

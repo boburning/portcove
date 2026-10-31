@@ -524,7 +524,9 @@ async function assertPortraitLayout(
     getComputedStyle(control).backgroundColor,
   );
   control.remove();
-  for (const favorite of document.querySelectorAll<HTMLElement>('[aria-label^="Favorite "]')) {
+  for (const favorite of document.querySelectorAll<HTMLElement>(
+    '.collection-art-action[aria-label^="Favorite "]',
+  )) {
     const card = favorite.closest("article") ?? favorite.parentElement!;
     const art = card.querySelector(".collection-art")!.getBoundingClientRect();
     const favoriteBounds = favorite.getBoundingClientRect();

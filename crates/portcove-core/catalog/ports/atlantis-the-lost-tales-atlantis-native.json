@@ -3,11 +3,9 @@
   "listing": {
     "id": "atlantis-the-lost-tales-atlantis-native",
     "name": "Atlantis: The Lost Tales (Atlantis Native)",
-    "summary": "Research listing. Upstream route: Native Rust port, no game data included, current desktop release packages. Limits: New native implementation with broad original-edition data support; completion claims remain upstream-only. Upstream platforms: Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route. Original data: Supply owned Atlantis: The Lost Tales game files: a supported GOG installation or CD-derived folder with atlantis.exe and BIGCD1.BIG through BIGCD4.BIG (or the supported four disc images). Retained README accepts English 1997/2001, French May/August 1997, German August 1997, Dutch/Swedish June 1997, Spanish August 1997, Italian July 1997, patched 1.01/1999 and specified 1998 Traditional/1999 Simplified Chinese editions; preserve the selected release/language. Portcove setup/gameplay not verified.",
+    "summary": "A native engine for Atlantis: The Lost Tales using your own original game data.",
     "original_game_title": "Atlantis: The Lost Tales",
     "project_url": "https://github.com/ripleyXLR8/atlantis-native",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/ripleyXLR8/atlantis-native",
     "artwork": {
       "game_id": 2209,
@@ -30,5 +28,27 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "ripleyXLR8/atlantis-native",
+      "asset_hints": {
+        "windows-x86-64": ["atlantis-native-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["atlantis-native.exe"]
+    },
+    "persistent_paths": ["atlantis-native-data"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On Play, use the upstream in-process library and original-data picker with your own supported Atlantis: The Lost Tales copy: the edition-matched atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original tree and supported language/build together; GOG and supported CD editions are alternatives, not interchangeable executables. Upstream can prepare your own discs/images; no game content is downloaded by this engine operation. This offer is Atlantis I only. Normal logs, games.txt, per-build players/checkpoints/settings live under the current account’s AppData/atlantis-native; when that location is unavailable the dedicated atlantis-native-data directory is relative to the creating runtime. Core preserves that declared local directory; it does not import or back up the shared external profile or originals. Preserve all actual original/profile roots and the compatible creating engine before changes. Normal start remains in one process; adding a second engine copy does not isolate shared profiles."
+    }
   }
 }

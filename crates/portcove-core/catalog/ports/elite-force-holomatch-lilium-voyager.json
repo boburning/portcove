@@ -16,6 +16,35 @@
       "image_sha256": "1dbf39ee655418b4c7fa5a007b4d1ce8b304c891a688ac981b1f4a4d1597630a",
       "game_slug": "star-trek-voyager-elite-force",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/clover-moe/lilium-voyager/tree/ec2cf1051a61b3b40f0ed37154cecca6f16f8eda",
+      "steps": [
+        {
+          "title": "Complete the Holomatch copy upstream",
+          "instruction": "Use a permitted completed native Windows Lilium Voyager copy with your own complete supported Star Trek Voyager: Elite Force Holomatch installation and baseEF data, including the required original game/cgame/UI modules. This engine is for multiplayer Holomatch, not single-player or Quake III. Its GPL engine does not include the non-free Elite Force game modules or grant rights to original assets. The observed v1.40 Windows archive has no independently published GitHub digest, so this guide does not offer Core acquisition or a freshly invented checksum."
+        },
+        {
+          "title": "Select the actual Holomatch player",
+          "instruction": "Select the completed native Windows liliumvoyhm client (the selected Makefile adds the actual architecture/Windows executable suffix), not liliumvoyded or another dedicated server or an original-game installer. Keep its established working directory and explicit supported +set fs_basepath / +set fs_homepath arguments where used. Finish upstream setup and dependencies first; do not point a Quake III player at Elite Force data."
+        },
+        {
+          "title": "Keep the complete installation and effective profile",
+          "instruction": "Default Windows user files use AppData/Lilium Voyager; baseEF, client configuration, demos, screenshots, downloaded packages/mods and custom directories follow the actual fs_homepath/fs_game settings. Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
+        },
+        {
+          "title": "Retain one upstream replacement owner",
+          "instruction": "Close actual player instances before changes. Preserve the whole old creating runtime and every effective original/profile/custom/unknown root, make deliberate compatible changes upstream, then review and relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises the selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files. This route supplies no Core acquisition, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
+        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+      ]
     }
   }
 }

@@ -96,7 +96,28 @@ function fixture(count = 2, bodySize = 32) {
           items: { totalCount: project.length },
         },
       };
-    else if (query.includes("RepositoryIssueMarker")) {
+    else if (query.includes("IntakeIssueUpdates")) {
+      const filtered = rows
+        .filter(
+          (r) =>
+            typeof vars.since !== "string" || Date.parse(r.updatedAt) >= Date.parse(vars.since),
+        )
+        .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      const start = vars.after === null ? 0 : Number(vars.after),
+        page = filtered.slice(start, start + 50);
+      bodyReads += page.length;
+      value = alterPage({
+        repository: {
+          id: "REPO",
+          nameWithOwner: config.repository,
+          issues: {
+            totalCount: filtered.length,
+            nodes: page,
+            pageInfo: { hasNextPage: start + 50 < filtered.length, endCursor: String(start + 50) },
+          },
+        },
+      });
+    } else if (query.includes("RepositoryIssueMarker")) {
       value = {
         repository: {
           id: "REPO",
@@ -2000,4 +2021,183 @@ void test("cold count-drift recollection fits the current corpus budget and a se
       );
       assert.ok(session.budget.usage.requests < 300);
     });
+});
+
+void test("intake confirms exact semantics through comment-only Project-window activity", () => {
+  const f = fixture(3),
+    list = f.client.itemList.bind(f.client);
+  let reads = 0;
+  f.client.itemList = (number, options) => {
+    f.rows[0]!.updatedAt = `2026-10-17T00:00:0${++reads}Z`;
+    f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
+    return list(number, options);
+  };
+  const got = collectRoadmapInventory(f.client, undefined, { scope: "intake", planningIssues: [] });
+  assert.equal(reads, 2, "no repeated whole Project view for timestamp-only changes");
+  assert.equal(got.issues[0]!.body, f.rows[0]!.body);
+  assert.equal(got.issues[0]!.updatedAt, f.rows[0]!.updatedAt);
+  assert.equal(got.body_reads, 6, "baseline and complete inclusive equal-second delta");
+  assert.equal(requireRoadmapInventory(got, config.repository, f.client, "identity"), got);
+});
+void test("intake delta refuses every changed semantic field, including equal-second body edits", async (t) => {
+  for (const field of ["body", "title", "state", "id", "number", "url"] as const)
+    await t.test(field, () => {
+      const f = fixture(2),
+        list = f.client.itemList.bind(f.client);
+      let calls = 0;
+      f.client.itemList = (n, o) => {
+        if (++calls === 2) {
+          if (field === "number") f.rows[0]!.number = 99;
+          else f.rows[0]![field] = field === "state" ? "CLOSED" : "changed";
+          Object.assign(f.project[0]!.content!, f.rows[0], { body: undefined });
+        }
+        return list(n, o);
+      };
+      assert.throws(() =>
+        collectRoadmapInventory(f.client, undefined, { scope: "intake", planningIssues: [] }),
+      );
+    });
+});
+void test("intake delta independently validates complete filtered pagination and repository identity", async (t) => {
+  for (const kind of [
+    "multi-page",
+    "missing boundary",
+    "duplicate id",
+    "stalled cursor",
+    "changing total",
+    "wrong repo",
+    "missing body",
+    "bad timestamp",
+    "backwards timestamp",
+    "marker movement",
+    "added member",
+    "deleted member",
+    "same-count replacement",
+  ] as const)
+    await t.test(kind, () => {
+      const f = fixture(120),
+        graphql = f.client.graphql.bind(f.client);
+      let pages = 0;
+      f.client.graphql = (q, v) => {
+        const raw = graphql(q, v);
+        if (!q.includes("IntakeIssueUpdates")) return raw;
+        const data = raw as {
+          repository: {
+            id: string;
+            issues: {
+              totalCount: number;
+              nodes: typeof f.rows;
+              pageInfo: { hasNextPage: boolean; endCursor: string | null };
+            };
+          };
+        };
+        const c = data.repository.issues;
+        pages++;
+        if (kind === "missing boundary" && pages === 1) {
+          c.nodes.pop();
+          c.totalCount--;
+          c.pageInfo.hasNextPage = false;
+        }
+        if (kind === "duplicate id" && pages === 2) c.nodes[0]!.id = "I0";
+        if (kind === "stalled cursor") c.pageInfo.endCursor = v?.after as string | null;
+        if (kind === "changing total" && pages === 2) c.totalCount++;
+        if (kind === "wrong repo") data.repository.id = "foreign";
+        if (kind === "missing body") delete (c.nodes[0] as Partial<(typeof f.rows)[number]>).body;
+        if (kind === "bad timestamp") c.nodes[0]!.updatedAt = "invalid";
+        if (kind === "backwards timestamp") c.nodes[0]!.updatedAt = "2020-01-01T00:00:00Z";
+        if (kind === "marker movement") f.rows[0]!.updatedAt = "2026-10-17T00:00:01Z";
+        if (kind === "added member")
+          f.rows.push({
+            ...f.rows[0]!,
+            id: "new",
+            number: 999,
+            url: `https://github.com/${config.repository}/issues/999`,
+          });
+        if (kind === "deleted member") f.rows.pop();
+        if (kind === "same-count replacement")
+          f.rows[0] = {
+            ...f.rows[0]!,
+            id: "replacement",
+            number: 999,
+            url: `https://github.com/${config.repository}/issues/999`,
+            updatedAt: "2026-10-17T00:00:01Z",
+          };
+        return data;
+      };
+      const read = () =>
+        collectRoadmapInventory(f.client, undefined, {
+          scope: "intake" as const,
+          planningIssues: [],
+        });
+      if (kind === "multi-page") {
+        assert.equal(read().issues.length, 120);
+        assert.equal(pages, 3);
+      } else assert.throws(read);
+    });
+});
+void test("fresh target fields accept proven comment-only movement and still reject changed target bodies", async (t) => {
+  for (const change of ["comment", "body"] as const)
+    await t.test(change, () => {
+      const f = fixture(1);
+      f.client.directProjectItem = () => {
+        f.rows[0]!.updatedAt = "2026-10-17T00:00:01Z";
+        if (change === "body") f.rows[0]!.body = "owner body revision";
+        return {
+          ...f.project[0]!,
+          id: "P0",
+          content: { ...f.rows[0]!, __typename: "Issue" },
+          fieldValues: [],
+        };
+      };
+      const read = () =>
+        collectRoadmapInventory(f.client, undefined, {
+          scope: "intake" as const,
+          planningIssues: [1],
+        });
+      if (change === "body") assert.throws(read, /target changed/u);
+      else {
+        const got = read();
+        assert.equal(got.items[0]!.content!.updatedAt, f.rows[0]!.updatedAt);
+        assert.equal(
+          requireRoadmapInventory(got, config.repository, f.client, { planningIssue: 1 }),
+          got,
+        );
+      }
+    });
+});
+void test("current-corpus intake cache and short delta fit retained cold bytes without a second full body walk", () => {
+  const f = fixture(1987, 6300);
+  f.rows.at(-1)!.updatedAt = "2026-10-17T01:00:00Z";
+  f.project.at(-1)!.content!.updatedAt = f.rows.at(-1)!.updatedAt;
+  const cold = collectRoadmapInventory(f.client, undefined, {
+      scope: "intake",
+      planningIssues: [],
+    }),
+    first = f.stats();
+  const warm = collectRoadmapInventory(f.client, cold, { scope: "intake", planningIssues: [] }),
+    after = f.stats();
+  assert.equal(cold.body_reads, 1988);
+  assert.equal(warm.body_reads, 1);
+  assert(first.bytes < 20 * 1024 * 1024);
+  assert(after.bytes - first.bytes < 4 * 1024 * 1024);
+  const bound = discoveryInventoryCost(warm);
+  assert(bound.requests >= after.requests - first.requests);
+  assert(bound.bytes >= after.bytes - first.bytes);
+  const budget = new DiscoveryBudget("cold");
+  budget.observeProvider({
+    resource: "core",
+    remaining: 5000,
+    resetAt: new Date(Date.now() + 3600000).toISOString(),
+  });
+  budget.charge("GET", "cold", first.requests, first.bytes, "200");
+  for (let i = 0; i < 6; i++)
+    budget.charge(
+      "GET",
+      "warm confirmation",
+      after.requests - first.requests,
+      after.bytes - first.bytes,
+      "200",
+    );
+  assert(budget.usage.bytes < 64 * 1024 * 1024);
+  assert(budget.usage.requests === budget.usage.attempts.reduce((s, a) => s + a.requests, 0));
 });

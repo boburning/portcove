@@ -17153,6 +17153,39 @@
             }
           ]
         },
+        "manual_setup": {
+          "help_url": "https://github.com/zolaware/reblue/blob/85aae686489dff775890fb8100ab525d7b7427b0/README.md",
+          "steps": [
+            {
+              "title": "Keep a permitted complete installed Windows player",
+              "instruction": "Use an already permitted, fully working v1.3.1 Windows x86-64 reblue.exe installation with all of its creating runtime, original-derived game tree, profiles, mods and companions. Select the installed executable at its established root, not the freshly extracted setup copy or a repair/updater/build helper. The ordinary release uses DirectX12; a separately built Vulkan variant is not inherited. Project BSD3 terms do not license original game data, optional DLC or all private/generated/component material."
+            },
+            {
+              "title": "Complete all three supported originals upstream",
+              "instruction": "Finish the normal upstream wizard with all three disc images from your own supported Global US/EU Blue Dragon copy before registration. Keep one supported set, its originals, recorded fingerprints and full resulting installation; Asia/JP or arbitrary cross-region/revision mixing is not established. Upstream marker/container/title checks and fingerprints are not Core exact three-disc authentication. The wizard copies itself, restarts, installs game files and writes its registration outside Core; wait for that preparation and any repair to finish. Core does not parse/assemble/generate/admit the triple."
+            },
+            {
+              "title": "Settle replacement and recovery before selecting",
+              "instruction": "Finish any pending upstream update or recovery and a normal upstream start/quit before registration. Do not delete or ignore .update staging, ready markers, replaced-file or recovery history as a workaround: startup can apply a staged update and relaunch before the update-check setting is read. Turn the normal upstream startup update/content check off for this route. A new download, update, repair or backend/warm reboot must be completed externally before the next reviewed Play; Core does not adopt its successor."
+            },
+            {
+              "title": "Select the installed entry with exact explicit coordinates",
+              "instruction": "Select root/reblue.exe with the actual installed-root working directory and one literal --game_data_root=<absolute prepared game-data directory> argument (ordinarily root/game containing default.xex for this upstream installer), --profile=<actual existing profile name>, and --no-bd_update_check. Keep spaces inside each single token; these are arguments, not a shell command. The game-data directory must belong directly beneath that same creating installation root: its parent becomes the profile/cache root and must match the installed executable directory. Preserve an established supported custom direct-child tree rather than rename it or select an unrelated external directory. Explicit game_data_root selects that installation independently of shared install lookup; default.xex presence alone is not full original or private-output validation. The bound normal Windows entry runs its application/message loop in process. Keep any other supported working flags exactly; generic SDK user_data_root/cache_root flags do not override the title’s profile/cache routing."
+            },
+            {
+              "title": "Preserve every actual original and player root",
+              "instruction": "Keep the whole external install, complete originals/private output, game-data tree, mods, installed DLC/content, logs, root/cache, profiles/<actual name>/reblue.toml, profile saves/achievements/content and unknown files, plus all legacy roots and existing shared HKCU installation registration. Preserve actual bd_saves_path and bd_cache_path overrides separately. The title uses the selected installation’s profiles/name as its user root; save/cache overrides and prior layouts are distinct. Do not reset profile/configuration, repoint shared registration or regenerate a private copy merely to register. Core neither backs up these roots nor claims safe save/profile migration or rollback."
+            },
+            {
+              "title": "Review native intent and keep ownership separate",
+              "instruction": "Consent to the exact native executable, working directory and literal arguments, then choose Play separately. A current library-owned installation or active registration/launch cannot be bypassed by this alternative. Existing managed/source contracts remain unchanged; selecting an external copy grants no managed generation, immutable private-output certification or source admission. The program can make normal profile/DLC/cache writes, and its UI can reenable checks; this is not a sandbox or an all-network-off promise. Normal ordered shutdown has a default1.5second forced-exit watchdog, so process exit is not clean-save certification. Close all real instances before upstream changes, retain the old creating runtime/data together and relink changed executables. Registration-only removal preserves all external files."
+            }
+          ],
+          "warnings": [
+            "This is the conditional Windows existing-player route. No game package/original/private save/compiler/installer/upstream helper/game was acquired or executed for this source/fixture batch; actual game/save/DLC/profile compatibility, installed Desktop, physical/human, other-platform and protected acceptance remain separate.",
+            "No Core-managed installation, three-disc preparation, generation, update, backup, rollback, migration, registry rewrite or external deletion is offered. The existing strict definition/source history and all earlier failures/qualification facts remain intact; no Supported or other-platform promotion."
+          ]
+        },
         "artwork": {
           "game_id": 415482,
           "cover_id": 599565,
@@ -22860,6 +22893,31 @@
           ],
           "source_editions": []
         },
+        "manual_setup": {
+          "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533",
+          "steps": [
+            {
+              "title": "Prepare the working copy upstream",
+              "instruction": "Use an existing permitted Windows native Render96 installation prepared through upstream instructions with your own matching Super Mario 64 original. Finish extraction, compilation and a working normal start and quit upstream before adding it. Portcove does not run the build or import the original. Optional model and texture packs have separate content requirements and are not required for registration."
+            },
+            {
+              "title": "Choose the actual native player",
+              "instruction": "Select the executable produced by your working build, not its compiler, build script or a detached launcher. The inspected standard Windows build normally produces build/us_pc/sm64.us.exe for the US flavor; region and renderer options can change its name. Keep its complete resources and companions. Preserve the working directory and literal arguments from that working installation, then save launch details and choose Play separately."
+            },
+            {
+              "title": "Keep the creating save and configuration paths",
+              "instruction": "Keep your existing profile choices. The inspected SDL2 build uses the sm64ex preferences folder by default and can copy an older sm64pc save/configuration into it when the newer save is absent. Another executable folder does not guarantee independent saves. Preserve actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Retain established --savepath, --configfile and --gamedir arguments only where supported by your working build; ! in the supported save path expands to the executable directory. Do not redirect or migrate a profile merely to register it."
+            },
+            {
+              "title": "Leave runtime and data management with upstream",
+              "instruction": "You or upstream own replacement, optional packs, resource preparation and recovery. Keep the complete working runtime, originals, resources, dynos/packs, modifications, saves, settings and unknown files before changing it. Portcove supervises the selected process and removes only its registration; it does not manage replacement, backup, rollback, migration or deletion of this external copy. Older Portcove-built installations retain their original contracts."
+            }
+          ],
+          "warnings": [
+            "Use only originals, prepared copies and optional packs that you are permitted to use. Registration does not authenticate the entire prepared package or grant content rights.",
+            "The source guidance describes the inspected build. Keep the actual paths and behavior of your working copy; other build options and platforms need separate assessment."
+          ]
+        },
         "artwork": {
           "game_id": 1074,
           "cover_id": 329251,
@@ -23410,6 +23468,51 @@
           "image_id": "co28bd",
           "image_sha256": "8f3e4f12d81b064bf80128999fd6758c8b5404dc848c58064aea0175139e5f5a",
           "game_slug": "jazz-jackrabbit",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "atlantis-the-lost-tales-atlantis-native",
+      "name": "Atlantis: The Lost Tales (Atlantis Native)",
+      "summary": "A native engine for Atlantis: The Lost Tales using your own original game data.",
+      "project_url": "https://github.com/ripleyXLR8/atlantis-native",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ripleyXLR8/atlantis-native",
+        "asset_hints": {
+          "windows-x86-64": [
+            "atlantis-native-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "atlantis-native.exe"
+        ]
+      },
+      "persistent_paths": [
+        "atlantis-native-data"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, use the upstream in-process library and original-data picker with your own supported Atlantis: The Lost Tales copy: the edition-matched atlantis.exe and BIGCD1.BIG through BIGCD4.BIG. Keep the complete original tree and supported language/build together; GOG and supported CD editions are alternatives, not interchangeable executables. Upstream can prepare your own discs/images; no game content is downloaded by this engine operation. This offer is Atlantis I only. Normal logs, games.txt, per-build players/checkpoints/settings live under the current account’s AppData/atlantis-native; when that location is unavailable the dedicated atlantis-native-data directory is relative to the creating runtime. Core preserves that declared local directory; it does not import or back up the shared external profile or originals. Preserve all actual original/profile roots and the compatible creating engine before changes. Normal start remains in one process; adding a second engine copy does not isolate shared profiles.",
+        "original_game_title": "Atlantis: The Lost Tales",
+        "artwork": {
+          "game_id": 2209,
+          "cover_id": 471922,
+          "image_id": "coa44y",
+          "image_sha256": "4e2c467092c10bfa470dbaba2b4f9f933903085fb9ef8f74c8d7afdcf59e1660",
+          "game_slug": "atlantis-the-lost-tales",
           "match_kind": "underlying-game"
         }
       }
@@ -27563,6 +27666,51 @@
       }
     },
     {
+      "id": "elraro-atomic-bomberman",
+      "name": "Atomic Bomberman (Atomic Bomberman — Modern)",
+      "summary": "A native Atomic Bomberman recreation with its own generated graphics and sound.",
+      "project_url": "https://github.com/elraro/atomic-bomberman",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elraro/atomic-bomberman",
+        "asset_hints": {
+          "windows-x86-64": [
+            "atomic-bomberman-modern-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "atomic.exe"
+        ]
+      },
+      "persistent_paths": [
+        "free-assets"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Start the normal atomic.exe player, not the companion atomic_server.exe dedicated server. No original game files are required for the code-generated free asset set. An OpenGL 3.3 graphics driver is required. Optional original Atomic Bomberman (1997) data and --import-assets preparation remain upstream/player-owned; do not treat an engine install as permission to acquire that content. The normal writable SDL profile for atomic-bomberman-modern/atomic holds options.ini, schemes, anims.lst and imported/generated assets under the current account’s AppData; copies share it and Core does not back it up, migrate or delete it. If preference lookup fails, free assets fall back to free-assets beside the creating player; Core retains this declared local directory, including unknown/custom files during its maintenance. Upstream rewrites its known generated files when the free-assets version changes; its free-assets.txt marker is internal, not a Core completion or save-compatibility certificate. Failed profile lookup disables normal settings persistence and can send editor scheme saves to a drive-root /name.sch path outside the engine. Stop editor saving and repair the profile upstream if that occurs; preserve any actual external outputs. This managed offer requires the normal writable profile, does not sandbox the player and does not claim free-assets captures every fault output. Preserve the whole creating runtime, all effective profiles, custom files and originals before changes. No actual game, editor, import or network behavior is qualified.",
+        "original_game_title": "Atomic Bomberman",
+        "artwork": {
+          "game_id": 18153,
+          "cover_id": 430461,
+          "image_id": "co9859",
+          "image_sha256": "4ebc44a0b86464bf4db64cc3cb23d4b7c1c05d3e9928f2106be0652eb2d86cc5",
+          "game_slug": "atomic-bomberman",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "final-doom-crispy-doom-family",
       "name": "Final Doom (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
@@ -27893,6 +28041,46 @@
           "game_slug": "gladiator--1",
           "match_kind": "underlying-game"
         }
+      }
+    },
+    {
+      "id": "gunstar-heroes-gunstars",
+      "name": "Gunstar Heroes (gunstars)",
+      "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
+      "project_url": "https://github.com/1nputs/gunstars",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "1nputs/gunstars",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "gunstar.exe"
+        ]
+      },
+      "persistent_paths": [
+        "settings.ini",
+        "states",
+        "screenshots",
+        "videos"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On Play, use the upstream in-process file browser to select your own Gunstar Heroes USA 1 MiB cartridge dump, or retain an established --rom argument. The selected engine checks size and CRC32 B813CF0D for compatibility; that is not Core cryptographic source authentication. Core does not acquire, copy or import the ROM. Keep it outside the engine directory and preserve it separately. The normal Windows player gunstar.exe keeps settings.ini, states (including slots/autosave and previews), screenshots and videos relative to its executable working directory; Core preserves these declared default paths across its engine maintenance. User-configured state/capture paths can point elsewhere and remain external, outside Core backup/removal. Retain every actual override location and compatible old runtime before changes; restore does not promise backward state compatibility. macOS Finder profile behavior is a separate unoffered platform. Normal local play is offered; multiplayer/replay/GIF/gameplay claims remain upstream-only. Existing external registrations keep their own replacement owner.",
+        "original_game_title": "Gunstar Heroes"
       }
     },
     {
@@ -28731,6 +28919,50 @@
       }
     },
     {
+      "id": "jagged-alliance-2-ja2-stracciatella",
+      "name": "Jagged Alliance 2 (JA2 Stracciatella)",
+      "summary": "A native engine for Jagged Alliance 2 using your own original installation.",
+      "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "ja2-stracciatella/ja2-stracciatella",
+        "asset_hints": {
+          "windows-x86-64": [
+            "win-msvc64",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "ja2.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own complete original Jagged Alliance 2 installation and matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty or Russian Gold. Keep the originals outside this engine package. Run the bundled ja2-launcher.exe upstream once to set JA2 Data Directory and localization, then use normal ja2.exe for Play. Alternatively let ja2.exe create ja2.json, close it, and configure game_dir and the supported localization upstream before Play. Missing configuration is not successful setup. The selected Windows source prefers the existing AppData/JA2 profile; if absent it retains an existing Documents/JA2 profile, otherwise it chooses AppData/JA2. The older README names only Documents/JA2. Preserve the actual selected home, ja2.json, SavedGames, mods and custom save_game_dir overrides; diagnostic logs use the account temporary directory. These external shared locations are not isolated by another engine copy and Core does not back them up, migrate or delete them. Core replaces only the official MSVC x64 portable engine and its packaged assets/dependencies, not the original game or optional original-game data. Keep the complete compatible old runtime and every effective profile/original/custom root before changes. Original SFI code, later contributions and bundled libraries retain distinct terms; public engine downloads do not grant original-game rights. No title, launcher, actual-save or backward-format qualification is claimed.",
+        "original_game_title": "Jagged Alliance 2",
+        "artwork": {
+          "game_id": 9,
+          "cover_id": 104633,
+          "image_id": "co28qh",
+          "image_sha256": "109586380e0da3f1864eae530857f25cb828f4c74790171e47d4fe47e7fa129a",
+          "game_slug": "jagged-alliance-2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "jgrennison-openttd-patches",
       "name": "OpenTTD / OpenTTD-patches (JGRennison)",
       "summary": "Explore OpenTTD / OpenTTD-patches (JGRennison) and follow the upstream project for requirements, downloads and setup.",
@@ -29059,6 +29291,45 @@
           "game_slug": "caesar-iii",
           "match_kind": "underlying-game"
         }
+      }
+    },
+    {
+      "id": "kirby-letsgo-oracles-decomp",
+      "name": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons / Oracles Decomp (kirby-letsgo)",
+      "summary": "A native Oracles engine for your own Oracle of Ages and Oracle of Seasons data.",
+      "project_url": "https://github.com/kirby-letsgo/oracles-decomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "kirby-letsgo/oracles-decomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "oracles-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Oracles.exe"
+        ]
+      },
+      "persistent_paths": [
+        "portable.txt",
+        "oracles-data",
+        "oracles-data.part"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance.",
+        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons"
       }
     },
     {
@@ -29870,6 +30141,56 @@
           ],
           "warnings": [],
           "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+        }
+      }
+    },
+    {
+      "id": "moshferatu-zombies-ate-my-neighbors-pc-port",
+      "name": "Zombies Ate My Neighbors / Zombies Ate My Neighbors PC Port (moshferatu)",
+      "summary": "A Zombies Ate My Neighbors PC engine using your own original USA cartridge data.",
+      "project_url": "https://github.com/moshferatu/zombies-ate-my-neighbors-pc-port",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "moshferatu/zombies-ate-my-neighbors-pc-port",
+        "asset_hints": {
+          "windows-x86-64": [
+            "zamn-windows-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "zamn_launcher.exe"
+        ]
+      },
+      "persistent_paths": [
+        "zamn.ini",
+        "zamn.ini.tmp",
+        "zamn.quicksave",
+        "zamn.quicksave.tmp",
+        "zamn.hiscore",
+        "zamn.hiscore.tmp"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Use your own USA 1,048,576-byte Zombies Ate My Neighbors ROM. Upstream's compatibility SHA-256 is b27e2e957fa760f4f483e2af30e03062034a6c0066984f2e284cc2cb430b2059; Core does not acquire, authenticate or import it. Keep the original outside the engine directory. The normal Windows entry is zamn_launcher.exe: select your ROM and settings there, then use its Play button. Keep zamn.exe, SDL2 and the whole package together. The normal launcher tracks and reaps its child and returns to its settings UI after the game exits; close both before maintenance. This source review is not an installed full-session or forced-exit certification. Core preserves default local zamn.ini, zamn.quicksave, zamn.hiscore and their atomic .tmp companions. Explicit config, high-score, capture, movie and other user-selected paths can be external and remain outside Core backup/removal. Preserve every effective creating path and complete old runtime before updating or restoring; the quicksave ROM/structure checks do not promise compatibility across future builds. Upstream mixes native game logic with hardware emulation; no complete-native, gameplay or real-save acceptance is implied. Core owns engine replacement, upstream owns ROM selection and settings.",
+        "original_game_title": "Zombies Ate My Neighbors",
+        "artwork": {
+          "game_id": 2162,
+          "cover_id": 129525,
+          "image_id": "co2rxx",
+          "image_sha256": "a91a1393cd7f8423249a643e0fb984acb90c75660bdd13030e70ebab68a58045",
+          "game_slug": "zombies-ate-my-neighbors",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -33111,6 +33432,84 @@
       }
     },
     {
+      "id": "soulcalibur-ii-ring-out",
+      "name": "Soulcalibur II / Ring Out",
+      "summary": "Register your already prepared Ring Out Windows runtime with your own Soulcalibur II USA disc data and generated module.",
+      "project_url": "https://github.com/jackpoison-prog/RingOut",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "jackpoison-prog/RingOut",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own permitted Soulcalibur II USA GRSEAF revision 0 disc and complete the supported Ring Out preparation outside Portcove. Establish a working prepared copy first. Keep the original, extracted game and generated module private; Portcove does not extract, compile or authenticate them. Select bin/moderngekko-run.exe inside the prepared Ring Out folder, with the complete package root as the working directory. Do not select RingOut.exe, RingOut.ps1, setup.ps1, a compiler or tool mode. RingOut.exe can invoke preparation when game/module files are missing. Use six separate literal argument tokens: --user-dir, the absolute path to this copy's userdata directory, --game, its absolute game directory, --module, and its absolute bin/gGRSEAF_recomp.dll path. Preserve spaces within each path token. Replace paths with your actual prepared locations; do not enter placeholders or --extract. The generated DLL is executable code and must be part of your permitted trusted prepared copy. Review the exact runtime executable, root working directory and all six arguments, then consent to that execution intent. Registration does not start the game. Choose Play separately. Portcove retains the selection across restart and relink and observes the selected runtime process. Re-review and re-consent to every changed path after moving a copy. Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement. Close all actual players and preserve originals/data before upstream changes. Removing the registration removes only Portcove metadata and preserves external files.",
+        "original_game_title": "Soulcalibur II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish upstream preparation first",
+              "instruction": "Use your own permitted Soulcalibur II USA GRSEAF revision 0 disc and complete the supported Ring Out preparation outside Portcove. Establish a working prepared copy first. Keep the original, extracted game and generated module private; Portcove does not extract, compile or authenticate them."
+            },
+            {
+              "title": "Choose the direct runtime",
+              "instruction": "Select bin/moderngekko-run.exe inside the prepared Ring Out folder, with the complete package root as the working directory. Do not select RingOut.exe, RingOut.ps1, setup.ps1, a compiler or tool mode. RingOut.exe can invoke preparation when game/module files are missing."
+            },
+            {
+              "title": "Bind your exact data and module paths",
+              "instruction": "Use six separate literal argument tokens: --user-dir, the absolute path to this copy's userdata directory, --game, its absolute game directory, --module, and its absolute bin/gGRSEAF_recomp.dll path. Preserve spaces within each path token. Replace paths with your actual prepared locations; do not enter placeholders or --extract. The generated DLL is executable code and must be part of your permitted trusted prepared copy."
+            },
+            {
+              "title": "Review, consent and choose Play separately",
+              "instruction": "Review the exact runtime executable, root working directory and all six arguments, then consent to that execution intent. Registration does not start the game. Choose Play separately. Portcove retains the selection across restart and relink and observes the selected runtime process. Re-review and re-consent to every changed path after moving a copy."
+            },
+            {
+              "title": "Preserve the complete copy and keep one update owner",
+              "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement. Close all actual players and preserve originals/data before upstream changes. Removing the registration removes only Portcove metadata and preserves external files."
+            }
+          ],
+          "warnings": [
+            "Use an already permitted prepared copy and comply with its engine and component terms. Engine GPL/source statements do not license original-game files or generated game code. Core validates the selected execution intent; it does not authenticate the disc revision, generated DLL, package/build provenance or every component.",
+            "Explicit --user-dir avoids an unintended shared default profile; without it the runtime can use LOCALAPPDATA/moderngekko, an XDG/HOME profile or a working-directory fallback depending on its build. Explicit --game and --module avoid default-game.txt and module discovery. Keep your actual prior profiles and custom data paths; changing coordinates does not migrate them or prove state compatibility.",
+            "Player startup creates and writes profile directories and settings; diagnostic, replay, texture/mod and configured external paths remain player-owned. Registration provides no sandbox or guarantee that upstream retains every file. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay, save/load, netplay and other platforms remain unqualified.",
+            "The reviewed v1.7 publication is distinct from historical v1.6.1 assets whose bytes changed under one name. It does not repair that old integrity gap. Old package CREDITS/README version and source-bundle instructions are stale; preserve notices and follow the matching upstream source. No binary/source attestation or new distribution right is inferred."
+          ],
+          "help_url": "https://github.com/jackpoison-prog/RingOut#installing"
+        },
+        "artwork": {
+          "game_id": 227987,
+          "cover_id": 282512,
+          "image_id": "co61zk",
+          "image_sha256": "cab12016a577512e14d96191bc17f92f08352fa32abea249d0e0f32f37f49adb",
+          "game_slug": "soulcalibur-ii--2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "spear-of-destiny-reflectionhle",
       "name": "Spear of Destiny (ReflectionHLE)",
       "summary": "Play Spear of Destiny through ReflectionHLE with the matching original DOS game files.",
@@ -33417,6 +33816,134 @@
       }
     },
     {
+      "id": "star-wars-x-wing-alliance-openxwa",
+      "name": "Star Wars: X-Wing Alliance (OpenXWA)",
+      "summary": "A native engine for X-Wing Alliance using your own original game data.",
+      "project_url": "https://github.com/elyosh/OpenXWA",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elyosh/OpenXWA",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-release.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenXWA.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.yaml",
+        "config.cfg"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing Alliance GOG/Steam installation. Preserve the complete original data and package resources, shaders and DLLs. Native 64-bit engine replacement is separate from original-game patch/mod preparation. Multiplayer is not implemented by the selected upstream; no network or mod compatibility is promised. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXWA; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
+        "original_game_title": "Star Wars: X-Wing Alliance",
+        "artwork": {
+          "game_id": 169,
+          "cover_id": 106711,
+          "image_id": "co2ac7",
+          "image_sha256": "4f854c49f23fcebf0b87c3c6ea7feecd10c57769c2b3e35518122cdd6bbba40a",
+          "game_slug": "star-wars-x-wing-alliance",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "star-wars-x-wing-openxw",
+      "name": "Star Wars: X-Wing (OpenXW)",
+      "summary": "A native engine for Star Wars: X-Wing using your own original game data.",
+      "project_url": "https://github.com/elyosh/OpenXW",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elyosh/OpenXW",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-release.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenXW.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.yaml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, keep the normal in-process setup picker. Select your own complete 1994 Collector’s CD-ROM and/or 1998 Windows X-Wing installation; 1998 uses the main folder containing X-Wing Data, IVFiles and MUSIC. Combining 1994 menus/music and 1998 flight assets is optional. The separate 1993/B-Wing mode still needs 1994 or 1998 menus; it is not a substitute for either required supported installation. Built-in AdLib/OPL3 is available: optional MT-32/SC-55 ROMs and SoundFonts are not mandatory inputs. Keep all package resources, shaders and DLLs intact. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXW; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
+        "original_game_title": "Star Wars: X-Wing",
+        "artwork": {
+          "game_id": 168,
+          "cover_id": 128843,
+          "image_id": "co2rez",
+          "image_sha256": "da2c90f595b7d0d9532960cda18520fcaab4c0c59530e22f6bffc1fdbb7aafcb",
+          "game_slug": "star-wars-x-wing",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+      "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
+      "summary": "A native engine for X-Wing vs. TIE Fighter with your own Balance of Power game data.",
+      "project_url": "https://github.com/elyosh/OpenXvT",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elyosh/OpenXvT",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-release.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "OpenXvT.exe"
+        ]
+      },
+      "persistent_paths": [
+        "config.yaml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing vs. TIE Fighter installation with its BalanceOfPower subfolder. Balance of Power is required by this implementation; the base game alone is not the offered tuple. Keep the full original root, package resources, DLLs, shaders and established control/music choices. Optional explicit setup/import arguments are upstream tools, not forced on each start. Multiplayer and save compatibility have not been qualified here. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXvT; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered.",
+        "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power"
+      }
+    },
+    {
       "id": "starlancer-openreliant",
       "name": "StarLancer / OpenReliant",
       "summary": "Explore StarLancer / OpenReliant and follow the upstream project for requirements, downloads and setup.",
@@ -33476,6 +34003,103 @@
           "image_id": "co2jps",
           "image_sha256": "2a7b18ba20d6b76160e03a771f901d2c3c3d0dd095d5b01852e81f2bc9d69741",
           "game_slug": "starlancer",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "street-fighter-iii-3rd-strike-3sx",
+      "name": "Street Fighter III: 3rd Strike / 3SX",
+      "summary": "A native Street Fighter III: 3rd Strike engine using your own PlayStation 2 data.",
+      "project_url": "https://github.com/crowded-street/3sx",
+      "support_tier": "beta",
+      "channels": [
+        "rolling"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "crowded-street/3sx",
+        "asset_hints": {
+          "windows-x86-64": [
+            "3sx-",
+            "-windows.zip"
+          ]
+        },
+        "rolling_tag": "rolling-pre-release"
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "3sx.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "This is the deliberately selected rolling prerelease, with upstream bugs and instability expected. Complete the normal in-process setup wizard using your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2, or prepare the exact SF33RD.AFS from THIRD/ in the upstream resources location. A CPS-3/MAME set, future arcade-ROM-only roadmap or a different edition is not the current source contract. The selected Windows player 3sx.exe lives in bin/ and uses its executable parent as the launch working directory; keep all packaged dependencies. Normal resources, configuration, cache, logs and user storage live under AppData/Roaming/CrowdedStreet/3SX; preserve the whole actual profile and any custom effective roots. Upstream checks the expected AFS when its checksum option is enabled; Core does not authenticate, acquire, copy or import original data. Core owns engine replacement on the declared rolling provider channel; upstream owns original-data preparation and shared external profiles. Core supplies no external-profile backup, migration or deletion. Preserve the complete old runtime and compatible actual player data before changes. Rolling tag/assets can change; published provider identity and reviewed current selection remain required, and ambiguity or missing independent identity must refuse. No netplay, rollback gameplay, actual original import, save compatibility or physical-platform acceptance is claimed.",
+        "original_game_title": "Street Fighter III: 3rd Strike",
+        "artwork": {
+          "game_id": 243243,
+          "cover_id": 294724,
+          "image_id": "co6bes",
+          "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
+          "game_slug": "street-fighter-iii-3rd-strike--2",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "street-fighter-iii-3rd-strike-3sxw",
+      "name": "Street Fighter III: 3rd Strike / 3SXW",
+      "summary": "A Street Fighter III: 3rd Strike engine using your own PlayStation 2 data.",
+      "project_url": "https://github.com/guimaraf/3sxw",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "guimaraf/3sxw",
+        "asset_hints": {
+          "windows-x86-64": [
+            "3sx-",
+            "-windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SF3.exe"
+        ]
+      },
+      "persistent_paths": [
+        "resources/SF33RD.AFS",
+        "data/saves",
+        "data/config",
+        "data/keymap",
+        "data/error.log",
+        "data/debug",
+        "prints"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Use your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2. Complete upstream's in-process ISO wizard, or its documented SF33RD.AFS setup; a CPS-3/MAME set is not this source contract. Core does not acquire or authenticate original data. The actual Windows player is bin/SF3.exe, with its executable parent as the launch directory; keep every packaged DLL and companion file, including sf3config.exe. This fork stores resources/SF33RD.AFS, data/saves (both memory-card slots), data/config, data/keymap, data/error.log, optional data/debug diagnostics and prints beside that player. Core preserves those declared paths across engine maintenance; its packaged data/img bezel images remain runtime content. Interrupted storage probes or configuration temporary files outside the declared paths deliberately hold maintenance for inspection; do not delete unknown files to bypass that hold. Preserve the complete creating runtime and all actual originals, profiles and unknown files before changes. The selected source enables its expected AFS SHA-256 check in Release builds (f9fa50f3a124ec9fa9465aa9c8546c2d867887eb39f711a070762a0324ba5604); use a compatible original that passes upstream validation. Unestablished region/revision coverage is not a claim that every PS2 edition works, and no exact-binary/source reproducibility is established here. This is a separate portable fork, not a migration of CrowdedStreet/3SX's external AppData profile. Upstream original-file checksum checks do not establish Core source authentication, memory-card compatibility, gameplay or netplay qualification. Core owns engine replacement; upstream owns data preparation. Diagnostics can contain paths and inputs and are not uploaded by this route.",
+        "original_game_title": "Street Fighter III: 3rd Strike",
+        "artwork": {
+          "game_id": 243243,
+          "cover_id": 294724,
+          "image_id": "co6bes",
+          "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
+          "game_slug": "street-fighter-iii-3rd-strike--2",
           "match_kind": "underlying-game"
         }
       }
@@ -35195,6 +35819,118 @@
             "Portcove tracks the player you selected. If UZDoom’s error window restarts it, the new player can keep running after Portcove reports the original process finished. Close any remaining UZDoom players before choosing Play again or updating files. Removing the registration does not confirm that restarted players have stopped and leaves every external file untouched."
           ],
           "help_url": "https://github.com/UZDoom/UZDoom/blob/7910df7102033fd7754a317f3254f24101135926/README.md"
+        }
+      }
+    },
+    {
+      "id": "vyruz-destruction-of-the-untel-empire-openvyruz",
+      "name": "Vyruz: Destruction of the Untel Empire (OpenVyruz)",
+      "summary": "A native engine for Vyruz using the original game data from your own copy.",
+      "project_url": "https://github.com/Solessfir/OpenVyruz",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "Solessfir/OpenVyruz",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Vyruz.exe"
+        ]
+      },
+      "persistent_paths": [
+        "OpenVyruz"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own vz-data.rsc outside the engine directory; Intro.avi beside it supplies the optional original intro. The normal in-process folder picker selects that game folder and remembers it in game-folder.txt under AppData/OpenVyruz. Do not select a data folder inside the managed engine: the upstream player writes vzconf.txt, session/ and vz.sco into the selected original-game folder and can share or overwrite settings, saves and scores with the original. Preserve that complete writable folder and compatible old runtime before the first start or any change; source format compatibility is not an observed save roundtrip. Normal remembered paths and co-op data use the external user directory. If APPDATA is unavailable, the selected Windows source falls back to an OpenVyruz directory relative to the creating working directory; Core conservatively preserves this declared local directory, including unknown files. External profiles, originals, custom paths and any configured data roots remain outside Core backup/rollback/removal. Core replaces only the official Windows x64 engine. Existing registrations retain upstream replacement ownership. Vulkan/graphics, intro decoding, co-op/network, actual gameplay and real-save behavior remain unqualified; no original import, archive conversion or upstream helper is performed.",
+        "original_game_title": "Vyruz: Destruction of the Untel Empire",
+        "artwork": {
+          "game_id": 112224,
+          "cover_id": 382135,
+          "image_id": "co86uv",
+          "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+          "game_slug": "vyruz-destruction-of-the-untel-empire",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
+      "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
+      "summary": "Native SDL2 Wing Commander player for your own Kilrathi Saga installation. Portcove can manage a separate Windows x64 engine while the supported in-process launcher selects your existing writable game-data directory. Original files, SAVEGAME.WLD and shared SDL settings remain externally owned and outside Core backups. The older MSVC reconstruction and partial DOS route do not inherit this offer or gameplay qualification.",
+      "project_url": "https://github.com/neuromancer/wc1-re",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "neuromancer/wc1-re",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-sdl2.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "wc1-modern.exe"
+        ]
+      },
+      "launch_arguments": [
+        "--gui"
+      ],
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned.",
+        "original_game_title": "Wing Commander (Kilrathi Saga)",
+        "manual_setup": {
+          "help_url": "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "steps": [
+            {
+              "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
+              "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+            },
+            {
+              "title": "Choose the actual writable original directory in upstream setup",
+              "instruction": "A new managed engine starts its supported graphical launcher with --gui. Browse to the actual permitted, writable Kilrathi Saga directory, review graphics/joystick choices and choose Launch WC1. Startup checks include GAMEDAT/MODULE.000, CAMP.000 and INSTALL.DAT and the Saga streams; they are not a full original-file identity audit. Portcove does not copy or authenticate those originals. The launcher and game run in the same process; cancelling setup is separate from successful gameplay."
+            },
+            {
+              "title": "Preserve saves and the shared settings root",
+              "instruction": "The accepted upstream folder becomes the game working directory. Preserve the whole original tree, including SAVEGAME.WLD, unknown/custom files and any previous compatible runtime. Registry emulation also writes wc1-modern.cfg under the actual SDL preference directory for Origin Systems/WC Kilrathi Saga. These shared/external original, save and profile paths remain player-owned and outside Portcove-managed backups, restore and removal. A different engine folder does not isolate them; close all actual users before changing shared state."
+            },
+            {
+              "title": "Keep the existing-copy launch coordinates",
+              "instruction": "For an attached working copy retain its actual prepared working directory and established supported literal arguments. Starting without arguments opens the graphical launcher; existing direct arguments use the creating working directory unless --gui is included. Keep that choice truthful rather than starting a new engine folder with direct-game flags and no original data. Review exact intent/consent and choose Play separately. Do not substitute --check, a compiler, installer or historical reproduction binary for normal play."
+            },
+            {
+              "title": "Keep runtime replacement and removal ownership separate",
+              "instruction": "Portcove manages replacement only for its separate managed engine; it does not adopt or move the original installation/profile. An attached copy keeps upstream/player ownership of preparation, runtime replacement, recovery and every external file. Preserve the old creating runtime and all actual state before updates; backward saves, alternate renderers, mods and controllers are not qualified here. Review/relink deliberate external executable replacement before Play. Removing a registration preserves external files; neither route promises to delete or back up outside originals, SAVEGAME.WLD or shared SDL preferences."
+            }
+          ],
+          "warnings": [
+            "Use only game data and components you are already permitted to use. The engine license does not grant rights to unrelated assets, music or modifications.",
+            "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
+          ]
         }
       }
     },

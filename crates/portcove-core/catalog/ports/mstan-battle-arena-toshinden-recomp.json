@@ -3,7 +3,7 @@
   "listing": {
     "id": "mstan-battle-arena-toshinden-recomp",
     "name": "Battle Arena Toshinden Recompiled / mstan",
-    "summary": "Explore Battle Arena Toshinden Recompiled / mstan and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register your permitted noncommercial prepared Battle Arena Toshinden Windows player with your own USA original and preserved external data.",
     "project_url": "https://github.com/mstan/BattleArenaToshindenRecomp",
     "issue_number": 826,
     "platforms": [],
@@ -16,6 +16,38 @@
       "image_sha256": "ff23e8b57e39837e479e054456abc8ef6cea4f39183719072b3b852d3b95728a",
       "game_slug": "battle-arena-toshinden",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Battle Arena Toshinden",
+    "download_block_reason": "Fresh acquisition of the older v0.1.3 package remains held: its selected source predates the current project license. This route registers only a permitted current-source noncommercial completed build; older package grants, component applicability and managed preparation are not certified.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Check the actual copy and terms",
+          "instruction": "Use an already permitted noncommercial completed build from the currently licensed Toshinden source. Preserve the project, framework and component notices. This does not establish permission for arbitrary older v0.1.3 packages."
+        },
+        {
+          "title": "Finish upstream setup with your originals",
+          "instruction": "Finish supported upstream Generate & Build with your own USA SCUS-94200 original outside Portcove. Keep the CUE and all fourteen BIN tracks together. The data track is 14,662,368 bytes, SHA-1 cb03e66d2a5e68f402f9c64741a94c02ca78d4c5; retain the complete TOC/source set, not just that track. Establish a working completed product before registration."
+        },
+        {
+          "title": "Select the completed player",
+          "instruction": "Choose build-release/BattleArenaToshinden_Recompiled.exe, with its containing completed product folder as the working directory. Do not choose the zip-root/setup-host executable: setup-host forwarding runs before argument parsing, so --no-launcher alone does not bypass it."
+        },
+        {
+          "title": "Preserve your established source and save coordinates",
+          "instruction": "For the ordinary direct route use three literal argument tokens: --no-launcher, --disc, and the absolute path to your supported USA CUE. Keep spaces inside the CUE path token. Preserve the working copy's existing BIOS choice, card/state/settings and custom locations. Do not add a new --memcard-dir merely to register: it clears explicit custom slot paths. Retain that override only if it was already part of your established working invocation, with its exact existing directory."
+        },
+        {
+          "title": "Review, consent, Play and preserve ownership",
+          "instruction": "Review the exact executable, working directory and literal arguments and consent to that execution intent. Registration does not start the game; choose Play separately. Portcove retains registration/relink across restart and observes the selected process. Upstream/player own preparation, repair and runtime replacement. Close every actual player and preserve all files before upstream changes. Removing the registration removes only Portcove metadata and preserves every external file."
+        }
+      ],
+      "warnings": [
+        "Preserve all originals/tracks, generated runtime and source, BIOS files and notices, executable-parent settings.toml, config.ini, input.ini, keybinds.ini, mods/state, diagnostics/heartbeat, cache/captures and every actual custom card/state/profile path. --memcard-dir is not an all-writes redirect. A different executable folder can change active settings; registration does not migrate data or prove state compatibility. Keep quickstates with their creating runtime; unchanged originals or current licensing do not establish build-state compatibility.",
+        "Configured setup/rebuild, overlay compiler/toolchain/command modes and relaunches remain upstream-owned. The ordinary direct player is the selected process; successors can require separate closure. Registration is not a sandbox or an exclusive lock over all external players. Network/debug behavior depends on the build, settings and environment; no offline/no-listener, netplay or public-relay qualification is promised.",
+        "Core does not authenticate the disc set, generated code, component rights or build provenance. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay/save-load, new native game runs, other platforms and installed/protected-client delivery remain unqualified by this route."
+      ],
+      "help_url": "https://github.com/mstan/BattleArenaToshindenRecomp#readme"
     }
   }
 }

@@ -17,7 +17,36 @@
       "game_slug": "need-for-speed-ii-special-edition",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2887
+    "issue_number": 2887,
+    "manual_setup": {
+      "help_url": "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+      "steps": [
+        {
+          "title": "Prepare the NFS II SE implementation upstream",
+          "instruction": "Use a permitted completed native Windows NFS Recompiled copy with your own complete Need for Speed II Special Edition installation and CD Fedata/GameData content. The reviewed v1.0.1 public ZIP contains distinct AMD64 nfs2se.exe and nfs3hp.exe players; choose the NFS II SE player. The original nfs2sen.exe and eacsnd.dll are source-generation inputs, not the native player to attach. No original acquisition or compiler/helper is run here. Upstream calls this a toy project."
+        },
+        {
+          "title": "Keep explicit installation and CD root arguments",
+          "instruction": "Select native nfs2se.exe with its complete companions and established working directory. Retain the absolute original installation path as one literal argument, and a second absolute CD-data path when separate; one argument uses the same root for both. With no arguments the selected entry derives roots from argv[0], so do not assume an arbitrary working directory selects the right data. NFS III and the separate NFSIISE wrapper are different implementations."
+        },
+        {
+          "title": "Preserve every mapped writable root",
+          "instruction": "Keep the complete creating runtime, writable original installation, CD roots, configuration, saves, replays, mods/custom and unknown files. The shared file backend maps relative Win32 paths to the installation and drive-letter paths to the CD root, including writes/removal. Preserve both actual roots and compatible old copy before upstream changes; a registry stub is not proof of a registry-based save backup. Static Windows headers do not qualify the separately documented Linux build."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

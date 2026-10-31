@@ -16,6 +16,30 @@
       "image_sha256": "641e4110a697e73bcabbfe73b36b82fe7b234943615f7badf6f216d84f7874f9",
       "game_slug": "mega-man-x4",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/MegaManX4Recomp/tree/81612a235bac1cd39720988c7a69866cb01cf613",
+      "steps": [
+        {
+          "title": "Prepare the exact own-disc Mega Man X4 copy upstream",
+          "instruction": "Use your own unmodified USA Mega Man X4 PlayStation disc, serial SLUS-00561, represented as its CUE plus every referenced BIN. Keep the complete disc set and follow upstream’s normal release setup outside Portcove. A patched/undubbed disc, another region or a bare filename is not this accepted source contract. Upstream documents compatibility SHA-256 3ceab06ac99add4035f912188bcbf5b16c02056f46a33d38ff0c8dbce6cb613b; Core does not acquire or authenticate original media. The release includes OpenBIOS; separately owned retail BIOS and optional Japanese movie inputs remain optional and separate."
+        },
+        {
+          "title": "Keep the completed player and toolchain together",
+          "instruction": "The reviewed v1.0.22 Windows x64 package’s native player is MegaManX4Recomp.exe. Keep game.toml, input.ini, bios, assets, mods and the complete overlay_toolchain beside it. Runtime-native overlay generation/caching can invoke bundled psxrecomp helpers and compiler components upstream; this guide neither runs those helpers nor gives Core authority to build or trust a mutable native-code cache. Attach only the intended completed native player, with its established working directory."
+        },
+        {
+          "title": "Attach the completed native player and choose Play separately",
+          "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+        },
+        {
+          "title": "Retain the creating runtime, cards, states and mod/cache tuple",
+          "instruction": "Upstream remains the single runtime, toolchain and data owner. Preserve the entire installation, original disc/BIOS inputs and every effective profile before changes. Selected Windows source reads settings.toml beside the executable; the release game.toml sets memcard_dir to saves, while settings or --memcard-dir and explicit per-card paths can override it. Relative card directories resolve from the executable; the framework fallback without a configured directory is the executable directory. Preserve both card slots, states/rewind data, settings.toml.bad, mods, generated native overlays and all custom paths. State/rewind compatibility depends on the creating release and mod layout, and co-op/netplay profile behavior is not qualified here. Optional diagnostics can include initial private cards under executable-local saves/diagnostics independently of a card override; leave capture disabled and preserve any existing diagnostics-location.txt and reports. Updating the selected executable requires deliberate upstream-compatible replacement and fresh attachment review, not a Core migration or universal PS1 infrastructure campaign."
+        }
+      ],
+      "warnings": [
+        "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+      ]
     }
   }
 }

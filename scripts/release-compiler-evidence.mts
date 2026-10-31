@@ -1,3 +1,5 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -22,9 +24,8 @@ import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
 type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-const platforms = ["windows-x86_64", "linux-x86_64"] as const;
 const interfaces = ["cli", "desktop"] as const;
-type Platform = (typeof platforms)[number];
+type Platform = ReturnType<typeof nativePlatformsForReleaseProfile>[number];
 type Interface = (typeof interfaces)[number];
 export interface CompilerPackageIdentity {
   platform_label: string;
@@ -351,7 +352,7 @@ export async function collectReleaseCompilerEvidence(
 ) {
   const { accepted } = await inspectTrustedAssemblyInput(assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
     evidence.run.event !== "workflow_dispatch"
   )
     return {
@@ -370,6 +371,7 @@ export async function collectReleaseCompilerEvidence(
     evidence.run.conclusion !== "success"
   )
     throw new Error("compiler provider run/source/attempt differs");
+  const platforms = nativePlatformsForReleaseProfile(accepted.release_profile);
   const request = {
     schema_version: 1,
     repository_id: 1354613114,

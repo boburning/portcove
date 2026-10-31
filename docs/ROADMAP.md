@@ -94,8 +94,15 @@ below. Priority, Horizon, status and queue order remain solely in the Project.
 
 ## Initial Public beta
 
-The initial supported-platform promise is **Windows and ordinary Linux x86-64**,
-qualified at the actual claimed scope. Required foundations include:
+The first Public beta application host commitment is **Windows x86-64**, qualified
+at the existing supported Windows/WebView2 baseline. Linux remains planned for a
+subsequent beta with its existing owners, implementation, support metadata and
+evidence retained. Existing before-1.0 commitments remain unchanged; no Linux
+release date is assigned. Shared trust, correctness and Windows-delivery checks
+remain required on their appropriate Linux/WSL/macOS or Windows hosts. Game
+original platforms and the selected port cohort are unchanged. See the
+[scope and evidence classes](DELIVERY.md#first-public-beta-host-boundary).
+Required Windows and shared foundations include:
 
 - [Design system #917](https://github.com/boburning/portcove/issues/917),
   [complete Desktop journeys #206](https://github.com/boburning/portcove/issues/206),
@@ -115,7 +122,7 @@ qualified at the actual claimed scope. Required foundations include:
   Missing artwork is a specific nonblocking exception, not a port gate.
 - [Compatible delivery #246](https://github.com/boburning/portcove/issues/246),
   separately protected [production authority #534](https://github.com/boburning/portcove/issues/534),
-  [Windows/Linux application updates #52](https://github.com/boburning/portcove/issues/52),
+  [Windows application updates and shared trust #52](https://github.com/boburning/portcove/issues/52),
   applicable security, interruption, recovery and data preservation.
 
 For the exact release artifacts, upgrade paths, packaging and signing

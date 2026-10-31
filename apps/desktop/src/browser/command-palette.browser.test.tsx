@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { useState } from "react";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { Boxes, Library } from "lucide-react";
@@ -61,6 +62,7 @@ it("keeps composition input inert and resumes normal selection through real clos
   await userEvent.click(page.getByRole("button", { name: "Open commands" }));
   const input = document.querySelector<HTMLInputElement>('[role="combobox"]')!;
   await expect.poll(() => document.activeElement === input).toBe(true);
+  await captureParityState("command-palette-focused");
   input.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
   for (const key of ["ArrowDown", "ArrowUp", "Enter"]) {
     const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });

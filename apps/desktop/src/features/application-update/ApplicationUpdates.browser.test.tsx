@@ -1,3 +1,5 @@
+import { page } from "vite-plus/test/browser";
+import { captureParityState } from "../../../test/parity-capture";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useEffect } from "react";
@@ -188,6 +190,7 @@ describe("ApplicationUpdateSettings", () => {
     await act(async () => pause.click());
     expect(save).not.toHaveBeenCalled();
     expect(reset).not.toHaveBeenCalled();
+    await captureParityState("application-update-unsaved-draft-fixture");
 
     await click("Save application update settings");
     expect(save).toHaveBeenCalledExactlyOnceWith(0, {
@@ -335,6 +338,7 @@ describe("ApplicationUpdateSettings", () => {
         '[aria-label="Application update mode"] button[aria-pressed="true"]',
       )?.textContent,
     ).toBe("Manual");
+    await captureParityState("application-update-preference-conflict-fixture");
 
     await click("Preview");
     await click("Save application update settings");
@@ -612,6 +616,7 @@ describe("ApplicationUpdateSettings", () => {
     await render();
     await click("Check for updates");
     expect(host.textContent).toContain("Its download has not started.");
+    await captureParityState("application-update-download-consent-fixture");
 
     await click("Download and verify update");
 
@@ -623,6 +628,7 @@ describe("ApplicationUpdateSettings", () => {
       expect.any(Function),
     );
     expect(host.textContent).toContain("Portcove 0.2.0-beta.3 has been downloaded and checked");
+    await captureParityState("application-update-download-receipt-fixture");
   });
 
   it("uses a revision-bound automatic result without repeating its check", async () => {
@@ -768,6 +774,7 @@ describe("ApplicationUpdateSettings", () => {
     expect(failed.outcome).toBe("failed");
     expect(failed.failure).toBe(failure);
     expect(host.textContent).not.toContain("The request did not complete");
+    await captureParityState("application-update-offline-fixture");
     await click("Check for updates");
     expect(check).toHaveBeenCalledTimes(2);
     expect(host.textContent).toContain(
@@ -791,6 +798,7 @@ describe("ApplicationUpdateSettings", () => {
     await render();
     await act(async () => button("Check for updates").click());
     expect(button("Cancel check").hasAttribute("data-focusable")).toBe(true);
+    await captureParityState("application-update-checking-fixture");
     for (const control of host.querySelectorAll<HTMLButtonElement>(
       '[aria-label="One-time update channel"] button',
     )) {
@@ -833,6 +841,7 @@ describe("ApplicationUpdateSettings", () => {
     await click("Cancel check");
     expect(cancel).toHaveBeenCalledOnce();
     expect(sharedOperations.pendingOperations.size).toBe(1);
+    await captureParityState("application-update-exclusive-cancellation-fixture");
     await act(async () =>
       finish(manualCheck({ kind: "no-candidate", candidate: null, reasons: [], staged: false })),
     );
@@ -988,6 +997,25 @@ describe("ApplicationUpdateSettings", () => {
 
     await root.rerender(<SettingsFixture generation={17} />);
     expect(host.textContent).toContain("Update ready to install");
+    await captureParityState("application-update-ready-restart-fixture");
+    const ready = page.getByText("Update ready to install", { exact: true });
+    ready.element().scrollIntoView({ block: "center" });
+    await expect.element(ready).toBeVisible();
+    const restartButton = button("Restart to update");
+    await expect
+      .poll(() =>
+        [ready.element(), restartButton].every((element) => {
+          const bounds = element.getBoundingClientRect();
+          return (
+            bounds.top >= 0 &&
+            bounds.bottom <= innerHeight &&
+            bounds.left >= 0 &&
+            bounds.right <= innerWidth
+          );
+        }),
+      )
+      .toBe(true);
+    await captureParityState("application-update-ready-restart-lower-fixture");
     await click("Restart to update");
 
     expect(restart).toHaveBeenCalledExactlyOnceWith(17);
@@ -1004,6 +1032,7 @@ describe("ApplicationUpdateSettings", () => {
     expect(host.textContent).toContain("Verified update downloaded");
     expect(host.textContent).toContain("Save your update settings before restarting to update.");
     expect(button("Restart to update").disabled).toBe(true);
+    await captureParityState("application-update-choice-required-fixture");
     expect(host.textContent).not.toContain("Update ready to install");
   });
 

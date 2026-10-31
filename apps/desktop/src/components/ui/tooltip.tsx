@@ -1,4 +1,4 @@
-import { useId, useState, type ReactElement, type ReactNode } from "react";
+import { useCallback, useId, useState, type ReactElement, type ReactNode } from "react";
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { floatingMotion } from "./control-style";
 
@@ -14,6 +14,16 @@ export function Tooltip({
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const retainSemanticOwner = useCallback((node: HTMLElement | null) => {
+    setPortalContainer(
+      node?.closest<HTMLElement>(
+        'main, aside, nav, header, footer, [role="banner"], [role="contentinfo"], [role="main"], [role="complementary"], [role="navigation"], [role="dialog"], [role="alertdialog"], [role="region"][aria-label], [role="region"][aria-labelledby]',
+      ) ??
+        node?.ownerDocument.body ??
+        null,
+    );
+  }, []);
   const existingDescription = (children.props as { "aria-describedby"?: string })[
     "aria-describedby"
   ];
@@ -23,9 +33,17 @@ export function Tooltip({
   return (
     <TooltipPrimitive.Provider delay={400}>
       <TooltipPrimitive.Root disabled={disabled} onOpenChange={setOpen}>
-        <TooltipPrimitive.Trigger render={children} aria-describedby={description} />
-        <TooltipPrimitive.Portal>
-          <TooltipPrimitive.Positioner sideOffset={6} className="z-(--layer-floating)">
+        <TooltipPrimitive.Trigger
+          ref={retainSemanticOwner}
+          render={children}
+          aria-describedby={description}
+        />
+        <TooltipPrimitive.Portal container={portalContainer}>
+          <TooltipPrimitive.Positioner
+            positionMethod="fixed"
+            sideOffset={6}
+            className="z-(--layer-floating)"
+          >
             <TooltipPrimitive.Popup
               id={id}
               role="tooltip"

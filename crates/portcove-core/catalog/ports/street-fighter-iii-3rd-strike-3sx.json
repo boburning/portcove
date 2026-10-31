@@ -3,11 +3,9 @@
   "listing": {
     "id": "street-fighter-iii-3rd-strike-3sx",
     "name": "Street Fighter III: 3rd Strike / 3SX",
-    "summary": "Explore Street Fighter III: 3rd Strike / 3SX and follow the upstream project for requirements, downloads and setup.",
+    "summary": "A native Street Fighter III: 3rd Strike engine using your own PlayStation 2 data.",
     "project_url": "https://github.com/crowded-street/3sx",
     "issue_number": 374,
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/crowded-street/3sx",
     "artwork": {
       "game_id": 243243,
@@ -16,6 +14,30 @@
       "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
       "game_slug": "street-fighter-iii-3rd-strike--2",
       "match_kind": "underlying-game"
+    },
+    "original_game_title": "Street Fighter III: 3rd Strike"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["rolling"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "crowded-street/3sx",
+      "asset_hints": {
+        "windows-x86-64": ["3sx-", "-windows.zip"]
+      },
+      "rolling_tag": "rolling-pre-release"
+    },
+    "executable_hints": {
+      "windows-x86-64": ["3sx.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "This is the deliberately selected rolling prerelease, with upstream bugs and instability expected. Complete the normal in-process setup wizard using your legally obtained Street Fighter III: 3rd Strike or Street Fighter Anniversary Collection for PlayStation 2, or prepare the exact SF33RD.AFS from THIRD/ in the upstream resources location. A CPS-3/MAME set, future arcade-ROM-only roadmap or a different edition is not the current source contract. The selected Windows player 3sx.exe lives in bin/ and uses its executable parent as the launch working directory; keep all packaged dependencies. Normal resources, configuration, cache, logs and user storage live under AppData/Roaming/CrowdedStreet/3SX; preserve the whole actual profile and any custom effective roots. Upstream checks the expected AFS when its checksum option is enabled; Core does not authenticate, acquire, copy or import original data. Core owns engine replacement on the declared rolling provider channel; upstream owns original-data preparation and shared external profiles. Core supplies no external-profile backup, migration or deletion. Preserve the complete old runtime and compatible actual player data before changes. Rolling tag/assets can change; published provider identity and reviewed current selection remain required, and ambiguity or missing independent identity must refuse. No netplay, rollback gameplay, actual original import, save compatibility or physical-platform acceptance is claimed."
     }
   }
 }

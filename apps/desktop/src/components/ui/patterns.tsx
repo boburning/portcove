@@ -19,10 +19,10 @@ const noticeVariants = cva(
     variants: {
       intent: {
         danger: "border-[var(--color-danger-border)] bg-pc-danger-subtle text-pc-danger-strong",
-        neutral: "border-pc-border bg-pc-surface text-pc-foreground",
+        neutral: "border-s-[3px] border-pc-border bg-pc-surface text-pc-foreground",
         success:
           "border-[var(--color-success-border)] bg-pc-success-subtle text-pc-success-foreground",
-        info: "border-pc-info bg-pc-info-subtle text-pc-info-foreground",
+        info: "border-s-[3px] border-pc-border border-s-pc-info bg-pc-surface text-pc-foreground",
         warning:
           "border-[var(--color-warning-border)] bg-pc-warning-subtle text-pc-warning-foreground",
       },

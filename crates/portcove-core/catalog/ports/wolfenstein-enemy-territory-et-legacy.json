@@ -17,7 +17,36 @@
       "game_slug": "wolfenstein-enemy-territory",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2721
+    "issue_number": 2721,
+    "manual_setup": {
+      "help_url": "https://github.com/etlegacy/etlegacy/tree/e12f07957cd0b5fae5f83cea24412ee334ea999a",
+      "steps": [
+        {
+          "title": "Complete the supported ET: Legacy setup upstream",
+          "instruction": "Use a permitted completed native Windows client from the official ET: Legacy setup/download route, with original free Wolfenstein: Enemy Territory data under its original EULA. Keep pak0.pk3 in etmain/; some third-party mods also require pak1.pk3 and pak2.pk3. The GPL engine/mod source does not include those data rights. Finish the upstream installer or supported preparation outside Portcove; no installer, original-data downloader or custom build is run here. Absence of GitHub releases is not absence of official packages."
+        },
+        {
+          "title": "Select the client and matching runtime",
+          "instruction": "Select the actual Windows etl.exe player in the completed tree, not etlded.exe, a downloader or setup executable. Retain the selected architecture, renderer/mod dependencies, working directory and established fs_basepath, fs_homepath and fs_game options. Targeting ET 2.60b compatibility does not promise PunkBuster or ETPro connectivity, and 32-bit/64-bit mod modules are not interchangeable."
+        },
+        {
+          "title": "Preserve the effective home and complete data tree",
+          "instruction": "Normal Windows home is Documents/ETLegacy, with profile/mod settings, etconfig.cfg, downloads, screenshots and demos below the actual game/home roots. Keep explicit overrides and all original etmain, legacy/mod, configuration, custom and unknown files. The current source requires different base and home paths; preserve the existing working setup rather than guessing another root. Upstream/player owns updates and profile migration; multiplayer/network and installed-platform behavior are unqualified."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
+        },
+        {
+          "title": "Retain one upstream replacement owner",
+          "instruction": "Close actual player instances before changes. Preserve the whole old creating runtime and every effective original/profile/custom/unknown root, make deliberate compatible changes upstream, then review and relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises the selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files. This route supplies no Core acquisition, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
+        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

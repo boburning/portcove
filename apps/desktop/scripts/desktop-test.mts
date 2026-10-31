@@ -105,6 +105,7 @@ import {
 } from "./desktop-qualification-history-test.mts";
 import {
   revealDetailSection,
+  clickVisible,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -283,10 +284,14 @@ const {
   ordinaryCloseSession,
   minimizedPreparationSession,
   normalPackageSession,
+  reviewedWorkflowSession,
   identityBoundSession: plannedIdentityBoundSession,
   cleanupName,
 } = executionPlan.session;
 const identityBoundSession = plannedIdentityBoundSession || Boolean(nativeAccount);
+const interruptedPreparationSession =
+  process.platform === "win32" &&
+  selection.selected_scenarios.includes("native-interrupted-preparation-recovery");
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 const hostPublicationSession = selection.selected_scenarios.includes(
@@ -687,6 +692,7 @@ function validateBackupFocusInventory(
   });
 }
 
+let cleanupCaptureSequence = 0;
 function captureBackupFocusCleanup(evidenceName = cleanupName) {
   if (ownedSession.inventory) return ownedSession.inventory;
   assert.ok(
@@ -694,12 +700,17 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
   const suffix =
-    hostInterruptionSession ||
-    ordinaryCloseSession ||
-    savedLibraryRecoverySession ||
-    hostPublicationSession
-      ? `-${driver.pid}`
-      : "";
+    cleanupName === "presentation" ||
+    cleanupName === "organization-restart" ||
+    reviewedWorkflowSession ||
+    interruptedPreparationSession
+      ? `-${++cleanupCaptureSequence}-${driver.pid}`
+      : hostInterruptionSession ||
+          ordinaryCloseSession ||
+          savedLibraryRecoverySession ||
+          hostPublicationSession
+        ? `-${driver.pid}`
+        : "";
   const original = path.join(output, `${evidenceName}-final-processes${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriverTree", original);
   artifacts.push(original);
@@ -796,6 +807,8 @@ async function verifySettingsRows() {
   );
   assert.match(await savedBundle.getText(), /support|bundle/iu);
   const originalWindow = await browser.manage().window().getRect();
+  let primaryFailure: unknown;
+  let failed = false;
   try {
     for (const theme of ["dark", "light"]) {
       await selectSettingsTheme(theme);
@@ -810,6 +823,7 @@ async function verifySettingsRows() {
           "game-files",
           "updates",
           "integrations",
+          "controls",
           "advanced",
         ]) {
           await selectSettingsCategory(group);
@@ -890,17 +904,31 @@ async function verifySettingsRows() {
         }
       }
     }
-  } finally {
+  } catch (error) {
+    failed = true;
+    primaryFailure = error;
+    await captureScenarioScreenshot("settings-rows-primary-failure");
+  }
+  try {
     await browser.manage().window().setRect(originalWindow);
     await selectSettingsCategory("appearance");
-    await browser
-      .findElement(
+    await clickVisible(
+      browser,
+      await browser.findElement(
         By.xpath(
           '//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="Follow system"]',
         ),
-      )
-      .click();
+      ),
+    );
+  } catch (restoreError) {
+    if (failed)
+      throw new Error(
+        `Settings row verification failed: ${errorMessage(primaryFailure)}; restoring appearance failed: ${errorMessage(restoreError)}`,
+        { cause: new AggregateError([primaryFailure, restoreError]) },
+      );
+    throw restoreError;
   }
+  if (failed) throw primaryFailure;
 }
 
 interface SettingsRect {
@@ -922,7 +950,8 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
     "library-storage": 3,
     "game-files": 3,
     updates: 2,
-    integrations: 1,
+    integrations: 2,
+    controls: 2,
     advanced: 3,
   };
   for (const [name, group] of Object.entries(rows.groups)) {
@@ -1004,9 +1033,9 @@ async function verifyLongTitleCatalogDetail(theme: string) {
     });
     await captureScenarioScreenshot(`game-details-long-title-${theme}-${size.width}`, true);
     assert.equal(layout.title, "Castlevania: Legacy of Darkness");
-    assert.equal(layout.project, "Port project: Castlevania: Legacy of Darkness Recompiled");
+    assert.equal(layout.project, "Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    assert.equal(layout.action.label, "Set up game");
+    assert.equal(layout.action.label, "Set up");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
       layout.action.top >= 0 &&
@@ -1023,8 +1052,16 @@ async function verifyLongTitleCatalogDetail(theme: string) {
 
 async function refreshSettings(category?: string) {
   const browser = driverBrowser();
+  const previousDocument = await browser.findElement(By.css("html"));
   await browser.navigate().refresh();
+  // WebView's refresh command can return while the previous renderer is still visible.
+  // Select the category only after the new document and workspace have settled.
+  await browser.wait(until.stalenessOf(previousDocument), 15_000);
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+  await browser.wait(
+    () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
+    15_000,
+  );
   await selectPrimaryNavigation(browser, "Settings");
   if (category) await selectSettingsCategory(category);
 }
@@ -1036,7 +1073,7 @@ async function selectSettingsCategory(id: string) {
     `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
   );
   await browser.wait(until.elementLocated(category), 15_000);
-  await browser.findElement(category).click();
+  await clickVisible(browser, await browser.findElement(category));
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1260,13 +1297,14 @@ async function captureKeyboardTarget(
 async function selectSettingsTheme(theme: string) {
   const browser = driverBrowser();
   await selectSettingsCategory("appearance");
-  await browser
-    .findElement(
+  await clickVisible(
+    browser,
+    await browser.findElement(
       By.xpath(
         `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
       ),
-    )
-    .click();
+    ),
+  );
   await browser.wait(
     async () =>
       (await executeBrowserScript(browser, () => document.documentElement.dataset.theme)) === theme,
@@ -1417,14 +1455,20 @@ async function scenario(name: string, action: () => unknown) {
     });
     return;
   }
+  let failed = false;
   await observeDesktopScenario(action, {
     record: ({ outcome, ...details }) => {
+      failed = outcome === "failed";
       recordScenario(target, name, outcome, { ...details, duration_scope: "scenario-action" });
       if (outcome === "failed") process.exitCode = 1;
     },
     diagnostics: () => captureScenarioDiagnostics(name, target.setup),
     screenshot: async () => {
-      if (!target.setup) await captureScenarioScreenshot(name);
+      if (!target.setup || failed)
+        await captureScenarioScreenshot(
+          failed ? `${target.setup ? "setup-" : ""}${name}-scenario-failure` : name,
+          failed,
+        );
     },
   });
 }
@@ -1614,9 +1658,23 @@ async function restartApplication(
     savedLibraryRecoverySession ||
     selectedSetupRestart ||
     hostPublicationSession ||
-    acquisitionRestart
+    acquisitionRestart ||
+    (process.platform === "win32" && identityBoundSession)
   ) {
-    if (!preferencesRecoverySession && !hostPublicationSession && !acquisitionRestart)
+    if (
+      !preferencesRecoverySession &&
+      !hostPublicationSession &&
+      !acquisitionRestart &&
+      !(
+        reviewedWorkflowSession &&
+        selection.selected_scenarios.includes("native-staged-update-composition") &&
+        name === "native-staged-update-composition"
+      ) &&
+      !(
+        interruptedPreparationSession &&
+        (name === "interrupted-preparation-fixture" || name === "journal-only-preparation-recovery")
+      )
+    )
       assert.equal(
         prepareWhileStopped,
         undefined,
@@ -1625,7 +1683,12 @@ async function restartApplication(
     return await ownedSession.restart({
       capture: async () => {
         const inventory = captureBackupFocusCleanup(
-          selectedSetupRestart || acquisitionRestart ? name : cleanupName,
+          selectedSetupRestart ||
+            acquisitionRestart ||
+            interruptedPreparationSession ||
+            reviewedWorkflowSession
+            ? name
+            : cleanupName,
         );
         validateBackupFocusInventory(
           readNativeProcessSnapshot(JSON.parse(await readFile(inventory, "utf8"))),
@@ -2236,7 +2299,23 @@ async function captureSelectedDriverLaunch(launchStarted: number) {
 async function verifyCompactSettingsJumps() {
   const browser = driverBrowser();
   const index = await browser.findElement(By.css('nav[aria-label="Settings categories"]'));
-  assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 7);
+  assert.deepEqual(
+    await Promise.all(
+      (await index.findElements(By.css('button[data-slot="button"]'))).map((button) =>
+        button.getText(),
+      ),
+    ),
+    [
+      "Appearance",
+      "Library and storage",
+      "Game files",
+      "Updates",
+      "Integrations",
+      "Keyboard and controller",
+      "Advanced",
+      "About",
+    ],
+  );
   await executeBrowserScript(
     browser,
     (element) => element.scrollIntoView({ block: "start" }),
@@ -3527,6 +3606,7 @@ try {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]) {
@@ -3573,6 +3653,7 @@ try {
       { name: "game-files", columns: 1 },
       { name: "updates", columns: 1 },
       { name: "integrations", columns: 1 },
+      { name: "controls", columns: 1 },
       { name: "advanced", columns: 1 },
       { name: "about", columns: 1 },
     ]);
@@ -3627,7 +3708,7 @@ try {
       );
     await captureKeyboardTarget(
       "settings-about-title-compact",
-      await about.findElement(By.css("h2")),
+      await about.findElement(By.css("h3")),
     );
 
     await selectSettingsCategory("updates");
@@ -3668,9 +3749,13 @@ try {
       5_000,
       "Game updates heading did not receive focus",
     );
+    const updateCheckDetails = await browser.findElement(By.css(".update-check-details"));
+    if ((await updateCheckDetails.getAttribute("open")) === null)
+      await updateCheckDetails.findElement(By.css("summary")).click();
     const applicationUpdatesLink = await browser.findElement(
       By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
     );
+    await browser.wait(until.elementIsVisible(applicationUpdatesLink), 5_000);
     await executeBrowserScript(
       browser,
       (element) => element.scrollIntoView({ block: "center" }),
@@ -3697,20 +3782,37 @@ try {
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
     const filters = await openCatalogFilters(browser);
-    const selectedFilter = await filters.findElement(
-      By.xpath(
-        './/fieldset[legend[normalize-space(.)="Release channels"]]//button[starts-with(normalize-space(.),"Stable (")]',
-      ),
+    const channelChoices = await filters.findElement(
+      By.css('button[aria-label="Release channels: All"]'),
     );
+    await clickVisible(browser, channelChoices);
+    const selectedFilter = await browser.wait(
+      until.elementLocated(
+        By.css('fieldset[aria-label="Release channels"] [role="checkbox"][aria-label^="Stable ("]'),
+      ),
+      5_000,
+    );
+    await browser.wait(until.elementIsVisible(selectedFilter), 5_000);
     await selectedFilter.sendKeys(Key.SPACE);
     await browser.wait(
-      async () => (await selectedFilter.getAttribute("aria-pressed")) === "true",
+      async () => (await selectedFilter.getAttribute("aria-checked")) === "true",
       5_000,
       "Keyboard activation did not select the Stable channel filter",
     );
-    assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
-    assert.equal(await selectedFilter.getAttribute("data-variant"), "selected");
+    assert.equal(await selectedFilter.getAttribute("data-slot"), "checkbox");
     await selectedFilter.sendKeys(Key.ESCAPE);
+    await browser.wait(
+      async () =>
+        (await channelChoices.getAttribute("aria-expanded")) === "false" &&
+        (await executeBrowserScript(
+          browser,
+          (element) => document.activeElement === element,
+          channelChoices,
+        )),
+      5_000,
+      "Escape did not close channel choices and restore focus to its trigger",
+    );
+    await channelChoices.sendKeys(Key.ESCAPE);
     await browser.wait(
       () =>
         executeBrowserScript(browser, () => {
@@ -3851,7 +3953,7 @@ try {
         "Manage",
       ]);
       assert.equal(hierarchy.selected, "Game files");
-      assert.equal(hierarchy.action, "Set up game");
+      assert.equal(hierarchy.action, "Set up");
       assert.equal(hierarchy.actionInHero, true);
       assert.equal(hierarchy.titleFits, true);
       assert.equal(hierarchy.actionFits, true);
@@ -3877,9 +3979,6 @@ try {
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
     await revealDetailSection(browser, "Manage");
-    await browser
-      .findElement(By.xpath('//summary[normalize-space(.)="Advanced installation settings"]'))
-      .click();
     const outputChoices = await browser.findElement(futureFolderSummary);
     const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
     await outputChoices.click();
@@ -4187,7 +4286,9 @@ try {
         By.xpath('//*[@aria-label="Application update mode"]//button[normalize-space(.)="Manual"]'),
       )
       .click();
-    await browser.findElement(By.id("pause-application-updates")).click();
+    await browser
+      .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
+      .click();
 
     assert.equal(
       success(await invoke("get_application_update_preferences")).choice,
@@ -4235,7 +4336,12 @@ try {
         .getText(),
       "Manual",
     );
-    assert.equal(await browser.findElement(By.id("pause-application-updates")).isSelected(), true);
+    assert.equal(
+      await browser
+        .findElement(By.css('[role="checkbox"][aria-labelledby="pause-application-updates-label"]'))
+        .getAttribute("aria-checked"),
+      "true",
+    );
 
     await captureApplicationUpdateSettingsComparison();
 
@@ -4349,6 +4455,7 @@ try {
       shutdown?: NativeExitObservation;
       connected?: string;
       preference_preserved?: boolean;
+      owned_restart_receipt?: string;
     }
     const observations: AppearanceRestartObservation[] = [];
     try {
@@ -4359,17 +4466,27 @@ try {
           shutdown_request: "identity-bound-isolated-driver-tree-termination",
         };
         observations.push(observation);
-        const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
-        if (process.platform === "win32") {
-          observeNativeSession("Snapshot", snapshot);
-          artifacts.push(snapshot);
+        if (process.platform === "win32" && identityBoundSession) {
+          const name = `appearance-restart-${cycle + 1}`;
+          await restartApplication(name);
+          const receipt = path.join(output, `${name}-restart.json`);
+          observation.owned_restart_receipt = receipt;
+          const cleanup: unknown = JSON.parse(await readFile(receipt, "utf8"));
+          assert.ok(isRecord(cleanup));
+          observation.shutdown = readNativeSessionObservation("Wait", cleanup.exited);
+        } else {
+          const snapshot = path.join(output, `restart-${cycle + 1}-processes.json`);
+          if (process.platform === "win32") {
+            observeNativeSession("Snapshot", snapshot);
+            artifacts.push(snapshot);
+          }
+          observation.driver_stop = await requestApplicationShutdown(snapshot);
+          observation.session_delete_completed = new Date().toISOString();
+          if (process.platform === "win32")
+            observation.shutdown = observeNativeSession("Wait", snapshot);
+          await startDriver();
+          await connect();
         }
-        observation.driver_stop = await requestApplicationShutdown(snapshot);
-        observation.session_delete_completed = new Date().toISOString();
-        if (process.platform === "win32")
-          observation.shutdown = observeNativeSession("Wait", snapshot);
-        await startDriver();
-        await connect();
         observation.connected = new Date().toISOString();
         assert.equal(
           await executeBrowserScript(driverBrowser(), () => document.documentElement.dataset.theme),
@@ -4389,9 +4506,9 @@ try {
     const browser = driverBrowser();
     const reset = await invoke("set_locale_preference", { locale: "en" });
     assert.ok(reset.ok);
-    await refreshSettings();
+    await refreshSettings("appearance");
     const languageTrigger = await browser.wait(
-      until.elementLocated(By.xpath('//button[contains(., "Display language")]')),
+      until.elementLocated(By.css('.language-card [role="combobox"]')),
       15_000,
     );
     await languageTrigger.click();
@@ -4422,12 +4539,12 @@ try {
 
     const engineering = await invoke("set_locale_preference", { locale: "ar-XB" });
     assert.ok(engineering.ok);
-    await refreshSettings();
+    await refreshSettings("appearance");
     await browser.wait(async () => {
       const state = await executeBrowserScript(browser, () => ({
         lang: document.documentElement.lang,
         dir: document.documentElement.dir,
-        heading: [...document.querySelectorAll("h2")].some(
+        heading: [...document.querySelectorAll(".language-card h3")].some(
           (element) => element.textContent?.trim() === "لغة الواجهة",
         ),
         preview: document
@@ -4439,7 +4556,7 @@ try {
     const rendered = await executeBrowserScript(browser, () => ({
       lang: document.documentElement.lang,
       dir: document.documentElement.dir,
-      heading: [...document.querySelectorAll("h2")].some(
+      heading: [...document.querySelectorAll(".language-card h3")].some(
         (element) => element.textContent?.trim() === "لغة الواجهة",
       ),
       preview: document
@@ -4481,7 +4598,7 @@ try {
 
     await selectPrimaryNavigation(browser, "Settings");
     const rtlTrigger = await browser.wait(
-      until.elementLocated(By.css(".language-card button")),
+      until.elementLocated(By.css('.language-card [role="combobox"]')),
       15_000,
     );
     await rtlTrigger.click();

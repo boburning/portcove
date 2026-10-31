@@ -17,7 +17,36 @@
       "game_slug": "need-for-speed-iii-hot-pursuit",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2888
+    "issue_number": 2888,
+    "manual_setup": {
+      "help_url": "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+      "steps": [
+        {
+          "title": "Prepare the NFS III native player upstream",
+          "instruction": "Use a permitted prepared native NFS Recompiled copy compatible with your host, and your own complete Need for Speed III: Hot Pursuit installation plus CD Fedata/GameData content. This project separately implements NFS II SE; its data and nfs2se player are not substitutes. The original nfs3.exe, eacsnd.dll, softtria.dll and voodoo2a.dll are source-generation inputs, not the native executable to register. Finish any upstream preparation outside Portcove; no compiler or game helper is run here. Upstream describes this as a toy project."
+        },
+        {
+          "title": "Use explicit original-data directory arguments",
+          "instruction": "The inspected official v1.0.1 nfs_recompiled.zip contains AMD64 Windows PE players nfs3hp.exe and nfs2se.exe. Select the actual prepared NFS III nfs3hp.exe on Windows, or an upstream-prepared native nfs3hp build on Linux, with its complete runtime and established working directory. Static package headers do not establish successful game execution. Keep the absolute original installation path as one literal argument; if CD data stays in a separate directory, keep its absolute path as a second literal argument. One argument uses the same root for both. In the reviewed v1.0.1 entry point, no arguments derive both paths from the executable path rather than reliably selecting your working directory. Do not select original Windows nfs3.exe or the NFS II player."
+        },
+        {
+          "title": "Retain the writable installation and CD roots",
+          "instruction": "Upstream maps relative Win32 game paths into the selected installation and drive-letter paths into the CD-data root; writes and removal use that mapping too. Keep the complete creating runtime, writable original installation, CD roots, all saves, configuration, custom and unknown files before changes. Its shown registry emulation is in-process data, not evidence that a Windows registry export backs up progress. Keep existing render/options choices; language/patch compatibility and actual game/save behavior are not qualified."
+        },
+        {
+          "title": "Check the prepared copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

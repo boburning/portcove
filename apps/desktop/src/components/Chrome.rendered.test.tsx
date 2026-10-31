@@ -117,7 +117,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*class="[^"]*bg-transparent/u);
     expect(html).toMatch(
       new RegExp(
-        `<button[^>]*data-variant="outline"[^>]*aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `<button[^>]*data-variant="outline"[^>]*aria-label="Search games and pages ${commandShortcut("K")}: open command palette"`,
         "u",
       ),
     );
@@ -128,12 +128,15 @@ describe("desktop components", () => {
     expect(html).toContain("Problem");
     expect(html).toContain("C:/Portcove");
     expect(html).toContain("width:50%");
-    expect(html).toContain("/brand/icons/portcove-mascot-head-256.png");
+    expect(html).not.toContain("/brand/icons/portcove-mascot-head-256.png");
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
-    expect(html).toContain("/brand/mascot/portcove-mascot-v2-front.png");
-    expect(html).toContain(">Version</dt>");
-    expect(html).toContain(desktopPackage.version);
+    expect(html).toContain("/brand/icons/portcove-mascot-transparent.png");
+    expect(html).toMatch(/<h2[^>]*aria-label="About Portcove"[^>]*>Portcove<\/h2>/u);
+    expect(html).toContain(`<h3>Portcove ${desktopPackage.version}</h3>`);
+    expect(html).toContain("Licensed under MIT or Apache-2.0.");
+    expect(html).toContain("Open project repository");
+    expect(html).toContain("Open diagnostics");
   });
 
   it("keeps page introductions concise without losing catalog count or controls", () => {
@@ -169,7 +172,7 @@ describe("desktop components", () => {
         <WorkspaceToolbar view={view} onOpenCommands={vi.fn()} />,
       );
       expect(toolbar).toContain(
-        `aria-label="Commands ${commandShortcut("K")}: open command palette"`,
+        `aria-label="Search games and pages ${commandShortcut("K")}: open command palette"`,
       );
       expect(toolbar).toContain('aria-label="Current location"');
     }
@@ -559,6 +562,7 @@ describe("desktop components", () => {
       "game-files",
       "updates",
       "integrations",
+      "controls",
       "advanced",
       "about",
     ]) {
@@ -566,10 +570,11 @@ describe("desktop components", () => {
       expect(html).toContain(`id="settings-${id}-heading"`);
       expect(index).toContain(`aria-controls="settings-${id}"`);
     }
-    expect(index?.match(/data-slot="button"/gu)).toHaveLength(7);
+    expect(index?.match(/data-slot="button"/gu)).toHaveLength(8);
     expect(index?.match(/aria-current="page"/gu)).toHaveLength(1);
     expect(index).toContain("Library and storage");
     expect(index).toContain("Updates");
+    expect(index).toContain("Keyboard and controller");
   });
 
   it("hides unavailable device sign-in without exposing build configuration", () => {

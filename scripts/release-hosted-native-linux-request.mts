@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Source-bound, read-only Linux request preparation. No account creation,
  * privilege change, candidate invocation or native receipt is performed. */
 import process from "node:process";
@@ -119,8 +120,8 @@ async function observeHost(parent: Parent, nonce: string) {
     nonce,
     {
       machine_id_sha256: observed.machine_id_sha256,
-      minimum_os_version:
-        parent.configuration.hosted_native["linux-x86_64"].compatibility.minimum_os_version,
+      minimum_os_version: selectedHostedNativePlatform(parent.configuration, "linux-x86_64")
+        .compatibility.minimum_os_version,
     },
   );
   if (broker !== process.getuid() || brokerGid !== process.getgid())

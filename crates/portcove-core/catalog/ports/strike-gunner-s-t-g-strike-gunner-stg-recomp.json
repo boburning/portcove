@@ -9,7 +9,36 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp",
-    "issue_number": 2713
+    "issue_number": 2713,
+    "manual_setup": {
+      "help_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp/blob/cb6287f3f5a72fd3f33c2c97876b7e3800649a03/PLAYING.md",
+      "steps": [
+        {
+          "title": "Finish the upstream private build first",
+          "instruction": "Use an already permitted working Windows x64 v0.3.0-derived Strike Gunner S.T.G player and complete creating folder. The official package is a setup/source pack: upstream root StrikeGunnerSTGSNESRecomp.exe offers Generate & rebuild, may acquire cmake-clang-v1 tools, and builds privately from your own ROM. Finish that upstream process and a successful normal launch outside Core. Core does not run the setup host, install compilers or generate/activate game code."
+        },
+        {
+          "title": "Keep the exact own USA source and generated output",
+          "instruction": "Use your own Strike Gunner S.T.G USA .sfc, upstream SHA256 05f14e6ed3394d9273e2397769a8acf1a9db646be6066e82269521e8eec53562 / CRC32 d054e288. Upstream generation/runtime verifies the selected revision; preserve its original path and complete generated/source/build inputs. Other regions/modified ROMs and state compatibility are not inherited. Native compiled variants coexist with SNES hardware and uncovered-code interpreter fallback; no pure-native or full coverage claim."
+        },
+        {
+          "title": "Select the completed build output",
+          "instruction": "Select build/StrikeGunnerSTGSNESRecomp.exe, with that build directory as actual initial CWD and zero arguments for its already configured normal ROM choice. Preserve an already required supported absolute ROM positional argument/custom context when present, keeping path spaces in the single token. Do not select the root setup host, rebuilding console, compiler, helper or diagnostics. The completed host stays through normal launcher/game play; registration itself does not generate or launch anything."
+        },
+        {
+          "title": "Review intent and keep replacement upstream-owned",
+          "instruction": "Review and consent to the exact native executable, actual working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns setup, profiles, repair and actual replacement. Close every real instance before changing files, keep the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves all external files. A fresh Generate & rebuild can replace the runtime and use other processes; finish it outside Core, close instances and relink the resulting completed executable. No package/source-to-binary or whole-component permission certification is inferred from selecting an existing copy."
+        },
+        {
+          "title": "Preserve the complete creating build and player files",
+          "instruction": "Keep the whole installation/source/generated/build tree and original, build config.ini, keybinds.ini, strikegunner.ini, rom.cfg and actual paths, saves/save.srm, all save states, logs/captures, mods/custom music and player edits, caches/custom and unknown files. Preserve external ROM/music/config paths separately. Existing save-version/mod records stay with their creating runtime; upstream compatibility statements are not a Portcove save/load observation. Removal preserves every external byte."
+        }
+      ],
+      "warnings": [
+        "The selected v0.3.0 tag and current source differ; the published package is not a precompiled ready-native artifact. Only an already completed working output is offered. Original/ROM-derived code, project/framework and third-party terms remain distinct; no redistribution grant is broadened.",
+        "No Core source extraction/generation, toolchain/setup hosting, managed Install/Update/Backup/Rollback/migration/deletion, real game/save/state/mod/installed/protected acceptance or Supported promotion. Upstream disclosed audio/fallback/known-issue limits remain; no full-game stability pass."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

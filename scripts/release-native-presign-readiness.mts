@@ -1,3 +1,4 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Scheduling only. An available artifact is never signature/native acceptance. */
 import assert from "node:assert/strict";
 import { open } from "node:fs/promises";
@@ -25,6 +26,7 @@ export function inspectNativePreSignReadiness(
   rawArtifacts: unknown,
   run: string,
   revision: string,
+  profile: unknown = "initial-beta-win-linux",
 ) {
   assert.match(run, /^[1-9][0-9]{0,15}$/u);
   assert.match(revision, /^[a-f0-9]{40}$/u);
@@ -47,7 +49,7 @@ export function inspectNativePreSignReadiness(
     ids.add(Number(job.id));
   }
   const inventory = inspectCompleteRunArtifactInventory(rawArtifacts);
-  return (["windows-x86_64", "linux-x86_64"] as const).map((platform) => {
+  return nativePlatformsForReleaseProfile(profile).map((platform) => {
     const name = hostedNativeJobProfile(platform).job;
     const matches = jobs.filter((job) => isRecord(job) && job.name === name);
     assert.ok(matches.length <= 1, "ambiguous native pre-sign job");
@@ -110,6 +112,7 @@ export function inspectNativePreSignReadiness(
 export async function waitForNativePreSignReadiness(input: {
   run: string;
   revision: string;
+  release_profile?: unknown;
   active: () => void;
   read: () => { jobs: unknown; artifacts: unknown };
   retain: (value: unknown) => Promise<void>;
@@ -124,6 +127,7 @@ export async function waitForNativePreSignReadiness(input: {
       raw.artifacts,
       input.run,
       input.revision,
+      input.release_profile,
     );
     await input.retain({ observation, producers, authority: "none" });
     input.active();
@@ -210,6 +214,7 @@ export async function waitForOriginalPayloadNativeProof(
     await waitForNativePreSignReadiness({
       run: identity.run_id,
       revision: identity.controller_revision,
+      release_profile: captured.route.release_profile,
       active,
       retain,
       pause: () => delay(slice4CapacityResources.native_presign_poll_milliseconds),

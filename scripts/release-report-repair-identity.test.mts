@@ -3,6 +3,39 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import { publicationReportRepairStateFixture } from "./fixtures/publication-report-repair-fixture.mts";
 import { inspectReportRepairIdentity } from "./release-report-repair-identity.mts";
+import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+
+void test("Windows report-only identity uses the selected authority profile and exact original dispatch actor", () => {
+  const f = fixture();
+  const broad = selectedPublicationAuthoritiesFixture("application");
+  assert.ok(broad.purpose === "application");
+  const selected = {
+    ...broad,
+    release_profile: "initial-beta-windows-x86_64-v1",
+    public_build_inputs: {
+      release_profile: "initial-beta-windows-x86_64-v1",
+      configuration_revision: "c".repeat(40),
+      manifest_sha256: "d".repeat(64),
+    },
+    hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
+  };
+  const environment = {
+    ...f.environment,
+    PORTCOVE_RELEASE_PROFILE: "initial-beta-windows-x86_64-v1",
+    PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(selected),
+  };
+  f.input.controller.capacity_attempt.operation.executor_identity.actor_id = "1234";
+  assert.equal(inspectReportRepairIdentity(f.input, environment, f.run).authority, "none");
+  assert.throws(() =>
+    inspectReportRepairIdentity(
+      f.input,
+      { ...environment, PORTCOVE_RELEASE_PROFILE: "initial-beta-win-linux" },
+      f.run,
+    ),
+  );
+  f.input.controller.capacity_attempt.operation.executor_identity.actor_id = "9999";
+  assert.throws(() => inspectReportRepairIdentity(f.input, environment, f.run));
+});
 import { reportRepairDispatchDestination } from "./release-report-repair-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { slice4CapacityResources } from "./release-capacity.mts";

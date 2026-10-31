@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -157,7 +158,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   const launch = vi.spyOn(desktopApi, "launch");
   expect(document.querySelector(".library-query-tools #port-search")).not.toBeNull();
   expect(document.querySelector(".header-tools #port-search")).toBeNull();
-  expect(document.body.textContent).toContain("12 entries · On this computer");
+  expect(document.body.textContent).toContain("12 library entries");
   const portCard = (id: string) =>
     page.elementLocator(
       document
@@ -171,7 +172,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
-  await page.getByRole("button", { name: "Collections", exact: true }).click();
+  await page.getByRole("button", { name: "Manage collections", exact: true }).click();
   const commands = page
     .getByText("Collection commands", { exact: true })
     .element()
@@ -187,6 +188,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.element(page.getByRole("menu", { name: /^More actions for/ })).toHaveFocus();
   await userEvent.keyboard("{End}");
   await expect.element(page.getByRole("menuitem", { name: "Saves & backups" })).toHaveFocus();
+  await captureParityState("card-overflow-keyboard-focus");
   await userEvent.keyboard("{Escape}");
   await expect.element(more).toHaveFocus();
 });
@@ -273,15 +275,16 @@ it("keeps artwork favorites separate from details and restores filter focus when
   button.focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => favorite.mock.calls[0]).toEqual(["collection-0", true, 1]);
-  const filter = page.getByRole("button", { name: "Favorites (1)", exact: true });
+  const filter = page.getByRole("button", { name: "Favorites 1", exact: true });
   await filter.click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
   await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
+  await captureParityState("library-favorites");
   toggle.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
   await expect
-    .element(page.getByRole("button", { name: "Favorites (0)", exact: true }))
+    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
     .toHaveFocus();
   expect(favorite.mock.calls[1]).toEqual(["collection-0", false, 1]);
 });
@@ -291,7 +294,7 @@ it("shares the narrow filter row without losing query, independent readiness or 
   await mount("light");
   const search = page.getByRole("textbox", { name: "Search your library" });
   await search.fill("Super Mario 64");
-  const favorites = page.getByRole("button", { name: "Favorites (0)", exact: true }).element();
+  const favorites = page.getByRole("button", { name: "Favorites 0", exact: true }).element();
   const filters = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
   expect(favorites.getBoundingClientRect().bottom).toBeLessThanOrEqual(
     search.element().getBoundingClientRect().top,
@@ -332,7 +335,7 @@ it("opens Continue playing details and restores its exact trigger after Back", a
     .element(page.getByRole("button", { name: "Continue playing", exact: true }))
     .toBeVisible();
   const origin = '[data-detail-origin="library:continue-details:collection-0"]';
-  await page.getByRole("button", { name: "View details", exact: true }).click();
+  await page.getByRole("button", { name: "Game details", exact: true }).click();
   await page.getByRole("button", { name: /^Back to (Library|Discover)$/, exact: true }).click();
   await expect.poll(() => document.activeElement?.matches(origin)).toBe(true);
   const target = document.querySelector<HTMLElement>(origin)!;
@@ -385,7 +388,7 @@ it.each([
       const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
       expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
     }
-    await continuation.getByRole("button", { name: "View details", exact: true }).click();
+    await continuation.getByRole("button", { name: "Game details", exact: true }).click();
     await expect
       .element(page.getByRole("heading", { name: title, exact: true }))
       .toHaveAccessibleName(title);
@@ -569,12 +572,13 @@ for (const theme of ["dark", "light"]) {
 it("keeps Collections inside the shared controller scope and returns Back and Escape to its opener", async () => {
   await page.viewport(1200, 900);
   await mount();
-  const opener = page.getByRole("button", { name: "Collections", exact: true });
+  const opener = page.getByRole("button", { name: "Manage collections", exact: true });
   await opener.click();
   const scope = navigationScope();
   expect(scope).not.toBe(document);
   expect(focusableControls().length).toBeGreaterThan(0);
   expect(focusableControls().every((control) => scope.contains(control))).toBe(true);
+  await captureParityState("collection-editor");
   const active = document.activeElement;
   cyclePrimaryNavigation(1);
   expect(document.activeElement).toBe(active);
@@ -588,3 +592,341 @@ it("keeps Collections inside the shared controller scope and returns Back and Es
   await expect.element(opener).toHaveFocus();
   await expect.poll(() => navigationScope()).toBe(document);
 });
+
+it("keeps a sidebar collection selected through detail return and compact navigation", async () => {
+  await page.viewport(1440, 900);
+  vi.spyOn(desktopApi, "organizationPreferences").mockResolvedValue({
+    revision: 0,
+    followed_port_ids: [],
+    followed_release_acknowledgments: {},
+    collections: {
+      favorites: { name: "Weekend games", port_ids: ["collection-0", "collection-1"] },
+    },
+    hidden_port_ids: [],
+    saved_game_ids: [],
+    update_notices: {},
+    setup_confirmations: [],
+  });
+  await mount();
+  const collection = page.getByRole("button", { name: "Collection: Weekend games", exact: true });
+  await expect.element(collection).toBeVisible();
+  await collection.click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
+  await expect.element(collection).toHaveAttribute("aria-pressed", "true");
+  await captureParityState("library-selected-collection");
+  const identity = document.querySelector<HTMLButtonElement>(
+    '[data-detail-game-id="collection-0"]',
+  )!;
+  await userEvent.click(identity);
+  await expect
+    .element(page.getByRole("button", { name: "Back to Library", exact: true }))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
+  await expect.element(collection).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
+    .toBe("collection-0");
+  const collectionElement = collection.element();
+  await page.viewport(740, 900);
+  await expect.element(collectionElement).not.toBeVisible();
+  const compact = page.getByRole("button", { name: "Collections · Weekend games", exact: true });
+  await expect.element(compact).toBeVisible();
+  await compact.click();
+  await expect
+    .element(page.getByRole("button", { name: "Weekend games (2)", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await captureParityState("compact-collection-picker");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(compact).toHaveFocus();
+});
+
+it("keeps a singleton port review readable below its close control at narrow width", async () => {
+  await page.viewport(320, 844);
+  await mount();
+  await page.getByRole("button", { name: "Open navigation", exact: true }).click();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  await page.getByRole("button", { name: "Why this port?", exact: true }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog).toBeVisible();
+  await expect
+    .element(dialog.getByText("Review this port’s requirements and recorded information."))
+    .toBeVisible();
+  const close = dialog
+    .getByRole("button", { name: "Close", exact: true })
+    .element()
+    .getBoundingClientRect();
+  const description = dialog
+    .element()
+    .querySelector<HTMLElement>("[data-slot=dialog-description]")!;
+  const range = document.createRange();
+  range.selectNodeContents(description);
+  for (const line of range.getClientRects()) {
+    expect(line.right <= close.left || line.top >= close.bottom || line.bottom <= close.top).toBe(
+      true,
+    );
+  }
+  expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
+  await dialog.getByText("Recorded evidence and comparison settings", { exact: true }).click();
+  await expect
+    .element(dialog.getByRole("region", { name: "Recommendation context" }))
+    .toBeVisible();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Why this port?", exact: true }).first())
+    .toHaveFocus();
+});
+
+it.each([
+  [1440, 900, 5],
+  [1024, 800, 4],
+  [740, 900, 3],
+])("preserves the prototype cover density at %ipx by %ipx", async (width, height, columns) => {
+  await page.viewport(width, height);
+  await mount();
+  const grid = document.querySelector<HTMLElement>(".collection-covers")!;
+  expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
+  const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+});
+
+it("shares Discover membership quick views with filters while preserving search", async () => {
+  await page.viewport(1024, 800);
+  await mount();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  const search = page.getByRole("textbox", { name: "Search Discover", exact: true });
+  await search.fill("Mario");
+  const quickViews = page.getByRole("group", { name: "Discover collections", exact: true });
+  await quickViews.getByRole("button", { name: "Not in library", exact: true }).click();
+  await expect.element(search).toHaveValue("Mario");
+  await expect
+    .element(quickViews.getByRole("button", { name: "Not in library", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(0);
+  await quickViews.getByRole("button", { name: "All games", exact: true }).click();
+  await expect.element(search).toHaveValue("Mario");
+  await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(2);
+});
+
+it("creates and removes a collection through its editor while retaining a failed draft and restoring All games focus", async () => {
+  await page.viewport(1440, 900);
+  await mount();
+  const change = vi.spyOn(desktopApi, "changeOrganization");
+  await page.getByRole("button", { name: "Manage collections", exact: true }).click();
+  const name = page.getByRole("textbox", { name: "Collection name", exact: true });
+  await expect.element(name).toBeVisible();
+  const create = page.getByRole("button", { name: "Create collection", exact: true });
+  await expect.element(create).toBeDisabled();
+  await name.fill("  Weekend sessions  ");
+  change.mockRejectedValueOnce(new Error("Fixture organization write refused"));
+  await create.click();
+  await expect
+    .poll(() => document.body.textContent)
+    .toContain("These choices could not be saved. Your previous choices were kept.");
+  await expect.element(name).toHaveValue("  Weekend sessions  ");
+  await expect
+    .element(page.getByRole("button", { name: "Collection: Weekend sessions", exact: true }))
+    .not.toBeInTheDocument();
+  await captureParityState("collection-create-failed-draft");
+  await create.click();
+  await expect.element(name).toHaveValue("");
+  const created = change.mock.calls.at(-1)![1];
+  if (created.kind !== "upsert_collection") throw new Error("Expected collection creation");
+  expect(created.collection_id).toMatch(/^[0-9a-f-]{36}$/);
+  expect(change).toHaveBeenLastCalledWith(
+    0,
+    { kind: "upsert_collection", collection_id: created.collection_id, name: "Weekend sessions" },
+    1,
+  );
+  const selected = page.getByRole("button", { name: "Weekend sessions (0)", exact: true });
+  await selected.click();
+  await expect.element(selected).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
+  await captureParityState("collection-created-empty-selected");
+  await page.getByRole("button", { name: "Remove collection", exact: true }).click();
+  expect(change).toHaveBeenLastCalledWith(
+    1,
+    { kind: "remove_collection", collection_id: created.collection_id },
+    1,
+  );
+  const all = page
+    .getByRole("group", { name: "Library collections", exact: true })
+    .getByRole("button", { name: "All games", exact: true });
+  await expect.element(all).toHaveAttribute("aria-pressed", "true");
+  await expect.element(all).toHaveFocus();
+  await expect.element(selected).not.toBeInTheDocument();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await captureParityState("collection-removed-all-games-focus");
+}, 45_000);
+
+it("opens Hidden games and restores Favorites focus when its last entry is shown in Library", async () => {
+  await page.viewport(1440, 900);
+  await mount();
+  const change = vi.spyOn(desktopApi, "changeOrganization");
+  const entry = () =>
+    page.elementLocator(
+      document
+        .querySelector('[data-detail-game-id="collection-0"]')!
+        .closest<HTMLElement>(".collection-entry")!,
+    );
+  await entry()
+    .getByRole("button", { name: /^More actions for/ })
+    .click();
+  await page.getByRole("menuitem", { name: "Hide from Library", exact: true }).click();
+  expect(change).toHaveBeenLastCalledWith(
+    0,
+    { kind: "set_hidden", port_id: "collection-0", hidden: true },
+    1,
+  );
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(11);
+  const hidden = page.getByRole("button", { name: /^Hidden games/ });
+  await hidden.click();
+  await expect.element(hidden).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
+  await captureParityState("library-hidden-selection");
+  await entry()
+    .getByRole("button", { name: /^More actions for/ })
+    .click();
+  await page.getByRole("menuitem", { name: "Show in Library", exact: true }).click();
+  expect(change).toHaveBeenLastCalledWith(
+    1,
+    { kind: "set_hidden", port_id: "collection-0", hidden: false },
+    1,
+  );
+  await expect.element(hidden).not.toBeInTheDocument();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
+  await expect
+    .element(page.getByRole("heading", { name: "No matching library entries", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
+    .toHaveFocus();
+  await captureParityState("library-hidden-final-entry-restored");
+  await page.getByRole("button", { name: "Reset view", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+}, 45_000);
+
+it("keeps the confirmed favorite state during a pending and rejected write", async () => {
+  await page.viewport(1024, 800);
+  await mount();
+  let rejectWrite!: (reason: Error) => void;
+  const favorite = vi.spyOn(desktopApi, "setPortFavorite").mockReturnValueOnce(
+    new Promise<void>((_resolve, reject) => {
+      rejectWrite = reject;
+    }),
+  );
+  const toggle = page.getByRole("button", {
+    name: "Favorite Super Mario 64 · sm64-port",
+    exact: true,
+  });
+  await userEvent.hover(toggle.element());
+  expect(toggle.element().matches(":hover")).toBe(true);
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  await captureParityState("library-favorite-hover");
+  await toggle.click();
+  await expect.element(toggle).toBeDisabled();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  expect(favorite).toHaveBeenCalledExactlyOnceWith("collection-0", true, 1);
+  await captureParityState("library-favorite-write-pending");
+  rejectWrite(new Error("Fixture favorite write refused"));
+  await expect
+    .element(page.getByText("Favorite choice could not be confirmed", { exact: true }))
+    .toBeVisible();
+  await expect.element(toggle).toBeEnabled();
+  await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .element(page.getByRole("button", { name: "Favorites 0", exact: true }))
+    .toBeVisible();
+  await captureParityState("library-favorite-write-rejected");
+  const rejection = page.getByText("Favorite choice could not be confirmed", { exact: true });
+  rejection.element().scrollIntoView({ block: "center" });
+  await expect.element(rejection).toBeVisible();
+  await expect
+    .poll(() => {
+      const bounds = rejection.element().getBoundingClientRect();
+      return (
+        bounds.top >= 0 &&
+        bounds.bottom <= innerHeight &&
+        bounds.left >= 0 &&
+        bounds.right <= innerWidth
+      );
+    })
+    .toBe(true);
+  await captureParityState("library-favorite-write-rejected-notice");
+}, 45_000);
+
+it("sorts actual Library entries by the selected title order without changing their identities", async () => {
+  await page.viewport(1024, 800);
+  await mount();
+  const ids = () =>
+    [...document.querySelectorAll<HTMLElement>(".collection-identity")].map((entry) =>
+      entry.getAttribute("data-detail-game-id")!,
+    );
+  const sort = page.getByRole("combobox", { name: /^Sort / });
+  await sort.click();
+  await expect.element(page.getByRole("option", { name: "Title A–Z", exact: true })).toBeVisible();
+  await captureParityState("library-sort-menu");
+  await page.getByRole("option", { name: "Title A–Z", exact: true }).click();
+  await expect
+    .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
+    .toHaveTextContent("Title A–Z");
+  const ascending = ids();
+  expect(ascending).toHaveLength(12);
+  expect(new Set(ascending).size).toBe(12);
+  await sort.click();
+  await page.getByRole("option", { name: "Title Z–A", exact: true }).click();
+  await expect
+    .element(sort.element().querySelector<HTMLElement>("[data-slot=select-value]"))
+    .toHaveTextContent("Title Z–A");
+  const descending = ids();
+  expect(descending).not.toEqual(ascending);
+  expect([...descending].sort((a, b) => a.localeCompare(b))).toEqual(
+    [...ascending].sort((a, b) => a.localeCompare(b)),
+  );
+  const titles = [
+    ...document.querySelectorAll<HTMLElement>(".collection-entry .collection-title"),
+  ].map((title) => title.textContent?.trim() ?? "");
+  expect(titles).toHaveLength(12);
+  expect(titles).toEqual(
+    [...titles].sort((a, b) => b.localeCompare(a, "en", { sensitivity: "base" })),
+  );
+  await captureParityState("library-sort-title-descending");
+}, 45_000);
+
+it("keeps a grouped Discover Save unselected while pending and after a rejected write", async () => {
+  await page.viewport(1024, 800);
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
+  await mount();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
+  let rejectWrite!: (reason: Error) => void;
+  const change = vi.spyOn(desktopApi, "changeOrganization").mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      rejectWrite = reject;
+    }),
+  );
+  const group = discoverGroupForPort("collection-1");
+  const save = page.elementLocator(group.querySelector<HTMLButtonElement>(".collection-save")!);
+  await expect.element(save).toHaveAttribute("aria-pressed", "false");
+  await save.click();
+  await expect.element(save).toBeDisabled();
+  const requested = change.mock.calls[0]![1];
+  if (requested.kind !== "set_saved_group") throw new Error("Expected grouped Save");
+  expect(requested.legacy_port_ids).toEqual(["collection-0", "collection-1"]);
+  expect(requested.saved).toBe(true);
+  await captureParityState("discover-group-save-pending");
+  rejectWrite(new Error("Fixture grouped Save refused"));
+  await expect.element(save).toBeEnabled();
+  await expect.element(save).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .element(
+      page.getByRole("group", { name: "Discover collections", exact: true }).getByRole("alert"),
+    )
+    .toMatchTextContent("These choices could not be saved. Your previous choices were kept.");
+  await expect
+    .element(
+      page.getByRole("group", { name: "Discover collections", exact: true }).getByRole("alert"),
+    )
+    .toBeVisible();
+  await captureParityState("discover-group-save-rejected");
+}, 45_000);

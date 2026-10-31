@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Held source preparation only. Public observations cannot mint an original
  * parent, runtime or source receipt; no account or native candidate is executed. */
 import { nativeQualificationWorkerPath } from "./release-native-qualification-contract.mts";
@@ -872,7 +873,7 @@ async function prepareWindowsOperation(
     const root = path.join(parent.directory, `windows-${operation}`),
       entry = path.join(tools.root, "scripts/release-hosted-native-windows-source.bundle.mjs"),
       setup = path.join(tools.root, "scripts/release-hosted-native-windows-setup.cs.txt");
-    const selected = parent.configuration.hosted_native["windows-x86_64"].producer;
+    const selected = selectedHostedNativePlatform(parent.configuration, "windows-x86_64").producer;
     assert.equal(selected.harness.path, harness);
     const sourcePlan: Plan = {
       schema_version: 1,

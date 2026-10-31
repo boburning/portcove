@@ -134,68 +134,95 @@ void test("native source declaration ownership follows additions, deletions and 
   assert.deepEqual(unrelated.groups, ["rust", "rust-quality"]);
 });
 
-void test("qualification profile is digest-bound and cannot satisfy a different expected profile", () => {
-  const beta = discoverCiPlan({
-    eventName: "workflow_dispatch",
-    checkoutSha: sha("d"),
-    forceQualification: true,
-    qualificationCaller: "release",
-    callerWorkflow: "release.yml",
-    releaseProfile: "initial-beta-win-linux",
-  });
-  assert.equal(
-    validateQualificationBinding({
-      plan: beta,
-      digest: beta.digest,
-      checkout: sha("d"),
-      releaseProfile: "initial-beta-win-linux",
-    }),
-    beta,
-  );
-  assert.throws(
-    () => validateQualificationBinding({ plan: beta, digest: beta.digest, checkout: sha("d") }),
-    /profile mismatch/,
-  );
-  const full = discoverCiPlan({
-    eventName: "workflow_call",
-    checkoutSha: sha("d"),
-    forceQualification: true,
-  });
-  assert.throws(
-    () =>
+for (const profile of ["initial-beta-win-linux", "initial-beta-windows-x86_64-v1"] as const) {
+  void test(`${profile} is digest-bound and cannot satisfy a different expected profile`, () => {
+    const beta = discoverCiPlan({
+      eventName: "workflow_dispatch",
+      checkoutSha: sha("d"),
+      forceQualification: true,
+      qualificationCaller: "release",
+      callerWorkflow: "release.yml",
+      releaseProfile: profile,
+    });
+    assert.equal(
       validateQualificationBinding({
-        plan: full,
-        digest: full.digest,
+        plan: beta,
+        digest: beta.digest,
         checkout: sha("d"),
-        releaseProfile: "initial-beta-win-linux",
+        releaseProfile: profile,
       }),
-    /profile mismatch/,
-  );
-  assert.throws(
-    () =>
-      validateQualificationBinding({
-        plan: full,
-        digest: full.digest,
-        checkout: sha("d"),
-        releaseProfile: "foreign",
-      }),
-    /unknown/,
-  );
-  assert.throws(
-    () => validateValidationPlan({ ...beta, release_profile: undefined }),
-    /profile|digest/,
-  );
-  for (const mutation of [
-    { release_profile: "foreign" },
-    { release_profile: "full" },
-    { mode: "fast", qualification_required: false },
-    { reason: "schedule" },
-    { groups: beta.groups.filter((group) => group !== "catalog") },
-    { platforms: qualificationPlatforms },
-    { release_profile: undefined },
-  ])
-    assert.throws(() => validateValidationPlan(redigest({ ...beta, ...mutation })));
-});
+      beta,
+    );
+    for (const override of [
+      { digest: undefined },
+      { digest: "f".repeat(64) },
+      { checkout: undefined },
+      { checkout: sha("e") },
+      {
+        releaseProfile:
+          profile === "initial-beta-win-linux"
+            ? "initial-beta-windows-x86_64-v1"
+            : "initial-beta-win-linux",
+      },
+    ]) {
+      assert.throws(() =>
+        validateQualificationBinding({
+          plan: beta,
+          digest: beta.digest,
+          checkout: sha("d"),
+          releaseProfile: profile,
+          ...override,
+        }),
+      );
+    }
+    assert.throws(
+      () => validateQualificationBinding({ plan: beta, digest: beta.digest, checkout: sha("d") }),
+      /profile mismatch/,
+    );
+    const full = discoverCiPlan({
+      eventName: "workflow_call",
+      checkoutSha: sha("d"),
+      forceQualification: true,
+    });
+    assert.throws(
+      () =>
+        validateQualificationBinding({
+          plan: full,
+          digest: full.digest,
+          checkout: sha("d"),
+          releaseProfile: profile,
+        }),
+      /profile mismatch/,
+    );
+    assert.throws(
+      () =>
+        validateQualificationBinding({
+          plan: full,
+          digest: full.digest,
+          checkout: sha("d"),
+          releaseProfile: "foreign",
+        }),
+      /unknown/,
+    );
+    assert.throws(
+      () => validateValidationPlan({ ...beta, release_profile: undefined }),
+      /profile|digest/,
+    );
+    for (const mutation of [
+      { release_profile: null },
+      { release_profile: "foreign" },
+      { release_profile: "full" },
+      { mode: "fast", qualification_required: false },
+      { reason: "schedule" },
+      { groups: beta.groups.filter((group) => group !== "catalog") },
+      { platforms: qualificationPlatforms },
+      { platforms: ["windows-aarch64"] },
+      { platforms: [] },
+      { release_profile: undefined },
+    ])
+      assert.throws(() => validateValidationPlan(redigest({ ...beta, ...mutation })));
+  });
+}
 
 void test("regular executable modes route by ownership while nonregular inputs block", () => {
   for (const modes of [

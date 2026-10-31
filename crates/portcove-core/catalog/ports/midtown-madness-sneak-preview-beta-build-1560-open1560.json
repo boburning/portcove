@@ -9,7 +9,36 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/0x1F9F1/Open1560",
-    "issue_number": 2884
+    "issue_number": 2884,
+    "manual_setup": {
+      "help_url": "https://github.com/0x1F9F1/Open1560/tree/965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+      "steps": [
+        {
+          "title": "Prepare the exact preview edition upstream",
+          "instruction": "Use a permitted complete Open1560 Windows x86 copy with your own Midtown Madness Sneak Preview Beta/build 1560 data. The selected upstream setup names audio.ar, core.ar and ui.ar as the minimum fresh inputs; keep the complete original preview and existing player data. Retail Midtown Madness is a different target. No preview download, original-file digest acceptance or general retail compatibility is supplied by this registration."
+        },
+        {
+          "title": "Select the player and retain its arguments",
+          "instruction": "Select native Open1560.exe, keeping all accompanying runtime files and the prepared game directory as working directory. Keep commandline.txt and established literal options. This is a partial native rewrite with retained assembly; a source repository or installer is not a prepared player. Upstream says its XP patch and dgVoodoo are unnecessary."
+        },
+        {
+          "title": "Preserve the creating directory before upstream cleanup",
+          "instruction": "Retain the entire creating game directory, original archives, settings, player/progress files, replays, custom and unknown files, and any actual external profile used by that copy. Open1560.log is written relative to the working directory. Final upstream builds default to -cleandir and delete last.rpl, crash.rpl, portals.s and root *.csv at exit; back up existing files before a run and use the supported -nocleandir option if retaining those diagnostics is intended. Portcove does not prevent the player’s writes or cleanup. Exact legacy save-file mapping and cross-version compatibility remain unverified."
+        },
+        {
+          "title": "Check the prepared copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

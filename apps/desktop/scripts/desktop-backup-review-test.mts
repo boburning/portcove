@@ -384,6 +384,7 @@ export async function backupReviewScenario({
     const retainedAssessment = inventory(port.id).create_assessment;
     assert.deepEqual(retainedAssessment, unavailable.create_assessment);
     await openCatalogPortAfterRefresh(browser, port, port.name);
+    await revealDetailSection(browser, "Saves & backups");
     const create = await browser.wait(
       until.elementLocated(
         By.css(`${backupSectionSelector} button[aria-describedby="backup-create-explanation"]`),
@@ -499,6 +500,7 @@ export async function backupReviewScenario({
     assert.equal(deletePreview.ok, true);
     // WebView refresh keeps the same native host; its service adapter is read-only.
     await openCatalogPortAfterRefresh(browser, port, port.name);
+    await revealDetailSection(browser, "Saves & backups");
     await browser.wait(
       async () => {
         const history = await browser.findElements(
@@ -756,6 +758,7 @@ export async function backupReviewScenario({
       [second.id],
     );
     await openCatalogPortAfterRefresh(browser, port, port.name);
+    await revealDetailSection(browser, "Saves & backups");
     await deleteReviewed(second, "backup-focus-final");
     await browser.wait(
       async () => {

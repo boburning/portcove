@@ -297,6 +297,31 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   });
   const windowsRecoveryFamilyFilter =
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)";
+  const windowsRetainedMovePolicyFilter =
+    "package(portcove-core) & test(/^runtime_path_policy::tests::move_previews_check_retained_policy_before_creating_destinations$/)";
+  assert.deepEqual(overrideFor(windowsRetainedMovePolicyFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsRetainedMovePolicyFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const windowsSourceImportRecoveryFilter =
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/)";
+  const sourceImportRecovery = overrideFor(
+    windowsSourceImportRecoveryFilter,
+    "x86_64-pc-windows-msvc",
+  );
+  assert.deepEqual(sourceImportRecovery, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsSourceImportRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(sourceImportRecovery) <
+      overrides.indexOf(overrideFor(windowsRecoveryFamilyFilter, "x86_64-pc-windows-msvc")),
+    "The exact source-import90s identity must precede its60s family",
+  );
   const relocationRecovery = overrideFor(windowsRelocationRecoveryFilter, "x86_64-pc-windows-msvc");
   assert.deepEqual(relocationRecovery, {
     platform: "x86_64-pc-windows-msvc",
@@ -423,6 +448,28 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsIndexedRetentionFilter =
+    "package(portcove-core) & test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/)";
+  const windowsIndexedRetention = overrideFor(
+    windowsIndexedRetentionFilter,
+    "x86_64-pc-windows-msvc",
+  );
+  assert.deepEqual(windowsIndexedRetention, {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsIndexedRetentionFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  assert.ok(
+    overrides.indexOf(windowsIndexedRetention) <
+      overrides.indexOf(
+        overrideFor(
+          "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))",
+          "x86_64-pc-windows-msvc",
+        ),
+      ),
+    "The exact90s Windows indexed-retention identity must precede its60s family",
+  );
   const windowsSelectedPlayerDiagnosticFilter =
     "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^game_file_query::tests::cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker$/))";
   const windowsSelectedPlayerDiagnostic = overrideFor(
@@ -460,7 +507,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::tests::unpublished_install_cleanup_retains_conflicting_family_intent$/)",
     historicalByteOnlyBackupFilter,
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)",
-    "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
+    "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
+    "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
     "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
     "package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))",
     "package(portcove-core) & test(/^service::psx_mod_data::tests::lifecycle::explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts$/)",
@@ -472,7 +520,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
     "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_(relocation|source_import|quarantine|original_paths)_intent$/)",
     "package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))",
-    "package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::verified_abort_resume$/))",
+    "package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_resume$/) | test(/^library_move::sequence_tests::published_abort_abort$/) | test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::verified_abort_resume$/))",
     "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
     "package(portcove-core) & (test(/^output_relocation::tests::external_cleanup_preserves_unowned_sibling_after_authority_commit$/) | test(/^library_move::sequence_tests::copying_resume_abort$/) | test(/^output_relocation::tests::external_to_external_cleanup_recovers_after_authority_commit$/))",
   ];
@@ -565,6 +613,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsSuccessorMoveFilter =
+    "package(portcove-core) & test(/^library_move::tests::admitted_post_client_definition_survives_interrupted_move_resume$/)";
+  assert.deepEqual(overrideFor(windowsSuccessorMoveFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsSuccessorMoveFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsPublishedMoveFilter =
     "package(portcove-core) & (test(/^library_move::sequence_tests::published_abort_resume$/) | test(/^library_move::sequence_tests::published_resume_resume$/))";
   const windowsObservedRecoveryBudgets = [
@@ -573,7 +629,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         "package(portcove-core) & test(/^service::tests::backups::recovers_restore_published$/)",
       periods: 24,
       beforeFilter:
-        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
+        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
     },
     {
       filter:
@@ -592,7 +648,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         "package(portcove-core) & test(/^service::tests::backups::recovers_restore_prepared$/)",
       periods: 24,
       beforeFilter:
-        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
+        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
     },
   ];
   const windowsTrackedCancellationFilter =
@@ -610,11 +666,13 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsIndexedRetentionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSelectedPlayerDiagnosticFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsCopyingResumeFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSuccessorMoveFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRetainedQueryAndResumeFilter },
       ...intelFullControlBudgets.map(({ filter }) => ({ platform: "x86_64-apple-darwin", filter })),
       ...intelRetainedContractBudgets.map(({ filter }) => ({
@@ -641,6 +699,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparationAndDriftFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsDiagnosticsFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRelocationRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsSourceImportRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsRetainedMovePolicyFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedPreparationFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxRelocationRecoveryFilter },
     ]
@@ -768,6 +828,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     );
   }
   const ninetySecondWindowsLifecycles = new Set([
+    "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
     "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
     "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
   ]);

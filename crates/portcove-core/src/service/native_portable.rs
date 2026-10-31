@@ -5222,4 +5222,361 @@ mod tests {
             b"authorized synthetic original"
         );
     }
+
+    // Inert packages exercise the actual managed definition without running the
+    // upstream original-data picker, player or any external original files.
+    #[tokio::test]
+    async fn wc1_managed_progression_keeps_supported_gui_without_core_source_inputs() {
+        let id = "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re";
+        let program_name = "wc1-modern.exe";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let release = |version: &str, revision| {
+            let mut release = server.release_in_folder(version, revision, "", program_name);
+            release.asset.name = format!("wc1-re-{version}-windows-x86_64-sdl2.zip");
+            release
+        };
+        let provider = Arc::new(Provider(Mutex::new(release("v1", 1))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
+        let assert_launch = |record: &InstallRecord| {
+            let retained = service.installed_port(record).unwrap();
+            assert_eq!(serde_json::to_value(&retained).unwrap(), definition);
+            assert!(retained.source_profile.is_none());
+            assert!(retained.persistent_paths.is_empty());
+            let spec = crate::adapter::standard(AdapterKind::NativePortable)
+                .launch_spec(
+                    &library,
+                    &retained,
+                    Platform::WindowsX86_64,
+                    &record.path,
+                    None,
+                )
+                .unwrap();
+            assert_eq!(
+                spec.executable.file_name(),
+                Some(std::ffi::OsStr::new(program_name))
+            );
+            assert_eq!(spec.working_directory, record.path);
+            assert_eq!(spec.arguments, ["--gui"]);
+            assert_eq!(spec.process_spec().fixed_arguments, ["--gui"]);
+        };
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_launch(&first);
+        *provider.0.lock().unwrap() = release("v2", 2);
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(second.version, "v2");
+        assert_ne!(first.artifact.sha256, second.artifact.sha256);
+        assert_launch(&second);
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        assert_launch(&previous);
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            definition
+        );
+        assert_eq!(fs::read(previous.path.join("package.txt")).unwrap(), [1]);
+        assert!(second.path.join(program_name).is_file());
+    }
+    // These first-party inert packages exercise retained definitions and fallback
+    // preservation. They do not run SDL, upstream setup, a player or original data.
+    async fn assert_profile_engine_progression(
+        id: &str,
+        executable: &str,
+        asset_name: &str,
+        wrapped: bool,
+        local_state: Option<&str>,
+        fault_file: Option<&str>,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let release = |version: &str, revision| {
+            let folder = if wrapped {
+                format!("engine-{version}/")
+            } else {
+                String::new()
+            };
+            let mut release = server.release_in_folder(version, revision, &folder, executable);
+            release.asset.name = asset_name.to_string();
+            release
+        };
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port(id).unwrap();
+        let rolling_tag = port.release.rolling_tag.as_deref();
+        let first_version = rolling_tag.unwrap_or("v1");
+        let second_version = rolling_tag.unwrap_or("v2");
+        if local_state.is_none() {
+            assert!(port.persistent_paths.is_empty());
+            assert!(port.persistent_file_patterns.is_empty());
+        }
+        let provider = Arc::new(Provider(Mutex::new(release(first_version, 1))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(id).unwrap()).unwrap();
+        let launch = |record: &InstallRecord| {
+            let retained = service.installed_port(record).unwrap();
+            assert_eq!(serde_json::to_value(&retained).unwrap(), definition);
+            assert!(retained.source_profile.is_none());
+            assert!(retained.setup_marker.is_none());
+            let spec = crate::adapter::standard(AdapterKind::NativePortable)
+                .launch_spec(
+                    &library,
+                    &retained,
+                    Platform::WindowsX86_64,
+                    &record.path,
+                    None,
+                )
+                .unwrap();
+            assert_eq!(
+                spec.executable.file_name(),
+                Some(std::ffi::OsStr::new(executable))
+            );
+            assert_eq!(
+                spec.executable.parent(),
+                Some(spec.working_directory.as_path())
+            );
+            assert!(spec.arguments.is_empty());
+            assert!(spec.process_spec().fixed_arguments.is_empty());
+            spec.working_directory
+        };
+        let first = service
+            .install(id, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let first_root = launch(&first);
+        if let Some(local_state) = local_state {
+            let state = first_root.join(local_state);
+            fs::create_dir_all(state.parent().unwrap()).unwrap();
+            fs::write(&state, b"synthetic local user state").unwrap();
+        }
+        *provider.0.lock().unwrap() = release(second_version, 2);
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(second.version, second_version);
+        assert_ne!(first.id, second.id);
+        if let Some(tag) = rolling_tag {
+            assert_eq!(first.version, tag);
+            assert_eq!(second.version, tag);
+            assert_eq!(first.channel, crate::ReleaseChannel::Rolling);
+            assert_eq!(second.channel, crate::ReleaseChannel::Rolling);
+        }
+        assert_ne!(first.artifact.sha256, second.artifact.sha256);
+        let second_root = launch(&second);
+        if let Some(local_state) = local_state {
+            assert_eq!(
+                fs::read(second_root.join(local_state)).unwrap(),
+                b"synthetic local user state"
+            );
+        }
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, first.id);
+        let previous_root = launch(&previous);
+        if let Some(local_state) = local_state {
+            assert_eq!(
+                fs::read(previous_root.join(local_state)).unwrap(),
+                b"synthetic local user state"
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            definition
+        );
+        assert!(second_root.join(executable).is_file());
+        if let Some(name) = fault_file {
+            let preview = service.preview_removal(id).unwrap();
+            let consent = service
+                .authorize_removal(id, &preview.preview_sha256)
+                .unwrap();
+            let unknown = previous_root.join(name);
+            fs::write(&unknown, b"unclaimed fallback pilot; preserve exact bytes").unwrap();
+            let error = service
+                .update(id, None, None, true, |_| {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.presentation().presentation_key,
+                "portable_runtime_modified"
+            );
+            assert!(service.preview_removal(id).is_err());
+            let removal = service.remove(id, &consent.token).unwrap_err();
+            assert_eq!(
+                removal.presentation().presentation_key,
+                "portable_runtime_modified"
+            );
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            assert_eq!(
+                fs::read(unknown).unwrap(),
+                b"unclaimed fallback pilot; preserve exact bytes"
+            );
+            if let Some(local_state) = local_state {
+                assert_eq!(
+                    fs::read(previous_root.join(local_state)).unwrap(),
+                    b"synthetic local user state"
+                );
+            }
+            assert_eq!(fs::read(previous_root.join("package.txt")).unwrap(), [1]);
+            assert!(previous_root.join(executable).is_file());
+            assert!(second_root.join(executable).is_file());
+        }
+    }
+
+    #[tokio::test]
+    async fn atlantis_native_managed_progression_preserves_dedicated_fallback_without_source_import()
+     {
+        assert_profile_engine_progression(
+            "atlantis-the-lost-tales-atlantis-native",
+            "atlantis-native.exe",
+            "atlantis-native-windows-x64.zip",
+            false,
+            Some("atlantis-native-data/games.txt"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxw_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-openxw",
+            "OpenXW.exe",
+            "openxw-test-windows-x86_64-release.zip",
+            true,
+            Some("config.yaml"),
+            Some("PILOT.PLT"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxvt_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+            "OpenXvT.exe",
+            "openxvt-test-windows-x86_64-release.zip",
+            true,
+            Some("config.yaml"),
+            Some("pilot.pl2"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openxwa_managed_progression_retains_unknown_fallback_pilot_on_maintenance_refusal() {
+        assert_profile_engine_progression(
+            "star-wars-x-wing-alliance-openxwa",
+            "OpenXWA.exe",
+            "openxwa-test-windows-x86_64-release.zip",
+            true,
+            Some("config.yaml"),
+            Some("Pilot0.plt"),
+        )
+        .await;
+    }
+    #[tokio::test]
+    async fn gunstars_managed_progression_preserves_default_paths_without_core_rom_import() {
+        assert_profile_engine_progression(
+            "gunstar-heroes-gunstars",
+            "gunstar.exe",
+            "gunstars-test-windows-x64.zip",
+            true,
+            Some("states/slot1.state"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn atomic_bomberman_managed_progression_preserves_local_free_assets_with_external_profile()
+     {
+        assert_profile_engine_progression(
+            "elraro-atomic-bomberman",
+            "atomic.exe",
+            "atomic-bomberman-modern-windows-x64.zip",
+            true,
+            Some("free-assets/free-assets.txt"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn ja2_stracciatella_managed_progression_keeps_external_profiles_unowned() {
+        assert_profile_engine_progression(
+            "jagged-alliance-2-ja2-stracciatella",
+            "ja2.exe",
+            "ja2-stracciatella_fixture_win-msvc64-142.zip",
+            true,
+            None,
+            Some("unexpected-local-profile.dat"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn openvyruz_managed_progression_preserves_only_declared_local_fallback() {
+        assert_profile_engine_progression(
+            "vyruz-destruction-of-the-untel-empire-openvyruz",
+            "Vyruz.exe",
+            "OpenVyruz-fixture-windows-x64.zip",
+            true,
+            Some("OpenVyruz/game-folder.txt"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn three_sx_rolling_progression_replaces_changed_artifact_at_unchanged_tag() {
+        assert_profile_engine_progression(
+            "street-fighter-iii-3rd-strike-3sx",
+            "3sx.exe",
+            "3SX-fixture-windows.zip",
+            true,
+            None,
+            Some("unexpected-local-profile.dat"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn three_sxw_managed_progression_preserves_memory_cards_and_holds_interrupted_probe() {
+        assert_profile_engine_progression(
+            "street-fighter-iii-3rd-strike-3sxw",
+            "SF3.exe",
+            "3SX-fixture-windows.zip",
+            true,
+            Some("data/saves/slot1/card.save"),
+            Some("data/.3sx-write-test-0000000000000001-00000002.tmp"),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn zamn_managed_progression_preserves_interrupted_default_quicksave() {
+        assert_profile_engine_progression(
+            "moshferatu-zombies-ate-my-neighbors-pc-port",
+            "zamn_launcher.exe",
+            "zamn-windows-x86_64.zip",
+            true,
+            Some("zamn.quicksave.tmp"),
+            None,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn oracles_managed_progression_preserves_unfinished_portable_profile() {
+        assert_profile_engine_progression(
+            "kirby-letsgo-oracles-decomp",
+            "Oracles.exe",
+            "Oracles-windows-x64.zip",
+            true,
+            Some("oracles-data.part/retained/in-progress.dat"),
+            None,
+        )
+        .await;
+    }
 }

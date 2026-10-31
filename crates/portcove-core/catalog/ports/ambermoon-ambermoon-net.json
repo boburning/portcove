@@ -17,7 +17,33 @@
       "game_slug": "ambermoon",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2625
+    "issue_number": 2625,
+    "download_block_reason": "Fresh self-service acquisition is held pending attributable permission covering the selected package’s bundled original Ambermoon 1.22 and Advanced 1.33 assets. The official download and engine GPL do not resolve the existing #2625 bundled-content question. Reconsider after reviewing a notice/grant covering those bundled files; an already-permitted copy can use the separate non-owning route.",
+    "manual_setup": {
+      "help_url": "https://github.com/Pyrdacor/Ambermoon.net/tree/ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+      "steps": [
+        {
+          "title": "Use an already-permitted prepared Ambermoon.net copy",
+          "instruction": "Use only a complete Windows Ambermoon.net copy and bundled content you are already permitted to use. The reviewed v1.14.2 distribution includes original Ambermoon 1.22 and Advanced 1.33, so do not invent a separate Amiga ROM requirement. The existing bundled-asset permission question still holds fresh acquisition; engine GPL or a public download does not settle that question. Select normal Ambermoon.net.exe with its accompanying runtime, not AmbermoonPatcher.exe or an installer."
+        },
+        {
+          "title": "Keep the normal player in the selected process",
+          "instruction": "Finish upstream preparation outside Portcove, then keep the supported --no-patcher option as one literal launch argument for this selected copy so normal play does not hand off to the separate patcher. Keep its creating working directory and other established supported literal arguments. Close the game, preserve the old copy and data, then perform deliberate compatible updates upstream and review/relink a changed executable before the next Play. Portcove does not run the patcher or take over runtime replacement."
+        },
+        {
+          "title": "Preserve every effective data and profile root",
+          "instruction": "Keep the entire creating runtime and its actual ambermoon.cfg, Saves, SavesRemake, Screenshots, error.txt, mods, music, custom and unknown files. Windows can instead use roaming AppData/Ambermoon.net, and existing fallback configuration can affect a different runtime copy. Retain the entire effective profile, original and Advanced save-version directories and any external --data/DataPath locations. External SaveOption=DataFolder can write into the original data folder; preserve that whole directory before changes. A different executable does not isolate a shared profile, and save compatibility or migration is not certified."
+        },
+        {
+          "title": "Review attachment and choose Play separately",
+          "instruction": "Finish a normal upstream start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and literal arguments. Review the selected intent and consent, then choose Play separately. Upstream/player owns preparation, writes, updates, migration and recovery. Portcove supervises the selected process; this is not an exclusive instance lock or sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed acquisition, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Fresh acquisition remains held on the specific bundled-content condition; this route grants no permission to acquire or execute a copy.",
+        "Preserve all actual runtime/data/profile roots and the creating version before upstream changes. Original, Advanced and older save formats are not automatically interchangeable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

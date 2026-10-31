@@ -26,6 +26,8 @@ import { OperationProgress } from "./OperationProgress";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
+  ArrowRight,
+  Play,
   Check,
   CircleMinus,
   Download,
@@ -49,7 +51,6 @@ import type {
 } from "../types";
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
-import { CurrentStateSummary } from "./ui/patterns";
 import { useEffect, useId, useRef, useState } from "react";
 import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
@@ -96,7 +97,10 @@ const updateStateClass =
 const libraryActivitySettingsTargets: Partial<
   Record<
     ActivityOperation,
-    Exclude<ActivitySettingsTarget, "source-profile" | "library-storage" | "application-updates">
+    Exclude<
+      ActivitySettingsTarget,
+      "source-profile" | "library-storage" | "application-updates" | "diagnostics"
+    >
   >
 > = {
   discover_sources: "discover-sources",
@@ -318,22 +322,22 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
       className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
       data-focus-group
     >
-      <CurrentStateSummary
-        title={
-          model.installed.length === 0
+      <div className="update-check-summary">
+        <h2>
+          {model.installed.length === 0
             ? "No managed installations to check"
             : model.failedInstalled > 0
               ? "Some update checks failed"
               : model.checked.length === 0
                 ? "Updates not checked"
-                : `${model.available}${model.complete ? "" : "+"} updates available${model.earlierBatch ? " at last check" : ""}`
-        }
-      >
+                : `${model.available}${model.complete ? "" : "+"} ${model.available === 1 && model.complete ? "update" : "updates"} available${model.earlierBatch ? " at last check" : ""}`}
+        </h2>
         <p className="text-sm text-pc-muted-foreground">
-          {model.checked.length} of {model.installed.length} installed ports have a check result.
-          Unchecked or failed ports may still have updates.
+          {model.checked.length} of {model.installed.length} installed{" "}
+          {model.installed.length === 1 ? "port has" : "ports have"} a check result. Unchecked or
+          failed ports may still have updates.
         </p>
-      </CurrentStateSummary>
+      </div>
       <UpdateCheckControl
         busy={model.busy}
         status={model.batchRead?.status}
@@ -399,9 +403,9 @@ function renderInstalledUpdateHeader({ model, port, status, state }: InstalledUp
           model.effectiveCheck(port.id)?.update_available &&
           model.effectiveCheck(port.id)?.release?.version && (
             <>
-              <span aria-hidden> → </span>
+              <Icon glyph={ArrowRight} size="sm" />
               <span className="sr-only">; offered version: </span>
-              {model.effectiveCheck(port.id)?.release?.version}
+              <strong>{model.effectiveCheck(port.id)?.release?.version}</strong>
             </>
           )}
       </div>
@@ -465,6 +469,7 @@ function renderInstalledUpdateActions({
             title={action.assessment.reason}
             onClick={() => model.onLaunch?.(port.id)}
           >
+            <Play className="size-3.5" fill="currentColor" aria-hidden="true" />
             {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
           </Button>
         )}
@@ -512,6 +517,55 @@ function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdat
 }
 
 function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
+  const countId = useId();
+  const feed = model.activityFeed;
+  const taskCount = new Set([
+    ...(feed?.current_activity_ids ?? []),
+    ...(feed?.attention_required_activity_ids ?? []),
+    ...(feed?.recovery_required_activity_ids ?? []),
+    ...model.activities
+      .filter(
+        (activity) =>
+          ["running", "unfinished", "failed", "unknown"].includes(
+            activityPresentationState(activity, model.nowSeconds),
+          ) || Boolean(activity.failure),
+      )
+      .map((activity) => activity.id),
+  ]).size;
+  const historyCount = model.activities.filter(
+    (activity) =>
+      !["running", "unfinished"].includes(activityPresentationState(activity, model.nowSeconds)),
+  ).length;
+  const boundedCount = (count: number, complete: boolean | undefined) =>
+    complete ? String(count) : count > 0 ? `${count}+` : "—";
+  const counts = {
+    tasks: {
+      value: taskCount > 0 ? boundedCount(taskCount, feed?.active_and_actionable_complete) : "—",
+      description:
+        taskCount === 0
+          ? "No task count is established by the loaded activity records."
+          : feed?.active_and_actionable_complete
+            ? `${taskCount} recorded tasks and attention items in the loaded activity snapshot.`
+            : `Activity snapshot coverage is incomplete. ${taskCount} recorded tasks and attention items.`,
+    },
+    updates: {
+      value: model.earlierBatch ? "—" : boundedCount(model.available, model.complete),
+      description: model.earlierBatch
+        ? `${model.available} updates at last check. Current results are unavailable or still being checked.`
+        : model.complete
+          ? `${model.available} updates available at last check.`
+          : `Update coverage is incomplete. ${model.available} known updates available at last check.`,
+    },
+    history: {
+      value: historyCount > 0 ? boundedCount(historyCount, feed?.terminal_history_complete) : "—",
+      description:
+        historyCount === 0
+          ? "No history count is established by the loaded activity records."
+          : feed?.terminal_history_complete
+            ? `${historyCount} history records in the loaded activity snapshot.`
+            : `${historyCount} loaded history records. History coverage is incomplete.`,
+    },
+  };
   return (
     <Tabs.Root
       render={<section className="update-center" data-activity-section={model.selectedSection} />}
@@ -534,35 +588,46 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
             key={value}
             value={value}
             data-focusable
+            aria-describedby={`${countId}-${value}`}
             render={<Button variant="ghost" className="activity-tab" />}
           >
             {label}
+            <span
+              className="activity-tab-count"
+              aria-hidden="true"
+              title={counts[value].description}
+            >
+              {counts[value].value}
+            </span>
+            <span id={`${countId}-${value}`} hidden>
+              {counts[value].description}
+            </span>
           </Tabs.Tab>
         ))}
       </Tabs.List>
       <Tabs.Panel value="updates" keepMounted aria-label="Game updates">
-        <h2 className="mb-5 text-lg">Game updates</h2>
         {renderUpdateCheckToolbar(model)}
         <UpdateBatchNotice read={model.batchRead} />
-        <details className="mb-4">
-          <summary className="cursor-pointer py-2 text-sm">Update statistics</summary>
+        <details className="update-check-details">
+          <summary>About update checks</summary>
+          <p>
+            Checking does not install. Review an update before downloading or installing; Play uses
+            your current version.
+          </p>
+          <h3>Update statistics</h3>
           {model.renderStatistics()}
+          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+            Looking for Portcove or catalog updates?{" "}
+            <Button
+              data-focusable
+              variant="link"
+              size="xs"
+              onClick={() => model.onOpenSettings("application-updates")}
+            >
+              Open Portcove update settings
+            </Button>
+          </p>
         </details>
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Checking does not install. Review an update before downloading or installing; Play uses
-          your current version.
-        </p>
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Looking for Portcove or catalog updates?{" "}
-          <Button
-            data-focusable
-            variant="link"
-            size="xs"
-            onClick={() => model.onOpenSettings("application-updates")}
-          >
-            Open Portcove update settings
-          </Button>
-        </p>
         {model.installed.length > 0 && (
           <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
             {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
@@ -672,8 +737,13 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
                         </span>
                       </div>
                     </div>
-                    <span className={`${updateStateClass} ${updateStateTones.muted}`}>
-                      Updated externally
+                    <span className="external-update-action grid justify-items-end gap-3">
+                      <span className={`${updateStateClass} ${updateStateTones.muted}`}>
+                        Updated externally
+                      </span>
+                      <span className="inline-flex items-center gap-2 text-xs font-medium text-pc-interactive-foreground">
+                        View game <Icon glyph={ArrowRight} size="sm" />
+                      </span>
                     </span>
                   </button>
                 );
@@ -687,9 +757,6 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
         keepMounted
         aria-label="Tasks and history"
       >
-        <h2 className="mb-5 text-lg">
-          {model.selectedSection === "history" ? "History" : "Tasks"}
-        </h2>
         <div
           hidden={model.selectedSection === "history"}
           inert={model.selectedSection === "history" ? true : undefined}
@@ -906,7 +973,7 @@ function ActivityHistory({
     <section className="activity-history" data-record-view={mode}>
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
-          <h3 className="text-sm">Task records and diagnostics</h3>
+          <h2>{mode === "history" ? "Task history" : "Current tasks"}</h2>
         </div>
         <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
@@ -923,25 +990,26 @@ function ActivityHistory({
             "Activity from the CLI and desktop appears here."
           )}
         </small>
+        {mode === "history" && (
+          <Button variant="outline" size="sm" onClick={() => onOpenSettings("diagnostics")}>
+            Diagnostics
+          </Button>
+        )}
       </div>
       {shownActivities.length === 0 && (
-        <div className="activity-empty flex items-center gap-3 p-4 text-start text-xs text-pc-muted-foreground">
-          <span className="text-pc-interactive-foreground">
-            <Icon glyph={History} />
-          </span>
-          <div>
-            <strong className="block text-pc-secondary-foreground">
-              {mode === "history"
-                ? "No finished tasks in these records"
-                : "No current tasks in these records"}
-            </strong>
-            <span className="mt-1 block">
-              {mode === "history"
-                ? "Recorded installs, updates, checks and failures appear here when they finish."
-                : "Installs, updates, checks and items needing attention appear here. Finished records are in History."}
-            </span>
-          </div>
-        </div>
+        <EmptyState
+          icon={History}
+          title={
+            mode === "history"
+              ? "No finished tasks in these records"
+              : "No current tasks in these records"
+          }
+          description={
+            mode === "history"
+              ? "Recorded installs, updates, checks and failures appear here when they finish."
+              : "Installs, updates, checks and items needing attention appear here. Finished records are in History."
+          }
+        />
       )}
       <div className="activity-list grid gap-1.5">
         {groups
@@ -1071,7 +1139,7 @@ function ActivityRow({
       )}
       {activity.status === "running" && operation && operation.type !== "finished" && (
         <div className={activityDetailsClass}>
-          <OperationProgress operation={operation} busy={activity.operation} />
+          <OperationProgress operation={operation} busy={activity.operation} embedded />
         </div>
       )}
       {activity.operation === "launch" && presentation.state === "succeeded" && (

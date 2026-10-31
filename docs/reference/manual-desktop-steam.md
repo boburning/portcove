@@ -65,6 +65,12 @@ The selected library, port and runtime registration remain Core-owned.
 | Read-only or unavailable files | Record the actual permission/storage failure. Do not elevate, remove locks, silently redirect writes or infer that every read-only source prevents launch: an already-prepared runtime may no longer need it.                            |
 | CLI missing/incompatible       | Repair the verified standalone CLI target. Steam's failure to start an executable is not a Core game session.                                                                                                                            |
 
+For a moved CLI, repair **both Target and Start In**, leaving the selected
+`--library` argument and stable port ID intact. If the target is absent, Steam may
+show only “Failed to start process for this game”; Core cannot publish a new
+session or diagnose the path until Steam can start the CLI. Check these fields
+before changing the game installation or using launch recovery.
+
 ## Exit, Stop and recovery
 
 Normal game exit returns through the existing Core supervisor and its exact

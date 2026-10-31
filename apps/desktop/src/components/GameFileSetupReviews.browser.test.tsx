@@ -1,3 +1,4 @@
+import { captureParityState } from "../../test/parity-capture";
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -106,6 +107,7 @@ it("keeps registered preliminary inputs distinct while opening only fresh Core-e
   await act(async () => render());
   expect(button("Review Port 1 setup").disabled).toBe(false);
   expect(element.textContent).toContain("2 of 16 ports selected");
+  await captureParityState("game-files-selected-setup-reviews-fixture");
 });
 
 it("retains independent selections through details/back and never treats opening as completion", async () => {

@@ -9,7 +9,36 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/swfans/syndwarsfx",
-    "issue_number": 2715
+    "issue_number": 2715,
+    "manual_setup": {
+      "help_url": "https://github.com/swfans/syndwarsfx/tree/a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+      "steps": [
+        {
+          "title": "Complete the supported PC Syndicate Wars setup upstream",
+          "instruction": "Use a permitted complete Windows Syndicate Wars Fan Expansion/Port copy with your own supported PC CD/digital data and required upstream graphics, sound and level packages. The reviewed setup distinguishes the tested European multilingual/US data, German-language disc requirements and unsupported Asian fonts; retain the chosen language and edition. Windows installer/setup archives and patch archives are different. Finish all upstream original-data installation, dependencies and preparation first; no installer, helper or original-data fetch is run here."
+        },
+        {
+          "title": "Select the player and established launch coordinates",
+          "instruction": "Select the actual native Windows swars.exe with its completed runtime/data directory and supported established arguments; /g is the documented Windows-style normal-start option and is no longer mandatory. Do not select an installer or setup archive. Keep the actual 32-bit SDL/OpenAL/render dependencies for that copy; a 64-bit OS alone does not replace those components."
+        },
+        {
+          "title": "Preserve user, installation and CD locations separately",
+          "instruction": "Keep the whole creating runtime/data/CD setup, config.ini, conf/, qdata/savegame, qdata/screenshots, all user/profile INI files, saves, replays, custom and unknown files. Source resolves installation data from the actual registry-backed setup or working-directory fallback. On Windows it uses AppData/Syndicate Wars for user paths only when that installation lookup and AppData succeed; otherwise it falls back to the working directory. The mapped save/screenshot roots follow that choice. Preserve every actual effective root and compatible old runtime before upstream changes; no profile/registry migration or backward-save qualification is offered."
+        },
+        {
+          "title": "Review the completed player and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+        },
+        {
+          "title": "Retain upstream replacement and external ownership",
+          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
+        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

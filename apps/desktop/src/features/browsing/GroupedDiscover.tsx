@@ -175,15 +175,21 @@ export function GroupedDiscover({
                 {gameTitle(comparison.matchingPorts[0]!)}
               </DialogTitle>
               <DialogDescription>
-                Compare {comparison.ports.length} separate port projects. Each keeps its own
-                installation, files and saved data.
+                {comparison.ports.length === 1
+                  ? "Review this port’s requirements and recorded information."
+                  : `Compare ${comparison.ports.length} port projects. Each keeps its own installation, files and saved data.`}
               </DialogDescription>
-              <p className="text-sm text-pc-muted-foreground">
-                Shared feature details are not available for every project. Compare the recorded
-                evidence and project instructions. Switching projects does not establish save or mod
-                compatibility.
-              </p>
-              <GameComparisonControls comparison={evidence} />
+              <details className="my-4 text-xs text-pc-muted-foreground">
+                <summary data-focusable className="cursor-pointer py-2">
+                  Recorded evidence and comparison settings
+                </summary>
+                <p>
+                  Feature details are not available for every project. Check the recorded evidence
+                  and project instructions. Switching projects does not establish save or mod
+                  compatibility.
+                </p>
+                <GameComparisonControls comparison={evidence} />
+              </details>
               <div className="port-comparison-grid">
                 {comparison.ports.map((port) => {
                   const status = statuses.get(port.id);
@@ -373,8 +379,8 @@ function DiscoverGameCard({
           identityArtwork
           className="collection-art"
         />
-        <h2 className="collection-title text-sm leading-snug font-semibold">{gameTitle(first)}</h2>{" "}
-        <p className="collection-project text-xs text-pc-muted-foreground">{projectLabel}</p>
+        <h2 className="collection-title font-semibold">{gameTitle(first)}</h2>{" "}
+        <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
       </Button>
       <div className="collection-personal-actions">
         {group.ports.length === 1 && favorite(first, true)}
