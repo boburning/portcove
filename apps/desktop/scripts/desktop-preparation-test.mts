@@ -1745,9 +1745,35 @@ export async function preparationScenarios({
     const more = await card.findElement(By.css('button[aria-label^="More actions for "]'));
     await more.click();
     await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
-    const menuImage = path.join(output, "library-overflow-menu.png");
-    await writeFile(menuImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
-    artifacts.push(menuImage);
+    const menuCapture = await captureSettledVisual({
+      browser,
+      output,
+      name: "library-overflow-menu",
+      scenario: "native-preparation-review-and-play",
+      target: '[role="menu"]',
+      observeTarget: () =>
+        executeBrowserScript(browser, observeVisibleTarget, '[role="menu"]', "visual" as const),
+      readiness: () =>
+        executeBrowserScript(browser, () => {
+          const menu = document.querySelector<HTMLElement>('[role="menu"]');
+          if (!menu) return { ready: false };
+          for (
+            let ancestor: HTMLElement | null = menu;
+            ancestor;
+            ancestor = ancestor.parentElement
+          ) {
+            if (
+              Number(getComputedStyle(ancestor).opacity) !== 1 ||
+              ancestor
+                .getAnimations()
+                .some((animation) => animation.pending || animation.playState === "running")
+            )
+              return { ready: false };
+          }
+          return { ready: document.fonts.status === "loaded" };
+        }),
+    });
+    artifacts.push(menuCapture.image.path, menuCapture.receipt);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(By.css('[role="menu"]'))).length === 0,
@@ -2437,7 +2463,25 @@ export async function preparationScenarios({
       const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Try launch"]'));
       await executeBrowserScript(
         browser,
-        (element) => element.scrollIntoView({ block: "center" }),
+        (element) => {
+          const workspace = document.querySelector<HTMLElement>(
+            'main[data-focus-region="workspace"]',
+          );
+          if (!workspace) throw new Error("Library workspace is missing");
+          const owner =
+            getComputedStyle(workspace).overflowY === "visible"
+              ? (document.scrollingElement ?? document.documentElement)
+              : workspace;
+          const viewportTop = owner === workspace ? workspace.getBoundingClientRect().top : 0;
+          const target = element.getBoundingClientRect();
+          // Position only the actual reading owner. All-ancestor scrollIntoView
+          // can scroll hidden outer containers when the owner reaches its limit.
+          owner.scrollTo({
+            top:
+              owner.scrollTop + target.top - viewportTop - (owner.clientHeight - target.height) / 2,
+            behavior: "instant",
+          });
+        },
         play,
       );
       const scrollBefore = await executeBrowserScript(browser, () => {
@@ -2460,6 +2504,10 @@ export async function preparationScenarios({
         flag: "wx",
       });
       artifacts.push(beforeImage);
+      assert.ok(
+        required(beforeClick.workspaceRectangle).top >= -1,
+        `Initial Library positioning must not scroll a hidden outer container: ${JSON.stringify(beforeClick)}`,
+      );
       await play.click();
       const afterClick = await executeBrowserScript(browser, launchContinuityPoint, play);
       const afterClickPath = path.join(output, "game-return-after-click.json");
@@ -2548,8 +2596,10 @@ export async function preparationScenarios({
         "Launched card is outside the reading viewport after return",
       );
       assert.ok(
-        Math.abs(required(returned.scrollTop) - scrollBefore) <= 2,
-        `Library scroll changed after game return: ${scrollBefore} -> ${returned.scrollTop}`,
+        Math.abs(
+          required(settled.originRectangle).top - required(beforeClick.originRectangle).top,
+        ) <= 2,
+        `Library launch origin moved after game return: ${JSON.stringify({ before: beforeClick.originRectangle, settled: settled.originRectangle, scrollBefore, scrollAfter: returned.scrollTop })}`,
       );
       const screenshot = path.join(output, "native-game-return-continuity.png");
       await writeFile(screenshot, await browser.takeScreenshot(), {
