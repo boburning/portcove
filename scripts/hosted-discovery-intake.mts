@@ -819,6 +819,9 @@ export class HostedIntakeBridge {
             d.item_id = normalized.itemId;
           }
         } else {
+          // Admit before publishing an intent as well as after that write. A
+          // denied read must not spend the last capacity on a new attempt.
+          this.admitWarmInventory(inventory);
           // Persist the attempt before recollection: publishing it advances
           // #177's revision, so the negative inventory must come afterwards.
           d.status = "create-attempted";
@@ -1005,7 +1008,7 @@ async function main() {
     const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
     // Leave enough existing capacity to restore prepared and publish a bounded
     // receipt/diagnostic if preflight cannot fit; this is not a usage reset.
-    budget.admit(cost.requests + 6, cost.bytes + 512 * 1024);
+    budget.admit(cost.requests + 12, cost.bytes + 2 * 1024 * 1024);
   };
   const bridge = new HostedIntakeBridge(
     client,

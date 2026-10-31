@@ -1099,41 +1099,93 @@ void test("a second explicit reconciliation preserves the original marker and th
   assert.equal(data.body_request_comment, 100);
   assert.equal(data.delivery[2]!.status, "create-attempted");
 });
-void test("insufficient warm confirmation admission preserves created IDs and publishes a prepared hold before POST", async () => {
-  const f = await partialFixture(),
-    budget = new DiscoveryBudget("cold");
-  budget.usage.bytes = budget.limits.bytes - 256 * 1024;
-  Object.defineProperty(f.bridge, "admitWarmInventory", {
-    value: (cache: Parameters<typeof discoveryInventoryCost>[0]) => {
-      const c = discoveryInventoryCost(cache);
-      budget.admit(c.requests + 6, c.bytes + 512 * 1024);
-    },
-  });
-  f.bridge.inventory = HostedIntakeBridge.prototype.inventory.bind(f.bridge);
-  let failure: unknown;
-  try {
-    await f.bridge.process(f.request, f.all());
-  } catch (error) {
-    failure = error;
-  }
-  assert(failure instanceof GitHubApiError);
-  assert.equal(failure.code, "budget_exhausted");
-  assert.equal(f.creations, 2);
-  assert.deepEqual(
-    f.issues.map((x) => x.number),
-    [200, 201],
-  );
-  const comment = f
-    .all()
-    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:100 -->"))!;
-  const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
-    status: string;
-    delivery: { status: string; created_issue?: number }[];
-  };
-  assert.equal(receipt.status, "incomplete");
-  assert.equal(receipt.delivery[2]!.status, "prepared");
-  assert.equal(receipt.delivery[2]!.created_issue, undefined);
-  f.bridge.diagnostic(f.request, failure, f.all());
-  assert(f.all().some((c) => c.body.startsWith("<!-- portcove-hosted-intake-diagnostic:100 -->")));
-  assert.equal(f.bridge.continuation(failure), "budget_exhausted");
+void test("warm admission charges bounded publications, preserves IDs and never strands a new intent", async (t) => {
+  for (const mode of ["request threshold", "byte threshold", "preflight recheck"] as const)
+    await t.test(mode, async () => {
+      const f = await partialFixture(),
+        budget = new DiscoveryBudget("cold");
+      const prior = [...f.comments.values()].find((c) =>
+        c.body.startsWith("<!-- portcove-hosted-intake-receipt:100 -->"),
+      )!;
+      const stored = JSON.parse(prior.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as Record<
+        string,
+        unknown
+      >;
+      stored.padding = "\\".repeat(24000);
+      prior.body = prior.body.replace(
+        /```json\n[\s\S]+\n```$/u,
+        `\`\`\`json\n${JSON.stringify(stored)}\n\`\`\``,
+      );
+      if (mode === "request threshold") budget.usage.requests = budget.limits.requests - 32;
+      if (mode === "byte threshold") budget.usage.bytes = budget.limits.bytes - 2 * 1024 * 1024;
+      const request = f.client.api.request.bind(f.client.api);
+      let attemptPublications = 0;
+      f.client.api.request = (method, endpoint, input) => {
+        const sent = input === undefined ? 0 : Buffer.byteLength(JSON.stringify(input));
+        budget.admit(1, 1 + sent);
+        budget.usage.accounting_bytes += sent;
+        const result = request(method, endpoint, input);
+        budget.charge(method, endpoint, 1, Buffer.byteLength(JSON.stringify(result.body)), "200");
+        if (
+          method !== "GET" &&
+          input &&
+          typeof input === "object" &&
+          "body" in input &&
+          typeof input.body === "string"
+        ) {
+          const wire = JSON.parse(input.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+            delivery?: { status: string }[];
+          };
+          if (wire.delivery?.[2]?.status === "create-attempted") attemptPublications++;
+        }
+        return result;
+      };
+      let admissions = 0;
+      Object.defineProperty(f.bridge, "admitWarmInventory", {
+        value: (cache: Parameters<typeof discoveryInventoryCost>[0]) => {
+          if (++admissions === 2 && mode === "preflight recheck")
+            budget.charge(
+              "GET",
+              "bounded preflight fixture",
+              1,
+              budget.remaining().bytes - 2 * 1024 * 1024,
+              "200",
+            );
+          const c = discoveryInventoryCost(cache);
+          budget.admit(c.requests + 12, c.bytes + 2 * 1024 * 1024);
+        },
+      });
+      f.bridge.inventory = HostedIntakeBridge.prototype.inventory.bind(f.bridge);
+      let failure: unknown;
+      try {
+        await f.bridge.process(f.request, f.all());
+      } catch (error) {
+        failure = error;
+      }
+      assert(failure instanceof GitHubApiError);
+      assert.equal(failure.code, "budget_exhausted");
+      assert.equal(f.creations, 2);
+      assert.deepEqual(
+        f.issues.map((x) => x.number),
+        [200, 201],
+      );
+      const comment = f
+        .all()
+        .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:100 -->"))!;
+      const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+        status: string;
+        delivery: { status: string; created_issue?: number }[];
+      };
+      assert.equal(receipt.status, "incomplete");
+      assert.equal(receipt.delivery[2]!.status, "prepared");
+      assert.equal(receipt.delivery[2]!.created_issue, undefined);
+      f.bridge.diagnostic(f.request, failure, f.all());
+      assert(
+        f.all().some((c) => c.body.startsWith("<!-- portcove-hosted-intake-diagnostic:100 -->")),
+      );
+      assert.equal(f.bridge.continuation(failure), "budget_exhausted");
+      assert.equal(attemptPublications, mode === "preflight recheck" ? 1 : 0);
+      assert(budget.usage.attempts.length > 0);
+      assert(budget.usage.bytes + budget.usage.accounting_bytes <= budget.limits.bytes);
+    });
 });
