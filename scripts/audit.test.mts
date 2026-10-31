@@ -298,6 +298,7 @@ void test("candidate coverage constants cannot authorize their own reduced trans
     "scripts/postmerge-ci.mts",
     "scripts/workflow-provenance.mts",
     "scripts/validation-plan.mts",
+    "scripts/release-package-policy.mts",
     "scripts/release-native-source-contract.mts",
     "scripts/windows-helper-checks.mts",
     "scripts/node-test-suites.json",

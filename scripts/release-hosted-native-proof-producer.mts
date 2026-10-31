@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Original hosted capture -> bounded keyless proof. No CLI, imported
  * report, new issuer, upload, native acceptance or production activation. */
 import assert from "node:assert/strict";
@@ -124,7 +125,7 @@ async function readInput(reportReceipt: object, platform: Platform) {
     };
   } else {
     assert.equal(parent.configuration.purpose, "application");
-    const selected = parent.configuration.hosted_native["windows-x86_64"];
+    const selected = selectedHostedNativePlatform(parent.configuration, "windows-x86_64");
     assert.ok(
       selected.minimum_platform === "windows-11-26h2-x64" ||
         selected.minimum_platform === "windows-server-2022-x64-continuity",

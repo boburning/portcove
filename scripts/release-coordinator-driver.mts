@@ -1,3 +1,4 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import {
   materializePublishedCatalogCompleteSite,
   requirePublishedCatalogCompleteSite,
@@ -1057,6 +1058,13 @@ async function coordinateTrustedReleaseAt(
   )
     throw new Error("fixed coordinator invocation fields differ");
   const namespace = inspectCoordinatorRemoteNamespace(selected.remote_configuration);
+  const profileAuthorities = await requireControllerApplicationCoordinatorAuthorities();
+  if (
+    profileAuthorities.namespace !== namespace ||
+    profileAuthorities.dispatch_actor_id !== selected.dispatch_actor_id
+  )
+    throw new Error("prepared dispatch differs from ratified application authority");
+  const profile = applicationReleaseProfile(profileAuthorities.configuration);
   const opportunity = validateOpportunity(selected.opportunity);
   if (
     !/^[1-9][0-9]*$/u.test(selected.dispatch_actor_id) ||
@@ -1234,6 +1242,7 @@ async function coordinateTrustedReleaseAt(
         prepared_commit: existingActive.prepared_commit,
         remote_configuration: selected.remote_configuration,
         dispatch_actor_id: selected.dispatch_actor_id,
+        release_profile: profile,
         ...(existingActive.report_repair === undefined
           ? {}
           : {
@@ -1541,6 +1550,7 @@ async function coordinateTrustedReleaseAt(
           prepared_commit: candidate.prepared_commit,
           remote_configuration: selected.remote_configuration,
           dispatch_actor_id: selected.dispatch_actor_id,
+          release_profile: profile,
           ...(candidate.report_repair === undefined
             ? {}
             : {
@@ -1587,6 +1597,7 @@ async function coordinateTrustedReleaseAt(
               prepared_commit: candidate.prepared_commit,
               remote_configuration: selected.remote_configuration,
               dispatch_actor_id: selected.dispatch_actor_id,
+              release_profile: profile,
               ...(candidate.report_repair === undefined
                 ? {}
                 : {
@@ -1634,6 +1645,7 @@ async function coordinateTrustedReleaseAt(
           prepared_commit: candidate.prepared_commit,
           remote_configuration: selected.remote_configuration,
           dispatch_actor_id: selected.dispatch_actor_id,
+          release_profile: profile,
         },
         Number(originalCompilerRun.run_id),
         readToken,

@@ -30,6 +30,7 @@ import {
 } from "./qualification-coverage.mts";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+
 type PlannedStage = Pick<AuditStage, "id" | "recipe" | "reusable"> & {
   fingerprint: string;
   rationale?: string | undefined;
@@ -576,23 +577,14 @@ export async function main(argv = process.argv.slice(2)) {
     throw new Error("dependency scan source mismatch");
   console.log(describeDevelopmentSecurity(decision));
   if (options.profile === "release") {
-    const {
-      releaseSecurity,
-      candidate706,
-      assessDispatchedBuild706,
-      dispatchedBuildAssessment706,
-    } = await import("./linux-beta-risk-706.mts");
-    if (dispatchedBuildAssessment706(process.env)) {
-      const assessment = assessDispatchedBuild706({
-        candidate: await candidate706(projectRoot),
-        scan,
-        policy: readFileSync(path.join(projectRoot, "deny.toml"), "utf8"),
-      });
-      writeJsonAtomic(`${scan706Path}.build-assessment.json`, assessment);
-    } else {
-      const releaseDecision = await releaseSecurity(projectRoot, scan);
-      writeJsonAtomic(`${scan706Path}.release.json`, releaseDecision);
-    }
+    const { releaseAuditDisposition } = await import("./linux-beta-risk-706.mts");
+    const disposition = await releaseAuditDisposition({
+      root: projectRoot,
+      head: plan.head,
+      scan,
+      environment: process.env,
+    });
+    writeJsonAtomic(`${scan706Path}.${disposition.suffix}`, disposition.decision);
   }
   if (process.env.PORTCOVE_AUDIT_CAPTURE === "1" && process.env.GITHUB_OUTPUT) {
     try {

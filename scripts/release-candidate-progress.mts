@@ -248,7 +248,7 @@ async function advanceWithinDeadline(receipt: object, target: Phase, options: Ph
   const hosted = native.filter((report) => report.hosted_job);
   let custody: { sha256: string; bytes: number } | null = null;
   if (hosted.length) {
-    if (hosted.length !== 2 || !options.executor)
+    if (hosted.length !== native.length || !options.executor)
       throw new Error(
         "selected native phase requires its actual private executor and complete pair",
       );

@@ -89,6 +89,45 @@ function fixture() {
   return { jobs: { total_count: 2, jobs }, artifacts: { total_count: 2, artifacts } };
 }
 
+void test("Windows profile waits for its actual Windows producer without a Linux application producer", async () => {
+  const f = fixture();
+  f.jobs.jobs = f.jobs.jobs.slice(0, 1);
+  f.jobs.total_count = 1;
+  f.artifacts.artifacts = f.artifacts.artifacts.slice(0, 1);
+  f.artifacts.total_count = 1;
+  const profile = "initial-beta-windows-x86_64-v1";
+  const rows = inspectNativePreSignReadiness(f.jobs, f.artifacts, run, revision, profile);
+  assert.deepEqual(
+    rows.map((row) => [row.platform, row.ready]),
+    [["windows-x86_64", true]],
+  );
+  assert.deepEqual(
+    inspectNativePreSignReadiness(f.jobs, f.artifacts, run, revision).map((row) => row.ready),
+    [true, false],
+  );
+  assert.throws(() => inspectNativePreSignReadiness(f.jobs, f.artifacts, run, revision, "windows"));
+  const observed = await waitForNativePreSignReadiness({
+    run,
+    revision,
+    release_profile: profile,
+    active() {},
+    read: () => f,
+    retain: async () => {},
+    pause: async () => assert.fail("no wait for unselected Linux"),
+  });
+  assert.equal(observed.authority, "none");
+  assert.equal(
+    inspectNativePreSignReadiness(
+      f.jobs,
+      { total_count: 0, artifacts: [] },
+      run,
+      revision,
+      profile,
+    )[0]!.ready,
+    false,
+  );
+});
+
 void test("both fixed original producers and bounded provider artifacts are scheduling prerequisites only", () => {
   const f = fixture();
   assert.ok(

@@ -8,11 +8,47 @@ import path from "node:path";
 import test from "node:test";
 import { trustedAssemblyFixture as fixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
+import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { artifactName, loadPackagePolicy } from "./release-package-policy.mts";
 
 const policy = await loadPackagePolicy();
 const version = "0.1.0-alpha.3";
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+
+void test("Windows first beta assembles only source-bound Windows packages and refuses legacy/unbound or extra-platform inputs", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t, true, "initial-beta-windows-x86_64-v1");
+  const assembly = await assembleTrustedRelease(f.root, f.input, f.request);
+  assert.equal(assembly.output_files.length, 3);
+  assert.deepEqual((await inspectTrustedAssemblyInput(f.request)).labels, ["windows-x86_64"]);
+  const { public_build_inputs: _binding, ...unbound } = f.request;
+  await assert.rejects(
+    inspectTrustedAssemblyInput({ ...unbound, schema_version: 2 }),
+    /bound public build inputs/,
+  );
+  await assert.rejects(
+    inspectTrustedAssemblyInput({
+      ...f.request,
+      public_build_inputs: { ...f.binding, artifacts: [] },
+    }),
+  );
+  const linux = await fixture(t, "initial-beta-win-linux");
+  await assert.rejects(
+    inspectTrustedAssemblyInput({
+      ...f.request,
+      files: [
+        ...f.request.files,
+        ...linux.request.files.filter((file) => file.platform_label === "linux-x86_64"),
+      ],
+    }),
+  );
+  await assert.rejects(
+    inspectTrustedAssemblyInput({
+      ...f.request,
+      files: f.request.files.filter((file) => !file.filename.endsWith("-setup.exe")),
+    }),
+  );
+});
 
 void test("named beta assembles all six Windows/Linux distributions and refuses missing, extra or unbound profile inputs", async (t) => {
   const f = await fixture(t, "initial-beta-win-linux");

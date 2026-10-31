@@ -82,6 +82,33 @@ void test("qualification inventory is nonzero and exactly covers exhaustive jobs
   );
 });
 
+void test("native qualification skips only an explicitly unselected non-Windows matrix", () => {
+  for (const condition of [
+    "needs.classify.outputs.mode == 'qualification'",
+    "needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'linux-x86_64')",
+    "needs.classify.outputs.mode == 'qualification' && needs.classify.outputs.release_profile != 'initial-beta-windows-x86_64-v1'",
+    "false",
+  ]) {
+    const changed = editedWorkflow((jobs) => {
+      record(jobs.native_rust).if = condition;
+    });
+    assert.throws(() => validateQualificationCoverage(inventory, changed));
+  }
+  const windows = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: "a".repeat(40),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+    releaseProfile: "initial-beta-windows-x86_64-v1",
+  });
+  assert.deepEqual(qualificationMatrices(windows), {
+    native: [],
+    docs: [{ platform: "windows-x86_64", runner: "windows-latest" }],
+  });
+  assert.equal(validateQualificationCoverage(inventory, workflow).platforms, 4);
+});
+
 void test("macOS qualification recognizes only the maintained portability input routes", () => {
   for (const file of [
     "apps/desktop/scripts/browser-runtime.mts",

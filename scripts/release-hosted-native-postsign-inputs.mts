@@ -1,3 +1,6 @@
+import { applicationReleaseProfile } from "./release-authority-configuration.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Original hosted source + default context/role receivers + owned keyless
  * child. This is signed-input custody, never installed-parent, candidate,
  * native acceptance or permission to publish. */
@@ -324,9 +327,11 @@ export async function acquireActualHostedNativePostSignInputs(
       const { accepted, labels } = await inspectTrustedAssemblyInput(facts.assembly);
       const candidate = source.candidate;
       if (
-        accepted.release_profile !== "initial-beta-win-linux" ||
-        labels.length !== 2 ||
-        [...labels].sort().join(",") !== "linux-x86_64,windows-x86_64" ||
+        accepted.release_profile !== applicationReleaseProfile(configuration) ||
+        !isInitialBetaReleaseProfile(accepted.release_profile) ||
+        labels.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length ||
+        [...labels].sort().join(",") !==
+          [...nativePlatformsForReleaseProfile(accepted.release_profile)].sort().join(",") ||
         accepted.source_commit !== candidate.prepared_commit ||
         accepted.source_tree !== candidate.prepared_tree ||
         accepted.version !== candidate.version ||

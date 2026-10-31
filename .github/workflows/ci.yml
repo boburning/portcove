@@ -945,7 +945,7 @@ jobs:
     timeout-minutes: 120
     name: native-rust (${{ matrix.platform }}, ${{ matrix.partition }})
     needs: classify
-    if: needs.classify.outputs.mode == 'qualification'
+    if: needs.classify.outputs.mode == 'qualification' && (contains(fromJSON(needs.classify.outputs.platforms_json), 'linux-x86_64') || contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64'))
     runs-on: ${{ matrix.runner }}
     env:
       PORTCOVE_HEAD_SHA: ${{ needs.classify.outputs.head }}

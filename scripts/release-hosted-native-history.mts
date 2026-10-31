@@ -49,9 +49,11 @@ export function selectHostedNativePredecessorScope(
     !/^[1-9][0-9]{0,15}$/u.test(source.run_id) ||
     !Number.isSafeInteger(source.run_attempt) ||
     Number(source.run_attempt) < 1 ||
-    records.length !== 2
+    ![1, 2].includes(records.length)
   )
     throw new Error("original native predecessor run/pair required");
+  if (records.length === 1 && (!isRecord(records[0]) || records[0].target !== "windows-x86_64"))
+    throw new Error("single-platform predecessor must be Windows x86-64");
   const platforms = new Set<unknown>();
   const current = records.map((record) => {
     if (
@@ -325,13 +327,16 @@ async function collectHostedNativePredecessors(
   active();
   if (
     deadline - performance.now() > 120000 ||
-    records.length !== 2 ||
+    ![1, 2].includes(records.length) ||
     records.some(
       (record) => !isRecord(record) || Buffer.byteLength(JSON.stringify(record)) > 65536,
     ) ||
-    new Set(records.map((record) => (isRecord(record) ? record.target : null))).size !== 2
+    new Set(records.map((record) => (isRecord(record) ? record.target : null))).size !==
+      records.length
   )
     throw new Error("bounded historical native platform pair required");
+  if (records.length === 1 && (!isRecord(records[0]) || records[0].target !== "windows-x86_64"))
+    throw new Error("single-platform predecessor must be Windows x86-64");
   // Snapshot all supplied bytes/transports above before the first await.
   const originalConsumer = readCurrent ? await readCurrent() : undefined;
   active();

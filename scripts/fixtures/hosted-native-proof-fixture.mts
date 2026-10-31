@@ -1,3 +1,8 @@
+import {
+  inspectSelectedPublicationAuthorityConfiguration,
+  selectedHostedNativePlatform,
+} from "../release-authority-configuration-contract.mts";
+import type { ReleaseProfile } from "../release-package-policy.mts";
 /** Inert structural proof. No runtime, signature or provider evidence. */
 import { createHash } from "node:crypto";
 import { selectedPublicationAuthoritiesFixture } from "./checkpoint-proof-fixture.mts";
@@ -20,25 +25,44 @@ export function hostedNativeProofFixture(
   platform: "windows-x86_64" | "linux-x86_64" = "windows-x86_64",
   stage: "payload-signing" | "release-publication" = "payload-signing",
   profile: "client-minimum" | "server-continuity" = "client-minimum",
+  releaseProfile: Exclude<ReleaseProfile, "full"> = "initial-beta-win-linux",
 ) {
-  const authorities = selectedPublicationAuthoritiesFixture("application");
-  if (!("hosted_native" in authorities)) throw new Error("application fixture required");
+  const broad = selectedPublicationAuthoritiesFixture("application");
+  if (!("hosted_native" in broad)) throw new Error("application fixture required");
+  const authorities = inspectSelectedPublicationAuthorityConfiguration(
+    releaseProfile === "initial-beta-windows-x86_64-v1"
+      ? {
+          ...broad,
+          release_profile: releaseProfile,
+          public_build_inputs: {
+            release_profile: releaseProfile,
+            configuration_revision: "c".repeat(40),
+            manifest_sha256: "d".repeat(64),
+          },
+          hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
+        }
+      : broad,
+  );
+  if (authorities.purpose !== "application") throw new Error("application fixture required");
   if (profile === "server-continuity") {
     if (platform !== "windows-x86_64") throw new Error("Windows fixture profile required");
-    authorities.hosted_native[platform].minimum_platform = hostedWindowsContinuityPlatform;
+    selectedHostedNativePlatform(authorities, platform).minimum_platform =
+      hostedWindowsContinuityPlatform;
   }
   const server = profile === "server-continuity";
   const windows = platform === "windows-x86_64",
     base = nativeQualificationFixture(stage),
-    fixed = authorities.hosted_native[platform];
+    fixed = selectedHostedNativePlatform(authorities, platform);
   const sourceFiles = {
     harness: Buffer.from("inert fixed native harness\n"),
     workflow: Buffer.from("inert held controller workflow\n"),
   };
-  for (const profile of Object.values(authorities.hosted_native))
+  for (const profile of Object.values(authorities.hosted_native)) {
+    if (!profile) throw new Error("fixture native profile missing");
     profile.producer.harness.sha256 = createHash("sha256")
       .update(sourceFiles.harness)
       .digest("hex");
+  }
   const host = {
     machine_id_sha256: "a".repeat(64),
     qualification_profile: "fixed-hosted-native-v1",

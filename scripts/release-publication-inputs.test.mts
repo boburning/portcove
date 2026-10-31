@@ -1,3 +1,4 @@
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
@@ -16,96 +17,100 @@ import {
   materializePublicationUpdaterRoots,
 } from "./release-publication-inputs.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-void test("publication reconstructs only the exact original pair across known record newline encodings", async (t) => {
-  const fixture = await trustedAssemblyFixture(t, "initial-beta-win-linux");
-  const { accepted, policy, labels } = await inspectTrustedAssemblyInput(fixture.request);
-  const facts = { assembly: fixture.request, archives: [], configuration: {} };
-  const files = new Map<string, Buffer>();
-  const originals = labels.map((platform, index) => {
-    const updater = updaterIdentity(policy, platform, accepted.version);
-    const pkg = accepted.files.find((file) => file.filename === updater.filename)!;
-    const text = `inert-signature-${platform}`;
-    const bytes = Buffer.from(text + (index === 0 ? "\r\n" : "\n"));
-    files.set(
-      `records/releases/${accepted.version}/${updater.target}/${updater.format}.json`,
-      Buffer.from(
-        JSON.stringify({
-          schema_version: 1,
-          version: accepted.version,
-          source_commit: accepted.source_commit,
-          source_tree: accepted.source_tree,
-          target: updater.target,
-          qualified_run: { run_id: Number(accepted.run_id), attempt: accepted.run_attempt },
-          artifact: {
-            url: `https://github.com/boburning/portcove/releases/download/v${accepted.version}/${updater.filename}`,
-            bytes: pkg.bytes,
-            sha256: pkg.sha256,
-            tauri_signature: text,
-          },
-        }),
-      ),
-    );
-    return {
-      platform,
-      filename: `${updater.filename}.sig`,
-      bytes,
-      identity: {
+for (const profile of ["initial-beta-win-linux", "initial-beta-windows-x86_64-v1"] as const)
+  void test(`publication reconstructs the exact ${profile} signature set across known record newline encodings`, async (t) => {
+    const fixture =
+      profile === "initial-beta-win-linux"
+        ? await trustedAssemblyFixture(t, profile)
+        : await releasePublicBuildProvenanceFixture(t, true, profile);
+    const { accepted, policy, labels } = await inspectTrustedAssemblyInput(fixture.request);
+    const facts = { assembly: fixture.request, archives: [], configuration: {} };
+    const files = new Map<string, Buffer>();
+    const originals = labels.map((platform, index) => {
+      const updater = updaterIdentity(policy, platform, accepted.version);
+      const pkg = accepted.files.find((file) => file.filename === updater.filename)!;
+      const text = `inert-signature-${platform}`;
+      const bytes = Buffer.from(text + (index === 0 ? "\r\n" : "\n"));
+      files.set(
+        `records/releases/${accepted.version}/${updater.target}/${updater.format}.json`,
+        Buffer.from(
+          JSON.stringify({
+            schema_version: 1,
+            version: accepted.version,
+            source_commit: accepted.source_commit,
+            source_tree: accepted.source_tree,
+            target: updater.target,
+            qualified_run: { run_id: Number(accepted.run_id), attempt: accepted.run_attempt },
+            artifact: {
+              url: `https://github.com/boburning/portcove/releases/download/v${accepted.version}/${updater.filename}`,
+              bytes: pkg.bytes,
+              sha256: pkg.sha256,
+              tauri_signature: text,
+            },
+          }),
+        ),
+      );
+      return {
         platform,
         filename: `${updater.filename}.sig`,
-        bytes: bytes.length,
-        sha256: hash(bytes),
+        bytes,
+        identity: {
+          platform,
+          filename: `${updater.filename}.sig`,
+          bytes: bytes.length,
+          sha256: hash(bytes),
+        },
+      };
+    });
+    const manifest = {
+      facts,
+      controller: {},
+      binding: {
+        version: accepted.version,
+        source_commit: accepted.source_commit,
+        source_tree: accepted.source_tree,
+        run_id: String(accepted.run_id),
+        run_attempt: accepted.run_attempt,
+        signatures_sha256: digest(originals.map((item) => item.identity)),
+        records_sha256: "f".repeat(64),
       },
     };
+    const actual = await reconstructPublicationSignatures(manifest, facts, files);
+    assert.deepEqual(
+      actual,
+      originals.map(({ platform, filename, bytes }) => ({ platform, filename, bytes })),
+    );
+    const reverse = {
+      ...manifest,
+      binding: {
+        ...manifest.binding,
+        signatures_sha256: digest([...originals].reverse().map((item) => item.identity)),
+      },
+    };
+    assert.deepEqual(await reconstructPublicationSignatures(reverse, facts, files), actual);
+    await assert.rejects(
+      reconstructPublicationSignatures(
+        { ...manifest, binding: { ...manifest.binding, signatures_sha256: "0".repeat(64) } },
+        facts,
+        files,
+      ),
+      /pair digest/,
+    );
+    await assert.rejects(
+      reconstructPublicationSignatures(
+        { ...manifest, binding: { ...manifest.binding, source_commit: "0".repeat(40) } },
+        facts,
+        files,
+      ),
+      /lineage/,
+    );
+    const [name, bytes] = [...files][0]!;
+    files.set(
+      name,
+      Buffer.from(bytes.toString("utf8").replace("inert-signature", "modified-signature")),
+    );
+    await assert.rejects(reconstructPublicationSignatures(manifest, facts, files), /pair digest/);
   });
-  const manifest = {
-    facts,
-    controller: {},
-    binding: {
-      version: accepted.version,
-      source_commit: accepted.source_commit,
-      source_tree: accepted.source_tree,
-      run_id: String(accepted.run_id),
-      run_attempt: accepted.run_attempt,
-      signatures_sha256: digest(originals.map((item) => item.identity)),
-      records_sha256: "f".repeat(64),
-    },
-  };
-  const actual = await reconstructPublicationSignatures(manifest, facts, files);
-  assert.deepEqual(
-    actual,
-    originals.map(({ platform, filename, bytes }) => ({ platform, filename, bytes })),
-  );
-  const reverse = {
-    ...manifest,
-    binding: {
-      ...manifest.binding,
-      signatures_sha256: digest([...originals].reverse().map((item) => item.identity)),
-    },
-  };
-  assert.deepEqual(await reconstructPublicationSignatures(reverse, facts, files), actual);
-  await assert.rejects(
-    reconstructPublicationSignatures(
-      { ...manifest, binding: { ...manifest.binding, signatures_sha256: "0".repeat(64) } },
-      facts,
-      files,
-    ),
-    /pair digest/,
-  );
-  await assert.rejects(
-    reconstructPublicationSignatures(
-      { ...manifest, binding: { ...manifest.binding, source_commit: "0".repeat(40) } },
-      facts,
-      files,
-    ),
-    /lineage/,
-  );
-  const [name, bytes] = [...files][0]!;
-  files.set(
-    name,
-    Buffer.from(bytes.toString("utf8").replace("inert-signature", "modified-signature")),
-  );
-  await assert.rejects(reconstructPublicationSignatures(manifest, facts, files), /pair digest/);
-});
 void test("a copied signing context cannot materialize signer output directories", async () => {
   await assert.rejects(
     materializePublicationUpdaterRoots(

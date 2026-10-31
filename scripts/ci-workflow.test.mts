@@ -242,10 +242,17 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
           ? ["classify", "intel_build"]
           : ["classify"],
     );
-    assert.match(
-      String(owner.if),
-      /classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/u,
-    );
+    if (name === "native_rust") {
+      assert.equal(
+        owner.if,
+        "needs.classify.outputs.mode == 'qualification' && (contains(fromJSON(needs.classify.outputs.platforms_json), 'linux-x86_64') || contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64'))",
+      );
+    } else {
+      assert.match(
+        String(owner.if),
+        /classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/u,
+      );
+    }
   }
   assert.match(classify, /fetch-depth: 0/);
   assert.match(classify, /node scripts\/select-ci-plan\.mts/);

@@ -11,6 +11,7 @@ import {
   deriveHostedNativePublicationOpportunities,
 } from "./release-hosted-native-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import {
   inspectNativeQualificationAssociation,
   requireNativeReleaseQualificationPair,
@@ -26,6 +27,61 @@ import {
   inspectNativePrepublicationAuthorities,
 } from "./release-authority-configuration.mts";
 import { nativePrepublicationProfile } from "./release-native-qualification-contract.mts";
+
+void test("Windows first beta requires ratified profile and complete exact Windows native evidence without Linux artifacts", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t, true, "initial-beta-windows-x86_64-v1");
+  const broad = selectedPublicationAuthoritiesFixture("application");
+  assert.equal(broad.purpose, "application");
+  if (broad.purpose !== "application") throw new Error("fixture purpose");
+  const selected = {
+    ...broad,
+    release_profile: "initial-beta-windows-x86_64-v1",
+    public_build_inputs: f.configuration,
+    hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
+  };
+  const opportunities = await deriveHostedNativePayloadOpportunities(
+    selected,
+    f.request,
+    f.archives,
+  );
+  assert.equal(opportunities.length, 1);
+  assert.equal(opportunities[0]!.platform_label, "windows-x86_64");
+  const report = nativeQualificationFixture();
+  report.candidate = opportunities[0]!.candidate;
+  const associated = await inspectNativeQualificationAssociation(
+    [report],
+    f.request,
+    f.archives,
+    "payload-signing",
+  );
+  assert.equal(associated.reports.length, 1);
+  for (const archives of [
+    [],
+    [...f.archives, f.archives[0]],
+    [{ ...f.archives[0], platform: "linux-x86_64" }],
+  ])
+    await assert.rejects(deriveHostedNativePayloadOpportunities(selected, f.request, archives));
+  await assert.rejects(deriveHostedNativePayloadOpportunities(broad, f.request, f.archives));
+  await assert.rejects(
+    deriveHostedNativePayloadOpportunities(
+      { ...selected, hosted_native: broad.hosted_native },
+      f.request,
+      f.archives,
+    ),
+  );
+  for (const reports of [
+    [],
+    [report, report],
+    [{ ...report, candidate: { ...report.candidate, source_commit: "0".repeat(40) } }],
+    [{ ...report, platform_label: "linux-x86_64" }],
+  ])
+    await assert.rejects(
+      inspectNativeQualificationAssociation(reports, f.request, f.archives, "payload-signing"),
+    );
+  await assert.rejects(
+    requireNativeReleaseQualificationPair([{}], f.request, f.archives, "payload-signing"),
+  );
+});
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
   deriveNativePublicationJourneys,

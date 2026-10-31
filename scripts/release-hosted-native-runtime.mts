@@ -1,3 +1,4 @@
+import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Original admitted parent + original verified controller tools. No imported
  * manifest, runtime compiler, shared-cache fallback or native acceptance. */
 import assert from "node:assert/strict";
@@ -128,7 +129,7 @@ export async function prepareHostedNativeRuntime(
   }
   if (tools.platform === "windows-x86_64") {
     assert.equal(parent.configuration.purpose, "application");
-    const selected = parent.configuration.hosted_native["windows-x86_64"].engine;
+    const selected = selectedHostedNativePlatform(parent.configuration, "windows-x86_64").engine;
     assert.equal(selected.name, "WebView2");
     const proof = windowsDriverInputs.get("webview-driver.json"),
       driver = windowsDriverInputs.get("bin/msedgedriver.exe"),

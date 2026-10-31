@@ -1,3 +1,5 @@
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
+import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Actual local-parent candidate selection. Provider acquisition deliberately
  * retains the admission collector's injected-provider scope: this module owns
  * its fixed transport and package custody, never an admission/native result. */
@@ -98,14 +100,14 @@ export async function inspectSelectedNativeCandidate(
 ) {
   const { accepted, policy, labels } = await inspectTrustedAssemblyInput(facts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
-    labels.length !== 2 ||
-    facts.archives.length !== 2 ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
+    labels.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length ||
+    facts.archives.length !== labels.length ||
     facts.archives
       .map((entry) => entry.platform)
       .sort()
       .join(",") !== [...labels].sort().join(",") ||
-    new Set(facts.archives.map((entry) => entry.artifact_id)).size !== 2 ||
+    new Set(facts.archives.map((entry) => entry.artifact_id)).size !== labels.length ||
     !/^[a-f0-9]{40}$/u.test(facts.checkpoint)
   )
     throw new Error("native selection requires the reserved complete beta pair");
@@ -909,7 +911,7 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     throw new Error("actual signed context differs from reserved complete opportunity");
   const { accepted } = await inspectTrustedAssemblyInput(facts.assembly);
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
     accepted.source_commit !== candidate.prepared_commit ||
     accepted.source_tree !== candidate.prepared_tree ||
     accepted.version !== candidate.version ||
@@ -1224,10 +1226,10 @@ export async function inspectNativePostSignPackageMetadata(
   const matches = archives.filter((entry) => entry.platform === platform),
     archive = matches[0];
   if (
-    accepted.release_profile !== "initial-beta-win-linux" ||
-    labels.length !== 2 ||
-    archives.length !== 2 ||
-    new Set(archives.map((entry) => entry.artifact_id)).size !== 2 ||
+    !isInitialBetaReleaseProfile(accepted.release_profile) ||
+    labels.length !== nativePlatformsForReleaseProfile(accepted.release_profile).length ||
+    archives.length !== labels.length ||
+    new Set(archives.map((entry) => entry.artifact_id)).size !== labels.length ||
     archives
       .map((entry) => entry.platform)
       .sort()
