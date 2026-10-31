@@ -40,6 +40,11 @@ void test("Windows application authority binds its exact selected native set and
   const proposal = {
     ...broad,
     release_profile: "initial-beta-windows-x86_64-v1",
+    public_build_inputs: {
+      release_profile: "initial-beta-windows-x86_64-v1",
+      configuration_revision: "c".repeat(40),
+      manifest_sha256: "d".repeat(64),
+    },
     hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
   };
   const selected = inspectSelectedPublicationAuthorityConfiguration(proposal);
@@ -1455,6 +1460,8 @@ void test("CLI runs with only fixed source files and no installed dependencies",
     "release-control-phases.mts",
     "release-authority-configuration.mts",
     "release-authority-configuration-contract.mts",
+    "release-public-build-binding-contract.mts",
+    "release-package-policy.mts",
     "release-canonical.mts",
     "release-catalog-publication-contract.mts",
     "release-metadata-contract.mts",

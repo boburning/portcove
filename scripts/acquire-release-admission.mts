@@ -1,3 +1,4 @@
+import { applicationPublicBuildInputs } from "./release-authority-configuration-contract.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import {
@@ -1457,6 +1458,12 @@ async function acquireBuildingEligibility(
     throw new Error(
       "qualifying source requires the actual ratified namespace and selected package profile",
     );
+  if (
+    configured.release_profile === "initial-beta-windows-x86_64-v1" &&
+    capacityDigest(configured.public_build_inputs) !==
+      capacityDigest(applicationPublicBuildInputs(authorities.configuration))
+  )
+    throw new Error("public build configuration differs from ratified application authority");
   const closure = inspectReleaseCompilerSourceClosure(
     JSON.parse(
       (await readControllerToolFile(tools.compiler_source_closure, 65536)).toString("utf8"),

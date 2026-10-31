@@ -106,7 +106,12 @@ function request(raw: unknown) {
           ? (2 as const)
           : (1 as const),
     ...(raw.schema_version === 3
-      ? { public_build_inputs: inspectPublicBuildInputBinding(raw.public_build_inputs) }
+      ? {
+          public_build_inputs: inspectPublicBuildInputBinding(
+            raw.public_build_inputs,
+            raw.release_profile,
+          ),
+        }
       : {}),
     ...(raw.schema_version === 2 || raw.schema_version === 3
       ? { release_profile: inspectReleaseProfile(raw.release_profile) }

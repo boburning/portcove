@@ -1,3 +1,13 @@
+import {
+  inspectPublicBuildConfiguration,
+  inspectPublicBuildInputBinding,
+  maximumArchiveBytes,
+} from "./release-public-build-binding-contract.mts";
+export {
+  inspectPublicBuildConfiguration,
+  inspectPublicBuildInputBinding,
+} from "./release-public-build-binding-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { crc32, inflateRawSync } from "node:zlib";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -6,9 +16,7 @@ import { isDeepStrictEqual } from "node:util";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { releaseBuildArtifactName } from "./release-package-policy.mts";
-import { isRecord } from "./runtime-values.mts";
 import {
-  inspectPublicBuildInputIdentity,
   prepareReleasePublicBuildInputs,
   readBoundedPublicBuildInputFile,
 } from "./release-public-build-inputs.mts";
@@ -16,8 +24,6 @@ import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
-const labels = ["linux-x86_64", "windows-x86_64"];
-const maximumArchiveBytes = 1024 * 1024;
 const maximumExpandedBytes = 512 * 1024;
 const members = new Map([
   ["root.json", 256 * 1024],
@@ -31,6 +37,7 @@ const verifiedPublicInputs = new WeakMap<
   object,
   {
     snapshot: string;
+    release_profile: "initial-beta-win-linux" | "initial-beta-windows-x86_64-v1";
     directory: string;
     artifacts: { platform: string; bytes: number; sha256: string }[];
   }
@@ -89,7 +96,10 @@ export async function readVerifiedReleasePublicBuildInputFiles(receipt: object) 
       throw new Error("actual public input roots/configuration differ across platforms");
     common = selected;
   }
-  if (!common || retained.artifacts.length !== labels.length)
+  if (
+    !common ||
+    retained.artifacts.length !== nativePlatformsForReleaseProfile(retained.release_profile).length
+  )
     throw new Error("actual complete public input matrix missing");
   return common;
 }
@@ -118,68 +128,13 @@ export function releasePublicBuildArtifactName(platform: string, runId: string, 
   );
 }
 
-export function inspectPublicBuildConfiguration(raw: unknown) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "configuration_revision,manifest_sha256"
-  )
-    throw new Error("public build configuration requires independent exact identities");
-  inspectPublicBuildInputIdentity(raw.configuration_revision, raw.manifest_sha256);
-  return {
-    configuration_revision: String(raw.configuration_revision),
-    manifest_sha256: String(raw.manifest_sha256),
-  };
-}
-
-export function inspectPublicBuildInputBinding(raw: unknown) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "artifacts,configuration_revision,manifest_sha256"
-  )
-    throw new Error("public build input binding schema differs");
-  const configuration = inspectPublicBuildConfiguration({
-    configuration_revision: raw.configuration_revision,
-    manifest_sha256: raw.manifest_sha256,
-  });
-  if (!Array.isArray(raw.artifacts) || raw.artifacts.length !== labels.length)
-    throw new Error("public build inputs require the complete selected platform matrix");
-  const artifacts = raw.artifacts
-    .map((item) => {
-      if (
-        !isRecord(item) ||
-        Object.keys(item).sort().join(",") !== "artifact_id,bytes,platform,sha256" ||
-        typeof item.platform !== "string" ||
-        !labels.includes(item.platform) ||
-        typeof item.artifact_id !== "number" ||
-        !Number.isSafeInteger(item.artifact_id) ||
-        item.artifact_id < 1 ||
-        typeof item.bytes !== "number" ||
-        !Number.isSafeInteger(item.bytes) ||
-        item.bytes < 22 ||
-        item.bytes > maximumArchiveBytes ||
-        typeof item.sha256 !== "string" ||
-        !/^[a-f0-9]{64}$/u.test(item.sha256)
-      )
-        throw new Error("public build artifact identity exceeds its bounds");
-      return {
-        platform: item.platform,
-        artifact_id: item.artifact_id,
-        bytes: item.bytes,
-        sha256: item.sha256,
-      };
-    })
-    .sort((a, b) => a.platform.localeCompare(b.platform));
-  if (
-    new Set(artifacts.map((item) => item.platform)).size !== labels.length ||
-    new Set(artifacts.map((item) => item.artifact_id)).size !== labels.length
-  )
-    throw new Error("public build artifact matrix is duplicated");
-  return { ...configuration, artifacts };
-}
 export type PublicBuildInputBinding = ReturnType<typeof inspectPublicBuildInputBinding>;
 
 export function selectPublicBuildInputBinding(rawConfiguration: unknown, evidence: Evidence) {
   const configuration = inspectPublicBuildConfiguration(rawConfiguration);
+  const labels = [
+    ...nativePlatformsForReleaseProfile(configuration.release_profile ?? "initial-beta-win-linux"),
+  ].sort();
   return inspectPublicBuildInputBinding({
     ...configuration,
     artifacts: labels.map((platform) => {
@@ -333,6 +288,7 @@ export async function verifyReleasePublicBuildInputs(
     if (!options.download)
       verifiedPublicInputs.set(result, {
         snapshot: digest(Buffer.from(JSON.stringify(result))),
+        release_profile: binding.release_profile ?? "initial-beta-win-linux",
         directory,
         artifacts: binding.artifacts.map(({ platform, bytes, sha256 }) => ({
           platform,

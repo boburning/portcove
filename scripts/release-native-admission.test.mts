@@ -36,6 +36,7 @@ void test("Windows first beta requires ratified profile and complete exact Windo
   const selected = {
     ...broad,
     release_profile: "initial-beta-windows-x86_64-v1",
+    public_build_inputs: f.configuration,
     hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
   };
   const opportunities = await deriveHostedNativePayloadOpportunities(

@@ -1,5 +1,6 @@
+import { applicationPublicBuildInputs } from "./release-authority-configuration.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
-import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { applicationReleaseProfile } from "./release-authority-configuration.mts";
 /** Original hosted-parent candidate custody. This selects bytes through the
  * existing collector; it cannot supply a native receipt or admission result. */
 import { spawnSync } from "node:child_process";
@@ -151,6 +152,7 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
 export async function acquireActualHostedNativeCandidate(parentReceipt: object) {
   const acquisitionDeadline = performance.now() + 15 * 60 * 1000;
   const parent = await requireActualHostedNativeParentSource(parentReceipt);
+  const publicInputs = applicationPublicBuildInputs(parent.configuration);
   if (parent.stage !== "payload-signing" || attempted.has(parentReceipt))
     throw new Error(
       "one original pre-sign hosted native acquisition required; retain and reconcile",
@@ -180,9 +182,10 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
             parentReceipt,
             directory,
             {
-              schema_version: 2,
+              schema_version: publicInputs ? 3 : 2,
               namespace: parent.configuration.journal.namespace,
               release_profile: applicationReleaseProfile(parent.configuration),
+              ...(publicInputs ? { public_build_inputs: publicInputs } : {}),
             },
             {
               api,

@@ -12,6 +12,11 @@ void test("Windows report-only identity uses the selected authority profile and 
   const selected = {
     ...broad,
     release_profile: "initial-beta-windows-x86_64-v1",
+    public_build_inputs: {
+      release_profile: "initial-beta-windows-x86_64-v1",
+      configuration_revision: "c".repeat(40),
+      manifest_sha256: "d".repeat(64),
+    },
     hosted_native: { "windows-x86_64": broad.hosted_native["windows-x86_64"] },
   };
   const environment = {

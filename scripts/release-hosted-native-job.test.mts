@@ -201,7 +201,7 @@ Object.assign(globalThis.postsignFixture,{
 });
 const routes={'./release-hosted-native-parent.mts':"export const requireActualHostedNativeParentSource=globalThis.postsignFixture.parent;",'./release-coordinator-recovery.mts':"export const recoverRemoteCoordinator=globalThis.postsignFixture.recover; export const hydrateRetainedCoordinatorOperation=globalThis.postsignFixture.hydrate;",'node:fs/promises':"export {chmod,mkdtemp} from 'node:fs/promises'; export const writeFile=globalThis.postsignFixture.write;",
  './release-hosted-native-postsign-inputs.mts':"export const requireActualHostedNativePostSignInputs=globalThis.postsignFixture.inputs;",
- './release-authority-configuration.mts':"export const inspectSelectedPublicationAuthorityConfiguration=globalThis.postsignFixture.config;",
+ './release-authority-configuration.mts':"export const inspectSelectedPublicationAuthorityConfiguration=globalThis.postsignFixture.config;export const applicationReleaseProfile=()=>"initial-beta-win-linux";export const applicationPublicBuildInputs=()=>undefined;",
  './release-native-publication-admission.mts':"export const deriveHostedNativePublicationJourneys=globalThis.postsignFixture.derive;",
  './release-artifact-archive.mts':"export const discoverReleaseArtifactFiles=globalThis.postsignFixture.discover;",
  './github-api.mts':"export class GitHubApiClient{request(...args){return globalThis.postsignFixture.request(...args)}paginateRest(){return [{id:9}]}};export const createGitHubRunner=()=>()=>{throw Error('unexpected CLI')};",
@@ -323,7 +323,7 @@ globalThis.signedFixture={
  snapshotContext:async r=>{const context=await globalThis.signedFixture.requireContext(r);return {context,root:context.directory,files:fileInventory(path.dirname(context.context)).map(f=>({...f,path:'context/'+f.path}))}},
  snapshotRole:async r=>{const actual=await globalThis.signedFixture.requireRole(r);return {root:path.dirname(actual.envelope.path),files:[{path:path.basename(actual.envelope.path),bytes:2,sha256:hash(Buffer.from('{}'))}]}},
  requireRole:async r=>{alive();assert.ok(roleReceipts.has(r));if(fault==='role-drift'&&childDone)throw Error('retained role changed');return roleReceipts.get(r)},
- parseConfig:x=>x,parseAssembly:async()=>({accepted:{release_profile:'initial-beta-win-linux',source_commit:fault==='compiler'?'9'.repeat(40):candidate.prepared_commit,source_tree:candidate.prepared_tree,version:candidate.version,run_id:'999',run_attempt:1},labels:['windows-x86_64','linux-x86_64']}),parsePublication:x=>x,
+ parseProfile:()=>"initial-beta-win-linux",parsePublicInputs:()=>undefined,parseConfig:x=>x,parseAssembly:async()=>({accepted:{release_profile:'initial-beta-win-linux',source_commit:fault==='compiler'?'9'.repeat(40):candidate.prepared_commit,source_tree:candidate.prepared_tree,version:candidate.version,run_id:'999',run_attempt:1},labels:['windows-x86_64','linux-x86_64']}),parsePublication:x=>x,
  resource:async(profile,exe,args,options)=>{childPlan=args[1];assert.equal(profile,'analysis');assert.equal(exe,path.join(toolRoot,'bin/node'));assert.equal(args[0],path.join(toolRoot,'scripts/release-native-keyless-assembly.bundle.mjs'));assert.equal(options.queueDeadline,phaseDeadline());assert.ok(options.exclusive[0].startsWith('native-keyless:'));for(const key of ['GH_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN','NODE_OPTIONS'])assert.equal(options.environment[key],undefined);if(fault==='queue-expiry')clock=101001;return options.supervise(['fixed-child'],{acquireLock:async()=>({release:async()=>{}})})},
  supervise:async(_args,options)=>{assert.equal(typeof options.rustSupportCompilerIdentity,'function');assert.equal(typeof options.prepareSupportArtifact,'function');const lease=await options.acquireLock({},{});try{if(fault==='child-failure'||(fault==='payload-child'&&path.basename(childPlan)==='native-payload-plan.json'))return 1;await materialize();return 0}finally{await lease.release()}},
  write:async(...args)=>{await fs.writeFile(...args);if(path.basename(args[0])==='refusal.json')console.error('controlled refusal '+fault+': '+JSON.parse(args[1]).phase);if(fault==='late-write'&&path.basename(args[0])==='signed-inputs.json')stale=true}
@@ -335,7 +335,7 @@ const routes={
  './release-hosted-native-runtime.mts':{requireHostedNativeRuntime:'runtime',hostedNativeSupportDependencies:'support'},
  './release-signing-context-artifact.mts':{inspectSigningContextArchive:'inspect',receiveSigningContextArtifact:'receiveContext',requireReceivedSigningContext:'requireContext',snapshotReceivedSigningContextEvidence:'snapshotContext'},
  './release-tuf-role-artifact.mts':{receiveTufRoleArtifact:'receiveRole',requireReceivedTufRoleArtifact:'requireRole',snapshotReceivedTufRoleEvidence:'snapshotRole'},
- './release-authority-configuration.mts':{inspectSelectedPublicationAuthorityConfiguration:'parseConfig'},
+ './release-authority-configuration.mts':{inspectSelectedPublicationAuthorityConfiguration:'parseConfig',applicationReleaseProfile:'parseProfile',applicationPublicBuildInputs:'parsePublicInputs'},
  './trusted-release-assembly.mts':{inspectTrustedAssemblyInput:'parseAssembly'},
  './release-metadata-contract.mts':{inspectTufPublicationFacts:'parsePublication'},
  './resource-command.mts':{runResourceCommand:'resource'},'./run-rust-tests.mts':{runRustTests:'supervise'},

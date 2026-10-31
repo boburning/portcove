@@ -1,3 +1,5 @@
+import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Closed wire custody only. Parsing or preparing these bytes grants no job,
  * native, signature, archival, execution or publication authority. */
@@ -313,11 +315,15 @@ export function inspectHostedNativeProofFiles(
 
 /** Closed public transport identities, not proof bytes or acceptance. Used by
  * signing-context handoffs so selected job IDs cannot masquerade as App Checks. */
-export function inspectHostedNativeTransportIdentities(raw: unknown) {
+export function inspectHostedNativeTransportIdentities(
+  raw: unknown,
+  profile: unknown = "initial-beta-win-linux",
+) {
+  const platforms = nativePlatformsForReleaseProfile(profile);
   const entries: unknown = structuredClone(raw);
   if (
     !Array.isArray(entries) ||
-    entries.length !== 2 ||
+    entries.length !== platforms.length ||
     Buffer.byteLength(JSON.stringify(entries)) > 16384
   )
     throw new Error("hosted native transport requires the bounded platform pair");
@@ -348,7 +354,10 @@ export function inspectHostedNativeTransportIdentities(raw: unknown) {
       report_sha256: sha(report_sha256),
     };
   });
-  if (new Set(result.map((entry) => entry.platform)).size !== 2)
+  if (
+    new Set(result.map((entry) => entry.platform)).size !== platforms.length ||
+    result.some((entry) => !platforms.some((platform) => platform === entry.platform))
+  )
     throw new Error("hosted native transport platform duplicated");
   return result;
 }
@@ -364,12 +373,15 @@ export function inspectHostedNativeCustodyBundle(raw: Buffer) {
     value.purpose !== "hosted-native-custody" ||
     !["payload-signing", "release-publication"].includes(String(value.stage)) ||
     !Array.isArray(value.proofs) ||
-    value.proofs.length !== 2
+    ![1, 2].includes(value.proofs.length)
   )
     throw new Error("hosted native custody complete bounded pair required");
   const configuration = inspectSelectedPublicationAuthorityConfiguration(value.configuration);
   if (configuration.purpose !== "application")
     throw new Error("hosted native custody application required");
+  const platforms = nativePlatformsForReleaseProfile(applicationReleaseProfile(configuration));
+  if (value.proofs.length !== platforms.length)
+    throw new Error("hosted custody differs from ratified platform set");
   const proofs = value.proofs.map((rawEntry: unknown) => {
     exact(rawEntry, "files,platform_label,producer");
     exact(rawEntry.files, "bundle,capture,report,subject");
@@ -395,10 +407,10 @@ export function inspectHostedNativeCustodyBundle(raw: Buffer) {
   });
   if (
     proofs.map((proof) => proof.report.platform_label).join(",") !==
-      "linux-x86_64,windows-x86_64" ||
-    new Set(proofs.map((proof) => proof.report.candidate.artifact_id)).size !== 2 ||
-    new Set(proofs.map((proof) => proof.producer.job_id)).size !== 2 ||
-    new Set(proofs.map((proof) => proof.producer.check_run_id)).size !== 2
+      [...platforms].sort().join(",") ||
+    new Set(proofs.map((proof) => proof.report.candidate.artifact_id)).size !== platforms.length ||
+    new Set(proofs.map((proof) => proof.producer.job_id)).size !== platforms.length ||
+    new Set(proofs.map((proof) => proof.producer.check_run_id)).size !== platforms.length
   )
     throw new Error("hosted native custody pair is unordered or duplicated");
   const common = (proof: (typeof proofs)[number]) => {
@@ -412,7 +424,7 @@ export function inspectHostedNativeCustodyBundle(raw: Buffer) {
     } = proof.producer;
     return { candidate, producer };
   };
-  if (!isDeepStrictEqual(common(proofs[0]!), common(proofs[1]!)))
+  if (proofs.some((proof) => !isDeepStrictEqual(common(proofs[0]!), common(proof))))
     throw new Error("hosted native custody source, candidate or authority pair differs");
   const canonical = Buffer.from(
     JSON.stringify({

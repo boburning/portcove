@@ -1,4 +1,4 @@
-import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
+import { applicationReleaseProfile } from "./release-authority-configuration.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Original hosted source + default context/role receivers + owned keyless

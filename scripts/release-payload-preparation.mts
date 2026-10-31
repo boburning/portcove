@@ -1,3 +1,4 @@
+import { applicationPublicBuildInputs } from "./release-authority-configuration-contract.mts";
 import {
   isInitialBetaReleaseProfile,
   nativePlatformsForReleaseProfile,
@@ -599,6 +600,14 @@ export async function runPayloadSigningController(
       applicationReleaseProfile(authorities.configuration)
   )
     throw new Error("payload authority and actual coordinator namespace differ");
+  if (
+    applicationReleaseProfile(authorities.configuration) === "initial-beta-windows-x86_64-v1" &&
+    JSON.stringify(orderedJsonValue(selected.admission_configuration.public_build_inputs)) !==
+      JSON.stringify(orderedJsonValue(applicationPublicBuildInputs(authorities.configuration)))
+  )
+    throw new Error(
+      "payload public input configuration differs from ratified application authority",
+    );
   if (
     selected.projectRoot !== tools.root ||
     selected.aggregate.controller_revision !== tools.identity.controller_revision ||

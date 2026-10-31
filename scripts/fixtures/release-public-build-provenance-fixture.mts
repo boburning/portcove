@@ -73,7 +73,11 @@ export async function releasePublicBuildProvenanceFixture(
     ["bundle.json", manifest],
   ] as const)
     await writeFile(path.join(configurationRoot, name), bytes);
-  const configuration = { configuration_revision: "c".repeat(40), manifest_sha256: hash(manifest) };
+  const configuration = {
+    ...(profile === "initial-beta-windows-x86_64-v1" ? { release_profile: profile } : {}),
+    configuration_revision: "c".repeat(40),
+    manifest_sha256: hash(manifest),
+  };
   const prepared = await prepareReleasePublicBuildInputs({
     configurationRoot,
     observedRevision: configuration.configuration_revision,

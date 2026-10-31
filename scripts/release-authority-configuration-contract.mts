@@ -1,3 +1,4 @@
+import { inspectPublicBuildConfiguration } from "./release-public-build-binding-contract.mts";
 import { createHash } from "node:crypto";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 /** Closed configuration/source contracts only. No environment reads or live controller execution. */
@@ -415,7 +416,9 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
             "hosted_native",
             "native_prepublication_profile",
             "publication",
-            ...(Object.hasOwn(value, "release_profile") ? ["release_profile"] : []),
+            ...(Object.hasOwn(value, "release_profile")
+              ? ["public_build_inputs", "release_profile"]
+              : []),
             ...(Object.hasOwn(value, "linux_risk_profile") ? ["linux_risk_profile"] : []),
           ]
         : ["catalog"]),
@@ -441,6 +444,12 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
       throw new Error("Windows-only application profile cannot select Linux publication risk");
     if (value.native_prepublication_profile !== nativePrepublicationProfile)
       throw new Error("selected native prepublication profile differs");
+    const publicInputs =
+      value.release_profile === undefined
+        ? undefined
+        : inspectPublicBuildConfiguration(value.public_build_inputs);
+    if (publicInputs && publicInputs.release_profile !== value.release_profile)
+      throw new Error("selected application public build profile differs");
     const publication = inspectPublicationAuthorities(value.publication, 2);
     if (publication.setup_plan_sha256 !== journal.setup_plan_sha256)
       throw new Error("selected publication setup differs from journal setup");
@@ -451,7 +460,10 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
       native_prepublication_profile: nativePrepublicationProfile,
       ...(value.release_profile === undefined
         ? {}
-        : { release_profile: "initial-beta-windows-x86_64-v1" as const }),
+        : {
+            release_profile: "initial-beta-windows-x86_64-v1" as const,
+            public_build_inputs: publicInputs!,
+          }),
       hosted_native: inspectSelectedHostedNative(value.hosted_native, value.release_profile),
       ...(value.linux_risk_profile === undefined
         ? {}
@@ -499,6 +511,17 @@ export function applicationReleaseProfile(raw: unknown) {
   }
   inspectReleaseAuthorityConfiguration(raw);
   return "initial-beta-win-linux" as const;
+}
+
+export function applicationPublicBuildInputs(raw: unknown) {
+  if (isRecord(raw) && raw.schema_version === 4) {
+    const selected = inspectSelectedPublicationAuthorityConfiguration(raw);
+    if (selected.purpose !== "application")
+      throw new Error("application public input source required");
+    return selected.public_build_inputs;
+  }
+  inspectReleaseAuthorityConfiguration(raw);
+  return undefined;
 }
 
 export function selectedHostedNativePlatform(

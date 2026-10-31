@@ -105,12 +105,13 @@ export async function deriveHostedNativePublicationOpportunities(
   rawArchives: unknown,
   rawJourneys: unknown,
 ) {
+  const journeys: unknown = structuredClone(rawJourneys);
   const opportunities = await deriveHostedNativePayloadOpportunities(
     rawAuthorities,
     rawAssembly,
     rawArchives,
   );
-  const journeys: unknown = structuredClone(rawJourneys);
+
   if (
     !Array.isArray(journeys) ||
     journeys.length !== opportunities.length ||

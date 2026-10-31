@@ -89,7 +89,14 @@ for (const profile of ["initial-beta-win-linux", "initial-beta-windows-x86_64-v1
       inspectPublicationRecordAssociation(
         manifest,
         facts,
-        [...assets, { filename: "unqualified-linux.AppImage", bytes: 1, sha256: "0".repeat(64) }],
+        [
+          ...assets,
+          {
+            filename: `Portcove_${accepted.version}_amd64.AppImage`,
+            bytes: 1,
+            sha256: "0".repeat(64),
+          },
+        ],
         files,
       ),
     );
