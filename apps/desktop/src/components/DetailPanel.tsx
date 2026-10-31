@@ -1471,8 +1471,21 @@ function detailReadiness(
 ) {
   const installed = Boolean(status?.active || status?.external_runtime);
   const coreAllowsLaunch = installed && status?.readiness?.launchable === true;
+  // A draft can request a review; Core still validates it before installation.
+  // Only missing registration is bypassed, never a known failure or installed refusal.
+  const selectedUnregisteredSource =
+    !installed &&
+    !source &&
+    status?.readiness?.source === "unregistered" &&
+    Boolean(sourcePath.trim());
+  const selectedUnregisteredBios =
+    !installed && !bios && status?.readiness?.bios === "unregistered" && Boolean(biosPath?.trim());
   const sourceReady =
-    !status?.readiness?.blockers.some((blocker) => SOURCE_BLOCKERS.includes(blocker)) &&
+    !status?.readiness?.blockers.some(
+      (blocker) =>
+        SOURCE_BLOCKERS.includes(blocker) &&
+        !(blocker === "missing_source" && selectedUnregisteredSource),
+    ) &&
     (coreAllowsLaunch ||
       sourceRequirementReady(
         Boolean(port.source_profile),
@@ -1481,7 +1494,11 @@ function detailReadiness(
         Boolean(source || sourcePath.trim()),
       ));
   const biosReady =
-    !status?.readiness?.blockers.some((blocker) => BIOS_BLOCKERS.includes(blocker)) &&
+    !status?.readiness?.blockers.some(
+      (blocker) =>
+        BIOS_BLOCKERS.includes(blocker) &&
+        !(blocker === "missing_bios" && selectedUnregisteredBios),
+    ) &&
     (coreAllowsLaunch ||
       sourceRequirementReady(
         Boolean(port.bios_source_profile),

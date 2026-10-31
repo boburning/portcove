@@ -91,6 +91,89 @@ it.each([
   expect(props.actions.launch).not.toHaveBeenCalled();
 });
 
+it.each(["game", "bios"] as const)(
+  "reviews an unregistered selected %s path without registering or installing it",
+  async (input) => {
+    const port = currentCatalogPort("mortal-kombat-4-recompiled");
+    const reviewInstall = vi.fn();
+    const install = vi.fn();
+    const launch = vi.fn();
+    const status = {
+      ...portStatus(),
+      port_id: port.id,
+      active: null,
+      readiness: {
+        launchable: false,
+        pending_setup: false,
+        source: "unregistered" as const,
+        bios: "unregistered" as const,
+        blockers: [input === "game" ? ("missing_source" as const) : ("missing_bios" as const)],
+      },
+      port_actions: [
+        {
+          action: "install" as const,
+          availability: "waiting" as const,
+          reason: input === "game" ? ("missing_source" as const) : ("missing_bios" as const),
+        },
+      ],
+    };
+    await render(
+      <DetailPanel
+        port={port}
+        status={status}
+        sourcePath="C:/Player/selected-game.bin"
+        setSourcePath={vi.fn()}
+        biosPath="C:/Player/selected-bios.bin"
+        setBiosPath={vi.fn()}
+        actions={{ ...detailActions, reviewInstall, install, launch }}
+      />,
+    );
+    const review = page.getByRole("button", { name: "Review installation", exact: true });
+    await expect.element(review).toBeVisible();
+    await review.click();
+    expect(reviewInstall).toHaveBeenCalledOnce();
+    expect(install).not.toHaveBeenCalled();
+    expect(launch).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-launch-action]")).toBeNull();
+  },
+);
+
+for (const input of ["game", "bios"] as const) {
+  it.each(["missing", "unreadable", "changed", "incompatible", "saved"] as const)(
+    `keeps ${input} install review unavailable for a %s input`,
+    async (failure) => {
+      const props = installedSourceDetail("mortal-kombat-4-recompiled", "unregistered");
+      const blocker =
+        `${failure === "saved" ? "missing" : failure}_${input === "game" ? "source" : "bios"}` as ReadinessBlocker;
+      await render(
+        <DetailPanel
+          {...props}
+          source={input === "game" && failure === "saved" ? props.source : undefined}
+          bios={input === "bios" && failure === "saved" ? props.source : undefined}
+          biosPath="C:/Player/selected-bios.bin"
+          setBiosPath={vi.fn()}
+          status={{
+            ...props.status,
+            active: null,
+            readiness: {
+              launchable: false,
+              pending_setup: false,
+              source: input === "game" && failure === "missing" ? "missing" : "unregistered",
+              bios: input === "bios" && failure === "missing" ? "missing" : "unregistered",
+              blockers: [input === "game" ? "missing_source" : "missing_bios", blocker],
+            },
+          }}
+        />,
+      );
+      expect(
+        page.getByRole("button", { name: "Review installation", exact: true }).query(),
+      ).toBeNull();
+      expect(document.querySelector("[data-launch-action]:not(:disabled)")).toBeNull();
+      expect(props.actions.launch).not.toHaveBeenCalled();
+    },
+  );
+}
+
 it("asks only for missing BIOS when the registered game has metadata-only health", async () => {
   const props = installedSourceDetail("mortal-kombat-4-recompiled", "not_checked", [
     "missing_bios",

@@ -2400,9 +2400,16 @@ export async function preparationScenarios({
         Key.BACK_SPACE,
         port.name,
       );
-      const readiness = await browser.findElement(
+      const filters = await openCatalogFilters(browser);
+      const advanced = await filters.findElement(
+        By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
+      );
+      if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
+        await clickVisible(browser, advanced);
+      const readiness = await filters.findElement(
         By.css('.collection-readiness [role="combobox"]'),
       );
+      await browser.wait(until.elementIsVisible(readiness), 5_000);
       await clickVisible(browser, readiness);
       const ready = await browser.wait(
         until.elementLocated(
