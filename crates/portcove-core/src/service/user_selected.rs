@@ -2453,7 +2453,7 @@ mod tests {
 
     #[test]
     fn dead_rising_2_case_zero_recomp_prepared_player_route_1121() {
-        assert_listing_only_player_route("dead-rising-2-case-zero-recomp", Some(false));
+        assert_listing_only_player_route("dead-rising-2-case-zero-recomp", Some(true));
     }
 
     #[test]
@@ -2556,5 +2556,30 @@ mod tests {
     #[test]
     fn tenchu_stealth_assassins_tenchu_sa_recomp_prepared_player_route_353() {
         assert_listing_only_player_route("tenchu-stealth-assassins-tenchu-sa-recomp", Some(true));
+    }
+
+    #[test]
+    fn exit_rexglue_exit_exit1_prepared_player_route_362() {
+        assert_listing_only_player_route("exit-rexglue-exit-exit1", Some(false));
+    }
+
+    #[test]
+    fn exit_2_rexglue_exit_exit2_prepared_player_route_363() {
+        assert_listing_only_player_route("exit-2-rexglue-exit-exit2", Some(false));
+    }
+
+    #[test]
+    fn fable_ii_recomp_prepared_player_route_1124() {
+        assert_listing_only_player_route("fable-ii-recomp", Some(false));
+    }
+
+    #[test]
+    fn eternal_sonata_reprise_prepared_player_route_1126() {
+        assert_listing_only_player_route("eternal-sonata-reprise", Some(false));
+    }
+
+    #[test]
+    fn dead_rising_2_case_west_recomp_prepared_player_route_1122() {
+        assert_listing_only_player_route("dead-rising-2-case-west-recomp", Some(true));
     }
 }
