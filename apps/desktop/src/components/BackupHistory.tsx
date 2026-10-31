@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, RotateCcw, Trash2 } from "lucide-react";
 import type { BackupInventory, BackupProblem, BackupRecord } from "../types";
 import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
+import { GhostshipLegacyRecovery } from "./GhostshipRecoveryReview";
 import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
 import { Button } from "./ui/button";
 import { FailureDetails } from "./FailureDetails";
@@ -20,6 +21,7 @@ export function BackupHistory({
   busy,
   generation = 0,
   restore,
+  recoverGhostshipLegacy,
   remove,
   focusFallback,
 }: {
@@ -33,6 +35,7 @@ export function BackupHistory({
   busy?: string | undefined;
   generation?: number;
   restore: ApplyBackupAction;
+  recoverGhostshipLegacy?: ApplyBackupAction | undefined;
   remove: ApplyBackupAction;
   focusFallback?: () => HTMLElement | null;
 }) {
@@ -296,6 +299,19 @@ export function BackupHistory({
               </small>
             </details>
             <span className="backup-actions flex flex-none gap-[6px]">
+              {backup.port_id === "ghostship" && recoverGhostshipLegacy && (
+                <GhostshipLegacyRecovery
+                  key={`${backup.id}:${generation}`}
+                  backup={backup}
+                  generation={generation}
+                  apply={recoverGhostshipLegacy}
+                  disabled={
+                    Boolean(busy) ||
+                    state === "recovery_required" ||
+                    (readState !== undefined && readState.status !== "current")
+                  }
+                />
+              )}
               <Button
                 data-focusable
                 data-backup-action="restore"

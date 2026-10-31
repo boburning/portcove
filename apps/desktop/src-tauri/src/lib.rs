@@ -44,6 +44,7 @@ mod external_runtime_commands;
 mod favorite_commands;
 mod frontend_diagnostics;
 mod game_updates;
+mod ghostship_recovery;
 mod host_startup;
 mod library_selection;
 mod library_transfer;
@@ -2662,6 +2663,8 @@ pub fn run() -> std::process::ExitCode {
             get_backups,
             create_backup,
             backup_review::preview_backup_action,
+            ghostship_recovery::plan_ghostship_legacy_recovery,
+            ghostship_recovery::recover_ghostship_legacy_data,
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
             artwork::get_catalog_media_thumbnail,
