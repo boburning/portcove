@@ -254,7 +254,7 @@
       },
       "context_observed_at": "2026-10-30T22:49:11.842Z",
       "canonical_body_sha256_at_pickup": "4be749efb4bb48e3f6ea8cf46f3c340f0897adad39df6ac8e271f0b067de238d",
-      "authored_sha256": "267ebe2689fad64556aaac95d5a7ee017486aa3647e75f447c9d28cf42cf0d94",
+      "authored_sha256": "0331f17cf59396001f5ac0768cad0918b6ef187c616029653ac0f8d2ab657415",
       "changed_listing_fields": ["download_block_reason", "manual_setup"],
       "selected_tag": "v2.0.2",
       "selected_source": "f6e0ae87fdfecbadb5c1e36c55d66a744187a3cd",

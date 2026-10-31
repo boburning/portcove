@@ -42,7 +42,7 @@
       ],
       "warnings": [
         "The native renderer is early and upstream has not tested the whole game. Retain known texture/asset pop-in, skater-customization, Hall of Meat and park-editor rendering limitations; upstream performance claims are not Portcove measurements or a gameplay/save pass.",
-        "The root project has no inspected complete project/package license or notices; the pinned SDK BSD terms and an own-copy play invitation do not grant original/component/redistribution rights. This is a conditional existing-copy handoff, not completion of #150’s permission/base/TU/package acceptance or a Supported promotion. Other platforms remain independently qualified."
+        "The root project has no inspected complete project/package license or notices; the pinned SDK BSD terms and an own-copy play invitation do not grant original/component/redistribution rights. This is a conditional existing-copy handoff, not completion of #150’s permission/base/TU/package acceptance or a Supported promotion. Other platforms require separate qualification."
       ],
       "help_url": "https://github.com/mchughalex/skate3recomp#readme"
     },
