@@ -6,8 +6,6 @@
     "summary": "Research listing. Upstream route: Native desktop releases using original retail installation. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Upstream says nonmultiplayer functions reimplemented; multiplayer explicitly absent. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Multiplayer explicitly not implemented; active development, do not claim feature parity. | Complete X-Wing Alliance install, GOG/Steam layout supported Portcove setup/gameplay not verified.",
     "original_game_title": "Star Wars: X-Wing Alliance",
     "project_url": "https://github.com/elyosh/OpenXWA",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/elyosh/OpenXWA",
     "artwork": {
       "game_id": 169,
@@ -30,5 +28,27 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "elyosh/OpenXWA",
+      "asset_hints": {
+        "windows-x86-64": ["-windows-x86_64-release.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["OpenXWA.exe"]
+    },
+    "persistent_paths": ["config.yaml", "config.cfg"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On Play, keep the normal in-process setup picker and select your own complete X-Wing Alliance GOG/Steam installation. Preserve the complete original data and package resources, shaders and DLLs. Native 64-bit engine replacement is separate from original-game patch/mod preparation. Multiplayer is not implemented by the selected upstream; no network or mod compatibility is promised. Normal user settings, pilots, replays and temporary files belong to the current account’s SDL preference directory TotallyOpen/OpenXWA; preserve that WHOLE effective profile and every original-data root. Config defaults inside resources are immutable package files, separate from user config.yaml. Core manages only the engine and the listed local config files, not shared external profiles. If SDL profile lookup fails, user/temporary output can fall back to the executable working directory. Arbitrarily named pilots, replays and cache/temp files there are unclaimed modified-runtime data: existing guards refuse destructive maintenance while retaining the creating runtime. A Core backup of declared files does not back up those unknown files. Preserve the WHOLE creating runtime and all effective profiles before reviewing recovery; do not delete files to force an update or assume re-download repairs saves. No automatic migration, portable-pilot backup, backward-save conversion or automatic recovery is offered."
+    }
   }
 }

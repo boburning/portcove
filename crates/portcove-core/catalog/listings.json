@@ -8673,8 +8673,6 @@
       "summary": "Research listing. Upstream route: Native Rust port, no game data included, current desktop release packages. Limits: New native implementation with broad original-edition data support; completion claims remain upstream-only. Upstream platforms: Windows x86-64 ZIP; macOS Apple-Silicon ARM64 DMG; Linux x86-64 and ARM64 archives (glibc2.35+). Web nightly archive is a separate browser route. Original data: Supply owned Atlantis: The Lost Tales game files: a supported GOG installation or CD-derived folder with atlantis.exe and BIGCD1.BIG through BIGCD4.BIG (or the supported four disc images). Retained README accepts English 1997/2001, French May/August 1997, German August 1997, Dutch/Swedish June 1997, Spanish August 1997, Italian July 1997, patched 1.01/1999 and specified 1998 Traditional/1999 Simplified Chinese editions; preserve the selected release/language. Portcove setup/gameplay not verified.",
       "original_game_title": "Atlantis: The Lost Tales",
       "project_url": "https://github.com/ripleyXLR8/atlantis-native",
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/ripleyXLR8/atlantis-native",
       "artwork": {
         "game_id": 2209,
@@ -8684,7 +8682,11 @@
         "game_slug": "atlantis-the-lost-tales",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2876
+      "issue_number": 2876,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "aureliob-banjorecomp-android",
@@ -11503,7 +11505,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/nxengine/nxengine-evo",
-      "issue_number": 2647
+      "issue_number": 2647,
+      "manual_setup": {
+        "help_url": "https://github.com/nxengine/nxengine-evo/tree/761d86db42439d0a37239858d2e024dbc80fe601",
+        "steps": [
+          {
+            "title": "Prepare the supported freeware edition upstream",
+            "instruction": "Use a permitted complete official NXEngine-evo Windows copy with its accompanying data, DLLs and translations; the selected v2.6.5-1 packaging prepares the original freeware English Cave Story data upstream. Its removed built-in extractor does not mean a bare source tree is ready. Cave Story+ is a different input. Keep any permitted original data and completed conversion together; no extractor, compiler or game data download is run here."
+          },
+          {
+            "title": "Select the actual native player",
+            "instruction": "Select nx.exe from the complete NXEngine package with the package directory as working directory. Keep its data directory and any prepared language/mod overlay. Do not select the original Doukutsu.exe, an extractor, installer or build script."
+          },
+          {
+            "title": "Retain the actual profile and fallback",
+            "instruction": "Preserve the entire creating runtime/data/mods/translations and actual SDL nxengine preference directory, normally under the current account’s AppData. It holds settings.dat, profile.dat/profile2.dat and other slots, debug.log and mod-specific progress; overlays can change the data selected. If preference lookup fails paths can fall back to the working directory. Preserve both effective locations before updates; a second executable may share profiles. The current Windows release lacks an independently published accepted digest for managed install; a freshly computed hash would not authenticate it."
+          },
+          {
+            "title": "Review the prepared executable and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+          },
+          {
+            "title": "Keep one replacement owner and preserve all data",
+            "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+          "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "cbfd-recompiled-sciaschi",
@@ -11708,7 +11739,36 @@
         "game_slug": "chasm-the-rift",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2878
+      "issue_number": 2878,
+      "manual_setup": {
+        "help_url": "https://github.com/Panzerschrek/Chasm-Reverse/tree/3f5ed23bba9bfdfade61b2aaff1bfa1edaa9769d",
+        "steps": [
+          {
+            "title": "Prepare Chasm data upstream",
+            "instruction": "Use your own complete Chasm: The Rift data with an already prepared PanzerChasm Windows player. The reviewed 0.3 layout places CSM.BIN beside PanzerChasm.exe; --csm can name another original archive and --addon a prepared addon directory. Preserve the complete chosen original/addon setup. Current source build instructions and newer GOG/CD workflows are not proof that the older 0.3 package accepts every variant."
+          },
+          {
+            "title": "Select the player and creating directory",
+            "instruction": "Select native PanzerChasm.exe and its creating package/game directory as working directory, keeping accompanying runtime files and established literal arguments. Finish required upstream preparation first. No Core original-source hash, compiler or installer is supplied by this registration."
+          },
+          {
+            "title": "Preserve configuration and saves",
+            "instruction": "Keep the whole creating runtime and writable original/addon tree, PanzerChasm.cfg, saves/save_XX.pcs, logs, custom files and every actual alternate profile. Settings and save paths are relative to the working directory in the reviewed source. Retain compatible old engine and saves separately; backward compatibility is unverified. The selected older Windows release has no independently published accepted package digest for managed installation."
+          },
+          {
+            "title": "Review the prepared executable and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+          },
+          {
+            "title": "Keep one replacement owner and preserve all data",
+            "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+          "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "chibi-recomp-xxjsonderuloxx-xxjsonderuloxx-chibi-robo-plug-into-adventure",
@@ -37045,8 +37105,6 @@
       "summary": "Research listing. Upstream route: Native desktop releases using original retail installation. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Upstream says nonmultiplayer functions reimplemented; multiplayer explicitly absent. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Multiplayer explicitly not implemented; active development, do not claim feature parity. | Complete X-Wing Alliance install, GOG/Steam layout supported Portcove setup/gameplay not verified.",
       "original_game_title": "Star Wars: X-Wing Alliance",
       "project_url": "https://github.com/elyosh/OpenXWA",
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/elyosh/OpenXWA",
       "artwork": {
         "game_id": 169,
@@ -37056,7 +37114,11 @@
         "game_slug": "star-wars-x-wing-alliance",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2898
+      "issue_number": 2898,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "star-wars-x-wing-openxw",
@@ -37064,8 +37126,6 @@
       "summary": "Research listing. Upstream route: Native Win/Linux/macOS releases; supports 1994 Collector's CD and 1998 Windows data. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Active native reimplementation; edition combinations/data/save behavior remain integration work. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Newer implementation; edition combination and save/data behavior need checking. | Complete 1994 Collector's CD-ROM or 1998 Windows install; both for combined modes Portcove setup/gameplay not verified.",
       "original_game_title": "Star Wars: X-Wing",
       "project_url": "https://github.com/elyosh/OpenXW",
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/elyosh/OpenXW",
       "artwork": {
         "game_id": 168,
@@ -37075,7 +37135,11 @@
         "game_slug": "star-wars-x-wing",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2896
+      "issue_number": 2896,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
@@ -37083,10 +37147,12 @@
       "summary": "Research listing. Upstream route: Native desktop releases using original retail installation. | Windows ZIP, Linux tar.xz, macOS ARM64 DMG Limits: Active native reimplementation with upstream eight-player multiplayer claim; Balance of Power data mandatory. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.xz, macOS ARM64 DMG. macOS x86-64 is a source target; latest uploaded Mac package is ARM64. Original data: Active development with possible differences; requires Balance of Power data as well. | Complete X-Wing vs. TIE Fighter installation with Balance of Power Portcove setup/gameplay not verified.",
       "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
       "project_url": "https://github.com/elyosh/OpenXvT",
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/elyosh/OpenXvT",
-      "issue_number": 2899
+      "issue_number": 2899,
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "starlancer-openreliant",
@@ -40440,7 +40506,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/XProger/OpenLara",
-      "issue_number": 2904
+      "issue_number": 2904,
+      "manual_setup": {
+        "help_url": "https://github.com/XProger/OpenLara/tree/f145f0b9892ad2c509210d2b09f124a39fa79b7f",
+        "steps": [
+          {
+            "title": "Prepare a coherent Tomb Raider I PC copy upstream",
+            "instruction": "Use a permitted, already working OpenLara Windows copy with your own original Tomb Raider I PC retail data. The reviewed source detects DATA/GYM.PHD (or the root GYM.PHD fallback) and loads PC DATA/<LEVEL>.PHD files. Preserve the complete same-edition data; PlayStation/Saturn and later Tomb Raider branches are different tuples, not substitutes. Web demos and screenshots are not retail qualification."
+          },
+          {
+            "title": "Keep the completed audio/video preparation",
+            "instruction": "Retain the already prepared original music/audio tracks and cutscenes in the layout used by that copy. Selected TR1 PC lookup supports track_XX or remapped numbered .ogg/.mp3/.wav files in audio/1, audio or the configured root; FMV/video lookup and the actual codec must agree. Keep the working edition’s original naming/mapping instead of mixing console tracks with PC data. Complete any permitted conversion upstream; no original acquisition or converter is run here."
+          },
+          {
+            "title": "Select the player and preserve the whole profile",
+            "instruction": "Select native OpenLara.exe with the creating data/game directory as working directory and established literal arguments (an optional first level path is not a universal data-directory flag). Retain the whole runtime, originals, audio/video and current account’s AppData/OpenLara profile/cache, including savegame.dat, settings and custom files. Keep actual fallback/alternate locations and compatible old engine; full campaign, patch-variant and backward-save behavior are unverified. The moving latest Windows package lacks an independently published accepted digest for managed installation."
+          },
+          {
+            "title": "Review the prepared executable and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+          },
+          {
+            "title": "Keep one replacement owner and preserve all data",
+            "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+          "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "tomba-2-recompiled",
@@ -42148,7 +42243,36 @@
         "game_slug": "urban-chaos",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2906
+      "issue_number": 2906,
+      "manual_setup": {
+        "help_url": "https://github.com/UltimaBeaR/OpenChaos/tree/b893450a04c9ae2a7f6b6cf6eaefe10fcf2562ad",
+        "steps": [
+          {
+            "title": "Prepare the complete Urban Chaos copy upstream",
+            "instruction": "Use your own complete Urban Chaos (1999) Steam/GOG/disc installation and a permitted official OpenChaos Windows x64 copy. Upstream instructs copying ALL package contents into the existing game directory, then running OpenChaos.exe; the engine archive supplies no original game data. Preserve originals before overlaying it. Data mods and executable/DLL patches have different compatibility; do not remove existing user files to force this setup."
+          },
+          {
+            "title": "Select the native player in its original tree",
+            "instruction": "Select OpenChaos.exe with its established original-game directory as working directory, retaining DLLs and runtime files. This route requires completed upstream file placement rather than an original-data picker; a bare engine in an empty folder is not ready. Original config.ini still supplies language information."
+          },
+          {
+            "title": "Retain shared user data and every fallback",
+            "instruction": "Preserve the complete creating game directory and current account’s AppData/OpenChaos profile: OpenChaos.config.json, saves, OpenChaos.crash_log.txt, debug and custom files. Writes normally use that overlay and reads prefer it over original files; all copies share it. Failed SDL preference lookup, early crash handling or absolute paths can use the creating working directory or explicit paths instead. Retain every effective root, not only the normal profile. No migration or real-save compatibility is established."
+          },
+          {
+            "title": "Review the prepared executable and intent",
+            "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+          },
+          {
+            "title": "Keep one replacement owner and preserve all data",
+            "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+          "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+        ]
+      }
     },
     {
       "id": "urban-reign-urban-reign-recomp",
