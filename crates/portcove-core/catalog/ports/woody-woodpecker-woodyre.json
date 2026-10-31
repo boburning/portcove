@@ -16,6 +16,39 @@
       "image_sha256": "840605385971cd74fc351f87e3c34f6359bd2cbf44f19cb62e1a810000e91916",
       "game_slug": "woody-woodpecker-escape-from-buzz-buzzard-park",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/jjmhalew/WoodyRE/blob/02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914/README.md",
+      "steps": [
+        {
+          "title": "Use the prepared native Windows player",
+          "instruction": "Use an already permitted complete v1.0.11 WoodyRE.exe copy. The GPL-3.0 reimplemented engine reads original CD data; its terms do not license that data. Do not select build.bat, a compiler/download helper or a private standalone bundle as a redistributable release. The optional bundle tool embeds original files for private use; Core does not acquire or publish them."
+        },
+        {
+          "title": "Complete original-data preparation outside Core",
+          "instruction": "Use your own supported Woody Woodpecker: Escape from Buzz Buzzard Park PC CD: English 1.00/Spanish or the documented February2002 Brazilian Portuguese, Polish or Russian versions. Complete upstream CD/folder selection, private copying and verification before registration. Preserve the original Data, Common, Logo, Game and Music.bf and any existing saves/configs. The --verify upstream check is not a Portcove original/package or compatibility qualification; other editions are not inherited."
+        },
+        {
+          "title": "Keep the actual creating data and working roots",
+          "instruction": "Normally the prepared executable finds data beside itself and uses that writable root; read-only/temporary executable locations can use LOCALAPPDATA/WoodyRE instead. data_find may change the working directory to the actual writable home, while originals can remain elsewhere. Explicit data-directory arguments or WOODY_DATA bypass that automatic choice, so keep the exact established working directory and absolute original-data path; Core does not inject environment variables. Finish preparation externally rather than letting registration silently import a new original."
+        },
+        {
+          "title": "Select the normal game and review intent",
+          "instruction": "Select WoodyRE.exe with the working setup\u2019s actual directory and only its established literal arguments; a supported explicit data directory is one absolute token. Normal WinMain calls main and its game loop through cleanup in the same process. Do not select --verify, scripted screenshot/automation/test switches or bundle/build tools for ordinary Play. Review exact executable/CWD/arguments and consent; choose Play separately. Core observes that process, not an exclusive session or sandbox."
+        },
+        {
+          "title": "Preserve every save, config and private copy",
+          "instruction": "Preserve the whole external runtime/originals and every actual profile root: portable executable side, actual LOCALAPPDATA/WoodyRE, explicit/custom CWD and WOODY_DATA locations. Keep woodyre.sav, woodyre.sav.new, woodyre.cfg, woodyre.log, mods, old Woody.sav in game/ or CWD, unknown files and private bundled copies. The port imports compatible original save layouts and can convert its old one-slot format; this is upstream source behavior, not verified save roundtrip or downgrade compatibility. Keep old runtime and state together; do not regenerate or overwrite data just to register."
+        },
+        {
+          "title": "Leave maintenance and replacement upstream",
+          "instruction": "Close every real instance before upstream changes, preserve the full old creating copy and actual data, and relink any changed executable for new intent review. Registration-only removal preserves external files. No Core-managed CD copying, archive extraction, compiler/bundle execution, update, backup, rollback, migration or deletion is offered; other operating systems and experimental Switch/mobile routes require separate qualification."
+        }
+      ],
+      "warnings": [
+        "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
+        "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+      ]
     }
   }
 }
