@@ -173,6 +173,9 @@ pub fn inspect_existing_key(path: &Path) -> Result<PayloadKeyInspectionReport, T
         return Err(invalid());
     }
     let appointed = public(&public_bytes)?;
+    // This is the existing payload registry/shipping verifier identity, not
+    // the independent checksum of its outer base64 file representation.
+    let public_identity = sha256(&STANDARD.decode(&public_bytes).map_err(|_| invalid())?);
     // Also bind the raw public identity used to keep payload/TUF appointments
     // distinct across their different serialized public-key formats.
     if expected.ed25519_public_key != hex::encode(&appointed.to_bytes()[10..]) {
@@ -189,7 +192,7 @@ pub fn inspect_existing_key(path: &Path) -> Result<PayloadKeyInspectionReport, T
     Ok(PayloadKeyInspectionReport {
         schema_version: 1,
         operation: "inspect-existing-payload-key",
-        public_key_id: expected.sha256.clone(),
+        public_key_id: public_identity,
         authority: "none",
     })
 }
@@ -301,7 +304,10 @@ mod tests {
         let report = inspect_existing_key(&request).unwrap();
         let public_report = serde_json::to_value(report).unwrap();
         assert_eq!(public_report.as_object().unwrap().len(), 4);
-        assert_eq!(public_report["public_key_id"], sha256(&public_bytes));
+        assert_eq!(
+            public_report["public_key_id"],
+            sha256(&STANDARD.decode(&public_bytes).unwrap())
+        );
         assert_eq!(public_report["authority"], "none");
         fs::hard_link(
             root.path().join("private"),

@@ -786,7 +786,9 @@ adds exactly one `application-payload` appointment through:
 }
 ```
 
-This is the additional inventory fragment, not a complete configuration. Public
+This is the additional inventory fragment, not a complete configuration. The
+payload role ID uses the existing registry identity over decoded public-file
+bytes; `public_key_sha256` independently pins the outer file bytes. Public
 encoding, identity and distinctness from all TUF keys are checked before custody
 reads. `inspect-existing-payload-key CONFIG` then consumes the same bounded
 offline input reader and a strict schema-1 configuration with `profile`,

@@ -153,7 +153,9 @@ function inspectInventory(bytes: Buffer, expectedSha256: string, complete: boole
       throw new Error("complete custody payload public encoding differs");
     payload.push({
       role: "application-payload",
-      key_id: value.payload.public_key_sha256,
+      // Match the maintained payload registry/shipping verifier identity over
+      // decoded public-file bytes; the outer file digest remains an input pin.
+      key_id: createHash("sha256").update(decoded).digest("hex"),
       kind: "payload" as const,
       public_key: {
         profile: value.payload.profile,

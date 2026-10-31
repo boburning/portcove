@@ -114,6 +114,10 @@ void test("complete inventory requires the distinct payload public identity and 
   };
   const complete = inspect(inventory);
   assert.equal(complete.bindings.length, 16);
+  assert.equal(
+    complete.bindings.find((binding) => binding.role === "application-payload")!.key_id,
+    hash(Buffer.from(publicBox, "base64")),
+  );
   const initial = Buffer.from(JSON.stringify(f.inventory));
   assert.notEqual(
     complete.context_sha256,
