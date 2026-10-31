@@ -184,7 +184,8 @@ export async function librarySwitchRecoveryScenario({
   );
   const refusal = await browser.wait(until.elementLocated(alert), 15_000);
   const refusalSummary = await refusal.getText();
-  assert.match(refusalSummary, /The current operation state could not be confirmed/);
+  assert.match(refusalSummary, /This library requires a newer Portcove database version/);
+  assert.ok(refusalSummary.includes("Portcove couldn't confirm whether anything changed."));
   await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
   const rejected = await read("get_bootstrap_status");
   assert.deepEqual(rejected, before);
