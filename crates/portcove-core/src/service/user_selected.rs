@@ -2382,4 +2382,42 @@ mod tests {
     fn tomb_raider_openlara_prepared_player_route_2904() {
         assert_listing_only_player_route("tomb-raider-openlara", Some(false));
     }
+    #[test]
+    fn need_for_speed_ii_special_edition_nfs_recompiled_prepared_player_route_2887() {
+        assert_listing_only_player_route(
+            "need-for-speed-ii-special-edition-nfs-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn the_operative_no_one_lives_forever_goty_nolf1_modern_nolfsrc_prepared_player_route_2902() {
+        assert_listing_only_player_route(
+            "the-operative-no-one-lives-forever-goty-nolf1-modern-nolfsrc",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn need_for_speed_ii_special_edition_nfsiise_prepared_player_route_2886() {
+        assert_listing_only_player_route("need-for-speed-ii-special-edition-nfsiise", Some(false));
+    }
+
+    #[test]
+    fn syndicate_wars_syndicate_wars_fan_expansion_prepared_player_route_2715() {
+        assert_listing_only_player_route(
+            "syndicate-wars-syndicate-wars-fan-expansion",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn heart_of_darkness_hode_prepared_player_route_2882() {
+        assert_listing_only_player_route("heart-of-darkness-hode", Some(false));
+    }
+
+    #[test]
+    fn master_of_orion_1oom_vanilla_branch_prepared_player_route_2883() {
+        assert_listing_only_player_route("master-of-orion-1oom-vanilla-branch", Some(false));
+    }
 }

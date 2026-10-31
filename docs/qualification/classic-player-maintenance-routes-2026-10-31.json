@@ -1,0 +1,1468 @@
+{
+  "format_version": 1,
+  "kind": "dated classic-player source/ownership evidence; not live planning, title qualification or a support grant",
+  "observation_date": "2026-10-31",
+  "base": "f66fdbd63113658a5799c3cea8a22ba7338ecc5a",
+  "owners": [2510, 2926, 1422],
+  "counts": {
+    "distinct_repository_commit_path_blob_bindings": 113,
+    "unique_content_blobs": 107,
+    "complete_actual_tree_reference_roles": 19,
+    "unique_actual_root_objects": 15,
+    "managed_declarations": 279,
+    "listings": 1424
+  },
+  "source_packets": [
+    {
+      "issue": 2580,
+      "id": "gunstar-heroes-gunstars",
+      "repository": "1nputs/gunstars",
+      "route": "managed-engine",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "c69c42370cfca98b694776dd6d8f54813b439a451137a02fb0aec8000e230b3b",
+      "prior_record_sha256": "fec7078a0a74b24cb7884172746134ddf31ef2ae0f6ff964f00952c034668c9e",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "actual_root_tree": "940fddeb31eb355257ecfd13c8f8f395526115c0",
+          "members": 143,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "tag",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "actual_root_tree": "940fddeb31eb355257ecfd13c8f8f395526115c0",
+          "members": 143,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": ".gitmodules",
+          "blob": "37e002a568e1e32c6f6505e025d9a24388e3a023",
+          "bytes": 94,
+          "sha256": "9594e42f20495f19ec6e69fbf9118b56678df50d4d09e461b8e9b4d15ee5aca9"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "LICENSE",
+          "blob": "de3198791635571f21d26758ea45d6e824f0c8d9",
+          "bytes": 1077,
+          "sha256": "edd8b759d36ce4290bf18ccb2c9f5fc49aac67271d5b724369e6af2ee935c0f1"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "README.md",
+          "blob": "69ff4dbf10a30036dd946768852131d643ea20c0",
+          "bytes": 20365,
+          "sha256": "b221513fb7cd536adef5be0c0cb6f5216043ad017a5c59a8f5715b7cf14ab595"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "native/main.c",
+          "blob": "7b66ff162f7288f3b336d5b7f99f607aab3f9e9f",
+          "bytes": 23904,
+          "sha256": "fd0cf93b4a8f1e6045a879e41fef2953c3aa6543108a35780b832f852f0dd40e"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "native/hal_native.c",
+          "blob": "c78b0948f3d86e6619e4d150f697cb9da1f359b4",
+          "bytes": 7082,
+          "sha256": "94a391511c260f909812f8b53caa3e2b4799cd5579bac4827f3992d4ca2e3e39"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "native/state.c",
+          "blob": "1f9087804ef423e68d07a06d0b35a8f9de7e4d8b",
+          "bytes": 9878,
+          "sha256": "7e361ad26f65eacb5c174bb0d04e9dcfa1c92161ce98bcc3a4e86356bf18b3e7"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "Makefile",
+          "blob": "4b7247bbf308f7e07878192fbcb2854922f1d4c7",
+          "bytes": 6776,
+          "sha256": "e60d27b04d4d639300edcf23485d924ae3681884d9fb06389ef72f1dafbf0ff7"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "src/game.c",
+          "blob": "ff100bfd058fb7034d0fd3b96943d7b10153ab68",
+          "bytes": 1872,
+          "sha256": "aed731288213e7d6574fb29d942e1670dc5261345f85f9078e7f1e8d0b78f5b6"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "src/mem.c",
+          "blob": "34187ee7f41e15dacad604f3a75f253958b64e52",
+          "bytes": 1884,
+          "sha256": "ed27b2034cba8e9590ada6c3d534f527b54e3d654e19040738aa1ef1d0a8fc58"
+        },
+        {
+          "repository": "1nputs/gunstars",
+          "commit": "bb41264b475c4adbda32d2b8d02fd3f1c4b20bec",
+          "path": "src/mem.h",
+          "blob": "a7f204f4cdf3d6c87cb1c2ff8f71decf5c057f34",
+          "bytes": 2714,
+          "sha256": "f73991581da78cc7be08e664aea6257b024f3f42f657005b07a1df54590abba0"
+        }
+      ]
+    },
+    {
+      "issue": 2887,
+      "id": "need-for-speed-ii-special-edition-nfs-recompiled",
+      "repository": "motor-dev/nfs-recompiled",
+      "route": "conditional-prepared-copy",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "4a07104268049d0617cbffcdb4a1b79a35906cb11464f6fa4d0a9434d22a485c",
+      "prior_record_sha256": "02ac37fd37d0d26605234bce1827c7e83202566e4c69f93483c4721d0d61a0cc",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "actual_root_tree": "78b559ab3c0a7d368ff363fc322eaf98e3df91ac",
+          "members": 429,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "tag",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "actual_root_tree": "78b559ab3c0a7d368ff363fc322eaf98e3df91ac",
+          "members": 429,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "CMakeLists.txt",
+          "blob": "fc620c26aa2aeaa1bd1357038f7812800d2311ff",
+          "bytes": 5559,
+          "sha256": "704b51062c7a031c47f52b402432e7d1a75cac0a77b68e890002ff7794d71142"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "README.md",
+          "blob": "21fea1da61abec11b1c81216d76dd30c4480ad00",
+          "bytes": 6614,
+          "sha256": "cb54c98de56ae115365e2030cf01ce1ed78a6844dc0cada3c692554a36053103"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "src/nfs2se/nfs2se_main.cpp",
+          "blob": "ce4ee3b30a70f9a0ee2cc63e762a00b7e2bc4ea6",
+          "bytes": 1018,
+          "sha256": "d4d9cab75b033b4645bad973f9d62be4b46ff103dd2570c7de1585fecdce92ec"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "src/lib/winapp.cpp",
+          "blob": "392072a25f55099b9a0f84cb3118af46e54b4770",
+          "bytes": 7302,
+          "sha256": "f32179a22175296ece5d3371eef699cb83c8524d43d97fb1243bbe66eecef2f0"
+        },
+        {
+          "repository": "motor-dev/nfs-recompiled",
+          "commit": "77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+          "path": "src/lib/memmap.cpp",
+          "blob": "3da9c80ef9702130722314f93cf619a9a95a749e",
+          "bytes": 6502,
+          "sha256": "0391edd75b0f3f97c8ceeacf35074a192bd895c07679a93be085e91046e43c36"
+        }
+      ]
+    },
+    {
+      "issue": 2902,
+      "id": "the-operative-no-one-lives-forever-goty-nolf1-modern-nolfsrc",
+      "repository": "nolffan/nolfsrc",
+      "route": "conditional-prepared-copy",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "eea14ed56a4f91739220c771a7cd0b5079cd931f79c0beb5441714d3a632443d",
+      "prior_record_sha256": "5239367cc74c25ee439b60360135c2e7881487542a8af7fc565e7e67f1c8bff3",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "actual_root_tree": "6264b45063975bfd87983ca4b05bef4dd7e22408",
+          "members": 1834,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "tag",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "actual_root_tree": "6264b45063975bfd87983ca4b05bef4dd7e22408",
+          "members": 1834,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": ".gitmodules",
+          "blob": "18905fb1ccbfe53b2c4cfd9070c698b731de76ed",
+          "bytes": 552,
+          "sha256": "c1e57283a6bb0b477b2341c0585f584cf25b39b252cc8a147076e982a559af80"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "README.md",
+          "blob": "e395b0f0b1907ad4c84979cd7f66c38fe1101edc",
+          "bytes": 17809,
+          "sha256": "477ff009112917e5e032a441087a3b5a2063a9ae3989331295af080bb090e5d9"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "docs/INSTALL.md",
+          "blob": "f900e124d55d8927a8779a1f3f83cbd965f82bf1",
+          "bytes": 12203,
+          "sha256": "de5f4b5b77b1048a801890c22a254afebf652106f8c153a599c4970c464b8d0a"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "docs/LICENSE-NOTES.md",
+          "blob": "24bc475d4e3c2996d857dfe0f429b2fda3e6a05b",
+          "bytes": 7650,
+          "sha256": "6b47b34a276041b22dce21812ecbaacce0a41b50ada779924c0baf39105f50ae"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "build/game-scripts/windows-install.ps1",
+          "blob": "2c43a76c4bfa984ed0066a6bc8eb4bccc3b062d7",
+          "bytes": 12907,
+          "sha256": "271a07364bc122ada91d084ac5fcc0105a6a2f019f5453f3e154ee3970350549"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/modern/README.md",
+          "blob": "6d8340eb0fe8ee568fce9bc96c91953bd43492a4",
+          "bytes": 3716,
+          "sha256": "985ff2b8b1d6b06bbffc3dfeedbda331b8baa761ea04356d8db02140d41cf08d"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/modern/launcher/gameentry.cpp",
+          "blob": "63286103c8e0888d625f7fe2c6b23b62344c4d82",
+          "bytes": 208,
+          "sha256": "61a7e2094a866ccae364dec5f7c0d40ec4c40f48e63b2534094ac3898aaccbf8"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/modern/launcher/entry.h",
+          "blob": "b3218f5cdc033b1df6f7e831c79871e9b86946c2",
+          "bytes": 147,
+          "sha256": "fc84af4a7ec42405ae712c78da5f40a214a04d806b05dd99f95bcc3c8a25fda8"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/modern/launcher/launcherentry.cpp",
+          "blob": "2ab5bc8ba3a5c23afcbbb1b4e4dcd7ffedf7f628",
+          "bytes": 209,
+          "sha256": "c41291ad2fbf0f132f497c94aebb5e3f85d84758410cf14789ec99847b8663dc"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/modern/launcher/p1_settings.cpp",
+          "blob": "d13d0de29267eebfe43d93b5249a15810952bec9",
+          "bytes": 7305,
+          "sha256": "9915a1f6d6e8f6c9cc2640ff11c24da991a4c612fd24906ee40ab4c186e2266f"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "Makefile",
+          "blob": "462f3144a5dd0e492ed6401d91d00387c4c042e2",
+          "bytes": 11470,
+          "sha256": "e948c4ef46e31fe8f034c6b18dfef76e7c7dab069cb0da3f112e35efdfda9870"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/engine/launcher/launcher.cpp",
+          "blob": "3cc9761483dab4d1e0a5659a859467a884d45e95",
+          "bytes": 19142,
+          "sha256": "dab604a0f2ae4627c3bce553d720e0fe9c6a3ad6d5c76000566a17683e6cf193"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/engine/launcher/gamedlg.cpp",
+          "blob": "3ea1a1def4181180ba1b967d16203ef0c0323371",
+          "bytes": 8889,
+          "sha256": "e0e0756ad8a47810e9bfb8401cf1b4419900b9969d8c4ccb54701ab96cf0b74c"
+        },
+        {
+          "repository": "nolffan/nolfsrc",
+          "commit": "6f61ddcfe33ff374f984264ff357a74a81291ffe",
+          "path": "src/engine/launcher/gamehelp.cpp",
+          "blob": "528925ab642646ff4f81fe4c8239d09825509048",
+          "bytes": 2198,
+          "sha256": "98fbd9ce7306c1849c4894bf83bd50ce1740d856995f1f7a78cb7c3d2f5af7a3"
+        }
+      ]
+    },
+    {
+      "issue": 2886,
+      "id": "need-for-speed-ii-special-edition-nfsiise",
+      "repository": "zaps166/NFSIISE",
+      "route": "conditional-prepared-copy",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "3541c002e1d7de77428a2926f0bb8d0cd40056fd4f851330e3099563579354b8",
+      "prior_record_sha256": "9f32885187baac20d6cf30afe72e6dc9adddf86c7dba847b77aa7b453d3dec40",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "66cbaf47fd77e833c9331b81f6c1e52aff56913f",
+          "actual_root_tree": "dc29035bf65c6d601f52383e26d86903ae5fb6c9",
+          "members": 77,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "tag",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "actual_root_tree": "b37217ea122f56887e8f8069197fbe4516b3bc4d",
+          "members": 77,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "66cbaf47fd77e833c9331b81f6c1e52aff56913f",
+          "path": ".gitmodules",
+          "blob": "4917f1b8c498da9c43b9870793e0c06b66dbc0a4",
+          "bytes": 168,
+          "sha256": "261c1340180214ad3b97a252eaf6e211e74d3006ee374cc9395be3b7b1f39335"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "66cbaf47fd77e833c9331b81f6c1e52aff56913f",
+          "path": "LICENSE",
+          "blob": "b049683bb2be144a0a7739b0d8ef7413c4c175c5",
+          "bytes": 1081,
+          "sha256": "41a12ee8369e709571b822daf75f4a4f5d61212d05458bb08fddeb7f83af5655"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "66cbaf47fd77e833c9331b81f6c1e52aff56913f",
+          "path": "README.md",
+          "blob": "c35c898477299b6a9fd6fa7b3ec8909a6558b78a",
+          "bytes": 7558,
+          "sha256": "1df9212074ee3070f44d9ae66a40d3640ba7d815c16fa361ddd1cc8b53fc48a3"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": ".gitmodules",
+          "blob": "4917f1b8c498da9c43b9870793e0c06b66dbc0a4",
+          "bytes": 168,
+          "sha256": "261c1340180214ad3b97a252eaf6e211e74d3006ee374cc9395be3b7b1f39335"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "LICENSE",
+          "blob": "b049683bb2be144a0a7739b0d8ef7413c4c175c5",
+          "bytes": 1081,
+          "sha256": "41a12ee8369e709571b822daf75f4a4f5d61212d05458bb08fddeb7f83af5655"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "README.md",
+          "blob": "32c38179f14443056a7faf29c9b2a37bb112c111",
+          "bytes": 6768,
+          "sha256": "484037ce6011aca937cb16c7d79dd8d6d9c5d8d99a74eb449521ea9f7149d360"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "Need For Speed II SE/install.win",
+          "blob": "c8ada2aa7e564c10e4b0e91a2819db2bdca14843",
+          "bytes": 696,
+          "sha256": "be813b1fe70b54ea6bc5b8404bc9a32a1ebb30657df20e6bb4538479b3582d43"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "compile_nfs",
+          "blob": "f20985d4cab11e5ff63b6a7b25f38f74453bb099",
+          "bytes": 4427,
+          "sha256": "d05829c6243d508cd6a23b02a8c89d64a4435aa9d91b33d52205031401911a99"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "src/Kernel32.c",
+          "blob": "10cce0c7498a741b907401441962c2d3671e8202",
+          "bytes": 20598,
+          "sha256": "d57ffd150fc8a2100acfa3a28185b960e7e75817fd49c47d600351952c807f17"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "src/User32.c",
+          "blob": "a1cb0c7353eb2b5c830c41caf7fb5510d477fdd3",
+          "bytes": 9531,
+          "sha256": "e18ef0602de8fca64b1c76b34ca347d3f9cb52b2a7fa01636149a5d671871fde"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "src/Wrapper.c",
+          "blob": "4925207b3121335682a85adf96f37e1fc27e3974",
+          "bytes": 20219,
+          "sha256": "3c740d56048c00c62170553d504bea6165cea6afea3e50e3024f86f6e8021d23"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "src/Wrapper.h",
+          "blob": "10504c42ec06c5c302928040f008b3965398c367",
+          "bytes": 1146,
+          "sha256": "58395e148565c2bcb721ae755e03b4481e7b10e2ee887b69161e2d3ae6dd63cc"
+        },
+        {
+          "repository": "zaps166/NFSIISE",
+          "commit": "6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+          "path": "Need For Speed II SE/open_config.bat",
+          "blob": "f11d74651a74f0ea626e024661955df2a901bb5c",
+          "bytes": 155,
+          "sha256": "abff05e3521a44e0f48f507c5c769f9a6ed237c06bf2ada7e4d22425e26c6cda"
+        }
+      ]
+    },
+    {
+      "issue": 2715,
+      "id": "syndicate-wars-syndicate-wars-fan-expansion",
+      "repository": "swfans/syndwarsfx",
+      "route": "conditional-prepared-copy",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "8bbef5cc0c07c2ab18c00920a94db2ca6ed5a238c63c716a316244f0c4c991cd",
+      "prior_record_sha256": "95c6a460742c2a8f6853b7925ebc6993a4abedfab4055b24201f7a75f7892253",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "e2630e1de5e77f0d9f3d58b579caa8ed44c08c8b",
+          "actual_root_tree": "e89acefbd00c2b8456f59902fc37e76856f9eb44",
+          "members": 780,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "tag",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "actual_root_tree": "4cf4332c4831040cf78f9a9f51307f8e4feff6ac",
+          "members": 688,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "e2630e1de5e77f0d9f3d58b579caa8ed44c08c8b",
+          "path": "COPYING",
+          "blob": "e10cb96bc17f234e1e42e2164818dc8962339270",
+          "bytes": 537,
+          "sha256": "09947d632421e92ec20343d9e6e95d761ea95878addcf282bc81165b33fbf3d6"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "e2630e1de5e77f0d9f3d58b579caa8ed44c08c8b",
+          "path": "README.md",
+          "blob": "265fc7491b42b66708f1e7c9af3e8232d277d625",
+          "bytes": 19849,
+          "sha256": "588424ffb3789dadc8824e4b8113de9dfe54506bab378fcad484c6d2e1bd19e9"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "COPYING",
+          "blob": "e10cb96bc17f234e1e42e2164818dc8962339270",
+          "bytes": 537,
+          "sha256": "09947d632421e92ec20343d9e6e95d761ea95878addcf282bc81165b33fbf3d6"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "README.md",
+          "blob": "f9ae90a1fcff0b82048fca0062f8e67d36ada05d",
+          "bytes": 15720,
+          "sha256": "62885c6fd650a84661052040fd3db43b00589879bfae169c7cac3cfaa3a692d2"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/main.c",
+          "blob": "802b3fc79a46089d43777e2573bd893bb453a94d",
+          "bytes": 17196,
+          "sha256": "807c1bc62c339958d2e7106b636ed32eada57f1702e54dc146603693e538deed"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/game_save.c",
+          "blob": "d4d8f18b2e893566224314efe911d31ea8a7e787",
+          "bytes": 27583,
+          "sha256": "2aa56fd95991a4690e1b4e060075bce8e736fbbfc99357f58541d314f522ffe6"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "res/swars-config.nsh.in",
+          "blob": "744b8325bd364d111ab4375e3c466a6d2018cd48",
+          "bytes": 668,
+          "sha256": "761af1243900dbfb67dc42474c4794d14bf547ce613776d5b082b3814565eda7"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "res/license-eng.txt",
+          "blob": "3a5423388cfddd2b8af6660536687be09252ebd6",
+          "bytes": 3859,
+          "sha256": "e7d71fc338b251053d7a51cc1c35989ae88b422cf53dad9a72166fdf0ddcaa1e"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/femain.c",
+          "blob": "7b98cd12057b1654e7dc0750c61aa2ba6ac5bf18",
+          "bytes": 51666,
+          "sha256": "085dac4157bafbe9f549335d90f9625bc6fb4a3fe19f09ce04d1e1a6125c54c5"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/game.c",
+          "blob": "04c461c6b3ebfb08a55a401a2cea68226431ecf2",
+          "bytes": 190034,
+          "sha256": "ad28c1f356bb84886a95246eabc9a1abc53234de131d118dcc1795e98738e04e"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/game_data.c",
+          "blob": "f3e9fac21794c129e9e4d95d760d4c0add23d645",
+          "bytes": 16300,
+          "sha256": "17a3013b3246fe60c4ebe5b51c36a9910025d4333df39dab14e64f0e89641319"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/game_data.h",
+          "blob": "4e831a76e0d7edaaed4f87a8e64baf1775916653",
+          "bytes": 3703,
+          "sha256": "6e0ac18b1960e88c4ee8e95ef188b2134d24978c8d2afcaedeb0734da713c184"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/oswindws.c",
+          "blob": "6b02baaa49b44a7614da53b519228dd18f03e80d",
+          "bytes": 1921,
+          "sha256": "9b8ca66c5a3556a59eb7eb3932cbc209b8615dbe5f0d9428f3dcf3bbf66eadc4"
+        },
+        {
+          "repository": "swfans/syndwarsfx",
+          "commit": "a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+          "path": "src/osunix.c",
+          "blob": "605e56b5f9c0ca00021dca5787c18f9b694625a9",
+          "bytes": 996,
+          "sha256": "5592d365bee2f549ae06c19c7f668beb024bdc399956b4dabf375e4e23aea81c"
+        }
+      ]
+    },
+    {
+      "issue": 2882,
+      "id": "heart-of-darkness-hode",
+      "repository": "usineur/hode",
+      "route": "conditional-prepared-copy",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "2f33805d49627067ffb56d4c23dd762993c7b85a9c7ed6427335f50c423f4fc7",
+      "prior_record_sha256": "add4eae1b8e9ba1f1843999f7595c5d6a1ecd2ce99713ff3db834df3d96d4853",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "59f3c466923c6b8d49e29176ff697a91165e7efc",
+          "actual_root_tree": "4f3491c8b6dd816401d1ba71b0fca1c59757b6a7",
+          "members": 64,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "tag",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "actual_root_tree": "c33f80d13945f9760fbc46fe1259e2a1493a0464",
+          "members": 69,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "usineur/hode",
+          "commit": "59f3c466923c6b8d49e29176ff697a91165e7efc",
+          "path": "CMakeLists.txt",
+          "blob": "31d2a44656e9df7d9b1f9d53ba714aa35e6c9536",
+          "bytes": 1698,
+          "sha256": "e295f1114269e197b0bdac169687f0b1436fb0c52ff9c1bdbed6075e780fd8f4"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "59f3c466923c6b8d49e29176ff697a91165e7efc",
+          "path": "README.txt",
+          "blob": "dea8796f96df987e59c0459b5bebcfc0533adcad",
+          "bytes": 1372,
+          "sha256": "7ecd8642b16b37bb1787f312fbad0c4d1a9c5dcef0c2e882b13a33187c155ad4"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": ".gitmodules",
+          "blob": "07f6af18928e61bf3bb64e0eb9848b0c9aeb7ef4",
+          "bytes": 232,
+          "sha256": "095007f45b69e9800ba9dec2b07e46b8a403225cee5c1ccb9dce43eb4cb3c34a"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "CMakeLists.txt",
+          "blob": "c8fe556b69bd897207930f27536575b84c712ad2",
+          "bytes": 1681,
+          "sha256": "1af7c8d13fc4dfaceb720fcf0a1399c727fb18a6e9e9550ec24d8a7cdc20ec18"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "README.txt",
+          "blob": "1e6f1feeb1a82dac9c4351ed33a299fe0912eb59",
+          "bytes": 1372,
+          "sha256": "522ccc4d80d273cf291bfbcfee9a7a51eb292f94ceb06113137e5e451d3a093c"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "main.cpp",
+          "blob": "da0fc359617eaf779af95929238395651ea3dc35",
+          "bytes": 7051,
+          "sha256": "73297ef26861a27d3b2a50f0e94f4f94afdbc75cd35a404d47d10c00984d7bf4"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "fileio.cpp",
+          "blob": "0b2e9d96fdeac29be42825aa2f676cf6165dea8a",
+          "bytes": 3281,
+          "sha256": "36265d58510fdf03f34a492b97901084e2a90c9b058df8f265cd3f386946dc33"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "Makefile",
+          "blob": "a2eb5864c736bfdff170296abb1fb59528eab6f6",
+          "bytes": 847,
+          "sha256": "fe42cc5b25b12c35e0e996dd77949eda416568df361b7083a80f3868dbacf8d1"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "RELEASES.yaml",
+          "blob": "79bf632648c244b9d8bd8a778968476925414627",
+          "bytes": 16511,
+          "sha256": "7fe6e0ab344c0cc0ba8ffea03c2edc10e29fe5e1805ac8793d08fee4395b1eb4"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "game.cpp",
+          "blob": "9cb510e26c06c0d20a063ceba2d06b2a315003b3",
+          "bytes": 133429,
+          "sha256": "63f4063b4ef2f3dab412b2f8ecb6a2ddf30eebb48f30050a17f8fd4b7ba8a7eb"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "fs.h",
+          "blob": "0bb0217bc183a494b153ef6caa2a429003b68007",
+          "bytes": 450,
+          "sha256": "a7295ab34e8b425ad8804f25cad695cdd6edfafeb6849c75241f39e8c868c2b8"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "fs_posix.cpp",
+          "blob": "e255e91d7d6f5037417dacc5ae9e5e8153f09bb6",
+          "bytes": 2121,
+          "sha256": "a0713808af440716f7e1c3ed8843d73e17574d47bf2584b86c0aecac70663265"
+        },
+        {
+          "repository": "usineur/hode",
+          "commit": "912594e84cee8bcb4075e19520fed7c61dc9a078",
+          "path": "resource.cpp",
+          "blob": "6ff9f1b1aeeabf2e3824f0db48b25d80761a2338",
+          "bytes": 73394,
+          "sha256": "058cfc4a8d04774ea859b51b2631b5d5c1a6fea39d18dff614ac447516dc0ed5"
+        }
+      ]
+    },
+    {
+      "issue": 2883,
+      "id": "master-of-orion-1oom-vanilla-branch",
+      "repository": "1oom-fork/1oom",
+      "route": "conditional-prepared-copy",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "b7224e53d74ff069349db68e8f038d91ec578d39a1243108ab22c611268fa20f",
+      "prior_record_sha256": "7d804abac6ccb88ce24b7ded164033840cf51360dfa96bc4c2d321935de14c88",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "42e9c0b316963dd891f3a8e031bacb36f8c5994e",
+          "actual_root_tree": "e79bb9aae703f8831abce68492691ed7af46ee8a",
+          "members": 398,
+          "complete": true,
+          "qualified_route_context": false
+        },
+        {
+          "role": "tag",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "actual_root_tree": "229f6d039908b36f6f0230b3aa00d0379c269d63",
+          "members": 398,
+          "complete": true,
+          "qualified_route_context": false
+        },
+        {
+          "role": "vanilla-rc5-branch",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "actual_root_tree": "f87c09a88cb7db9c3e0abed798eacc123bce2305",
+          "members": 292,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "vanilla-rc5-tag",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "actual_root_tree": "f87c09a88cb7db9c3e0abed798eacc123bce2305",
+          "members": 292,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "42e9c0b316963dd891f3a8e031bacb36f8c5994e",
+          "path": "COPYING",
+          "blob": "10516934ad55cc624b7b1d5710b5a51590872767",
+          "bytes": 18034,
+          "sha256": "35f0483fbdcc2af59dde2bb08efd0fb978123cb11513e13912c165ed17f626fb"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "42e9c0b316963dd891f3a8e031bacb36f8c5994e",
+          "path": "README.md",
+          "blob": "cc27459226dc7622321db2559a9b2af34148f50a",
+          "bytes": 4467,
+          "sha256": "52ddd73ca6a484f73333fa197ccb399e32a519df75e227876e2fcf51a874dbbe"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "path": "COPYING",
+          "blob": "10516934ad55cc624b7b1d5710b5a51590872767",
+          "bytes": 18034,
+          "sha256": "35f0483fbdcc2af59dde2bb08efd0fb978123cb11513e13912c165ed17f626fb"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "path": "README.md",
+          "blob": "507be2ebab13d33faf86c309385ca16a4fba0e8c",
+          "bytes": 4170,
+          "sha256": "27a5eaeb9cc992517afbb5c49b7d96e36e0d63f06eb73a52f6fc2dfbc6200366"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "path": "doc/usage_common.txt",
+          "blob": "4a2f991c581564e91dfc1ed83be32d995879f571",
+          "bytes": 10428,
+          "sha256": "464cbfc65f15b7db077bebd32db8a5d8bd042b47db0e66331b86470c9f743d27"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "path": "doc/usage_classic.txt",
+          "blob": "4f4dd4bc91a00a1b7d12970e7a2aa8ce83c8483a",
+          "bytes": 7583,
+          "sha256": "f6ecce0b6e40e106b233e7faffc6c352cee7e64644bf069269f911303784e3f9"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "path": "doc/format_save.txt",
+          "blob": "b8fd39b171a6d05224e9b8038156454bc14312c6",
+          "bytes": 8787,
+          "sha256": "ec5e9bc9dfcd681db795a1773d15d74fb9936eb77ac3c1609e693c83ac6e8e15"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "path": "CHANGES",
+          "blob": "7228fa0948550e7af1128fc01c2bd96c1bedd402",
+          "bytes": 8872,
+          "sha256": "06d61c771559c8dee794839a87ace8e5e44c583b266b661a6f7fe307eb5c7bb2"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "d839589b93e2d66b5a5b0ac077316f2b9062b51e",
+          "path": "src/main.c",
+          "blob": "c38f2640cf45672016304b0fc51a24f006a2c96e",
+          "bytes": 2151,
+          "sha256": "a79052299e5a118faa263159619b7d1bba50d35715728376d4bedd08fd1c951a"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "README.md",
+          "blob": "0ffcb868c950ee0da7d52c77537d189b707cb9b4",
+          "bytes": 3402,
+          "sha256": "0ac43fcbd51da82c445bd5df6f8d91d498a752899e6ff1cf9d830619a44a1846"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "doc/format_save.txt",
+          "blob": "2c35c352a4d21217aa76fc939fdf122c5eb09670",
+          "bytes": 9735,
+          "sha256": "800d75dafeef04bd30f402d5efbda87dd0fd2c33374264ad9d7d9fb7a181a1c7"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "CONFIGURATION",
+          "blob": "f6ffed6b9db4e6a23206c2a7abf00cb0ebe2f96c",
+          "bytes": 265,
+          "sha256": "e7129abd6a722e56bff74848918c7e8c210557c48ce1eb7c5707c03f4111cdaf"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "LICENSE",
+          "blob": "10516934ad55cc624b7b1d5710b5a51590872767",
+          "bytes": 18034,
+          "sha256": "35f0483fbdcc2af59dde2bb08efd0fb978123cb11513e13912c165ed17f626fb"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/main.c",
+          "blob": "e02f7d9b5d0670c37610dcac0baa4765a3b3be5b",
+          "bytes": 1240,
+          "sha256": "3b984b8e80e9ac3b4d17f54168712535b567417b42f7fdd18a0234ba74b36a8b"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/Makefile.am",
+          "blob": "d30d0178de189e322d3bdc061e5c9f9a208f40d0",
+          "bytes": 4450,
+          "sha256": "41a19b1eceb2629ed8decc9e23939c39aad1cba22856c307c8f5245a06fb01c5"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/os/win32/os.c",
+          "blob": "945b0a1260eb8e6f95d29cb06c5c8eea4babf4b0",
+          "bytes": 2224,
+          "sha256": "51c9d708c906ad2c32ae4687dd4b4ddf44f3b46a4bb99b00c3aa7da3fceca969"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/game/game_save.c",
+          "blob": "e660d57115863c3545abac3ab3bc6f4c0eeec67e",
+          "bytes": 4848,
+          "sha256": "079ca9972d0c22d909c5f85b03f224ce7d44fc61a66189717a1f357f5c20a647"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/options.c",
+          "blob": "34864946b3b845a7826a38d903734f2b68562010",
+          "bytes": 10520,
+          "sha256": "8ed2cf55ae69fe6eb58b7a1d7ca38fc179ab32293f8c64d88394dd2bbbc4759a"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/util.c",
+          "blob": "eb73b5c02309c5215cd33ee61374696d7b7ac6f8",
+          "bytes": 6694,
+          "sha256": "a1c39ebfad323b49509b4cc9ccd0111411cff5416577d91d1e13f70482a0e775"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/ui/classic/uidefs.h",
+          "blob": "eade6699157892c719c5d3f0f61e06452ea760c5",
+          "bytes": 7499,
+          "sha256": "93c0d8f5453fc0ee4af6db2e16a1c120edcd866321431d0e3b187a59792e7df6"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/game/game_cfg.c",
+          "blob": "4b8bd32e39f3930a23d2791cc2d045076cd62ea7",
+          "bytes": 2255,
+          "sha256": "c6d6f0fabdb92f34df47aadecaeb470da7ba95fa2584f6968c85da54109c9e9a"
+        },
+        {
+          "repository": "1oom-fork/1oom",
+          "commit": "a956a6f73f75e6cd26b701afcd04bd4973650520",
+          "path": "src/ui/classic/uigameopts.c",
+          "blob": "f6d2226f1afdc5baf202190a721da541dc0d127b",
+          "bytes": 4475,
+          "sha256": "b3ee3e3c9b99f68828f6f57eb96f8a4f04245e8637a1f2df341549d1611a94fb"
+        }
+      ]
+    },
+    {
+      "issue": 2756,
+      "id": "elraro-atomic-bomberman",
+      "repository": "elraro/atomic-bomberman",
+      "route": "managed-engine",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "record_sha256": "6c152090c5f22ffbff54f56a865f0cd43b61b9785669d720e3f1fcd15868a63f",
+      "prior_record_sha256": "de194729e99a37f647e435c6b8d39f9d8a11847c2fecb4e6f791ccedf5eda0a2",
+      "complete_tree_references": [
+        {
+          "role": "current",
+          "commit": "e19e44ce8762ba48b866ce9f490279ea4373158c",
+          "actual_root_tree": "173ad5dc801d55e64fe0e3f634c004dec1af24db",
+          "members": 261,
+          "complete": true,
+          "qualified_route_context": true
+        },
+        {
+          "role": "tag",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "actual_root_tree": "0bd75bdbe89e72a5620d785dd88d8e7790f65c71",
+          "members": 148,
+          "complete": true,
+          "qualified_route_context": true
+        }
+      ],
+      "source_bindings": [
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "e19e44ce8762ba48b866ce9f490279ea4373158c",
+          "path": "CMakeLists.txt",
+          "blob": "d08c63a09bcf27424a5b3b759ca975caeb22e643",
+          "bytes": 14389,
+          "sha256": "3403a2f944e91c3c138efb3d3120a07f9f3163d733081c16661dc2913c1ce4d2"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "e19e44ce8762ba48b866ce9f490279ea4373158c",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "e19e44ce8762ba48b866ce9f490279ea4373158c",
+          "path": "README.md",
+          "blob": "eb1b89686af698b7f592d2b1b6d2cde29da8a19d",
+          "bytes": 24411,
+          "sha256": "5ed454b8e57366ecbab86b5ff33796d844d3fa8e251c2b7fd79be1f1440441da"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "CMakeLists.txt",
+          "blob": "3a43f23cc0eb78240d8d400d871724d178b12aae",
+          "bytes": 5101,
+          "sha256": "4260b75897f45d7723b5f71d36c45456138bbc83755b3be986143db322614ad0"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "bytes": 35149,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "README.md",
+          "blob": "29a2d2e28d9e6fd9a99b4bcfddfcbe61f52f5ded",
+          "bytes": 19432,
+          "sha256": "38a91bba05b7f9d4590c95e986a42294de3244741a6d89ce4107cf3776eba2b0"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "INSTALL.md",
+          "blob": "6f2e0c556e50cb56aabe149ac493e836b1d0bd0f",
+          "bytes": 7927,
+          "sha256": "294f9b63f3bebad688af5be86a5f4ea12b3833b3ba955d0b818be17ebe009939"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "src/app/main.cpp",
+          "blob": "bff7cf8f731d86931f345ff5a7270d8136a28aea",
+          "bytes": 116773,
+          "sha256": "6af25b09a73e74001094e8986747cdc5fc8dff8b7652957646f3457721b6d5dd"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "docs/migration/free-assets.md",
+          "blob": "eb1cdb6f18654e1e157dd15e30612518ae29a31b",
+          "bytes": 4911,
+          "sha256": "0e550514d6c2a303cdd458922e00c34fe024897139891bd60a5a5cb499774c27"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": ".github/workflows/build.yml",
+          "blob": "12f96c835e721c51a7c279692edcd4191ec1291e",
+          "bytes": 4739,
+          "sha256": "5fae975158d24a23c61fedc24ef5b963991cf13c3c359994bcd3ace09817dedb"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "src/resources/settings.cpp",
+          "blob": "b8e0ab47ae1c1b09b626765b94ea33622b76c6a0",
+          "bytes": 5725,
+          "sha256": "c71f6c2118185bbbbacd48934f535ad1257a80a77866300c8ac31ae7fe851bfe"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "src/app/editor.cpp",
+          "blob": "5431e7d77a31738562734541108ae2e65641ded9",
+          "bytes": 18110,
+          "sha256": "3c6b5b783f36d72b8fa8cc909e58dffb5969c55f86e64aa2db2b3865df572723"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "src/resources/asset_import.cpp",
+          "blob": "403f78c5cf9ca42c42a58ac0d6869f30fa0e3968",
+          "bytes": 7560,
+          "sha256": "e079122092b34269e2f4746ed4c295b8b0ee8c90a24149dc4ee9d18028b4569c"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "src/free/free_data.cpp",
+          "blob": "f84596a4d471df5bbeb6e61025b8e8e27b80045c",
+          "bytes": 13731,
+          "sha256": "03bc7f6da5e31e29978aedbd61c2597034d3067f754d8f69232f453d904e71f8"
+        },
+        {
+          "repository": "elraro/atomic-bomberman",
+          "commit": "47b4c806778c9e476e44da2d2ebf5d38184e2104",
+          "path": "src/free/free_data.hpp",
+          "blob": "008d93da6238697035dc1a1f6347c9cc16851630",
+          "bytes": 1094,
+          "sha256": "6574c504edd488545fc05809a580f2c8331bfc1955ff924a182d6c2a34f446a1"
+        }
+      ]
+    }
+  ],
+  "independently_pinned_pulseman": {
+    "parent_issue": 2580,
+    "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+    "actual_root_tree": "bc9bdead085dbd21728be2dbd1253000a4d75c4e",
+    "members": 132,
+    "complete": true,
+    "source_bindings": [
+      {
+        "repository": "1nputs/pulseman",
+        "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+        "path": "LICENSE",
+        "blob": "0629f7f13116db9abde645be24f06be6382eb418",
+        "bytes": 1077,
+        "sha256": "44ecfbb475e97f81027dd928a384dab5a947d920959ca322112e6babef17d742"
+      },
+      {
+        "repository": "1nputs/pulseman",
+        "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+        "path": "README.md",
+        "blob": "25b89c907f705bbd34eb976d98fb1d5a91241885",
+        "bytes": 7961,
+        "sha256": "2c1ecc5419cc1fb13c85c0439b2dcae9bb7bf0ccbc88907b7ca2cafe1a174287"
+      },
+      {
+        "repository": "1nputs/pulseman",
+        "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+        "path": "src/platform/settings.c",
+        "blob": "5f68b9d0046265fd013ea3ab5d3d89070672727a",
+        "bytes": 4681,
+        "sha256": "7031c02d686fdae1511ad20cf44cbddb929ad42985752e16686aa6c3cc444770"
+      },
+      {
+        "repository": "1nputs/pulseman",
+        "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+        "path": "src/platform/menu.c",
+        "blob": "6823202623aef797c4c98902d8b5493ee9264b8c",
+        "bytes": 19314,
+        "sha256": "878c94d05642451ef39d9e6f421ee7c0cc7c76107de7bb0a44b2810503d0b959"
+      },
+      {
+        "repository": "1nputs/pulseman",
+        "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+        "path": "src/platform/sdl2/sdl2.c",
+        "blob": "a01edcac49b2be91e87189ffaf491b124abbc1a1",
+        "bytes": 152496,
+        "sha256": "690156d717187b86da9de9f15f9ce08fad2de8ff87daba04aec83643cabd714a"
+      },
+      {
+        "repository": "1nputs/pulseman",
+        "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+        "path": "include/mdrt/settings.h",
+        "blob": "cf6920bbca0c31c8f1cad8748d05568269d2d3bc",
+        "bytes": 1955,
+        "sha256": "2c328d3aa22685a256ea7b3eb0dfb00facc04853de6b774cb7eed5cdfaedca18"
+      },
+      {
+        "repository": "1nputs/pulseman",
+        "commit": "528358d9db88fb5bce21dd156b1b6c92f053cbb9",
+        "path": "include/mdrt/platform_sdl2.h",
+        "blob": "157b24f2cc81f96d446a526224a218a8c1524676",
+        "bytes": 17644,
+        "sha256": "b0e73134af8b1b39f9509853e56bd7380efdb6b7b596e292857954c2f41f6238"
+      }
+    ]
+  },
+  "static_public_package_observations": [
+    {
+      "issue": 2580,
+      "release_id": 419515084,
+      "tag": "v0.2.2",
+      "asset_id": 662394847,
+      "asset": "gunstars-0.2.2-windows-x64.zip",
+      "bytes": 1693876,
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "f855c23c2f877b743fb939bc6cd35a815403c14be97f519ddc8b2bf9916141e8",
+      "observed_sha256": "f855c23c2f877b743fb939bc6cd35a815403c14be97f519ddc8b2bf9916141e8",
+      "raw_preparser_bounds": {
+        "records": 4,
+        "central_bytes": 260,
+        "declared_expanded_bytes": 4323548
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "members": [
+        {
+          "path": "gunstars/gunstar.exe",
+          "bytes": 2535936,
+          "compressed_bytes": 999817,
+          "crc32": "95ee90de",
+          "directory": false
+        },
+        {
+          "path": "gunstars/SDL2.dll",
+          "bytes": 1785344,
+          "compressed_bytes": 692228,
+          "crc32": "11546832",
+          "directory": false
+        },
+        {
+          "path": "gunstars/README.txt",
+          "bytes": 1191,
+          "compressed_bytes": 718,
+          "crc32": "8ac9bee0",
+          "directory": false
+        },
+        {
+          "path": "gunstars/LICENSE.txt",
+          "bytes": 1077,
+          "compressed_bytes": 635,
+          "crc32": "6c23257a",
+          "directory": false
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_PE_headers": [
+        {
+          "path": "gunstars/gunstar.exe",
+          "machine": "0x8664",
+          "sections": 15,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "gunstars/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "e0b45633670dc923c5a44fd94235a9bedf7791e7c3d09ab3a91ed989b60f73c3"
+    },
+    {
+      "issue": 2756,
+      "release_id": 403875616,
+      "tag": "v1.0",
+      "asset_id": 612966508,
+      "asset": "atomic-bomberman-modern-windows-x64.zip",
+      "bytes": 2050725,
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "90915fe673deeb10cc3a0490fda765a1c7cf657dba951377a628c1b1239f2115",
+      "observed_sha256": "90915fe673deeb10cc3a0490fda765a1c7cf657dba951377a628c1b1239f2115",
+      "raw_preparser_bounds": {
+        "records": 5,
+        "central_bytes": 403,
+        "declared_expanded_bytes": 4667427
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "members": [
+        {
+          "path": "atomic-bomberman-modern/atomic_server.exe",
+          "bytes": 854528,
+          "compressed_bytes": 393081,
+          "crc32": "0fd2b897",
+          "directory": false
+        },
+        {
+          "path": "atomic-bomberman-modern/atomic.exe",
+          "bytes": 3749376,
+          "compressed_bytes": 1632800,
+          "crc32": "6b638a30",
+          "directory": false
+        },
+        {
+          "path": "atomic-bomberman-modern/INSTALL.md",
+          "bytes": 8060,
+          "compressed_bytes": 3520,
+          "crc32": "5f481d19",
+          "directory": false
+        },
+        {
+          "path": "atomic-bomberman-modern/LICENSE",
+          "bytes": 35823,
+          "compressed_bytes": 12372,
+          "crc32": "cece3b93",
+          "directory": false
+        },
+        {
+          "path": "atomic-bomberman-modern/README.md",
+          "bytes": 19640,
+          "compressed_bytes": 8204,
+          "crc32": "f72b92f1",
+          "directory": false
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_PE_headers": [
+        {
+          "path": "atomic-bomberman-modern/atomic_server.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "atomic-bomberman-modern/atomic.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "288747099d75417e9406fa25fdbb0d03bc3ae75ea85d6843fe90d676fff3b0de"
+    },
+    {
+      "issue": 2887,
+      "release_id": 293191034,
+      "tag": "v1.0.1",
+      "asset_id": 367069504,
+      "asset": "nfs_recompiled.zip",
+      "bytes": 7222876,
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "3211fda1a12bde27430b22446f4618e46dd841d6cee307f127cfe00a647e798b",
+      "observed_sha256": "3211fda1a12bde27430b22446f4618e46dd841d6cee307f127cfe00a647e798b",
+      "raw_preparser_bounds": {
+        "records": 3,
+        "central_bytes": 238,
+        "declared_expanded_bytes": 21525504
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "members": [
+        {
+          "path": "nfs2se.exe",
+          "bytes": 5496832,
+          "compressed_bytes": 2022738,
+          "crc32": "cadc4d84",
+          "directory": false
+        },
+        {
+          "path": "nfs3hp.exe",
+          "bytes": 13238272,
+          "compressed_bytes": 4049488,
+          "crc32": "5a699b33",
+          "directory": false
+        },
+        {
+          "path": "SDL3.dll",
+          "bytes": 2790400,
+          "compressed_bytes": 1150188,
+          "crc32": "a28273de",
+          "directory": false
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_PE_headers": [
+        {
+          "path": "nfs2se.exe",
+          "format": "PE",
+          "machine": "0x8664",
+          "header_bytes_read": 144
+        },
+        {
+          "path": "nfs3hp.exe",
+          "format": "PE",
+          "machine": "0x8664",
+          "header_bytes_read": 144
+        }
+      ],
+      "inventory_sha256": "ae9a92b465a7746012bcb139c9b2abfc398701c0f735dd0a11452df54a6ec109",
+      "scope": "R14 static public ZIP/header observation reused at identical current provider asset/source; filename linux-archive-inventory.json is historical and is NOT a Linux observation. Individual NFS II consumer/source remains separately bound."
+    }
+  ],
+  "core_authoring_validation": {
+    "ports": 279,
+    "listings": 1424,
+    "port_input_sha256": "33950bc639e5ef3ec19f6ed43ce65b7ef57d92ece42f20e245e173a890379c34",
+    "listing_input_sha256": "e0eb1d1eff288cf6f4b9801ef2f063b26992de42b496f12b8968a0f34e335a9c",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "7f53f8304a30ad2bba0b32bc29554a14f511183a076d07d736f78b0e53915f47",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 279,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    }
+  },
+  "preparation_parent_reuse": {
+    "prepared_against": "41f8382e30c17002fdfc2df858f70c57ed7e258b",
+    "actual_delivered_parent": "f66fdbd63113658a5799c3cea8a22ba7338ecc5a",
+    "identical_parent_tree": "bedab5441f7e4a410e811e6c564c7b3814e823e6",
+    "all8accepted_records_exact": true,
+    "scope": "content-equivalent authoring reuse only; no native/installed/title acceptance"
+  },
+  "management_decisions": {
+    "2580": "Official digest-bearing native Windows package, normal in-process own-ROM picker, bounded default persistent state/capture paths. Core does not import or cryptographically authenticate the ROM; upstream CRC is compatibility only. External overrides remain unowned.",
+    "2756": "Official player asset and literal atomic.exe exclude both a separate server asset and sibling atomic_server.exe. Free assets are code-generated; normal shared SDL profile remains external. Local free-assets fallback is conservatively persistent. Upstream rewrites only known files/version marker; it is not a Core preparation certificate. Failed profile lookup disables settings persistence and can send editor saves to a drive root: stop editor saving/recover upstream/preserve effective external outputs; no sandbox or full backup claim.",
+    "2882": "Selected official binaries are console packages; desktop source build/prepared native copy is separate. Keep coherent supported Windows game data and actual savepath, not speculative console SDK work.",
+    "2883": "Exact canonical vanilla RC5 tag and actual branch agree; discontinued default/latest lineage is different. Preserve beta/testing scope, own MOO1.3 LBX, creating CWD or explicit -user/-data roots and original-format SAVE*.GAM overwrite risk. No permanent Direct pin, later SourceCraft adoption or unsupported automatic lineage replacement.",
+    "2886": "Selected x86 wrapper package lacks independently published accepted managed digest. A computed hash cannot authenticate it. Prepared-copy guide preserves exact SE data, 32-bit dependencies and .nfs2se/CWD profile behavior.",
+    "2887": "Native AMD64 NFS II executable and explicit original/CD roots differ from NFS III and the x86 wrapper. No first-play original picker is supplied; external original/setup/write roots remain upstream-owned rather than inventing a Core builder or readiness marker.",
+    "2902": "Clean public modern package plus own exact Euro GOTY discs and checksum-checked upstream preparation; never the original-image-fetching rez submodule workflow. NOLF.exe direct entry waits for lithtech child; separate launcher is not that lifecycle. Preserve middleware/distribution questions without a whole-package grant or blanket private-use denial.",
+    "2715": "Complete upstream original-data/patch-or-setup preparation, external registry/data/user/CD paths and 32-bit dependencies precede selected-player attachment. Do not call a partial patch or installer a ready immutable engine. Reconsider management only when those actual original/setup/readiness/ownership facts fit an existing accepted operation."
+  },
+  "preservation": {
+    "all_277_prior_strict_definitions_exact": true,
+    "source_catalog_exact": true,
+    "all_other_authored_fields_artwork_lineage_exact": true,
+    "compatibility_old_ordered_prefix_and_source_ids_exact": true,
+    "all_old_Rust_file_bytes_exact_test_only_append": true
+  },
+  "scope": {
+    "frozen_distinct_identities": 858,
+    "all8affected312_not_historical1422": true,
+    "overall_rollout_complete": false,
+    "no_new_family_framework": true,
+    "upstream_game_helper_compiler_execution": false,
+    "ROM_private_save_or_separate_original_acquisition": false,
+    "static_packages_extraction_writes": 0,
+    "native_installed_human_Supported_or_protected_acceptance": false
+  }
+}

@@ -27666,6 +27666,51 @@
       }
     },
     {
+      "id": "elraro-atomic-bomberman",
+      "name": "Atomic Bomberman (Atomic Bomberman — Modern)",
+      "summary": "A native Atomic Bomberman recreation with its own generated graphics and sound.",
+      "project_url": "https://github.com/elraro/atomic-bomberman",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "elraro/atomic-bomberman",
+        "asset_hints": {
+          "windows-x86-64": [
+            "atomic-bomberman-modern-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "atomic.exe"
+        ]
+      },
+      "persistent_paths": [
+        "free-assets"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Start the normal atomic.exe player, not the companion atomic_server.exe dedicated server. No original game files are required for the code-generated free asset set. An OpenGL 3.3 graphics driver is required. Optional original Atomic Bomberman (1997) data and --import-assets preparation remain upstream/player-owned; do not treat an engine install as permission to acquire that content. The normal writable SDL profile for atomic-bomberman-modern/atomic holds options.ini, schemes, anims.lst and imported/generated assets under the current account’s AppData; copies share it and Core does not back it up, migrate or delete it. If preference lookup fails, free assets fall back to free-assets beside the creating player; Core retains this declared local directory, including unknown/custom files during its maintenance. Upstream rewrites its known generated files when the free-assets version changes; its free-assets.txt marker is internal, not a Core completion or save-compatibility certificate. Failed profile lookup disables normal settings persistence and can send editor scheme saves to a drive-root /name.sch path outside the engine. Stop editor saving and repair the profile upstream if that occurs; preserve any actual external outputs. This managed offer requires the normal writable profile, does not sandbox the player and does not claim free-assets captures every fault output. Preserve the whole creating runtime, all effective profiles, custom files and originals before changes. No actual game, editor, import or network behavior is qualified.",
+        "original_game_title": "Atomic Bomberman",
+        "artwork": {
+          "game_id": 18153,
+          "cover_id": 430461,
+          "image_id": "co9859",
+          "image_sha256": "4ebc44a0b86464bf4db64cc3cb23d4b7c1c05d3e9928f2106be0652eb2d86cc5",
+          "game_slug": "atomic-bomberman",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "final-doom-crispy-doom-family",
       "name": "Final Doom (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
@@ -27996,6 +28041,46 @@
           "game_slug": "gladiator--1",
           "match_kind": "underlying-game"
         }
+      }
+    },
+    {
+      "id": "gunstar-heroes-gunstars",
+      "name": "Gunstar Heroes (gunstars)",
+      "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
+      "project_url": "https://github.com/1nputs/gunstars",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "1nputs/gunstars",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "gunstar.exe"
+        ]
+      },
+      "persistent_paths": [
+        "settings.ini",
+        "states",
+        "screenshots",
+        "videos"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On Play, use the upstream in-process file browser to select your own Gunstar Heroes USA 1 MiB cartridge dump, or retain an established --rom argument. The selected engine checks size and CRC32 B813CF0D for compatibility; that is not Core cryptographic source authentication. Core does not acquire, copy or import the ROM. Keep it outside the engine directory and preserve it separately. The normal Windows player gunstar.exe keeps settings.ini, states (including slots/autosave and previews), screenshots and videos relative to its executable working directory; Core preserves these declared default paths across its engine maintenance. User-configured state/capture paths can point elsewhere and remain external, outside Core backup/removal. Retain every actual override location and compatible old runtime before changes; restore does not promise backward state compatibility. macOS Finder profile behavior is a separate unoffered platform. Normal local play is offered; multiplayer/replay/GIF/gameplay claims remain upstream-only. Existing external registrations keep their own replacement owner.",
+        "original_game_title": "Gunstar Heroes"
       }
     },
     {
