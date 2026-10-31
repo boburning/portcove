@@ -14,7 +14,8 @@
       "image_sha256": "0c24051e22899da1b44f3730cf39b1f319aac6e773ce22c5733e63c9f295dc33",
       "game_slug": "street-fighter-iii-3rd-strike--2",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game_title": "Street Fighter III: 3rd Strike"
   },
   "integration": {
     "support_tier": "beta",

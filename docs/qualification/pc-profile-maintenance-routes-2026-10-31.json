@@ -716,7 +716,7 @@
       "route": "managed",
       "cohort": "original-524",
       "historical_1422_member": true,
-      "record_sha256": "d173d269e61e97cc8a915bd7d24c96a1172544ca915bb49897791ba872d1e156",
+      "record_sha256": "dd6141faa3511a84acf65d67090a572b7af822da0193309c984932426c6dfdcf",
       "prior_record_sha256": "76ce246f2dc2e0ec68a9d8c5d21b501eaec8bd1a647443551b04d2483d9b1f0a",
       "complete_tree_references": [
         {
@@ -829,8 +829,8 @@
   "core_inspection": {
     "ports": 282,
     "listings": 1424,
-    "port_input_sha256": "03d55035382e845847b34cd41e17423e4d5a9106b840ddf1a065e252856b87ce",
-    "listing_input_sha256": "a1d289d2281481ad566c543c1228b5146823b3bdae48d138f15128ff18098e94",
+    "port_input_sha256": "785f6104f33a2714905ba8f03610ad6160f55054569c27b4de23dd5789cef5d9",
+    "listing_input_sha256": "a01d1979f96a582fe69fbad9b41acc308f5ce2c640745ccd7f25f4bb90c40262",
     "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
     "compatibility": {
       "status": "matched",
@@ -849,7 +849,8 @@
         }
       },
       "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
-    }
+    },
+    "reuse": "Exact generated catalog/listing bytes equal the complete maintained title-repair authoring inputs already inspected by the same first-party CLI; no further parser execution."
   },
   "static_public_package_observations": [
     {
@@ -5680,7 +5681,39 @@
     "1128": "Conditional permitted desktop copy only; public digest-bearing7z is not a whole-IP grant or Core7z implementation. Desktop saves have3namedroots AND finalCWD fallback; upstream can MOVE existing loose saves on first writable portable-root discovery. Preserve before first run. BrowserlocalStorage is separate.",
     "368": "Unchanged existing archive/Data.rsdk/setup/profile evidence hold. Fresh metadata/assets-only tree and historical package availability do not establish an exact playable data/lifetime/profile tuple. Not a blanket unsupported/private-use decision or approved scope deferral."
   },
+  "prior_failed_required_CI": {
+    "source": "a355e65a79b464b7dad16e64828bc10d70bb9cc2",
+    "run": 41195924566,
+    "attempt": 1,
+    "result": "failed; original whole run is not qualified",
+    "failed_producer_jobs": [124523334356, 124523334419],
+    "failed_aggregate": 124526661029,
+    "all7_new_cases_passed_only_on_that_failed_source": true,
+    "catalog_repair": "Add only374listing.original_game_title, preserving exact accepted original-game artwork through maintained identities/reuse; no execution contract change.",
+    "harness_repair": {
+      "source": "a355e65a79b464b7dad16e64828bc10d70bb9cc2",
+      "failed_run": 41195924566,
+      "attempt": 1,
+      "failed_producer": 124523334419,
+      "case": "service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation",
+      "observed_timeout_seconds": 60.2252478,
+      "observed_restore_publication_seconds": 35.682114,
+      "observed_nested_staged_activation_seconds": 19.1973132,
+      "cumulative_staged_activation_seconds": 54.8794272,
+      "remaining_subphase": "between staged activation and final launch/canonical collection; exact subphase unobserved",
+      "old_harness_seconds": 60,
+      "new_harness_seconds": 90,
+      "platform": "x86_64-pc-windows-msvc",
+      "all_other_override_semantics_preserved_by_exact_split": true,
+      "defaults_retries_workers_cleanup_and_product_deadlines_unchanged": true,
+      "outer_Windows_job_minutes": 45,
+      "old_toml_sha256": "d8e3f57e220cc0dc3166d131f9d70a8ebf49011fc846b7a8c8c1e763433e1cc0",
+      "new_toml_sha256": "f3b8c9781cfcc083e4bf8eed2e4266cb341660a8b9f6c6a9182209ad5d7b0ab9",
+      "scope": "finite test-only harness calibration under standing owner authority; later completion is not a causal performance repair"
+    }
+  },
   "preservation": {
+    "display_title_added_only_for_374": true,
     "all_279_prior_strict_definitions_exact": true,
     "source_catalog_exact": true,
     "all_other_authored_facts_artwork_lineage_exact": true,

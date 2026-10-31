@@ -126,3 +126,40 @@ human observation and protected publication remain distinct. No title execution,
 ROM/private-save acquisition, native GUI, actual save compatibility, Supported,
 signing or protected activation acceptance is claimed. Desktop automation remains
 stopped after the physical Escape interruption until explicit human resumption.
+
+## Failed source and bounded qualification repair
+
+Source `a355e65a79b464b7dad16e64828bc10d70bb9cc2` / CI41195924566/a1
+failed the required Rust context. Its other four contexts and all seven new
+cases passed, including same-tag rolling progression; those selected passes do
+not qualify the whole run. Both failed producer leaves and their aggregate,
+all 12 producer logs and complete 11-invocation case inventories remain retained.
+
+One existing catalog invariant found that only new 3SX lacked its original-game
+display title. The repair adds `listing.original_game_title` with
+`Street Fighter III: 3rd Strike`, leaving its integration, original input,
+profile, channel and artifact contracts unchanged. The first authoring proposal
+without an explicit underlying identity would also remove artwork, so the exact
+candidate guard refused it before source application. Maintained `--identities`
+then reuses the exact already accepted underlying-game ID/slug/image/hash; the
+accepted record differs only by the display title. Its metrics record one game
+query and zero image queries/bytes, with one accepted-original reuse. This is
+neither a new image nor a new artwork qualification.
+
+Separately, the existing Windows
+`restore_remains_authoritative_after_launch_rollback_and_staged_activation`
+fixture reached its 60.225-second harness cutoff. It published restore at35.682s
+and completed staged activation at approximately54.879s cumulative. The exact
+remaining launch/collection subphase is unobserved. Only that exact Windows case
+receives a finite 90-second budget; both former group companions retain their prior effective 120-second budgets
+and higher-priority overrides.
+Assertions, zero retries, two workers, cleanup, all other platform/case budgets
+and product deadlines remain unchanged. The outer Windows job remains45minutes.
+This calibration establishes no causal performance repair; a future pass proves
+completion under the new budget. Repaired-source exact-head CI remains required.
+
+The complete current generated catalog/listing bytes exactly equal the repaired
+authoring inputs already inspected by the first-party CLI. That exact-input
+admission is reused without another parser execution; source-bound dossier hashes
+are rebuilt after authored formatting. Original failed source/run and private
+proposal refusals remain distinct from later source and qualification.
