@@ -373,6 +373,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       platform: "x86_64-unknown-linux-gnu",
       filter:
+        "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
+      periods: 12,
+    },
+    {
+      platform: "x86_64-unknown-linux-gnu",
+      filter:
         "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen$/) | test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::recovers_restore_version_synchronized$/) | test(/^service::tests::backups::restore_preserves_its_journal_when_a_retained_save_path_is_a_symlink$/))",
       periods: 12,
     },
@@ -410,7 +416,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       platform: "aarch64-apple-darwin",
       filter:
         "package(portcove-core) & test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/)",
-      periods: 12,
+      periods: 18,
     },
     {
       platform: "aarch64-apple-darwin",
