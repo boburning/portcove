@@ -36263,6 +36263,35 @@
         "image_sha256": "1817c06919cfe45d9e98238a1667db2f898e07d27a62a372fdef4bb0e65d910b",
         "game_slug": "star-wars-tie-fighter",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/elyosh/OpenTIE/blob/8b24fb9ea9a06fd5f5dc9a675d6287fd71ef1c11/README.md",
+        "steps": [
+          {
+            "title": "Prepare the complete upstream Windows copy",
+            "instruction": "Use an already permitted v0.0.7 Windows OpenTIE copy with all supplied resources, shaders and runtime libraries. Select OpenTIE.exe, not the installer, development tools or a different TIE Fighter project. The GPL-3.0 engine terms do not license original commercial game data, third-party components or optional instrument ROMs. Keep the whole creating copy; no new package or original was acquired or tested by Portcove."
+          },
+          {
+            "title": "Finish original-data and pilot setup upstream",
+            "instruction": "Use your own complete 1995 Collector’s CD-ROM TIE95 and/or 1998 Windows TIE98 installation; finish the normal upstream folder picker and its validation before registration. It remembers those folders and imports compatible pilot files. Preserve both originals and every existing pilot/profile before setup: source-reviewed import/config conversion is not a Portcove save-compatibility test. Older DOS editions, other revisions and optional SC-55 ROMs are not silently included."
+          },
+          {
+            "title": "Select the normal native player",
+            "instruction": "Select OpenTIE.exe with its actual established installation working directory. Keep the supported --tie95-data, --tie98-data and --resource-root directory flags only when your working setup uses them; each directory is its own literal absolute token, including spaces. There is no positional ROM argument. main calls the application and frame loop in the same process through normal shutdown; no setup/helper successor is adopted by Core."
+          },
+          {
+            "title": "Preserve the full actual user and original roots",
+            "instruction": "Preserve the whole external installation/resources, both complete selected originals, original pilot files and the actual Aeron/SDL user root for organization TotallyOpen and application OpenTIE, including config.yaml, pilots, progress, records, recordings, temporary files, optional music/model resources and unknown files. The user-root location is resolved by the creating runtime; keep any redirected or fallback location separately. Its temporary root defaults to the same user root. Upstream config loading can migrate keyboard bindings and reset older controller bindings; close every instance and retain the pre-change copy before upstream updates. Core does not relocate or migrate these files."
+          },
+          {
+            "title": "Review intent and leave replacement upstream",
+            "instruction": "Consent to the exact executable, working directory and literal arguments, then choose Play separately. Core observes the selected native process; it is not an exclusive session or sandbox. Complete upstream maintenance outside Core, close all real instances, keep the old runtime and data together and relink changed executables for fresh intent review. Registration-only removal preserves every external byte; no managed acquisition, update, backup, rollback or deletion is offered."
+          }
+        ],
+        "warnings": [
+          "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
+          "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+        ]
       }
     },
     {
@@ -39954,6 +39983,39 @@
         "image_sha256": "fb0f2a601d1ecc7b74d644a972bbc7e34c12da1e49d9bcf95e4f998060764b4d",
         "game_slug": "total-annihilation",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/open-annihilation/open-annihilation/blob/5fbdd16fe30758a31a0f4f713fc45093fc0c32ea/README.md",
+        "steps": [
+          {
+            "title": "Keep a complete prepared Windows player",
+            "instruction": "Use an already permitted v0.8.7 Windows copy matching your architecture, keeping the entire official installation or ZIP with its libraries/resources. Select open-annihilation.exe itself, not the setup, oa-intro, oa-tool, oa-update or Linux launcher. The native C++ engine runs your own Total Annihilation 1997/3.1c data; Total Annihilation: Kingdoms is not this route. GPL-3.0-only engine and separate component/branding terms do not license the original game or arbitrary mod content. COPYRIGHT reserves the upstream branding separately; keep its notices intact. These instructions grant no branding reuse or repackaging/redistribution permission."
+          },
+          {
+            "title": "Finish upstream content and recovery first",
+            "instruction": "Finish the normal upstream selection/import of your own complete compatible original game data and any desired private mods before registration. Keep the working selected game directory. Complete any pending update, rollback or recovery and start/quit the normal upstream main menu successfully before selecting the settled copy. Older profiles can undergo upstream save/recording moves on startup; preserve actual old and new locations first. This preparation does not establish Portcove data or save compatibility."
+          },
+          {
+            "title": "Keep updates outside the selected Play session",
+            "instruction": "In upstream Settings > Updates choose Check for updates Never (or Not now on the welcome online step); clear any scheduled install through the upstream update UI. Also review the separate content-update policy (open-annihilation.content-updates, default automatically); set the supported upstream open-annihilation.content-updates preference to never for this prepared-copy route. Explicit check/content actions can still make requests; these settings do not disable all networking. Runtime and content checks have distinct controls. Never stops new checks, but does not erase pending plans or disable the startup failed-start rollback guard. Do not register a copy awaiting replacement/recovery or use update/rollback during Core Play. The upstream helper starts detached, waits for the game to leave and can restart another version; that successor is outside Core process ownership. Finish deliberate replacement/recovery upstream, preserve the old creating copy and relink the changed player before the next Play."
+          },
+          {
+            "title": "Select the normal entry and established coordinates",
+            "instruction": "Select open-annihilation.exe with the actual established working directory and only the same supported literal arguments as the prepared setup. Keep --game-dir, --preferences-file and --user-folder paths as separate absolute tokens when actually used. Direct normal main/runtime and soft menu restarts remain in the selected process; do not substitute a helper or diagnostic/check-only invocation. Review exact intent and consent, then choose Play separately. No Core environment injection or automatic package/content installation is authorized."
+          },
+          {
+            "title": "Preserve all actual data and update histories",
+            "instruction": "Keep the entire external runtime, original game directory, mods and unknown files. Preserve the actual Windows Documents/Open Annihilation user folder (including redirected OneDrive/custom locations), Saves, Recordings, Screenshots, Films and Mods; also keep actual LOCALAPPDATA/CorePrime/Open Annihilation preferences, logs, unpacked demo, updates/previous/state/held recovery history and old SAVEGAME/mod/demos locations. Keep ZIP-side previous or installed-copy update backups too. --user-folder and --preferences-file change actual placement/migration behavior, and an Image Output Directory can redirect captures again. Preserve every actual custom root; do not assume Documents alone contains the whole profile. Upstream documents that saves omit in-flight projectiles, returning in-flight nuclear/anti-nuclear rounds to stockpiles; <=0.8.6 games involving repairs may replay differently on0.8.7 after the repair-cost change. Keep each old runtime/save/recording tuple; no cross-version replay or exact battle-state roundtrip is promised."
+          },
+          {
+            "title": "Keep every external change player-owned",
+            "instruction": "Close all real instances before changing files. Upstream owns automatic save/history migration, content installation and self-replacement; Core observes only its consented player, not an exclusive family or sandbox, and never adopts detached update/recovery successors. Keep old runtime and compatible data together. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion or game/network/save compatibility is offered. Upstream normal Windows startup also registers enabled file associations by default; review the separate open-annihilation.file-types.* upstream on/off preferences before starting. Such shell changes are upstream behavior, not a Core registration side effect."
+          }
+        ],
+        "warnings": [
+          "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
+          "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+        ]
       }
     },
     {
@@ -43453,6 +43515,39 @@
         "image_sha256": "840605385971cd74fc351f87e3c34f6359bd2cbf44f19cb62e1a810000e91916",
         "game_slug": "woody-woodpecker-escape-from-buzz-buzzard-park",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/jjmhalew/WoodyRE/blob/02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914/README.md",
+        "steps": [
+          {
+            "title": "Use the prepared native Windows player",
+            "instruction": "Use an already permitted complete v1.0.11 WoodyRE.exe copy. The GPL-3.0 reimplemented engine reads original CD data; its terms do not license that data. Do not select build.bat, a compiler/download helper or a private standalone bundle as a redistributable release. The optional bundle tool embeds original files for private use; Core does not acquire or publish them."
+          },
+          {
+            "title": "Complete original-data preparation outside Core",
+            "instruction": "Use your own supported Woody Woodpecker: Escape from Buzz Buzzard Park PC CD: English 1.00/Spanish or the documented February2002 Brazilian Portuguese, Polish or Russian versions. Complete upstream CD/folder selection, private copying and verification before registration. Preserve the original Data, Common, Logo, Game and Music.bf and any existing saves/configs. The --verify upstream check is not a Portcove original/package or compatibility qualification; other editions are not inherited."
+          },
+          {
+            "title": "Keep the actual creating data and working roots",
+            "instruction": "Normally the prepared executable finds data beside itself and uses that writable root; read-only/temporary executable locations can use LOCALAPPDATA/WoodyRE instead. data_find may change the working directory to the actual writable home, while originals can remain elsewhere. Explicit data-directory arguments or WOODY_DATA bypass that automatic choice, so keep the exact established working directory and absolute original-data path; Core does not inject environment variables. Finish preparation externally rather than letting registration silently import a new original."
+          },
+          {
+            "title": "Select the normal game and review intent",
+            "instruction": "Select WoodyRE.exe with the working setup’s actual directory and only its established literal arguments; a supported explicit data directory is one absolute token. Normal WinMain calls main and its game loop through cleanup in the same process. Do not select --verify, scripted screenshot/automation/test switches or bundle/build tools for ordinary Play. Review exact executable/CWD/arguments and consent; choose Play separately. Core observes that process, not an exclusive session or sandbox."
+          },
+          {
+            "title": "Preserve every save, config and private copy",
+            "instruction": "Preserve the whole external runtime/originals and every actual profile root: portable executable side, actual LOCALAPPDATA/WoodyRE, explicit/custom CWD and WOODY_DATA locations. Keep woodyre.sav, woodyre.sav.new, woodyre.cfg, woodyre.log, mods, old Woody.sav in game/ or CWD, unknown files and private bundled copies. The port imports compatible original save layouts and can convert its old one-slot format; this is upstream source behavior, not verified save roundtrip or downgrade compatibility. Keep old runtime and state together; do not regenerate or overwrite data just to register."
+          },
+          {
+            "title": "Leave maintenance and replacement upstream",
+            "instruction": "Close every real instance before upstream changes, preserve the full old creating copy and actual data, and relink any changed executable for new intent review. Registration-only removal preserves external files. No Core-managed CD copying, archive extraction, compiler/bundle execution, update, backup, rollback, migration or deletion is offered; other operating systems and experimental Switch/mobile routes require separate qualification."
+          }
+        ],
+        "warnings": [
+          "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
+          "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+        ]
       }
     },
     {

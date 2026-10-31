@@ -916,6 +916,21 @@ mod tests {
         assert_listing_only_player_route("top-gear-snes-top-gear-for-windows", Some(false));
     }
 
+    #[test]
+    fn opentie_prepared_player_route_1975() {
+        assert_listing_only_player_route("star-wars-tie-fighter-opentie", Some(false));
+    }
+
+    #[test]
+    fn open_annihilation_settled_player_route_1635() {
+        assert_listing_only_player_route("total-annihilation-open-annihilation", Some(false));
+    }
+
+    #[test]
+    fn woodyre_prepared_player_route_1636() {
+        assert_listing_only_player_route("woody-woodpecker-woodyre", Some(false));
+    }
+
     // Bind the real embedded identities to Core's offered operations with an
     // owned native probe. These are not game/ROM observations. Separate cases
     // keep each complete consent/restart/launch/removal sequence independently

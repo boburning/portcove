@@ -16,6 +16,39 @@
       "image_sha256": "fb0f2a601d1ecc7b74d644a972bbc7e34c12da1e49d9bcf95e4f998060764b4d",
       "game_slug": "total-annihilation",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/open-annihilation/open-annihilation/blob/5fbdd16fe30758a31a0f4f713fc45093fc0c32ea/README.md",
+      "steps": [
+        {
+          "title": "Keep a complete prepared Windows player",
+          "instruction": "Use an already permitted v0.8.7 Windows copy matching your architecture, keeping the entire official installation or ZIP with its libraries/resources. Select open-annihilation.exe itself, not the setup, oa-intro, oa-tool, oa-update or Linux launcher. The native C++ engine runs your own Total Annihilation 1997/3.1c data; Total Annihilation: Kingdoms is not this route. GPL-3.0-only engine and separate component/branding terms do not license the original game or arbitrary mod content. COPYRIGHT reserves the upstream branding separately; keep its notices intact. These instructions grant no branding reuse or repackaging/redistribution permission."
+        },
+        {
+          "title": "Finish upstream content and recovery first",
+          "instruction": "Finish the normal upstream selection/import of your own complete compatible original game data and any desired private mods before registration. Keep the working selected game directory. Complete any pending update, rollback or recovery and start/quit the normal upstream main menu successfully before selecting the settled copy. Older profiles can undergo upstream save/recording moves on startup; preserve actual old and new locations first. This preparation does not establish Portcove data or save compatibility."
+        },
+        {
+          "title": "Keep updates outside the selected Play session",
+          "instruction": "In upstream Settings > Updates choose Check for updates Never (or Not now on the welcome online step); clear any scheduled install through the upstream update UI. Also review the separate content-update policy (open-annihilation.content-updates, default automatically); set the supported upstream open-annihilation.content-updates preference to never for this prepared-copy route. Explicit check/content actions can still make requests; these settings do not disable all networking. Runtime and content checks have distinct controls. Never stops new checks, but does not erase pending plans or disable the startup failed-start rollback guard. Do not register a copy awaiting replacement/recovery or use update/rollback during Core Play. The upstream helper starts detached, waits for the game to leave and can restart another version; that successor is outside Core process ownership. Finish deliberate replacement/recovery upstream, preserve the old creating copy and relink the changed player before the next Play."
+        },
+        {
+          "title": "Select the normal entry and established coordinates",
+          "instruction": "Select open-annihilation.exe with the actual established working directory and only the same supported literal arguments as the prepared setup. Keep --game-dir, --preferences-file and --user-folder paths as separate absolute tokens when actually used. Direct normal main/runtime and soft menu restarts remain in the selected process; do not substitute a helper or diagnostic/check-only invocation. Review exact intent and consent, then choose Play separately. No Core environment injection or automatic package/content installation is authorized."
+        },
+        {
+          "title": "Preserve all actual data and update histories",
+          "instruction": "Keep the entire external runtime, original game directory, mods and unknown files. Preserve the actual Windows Documents/Open Annihilation user folder (including redirected OneDrive/custom locations), Saves, Recordings, Screenshots, Films and Mods; also keep actual LOCALAPPDATA/CorePrime/Open Annihilation preferences, logs, unpacked demo, updates/previous/state/held recovery history and old SAVEGAME/mod/demos locations. Keep ZIP-side previous or installed-copy update backups too. --user-folder and --preferences-file change actual placement/migration behavior, and an Image Output Directory can redirect captures again. Preserve every actual custom root; do not assume Documents alone contains the whole profile. Upstream documents that saves omit in-flight projectiles, returning in-flight nuclear/anti-nuclear rounds to stockpiles; <=0.8.6 games involving repairs may replay differently on0.8.7 after the repair-cost change. Keep each old runtime/save/recording tuple; no cross-version replay or exact battle-state roundtrip is promised."
+        },
+        {
+          "title": "Keep every external change player-owned",
+          "instruction": "Close all real instances before changing files. Upstream owns automatic save/history migration, content installation and self-replacement; Core observes only its consented player, not an exclusive family or sandbox, and never adopts detached update/recovery successors. Keep old runtime and compatible data together. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion or game/network/save compatibility is offered. Upstream normal Windows startup also registers enabled file associations by default; review the separate open-annihilation.file-types.* upstream on/off preferences before starting. Such shell changes are upstream behavior, not a Core registration side effect."
+        }
+      ],
+      "warnings": [
+        "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
+        "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
+      ]
     }
   }
 }
