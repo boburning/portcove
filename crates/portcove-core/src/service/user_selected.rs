@@ -2363,4 +2363,23 @@ mod tests {
     fn ambermoon_permitted_copy_keeps_fresh_acquisition_held_2625() {
         assert_listing_only_player_route("ambermoon-ambermoon-net", Some(true));
     }
+    #[test]
+    fn cave_story_nxengine_evo_prepared_player_route_2647() {
+        assert_listing_only_player_route("cave-story-nxengine-evo", Some(false));
+    }
+
+    #[test]
+    fn chasm_the_rift_panzerchasm_prepared_player_route_2878() {
+        assert_listing_only_player_route("chasm-the-rift-panzerchasm", Some(false));
+    }
+
+    #[test]
+    fn urban_chaos_openchaos_prepared_player_route_2906() {
+        assert_listing_only_player_route("urban-chaos-openchaos", Some(false));
+    }
+
+    #[test]
+    fn tomb_raider_openlara_prepared_player_route_2904() {
+        assert_listing_only_player_route("tomb-raider-openlara", Some(false));
+    }
 }

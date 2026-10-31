@@ -17,7 +17,36 @@
       "game_slug": "chasm-the-rift",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2878
+    "issue_number": 2878,
+    "manual_setup": {
+      "help_url": "https://github.com/Panzerschrek/Chasm-Reverse/tree/3f5ed23bba9bfdfade61b2aaff1bfa1edaa9769d",
+      "steps": [
+        {
+          "title": "Prepare Chasm data upstream",
+          "instruction": "Use your own complete Chasm: The Rift data with an already prepared PanzerChasm Windows player. The reviewed 0.3 layout places CSM.BIN beside PanzerChasm.exe; --csm can name another original archive and --addon a prepared addon directory. Preserve the complete chosen original/addon setup. Current source build instructions and newer GOG/CD workflows are not proof that the older 0.3 package accepts every variant."
+        },
+        {
+          "title": "Select the player and creating directory",
+          "instruction": "Select native PanzerChasm.exe and its creating package/game directory as working directory, keeping accompanying runtime files and established literal arguments. Finish required upstream preparation first. No Core original-source hash, compiler or installer is supplied by this registration."
+        },
+        {
+          "title": "Preserve configuration and saves",
+          "instruction": "Keep the whole creating runtime and writable original/addon tree, PanzerChasm.cfg, saves/save_XX.pcs, logs, custom files and every actual alternate profile. Settings and save paths are relative to the working directory in the reviewed source. Retain compatible old engine and saves separately; backward compatibility is unverified. The selected older Windows release has no independently published accepted package digest for managed installation."
+        },
+        {
+          "title": "Review the prepared executable and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+        },
+        {
+          "title": "Keep one replacement owner and preserve all data",
+          "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+        "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -17,7 +17,36 @@
       "game_slug": "urban-chaos",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2906
+    "issue_number": 2906,
+    "manual_setup": {
+      "help_url": "https://github.com/UltimaBeaR/OpenChaos/tree/b893450a04c9ae2a7f6b6cf6eaefe10fcf2562ad",
+      "steps": [
+        {
+          "title": "Prepare the complete Urban Chaos copy upstream",
+          "instruction": "Use your own complete Urban Chaos (1999) Steam/GOG/disc installation and a permitted official OpenChaos Windows x64 copy. Upstream instructs copying ALL package contents into the existing game directory, then running OpenChaos.exe; the engine archive supplies no original game data. Preserve originals before overlaying it. Data mods and executable/DLL patches have different compatibility; do not remove existing user files to force this setup."
+        },
+        {
+          "title": "Select the native player in its original tree",
+          "instruction": "Select OpenChaos.exe with its established original-game directory as working directory, retaining DLLs and runtime files. This route requires completed upstream file placement rather than an original-data picker; a bare engine in an empty folder is not ready. Original config.ini still supplies language information."
+        },
+        {
+          "title": "Retain shared user data and every fallback",
+          "instruction": "Preserve the complete creating game directory and current account’s AppData/OpenChaos profile: OpenChaos.config.json, saves, OpenChaos.crash_log.txt, debug and custom files. Writes normally use that overlay and reads prefer it over original files; all copies share it. Failed SDL preference lookup, early crash handling or absolute paths can use the creating working directory or explicit paths instead. Retain every effective root, not only the normal profile. No migration or real-save compatibility is established."
+        },
+        {
+          "title": "Review the prepared executable and intent",
+          "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
+        },
+        {
+          "title": "Keep one replacement owner and preserve all data",
+          "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
+        "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
