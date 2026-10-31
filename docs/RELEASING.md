@@ -1034,9 +1034,12 @@ does not prove immutable tag rules, absence of bypass actors or production secre
 isolation. Actual platform enforcement must be independently provisioned and
 proven before any secret-bearing job executes. Installed role sources are not
 provider enforcement or grants. Actual host and issuer qualification, protected
-configuration, custody, eligible coordinator state and real Windows/Linux public
-recovery proof remain under #534. The existing canonical owner packet binds the
-final reviewed controller, configuration and exact protected grant before use.
+configuration, custody, eligible coordinator state and real public recovery
+proof for the selected application release profile remain under #534. The first
+Windows beta still requires its actual Windows/shared proof; Linux application
+recovery remains required for the retained broader profile and subsequent Linux
+release. The existing canonical owner packet binds the final reviewed
+controller, configuration and exact protected grant before use.
 
 ### Durable local coordinator checkpoints
 
@@ -1095,7 +1098,9 @@ not classification authority or a recurring personal approval requirement.
 This supplies nonproduction local persistence/refusal controls for #534. Trusted
 execution/principal enforcement, producer-job/attempt/artifact binding, isolated
 candidate runners/caches, protected remote durability, custody, signing/feed
-activation and actual Windows/Linux public recovery proof remain separate.
+activation and actual public recovery proof for the selected release profile
+remain separate. The Windows-only scope does not supply missing Windows proof
+or complete deferred Linux acceptance.
 
 ### Bounded no-spend attempt eligibility (Slice 4)
 
@@ -1279,9 +1284,12 @@ Results identify the role as `package-aggregate-assembler`. Authenticated
 assembler and original compiler identities remain null. SBOM finalization and
 release authorization remain `not-evaluated`. There is no workflow, upload,
 attestation, signing, installation or publication activation. In particular,
-running the existing finalizer in a controller checkout would evaluate its
-Linux release gate against that checkout; this interface does not do so or
-bypass #706. A future finalizer still needs independently authenticated exact
+running the retained broader-profile finalizer in a controller checkout would
+evaluate its Linux release gate against that checkout; this interface does not
+do so or bypass #706. The Windows-only profile instead uses its source-bound
+non-authorizing audit assessment; that assessment grants no signing or
+publication authority and does not waive shared scan failures. A future
+finalizer still needs independently authenticated exact
 candidate/scan/publication evidence, applicable qualification, authenticated
 producing run/attempt/job and exact artifact/attestation binding through the
 existing protected architecture.
