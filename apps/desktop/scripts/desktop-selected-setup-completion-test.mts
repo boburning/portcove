@@ -1135,7 +1135,20 @@ export async function selectedSetupCompletionScenario({
         prepared,
         observations: report.observations,
       });
-      assert.equal(prepared.readiness?.source_assessment?.contract.state, "unreviewed_for_release");
+      // Ordinary status inspects metadata only; it does not verify current
+      // source bytes or evaluate a release compatibility contract.
+      const passiveReadiness = required(prepared.readiness);
+      assert.equal(passiveReadiness.launchable, true);
+      assert.deepEqual(passiveReadiness.blockers, []);
+      assert.equal(passiveReadiness.pending_setup, false);
+      assert.equal(passiveReadiness.source, "not_checked");
+      assert.deepEqual(passiveReadiness.source_assessment, {
+        health: "not_checked",
+        classification: { state: "not_evaluated" },
+        contract: { state: "not_evaluated" },
+        admission: { state: "not_evaluated" },
+        evidence: [],
+      });
       await browser.wait(until.elementLocated(button("Try launch")), 15_000);
       await browser.wait(
         until.elementIsEnabled(await browser.findElement(button("Try launch"))),
