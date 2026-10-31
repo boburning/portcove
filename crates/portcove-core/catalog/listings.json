@@ -7984,7 +7984,33 @@
         "game_slug": "ambermoon",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2625
+      "issue_number": 2625,
+      "download_block_reason": "Fresh self-service acquisition is held pending attributable permission covering the selected package’s bundled original Ambermoon 1.22 and Advanced 1.33 assets. The official download and engine GPL do not resolve the existing #2625 bundled-content question. Reconsider after reviewing a notice/grant covering those bundled files; an already-permitted copy can use the separate non-owning route.",
+      "manual_setup": {
+        "help_url": "https://github.com/Pyrdacor/Ambermoon.net/tree/ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+        "steps": [
+          {
+            "title": "Use an already-permitted prepared Ambermoon.net copy",
+            "instruction": "Use only a complete Windows Ambermoon.net copy and bundled content you are already permitted to use. The reviewed v1.14.2 distribution includes original Ambermoon 1.22 and Advanced 1.33, so do not invent a separate Amiga ROM requirement. The existing bundled-asset permission question still holds fresh acquisition; engine GPL or a public download does not settle that question. Select normal Ambermoon.net.exe with its accompanying runtime, not AmbermoonPatcher.exe or an installer."
+          },
+          {
+            "title": "Keep the normal player in the selected process",
+            "instruction": "Finish upstream preparation outside Portcove, then keep the supported --no-patcher option as one literal launch argument for this selected copy so normal play does not hand off to the separate patcher. Keep its creating working directory and other established supported literal arguments. Close the game, preserve the old copy and data, then perform deliberate compatible updates upstream and review/relink a changed executable before the next Play. Portcove does not run the patcher or take over runtime replacement."
+          },
+          {
+            "title": "Preserve every effective data and profile root",
+            "instruction": "Keep the entire creating runtime and its actual ambermoon.cfg, Saves, SavesRemake, Screenshots, error.txt, mods, music, custom and unknown files. Windows can instead use roaming AppData/Ambermoon.net, and existing fallback configuration can affect a different runtime copy. Retain the entire effective profile, original and Advanced save-version directories and any external --data/DataPath locations. External SaveOption=DataFolder can write into the original data folder; preserve that whole directory before changes. A different executable does not isolate a shared profile, and save compatibility or migration is not certified."
+          },
+          {
+            "title": "Review attachment and choose Play separately",
+            "instruction": "Finish a normal upstream start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and literal arguments. Review the selected intent and consent, then choose Play separately. Upstream/player owns preparation, writes, updates, migration and recovery. Portcove supervises the selected process; this is not an exclusive instance lock or sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed acquisition, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Fresh acquisition remains held on the specific bundled-content condition; this route grants no permission to acquire or execute a copy.",
+          "Preserve all actual runtime/data/profile roots and the creating version before upstream changes. Original, Advanced and older save formats are not automatically interchangeable."
+        ]
+      }
     },
     {
       "id": "amped-2-amped2-recomp",
@@ -18472,7 +18498,36 @@
         "game_slug": "freespace-2",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2677
+      "issue_number": 2677,
+      "manual_setup": {
+        "help_url": "https://github.com/scp-fs2open/fs2open.github.com/tree/feed085710869ccd8d998fc07a04ffccc8ed479a",
+        "steps": [
+          {
+            "title": "Prepare the FreeSpace 2 retail route upstream",
+            "instruction": "Use your own complete FreeSpace 2 retail v1.2 data, prepared using the official FreeSpace installation guide. Keep the retail VP files in the actual game root, including root_fs2.vp, smarty_fs2.vp, sparky_fs2.vp, sparky_hi_fs2.vp, stu_fs2.vp, tango1_fs2.vp, tango2_fs2.vp, tango3_fs2.vp and warble_fs2.vp, with permitted cutscenes in data/movies. Preserve complete originals. A separately licensed standalone campaign is a different setup and does not supply the FreeSpace 2 campaign."
+          },
+          {
+            "title": "Select the actual player and CPU build",
+            "instruction": "Prepare a complete official Windows FreeSpace Open player copy compatible with your CPU and data, keeping its DLLs. The reviewed release_26_2_0-RC3 is a release candidate; choose that channel deliberately. The inspected x64 SSE2 package’s normal player is fs2_open_26_2_0_RC3_x64_SSE2.exe; select the actual compatible fs2_open player executable from your prepared copy, not FRED, a dedicated server, installer or mod manager. Keep the retail root as working directory and the established literal -mod and other supported arguments. Launcher-only setup is not reproduced by selecting an engine executable."
+          },
+          {
+            "title": "Retain all creating data and preference roots",
+            "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+          },
+          {
+            "title": "Check the prepared copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "front-mission-3-pc-itseniy-front-mission-3",
@@ -25767,7 +25822,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/0x1F9F1/Open1560",
-      "issue_number": 2884
+      "issue_number": 2884,
+      "manual_setup": {
+        "help_url": "https://github.com/0x1F9F1/Open1560/tree/965d1cccc1d7bbecdb799c01c1f9daab1344d580",
+        "steps": [
+          {
+            "title": "Prepare the exact preview edition upstream",
+            "instruction": "Use a permitted complete Open1560 Windows x86 copy with your own Midtown Madness Sneak Preview Beta/build 1560 data. The selected upstream setup names audio.ar, core.ar and ui.ar as the minimum fresh inputs; keep the complete original preview and existing player data. Retail Midtown Madness is a different target. No preview download, original-file digest acceptance or general retail compatibility is supplied by this registration."
+          },
+          {
+            "title": "Select the player and retain its arguments",
+            "instruction": "Select native Open1560.exe, keeping all accompanying runtime files and the prepared game directory as working directory. Keep commandline.txt and established literal options. This is a partial native rewrite with retained assembly; a source repository or installer is not a prepared player. Upstream says its XP patch and dgVoodoo are unnecessary."
+          },
+          {
+            "title": "Preserve the creating directory before upstream cleanup",
+            "instruction": "Retain the entire creating game directory, original archives, settings, player/progress files, replays, custom and unknown files, and any actual external profile used by that copy. Open1560.log is written relative to the working directory. Final upstream builds default to -cleandir and delete last.rpl, crash.rpl, portals.s and root *.csv at exit; back up existing files before a run and use the supported -nocleandir option if retaining those diagnostics is intended. Portcove does not prevent the player’s writes or cleanup. Exact legacy save-file mapping and cross-version compatibility remain unverified."
+          },
+          {
+            "title": "Check the prepared copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "might-and-magic-vii-openenroth",
@@ -27360,7 +27444,36 @@
         "game_slug": "need-for-speed-iii-hot-pursuit",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2888
+      "issue_number": 2888,
+      "manual_setup": {
+        "help_url": "https://github.com/motor-dev/nfs-recompiled/tree/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a",
+        "steps": [
+          {
+            "title": "Prepare the NFS III native player upstream",
+            "instruction": "Use a permitted prepared native NFS Recompiled copy compatible with your host, and your own complete Need for Speed III: Hot Pursuit installation plus CD Fedata/GameData content. This project separately implements NFS II SE; its data and nfs2se player are not substitutes. The original nfs3.exe, eacsnd.dll, softtria.dll and voodoo2a.dll are source-generation inputs, not the native executable to register. Finish any upstream preparation outside Portcove; no compiler or game helper is run here. Upstream describes this as a toy project."
+          },
+          {
+            "title": "Use explicit original-data directory arguments",
+            "instruction": "The inspected official v1.0.1 nfs_recompiled.zip contains AMD64 Windows PE players nfs3hp.exe and nfs2se.exe. Select the actual prepared NFS III nfs3hp.exe on Windows, or an upstream-prepared native nfs3hp build on Linux, with its complete runtime and established working directory. Static package headers do not establish successful game execution. Keep the absolute original installation path as one literal argument; if CD data stays in a separate directory, keep its absolute path as a second literal argument. One argument uses the same root for both. In the reviewed v1.0.1 entry point, no arguments derive both paths from the executable path rather than reliably selecting your working directory. Do not select original Windows nfs3.exe or the NFS II player."
+          },
+          {
+            "title": "Retain the writable installation and CD roots",
+            "instruction": "Upstream maps relative Win32 game paths into the selected installation and drive-letter paths into the CD-data root; writes and removal use that mapping too. Keep the complete creating runtime, writable original installation, CD roots, all saves, configuration, custom and unknown files before changes. Its shown registry emulation is in-process data, not evidence that a Windows registry export backs up progress. Keep existing render/options choices; language/patch compatibility and actual game/save behavior are not qualified."
+          },
+          {
+            "title": "Check the prepared copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "need-for-speed-most-wanted-2005-xbox-360-recompiled",
@@ -30267,7 +30380,36 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/dalerank/Akhenaten",
-      "issue_number": 2891
+      "issue_number": 2891,
+      "manual_setup": {
+        "help_url": "https://github.com/dalerank/Akhenaten/tree/3598ab90856b216a11aae35aa5ad6a519b97bd97",
+        "steps": [
+          {
+            "title": "Prepare Pharaoh and Cleopatra upstream",
+            "instruction": "Use your own unmodified original Pharaoh patched to version 1.3 with the Cleopatra expansion, in a writable complete installation. Pharaoh: A New Era and the Pharaoh demo are different or unsupported data. Prepare the official Akhenaten Windows CI/itch.io copy upstream, keeping all accompanying runtime files and scripts. This is a work in progress; no stable campaign or save-compatibility claim is made."
+          },
+          {
+            "title": "Keep the original-data picker and actual root",
+            "instruction": "Select the prepared native akhenaten.exe and its established working directory, not a packaging/build helper. Its normal start can ask for the original installation; preserve that useful picker. The selected source also accepts the original data directory as a positional argument; retain an already established absolute path as one literal argument. Do not bypass upstream validation or treat a successful registration as proof of original data."
+          },
+          {
+            "title": "Retain both runtime and writable game data",
+            "instruction": "On Windows, data_dir_pharaoh.txt beside the executable remembers the selected original root. Preserve that file, the complete creating runtime, its scripts/configuration including actual akhenaten.conf, and the entire selected writable original-data directory where upstream stores saves. Keep existing mods, profiles, captures, logs, custom/unknown files and any configured alternate paths. Do not replace that data with a clean runtime archive or assume a second executable isolates the same original directory."
+          },
+          {
+            "title": "Check the prepared copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "phoenix-wright-ace-attorney-trilogy-nxnative-aa-port",
@@ -35271,7 +35413,36 @@
         "game_slug": "super-mario-bros-x",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2731
+      "issue_number": 2731,
+      "manual_setup": {
+        "help_url": "https://github.com/TheXTech/TheXTech/tree/5181debcb4cea2b131ebf0e0958e375d87afee05",
+        "steps": [
+          {
+            "title": "Choose the Super Mario Bros. X game pack",
+            "instruction": "Use a permitted, already unpacked Super Mario Bros. X 1.3-compatible game/episode copy prepared with TheXTech. The official v1.7.4.1 release identifies a specific super-mario-bros-x-thextech-v1.7.4.1-win64.7z game package and a separate smbx13 asset pack; a bare TheXTech engine is not this game. Adventures of Demo is a separate excluded game, and SMBX2/LunaLua content is incompatible. Retain the actual gameinfo.ini, episode/worlds and complete asset pack. Package availability does not grant rights to original art, music or episodes."
+          },
+          {
+            "title": "Select the prepared SMBX player",
+            "instruction": "Keep the full upstream-unpacked package and select its actual native Windows SMBX player, with its established asset/game working directory, rather than an editor, installer or bare engine without game data. The selected Windows packaging source names the SMBX x64 player smbx-win64.exe (32-bit smbx.exe), separately from advdemo and bare thextech. Released 7z contents have not been inspected here; select the actual executable in your permitted prepared copy. Finish any conversion and asset placement upstream before attaching it."
+          },
+          {
+            "title": "Retain the effective asset and user roots",
+            "instruction": "Preserve the creating runtime, complete game/episode assets and actual writable user directory. --asset-pack (-c), --user-directory (-u) and --game-dirname can select different locations; retain established literal arguments and use absolute paths when already configured. Windows normally uses roaming AppData/TheXTech, with a legacy .PGE_Project/thextech fallback and other configured directory names. A [Main] force-portable=true thextech.ini beside the runtime selects portable paths. Keep thextech.ini and controls.ini in the effective settings location, gamesaves, screenshots, logs, worlds, battle content, mods/custom and unknown files across every effective root; a second executable does not isolate shared profiles."
+          },
+          {
+            "title": "Check the prepared copy before registration",
+            "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+          },
+          {
+            "title": "Keep updates and removal under the existing owner",
+            "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+          "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        ]
+      }
     },
     {
       "id": "smt-nine-recomp-gymzatan-shin-megami-tensei-nine",
@@ -43856,13 +44027,44 @@
     {
       "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
       "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
-      "summary": "Research listing. Upstream route: Native SDL2 Win/Linux/macOS packages and original-data setup. Limits: Native SDL2 port with Kilrathi Saga data and partial DOS compatibility; reference byte similarity does not measure gameplay completion. Upstream platforms: Native Windows/Linux/macOS SDL2 packages; selected CPU architectures unknown in frozen release evidence. Native port differs from incomplete reference reconstruction. Original data: Supply original Wing Commander I: The Kilrathi Saga data, including GAMEDAT and STREAMS/PREFLITE.STR, STREAMS/POSFLITE.STR and STREAMS/MISSION.STR. Original DOS data is only partially supported. No copyrighted game data is included. The native SDL2 port autodetects the selected data directory; contributor WC1.ORI.EXE/code-full requirements are not universal player inputs. Exact accepted Saga/DOS patch fingerprints remain Unknown. Portcove setup/gameplay not verified.",
+      "summary": "Native SDL2 Wing Commander player for your own Kilrathi Saga installation. Portcove can manage a separate Windows x64 engine while the supported in-process launcher selects your existing writable game-data directory. Original files, SAVEGAME.WLD and shared SDL settings remain externally owned and outside Core backups. The older MSVC reconstruction and partial DOS route do not inherit this offer or gameplay qualification.",
       "original_game_title": "Wing Commander (Kilrathi Saga)",
       "project_url": "https://github.com/neuromancer/wc1-re",
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/neuromancer/wc1-re",
-      "issue_number": 2909
+      "issue_number": 2909,
+      "manual_setup": {
+        "help_url": "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",
+        "steps": [
+          {
+            "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
+            "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+          },
+          {
+            "title": "Choose the actual writable original directory in upstream setup",
+            "instruction": "A new managed engine starts its supported graphical launcher with --gui. Browse to the actual permitted, writable Kilrathi Saga directory, review graphics/joystick choices and choose Launch WC1. Startup checks include GAMEDAT/MODULE.000, CAMP.000 and INSTALL.DAT and the Saga streams; they are not a full original-file identity audit. Portcove does not copy or authenticate those originals. The launcher and game run in the same process; cancelling setup is separate from successful gameplay."
+          },
+          {
+            "title": "Preserve saves and the shared settings root",
+            "instruction": "The accepted upstream folder becomes the game working directory. Preserve the whole original tree, including SAVEGAME.WLD, unknown/custom files and any previous compatible runtime. Registry emulation also writes wc1-modern.cfg under the actual SDL preference directory for Origin Systems/WC Kilrathi Saga. These shared/external original, save and profile paths remain player-owned and outside Portcove-managed backups, restore and removal. A different engine folder does not isolate them; close all actual users before changing shared state."
+          },
+          {
+            "title": "Keep the existing-copy launch coordinates",
+            "instruction": "For an attached working copy retain its actual prepared working directory and established supported literal arguments. Starting without arguments opens the graphical launcher; existing direct arguments use the creating working directory unless --gui is included. Keep that choice truthful rather than starting a new engine folder with direct-game flags and no original data. Review exact intent/consent and choose Play separately. Do not substitute --check, a compiler, installer or historical reproduction binary for normal play."
+          },
+          {
+            "title": "Keep runtime replacement and removal ownership separate",
+            "instruction": "Portcove manages replacement only for its separate managed engine; it does not adopt or move the original installation/profile. An attached copy keeps upstream/player ownership of preparation, runtime replacement, recovery and every external file. Preserve the old creating runtime and all actual state before updates; backward saves, alternate renderers, mods and controllers are not qualified here. Review/relink deliberate external executable replacement before Play. Removing a registration preserves external files; neither route promises to delete or back up outside originals, SAVEGAME.WLD or shared SDL preferences."
+          }
+        ],
+        "warnings": [
+          "Use only game data and components you are already permitted to use. The engine license does not grant rights to unrelated assets, music or modifications.",
+          "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
+        ]
+      },
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "wipeout-3-special-edition-recomp",

@@ -17,7 +17,36 @@
       "game_slug": "super-mario-bros-x",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2731
+    "issue_number": 2731,
+    "manual_setup": {
+      "help_url": "https://github.com/TheXTech/TheXTech/tree/5181debcb4cea2b131ebf0e0958e375d87afee05",
+      "steps": [
+        {
+          "title": "Choose the Super Mario Bros. X game pack",
+          "instruction": "Use a permitted, already unpacked Super Mario Bros. X 1.3-compatible game/episode copy prepared with TheXTech. The official v1.7.4.1 release identifies a specific super-mario-bros-x-thextech-v1.7.4.1-win64.7z game package and a separate smbx13 asset pack; a bare TheXTech engine is not this game. Adventures of Demo is a separate excluded game, and SMBX2/LunaLua content is incompatible. Retain the actual gameinfo.ini, episode/worlds and complete asset pack. Package availability does not grant rights to original art, music or episodes."
+        },
+        {
+          "title": "Select the prepared SMBX player",
+          "instruction": "Keep the full upstream-unpacked package and select its actual native Windows SMBX player, with its established asset/game working directory, rather than an editor, installer or bare engine without game data. The selected Windows packaging source names the SMBX x64 player smbx-win64.exe (32-bit smbx.exe), separately from advdemo and bare thextech. Released 7z contents have not been inspected here; select the actual executable in your permitted prepared copy. Finish any conversion and asset placement upstream before attaching it."
+        },
+        {
+          "title": "Retain the effective asset and user roots",
+          "instruction": "Preserve the creating runtime, complete game/episode assets and actual writable user directory. --asset-pack (-c), --user-directory (-u) and --game-dirname can select different locations; retain established literal arguments and use absolute paths when already configured. Windows normally uses roaming AppData/TheXTech, with a legacy .PGE_Project/thextech fallback and other configured directory names. A [Main] force-portable=true thextech.ini beside the runtime selects portable paths. Keep thextech.ini and controls.ini in the effective settings location, gamesaves, screenshots, logs, worlds, battle content, mods/custom and unknown files across every effective root; a second executable does not isolate shared profiles."
+        },
+        {
+          "title": "Check the prepared copy before registration",
+          "instruction": "Finish upstream setup and a normal start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, original assets or save compatibility."
+        },
+        {
+          "title": "Keep updates and removal under the existing owner",
+          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
+        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

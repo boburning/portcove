@@ -35335,6 +35335,73 @@
       }
     },
     {
+      "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",
+      "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
+      "summary": "Native SDL2 Wing Commander player for your own Kilrathi Saga installation. Portcove can manage a separate Windows x64 engine while the supported in-process launcher selects your existing writable game-data directory. Original files, SAVEGAME.WLD and shared SDL settings remain externally owned and outside Core backups. The older MSVC reconstruction and partial DOS route do not inherit this offer or gameplay qualification.",
+      "project_url": "https://github.com/neuromancer/wc1-re",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "neuromancer/wc1-re",
+        "asset_hints": {
+          "windows-x86-64": [
+            "-windows-x86_64-sdl2.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "wc1-modern.exe"
+        ]
+      },
+      "launch_arguments": [
+        "--gui"
+      ],
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On Play, use the upstream graphical Browse/Launch dialog to choose your own permitted, writable Wing Commander Kilrathi Saga directory. It needs GAMEDAT including MODULE.000, CAMP.000 and INSTALL.DAT plus sibling STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. These are upstream startup checks, not Core authentication of every original file. Portcove supplies --gui so supported graphics arguments do not bypass that setup. The launcher changes to the selected original directory and runs the game in the same process. Original data and SAVEGAME.WLD stay in that creating game directory; shared settings use the actual SDL preference directory for Origin Systems/WC Kilrathi Saga, including wc1-modern.cfg. Core replaces only its engine; it does not import, migrate, back up, roll back or delete those external game/save/profile files. Preserve the whole actual original/profile trees and compatible old runtime before changes. Another engine copy can share them. DOS data support is partial and is not the managed offer; original MSVC420 reconstruction is a different package. Existing external registrations remain independently owned.",
+        "original_game_title": "Wing Commander (Kilrathi Saga)",
+        "manual_setup": {
+          "help_url": "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",
+          "steps": [
+            {
+              "title": "Use the modern SDL2 player and your own Kilrathi Saga data",
+              "instruction": "Use the official modern Windows x64 SDL2 package with all companion DLLs, or an already permitted working copy of that same route. Select normal wc1-modern.exe for an attached copy. The separate win32-msvc420 reconstruction package is not this player. Use your own full Wing Commander Kilrathi Saga installation: GAMEDAT plus STREAMS/PREFLITE.STR, POSFLITE.STR and MISSION.STR. DOS support is partial and does not inherit this offer."
+            },
+            {
+              "title": "Choose the actual writable original directory in upstream setup",
+              "instruction": "A new managed engine starts its supported graphical launcher with --gui. Browse to the actual permitted, writable Kilrathi Saga directory, review graphics/joystick choices and choose Launch WC1. Startup checks include GAMEDAT/MODULE.000, CAMP.000 and INSTALL.DAT and the Saga streams; they are not a full original-file identity audit. Portcove does not copy or authenticate those originals. The launcher and game run in the same process; cancelling setup is separate from successful gameplay."
+            },
+            {
+              "title": "Preserve saves and the shared settings root",
+              "instruction": "The accepted upstream folder becomes the game working directory. Preserve the whole original tree, including SAVEGAME.WLD, unknown/custom files and any previous compatible runtime. Registry emulation also writes wc1-modern.cfg under the actual SDL preference directory for Origin Systems/WC Kilrathi Saga. These shared/external original, save and profile paths remain player-owned and outside Portcove-managed backups, restore and removal. A different engine folder does not isolate them; close all actual users before changing shared state."
+            },
+            {
+              "title": "Keep the existing-copy launch coordinates",
+              "instruction": "For an attached working copy retain its actual prepared working directory and established supported literal arguments. Starting without arguments opens the graphical launcher; existing direct arguments use the creating working directory unless --gui is included. Keep that choice truthful rather than starting a new engine folder with direct-game flags and no original data. Review exact intent/consent and choose Play separately. Do not substitute --check, a compiler, installer or historical reproduction binary for normal play."
+            },
+            {
+              "title": "Keep runtime replacement and removal ownership separate",
+              "instruction": "Portcove manages replacement only for its separate managed engine; it does not adopt or move the original installation/profile. An attached copy keeps upstream/player ownership of preparation, runtime replacement, recovery and every external file. Preserve the old creating runtime and all actual state before updates; backward saves, alternate renderers, mods and controllers are not qualified here. Review/relink deliberate external executable replacement before Play. Removing a registration preserves external files; neither route promises to delete or back up outside originals, SAVEGAME.WLD or shared SDL preferences."
+            }
+          ],
+          "warnings": [
+            "Use only game data and components you are already permitted to use. The engine license does not grant rights to unrelated assets, music or modifications.",
+            "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
+          ]
+        }
+      }
+    },
+    {
       "id": "wipeout-phantom-edition",
       "name": "WipeOut Phantom Edition",
       "summary": "Use an upstream-prepared WipeOut Phantom Edition player with matching originals; runtime maintenance and player data stay upstream-owned.",
