@@ -201,7 +201,7 @@ Object.assign(globalThis.postsignFixture,{
 });
 const routes={'./release-hosted-native-parent.mts':"export const requireActualHostedNativeParentSource=globalThis.postsignFixture.parent;",'./release-coordinator-recovery.mts':"export const recoverRemoteCoordinator=globalThis.postsignFixture.recover; export const hydrateRetainedCoordinatorOperation=globalThis.postsignFixture.hydrate;",'node:fs/promises':"export {chmod,mkdtemp} from 'node:fs/promises'; export const writeFile=globalThis.postsignFixture.write;",
  './release-hosted-native-postsign-inputs.mts':"export const requireActualHostedNativePostSignInputs=globalThis.postsignFixture.inputs;",
- './release-authority-configuration.mts':"export const inspectSelectedPublicationAuthorityConfiguration=globalThis.postsignFixture.config;export const applicationReleaseProfile=()=>"initial-beta-win-linux";export const applicationPublicBuildInputs=()=>undefined;",
+ './release-authority-configuration.mts':"export const inspectSelectedPublicationAuthorityConfiguration=globalThis.postsignFixture.config;export const applicationReleaseProfile=()=>'initial-beta-win-linux';export const applicationPublicBuildInputs=()=>undefined;",
  './release-native-publication-admission.mts':"export const deriveHostedNativePublicationJourneys=globalThis.postsignFixture.derive;",
  './release-artifact-archive.mts':"export const discoverReleaseArtifactFiles=globalThis.postsignFixture.discover;",
  './github-api.mts':"export class GitHubApiClient{request(...args){return globalThis.postsignFixture.request(...args)}paginateRest(){return [{id:9}]}};export const createGitHubRunner=()=>()=>{throw Error('unexpected CLI')};",
