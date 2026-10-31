@@ -24,7 +24,7 @@
       },
       "context_observed_at": "2026-10-31T01:42:31.912Z",
       "canonical_body_sha256_at_pickup": "190f461326b51abd34b0f3f547ba01a66546c18070e9b057239b0395acf5b1b7",
-      "authored_sha256": "fc56d199d46dae6b0c730f6146a59e3f34cfb3dff493ae29d86eace46cc50a2b",
+      "authored_sha256": "dba06ea78f1b636a7bcae8c9ea2e2482c78581ad1c9c3835e05bbe8571777a8e",
       "offered_operation": "Conditional already-permitted fully upstream-prepared Windows existing native player; original three-disc assembly/admission and managed replacement unoffered.",
       "applicable_existing_or_new_case": "reblue_prepared_player_preserves_strict_definition_route_56",
       "new_game_package_original_execution": "not_run"
@@ -721,10 +721,10 @@
     "scope": "Actual published resolver/Windows build parameter and CMake observations bind selected SDK source interface; no acquired package bytes or complete source-to-binary/transitive certification."
   },
   "reblue_selected_interface_facts": [
-    "Installed Windows reblue.exe with explicit --game_data_root=ABS/base and --profile=actualname is distinct from wizard/setup copy; --no-bd_update_check is supported by exact SDK CLI/no-form and command-line priority. Windows normal entry invokes the same-process application/message loop.",
-    "Explicit game_data_root selects install parent without shared registry lookup and bypasses wizard/version-write path after default.xex existence check; that file and marker/container/title fingerprints are not complete three-disc or private-output identity. All3own supported GlobalUS/EU discs and completed upstream preparation remain external prerequisites.",
+    "Installed Windows reblue.exe with explicit --game_data_root=ABS_ROOT/game and --profile=actualname is distinct from wizard/setup copy; --no-bd_update_check is supported by exact SDK CLI/no-form and command-line priority. Windows normal entry invokes the same-process application/message loop.",
+    "InstallConfig::game_data_path and installer producer use root/game; base in a downstream error string is stale. Explicit game_data_root must name the actual prepared directory directly beneath the same creating installed root (normally root/game), so its parent matches the executable/profile/cache root. Preserve any established supported custom direct-child tree; do not rename or select unrelated external data. This avoids shared registry lookup and bypasses wizard/version-write path after default.xex presence, not complete three-disc or private-output identity. All3own supported GlobalUS/EU discs and completed upstream preparation remain external prerequisites.",
     "Startup ClearReplacedFiles/InstallStagedUpdate may replace/relaunch before update-check settings; settle pending.update/recovery upstream, never delete staging to simulate readiness. BeginCheck false stops its update/content request path, not all networking or user/UI reenabling. Backend/warm-reboot successors remain unadopted.",
-    "Title routing overrides generic SDK user_data_root/cache_root. Preserve actual install/profiles/name plus bd_saves_path/bd_cache_path, root/base/mods/DLC/logs/private outputs, legacy paths, .reblue_install and HKCU/Software/Zolaware/reblue/Install history. No new marker/registry rewrite or relocation is offered.",
+    "Title routing overrides generic SDK user_data_root/cache_root. Preserve actual install/profiles/name plus bd_saves_path/bd_cache_path, root/game/mods/DLC/logs/private outputs, legacy paths, .reblue_install and HKCU/Software/Zolaware/reblue/Install history. No new marker/registry rewrite or relocation is offered.",
     "Normal DLC/profile/cache writes and migration remain upstream-owned; default1.5second forced-exit watchdog is not clean-save certification."
   ],
   "persona_exact_continuity": {
@@ -814,16 +814,6 @@
       "sha256": "b5f511132dce1868300143e80a0e05e3d3a8b73c9295477767ea34ed12762224"
     },
     {
-      "name": "docs-parent-reconciliation.json",
-      "bytes": 612,
-      "sha256": "5b49afbf7cffd65210e566b79a606b48b73f6f492109dbbcce8ccd4a729e33b3"
-    },
-    {
-      "name": "draft-root-correction.json",
-      "bytes": 900,
-      "sha256": "e16b49b4f9e67c5af9d9276f32c61f75d7000f507ab7fc5afb0c4285a943b4ed"
-    },
-    {
       "name": "issue-143-pickup.json",
       "bytes": 20331,
       "sha256": "4c4be7a9667051e796dc44354e9531ddf5448d800bdaf3f19bc8cc4c1a9e4f13"
@@ -837,11 +827,6 @@
       "name": "issue-56-pickup.json",
       "bytes": 15885,
       "sha256": "8973c136dce5a2d889c7b34d27be87f65f426b1199c0f61b15b2e0ba85974d87"
-    },
-    {
-      "name": "main-before-parent-reconciliation.json",
-      "bytes": 334,
-      "sha256": "d4cd477fa81bf43e9d2214f86c2a763f4c3d499b7f6df0adf3678f626b896240"
     },
     {
       "name": "persona-5691704845.json",
@@ -879,19 +864,9 @@
       "sha256": "3ac0f5588feb4c01c2326afcc7b97054f5bbc38944a59a9ea4a95bb5ae9547cc"
     },
     {
-      "name": "pickup-comment-result.json",
-      "bytes": 305,
-      "sha256": "093f9a31675687a250e9a1fb4c7f5f3128085cd9a02d0727202bca82cd6bf1f8"
-    },
-    {
       "name": "pr-3741.json",
       "bytes": 24030,
       "sha256": "71cb50d448f745fd1993a5d6a6fef04de6032a0b0d9e6e1f20d25a4388f96020"
-    },
-    {
-      "name": "pr-4108-parent-readback.json",
-      "bytes": 19840,
-      "sha256": "2ad143ac699fa1a13a4f850f344bebf48bfbec575058c8f13368ab97878b3d2a"
     },
     {
       "name": "pr-829.json",
@@ -907,11 +882,6 @@
       "name": "prechange-helper-oracle.json",
       "bytes": 770,
       "sha256": "26f24d10962d8cda6d57b402a5c419b1b6b36fef2b88fce0929a80989a98d70f"
-    },
-    {
-      "name": "prepare-56-result.json",
-      "bytes": 948,
-      "sha256": "88e13fafe793569ec274e921e5f727b33231d0bf4fc7132d12c8a1abfd6fed9f"
     },
     {
       "name": "reblue-current-tree.json",
@@ -974,11 +944,6 @@
       "sha256": "ee4b6ca16f34ea0e360a1704272a79eba604a96ea06e17437f31c5aad68f7d8c"
     },
     {
-      "name": "record-56-candidate.json",
-      "bytes": 7315,
-      "sha256": "fc56d199d46dae6b0c730f6146a59e3f34cfb3dff493ae29d86eace46cc50a2b"
-    },
-    {
       "name": "record-56-pickup.json",
       "bytes": 1862,
       "sha256": "465ad314aaf760bceecedd1fdb5dffff29b374426bae42fc9b6b3c416440149f"
@@ -1007,11 +972,6 @@
       "name": "redriver2-selected-tag.json",
       "bytes": 179848,
       "sha256": "442d6dc0195581720fa5b84dc5351fbaf829b1c72a9a62853719b01288aafaa2"
-    },
-    {
-      "name": "test-extraction-preformat-proof.json",
-      "bytes": 406,
-      "sha256": "6fae351906d90f24874a2c7949ec535c2e6082c3c774fe2c14c715a5b5096b7a"
     }
   ],
   "limits": [
