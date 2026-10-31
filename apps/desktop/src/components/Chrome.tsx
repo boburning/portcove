@@ -1013,7 +1013,7 @@ function GithubSettings({
 
 type SourceRequirementsState = "loading" | "available" | "unavailable";
 const sourceRequirementsBase = "source-requirements mt-4 mb-5 rounded-pc-lg border p-3.5";
-const sourceRequirementsClass = `${sourceRequirementsBase} grid gap-2 border-[var(--color-warning-border)] bg-pc-warning-subtle`;
+const sourceRequirementsClass = `${sourceRequirementsBase} grid grid-cols-1 gap-2 border-[var(--color-warning-border)] bg-pc-warning-subtle`;
 
 function SourceRequirements({
   requirements,
@@ -1163,7 +1163,7 @@ function SourceHealth({
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
-    <SettingsRow className="source-health col-span-full min-h-0" data-focus-group>
+    <SettingsRow className="source-health col-span-full min-h-0 grid-cols-1" data-focus-group>
       <div className="settings-title flex items-center justify-between gap-[12px]">
         <h2 className="m-0 flex items-center gap-2">Game files and BIOS</h2>
         <Button
