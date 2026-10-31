@@ -1,6 +1,6 @@
-/** Initial backup appointments only. No Root, grant, publisher or production
- * configuration is installed by this public inventory. Payload credentials are
- * outside this explicitly named pre-payload snapshot, never silently omitted. */
+/** Explicit initial or complete backup appointments. No Root, grant, publisher
+ * or production configuration is installed by this public inventory. Historical
+ * pre-payload snapshots retain their original scope and authenticated context. */
 import { createHash } from "node:crypto";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -33,6 +33,14 @@ function hex(value: unknown, length = 64): asserts value is string {
     throw new Error("initial custody public identity differs");
 }
 export function inspectInitialKeyCustodyInventory(bytes: Buffer, expectedSha256: string) {
+  return inspectInventory(bytes, expectedSha256, false);
+}
+/** Complete release custody is explicitly selected; the historical initial
+ * snapshot cannot acquire payload coverage merely by changing a label. */
+export function inspectCompleteKeyCustodyInventory(bytes: Buffer, expectedSha256: string) {
+  return inspectInventory(bytes, expectedSha256, true);
+}
+function inspectInventory(bytes: Buffer, expectedSha256: string, complete: boolean) {
   hex(expectedSha256);
   if (
     bytes.length < 1 ||
@@ -43,13 +51,15 @@ export function inspectInitialKeyCustodyInventory(bytes: Buffer, expectedSha256:
   const value: unknown = JSON.parse(bytes.toString("utf8"));
   exact(
     value,
-    "schema_version,kind,repository_id,source_commit,source_tree,creation_receipt_sha256,payload_credential,keys,apps",
+    "schema_version,kind,repository_id,source_commit,source_tree,creation_receipt_sha256,payload_credential,keys,apps" +
+      (complete ? ",payload" : ""),
   );
   if (
     value.schema_version !== 1 ||
-    value.kind !== "initial-pre-payload-key-custody-v1" ||
+    value.kind !==
+      (complete ? "complete-release-key-custody-v1" : "initial-pre-payload-key-custody-v1") ||
     value.repository_id !== 1354613114 ||
-    value.payload_credential !== "not-created-not-covered" ||
+    value.payload_credential !== (complete ? "covered" : "not-created-not-covered") ||
     !Array.isArray(value.keys) ||
     value.keys.length !== initialCustodyTufRoles.length
   )
@@ -104,8 +114,57 @@ export function inspectInitialKeyCustodyInventory(bytes: Buffer, expectedSha256:
       installation_id: app.installation_id,
     };
   });
+  const payload = [];
+  if (complete) {
+    exact(value.payload, "profile,public_key_base64,public_key_sha256,ed25519_public_key");
+    hex(value.payload.public_key_sha256);
+    hex(value.payload.ed25519_public_key);
+    const payloadPublic = value.payload.ed25519_public_key;
+    if (
+      value.payload.profile !== "tauri-minisign-empty-password-v1" ||
+      typeof value.payload.public_key_base64 !== "string" ||
+      !value.payload.public_key_base64.length ||
+      value.payload.public_key_base64.length > 4096 ||
+      Buffer.from(value.payload.public_key_base64, "base64").toString("base64") !==
+        value.payload.public_key_base64 ||
+      createHash("sha256").update(value.payload.public_key_base64).digest("hex") !==
+        value.payload.public_key_sha256 ||
+      keys.some((key) => key.public_key.keyval.public === payloadPublic)
+    )
+      throw new Error("complete custody payload public identity differs");
+    // Structural public-box validation only; private correspondence remains
+    // the maintained Minisign inspector's job. Tauri's public wire is Ed,
+    // an eight-byte key number, then the 32-byte Ed25519 public key.
+    const decoded = Buffer.from(value.payload.public_key_base64, "base64");
+    const text = decoded.toString("utf8");
+    const lines = (text.endsWith("\n") ? text.slice(0, -1) : text).split("\n");
+    const raw = Buffer.from(lines[1] ?? "", "base64");
+    if (
+      !Buffer.from(text).equals(decoded) ||
+      lines.length !== 2 ||
+      !lines[0]!.startsWith("untrusted comment: ") ||
+      lines[0]!.length > 256 ||
+      lines[0]!.includes("\r") ||
+      raw.toString("base64") !== lines[1] ||
+      raw.length !== 42 ||
+      raw.subarray(0, 2).toString("ascii") !== "Ed" ||
+      raw.subarray(10).toString("hex") !== value.payload.ed25519_public_key
+    )
+      throw new Error("complete custody payload public encoding differs");
+    payload.push({
+      role: "application-payload",
+      key_id: value.payload.public_key_sha256,
+      kind: "payload" as const,
+      public_key: {
+        profile: value.payload.profile,
+        base64: value.payload.public_key_base64,
+        ed25519_public_key: value.payload.ed25519_public_key,
+      },
+    });
+  }
   const bindings = [
     ...keys,
+    ...payload,
     ...apps.map((app) => ({
       role: app.role,
       key_id: app.key_id,
@@ -114,8 +173,8 @@ export function inspectInitialKeyCustodyInventory(bytes: Buffer, expectedSha256:
     })),
   ].sort((a, b) => a.role.localeCompare(b.role));
   if (
-    new Set(bindings.map((b) => b.role)).size !== 15 ||
-    new Set(bindings.map((b) => b.key_id)).size !== 15 ||
+    new Set(bindings.map((b) => b.role)).size !== (complete ? 16 : 15) ||
+    new Set(bindings.map((b) => b.key_id)).size !== (complete ? 16 : 15) ||
     new Set(keys.map((b) => b.public_key.keyval.public)).size !== 13 ||
     apps[0]!.public_key.app_id === apps[1]!.public_key.app_id ||
     apps[0]!.installation_id === apps[1]!.installation_id

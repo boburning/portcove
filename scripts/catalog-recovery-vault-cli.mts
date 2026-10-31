@@ -17,6 +17,9 @@ import {
   prepareInitialKeyCustodyRecoveryPlan,
   createInitialKeyCustodyRecoveryVault,
   restoreInitialKeyCustodyRecoveryVault,
+  prepareCompleteKeyCustodyRecoveryPlan,
+  createCompleteKeyCustodyRecoveryVault,
+  restoreCompleteKeyCustodyRecoveryVault,
 } from "./catalog-recovery-vault.mts";
 
 const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
@@ -122,20 +125,25 @@ function configuration(value: unknown) {
     key_paths,
   };
 }
-function initialConfiguration(value: unknown) {
+function initialConfiguration(value: unknown, complete = false) {
   exact(value, "schema_version,profile,inventory,inspector,tool_parent,private_parent,key_paths");
-  if (value.schema_version !== 1 || value.profile !== "initial-pre-payload-owner-passphrase-tty-v1")
+  const profile = complete
+    ? ("complete-release-owner-passphrase-tty-v1" as const)
+    : ("initial-pre-payload-owner-passphrase-tty-v1" as const);
+  const count = complete ? 16 : 15;
+  if (value.schema_version !== 1 || value.profile !== profile)
     throw new Error("explicit initial pre-payload custody profile required");
   exact(value.inspector, "path,sha256,source_commit,source_tree");
-  if (!isRecord(value.key_paths) || Object.keys(value.key_paths).length !== 15)
+  if (!isRecord(value.key_paths) || Object.keys(value.key_paths).length !== count)
     throw new Error("complete initial pre-payload custody paths required");
   const key_paths = Object.fromEntries(
     Object.entries(value.key_paths).map(([role, filename]) => [role, absolute(filename)]),
   );
-  if (new Set(Object.values(key_paths)).size !== 15) throw new Error("private custody paths alias");
+  if (new Set(Object.values(key_paths)).size !== count)
+    throw new Error("private custody paths alias");
   return {
     schema_version: 1,
-    profile: "initial-pre-payload-owner-passphrase-tty-v1" as const,
+    profile,
     inventory: pin(value.inventory),
     inspector: {
       path: absolute(value.inspector.path),
@@ -158,9 +166,11 @@ export async function prepareOwnerRecoveryReview(
     throw new Error("independently retained owner configuration pin differs before tool execution");
   const raw = parse(configBytes);
   const config =
-    isRecord(raw) && raw.profile === "initial-pre-payload-owner-passphrase-tty-v1"
-      ? initialConfiguration(raw)
-      : configuration(raw);
+    isRecord(raw) && raw.profile === "complete-release-owner-passphrase-tty-v1"
+      ? initialConfiguration(raw, true)
+      : isRecord(raw) && raw.profile === "initial-pre-payload-owner-passphrase-tty-v1"
+        ? initialConfiguration(raw)
+        : configuration(raw);
   const inspector = {
     verifier: config.inspector.path,
     verifierSha256: config.inspector.sha256,
@@ -170,7 +180,11 @@ export async function prepareOwnerRecoveryReview(
   };
   const prepare = async () => {
     if ("inventory" in config)
-      return await prepareInitialKeyCustodyRecoveryPlan({
+      return await (
+        config.profile === "complete-release-owner-passphrase-tty-v1"
+          ? prepareCompleteKeyCustodyRecoveryPlan
+          : prepareInitialKeyCustodyRecoveryPlan
+      )({
         ...inspector,
         inventory: await readControllerToolFile(config.inventory.path, 65536),
         expectedInventorySha256: config.inventory.sha256,
@@ -228,9 +242,11 @@ export async function prepareOwnerRecoveryReview(
     review: {
       schema_version: 1,
       operation:
-        "inventory" in config
-          ? "review-initial-pre-payload-owner-recovery"
-          : "review-catalog-owner-recovery",
+        config.profile === "complete-release-owner-passphrase-tty-v1"
+          ? "review-complete-release-owner-recovery"
+          : "inventory" in config
+            ? "review-initial-pre-payload-owner-recovery"
+            : "review-catalog-owner-recovery",
       review_for: operation,
       profile: config.profile,
       config_sha256: hash(configBytes),
@@ -322,7 +338,9 @@ export async function runOwnerRecoveryCommand(command: Command, signal?: AbortSi
   if (command.operation === "create")
     return await (
       "inventory" in prepared.config
-        ? createInitialKeyCustodyRecoveryVault
+        ? prepared.config.profile === "complete-release-owner-passphrase-tty-v1"
+          ? createCompleteKeyCustodyRecoveryVault
+          : createInitialKeyCustodyRecoveryVault
         : createCatalogRecoveryVault
     )({
       plan: prepared.plan,
@@ -348,7 +366,9 @@ export async function runOwnerRecoveryCommand(command: Command, signal?: AbortSi
     });
   return await (
     "inventory" in prepared.config
-      ? restoreInitialKeyCustodyRecoveryVault
+      ? prepared.config.profile === "complete-release-owner-passphrase-tty-v1"
+        ? restoreCompleteKeyCustodyRecoveryVault
+        : restoreInitialKeyCustodyRecoveryVault
       : restoreCatalogRecoveryVault
   )({
     plan: prepared.plan,
