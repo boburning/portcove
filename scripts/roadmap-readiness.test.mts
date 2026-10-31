@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   analyzeReleaseReadiness,
+  inspectReadinessReleaseProfile,
   renderReadinessSummary,
   completionEvidenceLinks,
   dependencyCycles,
@@ -389,6 +390,122 @@ void test("snapshot output is confined to docs/releases", () => {
     },
   });
   const items = () => [item(49, [706]), item(706)];
+  const windowsProfile = "initial-beta-windows-x86_64-v1";
+  void test("explicit Windows readiness excludes only canonical Linux auto-promotion and retains its planned disclosure", () => {
+    let approvalReads = 0;
+    const unusedApproval = new Proxy(
+      {},
+      {
+        get() {
+          approvalReads++;
+          throw new Error("Linux approval must not be consumed");
+        },
+      },
+    );
+    const input = items();
+    const result = analyzeReleaseReadiness(input, "Public beta", {
+      releaseProfile: windowsProfile,
+      risk706Approval: unusedApproval,
+    });
+    assert.equal(approvalReads, 0);
+    assert.equal(result.releaseProfile, windowsProfile);
+    assert.equal(result.ready, true);
+    assert.deepEqual(result.effectiveRequired, []);
+    assert.deepEqual(result.excludedLinuxRisk706, input);
+    assert.deepEqual(result.planned, input);
+    assert.deepEqual(result.pendingRiskDispositions, []);
+    assert.equal(result.candidateDisposition706, null);
+    assert.match(renderReadinessSummary(result), /initial-beta-windows-x86_64-v1/);
+    assert.match(renderReadinessSummary(result), /excluded from automatic promotion/);
+    assert.match(renderReadinessSummary(result), /No Linux risk disposition is consumed/);
+    assert.ok(input.every((i) => i.status === "Blocked" && i["release commitment"] === "Planned"));
+    const full = analyzeReleaseReadiness(input, "Public beta");
+    const historical = analyzeReleaseReadiness(input, "Public beta", {
+      releaseProfile: "initial-beta-win-linux",
+    });
+    for (const broader of [full, historical]) {
+      assert.equal(broader.ready, false);
+      assert.equal(broader.effectiveRequired.length, 2);
+      assert.equal(broader.pendingRiskDispositions.length, 2);
+      assert.deepEqual(broader.excludedLinuxRisk706, []);
+    }
+  });
+  void test("Windows readiness preserves explicit Required roots, genuine Linux dependencies and shared security", () => {
+    const root = { ...item(100, [49]), platform: "Windows", "release commitment": "Required" };
+    const result = analyzeReleaseReadiness([root, ...items()], "Public beta", {
+      releaseProfile: windowsProfile,
+    });
+    assert.equal(result.ready, false);
+    assert.deepEqual(
+      new Set(result.effectiveRequired.map((i) => fixtureValue(i.content).number)),
+      new Set([49, 100, 706]),
+    );
+    assert.equal(result.unfinishedRequired.length, 3);
+    assert.equal(result.dependencyConflicts.length, 2);
+    assert.deepEqual(result.excludedLinuxRisk706, []);
+    for (const input of [
+      [{ ...item(49), "release commitment": "Required" }],
+      [item(99)],
+      [{ ...item(49), platform: "Windows" }],
+      [{ ...item(49), content: { ...item(49).content, url: "https://example.test/issues/49" } }],
+    ]) {
+      const refused = analyzeReleaseReadiness(input, "Public beta", {
+        releaseProfile: windowsProfile,
+      });
+      assert.equal(refused.ready, false);
+      assert.deepEqual(refused.excludedLinuxRisk706, []);
+    }
+  });
+  void test("readiness profile cannot alias platforms, change milestone scope or consume Linux risk evidence", () => {
+    assert.deepEqual(
+      parseArguments([
+        "readiness",
+        "--release",
+        "Public beta",
+        "--release-profile",
+        windowsProfile,
+      ]),
+      {
+        command: "readiness",
+        options: { "--release": "Public beta", "--release-profile": windowsProfile },
+        positionals: [],
+      },
+    );
+    assert.throws(() => parseArguments(["readiness", "--release-profile"]), /requires a value/);
+    for (const profile of [
+      "unknown",
+      "initial-beta-windows",
+      "initial-beta-windows-aarch64-v1",
+      "",
+      null,
+    ])
+      assert.throws(
+        () => analyzeReleaseReadiness(items(), "Public beta", { releaseProfile: profile }),
+        /profile/,
+      );
+    assert.throws(() => inspectReadinessReleaseProfile(windowsProfile, "1.0"), /Public beta/);
+    assert.throws(
+      () => inspectReadinessReleaseProfile(windowsProfile, "Public beta", true),
+      /cannot consume/,
+    );
+    for (const packet of [{}, false, "refused"])
+      assert.throws(
+        () =>
+          analyzeReleaseReadiness(items(), "Public beta", {
+            releaseProfile: windowsProfile,
+            risk706Evidence: packet,
+          }),
+        /cannot consume/,
+      );
+    assert.throws(
+      () =>
+        analyzeReleaseReadiness(items(), "Public beta", {
+          releaseProfile: windowsProfile,
+          candidateIssues: [49],
+        }),
+      /candidate issue scope/,
+    );
+  });
   function evidence() {
     const policy = { ...canonicalApproval, firstPublicationTag: "v0.1.0-beta.1" };
     const candidate = {

@@ -52,6 +52,7 @@ export {
 import {
   dependencyCycles,
   analyzeReleaseReadiness,
+  inspectReadinessReleaseProfile,
   renderReadinessSummary,
   completionEvidenceLinks,
   renderSnapshot,
@@ -1322,7 +1323,7 @@ Usage:
   node scripts/roadmap.mts context --issue <number> --runner <identity> [--coordination-pr <number>] [--consumed-file <path> | --consumed-comment <url>] [--reservation-comment <url>] [--json]
   node scripts/roadmap.mts history --issue <number> [--coordination-pr <number>] [--json]
   node scripts/roadmap.mts rename-commitment [--apply]
-  node scripts/roadmap.mts readiness --release <release> [--linux-beta-706]
+  node scripts/roadmap.mts readiness --release <release> [--release-profile <profile>] [--linux-beta-706]
   node scripts/roadmap.mts candidate-scope --issues <issue,issue,...>
   node scripts/roadmap.mts snapshot --release <release> --output <docs/releases/path>
   node scripts/roadmap.mts --help
@@ -1398,7 +1399,7 @@ const roadmapCommandGuidance: Readonly<Record<string, readonly [string, string]>
     "rename-commitment",
   ],
   readiness: [
-    "Assess the requested release against live Project commitments and dependencies. --linux-beta-706 selects the separately scoped Linux beta disposition.",
+    "Assess live Project commitments and dependencies; --release-profile binds an explicit application profile. --linux-beta-706 selects the separate Linux disposition and cannot accompany the Windows-only profile.",
     "readiness --release 'Public beta'",
   ],
   "candidate-scope": [
@@ -4599,10 +4600,17 @@ async function main(argv: readonly string[]) {
       return;
     }
     if (parsed.command === "readiness") {
-      executionOptions(parsed, ["--release", "--linux-beta-706"]);
+      executionOptions(parsed, ["--release", "--release-profile", "--linux-beta-706"]);
       if ("--linux-beta-706" in parsed.options && parsed.options["--linux-beta-706"] !== true)
         throw new Error("--linux-beta-706 does not accept a value");
       const release = requiredOption(parsed.options, "--release");
+      const releaseProfile = inspectReadinessReleaseProfile(
+        "--release-profile" in parsed.options
+          ? requiredOption(parsed.options, "--release-profile")
+          : "full",
+        release,
+        parsed.options["--linux-beta-706"] === true,
+      );
       let risk706Evidence = null;
       let risk706Output = null;
       if (parsed.options["--linux-beta-706"]) {
@@ -4615,7 +4623,7 @@ async function main(argv: readonly string[]) {
       const analysis = analyzeReleaseReadiness(
         (await runDoctor(config, client, { quiet: true })).items,
         release,
-        { risk706Evidence },
+        { risk706Evidence, releaseProfile },
       );
       if (analysis.candidateDisposition706)
         writeFileSync(

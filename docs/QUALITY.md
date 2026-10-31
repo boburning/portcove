@@ -128,6 +128,15 @@ of the application release profile. Shared correctness and tooling checks may
 execute on Linux, macOS or WSL for Windows delivery. A Windows application
 profile does not disable those checks or change the five required contexts.
 
+`node scripts/roadmap.mts readiness --release "Public beta" --release-profile
+initial-beta-windows-x86_64-v1` explicitly selects the corresponding planning
+assessment. It omits only the canonical Linux #49/#706 special automatic
+promotion, reports their retained planned scope, and preserves every explicit
+Required root and genuine blocking dependency. It refuses `--linux-beta-706`;
+Windows scope cannot consume a Linux risk disposition. Default/full readiness
+and `doctor` keep the broader assessment. Selection alone establishes no native,
+package, publication or live readiness acceptance.
+
 Existing deterministic receipts can reuse complete unchanged input, recipe,
 tool/runtime and environment identities. Trusted main hosted bundles may supply
 independently passed stages even when another stage failed. Preserve the entire
