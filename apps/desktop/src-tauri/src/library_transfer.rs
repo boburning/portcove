@@ -176,9 +176,12 @@ where
     };
     // Probe only the formerly selected, validated root. An explicit recovery
     // path must reach Core's validation without a host-created lease directory.
-    let drained = outgoing_root.as_deref().map_or(Ok(()),
-        crate::library_selection::wait_for_outgoing_library);
-    let result = drained.and_then(|()| operation(&root)).map_err(DesktopError::from);
+    let drained = outgoing_root
+        .as_deref()
+        .map_or(Ok(()), crate::library_selection::wait_for_outgoing_library);
+    let result = drained
+        .and_then(|()| operation(&root))
+        .map_err(DesktopError::from);
     let active_root = result.as_ref().map_or_else(|_| root.clone(), active_root);
     let reopened = initialize_desktop_at(Some(active_root)).map_err(|mut error| {
         if !error.details.contains_key("import_destination") {
@@ -313,7 +316,10 @@ mod tests {
             generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
-        let plan = service(&state).unwrap().plan_library_move(&destination).unwrap();
+        let plan = service(&state)
+            .unwrap()
+            .plan_library_move(&destination)
+            .unwrap();
         let held = service(&state).unwrap();
         let reader = std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(250));
@@ -331,7 +337,10 @@ mod tests {
         let reopened = bootstrap_status(&state);
         assert!(reopened.ready);
         assert_eq!(reopened.generation, 2);
-        assert_eq!(reopened.library_root.unwrap(), fs::canonicalize(destination).unwrap());
+        assert_eq!(
+            reopened.library_root.unwrap(),
+            fs::canonicalize(destination).unwrap()
+        );
         assert!(crate::service_at_generation(&state, 1).is_err());
         assert!(crate::service_at_generation(&state, 2).is_ok());
     }
@@ -359,7 +368,10 @@ mod tests {
             |root| {
                 called.set(true);
                 assert_eq!(root, recovery);
-                assert!(!root.exists(), "host drain must not create an unvalidated recovery path");
+                assert!(
+                    !root.exists(),
+                    "host drain must not create an unvalidated recovery path"
+                );
                 Err(PortcoveError::state("injected Core recovery refusal"))
             },
             |_| unreachable!("the operation refused recovery"),
