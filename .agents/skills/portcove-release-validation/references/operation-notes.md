@@ -14,6 +14,13 @@ Stop provisioning retries that produce no new diagnostic evidence; retain the
 failed attempt and exact owned-resource cleanup/resume state while independent
 work continues under its existing gates.
 
+For manual provider App setup, validate the selected manifest against provider
+constraints before the human window. A creation callback leaves installation
+pending: provide its authenticated installation URL, then verify the complete
+installation selection rather than a repository-narrowed token. Retain failed
+attempts; require a verified changed prerequisite and bounded reviewed recovery
+before resuming. Neither creation nor installation appoints production authority.
+
 For Windows storage fixtures, validate guards against actual provider values
 before side effects, preferring documented typed values to display labels.
 Distinguish disk UniqueId, partition DiskId, volume identities, file length and
