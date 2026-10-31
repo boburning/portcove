@@ -14,6 +14,9 @@ import {
   restoreCatalogRecoveryVault,
   readCatalogCustodyMaterial,
   requireOwnerRecoveryTty,
+  prepareInitialKeyCustodyRecoveryPlan,
+  createInitialKeyCustodyRecoveryVault,
+  restoreInitialKeyCustodyRecoveryVault,
 } from "./catalog-recovery-vault.mts";
 
 const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
@@ -119,6 +122,32 @@ function configuration(value: unknown) {
     key_paths,
   };
 }
+function initialConfiguration(value: unknown) {
+  exact(value, "schema_version,profile,inventory,inspector,tool_parent,private_parent,key_paths");
+  if (value.schema_version !== 1 || value.profile !== "initial-pre-payload-owner-passphrase-tty-v1")
+    throw new Error("explicit initial pre-payload custody profile required");
+  exact(value.inspector, "path,sha256,source_commit,source_tree");
+  if (!isRecord(value.key_paths) || Object.keys(value.key_paths).length !== 15)
+    throw new Error("complete initial pre-payload custody paths required");
+  const key_paths = Object.fromEntries(
+    Object.entries(value.key_paths).map(([role, filename]) => [role, absolute(filename)]),
+  );
+  if (new Set(Object.values(key_paths)).size !== 15) throw new Error("private custody paths alias");
+  return {
+    schema_version: 1,
+    profile: "initial-pre-payload-owner-passphrase-tty-v1" as const,
+    inventory: pin(value.inventory),
+    inspector: {
+      path: absolute(value.inspector.path),
+      sha256: hex(value.inspector.sha256),
+      source_commit: hex(value.inspector.source_commit, 40),
+      source_tree: hex(value.inspector.source_tree, 40),
+    },
+    tool_parent: absolute(value.tool_parent),
+    private_parent: absolute(value.private_parent),
+    key_paths,
+  };
+}
 export async function prepareOwnerRecoveryReview(
   filename: string,
   operation: "create" | "restore",
@@ -127,22 +156,38 @@ export async function prepareOwnerRecoveryReview(
   const configBytes = await readControllerToolFile(absolute(filename), 65536);
   if (hash(configBytes) !== hex(expectedConfigurationSha256))
     throw new Error("independently retained owner configuration pin differs before tool execution");
-  const config = configuration(parse(configBytes));
-  const publicConfiguration = await readControllerToolFile(config.configuration.path, 32768);
-  if (hash(publicConfiguration) !== config.configuration.sha256)
-    throw new Error("independent catalog configuration pin differs");
-  const plan = await prepareCatalogRecoveryPlan({
-    configuration: publicConfiguration,
-    expectedConfigurationSha256: config.configuration.sha256,
-    appPublicCaptures: config.app_public_captures,
+  const raw = parse(configBytes);
+  const config =
+    isRecord(raw) && raw.profile === "initial-pre-payload-owner-passphrase-tty-v1"
+      ? initialConfiguration(raw)
+      : configuration(raw);
+  const inspector = {
     verifier: config.inspector.path,
     verifierSha256: config.inspector.sha256,
     sourceCommit: config.inspector.source_commit,
     sourceTree: config.inspector.source_tree,
-    trustedRoot: config.public_inputs.trusted_root,
-    offlineTargets: config.public_inputs.offline_targets,
     parent: config.private_parent,
-  });
+  };
+  const prepare = async () => {
+    if ("inventory" in config)
+      return await prepareInitialKeyCustodyRecoveryPlan({
+        ...inspector,
+        inventory: await readControllerToolFile(config.inventory.path, 65536),
+        expectedInventorySha256: config.inventory.sha256,
+      });
+    const publicConfiguration = await readControllerToolFile(config.configuration.path, 32768);
+    if (hash(publicConfiguration) !== config.configuration.sha256)
+      throw new Error("independent catalog configuration pin differs");
+    return await prepareCatalogRecoveryPlan({
+      ...inspector,
+      configuration: publicConfiguration,
+      expectedConfigurationSha256: config.configuration.sha256,
+      appPublicCaptures: config.app_public_captures,
+      trustedRoot: config.public_inputs.trusted_root,
+      offlineTargets: config.public_inputs.offline_targets,
+    });
+  };
+  const plan = await prepare();
   const expected = plan.bindings.map((binding) => binding.role).sort();
   if (
     !Object.keys(config.key_paths)
@@ -182,7 +227,10 @@ export async function prepareOwnerRecoveryReview(
     appointments,
     review: {
       schema_version: 1,
-      operation: "review-catalog-owner-recovery",
+      operation:
+        "inventory" in config
+          ? "review-initial-pre-payload-owner-recovery"
+          : "review-catalog-owner-recovery",
       review_for: operation,
       profile: config.profile,
       config_sha256: hash(configBytes),
@@ -272,7 +320,11 @@ export async function runOwnerRecoveryCommand(command: Command, signal?: AbortSi
     throw new Error("owner recovery review is stale; no custody content read");
   signal?.throwIfAborted();
   if (command.operation === "create")
-    return await createCatalogRecoveryVault({
+    return await (
+      "inventory" in prepared.config
+        ? createInitialKeyCustodyRecoveryVault
+        : createCatalogRecoveryVault
+    )({
       plan: prepared.plan,
       toolParent: prepared.config.tool_parent,
       parent: prepared.config.private_parent,
@@ -294,7 +346,11 @@ export async function runOwnerRecoveryCommand(command: Command, signal?: AbortSi
         },
       },
     });
-  return await restoreCatalogRecoveryVault({
+  return await (
+    "inventory" in prepared.config
+      ? restoreInitialKeyCustodyRecoveryVault
+      : restoreCatalogRecoveryVault
+  )({
     plan: prepared.plan,
     toolParent: prepared.config.tool_parent,
     parent: prepared.config.private_parent,
