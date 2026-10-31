@@ -17042,11 +17042,13 @@
     {
       "id": "einhander-einhander-recompiled",
       "name": "Einhänder / Einhander-Recompiled",
-      "summary": "Explore Einhänder / Einhander-Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an upstream-prepared Einhänder Windows player for your own supported USA disc. Upstream owns local generation and runtime replacement; Portcove can register the completed player.",
       "project_url": "https://github.com/strider973/Einhander-Recompiled",
       "issue_number": 350,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/strider973/Einhander-Recompiled",
       "artwork": {
         "game_id": 1360,
@@ -17055,6 +17057,31 @@
         "image_sha256": "d4ea5352ae0d8572e5fd9612111123508c8e67048fd1ec48c21bb51948391849",
         "game_slug": "einhander",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+      "manual_setup": {
+        "help_url": "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+        "steps": [
+          {
+            "title": "Complete the owned-input preparation upstream",
+            "instruction": "Use your own USA Einhänder PlayStation disc, SCUS-94243, as its CUE and every referenced BIN. The official Windows setup ZIP is a local build kit, not a ready game: it supplies no original disc, retail BIOS or generated game code. Complete upstream’s supported Generate & rebuild flow with its Python/toolchain outside Portcove. OpenBIOS is generated locally by default; an optional retail BIOS must be your own permitted copy. Keep the actual working disc and BIOS selections. This guide runs no compiler/helper and imports no original through Core."
+          },
+          {
+            "title": "Attach the completed product",
+            "instruction": "After successful upstream preparation, select build-release/Einhander_Recompiled.exe, the completed executable’s parent directory as working directory and the supported --launcher literal argument. Keep its staged game.toml and matching resources in place. The root setup executable starts a replacement product and exits on Windows, so select the completed product instead. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; an intentional rebuild can end or replace the process."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the whole creating project and effective player data",
+            "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        ]
       }
     },
     {
@@ -18243,11 +18270,13 @@
     {
       "id": "final-fantasy-tactics-finfantacrecomp",
       "name": "Final Fantasy Tactics / FinFanTacRecomp",
-      "summary": "Explore Final Fantasy Tactics / FinFanTacRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Use an upstream-prepared Final Fantasy Tactics Windows player for your own supported USA disc. Upstream owns local generation and runtime replacement; Portcove can register the completed player.",
       "project_url": "https://github.com/NJH-1001/FinFanTacRecomp",
       "issue_number": 327,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/NJH-1001/FinFanTacRecomp",
       "artwork": {
         "game_id": 428,
@@ -18256,7 +18285,37 @@
         "image_sha256": "3650dc7805fd36ace8f43d3ed2e4ef31e35b46a52c22305cc3cb85a8be9a9956",
         "game_slug": "final-fantasy-tactics",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/NJH-1001/FinFanTacRecomp/releases/tag/v0.1.0",
+      "manual_setup": {
+        "help_url": "https://github.com/NJH-1001/FinFanTacRecomp/releases/tag/v0.1.0",
+        "steps": [
+          {
+            "title": "Keep only an independently permitted completed copy",
+            "instruction": "Fresh acquisition remains held on the separate project-code permission condition. The framework’s licence applies to its own components, not the title’s separately modified code. Continue only with an actual copy and components you are independently permitted to use."
+          },
+          {
+            "title": "Complete the owned-input preparation upstream",
+            "instruction": "Use your own USA Final Fantasy Tactics PlayStation disc, SCUS-94221, as its CUE and every referenced BIN. The official Windows setup ZIP is a local build kit, not a ready game: it supplies no original disc, retail BIOS or generated game code. Complete upstream’s supported Generate & rebuild flow with its Python/toolchain outside Portcove. OpenBIOS is generated locally by default; an optional retail BIOS must be your own permitted copy. Keep the actual working disc and BIOS selections. This guide runs no compiler/helper and imports no original through Core."
+          },
+          {
+            "title": "Attach the completed product",
+            "instruction": "After successful upstream preparation, select build-release/Final_Fantasy_Tactics_Recompiled.exe, the completed executable’s parent directory as working directory and the supported --launcher literal argument. Keep its staged game.toml and matching resources in place. The root setup executable starts a replacement product and exits on Windows, so select the completed product instead. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; an intentional rebuild can end or replace the process."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the whole creating project and effective player data",
+            "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        ]
+      },
+      "download_block_reason": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy."
     },
     {
       "id": "flow-static-recompilation-sp00nznet-flow",
@@ -35666,11 +35725,13 @@
     {
       "id": "silent-hill-silent-hill-decomp-pc-branch",
       "name": "Silent Hill / silent-hill-decomp PC branch",
-      "summary": "Explore Silent Hill / silent-hill-decomp PC branch and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, completed Silent Hill native Windows player. Fresh acquisition remains held on four expressly excluded packaged sound files.",
       "project_url": "https://github.com/SlickAmogus/silent-hill-decomp",
       "issue_number": 351,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/SlickAmogus/silent-hill-decomp",
       "artwork": {
         "game_id": 480,
@@ -35679,7 +35740,37 @@
         "image_sha256": "cd7fe4d5c1399b156b62e9ee46d767101b3da4a6ebb874d26cabb863a48b11f5",
         "game_slug": "silent-hill",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/SlickAmogus/silent-hill-decomp/releases/tag/crossplatform-beta",
+      "manual_setup": {
+        "help_url": "https://github.com/SlickAmogus/silent-hill-decomp/releases/tag/crossplatform-beta",
+        "steps": [
+          {
+            "title": "Keep an independently permitted completed copy",
+            "instruction": "The inspected SHPC_beta-2026.10.12.1.zip includes achievement.wav, steam.wav, trophy.wav and swish.wav. The project explicitly excludes these sounds from its licence grant and schedules replacement. Fresh acquisition stays held on that condition; a licence for the PC engine or its decompilation origin does not clear these separate assets."
+          },
+          {
+            "title": "Complete original selection and preparation upstream",
+            "instruction": "For the documented USA route, use your own Silent Hill PlayStation SLUS-00707 BIN image and complete upstream’s region/disc setup before registration, keeping the working image under its established gamedata path. Keep the actually working original path, source selections, matching native executable, map DLLs, gamedata, libraries, config.cfg and notices together. This guide does not import, authenticate, extract or convert an original, build the port or grant rights to game data."
+          },
+          {
+            "title": "Select the supported completed native entry",
+            "instruction": "Select SilentHillPC.exe with its already established build/package working directory and no arguments. Upstream’s build script supports running this completed native executable directly; its in-process PC options/F10 controls remain available. The separate .NET SilentHillPC_Launcher.exe starts the native player and closes, so it does not represent the full attached session."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the complete working copy and all player data",
+            "instruction": "Preserve the whole working folder and every actual custom or external root, including config.cfg, original disc, map DLLs, gamedata, mods, logs, saves and backups/temporary files. The inspected source’s PsyCross card shim uses gamedata/save/0.MCD and 1.MCD relative to the effective working directory; quicksave enters the game’s own save screens. Keep that creating layout and all actual data, rather than assuming the release asset was built from the tag or that every later version shares its paths. Upstream replacement does not establish backward-compatible saves or restore player progress."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        ]
+      },
+      "download_block_reason": "The inspected Windows package contains achievement.wav, steam.wav, trophy.wav and swish.wav whose exact source bytes are explicitly excluded from the project’s licence grant. Fresh acquisition stays held until attributable applicable sound permission or a reviewed released package removes or replaces those assets. The PC-code and named origin grants do not resolve this separate audio condition. Keep only an independently permitted existing copy; this condition grants no permission to acquire or execute it."
     },
     {
       "id": "simon358-ctr-native-android",
@@ -39125,11 +39216,13 @@
     {
       "id": "syphon-filter-sf-pc-port",
       "name": "Syphon Filter / SF-pc-port",
-      "summary": "Explore Syphon Filter / SF-pc-port and follow the upstream project for requirements, downloads and setup.",
+      "summary": "A Windows native Syphon Filter player for your own USA v1.1 BIN/CUE. Keep package selection and replacement upstream, then register the completed native player.",
       "project_url": "https://github.com/Madxbio97/SF-pc-port",
       "issue_number": 344,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Madxbio97/SF-pc-port",
       "artwork": {
         "game_id": 4115,
@@ -39138,6 +39231,35 @@
         "image_sha256": "20acf73d36a68feb7a54b5a2347279935265d80fe4ef582f6439cc58a0efea00",
         "game_slug": "syphon-filter",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+      "manual_setup": {
+        "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+        "steps": [
+          {
+            "title": "Choose an actual upstream Windows player package",
+            "instruction": "The inspected public-test.16 Windows x64 ZIP contains the native player; later listed 0.2.0 beta and test releases have no attached player packages at this observation. Select an actual published Windows package explicitly from upstream and verify its published identity before preparation. An empty newer release is not a replacement package. This guide does not pin automatic updates to an old test or offer Core-managed replacement."
+          },
+          {
+            "title": "Keep the complete player and your own supported image",
+            "instruction": "Keep syphon_filter.exe with matching DLLs, locales, assets and notices. Use your own Syphon Filter USA v1.1 SCUS-94240 BIN/CUE, keeping every referenced BIN beside its CUE. The selected native player opens BROWSE/DEPLOY in-process and validates the supported game executable. The package supplies no game image; this attachment adds no separate BIOS import or compilation step."
+          },
+          {
+            "title": "Select the native player and its normal launcher",
+            "instruction": "Select the completed syphon_filter.exe, its package directory as working directory and no arguments for the normal image picker. Choose your own CUE through the upstream launcher. A CMD wrapper or separate setup process is not needed."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Retain both current and legacy user data",
+            "instruction": "For the inspected public-test.16 source, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; its fallback is the executable directory or working directory. Campaign saves use the effective user-data root under SyphonFilterPC/Saves/<sanitized serial>.sav, with backups and temporary files; the root can fall back through APPDATA and the system temporary directory. Upstream can migrate a legacy SyphonFilterPC.sav beside the CUE. Preserve that whole profile, every legacy original/save location, package, settings, mods and custom paths before replacing or moving a copy. Do not infer current-release storage or save compatibility from this older test package."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        ]
       }
     },
     {
@@ -39501,11 +39623,13 @@
     {
       "id": "tenchu-stealth-assassins-tenchu-sa-recomp",
       "name": "Tenchu: Stealth Assassins / Tenchu-SA-Recomp",
-      "summary": "Explore Tenchu: Stealth Assassins / Tenchu-SA-Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Keep an independently permitted, prepared Linux Tenchu SA Recomp player for your own USA disc. Project/fork permission and actual runtime maturity remain unresolved; no Windows package is established.",
       "project_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",
       "issue_number": 353,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",
       "artwork": {
         "game_id": 4113,
@@ -39514,7 +39638,41 @@
         "image_sha256": "da006c601a4dc6bfe35683082ddbbf1b719abe092b9e949ebee77f449bc27f81",
         "game_slug": "tenchu-stealth-assassins",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+      "manual_setup": {
+        "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+        "steps": [
+          {
+            "title": "Keep an independently permitted Linux copy",
+            "instruction": "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy."
+          },
+          {
+            "title": "Finish the supported owned-disc preparation upstream",
+            "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE. The upstream player loads its generated assembly in the same process. Core imports no original, runs no game compiler and does not own the generated cache."
+          },
+          {
+            "title": "Select the completed Linux player",
+            "instruction": "Select the prepared ZIP’s TenchuSARecomp native apphost with its established package directory as working directory and no arguments. Keep its complete matching resources and actual disc/profile selections. Do not select the source project, compiler, publish script or an unverified Windows build. A separate AppImage extraction/setup helper is not part of this attachment."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the effective upstream profile and working runtime",
+            "instruction": "Upstream sets the application data identity to Tenchu. Its documented normal Linux profile is ~/.local/share/Tenchu; an upstream-selected custom save folder can change the effective location. Preserve the entire actual profile and both separately configurable build and save roots. The normal build root is UserData.Dir/game; the selected build root holds Recompiled source, Tenchu.dll and .stamp. settings.json remembers the choices; cards are named from the disc basename with .srm and .srm2 extensions. Retain those files, settings, optional user-supplied font, backups and temporary files, plus the original disc, runtime and every custom root. The display font is not distributed and can fall back to an installed face. Keep the upstream-established writable locations when using an AppImage and preserve any deliberately shared save location; Core does not relocate or rewrite those paths."
+          },
+          {
+            "title": "Keep the current runtime limitations visible",
+            "instruction": "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        ]
+      },
+      "download_block_reason": "The selected Tenchu title source and published Linux ZIP provide no applicable grant for separately authored title and RecompOne-fork modifications; the project references that separate fork without a public pinned source/grant. The original engine’s MIT licence does not settle this scope. Fresh acquisition stays held until attributable applicable permission/source correspondence or a reviewed permitted replacement resolves it. A separately permitted self-contained copy remains a distinct case; no permission is granted by this guide."
     },
     {
       "id": "tenchu-z-recomp-8bitninja64-tenchu-z",

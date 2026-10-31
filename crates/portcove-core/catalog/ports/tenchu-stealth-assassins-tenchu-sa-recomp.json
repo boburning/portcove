@@ -3,11 +3,11 @@
   "listing": {
     "id": "tenchu-stealth-assassins-tenchu-sa-recomp",
     "name": "Tenchu: Stealth Assassins / Tenchu-SA-Recomp",
-    "summary": "Explore Tenchu: Stealth Assassins / Tenchu-SA-Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Keep an independently permitted, prepared Linux Tenchu SA Recomp player for your own USA disc. Project/fork permission and actual runtime maturity remain unresolved; no Windows package is established.",
     "project_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",
     "issue_number": 353,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/Heromachine/Tenchu-SA-Recomp",
     "artwork": {
       "game_id": 4113,
@@ -16,6 +16,40 @@
       "image_sha256": "da006c601a4dc6bfe35683082ddbbf1b719abe092b9e949ebee77f449bc27f81",
       "game_slug": "tenchu-stealth-assassins",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+    "manual_setup": {
+      "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
+      "steps": [
+        {
+          "title": "Keep an independently permitted Linux copy",
+          "instruction": "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy."
+        },
+        {
+          "title": "Finish the supported owned-disc preparation upstream",
+          "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE. The upstream player loads its generated assembly in the same process. Core imports no original, runs no game compiler and does not own the generated cache."
+        },
+        {
+          "title": "Select the completed Linux player",
+          "instruction": "Select the prepared ZIP’s TenchuSARecomp native apphost with its established package directory as working directory and no arguments. Keep its complete matching resources and actual disc/profile selections. Do not select the source project, compiler, publish script or an unverified Windows build. A separate AppImage extraction/setup helper is not part of this attachment."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the effective upstream profile and working runtime",
+          "instruction": "Upstream sets the application data identity to Tenchu. Its documented normal Linux profile is ~/.local/share/Tenchu; an upstream-selected custom save folder can change the effective location. Preserve the entire actual profile and both separately configurable build and save roots. The normal build root is UserData.Dir/game; the selected build root holds Recompiled source, Tenchu.dll and .stamp. settings.json remembers the choices; cards are named from the disc basename with .srm and .srm2 extensions. Retain those files, settings, optional user-supplied font, backups and temporary files, plus the original disc, runtime and every custom root. The display font is not distributed and can fall back to an installed face. Keep the upstream-established writable locations when using an AppImage and preserve any deliberately shared save location; Core does not relocate or rewrite those paths."
+        },
+        {
+          "title": "Keep the current runtime limitations visible",
+          "instruction": "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+      ]
+    },
+    "download_block_reason": "The selected Tenchu title source and published Linux ZIP provide no applicable grant for separately authored title and RecompOne-fork modifications; the project references that separate fork without a public pinned source/grant. The original engine’s MIT licence does not settle this scope. Fresh acquisition stays held until attributable applicable permission/source correspondence or a reviewed permitted replacement resolves it. A separately permitted self-contained copy remains a distinct case; no permission is granted by this guide."
   }
 }
