@@ -422,6 +422,7 @@ export async function selectedSetupCompletionScenario({
           prefix: "selected-setup",
           stage,
           baselineWidth,
+          artifacts,
         }),
       );
     };
