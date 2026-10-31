@@ -2420,4 +2420,24 @@ mod tests {
     fn master_of_orion_1oom_vanilla_branch_prepared_player_route_2883() {
         assert_listing_only_player_route("master-of-orion-1oom-vanilla-branch", Some(false));
     }
+
+    #[test]
+    fn elite_force_holomatch_lilium_voyager_prepared_player_route_1918() {
+        assert_listing_only_player_route("elite-force-holomatch-lilium-voyager", Some(false));
+    }
+
+    #[test]
+    fn wolfenstein_enemy_territory_et_legacy_prepared_player_route_2721() {
+        assert_listing_only_player_route("wolfenstein-enemy-territory-et-legacy", Some(false));
+    }
+
+    #[test]
+    fn zuma_deluxe_zuma_portable_circleshootapp_prepared_player_route_2912() {
+        assert_listing_only_player_route("zuma-deluxe-zuma-portable-circleshootapp", Some(false));
+    }
+
+    #[test]
+    fn cut_the_rope_dx_prepared_player_route_1128() {
+        assert_listing_only_player_route("cut-the-rope-dx", Some(false));
+    }
 }

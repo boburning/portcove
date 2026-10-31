@@ -3,11 +3,9 @@
   "listing": {
     "id": "jagged-alliance-2-ja2-stracciatella",
     "name": "Jagged Alliance 2 (JA2 Stracciatella)",
-    "summary": "Upstream route: Mature desktop port with explicit original-data directory and localization setup. Limits: Established Jagged Alliance 2 source-port route; preserve exact edition/localization and mod lineage. Upstream platforms: Desktop Windows/Linux/macOS source/package routes; exact selected artifact CPU architectures unknown in frozen research. Original data: Use original Jagged Alliance 2 installation data and point the JA2 Data Directory/game_dir at that installation. Select its matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty, or Russian Gold. Exact accepted release/patch fingerprints are not specified in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "A native engine for Jagged Alliance 2 using your own original installation.",
     "original_game_title": "Jagged Alliance 2",
     "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
     "artwork": {
       "game_id": 9,
@@ -30,5 +28,27 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "ja2-stracciatella/ja2-stracciatella",
+      "asset_hints": {
+        "windows-x86-64": ["win-msvc64", ".zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["ja2.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own complete original Jagged Alliance 2 installation and matching localization: Dutch, English, French, German, Italian, Polish, Russian BUKA Agonia Vlasty or Russian Gold. Keep the originals outside this engine package. Run the bundled ja2-launcher.exe upstream once to set JA2 Data Directory and localization, then use normal ja2.exe for Play. Alternatively let ja2.exe create ja2.json, close it, and configure game_dir and the supported localization upstream before Play. Missing configuration is not successful setup. The selected Windows source prefers the existing AppData/JA2 profile; if absent it retains an existing Documents/JA2 profile, otherwise it chooses AppData/JA2. The older README names only Documents/JA2. Preserve the actual selected home, ja2.json, SavedGames, mods and custom save_game_dir overrides; diagnostic logs use the account temporary directory. These external shared locations are not isolated by another engine copy and Core does not back them up, migrate or delete them. Core replaces only the official MSVC x64 portable engine and its packaged assets/dependencies, not the original game or optional original-game data. Keep the complete compatible old runtime and every effective profile/original/custom root before changes. Original SFI code, later contributions and bundled libraries retain distinct terms; public engine downloads do not grant original-game rights. No title, launcher, actual-save or backward-format qualification is claimed."
+    }
   }
 }

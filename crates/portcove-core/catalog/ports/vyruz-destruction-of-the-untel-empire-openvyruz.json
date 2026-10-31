@@ -3,11 +3,9 @@
   "listing": {
     "id": "vyruz-destruction-of-the-untel-empire-openvyruz",
     "name": "Vyruz: Destruction of the Untel Empire (OpenVyruz)",
-    "summary": "Upstream route: Published Windows x64 ZIP and Linux x64 tar.gz. Limits: Upstream says whole game completable in1.0.0; no Portcove package execution or gameplay pass. Upstream platforms: Windows11 x86-64 ZIP and Linux x86-64 tar.gz, Wayland/X11. Exact package metadata observed without execution. Original data: User-owned vz-data.rsc; Intro.avi optional. Portcove setup/gameplay not verified.",
+    "summary": "A native engine for Vyruz using the original game data from your own copy.",
     "original_game_title": "Vyruz: Destruction of the Untel Empire",
     "project_url": "https://github.com/Solessfir/OpenVyruz",
-    "platforms": [],
-    "availability": "unknown",
     "setup_url": "https://github.com/Solessfir/OpenVyruz",
     "artwork": {
       "game_id": 112224,
@@ -30,5 +28,27 @@
       }
     },
     "decisions": []
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "Solessfir/OpenVyruz",
+      "asset_hints": {
+        "windows-x86-64": ["-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["Vyruz.exe"]
+    },
+    "persistent_paths": ["OpenVyruz"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Use your own vz-data.rsc outside the engine directory; Intro.avi beside it supplies the optional original intro. The normal in-process folder picker selects that game folder and remembers it in game-folder.txt under AppData/OpenVyruz. Do not select a data folder inside the managed engine: the upstream player writes vzconf.txt, session/ and vz.sco into the selected original-game folder and can share or overwrite settings, saves and scores with the original. Preserve that complete writable folder and compatible old runtime before the first start or any change; source format compatibility is not an observed save roundtrip. Normal remembered paths and co-op data use the external user directory. If APPDATA is unavailable, the selected Windows source falls back to an OpenVyruz directory relative to the creating working directory; Core conservatively preserves this declared local directory, including unknown files. External profiles, originals, custom paths and any configured data roots remain outside Core backup/rollback/removal. Core replaces only the official Windows x64 engine. Existing registrations retain upstream replacement ownership. Vulkan/graphics, intro decoding, co-op/network, actual gameplay and real-save behavior remain unqualified; no original import, archive conversion or upstream helper is performed."
+    }
   }
 }

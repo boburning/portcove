@@ -507,7 +507,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "package(portcove-core) & test(/^service::tests::unpublished_install_cleanup_retains_conflicting_family_intent$/)",
     historicalByteOnlyBackupFilter,
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)",
-    "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
+    "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
+    "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
     "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
     "package(portcove-core) & (test(/^service::tests::backups::current_persistence_cannot_restore_an_unmanifested_companion_into_lifecycle_paths$/) | test(/^service::tests::backups::interrupted_backup_stages_are_visible_without_hiding_verified_backups$/))",
     "package(portcove-core) & test(/^service::psx_mod_data::tests::lifecycle::explicit_backup_restore_preserves_successor_packages_and_preflights_conflicts$/)",
@@ -628,7 +629,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         "package(portcove-core) & test(/^service::tests::backups::recovers_restore_published$/)",
       periods: 24,
       beforeFilter:
-        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
+        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
     },
     {
       filter:
@@ -647,7 +648,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         "package(portcove-core) & test(/^service::tests::backups::recovers_restore_prepared$/)",
       periods: 24,
       beforeFilter:
-        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))",
+        "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
     },
   ];
   const windowsTrackedCancellationFilter =
@@ -827,6 +828,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     );
   }
   const ninetySecondWindowsLifecycles = new Set([
+    "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
     "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
     "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
   ]);

@@ -550,9 +550,21 @@ success-output = "immediate"
 # staged/publication recovery, all data assertions, cleanup, two workers and
 # zero retries. Exact-case60s room and phase diagnostics retain finite hangs;
 # no product deadline changes.
+# CI41195924566/a1 Windows1 job124523334419 cut this exact fixture at
+# 60.225s after restore publication at35.682s and staged activation at54.879s
+# cumulative. The remaining launch/collection subphase is unobserved.
+# Give only this progressing Windows fixture finite 90-second harness room;
+# preserve assertions, product deadlines, cleanup, two workers and zero retries.
+# This is budget calibration, not a causal performance repair.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/) | test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/))'
+filter = 'package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
