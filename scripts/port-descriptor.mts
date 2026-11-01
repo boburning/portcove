@@ -132,19 +132,20 @@ export function inspectPortDescriptor({
     throw new Error(
       `Unsupported native integration fields: ${unsupported.join(", ")}. Remove them or use an implemented Portcove contract.`,
     );
-  const proposal = (replacement: AuthoredPort) => {
+  const proposal = (replacement: AuthoredPort, basicOnly: boolean) => {
     // Settings capability validation is local to this proposal; another entry's
     // optional declaration cannot force a basic-only inspector to claim it.
     const context = records
       .filter((record) => record.listing.id !== replacement.listing.id)
-      .map(withoutSettings);
+      .map((record) => (basicOnly ? withoutSettings(record) : record));
     return Buffer.from(
       JSON.stringify(assembleCatalogRecords(shared, [...context, replacement]).catalog),
     );
   };
-  const basicBytes = proposal(basic);
+  const basicBytes = proposal(basic, true);
   const basicReceipt = inspector.inspect("basic", basicBytes);
   let selected = basicBytes;
+  let selectedDescriptor = basic;
   let settings: {
     status: "absent" | "validated-proposal" | "unsupported";
     diagnostic?: string;
@@ -167,17 +168,19 @@ export function inspectPortDescriptor({
           inspector.portSchema,
         );
         if (fields.length) throw new Error(`Unsupported settings fields: ${fields.join(", ")}.`);
-        const settingsBytes = proposal(descriptor);
+        const settingsBytes = proposal(descriptor, false);
         const receipt = inspector.inspect("settings", settingsBytes);
         settings = { status: "validated-proposal", receipt };
         selected = settingsBytes;
+        selectedDescriptor = descriptor;
       } catch (error) {
         settings = { status: "unsupported", diagnostic: errorMessage(error) };
       }
     }
   }
   return {
-    proposal: selected,
+    validationProposal: selected,
+    descriptor: Buffer.from(JSON.stringify(selectedDescriptor, null, 2) + "\n"),
     report: {
       format_version: 1,
       descriptor_sha256: sha256(bytes),
@@ -185,6 +188,8 @@ export function inspectPortDescriptor({
       validator_artifact_sha256: inspector.artifactSha256,
       basic: { status: "validated-proposal", receipt: basicReceipt },
       settings,
+      output_scope:
+        "Only this descriptor is exported. Validation contexts are not catalog replacements.",
       scope:
         "Inert declaration validation only; no admission, installation, command execution, configuration access or publication authority.",
     },
@@ -263,7 +268,7 @@ async function main() {
       inspect: captured.inspect,
     },
   });
-  writeFileSync(path.join(output, "catalog-proposal.json"), result.proposal, { flag: "wx" });
+  writeFileSync(path.join(output, "validated-descriptor.json"), result.descriptor, { flag: "wx" });
   writeFileSync(
     path.join(output, "descriptor-report.json"),
     JSON.stringify(result.report, null, 2) + "\n",

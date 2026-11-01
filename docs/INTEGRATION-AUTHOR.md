@@ -611,9 +611,11 @@ node scripts/port-descriptor.mts validate examples/integrations/shipwright/basic
 
 Each output directory must be new. The tool captures the selected validator,
 exports its input schema, checks the basic proposal before optional settings,
-and retains exact input/validator identities, process receipts, a proposal and a
-report. `--catalog-root` selects an explicit existing authoring/source-contract
-context; it never opens a player library. The resulting proposal has no
+and retains exact input/validator identities, process receipts, a candidate-only
+`validated-descriptor.json` and a report. `--catalog-root` selects an explicit
+existing authoring/source-contract context; it never opens a player library.
+Capability-stripped compatibility inputs are validation evidence, not catalog
+replacements. The exported descriptor has no
 admission, installation, execution or publication authority. Existing accepted
 and retained definitions take precedence over any release-embedded or fetched
 descriptor. Local/community import and its separate trust decisions remain #268.

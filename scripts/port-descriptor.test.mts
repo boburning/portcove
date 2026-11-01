@@ -72,12 +72,25 @@ void test("both real native descriptors use the same projection and settings ins
       assert.ok(isRecord(own));
       assert.equal(Object.hasOwn(own, "game_settings"), index === 1);
     }
-    const proposal: unknown = JSON.parse(result.proposal.toString("utf8"));
+    const proposal: unknown = JSON.parse(result.validationProposal.toString("utf8"));
     assert.ok(isRecord(proposal) && Array.isArray(proposal.ports));
     assert.equal(
       proposal.ports.filter((port: unknown) => isRecord(port) && port.id === result.report.port_id)
         .length,
       1,
+    );
+    const proposedPorts: unknown[] = proposal.ports;
+    for (const original of context.catalog.ports) {
+      if (original.id !== result.report.port_id) {
+        assert.deepEqual(
+          proposedPorts.find((port) => isRecord(port) && port.id === original.id),
+          original,
+        );
+      }
+    }
+    assert.deepEqual(
+      JSON.parse(result.descriptor.toString("utf8")) as unknown,
+      JSON.parse(bytes.toString("utf8")) as unknown,
     );
   }
 });
@@ -108,12 +121,16 @@ void test("basic launch does not require settings and older Core readers never c
     old.seen.map((row) => row.name),
     ["basic"],
   );
-  const plain: unknown = JSON.parse(partial.proposal.toString("utf8"));
+  const plain: unknown = JSON.parse(partial.validationProposal.toString("utf8"));
   assert.ok(isRecord(plain) && Array.isArray(plain.ports));
   assert.equal(
     plain.ports.some((port: unknown) => isRecord(port) && Object.hasOwn(port, "game_settings")),
     false,
   );
+  const exported: unknown = JSON.parse(partial.descriptor.toString("utf8"));
+  assert.ok(isRecord(exported) && isRecord(exported.integration));
+  assert.equal(Object.hasOwn(exported.integration, "game_settings"), false);
+  assert.equal(Object.hasOwn(exported, "ports"), false);
 });
 
 void test("a Core settings refusal retains useful validated basic behavior without claiming full support", () => {
