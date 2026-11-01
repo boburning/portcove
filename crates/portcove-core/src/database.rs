@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 43;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 44;
 
 struct Migration {
     version: i64,
@@ -282,7 +282,25 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_43,
         verify: verify_migration_43,
     },
+    Migration {
+        version: 44,
+        name: "owned game settings configuration changes",
+        apply: migration_44,
+        verify: verify_migration_44,
+    },
 ];
+
+fn migration_44(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE lifecycle_operations ADD COLUMN game_settings_json TEXT
+         CHECK(game_settings_json IS NULL OR length(game_settings_json)<=16384);",
+    )?;
+    verify_migration_44(transaction)
+}
+
+fn verify_migration_44(connection: &Connection) -> Result<()> {
+    require_columns(connection, "lifecycle_operations", &["game_settings_json"])
+}
 
 fn migration_43(transaction: &Transaction<'_>) -> Result<()> {
     transaction
@@ -2736,6 +2754,36 @@ mod tests {
         assert_eq!(remaining, 0);
     }
 
+    #[test]
+    fn settings_migration_preserves_schema_43_rows_and_nullable_absence() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 43).unwrap();
+        let connection = connect(root).unwrap();
+        connection.execute("INSERT INTO lifecycle_operations(id,kind,port_id,phase,original_paths_json,activate,created_at,updated_at,last_error) VALUES('retained-settings-migration-failure','install','shipwright','preparing','[]',0,1,2,'original failure remains failed')", []).unwrap();
+        let snapshot = |connection: &Connection| {
+            let mut statement = connection.prepare("SELECT * FROM lifecycle_operations WHERE id='retained-settings-migration-failure'").unwrap();
+            statement
+                .query_row([], |row| {
+                    (0..row.as_ref().column_count())
+                        .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .unwrap()
+        };
+        let before = snapshot(&connection);
+        drop(connection);
+        migrate_to(root, 44).unwrap();
+        let connection = connect(root).unwrap();
+        let after = snapshot(&connection);
+        assert_eq!(&after[..before.len()], before.as_slice());
+        assert_eq!(after.last(), Some(&rusqlite::types::Value::Null));
+        assert_eq!(after.len(), before.len() + 1);
+        assert!(connection.execute("UPDATE lifecycle_operations SET game_settings_json=?1 WHERE id='retained-settings-migration-failure'", ["x".repeat(16385)]).is_err());
+        assert_eq!(snapshot(&connection), after);
+    }
+
     macro_rules! historical_schema_tests {
         ($($name:ident: $version:literal),+ $(,)?) => {
             #[test]
@@ -2791,6 +2839,7 @@ mod tests {
         schema_40: 40,
         schema_41: 41,
         schema_42: 42,
+        schema_43: 43,
     }
 
     #[test]

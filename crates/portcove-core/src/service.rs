@@ -103,6 +103,7 @@ std::thread_local! {
 
 #[path = "game_install_review.rs"]
 mod game_install_review;
+mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;
 #[path = "game_update_review.rs"]
@@ -624,7 +625,16 @@ impl PortcoveService {
             #[cfg(test)]
             self.faults
                 .check(LifecycleFaultPoint::RecoveryInventoried)?;
-            let _guards = if candidate.kind == LifecycleOperationKind::ImportSource {
+            let _guards = if candidate.kind == LifecycleOperationKind::SettingsChange {
+                match self
+                    .library
+                    .try_lock_port_for_settings_recovery(&candidate.port_id, &candidate.id)
+                {
+                    Ok(guard) => vec![guard],
+                    Err(error) if error.code == crate::ErrorCode::Conflict => continue,
+                    Err(error) => return Err(error),
+                }
+            } else if candidate.kind == LifecycleOperationKind::ImportSource {
                 match self.lock_source_dependents(&candidate.port_id, None) {
                     Ok(guards) => guards,
                     Err(error) if error.code == crate::ErrorCode::Conflict => continue,
@@ -757,6 +767,9 @@ impl PortcoveService {
         operation: &mut LifecycleOperation,
     ) -> Result<Option<String>> {
         match operation.kind {
+            LifecycleOperationKind::SettingsChange => self
+                .recover_settings_change(store, operation)
+                .map(|()| None),
             LifecycleOperationKind::AcquireUpdate => Err(PortcoveError::state(
                 "acquisition requires its activity-owner recovery route",
             )),
@@ -5913,6 +5926,11 @@ impl PortcoveService {
     }
 
     fn require_completed_restore(&self, port_id: &str) -> Result<()> {
+        self.library.require_no_settings_recovery(port_id)?;
+        self.require_completed_backup_restore(port_id)
+    }
+
+    fn require_completed_backup_restore(&self, port_id: &str) -> Result<()> {
         if OperationStore::new(self.library.clone())
             .all()?
             .iter()

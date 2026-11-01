@@ -27,6 +27,7 @@ export type FailureRecoveryTarget = {
 export type FailureTone = "neutral" | "error";
 export type ActivityLiveness = "active" | "interrupted" | "unknown";
 export type ActivityOperation =
+  | "settings_change"
   | "download_package"
   | "prepare"
   | "update_catalog"
@@ -316,6 +317,31 @@ export type AdapterKind =
       | "psx-recomp-managed"
     )
   | "native-portable";
+export type GameSettingsFormat = "json" | "ini";
+export type GameSettingType =
+  | {
+      default: boolean;
+      kind: "boolean";
+    }
+  | {
+      default: number;
+      kind: "integer";
+      maximum: number;
+      minimum: number;
+      step: number;
+    }
+  | {
+      default: number;
+      kind: "number";
+      maximum: number;
+      minimum: number;
+      step: number;
+    }
+  | {
+      choices: GameSettingChoice[];
+      default: unknown;
+      kind: "enum";
+    };
 /**
  * Closed initialization recipes, never catalog-supplied scripts or file contents.
  */
@@ -603,6 +629,14 @@ export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_t
 export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
+export type GameSettingChange =
+  | {
+      action: "set";
+      value: unknown;
+    }
+  | {
+      action: "reset";
+    };
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =
@@ -884,6 +918,10 @@ export interface TransportOutputs {
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: OutputGameInstallPlan;
+  game_setting_change: GameSettingChange;
+  game_setting_review: OutputGameSettingReview;
+  game_settings_contract: GameSettingsContract;
+  game_settings_view: OutputGameSettingsView;
   game_update_acquisition: GameUpdateAcquisition;
   game_update_plan: OutputGameUpdatePlan;
   ghostship_recovery_plan: OutputGhostshipRecoveryPlan;
@@ -1683,6 +1721,11 @@ export interface PortDefinition {
     "macos-x86-64"?: string[];
     "windows-x86-64"?: string[];
   };
+  /**
+   * Optional, release-bound editable configuration. Retained installations
+   * keep the exact declaration; today's catalog never grants edits to them.
+   */
+  game_settings?: GameSettingsContract | null;
   id: string;
   launch_arguments: string[];
   launch_environment: {
@@ -1754,6 +1797,47 @@ export interface BundledRuntime {
   target_directory: string;
   [k: string]: unknown;
 }
+export interface GameSettingsContract {
+  files: GameSettingsFile[];
+  format_version: number;
+  releases: GameSettingsRelease[];
+}
+export interface GameSettingsFile {
+  format: GameSettingsFormat;
+  id: string;
+  maximum_bytes: number;
+  /**
+   * An explicit configuration file inside this port's retained persistent
+   * paths, never a home-directory template or a caller-provided absolute path.
+   */
+  path: string;
+  settings: GameSetting[];
+}
+export interface GameSetting {
+  id: string;
+  /**
+   * JSON object members; INI uses one flat key or two section/key components.
+   * No array indexing, wildcards, substitutions or executable expressions.
+   */
+  key: string[];
+  label: string;
+  value: GameSettingType;
+}
+export interface GameSettingChoice {
+  label: string;
+  value: unknown;
+}
+/**
+ * Both the released archive and its inspected source are explicit. A matching
+ * title or version string alone cannot qualify another package's settings.
+ */
+export interface GameSettingsRelease {
+  archive_sha256: string;
+  evidence_urls: string[];
+  platform: Platform;
+  source_commit: string;
+  version: string;
+}
 /**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
  * documents may omit this object; current embedded definitions provide it.
@@ -1777,9 +1861,7 @@ export interface PortPresentation {
    * Optional inert quality observations. Unknown or malformed recommendation
    * schemas are retained for compatible readers but never invalidate operations.
    */
-  recommendation?: {
-    [k: string]: unknown;
-  };
+  recommendation?: unknown;
   saves_and_settings: SavesAndSettingsBehavior;
   source_requirements: SourceRequirementPresentation[];
   variant_label?: string | null;
@@ -3035,6 +3117,56 @@ export interface InstallSpaceRequirement {
    */
   sufficient: boolean | null;
   volume_identity: string | null;
+  [k: string]: unknown;
+}
+/**
+ * One-file, one-key review. Apply recomputes this binding from authoritative
+ * retained state and fresh bytes; a client-supplied review is never authority.
+ */
+export interface OutputGameSettingReview {
+  change: GameSettingChange;
+  configuration_sha256: string;
+  file_id: string;
+  install_id: string;
+  label: string;
+  path: string;
+  port_id: string;
+  previous_value: unknown;
+  proposed_value: unknown;
+  review_sha256: string;
+  setting_id: string;
+  [k: string]: unknown;
+}
+/**
+ * A missing optional capability is local to settings. It does not disable the
+ * installation's independently assessed basic setup or launch capabilities.
+ */
+export interface OutputGameSettingsView {
+  available: boolean;
+  files: GameSettingsFileView[];
+  install_id: string | null;
+  port_id: string;
+  reason: string | null;
+  [k: string]: unknown;
+}
+export interface GameSettingsFileView {
+  available: boolean;
+  configuration_sha256: string | null;
+  id: string;
+  path: string;
+  reason: string | null;
+  settings: GameSettingView[];
+  [k: string]: unknown;
+}
+export interface GameSettingView {
+  id: string;
+  label: string;
+  /**
+   * None means this declared key is absent; the verified consumer default
+   * remains separate from an observed persisted value.
+   */
+  value: unknown;
+  value_type: GameSettingType;
   [k: string]: unknown;
 }
 /**

@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "shipwright",
+    "name": "Ship of Harkinian",
+    "summary": "Native Ocarina of Time port from HarbourMasters.",
+    "project_url": "https://github.com/HarbourMasters/Shipwright",
+    "original_game_title": "The Legend of Zelda: Ocarina of Time"
+  },
+  "integration": {
+    "support_tier": "stable",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "libultraship-portable",
+    "release": {
+      "repository": "HarbourMasters/Shipwright"
+    },
+    "source_profile": "ocarina-of-time",
+    "executable_hints": {
+      "windows-x86-64": ["soh.exe", "shipwright.exe"]
+    },
+    "persistent_paths": [
+      "mods",
+      "saves",
+      "randomizer",
+      "imgui.ini",
+      "shipofharkinian.json",
+      "oot.o2r",
+      "oot-mq.o2r"
+    ],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [
+        {
+          "role": "game",
+          "profile_id": "ocarina-of-time",
+          "label": "The Legend of Zelda: Ocarina of Time source",
+          "verification": "catalog-rules"
+        }
+      ],
+      "saves_and_settings": "portcove-managed"
+    }
+  }
+}

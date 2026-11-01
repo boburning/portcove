@@ -819,6 +819,7 @@ function main() {
       "source_discovery_limits",
       "catalog_update_source",
       "definition_capability_request",
+      "game_setting_change",
     ].map((key) => [key, inputSchemas[key]]),
   );
   const inputPath = path.join(root, "apps", "desktop", "src", "transport-inputs.generated.json");

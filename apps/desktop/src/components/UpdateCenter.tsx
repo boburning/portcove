@@ -1297,6 +1297,7 @@ function activityTarget(
 
 function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
+    settings_change: "Game setting change",
     relink_external: "Change game folder",
     download_package: "Upstream package download",
     prepare: "Game-data setup",

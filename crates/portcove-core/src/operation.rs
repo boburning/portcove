@@ -23,6 +23,7 @@ use crate::{
 };
 
 pub(crate) mod acquisition;
+pub(crate) mod game_settings;
 pub(crate) mod publication;
 
 pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 3;
@@ -50,6 +51,7 @@ pub(crate) enum LifecycleOperationKind {
     Relocate,
     ImportSource,
     GhostshipRecovery,
+    SettingsChange,
 }
 
 impl fmt::Display for LifecycleOperationKind {
@@ -66,6 +68,7 @@ impl fmt::Display for LifecycleOperationKind {
             Self::Relocate => "relocate",
             Self::ImportSource => "import_source",
             Self::GhostshipRecovery => "ghostship_recovery",
+            Self::SettingsChange => "settings_change",
         })
     }
 }
@@ -86,6 +89,7 @@ impl FromStr for LifecycleOperationKind {
             "relocate" => Some(Self::Relocate),
             "import_source" => Some(Self::ImportSource),
             "ghostship_recovery" => Some(Self::GhostshipRecovery),
+            "settings_change" => Some(Self::SettingsChange),
             _ => None,
         };
         kind.ok_or_else(|| {
@@ -161,6 +165,7 @@ pub(crate) struct LifecycleOperation {
     pub external_registration_sha256: Option<String>,
     /// Exact installation identities retained through removal database deletion.
     pub removal_installs: Option<Vec<InstallRecord>>,
+    pub game_settings: Option<game_settings::SettingsJournal>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -184,6 +189,7 @@ impl LifecycleOperation {
             || (self.preparation_process_quiesced.is_some()
                 && !matches!(self.kind, Prepare | Install))
             || (self.removal_installs.is_some() && self.kind != Remove)
+            || (self.game_settings.is_some() != (self.kind == SettingsChange))
             || (matches!(self.kind, Install | Adopt | Prepare)
                 && matches!(
                     self.phase,
@@ -242,6 +248,7 @@ impl LifecycleOperation {
             preparation_process_quiesced: None,
             external_registration_sha256: None,
             removal_installs: None,
+            game_settings: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -264,6 +271,7 @@ impl OperationStore {
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
         operation.validate_family()?;
         acquisition::validate_journal(&self.library, operation)?;
+        game_settings::validate_journal(&self.library, operation)?;
         operation.updated_at = Library::now();
         for path in operation
             .paths
@@ -316,6 +324,19 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
+        let game_settings_json = operation
+            .game_settings
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        if game_settings_json
+            .as_ref()
+            .is_some_and(|value| value.len() > 16384)
+        {
+            return Err(PortcoveError::state(
+                "settings journal exceeds its bounded encoding",
+            ));
+        }
         let mut connection = database::connect(self.library.root())?;
         let transaction =
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -327,8 +348,8 @@ impl OperationStore {
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+               preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json, game_settings_json
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
              ON CONFLICT(id) DO UPDATE SET
                kind=excluded.kind,
                port_id=excluded.port_id,
@@ -347,6 +368,7 @@ impl OperationStore {
                external_registration_sha256=excluded.external_registration_sha256,
                update_acquisition_json=excluded.update_acquisition_json,
                removal_installs_json=excluded.removal_installs_json,
+               game_settings_json=excluded.game_settings_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
                updated_at=excluded.updated_at",
@@ -373,6 +395,7 @@ impl OperationStore {
                 operation.external_registration_sha256,
                 update_acquisition_json,
                 removal_installs_json,
+                game_settings_json,
             ],
         )?;
         transaction.commit()?;
@@ -416,7 +439,7 @@ impl OperationStore {
                     "journal diagnostic enumeration exceeds 4096 rows; coverage is incomplete and requires review",
                 ));
             }
-            let rowid: i64 = row.get(22)?;
+            let rowid: i64 = row.get(23)?;
             let result = match StoredLifecycleRow::from_row(row) {
                 Ok(raw) => raw.decode(&self.library),
                 Err(error)
@@ -513,7 +536,7 @@ impl OperationStore {
 
 const LIFECYCLE_COLUMNS: &str = "SELECT id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                     install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
-                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json, rowid
+                    preparation_process_quiesced, ghostship_recovery_json, backup_deletion_json, external_registration_sha256, update_acquisition_json, removal_installs_json, game_settings_json, rowid
              FROM lifecycle_operations";
 
 /// Codec-checked observations, not a complete trusted operation inventory.
@@ -575,6 +598,7 @@ struct StoredLifecycleRow {
     external_registration_sha256: Option<String>,
     update_acquisition_json: Option<String>,
     removal_installs_json: Option<String>,
+    game_settings_json: Option<String>,
 }
 
 impl StoredLifecycleRow {
@@ -602,6 +626,7 @@ impl StoredLifecycleRow {
             external_registration_sha256: row.get(19)?,
             update_acquisition_json: row.get(20)?,
             removal_installs_json: row.get(21)?,
+            game_settings_json: row.get(22)?,
         })
     }
 
@@ -629,6 +654,7 @@ impl StoredLifecycleRow {
             external_registration_sha256,
             update_acquisition_json,
             removal_installs_json,
+            game_settings_json,
         } = self;
         let kind = kind
             .parse()
@@ -671,6 +697,8 @@ impl StoredLifecycleRow {
                 .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
             preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
             external_registration_sha256,
+            game_settings: game_settings::decode_journal(game_settings_json.as_deref())
+                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
             update_acquisition: acquisition::decode_journal(update_acquisition_json.as_deref())
                 .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
             ghostship_recovery: ghostship_recovery_json
@@ -697,6 +725,21 @@ impl StoredLifecycleRow {
                     | crate::ErrorCode::Usage
             ) {
                 RowFailure::at(crate::JournalValidationStage::Acquisition, e)
+            } else {
+                RowFailure {
+                    stage: None,
+                    error: e,
+                }
+            }
+        })?;
+        game_settings::validate_journal(library, &operation).map_err(|e| {
+            if matches!(
+                e.code,
+                crate::ErrorCode::Verification
+                    | crate::ErrorCode::Conflict
+                    | crate::ErrorCode::Usage
+            ) {
+                RowFailure::at(crate::JournalValidationStage::Payload, e)
             } else {
                 RowFailure {
                     stage: None,
@@ -763,8 +806,40 @@ fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
         .transpose()
 }
 
+#[cfg(windows)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SettingsFaultPoint {
+    IntentBeforeInsert,
+    CanonicalStageBeforeCreate,
+    CanonicalStageCreated,
+    CanonicalStageBound,
+    CanonicalStagePartialWrite,
+    CanonicalStageBeforeFlush,
+    CanonicalStageFlushed,
+    BetweenStages,
+    RuntimeStageBeforeCreate,
+    RuntimeStageCreated,
+    RuntimeStageBound,
+    RuntimeStagePartialWrite,
+    RuntimeStageBeforeFlush,
+    RuntimeStageFlushed,
+    Journaled,
+    Prepared,
+    CanonicalMoved,
+    CanonicalPublished,
+    RuntimeMoved,
+    RuntimePublished,
+    MetadataCommitted,
+    CleanupPending,
+    CanonicalRetired,
+    RuntimeRetired,
+    JournalRetired,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
+    #[cfg(windows)]
+    SettingsBoundary(SettingsFaultPoint),
     #[cfg(test)]
     RecoveryInventoried,
     PreparationJournaled,

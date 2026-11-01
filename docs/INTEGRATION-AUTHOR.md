@@ -584,3 +584,124 @@ capable action. [Architecture ownership](ARCHITECTURE.md#find-the-owning-boundar
 [platform/package limits](RELEASING.md#standalone-cli-integration-artifact) provide
 the subsystem and migration routes. No private source bytes, credentials or
 unredacted personal library paths belong in a public report.
+
+## Game-author descriptors
+
+This section concerns game authors, separately from the external-client CLI
+contract above. The native descriptor is the existing version-1 authored port
+record: `format_version`, `listing` and `integration`. It translates through
+`scripts/catalog-authoring.mts`; the captured compiled Core inspector owns
+catalog, original-file, preparation and launch validation. There is no second
+plugin runtime, catalog, trust store or executable-selection owner.
+
+The minimum useful integration supplies an explicit port/original-game identity,
+supported platform/package and executable selection, and any required existing
+source contract. Use literal existing launch arguments and declared contained
+data paths. Settings, save management and custom preparation are optional. A
+descriptor cannot make a weak source check, arbitrary command/environment,
+absolute path, script or unreviewed executable acceptable.
+
+The runnable examples share the same native validation path:
+
+- [Shipwright descriptor](../examples/integrations/shipwright/portcove.json), with
+  its existing Libultraship preparation and JSON configuration.
+- [Golden Balloon descriptor](../examples/integrations/golden-balloon/portcove.json),
+  with its existing source materialization/runtime subdirectory and INI app
+  preferences.
+- [Basic Shipwright descriptor](../examples/integrations/shipwright/basic.portcove.json),
+  deliberately without settings. This still proposes ordinary setup and launch.
+
+After building the repository's Core-backed CLI with the maintained development
+route, select its actual path; on Windows include `.exe`:
+
+```sh
+node scripts/port-descriptor.mts validate examples/integrations/shipwright/portcove.json --validator-cli target/debug/portcove --output-dir work/descriptor-shipwright
+node scripts/port-descriptor.mts validate examples/integrations/golden-balloon/portcove.json --validator-cli target/debug/portcove --output-dir work/descriptor-golden-balloon
+node scripts/port-descriptor.mts validate examples/integrations/shipwright/basic.portcove.json --validator-cli target/debug/portcove --output-dir work/descriptor-basic
+```
+
+Each output directory must be new. The tool captures the selected validator,
+exports its input schema, checks the basic proposal before optional settings,
+and retains exact input/validator identities, process receipts, a candidate-only
+`validated-descriptor.json` and a report. `--catalog-root` selects an explicit
+existing authoring/source-contract context; it never opens a player library.
+Capability-stripped compatibility inputs are validation evidence, not catalog
+replacements. The exported descriptor has no
+admission, installation, execution or publication authority. Existing accepted
+and retained definitions take precedence over any release-embedded or fetched
+descriptor. Local/community import and its separate trust decisions remain #268.
+
+Exit 0 means the declared capabilities were validated as proposals. Exit 2 means
+basic behavior validated but optional settings did not: read the diagnostic and
+retained Core process receipt, correct that field or omit the optional contract.
+An older captured Core schema cannot claim support for `game_settings` it does
+not implement. Invalid basic/source/launch semantics refuse basic validation.
+
+### Declaring release-bound settings
+
+`integration.game_settings` is optional operational definition data. Version 1
+declares exact Windows release/archive/source identities and evidence, explicit
+contained persistent configuration files, byte bounds, literal keys and bounded
+boolean/integer/decimal/enum choices and defaults. JSON keys are object-member
+components, not executable expressions. One INI key component means case-sensitive
+flat preferences. Two components mean a bounded section/key grammar with ASCII
+case-insensitive identities, including root dotted aliases. A file cannot mix
+these grammars. Sectioned files are UTF-8 without BOM/NUL, at most 32,767 bytes,
+128 entries, 127-byte flattened keys, 1,023-byte values and 1,155-byte physical
+lines. Malformed sections and duplicate declared identities refuse edits.
+Unrelated lines and comments remain intact; this is not universal INI support.
+An installation must retain the declaration; a current catalog advertisement
+cannot grant new file access to an older retained install.
+
+The inspected examples deliberately distinguish consumer representations:
+Shipwright 9.3.1's `CVars.gSettings.Volume.Master` is an integer percentage from
+0 to 100, default 40. Its pinned Libultraship loader distinguishes integers from
+floats. Golden Balloon 1.8.0's `mdkr64.ini` `[Audio]` / `MasterVolume`
+is an integer percentage from 0 to 100, default 100. Its interactive `--ui`
+shell exposes the settings overlay and publishes this setting to the audio
+consumer. On first use, select the already materialized `dkr-v80.z64` through
+Golden's normal ROM picker; the shell validates and remembers that selection in
+`mdkr64_app.ini`. It does not search the working directory. The
+[pinned argument dispatch](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/app/arg_triage.h)
+routes `--rom` directly to the engine without the shell or settings overlay;
+combining `--ui` and `--rom` does not establish supported ROM seeding.
+Both configuration writers create sibling OS-lock files. Declare the exact
+runtime-relative `mdkr64.ini.lock` and `mdkr64_app.ini.lock` leaves as runtime
+mutable paths, rather than treating the whole runtime directory as writable.
+The pinned [video configuration writer](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/video_config_runtime.c)
+and [shell preference writer](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/app/app_config.cpp)
+own these locks; they are runtime coordination files, not player preferences.
+Root `Audio.MasterVolume`
+is equivalent; duplicate dotted, sectioned or case aliases refuse edits.
+The earlier `mdkr64_app.ini` / `ui_scale` choice was shell-only and could not
+qualify this launch route. Native evidence must verify the package's executable
+and portable-marker location, resolved INI path, absence of higher-priority
+environment/CLI overrides, restart and actual consumer behavior. Their exact
+released source/asset identities are in the descriptors; another release or
+repacked asset must not inherit these settings by name alone.
+
+Descriptor validation is an internal partial delivery of #4156. It does not
+establish editable Desktop settings, safe read/review/apply/reset, write recovery
+or actual consumer execution. Those operations require their own implemented
+Core service, retained authority, current storage/preimage checks and actual
+Windows Desktop/consumer evidence. Validation receipts, source inspection and
+existing save evidence are not substitutes for that acceptance.
+
+### Interoperability decision
+
+Portcove does not adopt the `recomplauncher.json` wire schema in this version.
+The progressive author experience described by
+[RecompLauncher's developer guide at the inspected revision](https://github.com/elripalda/RecompLauncher/blob/6ab3f113934baae14cb2c1f4348ca61d16897f49/docs/DEVELOPERS.md)
+is useful context; Portcove instead reuses its implemented source, launch,
+preparation, authoring and retained-definition contracts. A competitor descriptor
+is not converted implicitly or given precedence. Arbitrary preparation programs,
+expanded home/config paths, unconstrained arguments/environment, file clearing,
+account/cloud actions and executable fallbacks are not interoperability grants.
+
+The inspected repository's license is
+[GPL version 3](https://github.com/elripalda/RecompLauncher/blob/6ab3f113934baae14cb2c1f4348ca61d16897f49/LICENSE).
+This is an attribution/license observation, not permission to copy its
+implementation or schema text. This native path uses neither. Maintaining even
+the narrow supported surface requires release-specific key/type/path and
+consumer checks, negative fixtures, and explicit review when upstream changes.
+No universal compatibility or upstream-adoption promise follows.

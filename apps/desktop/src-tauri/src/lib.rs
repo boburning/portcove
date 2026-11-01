@@ -43,6 +43,7 @@ mod diagnostics_writer;
 mod external_runtime_commands;
 mod favorite_commands;
 mod frontend_diagnostics;
+mod game_settings_commands;
 mod game_updates;
 mod ghostship_recovery;
 mod host_startup;
@@ -2592,6 +2593,9 @@ pub fn run() -> std::process::ExitCode {
             get_bootstrap_status,
             get_runtime_diagnostic_health,
             get_locale_preference,
+            game_settings_commands::get_game_settings,
+            game_settings_commands::review_game_setting,
+            game_settings_commands::apply_game_setting,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
             organization_commands::get_library_organization,

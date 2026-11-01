@@ -88,6 +88,7 @@ import {
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
 import { ProtectionSummary } from "./ProtectionSummary";
+import { GameSettingsControl } from "./GameSettingsControl";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
@@ -3823,6 +3824,15 @@ function DetailSavesSection({
             </ProjectLink>
           </section>
         </CurrentStateSummary>
+      )}
+      {!external && model.status?.active && (
+        <GameSettingsControl
+          key={`${model.libraryGeneration}:${model.port.id}:${model.status.active.id}:${Boolean(model.busy)}`}
+          portId={model.port.id}
+          installId={model.status.active.id}
+          generation={model.libraryGeneration}
+          busy={Boolean(model.busy)}
+        />
       )}
       <SavesStorageGroup
         port={model.port}

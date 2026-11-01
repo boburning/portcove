@@ -2668,6 +2668,14 @@ function classifyOnePath(
     recognized = true;
   }
 
+  // Runnable author descriptors are consumer inputs, not inert JSON examples.
+  if (/^examples\/integrations\/[^/]+\/[^/]+\.json$/u.test(file)) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/port-descriptor.test.mts");
+    for (const testFile of catalogAuthoringContractTests) addNodeTest(selection, testFile);
+    recognized = true;
+  }
+
   if (
     file.startsWith("crates/portcove-core/catalog/ports/") ||
     file === "crates/portcove-core/catalog/catalog-shared.json" ||

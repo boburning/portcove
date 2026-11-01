@@ -26,6 +26,7 @@ mod cancellation;
 mod catalog;
 mod startup;
 use catalog::CatalogCommand;
+mod game_settings;
 mod human;
 mod human_adapters;
 mod progress;
@@ -853,6 +854,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     )?;
                 }
             }
+        }
+        Commands::GameSettings { command } => {
+            game_settings::execute(command, &service, mode)?;
         }
         Commands::Catalog { command } => {
             catalog::execute(command, &service, mode, cli.non_interactive).await?;
@@ -3108,6 +3112,7 @@ fn command_name(command: &Commands) -> &'static str {
             BackupCommand::Delete { .. } => "backup.delete",
             BackupCommand::Restore { .. } => "backup.restore",
         },
+        Commands::GameSettings { command } => game_settings::name(command),
         Commands::Catalog { command } => command.name(),
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",
@@ -4349,6 +4354,36 @@ mod tests {
                 vec!["portcove", "backup", "list", "lighthouse"],
                 "backup.list",
             ),
+            (
+                vec!["portcove", "game-settings", "list", "lighthouse"],
+                "game-settings.list",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "game-settings",
+                    "review",
+                    "lighthouse",
+                    "prefs",
+                    "volume",
+                    "--reset",
+                ],
+                "game-settings.review",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "game-settings",
+                    "apply",
+                    "lighthouse",
+                    "prefs",
+                    "volume",
+                    "--reset",
+                    "--expected-review",
+                    "review",
+                ],
+                "game-settings.apply",
+            ),
             (vec!["portcove", "catalog", "list"], "catalog.list"),
             (vec!["portcove", "source", "list"], "source.list"),
             (vec!["portcove", "tool", "list"], "tool.list"),
@@ -4402,6 +4437,14 @@ mod tests {
         assert!(capabilities.commands.contains(&"storage".to_owned()));
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
+        for name in [
+            "game-settings",
+            "game-settings.list",
+            "game-settings.review",
+            "game-settings.apply",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert!(capabilities.commands.contains(&"artwork".to_owned()));
         assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));
