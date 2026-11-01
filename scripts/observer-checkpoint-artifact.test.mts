@@ -333,6 +333,78 @@ void test("a linked work ancestor cannot redirect snapshot reads or publication 
   assert.equal(f.routes.length, 0);
 });
 
+void test("recovery preserves the provider reserve and its original collection deadline", async (t) => {
+  const root = await directory(t),
+    f = transport(),
+    original = f.api.request;
+  f.api.request = (...args) => ({
+    ...original(...args),
+    headers: new Map([
+      ["x-ratelimit-limit", "100"],
+      ["x-ratelimit-remaining", "5"],
+    ]),
+  });
+  await assert.rejects(
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: f.download,
+    }),
+    /reserve exhausted/,
+  );
+  assert.equal(f.routes.length, 1);
+  assert.equal(f.count(), 0);
+  const g = transport(),
+    originalRead = g.api.request;
+  let clock = Date.now();
+  g.api.request = (...args) => {
+    const result = originalRead(...args);
+    clock += 101;
+    return result;
+  };
+  await assert.rejects(
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: clock + 100,
+      now: () => clock,
+      api: g.api,
+      download: g.download,
+    }),
+    /deadline exhausted/,
+  );
+  assert.equal(g.routes.length, 1);
+  assert.equal(g.count(), 0);
+});
+
+void test("duplicate scheduled run identities refuse before accepting even the first artifact", async (t) => {
+  const root = await directory(t),
+    f = transport(),
+    original = f.api.request;
+  f.api.request = (...args) => {
+    const result = original(...args);
+    if (!args[1].includes("/actions/workflows/")) return result;
+    const body = { total_count: 2, workflow_runs: [f.run, f.run] };
+    return { ...result, body, bodyBytes: Buffer.byteLength(JSON.stringify(body)) };
+  };
+  await assert.rejects(
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: f.download,
+    }),
+    /inventory invalid/,
+  );
+  assert.equal(f.count(), 0);
+});
+
 void test("snapshot workflow keeps job-only read permission and shares the original finite output allowance", async () => {
   const text = await readFile(
     new URL("../.github/workflows/configured-upstream-observer.yml", import.meta.url),

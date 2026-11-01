@@ -8,7 +8,7 @@ import { isRecord, errorCode } from "./runtime-values.mts";
 import { readBoundedEvidenceFile } from "./development-evidence.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { GitHubApiClient, createGitHubRunner, rateLimitFromResponse } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
@@ -211,6 +211,7 @@ export async function collectObserverSnapshot(
   now = Date.now(),
   deadline = Infinity,
 ) {
+  await assertOwnedUnlinkedPath(root, path.join(root, "work"), "observer work directory");
   return withCheckpointLock(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), () =>
     collectUnlockedObserverSnapshot(root, config, expected, now, deadline),
   );
@@ -326,14 +327,25 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   await mkdir(work, { recursive: true });
   let requests = 0,
     bytes = 0;
+  let providerRemaining: number | null = null,
+    providerLimit: number | null = null;
   const remaining = () => {
     const left = Math.floor(deadline - now());
     requireValue(left > 0 && left <= 60000, "recovery collection deadline exhausted");
     return left;
   };
-  const read = (route: string) => {
+  const admit = () => {
     remaining();
     requireValue(++requests <= 256, "recovery request envelope exhausted");
+    requireValue(
+      providerRemaining === null ||
+        providerRemaining > Math.max(1, Math.ceil((providerLimit ?? providerRemaining) * 0.05)),
+      "recovery provider reserve exhausted",
+    );
+    if (providerRemaining !== null) providerRemaining--;
+  };
+  const read = (route: string) => {
+    admit();
     const response = api.request("GET", `repos/${repository}${route ? `/${route}` : ""}`);
     remaining();
     requireValue(
@@ -344,6 +356,11 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     );
     bytes += response.bodyBytes;
     requireValue(bytes <= observerSnapshotLimit, "recovery metadata byte envelope exhausted");
+    const rate = rateLimitFromResponse(response);
+    if (rate.remaining !== null && rate.limit !== null && rate.remaining <= rate.limit) {
+      providerRemaining = rate.remaining;
+      providerLimit = rate.limit;
+    }
     return response.body;
   };
   // The provider, not an environment or artifact claim, appoints the default branch.
@@ -415,8 +432,6 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       Math.min(Number(inventory.total_count), 100) === inventory.workflow_runs.length,
     "recent scheduled run inventory incomplete",
   );
-  let expectedHistory = false;
-  let reachedAgeBoundary = false;
   let previousCreated = Infinity;
   const seenRuns = new Set<number>();
   for (const raw of inventory.workflow_runs) {
@@ -432,6 +447,11 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     );
     seenRuns.add(Number(raw.id));
     previousCreated = Date.parse(raw.created_at);
+  }
+  let expectedHistory = false;
+  let reachedAgeBoundary = false;
+  for (const raw of inventory.workflow_runs) {
+    requireValue(isRecord(raw), "run inventory invalid");
     if (raw.id === current.run || raw.status !== "completed") continue;
     requireValue(
       raw.workflow_id === workflowId &&
@@ -518,6 +538,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         artifact.workflow_run.head_sha === source.source,
       "checkpoint artifact identity unavailable",
     );
+    admit();
     const archive = (options.download ?? readGitHubArtifactArchive)(
       `repos/${repository}/actions/artifacts/${Number(artifact.id)}/zip`,
       { cwd: root, maxBytes: Number(artifact.size_in_bytes), timeoutMs: remaining() },
