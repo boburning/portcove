@@ -570,6 +570,47 @@ fn actual_nondefault_integrity_policy_refuses_before_journaling_or_staging() {
 }
 
 #[test]
+fn actual_default_policy_low_integrity_refuses_before_journaling_or_staging() {
+    for (port_id, label_parent) in [(SHIP, false), (GOLDEN, false), (SHIP, true), (GOLDEN, true)] {
+        let fixture = fixture(port_id);
+        let label_path = if label_parent {
+            fixture.canonical.parent().unwrap()
+        } else {
+            &fixture.canonical
+        };
+        crate::game_settings::windows::HeldFile::set_low_integrity_for_test(label_path).unwrap();
+        let error = fixture
+            .service
+            .review_game_setting(
+                port_id,
+                &fixture.file.id,
+                &fixture.file.settings[0].id,
+                GameSettingChange::Reset,
+            )
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(error.message.contains("integrity"));
+        assert!(
+            OperationStore::new(fixture.service.library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(fs::read(&fixture.canonical).unwrap(), fixture.original);
+        assert_eq!(fs::read(&fixture.runtime).unwrap(), fixture.original);
+        assert!(
+            !fs::read_dir(fixture.canonical.parent().unwrap())
+                .unwrap()
+                .any(|entry| entry
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".portcove-settings-"))
+        );
+    }
+}
+
+#[test]
 fn foreign_staging_suffix_and_occupied_publication_name_are_retained_for_review() {
     for point in [
         SettingsFaultPoint::CanonicalStageBound,

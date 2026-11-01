@@ -12,8 +12,8 @@ use windows_sys::Win32::{
         GetSecurityDescriptorDacl, GetSecurityDescriptorSacl, GetTokenInformation, IsValidAcl,
         IsValidSid, IsWellKnownSid, LABEL_SECURITY_INFORMATION, OWNER_SECURITY_INFORMATION,
         PROTECTED_DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID, SE_DACL_PROTECTED,
-        SYSTEM_MANDATORY_LABEL_ACE, TOKEN_OWNER, TOKEN_QUERY, TokenOwner,
-        UNPROTECTED_DACL_SECURITY_INFORMATION, WinMediumLabelSid,
+        SYSTEM_MANDATORY_LABEL_ACE, TOKEN_MANDATORY_LABEL, TOKEN_OWNER, TOKEN_QUERY,
+        TokenIntegrityLevel, TokenOwner, UNPROTECTED_DACL_SECURITY_INFORMATION, WinMediumLabelSid,
     },
     System::Threading::{GetCurrentProcess, OpenProcessToken},
 };
@@ -174,6 +174,14 @@ impl SecuritySnapshot {
         }))
     }
 
+    fn has_default_medium_integrity(&self) -> bool {
+        self.label.as_ref().is_none_or(|label| {
+            label.policy == DEFAULT_INTEGRITY_POLICY
+                // SAFETY: capture bounded and validated this descriptor-owned SID.
+                && unsafe { IsWellKnownSid(label.sid, WinMediumLabelSid) } != 0
+        })
+    }
+
     fn same_integrity(&self, other: &Self) -> bool {
         let policy = |label: &Option<IntegrityLabel>| {
             label
@@ -229,6 +237,48 @@ impl SecuritySnapshot {
         }
         // SAFETY: OpenProcessToken succeeded and transferred this real handle.
         let token = unsafe { OwnedHandle::from_raw_handle(raw) };
+        let mut integrity_size = 0;
+        // SAFETY: size-only query on this owned TOKEN_QUERY handle.
+        unsafe {
+            GetTokenInformation(
+                token.as_raw_handle() as _,
+                TokenIntegrityLevel,
+                std::ptr::null_mut(),
+                0,
+                &mut integrity_size,
+            );
+        }
+        if integrity_size < size_of::<TOKEN_MANDATORY_LABEL>() as u32 || integrity_size > 4096 {
+            return Err(changed());
+        }
+        let mut integrity = vec![0usize; (integrity_size as usize).div_ceil(size_of::<usize>())];
+        // SAFETY: aligned output covers the bounded token information size.
+        if unsafe {
+            GetTokenInformation(
+                token.as_raw_handle() as _,
+                TokenIntegrityLevel,
+                integrity.as_mut_ptr().cast(),
+                integrity_size,
+                &mut integrity_size,
+            )
+        } == 0
+        {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        let sid = unsafe {
+            (*integrity.as_ptr().cast::<TOKEN_MANDATORY_LABEL>())
+                .Label
+                .Sid
+        };
+        // The query returns a Windows-owned SID inside this live output buffer.
+        if sid.is_null()
+            || unsafe { IsValidSid(sid) } == 0
+            || unsafe { IsWellKnownSid(sid, WinMediumLabelSid) } == 0
+        {
+            return Err(PortcoveError::unsupported(
+                "settings editing requires the ordinary medium-integrity process",
+            ));
+        }
         let mut needed = 0;
         // SAFETY: the null/zero buffer asks only for the required output size.
         unsafe {
@@ -275,13 +325,14 @@ impl HeldFile {
             ));
         }
         let security = SecuritySnapshot::capture(&self.file)?;
-        if security
-            .label
-            .as_ref()
-            .is_some_and(|label| label.policy != DEFAULT_INTEGRITY_POLICY)
-        {
+        // v1 never relabels replacements. Restrict both the original and the
+        // stage's immediate parent to ordinary medium/default policy before
+        // review succeeds or durable intent is inserted. The process query
+        // below likewise refuses elevated/low-integrity staging semantics.
+        let parent = SecuritySnapshot::capture(self._parents.last().ok_or_else(changed)?)?;
+        if !security.has_default_medium_integrity() || !parent.has_default_medium_integrity() {
             return Err(PortcoveError::unsupported(
-                "configuration has a nondefault mandatory integrity policy; editing is unsupported",
+                "configuration or parent has unsupported integrity security; editing requires medium/default policy",
             ));
         }
         if !security.present || !security.is_process_default_owner()? {
@@ -367,6 +418,14 @@ fn validate_attributes(attributes: u32) -> Result<()> {
 #[cfg(test)]
 impl HeldFile {
     pub(crate) fn set_no_read_up_for_test(path: &Path) -> Result<()> {
+        Self::set_test_integrity(path, "S:(ML;;NWNR;;;LW)")
+    }
+
+    pub(crate) fn set_low_integrity_for_test(path: &Path) -> Result<()> {
+        Self::set_test_integrity(path, "S:(ML;;NW;;;LW)")
+    }
+
+    fn set_test_integrity(path: &Path, label: &str) -> Result<()> {
         use windows_sys::Win32::{
             Security::Authorization::{
                 ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
@@ -385,10 +444,10 @@ impl HeldFile {
             .read(true)
             .access_mode(FILE_GENERIC_READ | WRITE_OWNER)
             .share_mode(7)
-            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
             .open(path)?;
-        ordinary(&file, false)?;
-        let text: Vec<u16> = "S:(ML;;NWNR;;;LW)".encode_utf16().chain(Some(0)).collect();
+        ordinary(&file, file.metadata()?.is_dir())?;
+        let text: Vec<u16> = label.encode_utf16().chain(Some(0)).collect();
         let mut raw = std::ptr::null_mut();
         // SAFETY: fixed test SDDL and initialized output; no credentials or
         // privileges are created. The label is lowered on an owned temp file.
