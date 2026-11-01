@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { evaluateFallowReport } from "./check-fallow-report.mts";
+import { evaluateFallowReport, reviewedFallowVersion } from "./check-fallow-report.mts";
 import { CommandFailure } from "./report-summary.mts";
 import { isRecord } from "./runtime-values.mts";
 import type { FallowOptions, FallowSpawn } from "./run-fallow.mts";
@@ -285,7 +285,7 @@ void test("analyzer status and advisory review verdict never become a quality pa
         stdout: JSON.stringify({
           kind: "audit-brief",
           schema_version: 13,
-          version: "3.37.0",
+          version: reviewedFallowVersion,
           verdict: "fail",
           changed_files_count: 3,
           base_ref: "base",
@@ -307,11 +307,17 @@ void test("CSS and review routes accept only their reviewed report contracts", a
     for (const mode of ["css", "review"] as const) {
       const value =
         mode === "css"
-          ? { kind: "health", schema_version: 12, version: "3.37.0", summary: {}, findings: [] }
+          ? {
+              kind: "health",
+              schema_version: 12,
+              version: reviewedFallowVersion,
+              summary: {},
+              findings: [],
+            }
           : {
               kind: "audit-brief",
               schema_version: 13,
-              version: "3.37.0",
+              version: reviewedFallowVersion,
               verdict: "warn",
               changed_files_count: 1,
               base_ref: "base",
