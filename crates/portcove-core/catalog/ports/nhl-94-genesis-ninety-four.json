@@ -3,7 +3,7 @@
   "listing": {
     "id": "nhl-94-genesis-ninety-four",
     "name": "NHL '94 (Genesis) (ninety-four)",
-    "summary": "Upstream route: Good portable-package / original-ROM route; same maintainer as gunstars, distinct game. Limits: Released0.3.6 native rewrite; optional roster/hack enhancements do not change game identity. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 archive (glibc2.34+), universal macOS11+ Intel/Apple-Silicon ZIP. Original data: Own US/Europe 1 MB retail Genesis ROM. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Ninety Four Windows player using your own retail NHL ’94 US/Europe Genesis ROM. Preserve its working-directory settings, cartridge saves, states and roster data; online sessions and modified rosters retain separate compatibility requirements.",
     "original_game_title": "NHL '94 (Genesis)",
     "project_url": "https://github.com/1nputs/ninety-four",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "nhl-94",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2597
+    "issue_number": 2597,
+    "manual_setup": {
+      "help_url": "https://github.com/1nputs/ninety-four/blob/1b0b30e7bf6ee4e66ab33ef10acbeec55442b021/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact original upstream",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own 1 MiB retail NHL ’94 Genesis US/Europe ROM. Finish the upstream first-launch ROM picker and saved settings before attachment; retain the independent original. Optional larger ROM hacks and roster imports are separate upstream operations, not another accepted retail revision by title alone. This guide obtains or executes no ROM, converter, helper or game."
+        },
+        {
+          "title": "Keep the complete Windows package",
+          "instruction": "The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts."
+        },
+        {
+          "title": "Attach the prepared native player",
+          "instruction": "Select nhl94.exe, use the complete extracted ninety-four-windows-x86_64 folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
+        },
+        {
+          "title": "Preserve the actual working-directory data",
+          "instruction": "Keep settings.ini, out/nhl94.srm cartridge save RAM, states/ with slots and Autosave, roster sets, recordings, screenshots, videos and all already configured external ROM/save paths. Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion."
+        },
+        {
+          "title": "Keep original, roster and component terms separate",
+          "instruction": "Retain the project MIT notice and pulseman/component notices, including Nuked-OPN2 LGPL-2.1, ymfm BSD-3 and the separately credited upscalers. They grant nothing over the original NHL ’94 name or game data. Use only originals, roster art and modified content you are independently permitted to use. Online peers need matching releases and applicable roster/state data; no account, relay/server, real multiplayer or full user-content corpus qualification is provided."
+        },
+        {
+          "title": "Maintain the external player explicitly",
+          "instruction": "Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed installation, update, rollback, backup and removal remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the original retail ROM and actual working-directory data. Cartridge SRAM, states, modified rosters and online session compatibility are separate."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
