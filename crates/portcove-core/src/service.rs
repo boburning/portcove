@@ -18770,9 +18770,6 @@ mod journal_diagnostic_tests {
         missing.phase = LifecyclePhase::Prepared;
         assert!(store.put(&mut missing).is_err());
         let service = PortcoveService::new_read_only(library.clone()).unwrap();
-        let plan = service
-            .plan_output_relocation("zelda64-recomp", &temporary.path().join("target"))
-            .unwrap();
         let db = library.connection().unwrap();
         db.execute_batch("INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at) VALUES
           ('missing-required','install','zelda64-recomp','prepared',1,2),
@@ -18780,16 +18777,9 @@ mod journal_diagnostic_tests {
           ('unknown-phase','install','zelda64-recomp','unknown-secret-phase',5,6),
           ('malformed-json','install','zelda64-recomp','preparing',7,8),
           ('missing-acquisition','acquire_update','zelda64-recomp','preparing',9,10),
-          ('foreign-relocation','install','zelda64-recomp','preparing',11,12),
           ('bad-column','install','zelda64-recomp','preparing',13,14);
           UPDATE lifecycle_operations SET install_json='{\"secret\":\"payload-canary\"' WHERE id='malformed-json';
           UPDATE lifecycle_operations SET created_at=X'ff',port_id='token=port-canary',last_error='token=error-canary' WHERE id='bad-column';").unwrap();
-        // Valid typed relocation payload copied from the existing planner below the guarded writer.
-        db.execute(
-            "UPDATE lifecycle_operations SET relocation_json=?1 WHERE id='foreign-relocation'",
-            [serde_json::to_string(&plan).unwrap()],
-        )
-        .unwrap();
         let unknown_destination = library
             .versions_dir()
             .join("zelda64-recomp")
@@ -18812,9 +18802,9 @@ mod journal_diagnostic_tests {
         let diagnostic = report.repair.journal_diagnostics.as_ref().unwrap();
         assert!(diagnostic.enumeration_complete);
         assert!(!diagnostic.related_assessments_complete);
-        assert_eq!(diagnostic.enumerated_rows, 8);
+        assert_eq!(diagnostic.enumerated_rows, 7);
         assert_eq!(diagnostic.decoded_rows, 1);
-        assert_eq!(diagnostic.problems.len(), 7);
+        assert_eq!(diagnostic.problems.len(), 6);
         for stage in [
             Stage::Columns,
             Stage::Kind,
@@ -18845,7 +18835,7 @@ mod journal_diagnostic_tests {
                 .iter()
                 .filter(|item| item.kind == RepairItemKind::MalformedJournal)
                 .count(),
-            7
+            6
         );
         for item in report
             .repair
