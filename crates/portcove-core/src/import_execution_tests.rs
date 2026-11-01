@@ -471,6 +471,7 @@ fn import_missing_retained_reference_stops_recovery() {
 
 #[test]
 fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library() {
+    let observed = std::time::Instant::now();
     let temp = tempfile::tempdir().unwrap();
     let source = temp.path().join("source");
     let export = temp.path().join("export.json");
@@ -506,6 +507,7 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
     })
     .unwrap();
     assert!(result.completed && result.input_retained);
+    eprintln!("import roundtrip phase: imported ({:?})", observed.elapsed());
     let restored = Library::open(&destination).unwrap();
     assert_ne!(restored.identity_record().unwrap().id, original_identity.id);
     assert_eq!(restored.identity_record().unwrap(), destination_identity);
@@ -554,13 +556,16 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
         );
         assert!(destination.join(tree).join("starship/empty").is_dir());
     }
+    eprintln!("import roundtrip phase: metadata verified ({:?})", observed.elapsed());
     let service = PortcoveService::new(restored.clone()).unwrap();
     let backup = service.list_backups("starship").unwrap().backups.remove(0);
+    eprintln!("import roundtrip phase: backup listed ({:?})", observed.elapsed());
     assert!(backup.path.starts_with(&destination));
     fs::write(destination.join("user/starship/data.bin"), b"after import").unwrap();
     let preview = service
         .preview_backup_action("starship", &backup.id, BackupAction::Restore)
         .unwrap();
+    eprintln!("import roundtrip phase: restore reviewed ({:?})", observed.elapsed());
     let authorization = service
         .authorize_backup_action(
             "starship",
@@ -569,16 +574,20 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
             &preview.preview_sha256,
         )
         .unwrap();
+    eprintln!("import roundtrip phase: restore authorized ({:?})", observed.elapsed());
     let restored_backup = service
         .restore_backup("starship", &backup.id, &authorization.token)
         .unwrap();
+    eprintln!("import roundtrip phase: backup restored ({:?})", observed.elapsed());
     assert!(restored_backup.safety_backup.is_some());
     assert_eq!(
         fs::read(destination.join("user/starship/data.bin")).unwrap(),
         b"user"
     );
+    eprintln!("import roundtrip phase: releasing library ({:?})", observed.elapsed());
     drop(service);
     drop(restored);
+    eprintln!("import roundtrip phase: library released ({:?})", observed.elapsed());
     // Completed import remains idempotent even when the old input is no longer mounted.
     fs::rename(&source, temp.path().join("offline-source")).unwrap();
     assert_eq!(
@@ -596,6 +605,7 @@ fn import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empt
         .unwrap()
         .completed
     );
+    eprintln!("import roundtrip phase: complete ({:?})", observed.elapsed());
 }
 
 #[test]

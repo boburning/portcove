@@ -7,6 +7,46 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Scheduled 41303812920/a1 retained this exact Linux case at the 30s cutoff.
+# First cache/corruption/capacity iteration completed at 29.299s; the second began.
+# Keep assertions, cleanup, product deadlines, workers and zero retries unchanged.
+# Finite 60s harness completion is not a causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Scheduled 41303812920/a1 retained this exact Linux case at the 30s cutoff.
+# First preservation completed at 26.277s; second projection began at 27.486s.
+# Keep assertions, cleanup, product deadlines, workers and zero retries unchanged.
+# Finite 60s harness completion is not a causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Scheduled 41303812920/a1 retained this exact Linux case at the 30s cutoff.
+# Import completed before the verification/backup/idempotence tail hit the cutoff.
+# Keep assertions, cleanup, product deadlines, workers and zero retries unchanged.
+# Finite 60s harness completion is not a causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Scheduled 41303812920/a1 retained this exact Linux case at the 30s cutoff.
+# Seven of eight fixtures completed at 28.348s; the final fixture began.
+# Keep assertions, cleanup, product deadlines, workers and zero retries unchanged.
+# Finite 60s harness completion is not a causal performance repair.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 41297982645/a1 retained a 30.186s Windows cutoff in this four-case
 # adoption-recovery fixture; the same case passed in 22.765s in 41294669476/a1.
 # Preserve every refusal/retention assertion, cleanup, workers and zero retries;

@@ -618,6 +618,20 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const linuxScheduledRecoveryFilters = [
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence$/)",
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
+    "package(portcove-core) & test(/^import_execution::tests::import_round_trip_preserves_versions_pointers_payloads_and_history_in_an_empty_library$/)",
+    "package(portcove-core) & test(/^service::tests::publication_recovery_retains_conflicting_source_import_intent$/)",
+  ];
+  for (const filter of linuxScheduledRecoveryFilters) {
+    assert.deepEqual(overrideFor(filter, "x86_64-unknown-linux-gnu"), {
+      platform: "x86_64-unknown-linux-gnu",
+      filter,
+      "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+      "success-output": "immediate",
+    });
+  }
   const olderIntelRetainedLifecycle = intelObservedLifecycle[0];
   assert.ok(olderIntelRetainedLifecycle);
   for (const [index, { filter, periods }] of intelRetainedContractBudgets.entries()) {
@@ -723,6 +737,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-unknown-linux-gnu", filter: linuxBuilderRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparedReceiptFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsContradictoryAdoptionFilter },
+      ...linuxScheduledRecoveryFilters.map((filter) => ({
+        platform: "x86_64-unknown-linux-gnu",
+        filter,
+      })),
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxWholeProjectionFilter },
       { platform: "x86_64-apple-darwin", filter: intelObservedControlFilter },
