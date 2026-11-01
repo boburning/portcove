@@ -18,7 +18,7 @@ import {
 } from "./desktop-review-controls.mts";
 import { gameProjectLabel, gameTitle } from "../src/port-identity.ts";
 import { INTERFACE_SIZES } from "../src/interface-size-controller.ts";
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 
 /** The dispatcher owns normal application startup, isolated output and positive-exit restart. */
@@ -31,6 +31,78 @@ const scenarioId = "native-game-first-choice-and-restart";
 const gameId = "the-legend-of-zelda-majoras-mask";
 const pair = ["2ship2harkinian", "zelda64-recomp"] as const;
 const groupSelector = `[data-detail-return-group="game:${gameId}"]`;
+
+/** Retry only Core's explicit stale workspace read; never replay a player action. */
+export async function readGameFirstObservation(invoke: ScenarioInvoke, readbacks: unknown[]) {
+  let initial: { generation: number; library_root: string | null } | undefined;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const bootstrap = transportValue(
+      "desktop_bootstrap_status",
+      fixtureSuccess(await invoke("get_bootstrap_status")),
+    );
+    assert.equal(bootstrap.ready, true);
+    initial ??= { generation: bootstrap.generation, library_root: bootstrap.library_root };
+    assert.equal(
+      bootstrap.generation,
+      initial.generation,
+      "Read retries must preserve the original library generation",
+    );
+    assert.equal(
+      bootstrap.library_root,
+      initial.library_root,
+      "Read retries must preserve the original library root",
+    );
+    const generation = initial.generation;
+    const organization = transportValue(
+      "desktop_library_organization",
+      fixtureSuccess(await invoke("get_library_organization", { generation })),
+    );
+    const snapshot = await invoke("get_workspace_snapshot", { generation });
+    const failure =
+      isRecord(snapshot) && snapshot.ok === false
+        ? transportValue("desktop_desktop_error", snapshot.error)
+        : undefined;
+    const refused =
+      failure?.code === "conflict" &&
+      failure.details.workspace_snapshot_stale === "true" &&
+      failure.details.retryable === "true";
+    if (refused)
+      readbacks.push({
+        phase: "workspace-snapshot-refusal",
+        attempt,
+        generation,
+        code: "conflict",
+        workspace_snapshot_stale: "true",
+        retryable: "true",
+      });
+    const workspace = refused
+      ? undefined
+      : transportValue("desktop_workspace_snapshot", fixtureSuccess(snapshot));
+    // Complete every observation, including a refused snapshot, and bracket
+    // generation-less get_statuses with the original library identity.
+    const statuses = transportValues("status", fixtureSuccess(await invoke("get_statuses")));
+    const after = transportValue(
+      "desktop_bootstrap_status",
+      fixtureSuccess(await invoke("get_bootstrap_status")),
+    );
+    assert.equal(after.ready, true);
+    assert.equal(
+      after.generation,
+      initial.generation,
+      "Readbacks must belong to one library generation",
+    );
+    assert.equal(after.library_root, initial.library_root);
+    if (!workspace) continue;
+    for (const id of pair)
+      assert.deepEqual(
+        required(statuses.find((row) => row.port_id === id)),
+        required(workspace.statuses.find((row) => row.port_id === id)),
+        `Ordinary status and workspace disagree for ${id}`,
+      );
+    return { bootstrap, organization, workspace, statuses };
+  }
+  throw new Error("Workspace snapshot remained stale after 3 full read observations");
+}
 
 /** Serialized read-only observation; optional metadata failure does not block choice. */
 export function observeGameFirstCaptureReadiness(size: number) {
@@ -68,39 +140,7 @@ export async function gameFirstScenarios({
     assert.ok(INTERFACE_SIZES.some((size) => size === originalSize));
     const captures: unknown[] = [];
     const readbacks: unknown[] = [];
-    const read = async () => {
-      const bootstrap = transportValue(
-        "desktop_bootstrap_status",
-        fixtureSuccess(await invoke("get_bootstrap_status")),
-      );
-      assert.equal(bootstrap.ready, true);
-      const generation = bootstrap.generation;
-      const organization = transportValue(
-        "desktop_library_organization",
-        fixtureSuccess(await invoke("get_library_organization", { generation })),
-      );
-      const workspace = transportValue(
-        "desktop_workspace_snapshot",
-        fixtureSuccess(await invoke("get_workspace_snapshot", { generation })),
-      );
-      // get_statuses has no generation argument. Bracket it with bootstrap and
-      // join its rows to the generation-bound workspace instead of inventing one.
-      const statuses = transportValues("status", fixtureSuccess(await invoke("get_statuses")));
-      const after = transportValue(
-        "desktop_bootstrap_status",
-        fixtureSuccess(await invoke("get_bootstrap_status")),
-      );
-      assert.equal(after.ready, true);
-      assert.equal(after.generation, generation, "Readbacks must belong to one library generation");
-      assert.equal(after.library_root, bootstrap.library_root);
-      for (const id of pair)
-        assert.deepEqual(
-          required(statuses.find((row) => row.port_id === id)),
-          required(workspace.statuses.find((row) => row.port_id === id)),
-          `Ordinary status and workspace disagree for ${id}`,
-        );
-      return { bootstrap, organization, workspace, statuses };
-    };
+    const read = () => readGameFirstObservation(invoke, readbacks);
     const before = await read();
     readbacks.push({
       phase: "before",
