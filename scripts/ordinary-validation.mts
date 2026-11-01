@@ -2815,6 +2815,7 @@ function classifyOnePath(
     addNodeTest(selection, "scripts/check-transport-contract.test.mts");
     addNodeTest(selection, "scripts/check-transport-contract.integration.test.mts");
     addNodeTest(selection, "scripts/transport-types.test.mts");
+    addNodeTest(selection, "scripts/transport-values.test.mts");
     recognized = true;
   }
 
