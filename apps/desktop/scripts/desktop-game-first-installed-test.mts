@@ -321,6 +321,8 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         return value.some((root) => samePath(root.path, prepared.sourceDirectory));
       }, 15_000);
       await click(button("Refresh folders"));
+      // Refresh reads saved state; the scan starts through its separate action.
+      await click(button("Scan saved folders"));
       const candidate = By.css(
         `[data-completed-candidate][data-profile-id="${sourceProfile}"] [data-candidate-review]`,
       );
