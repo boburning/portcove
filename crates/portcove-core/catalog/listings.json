@@ -2875,35 +2875,124 @@
     {
       "id": "abilliontokens-sims1-recomp",
       "name": "The Sims — Original Xbox (The Sims - Static Recompilation)",
-      "summary": "Upstream route: Upstream runtime package for The Sims - Static Recompilation; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports live households, sound and a real Windows run. Fullscreen movie cropping and unanalysed Hor+ behavior remain. Distinct console game from Windows Sims edition. Upstream live household/Windows boot evidence; fullscreen movie cropping and unanalysed Hor+ path remain. Upstream platforms: Linux Vulkan/SDL3 and Windows D3D12/XAudio2 routes. Windows has local MSVC/LLVM and cross-build documentation. Original data: Original Xbox The Sims USA retail disc ISO/extracted default.xbe and data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Register an independently permitted prepared The Sims original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
       "original_game_title": "The Sims",
       "project_url": "https://github.com/abilliontokens/sims1-recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/abilliontokens/sims1-recomp",
-      "issue_number": 2733
+      "issue_number": 2733,
+      "manual_setup": {
+        "help_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md",
+        "steps": [
+          {
+            "title": "Complete the exact owned-disc setup upstream",
+            "instruction": "Use an independently permitted complete The Sims original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 2,183,168 bytes, SHA-1 40ab6f97e8ee3bf4102a5a7820dcb8047fc30097, title ID 0x4541002F; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove."
+          },
+          {
+            "title": "Attach the supported completed native player",
+            "instruction": "Select Sims1.exe, with its complete creating player directory as working directory and no arguments for normal launch. Keep its matching runtime DLLs, resources, notices and assets/ together. The Windows route uses Direct3D 12 and XAudio2; keep the supported host graphics/runtime dependencies installed upstream. The source locates assets/ beside the executable or in ancestor folders; preserve the actual selected tree rather than redirecting originals during attachment. Do not select build scripts, generators or another title’s executable."
+          },
+          {
+            "title": "Keep the exact session and successor boundary visible",
+            "instruction": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced."
+          },
+          {
+            "title": "Review Play and preserve external ownership",
+            "instruction": "Review and consent to this exact selected executable, established CWD and literal arguments, then request Play separately. Upstream and you retain preparation, runtime replacement, recovery and every external file. Removing registration preserves external files. Before upstream replacement, close all actual sessions, keep the old complete runtime and all data, then review/relink changed selected bytes. No external update, backup, rollback, migration or deletion is offered."
+          },
+          {
+            "title": "Keep the entire effective profile with its creating runtime",
+            "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+          }
+        ],
+        "warnings": [
+          "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
+          "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide.",
+          "Upstream documents fullscreen movie cropping and unanalysed Hor+ behavior; its real-Windows/playthrough reports remain upstream evidence only."
+        ]
+      }
     },
     {
       "id": "abilliontokens-sims2-recomp",
       "name": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
-      "summary": "Upstream route: Upstream runtime package for The Sims 2 - Static Recompilation; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports live gameplay on Windows/Linux. Frame-rate/resolution measurements unpublished; full-game completion not established here. Upstream boots to live gameplay Windows/Linux; frame-rate/resolution measurements not published and full game not qualified. Distinct from desktop Sims 2. Upstream platforms: Windows D3D12 and Linux Vulkan native routes. Exact release architecture should follow selected package documentation. Original data: Original Xbox The Sims 2 USA own exact disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Register an independently permitted prepared The Sims 2 original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
       "original_game_title": "The Sims 2",
       "project_url": "https://github.com/abilliontokens/sims2-recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/abilliontokens/sims2-recomp",
-      "issue_number": 2752
+      "issue_number": 2752,
+      "manual_setup": {
+        "help_url": "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md",
+        "steps": [
+          {
+            "title": "Complete the exact owned-disc setup upstream",
+            "instruction": "Use an independently permitted complete The Sims 2 original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 3,399,680 bytes, SHA-1 16f9e41ce26c315a758f25d43ba1fa9d3809d1ad, title ID 0x4541038B; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove."
+          },
+          {
+            "title": "Attach the supported completed native player",
+            "instruction": "Select Sims2.exe, with its complete creating player directory as working directory and no arguments for normal launch. Keep its matching runtime DLLs, resources, notices and assets/ together. The Windows route uses Direct3D 12 and XAudio2; keep the supported host graphics/runtime dependencies installed upstream. The source locates assets/ beside the executable or in ancestor folders; preserve the actual selected tree rather than redirecting originals during attachment. Do not select build scripts, generators or another title’s executable."
+          },
+          {
+            "title": "Keep the exact session and successor boundary visible",
+            "instruction": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced."
+          },
+          {
+            "title": "Review Play and preserve external ownership",
+            "instruction": "Review and consent to this exact selected executable, established CWD and literal arguments, then request Play separately. Upstream and you retain preparation, runtime replacement, recovery and every external file. Removing registration preserves external files. Before upstream replacement, close all actual sessions, keep the old complete runtime and all data, then review/relink changed selected bytes. No external update, backup, rollback, migration or deletion is offered."
+          },
+          {
+            "title": "Keep the entire effective profile with its creating runtime",
+            "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+          }
+        ],
+        "warnings": [
+          "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
+          "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide.",
+          "The upstream headline describes Windows/Linux live gameplay, while its status table labels the cross-built Windows smoke as Wine-only and not real Windows. Retain that evidence distinction; neither wording is a Portcove Windows observation."
+        ]
+      }
     },
     {
       "id": "abilliontokens-urbz-recomp",
       "name": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
-      "summary": "Upstream route: Upstream runtime package for Urbz recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream port/features available. Full-game completion Unknown here; sibling titles using the SDK do not transfer evidence. WindowsD3D12/LinuxVulkan1.3 x64 packages; distinct from DS/GBA Urbz. Full-game completion not inferred from common SDK. Upstream platforms: Windows 10/11 x64 D3D12 and Linux x86-64 Vulkan1.3; original Xbox edition, not DS/GBA. Original data: Original Xbox Urbz SimsInCity USA own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Register an independently permitted prepared The Urbz: Sims in the City original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
       "original_game_title": "The Urbz: Sims in the City",
       "project_url": "https://github.com/abilliontokens/urbz-recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/abilliontokens/urbz-recomp",
-      "issue_number": 2813
+      "issue_number": 2813,
+      "manual_setup": {
+        "help_url": "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md",
+        "steps": [
+          {
+            "title": "Complete the exact owned-disc setup upstream",
+            "instruction": "Use an independently permitted complete The Urbz: Sims in the City original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 3,035,136 bytes, SHA-1 5712b6a3e2eaaacfcae228cf6154ade499a0033c, title ID 0x45410060; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove."
+          },
+          {
+            "title": "Attach the supported completed native player",
+            "instruction": "Select Urbz.exe, with its complete creating player directory as working directory and no arguments for normal launch. Keep its matching runtime DLLs, resources, notices and assets/ together. The Windows route uses Direct3D 12 and XAudio2; keep the supported host graphics/runtime dependencies installed upstream. The source locates assets/ beside the executable or in ancestor folders; preserve the actual selected tree rather than redirecting originals during attachment. Do not select build scripts, generators or another title’s executable."
+          },
+          {
+            "title": "Keep the exact session and successor boundary visible",
+            "instruction": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced."
+          },
+          {
+            "title": "Review Play and preserve external ownership",
+            "instruction": "Review and consent to this exact selected executable, established CWD and literal arguments, then request Play separately. Upstream and you retain preparation, runtime replacement, recovery and every external file. Removing registration preserves external files. Before upstream replacement, close all actual sessions, keep the old complete runtime and all data, then review/relink changed selected bytes. No external update, backup, rollback, migration or deletion is offered."
+          },
+          {
+            "title": "Keep the entire effective profile with its creating runtime",
+            "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+          }
+        ],
+        "warnings": [
+          "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
+          "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide."
+        ]
+      }
     },
     {
       "id": "abuse-abuse-2025",
@@ -9447,13 +9536,42 @@
     {
       "id": "bitsandbreakpoints-d-psx-pc-recomp",
       "name": "D (D PC Port)",
-      "summary": "Upstream route: Upstream runtime package for D PC Port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes game logic, pause and save states. v1.0.1 preserves older states; complete three-disc playthrough Unknown here. Windows package includes native game.dll; keep edition/disc set distinct from DOS D. Save states carry across v1.0.0-1.0.1 per upstream. Upstream platforms: Native Windows app documented. Exact CPU architecture beyond selected package/source docs Unknown; no retail BIOS required. Original data: PS1 D USA three discs SLUS-00128/00173/00174, own CUE/BIN images. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Register an independently permitted complete D PlayStation Windows player with matching game.dll and your own USA three-disc set; retain executable-bound save states.",
       "original_game_title": "D",
       "project_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
-      "issue_number": 2741
+      "issue_number": 2741,
+      "manual_setup": {
+        "help_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete permitted Windows player",
+            "instruction": "Use an independently permitted complete D PC port copy with matching d.exe and game.dll together. The documented program is native 32-bit Windows, distinct from the DOS edition, and needs Windows 10 or later. Published host source is incomplete without the unpublished decompiled-game DLL source; no reproducible local build or source-to-binary certificate is established. Do not select game.dll, build.bat, Python setup or a compiler instead of the supported player."
+          },
+          {
+            "title": "Complete your own three-disc setup upstream",
+            "instruction": "Supply your own USA PlayStation D discs SLUS-00128, SLUS-00173 and SLUS-00174 as raw-sector CUE/BIN or supported CHD. ISO lacks the XA movie/audio sectors. Complete the supported CHOOSE DISCS or drag-and-drop setup upstream before attachment; its first-selection data-track hash check is separate from later file size/time caching. Keep all three matching images and selected paths, even when neighboring discs are auto-found. No retail BIOS is required or supplied."
+          },
+          {
+            "title": "Attach the actual native entry",
+            "instruction": "Select d.exe with its complete creating player directory as working directory and no extra arguments for the supported normal launcher. The inspected native source keeps launcher, game loop, pause and return-to-launcher in the same process, using the matching game.dll; no private helper or per-title wrapper is introduced. Review and consent to this exact native executable, working directory and literal arguments, then request Play separately."
+          },
+          {
+            "title": "Preserve creating DLL, all states and effective originals",
+            "instruction": "The documented profile stays beside d.exe: settings.ini, saves/slot1.state through slot8.state and d.log. Preserve the entire saves/ directory, metadata/thumbnails, settings, diagnostics, temporary files, mods, backups and any actual custom/external root, plus the full creating runtime and selected original disc images. State compatibility depends on game.dll code/data layout; upstream version-survival claims are not Portcove real-save qualification. Keep the matching old DLL and runtime with states before replacement. Do not migrate DOS saves or delete originals on the basis of this registration. Preserve any existing D_SAVE_DIR override and its actual state files; Portcove does not set or own that external location."
+          },
+          {
+            "title": "Retain upstream replacement and component boundaries",
+            "instruction": "Upstream and you own setup, runtime replacement, recovery and all external files. Close the actual player before maintenance, keep the old complete working copy and all data, then review/relink changed selected bytes. Removing registration preserves external files. Published host source and library notices do not supply a grant for the separately unpublished decompiled game logic or embedded original-derived tables; use only an actual complete copy and components you are independently permitted to use. No fresh package grant or managed acquisition, backup, rollback, migration or deletion is established by this guide."
+          }
+        ],
+        "warnings": [
+          "No package was downloaded, parsed, hashed, PE-inspected or run. Native entry and layout are source/documentation facts, not actual package ABI, package-source correspondence, native gameplay, real-save, installed-client, Supported or protected acceptance.",
+          "The unpublished game.dll source/component grant remains separate from published host/dependency source. No arbitrary-copy use, new fresh-download recommendation or original-game permission follows from this conditional registration."
+        ]
+      }
     },
     {
       "id": "black-recomp-sirbraga-black-ps2",
@@ -10178,13 +10296,42 @@
     {
       "id": "bluddy-rails",
       "name": "Railroad Tycoon (Open Railroad Tycoon)",
-      "summary": "Upstream route: Upstream runtime package for Open Railroad Tycoon; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes railway/economy/AI/save features. Exact simulation parity and complete original-game coverage remain Unknown here. Feature completeness follows docs/FEATURES.md; runtime packages alone do not prove exact original simulation parity. Upstream platforms: Windows x86-64, Linux x86-64 AppImage/tar.gz, macOS ARM64/x86-64; OCaml5/opam/SDL2 builds. Original data: Own original RailroadTycoon DOS files *.PIC,*.PAN,*.DTA in data/ or --data-dir. Exact game revision/hash is not specified in reviewed README. No separate BIOS/firmware input is described. Portcove setup/gameplay not verified.",
+      "summary": "Register a prepared Rails Windows remake of Railroad Tycoon using your own DOS assets and preserve its working-directory saves.",
       "original_game_title": "Railroad Tycoon",
       "project_url": "https://github.com/bluddy/rails",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/bluddy/rails",
-      "issue_number": 2787
+      "issue_number": 2787,
+      "manual_setup": {
+        "help_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/README.md",
+        "steps": [
+          {
+            "title": "Keep a complete permitted Windows player",
+            "instruction": "Use a complete Rails Windows copy and components you are permitted to use. The inspected v0.1.4 source and upstream release instructions identify rails.exe and supplied SDL2/codec DLLs; keep its shaders, assets and notices together. Source and release metadata do not certify an uninspected package binary. Complete any build or setup upstream; Portcove does not compile OCaml or install host libraries."
+          },
+          {
+            "title": "Provide your own supported DOS data",
+            "instruction": "Use your own original Railroad Tycoon DOS assets in data/ beside the player, or retain the supported --data-dir literal for your actual external data folder. The inspected startup also requires FONTS.RR, alongside EASTUS.PIC, WESTUS.PIC, CITIES0.DTA, SPRITES.PIC, TRACKS.PIC and TITLEM.PAN; the README’s wildcard list alone is incomplete. No original is bundled or licensed by this registration. No exact retail revision/hash or simulation-parity qualification is established here."
+          },
+          {
+            "title": "Attach the supported native entry",
+            "instruction": "Select rails.exe with its complete creating player folder as working directory and no extra arguments for normal play. Retain existing supported --data-dir or other literal options only when actually required by your working copy. The source enters its game/main SDL loop in-process until Quit; do not select dune/opam, an AppImage, or a tool instead. Review and consent to the exact executable, working directory and arguments, then request Play separately."
+          },
+          {
+            "title": "Preserve working-directory saves and all actual roots",
+            "instruction": "The inspected source writes save slots game0.sav through game9.sav relative to the working directory, with transient .tmp files during replacement. These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root. Original-data search can use --data-dir/RAILS_DATA_DIR, working-directory/executable data/ or %APPDATA%/Rails/data; asset search also honors RAILS_ASSETS_DIR and component directories. Do not assume all assets or originals live beside rails.exe."
+          },
+          {
+            "title": "Keep upstream maintenance and compatibility ownership",
+            "instruction": "Upstream and you own preparation, runtime replacement, recovery and external files. Close the actual player before maintenance, retain the old runtime and all effective data, then review/relink changed selected bytes. Removing registration preserves external files. MIT applies to original project code separately from original-game assets and dependency notices; no title/source label supplies rights to DOS data. No external update, backup, rollback, migration, deletion, full simulation parity or actual gameplay/save qualification is offered."
+          }
+        ],
+        "warnings": [
+          "Use only originals, components and a completed copy you are independently permitted to use. Preserve every effective data root with its creating runtime.",
+          "Pinned source and public release metadata only; no archive/PE inspection, source-to-binary certificate, game/helper/native session, real-save, installed Desktop, Supported or protected acceptance. Upstream feature/parity claims remain distinct from Portcove evidence."
+        ]
+      }
     },
     {
       "id": "bluestingerrecomp-rodrigo-mendonca-blue-stinger",
@@ -10768,7 +10915,7 @@
     {
       "id": "burnout-3-takedawn-xbox",
       "name": "Burnout 3: Takedown / Takedawn (original Xbox)",
-      "summary": "Explore Burnout 3: Takedown / Takedawn (original Xbox) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an upstream-prepared Takedawn Windows installation for your own original Xbox Burnout 3 disc and preserve its separate game and save folders.",
       "project_url": "https://github.com/xenophobentx/takedawn",
       "issue_number": 2105,
       "platforms": [],
@@ -10781,12 +10928,40 @@
         "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
         "game_slug": "burnout-3-takedown",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/xenophobentx/takedawn",
+        "steps": [
+          {
+            "title": "Complete official installation and original-data setup upstream",
+            "instruction": "Use only an existing Takedawn installation and components you are permitted to use. Takedawn is the original Xbox Burnout 3: Takedown native implementation, separate from the PS2 port and other Burnout games. Windows uses its upstream setup installer, not a portable ZIP. Finish installation and supported GUI preparation separately from Portcove, using your own North American NTSC-U retail Xbox disc as XISO, full disc image or full extracted folder. The upstream importer checks its selected file manifest; registration does not authenticate original data, run the installer, extract data or build the game."
+          },
+          {
+            "title": "Attach the completed Windows player",
+            "instruction": "Select Takedawn.exe in the actual installed program folder, use that containing folder as working directory and no arguments. The default install folder is %LOCALAPPDATA%/Programs/Takedawn; use the actual location if changed. Keep all matching libraries and companions together. Attach the completed game entry, not the setup installer or takedawn-setup.exe. The inspected source runs the title through the host window in the selected process; this guide makes no successor-process supervision claim for upstream Restart game or setup relaunches. Complete those upstream operations outside the attached session, then start a new reviewed Play session."
+          },
+          {
+            "title": "Keep one runtime replacement owner",
+            "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own installation, update checks, deliberate runtime replacement and recovery. Takedawn documents manual updates through its own installer; Portcove does not operate that updater. Close game and setup companions before replacement, retain the prior working program and effective data, then review and relink changed selected bytes. Removing the registration preserves all external files. Portcove supplies no external update, backup, rollback, conversion, migration, uninstall or data deletion."
+          },
+          {
+            "title": "Preserve game data, saves and custom roots separately",
+            "instruction": "Keep %LOCALAPPDATA%/Takedawn/Game or the actual game folder chosen upstream, plus data-folder.txt that remembers an alternate root. Preserve %APPDATA%/Takedawn with settings, controller profiles and UDATA/4541005b saves, backups and save history; retain shader/texture caches, logs, custom music, mods, original images, old program copies and every effective custom root, including any RECOMP_SAVE_DIR override. The upstream program may migrate earlier Burnout3-named data on startup; retain those earlier folders too. Source review does not certify real-save or cross-version compatibility."
+          },
+          {
+            "title": "Retain permissions and honest evidence limits",
+            "instruction": "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate. Public release metadata and upstream BUILDINFO are publisher assertions, not a reproduced build or independently inspected installed package. This guide offers local completed-copy launch only; it grants no network/account setup, gameplay, installed-client, Supported or protected-publication acceptance."
+          }
+        ],
+        "warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve the whole creating program, original disc data, saves, settings, mods, caches, backups, earlier migrated profiles and all custom roots. Upstream setup, restarts and replacement remain external operations. No installer, player, game or real-save observation was performed for this guide."
+        ]
       }
     },
     {
       "id": "burnout-3-takedown-ps2-burnout3-pc",
       "name": "Burnout 3: Takedown (PS2) (Burnout3 PC)",
-      "summary": "Upstream route: Windows alpha ZIP; own NTSC-U SLUS-21050 image Limits: PS2-specific Windows alpha, distinct from Xbox Burnout3; no Portcove completion claim. Upstream platforms: Windows10/11 x86-64 ZIP with source/preparation; no other documented package target established. Original data: Own Burnout 3: Takedown NTSC-U PS2 disc SLUS-21050 as ISO. Upstream setup reads/extracts that original disc and locally builds the translated program; keep required source image/data available per upstream configuration. PAL/NTSC-J editions are outside the documented target. Portcove setup/gameplay not verified.",
+      "summary": "Register the completed Burnout3 PC Windows player for your own NTSC-U PS2 disc and preserve its local card, settings and mods.",
       "original_game_title": "Burnout 3: Takedown (PS2)",
       "project_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
       "platforms": [],
@@ -10800,7 +10975,35 @@
         "game_slug": "burnout-3-takedown",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2638
+      "issue_number": 2638,
+      "manual_setup": {
+        "help_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
+        "steps": [
+          {
+            "title": "Complete the PS2 title’s supported setup upstream",
+            "instruction": "Use only a completed native copy and components you are permitted to use. This implementation targets Burnout 3: Takedown for PS2, NTSC-U SLUS-21050, using your own ISO. It is separate from the Xbox Takedawn and original Burnout projects. Complete disc selection and upstream setup before registration. Portcove does not acquire original data, run an extractor or compiler, or certify the full disc image; the inspected runtime identifies the disc by its boot executable."
+          },
+          {
+            "title": "Attach the supported Windows native entry",
+            "instruction": "Select burnout3.exe in the writable completed package, its containing directory as working directory and no arguments. Keep burnout3-sse4.exe and every matching DLL, notice and companion together. The inspected supported entry runs the native player in-process on AVX2 machines; on a supported SSE4.1 processor without AVX2, its documented CPU entry starts the matching SSE4 build, waits for it and returns its exit code. Do not attach a build tool or invent arguments for a private runner."
+          },
+          {
+            "title": "Retain one runtime replacement owner",
+            "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, deliberate replacement and recovery. Close the actual player and companions before replacing files, retain the prior working copy and all effective data, then review and relink changed selected bytes. Registration removal preserves every external file; Portcove offers no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the creating copy and all effective player data",
+            "instruction": "Keep pc_settings.ini, which stores settings and the remembered disc path; memcard/ for game saves; texture pack/; custom_songs/; burnout3.log; captures/; the original ISO; backups, mods, caches, unknown files and every effective custom root. Another executable may use the same locations. Preserve the creating runtime with saves before upstream updates; cross-version or cross-platform card compatibility is not certified."
+          },
+          {
+            "title": "Keep permission and evidence scope distinct",
+            "instruction": "Retain the project and engine MIT notices plus each bundled component’s separate notices. Their grants cover their own code, not Electronic Arts game code or assets; original-game rights and any third-party texture or music permissions remain separate. This alpha’s upstream gameplay and device claims are not Portcove observations. This guide offers local existing-copy launch; it does not qualify LAN, VPN, online accounts, network setup, managed preparation or protected publication."
+          }
+        ],
+        "warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve originals, the whole creating runtime, saves, settings, mods, caches, backups, unknown files and every custom root. Static source/release metadata review is not a package-byte certificate, native gameplay, real-save, installed-client or Supported acceptance."
+        ]
+      }
     },
     {
       "id": "burnout-crash-pc-recompilation-kiesxoxo-burnout-crash",
@@ -10917,13 +11120,41 @@
     {
       "id": "burnout-xbox-burnout-recompilation",
       "name": "Burnout (Xbox) (Burnout Recompilation)",
-      "summary": "Upstream route: Upstream Windows launcher compiles from owned disc Limits: Version0.1.0 is explicitly early and incomplete; local compilation route exists. Upstream platforms: Windows10/11 x86-64 source/setup package; local Xbox game compilation. Early incomplete release. Original data: Own Burnout USA original Xbox disc as ISO. Upstream launcher extracts the data and compiles the game on the player computer. This is the 2001/2002 original Burnout Xbox edition, not Burnout 2/3; exact executable revision/hash is not specified in reviewed README. Portcove setup/gameplay not verified.",
+      "summary": "Register the completed original Burnout Xbox native Windows launcher and preserve its separate build, settings and save folders.",
       "original_game_title": "Burnout (Xbox)",
       "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Heromachine/Burnout-Recompilation",
-      "issue_number": 2637
+      "issue_number": 2637,
+      "manual_setup": {
+        "help_url": "https://github.com/Heromachine/Burnout-Recompilation",
+        "steps": [
+          {
+            "title": "Complete the original Burnout preparation upstream",
+            "instruction": "Use only an already completed native copy and components you are permitted to use. This targets the original Burnout for Xbox, not Burnout 2, Burnout 3 or a PS2 edition. Complete the supported Burnout.exe disc-selection and local-build flow separately with your own USA Xbox ISO. Its pinned source manifest identifies title 0x41430006, a 1,986,560-byte default.xbe with SHA-256 42bd7d38feb39c17783197c4433435bfc06d8f5872d6f4b45048d9daac82013b. That published identity does not make registration a disc authenticator or authorize proprietary output redistribution."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select Burnout.exe, its containing package directory as working directory and no arguments. Keep its complete matching tools folder and the completed external build together. The supported launcher loads work/build/burnout_game.dll in its own process and runs the game on a thread there; normal Play does not detach to a private game executable. Do not select an internal tool, Python build driver or generated DLL as the entry."
+          },
+          {
+            "title": "Keep preparation and rebuild restarts outside the attached session",
+            "instruction": "Finish the upstream build before attachment. The upstream Rebuild flow deliberately starts a fresh launcher process and exits the old one; Portcove does not claim to supervise that successor. Perform rebuild or update preparation separately, close all resulting players and companions, then review the completed copy and start a new Play session through the selected entry."
+          },
+          {
+            "title": "Retain one replacement owner and all creating data",
+            "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, runtime replacement and recovery. Preserve the whole program, tools, original ISO and %LOCALAPPDATA%/BurnoutRecomp, including settings.ini, work/, logs/ and saves/. Keep every chosen save folder and any effective BURNOUT_DATA or BURNOUT_TOOLS location; choosing another saved-games folder does not move old saves. Retain prior creating runtimes, backups, caches, mods and unknown custom files before replacement."
+          },
+          {
+            "title": "Preserve permissions and non-owning limits",
+            "instruction": "Retain applicable project and bundled-component notices, including the separate xboxrecomp MIT, xemu-derived GPL and tool licences. These do not grant original-game rights or permission to redistribute the locally generated game DLL. Removing registration preserves all external files. Portcove offers no external update, backup, rollback, conversion, migration, preparation or deletion. This early release has upstream-reported looping scrape audio and lighting limitations; those are not claimed repaired or independently tested here."
+          }
+        ],
+        "warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve originals, the creating runtime and tools, all save/settings/build/log/cache/mod folders, backups and custom roots. Source/release review is not package-byte authentication, gameplay, real-save compatibility, installed-client, managed or Supported acceptance."
+        ]
+      }
     },
     {
       "id": "bustagroove2-recomp-betinn-bust-a-groove-2",
@@ -14168,7 +14399,7 @@
     {
       "id": "dead-or-alive-3-doa3-recomp",
       "name": "Dead or Alive 3 (DOA3 Recomp)",
-      "summary": "Upstream route: Windows package; first-run disc import Limits: Upstream says all game modes are fully playable; that claim is not Portcove testing. Upstream platforms: Windows x86-64 package with first-run Xbox disc import; other OS packages are not established. Original data: Own USA original Xbox Dead or Alive 3 disc as XISO; select it on first DOA3.exe launch for upstream extraction. README repeats the .xiso extension and does not establish another container format or exact executable revision/hash. Portcove setup/gameplay not verified.",
+      "summary": "Register a completed USA DOA3 Recomp Windows player and preserve its separate settings, extracted game data and saves.",
       "original_game_title": "Dead or Alive 3",
       "project_url": "https://github.com/parkerallan/doa3-recomp",
       "issue_number": 2560,
@@ -14182,6 +14413,34 @@
         "image_sha256": "71ac6e59f8d26522f8b48f4382d3a1ff368ddfb38952f82d14a7fe6a5402e5c1",
         "game_slug": "dead-or-alive-3",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/parkerallan/doa3-recomp",
+        "steps": [
+          {
+            "title": "Complete the USA title’s supported preparation upstream",
+            "instruction": "Use only an already completed DOA3 native copy and components you are permitted to use, with your own unmodified Dead or Alive 3 USA (En,Ja) Xbox disc. The inspected USA importer accepts XISO at game-partition offset zero, .xiso.iso, or the original full .iso with a supported game-partition offset. It requires title 0x54430001 and default.xbe of 3,928,064 bytes with upstream FNV-1a64 value A2F3BDCB2A5B02D4; this is not a cryptographic full-disc certificate. Other regional builds are distinct; do not use the Japan player or inherit USA save compatibility."
+          },
+          {
+            "title": "Attach the completed supported Windows native entry",
+            "instruction": "Finish upstream extraction into assets/ before attachment. Select the USA copy’s DOA3.exe, its containing directory as working directory and no arguments. The inspected main ignores arguments, anchors its working directory to the executable, loads assets/default.xbe and calls the translated game entry in the same process. Keep the complete matching runtime and companions together; do not select a build tool or another Xbox game’s entry."
+          },
+          {
+            "title": "Retain one runtime replacement owner",
+            "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, Check for Updates, runtime replacement and recovery. Complete update/restart operations outside the attached session, close all players and companions, preserve the old working copy separately from the updater’s disposable .old file, then review and relink changed selected bytes. Removing registration preserves every external file. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve original, package and profile data separately",
+            "instruction": "Keep original disc images and the complete assets/ folder beside the executable, together with doa3_settings.ini, doa3_input.ini, doa3_log.txt when enabled, mods, caches, unknown files and every custom root. The USA save root defaults to %LOCALAPPDATA%/DeadOrAlive3, with TitleData/, UserData/ and Cache/; if the platform path is unavailable the inspected runtime falls back to SaveData/ in the current directory. Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
+          },
+          {
+            "title": "Keep component permission and feature scope explicit",
+            "instruction": "Preserve the project MIT and separate component notices. Their grants cover their own code, not Tecmo or Koei Tecmo original-game content; your original-disc and other component permissions remain separate. This guide offers local completed-copy launch. Online matches, router/firewall changes, account setup and cross-version save behavior are outside its evidence. Upstream claims of complete gameplay are not Portcove observations."
+          }
+        ],
+        "warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve the whole creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Static source/release metadata review is not an inspected package, native game run, real-save, installed-client, managed, Supported or protected acceptance."
+        ]
       }
     },
     {
@@ -24385,7 +24644,7 @@
     {
       "id": "legend-of-legaia-legend-of-legaia-recomp",
       "name": "Legend of Legaia / legend-of-legaia-recomp",
-      "summary": "Explore Legend of Legaia / legend-of-legaia-recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted prepared Legend of Legaia Windows playtest copy with your own USA disc, extracted executable and US PlayStation BIOS; preserve its creating runtime and external state.",
       "project_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp",
       "issue_number": 352,
       "platforms": [],
@@ -24398,6 +24657,35 @@
         "image_sha256": "885b91f94d9b98b87afa1c6acbf6d362ce642386551334ba52a02ddf283ed0fe",
         "game_slug": "legend-of-legaia",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md",
+        "steps": [
+          {
+            "title": "Complete the exact original and BIOS setup upstream",
+            "instruction": "Use an independently permitted complete Windows playtest copy. Supply your own legally dumped USA disc: extracted SCUS_942.54 in disc/, matching CUE/BIN in game/, and your own US SCPH1001.BIN in bios/. The documented CUE name is Legend of Legaia (USA).cue; retain the matching game.toml if your upstream working copy uses another path. A filename is not a whole-disc identity certificate. Portcove obtains or extracts no disc, executable, BIOS or helper."
+          },
+          {
+            "title": "Attach the completed native player",
+            "instruction": "The upstream v0.1.7 diagnostic-playtest README explicitly supports direct LegaiaRecomp.exe with its complete creating player directory as working directory and no extra arguments; keep SDL2.dll and bundled game.toml, settings.toml, bios/, disc/, game/ and matching resources together. Do not attach the batch file, package script, compiler or a setup-host output. Complete preparation upstream first. Retain supported literal arguments already required by your working copy; no renderer or input mode is newly qualified."
+          },
+          {
+            "title": "Keep launch and maintenance ownership explicit",
+            "instruction": "Review and consent to the exact native executable, established CWD and literal arguments; request Play separately. The reviewed source provides the normal in-process launcher/runtime route; package build flags and package-to-source correspondence remain unverified. Independently started setup, helper, mod-preparation or successor sessions remain upstream activity outside this attachment. Close every actual player and companion before maintenance, retain the old runtime/data and review or relink changed selected bytes. Removing registration preserves all external files."
+          },
+          {
+            "title": "Preserve the actual creating profile and custom roots",
+            "instruction": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths. No cross-version card/state compatibility or migration is established."
+          },
+          {
+            "title": "Keep experimental qualification and existing scheduling visible",
+            "instruction": "This is an early diagnostic playtest with documented hitch investigation and a static-overlay fallback; upstream reports are not Portcove observations. Keep the supported creating configuration and runtime together. The retained owner-approved 1.0 product-priority deferral and stable-player/source/runtime/write acceptance remain for independent review; this guide does not claim those conditions resolved or create a beta commitment. Upstream and you own preparation, runtime replacement and recovery; no external update, backup, rollback, migration, deletion or diagnostic upload is offered."
+          }
+        ],
+        "warnings": [
+          "Only attach actual originals, runtime and components you are independently permitted to use. Runtime PolyForm Noncommercial terms and SDL/dependency notices apply separately; no source label or upstream package assertion grants Sony/game rights.",
+          "Source/README/config and retained release digest metadata only: no package download, archive/PE inspection, acquired-source-to-binary certificate, actual title launch, save, game, installed-client, Supported or protected acceptance. Do not infer uninspected runtime build flags or immutable package contents."
+        ]
       }
     },
     {
@@ -47111,7 +47399,7 @@
     {
       "id": "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
       "name": "X-Men: Mutant Academy 2 / xmen-mutant-academy-2-pc",
-      "summary": "X-Men: Mutant Academy 2 remains discoverable, with selected project/package permission and original-derived texture-pack provenance unresolved.",
+      "summary": "Register an independently permitted completed X-Men: Mutant Academy 2 Windows copy with your own USA disc and preserved external data.",
       "project_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
       "issue_number": 356,
       "platforms": [],
@@ -47125,7 +47413,35 @@
         "game_slug": "x-men-mutant-academy-2",
         "match_kind": "underlying-game"
       },
-      "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative."
+      "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative.",
+      "manual_setup": {
+        "help_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
+        "steps": [
+          {
+            "title": "Use an independently permitted completed copy",
+            "instruction": "Use only an already completed XMenMA2 native copy and components you are independently permitted to use. Fresh package acquisition remains held: the selected v1.1 package includes original-derived 4x textures, and exclusion of those files from the source tree does not settle their package permission. This guide does not establish a grant, recommend that download, or authorize generation or redistribution of game-derived code, art or output."
+          },
+          {
+            "title": "Keep the title-specific original and preparation boundary",
+            "instruction": "The inspected upstream Windows x64 player targets X-Men: Mutant Academy 2 USA SLUS-01382. Keep your own CUE/BIN with all 13 tracks or supported CHD. No BIOS image is documented as required for this RecompOne player. Complete all upstream preparation separately; Portcove does not extract, compile, obtain or authenticate original data. The source checks the disc volume label, which is not full-image digest verification."
+          },
+          {
+            "title": "Attach the completed native player",
+            "instruction": "Select the existing XMenMA2.exe, its containing directory as working directory, and one literal absolute path to your supported CUE or CHD as its first argument. Keep the complete creating copy and matching components. The inspected Program.Main runs the game in the selected process and shuts its runtime down before returning; it also anchors writes to the executable directory. Do not attach a build script, generator, package tool or another PS1 player."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact executable, working directory and literal disc argument, then choose Play separately. You and upstream own preparation, deliberate runtime replacement and recovery. Close the player and companions before replacement, retain the old working copy and all effective data, then review and relink changed selected bytes. Portcove offers no external update, backup, rollback, conversion, migration or deletion. Removing registration preserves all external files."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Retain the executable directory with settings.json, memory-card and other saves, packs, logs, dumps, screenshots, mods and every effective custom root, plus original images and backups. The selected entry seeds settings.json only when its disc setting is absent and resolves runtime writes against the executable directory; exact runtime-created save filenames and cross-version compatibility remain unqualified. Preserve applicable project and component notices separately; an upstream source-tree exclusion or another RecompOne title does not grant package or original-game rights."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. This conditional existing-copy guide does not clear the selected fresh-acquisition hold or certify a package, full original image, gameplay, real-save compatibility, installed-client, managed or protected acceptance. Preserve unknown files and all custom roots."
+        ]
+      }
     },
     {
       "id": "xander-haj-z3r",

@@ -1922,3 +1922,9 @@ async fn kingdom_hearts_chain_of_memories_gba_rekhcom_component_hold_before_netw
 async fn vibecodekun_shantaerecomp_component_hold_before_network_1881() {
     assert_embedded_player_download_holds(&["vibecodekun-shantaerecomp"]).await;
 }
+
+#[tokio::test]
+async fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_component_hold_before_network_356() {
+    assert_embedded_player_download_holds(&["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"])
+        .await;
+}
