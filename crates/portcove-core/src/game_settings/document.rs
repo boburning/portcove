@@ -191,6 +191,7 @@ pub(crate) fn read(file: &GameSettingsFile, bytes: &[u8]) -> Result<Vec<Option<V
 /// Replace one explicitly declared key. Unknown JSON data survives; INI bytes,
 /// comments and line endings outside that key survive exactly. File I/O and
 /// preimage review belong to the service, not this byte transformation.
+#[cfg(any(windows, test))]
 pub(crate) fn edit(
     file: &GameSettingsFile,
     bytes: &[u8],
