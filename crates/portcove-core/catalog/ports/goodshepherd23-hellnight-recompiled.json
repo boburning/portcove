@@ -3,7 +3,7 @@
   "listing": {
     "id": "goodshepherd23-hellnight-recompiled",
     "name": "Hellnight / Hell Night: Dark Messiah Recompiled (goodshepherd23)",
-    "summary": "Explore Hellnight / Hell Night: Dark Messiah Recompiled (goodshepherd23) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Documented Windows Hell Night: Dark Messiah preparation and completed native build route from your own exact PlayStation disc. Select the finished build-release/Hellnight_Recompiled.exe; upstream owns generation, rebuilding and player data.",
     "project_url": "https://github.com/goodshepherd23/Hellnight-Recompiled",
     "issue_number": 1825,
     "platforms": [],
@@ -16,6 +16,34 @@
       "image_sha256": "932718fc24f0f5372f969c818cb6ab94acc7fef630021496dd4d973448179a88",
       "game_slug": "hellnight",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the exact original and permitted complete kit",
+          "instruction": "Use source, components and a completed kit you are independently permitted to use, with your own Hellnight Europe SLES-01562 CUE/BIN, with its complete 633,786,384-byte data track. The selected config accepts Redump MD5 050d2848368af2ef945706bc73ef69ef / SHA-1 6154819380f41c921f5d37f757a9985de7803a8c, NTSC-converted MD5 01ce6367485ab848973be612df58b5b9 / SHA-1 b0c791ebe50e5e678cb36aed531f2ac553b37999, or Undub v1.1 MD5 cb6f8e5a863920bf33d8cfe78dd684df / SHA-1 e5bc992aba7491b3e134d8a366d3f85695138d16. These are distinct supported variants, not permission to acquire patched game data. Keep every original track unchanged and together with its CUE. Released ZIPs are setup kits, not already generated games. No retail BIOS dump is needed by the documented OpenBIOS route; retain its supplied image and applicable notices. The pinned psxrecomp code is noncommercial-use licensed; separate UI/component/original rights still apply."
+        },
+        {
+          "title": "Complete all upstream generation and rebuilding first",
+          "instruction": "Use the documented upstream setup wizard or source-build recipe outside Portcove, including its required Python/toolchain setup and Generate & rebuild step. Wait for the completed native psx-runtime product, normally build-release/Hellnight_Recompiled.exe, with its matching bios, mods, configs, assets and other staged companions. Keep the complete kit/source and completed output together. Root/setup executables forward to another process and exit on Windows; do not register those setup hosts or codegen/helper scripts. A generated-source tree or incomplete build is not the finished player."
+        },
+        {
+          "title": "Select the documented completed build product",
+          "instruction": "Select the finished build-release/Hellnight_Recompiled.exe and use that complete build-release directory as working directory; leave arguments empty. Upstream stages runtime configs for direct build launches. The completed game-dispatch product keeps its normal launcher/game in-process rather than taking the setup-host forward path. Keep the same supported disc selected if the player asks. Saving launch details and Play are separate actions. Setup, Generate & rebuild, PGO optimize or optional relaunch/restart actions remain outside this tracked initial-player route; close any actual successors before another attachment or maintenance."
+        },
+        {
+          "title": "Back up active settings, cards and all custom roots before startup",
+          "instruction": "Preserve the complete creating runtime and upstream kit, executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ (including cards, game options and save states), mods/, reports/logs/caches/captures and original discs. The default game config uses saves/ and card1.mcd/card2.mcd; established explicit card files or --memcard-dir and PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots. Do not merge profiles or infer save compatibility between disc variants. Startup can remove an older settings.toml.bad and rename malformed settings.toml there; back up both outside the runtime beforehand. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+        },
+        {
+          "title": "Keep runtime and mod replacement with upstream",
+          "instruction": "Upstream/player owns generation, rebuilding, updates and recovery. This title’s CMake notes that the framework clears mods/packages during builds before copying title packages back; preserve custom packages and the old complete runtime outside all build/output paths before rebuilding. Close all actual player/setup/rebuild processes first, then review/relink changed executable bytes after preparation. Portcove does not adopt optional rebuild successors. Removing registration preserves external files; no managed update, rollback, backup, save migration or external deletion is offered."
+        }
+      ],
+      "warnings": [
+        "The release is a setup kit; use the completed private build product. Upstream Redump/Undub testing stops at the intro and complete playthrough is unverified. Preserve cards and mods before generation or PGO, and respect the pinned framework’s noncommercial-use terms."
+      ],
+      "help_url": "https://github.com/goodshepherd23/Hellnight-Recompiled/blob/910251a71b14bd0df3b3474f22eecfe820641954/README.md"
     }
   }
 }

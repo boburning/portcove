@@ -17628,7 +17628,7 @@
     {
       "id": "eandis-sdoj-recomp",
       "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
-      "summary": "Explore DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Windows DoDonPachi SaiDaiOuJou guidance for an independently permitted completed native player with its verified own disc/GoD and TU1 data. Upstream owns first-run extraction, title-update preparation, runtime replacement and player data.",
       "project_url": "https://github.com/eandis/SDOJ-Recomp",
       "issue_number": 1880,
       "platforms": [],
@@ -17641,7 +17641,36 @@
         "image_sha256": "f368c7e6230a4ad5b865bfd6cc9107d0c8c5952678cc43e7566b1ae7a2002238",
         "game_slug": "dodonpachi-saidaioujou",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep an independently permitted complete Windows player",
+            "instruction": "Use a completed Windows player and components you are independently permitted to use. The official Windows ZIPs include a statically recompiled game player; the SDK licence or possession of original data does not itself establish permission for every translated game-code component. Fresh acquisition remains conditional on applicable permission or authorized source for that named component; an independently permitted existing copy can be retained. Keep its complete package, runtime DLLs, extractor and notices. Standard and Vulkan ZIP variants are separate packages, not mix-and-match files."
+          },
+          {
+            "title": "Complete exact own data preparation outside Portcove",
+            "instruction": "Use your own supported Xbox360 disc release or converted Games-on-Demand ISO and its matching Title Update1.01/TU1. Upstream’s first launch requires exactly one supported ISO beside the EXE and creates game_data/. Disc default.xex SHA-256 is709EB9FD2E4446E5754461616693B3BBB8B78FEF5AA613FFCDE6D643DA0133F5; GoD default.xex is41AB091576813248712A387B273398E5D700454505E83F6F1FEB7DE2C1027707. Disc TU1 is598,016bytes with SHA-256 0A893048C761BA6CF8ED14637F326726BC616B5183CA1EE52DE02FC12B46B215. The GoD route instead requires its verified CA022100.binp, CA022110.binp and default.xexp. Companion file digests are checked by upstream; do not mix editions. Complete extraction/TU installation through upstream, retain original ISO/TU and preserve any partial data until upstream recovery resolves it."
+          },
+          {
+            "title": "Select the completed normal player",
+            "instruction": "Select DoDonPachi SaiDaiOuJou.exe, use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
+          },
+          {
+            "title": "Preserve all effective data and settings roots",
+            "instruction": "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement. Preserve custom game_data_root, user_data_root, update_data_root, cache_path and log_file choices independently; an existing configured external game-data root takes precedence. The title defaults user data beside the EXE and cache under user_data/cache. Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
+          },
+          {
+            "title": "Leave notifications and runtime replacement with upstream",
+            "instruction": "The source update checker reads GitHub metadata and offers to open the release page; it does not establish managed automatic replacement. Upstream/user owns choosing a complete compatible package, preparation, updates and recovery. Close the actual player, extractor and any optional restart successors before backup, replacing files or removal, preserve old complete runtime/data independently, then review/relink changed selected bytes. Removing registration preserves external files; Portcove does not own automatic update, rollback, backups, save migration, external deletion or successor adoption."
+          }
+        ],
+        "warnings": [
+          "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide."
+        ],
+        "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md"
+      },
+      "download_block_reason": "Fresh acquisition of the selected Windows SDOJ-Recomp player is held while an attributable permission or authorized-source basis for its bundled statically translated DoDonPachi SaiDaiOuJou game-code modules remains unresolved. The ReXGlue/Xenia runtime licence does not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding the unresolved component; independently permitted existing copies remain distinct."
     },
     {
       "id": "earthworm-jim-hd-pc-port-devex780-earthworm-jim-hd",
@@ -17953,7 +17982,7 @@
     {
       "id": "elmasas-lcs-recomp",
       "name": "Grand Theft Auto: Liberty City Stories / LCS Recomp (elmasas)",
-      "summary": "Explore Grand Theft Auto: Liberty City Stories / LCS Recomp (elmasas) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Attach an independently permitted complete LCSNative Windows copy prepared for your own Liberty City Stories USA v1.05 data. Upstream owns decrypted-input preparation, native runtime replacement and PSP save/settings files; no Core-managed build or maintenance is offered.",
       "project_url": "https://github.com/elmasas/lcs-recomp",
       "issue_number": 1836,
       "platforms": [],
@@ -17966,12 +17995,45 @@
         "image_sha256": "1ab62da533d92e87a56356e49a4793da7b7363327589b75e92358b5b1c8163e1",
         "game_slug": "grand-theft-auto-liberty-city-stories",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/elmasas/lcs-recomp/blob/ab91e87fe38f3efc5e4443069e7ce6b5a43e615b/README.md",
+        "steps": [
+          {
+            "title": "Prepare the supported owned-game files upstream",
+            "instruction": "Use a complete Windows copy and components you are independently permitted to use. The selected upstream route requires your own GTA: Liberty City Stories US v1.05, ULUS-10041, with decrypted EBOOT.ELF and its matching full PSP_GAME folder. Prepare them under the player package game/ directory outside Portcove, retaining the exact original separately. A PS2 edition, other region/revision or another PSP game is not this guide’s input. The native source loads ELF segments and module information; a complete original-image/ELF cryptographic digest and entitlement check is not established here. No decryption/extraction, original, key, compiler or helper is obtained or run by this registration."
+          },
+          {
+            "title": "Select the completed direct native player",
+            "instruction": "Choose LCSNative.exe in the complete creating Windows player folder, use that folder as working directory and leave arguments empty for the default game/EBOOT.ELF and game/ layout. Keep the matching Windows companions, settings and data files together. Native main initializes the renderer/profile, calls runtime.run synchronously and shuts down graphics/audio before returning. Do not choose a BAT file, analyzer/code generator, Linux script or a diagnostic dispatch/time-cap mode. Review and consent to the exact executable/CWD/arguments, then request Play separately."
+          },
+          {
+            "title": "Keep any established custom source intent exact",
+            "instruction": "The upstream source also supports literal --game <actual prepared directory> or --elf <actual ELF> input paths. This guide’s default remains the completed release layout. A source-build PLAY_LCS.bat sets PSPRECOMP_CONFIG to the source lcs/config/LCSNative.ini; that wrapper’s environment is not automatically reproduced by selecting its EXE. Do not silently substitute that configuration with a different file. Use only the actual upstream-established completed copy and settings, without a new per-title shell/environment wrapper."
+          },
+          {
+            "title": "Preserve game-side saves and all effective settings",
+            "instruction": "Preserve the entire prepared game directory, including PSP/SAVEDATA/ and every actual per-save file, auxiliary file and original PSP_GAME data. The inspected title profile writes saves under its selected game root; upstream in-game save/delete operations remain upstream-owned. Runtime settings default to LCSNative.ini beside the executable, while an established PSPRECOMP_CONFIG overrides that exact file. Preserve it, every source-tree config used by your existing setup, complete executable folder, mods/caches and actual logs/custom/external roots. Do not infer save compatibility or migration from another PSP port."
+          },
+          {
+            "title": "Leave replacement and recovery with upstream",
+            "instruction": "Close the actual player and all helpers before preparation, replacement, another attachment or backups. Keep separate complete known-working runtime, input and save/config backups outside any upstream generated build/staging directories; upstream source-build tools and player own generation and runtime replacement. Review/relink changed selected bytes afterward. Removing Portcove registration preserves every external file; it offers no managed update, rollback, backup/restore, save import/migration or deletion."
+          },
+          {
+            "title": "Retain platform, terms and evidence limits",
+            "instruction": "The selected Windows source uses its actual DirectX12 backend/configuration; Linux Vulkan/software choices are separate upstream paths. Preserve applicable MIT/component notices; these grant no Rockstar/Sony original-game rights. Keep the matching player and all data/config companions. No save compatibility, migration or Core-managed runtime lifecycle is promised."
+          }
+        ],
+        "warnings": [
+          "An existing source-build batch file can establish a different settings environment; selecting its EXE directly does not reproduce that environment."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct."
     },
     {
       "id": "elprogramadorloco-arch-jim2-recomp",
       "name": "Earthworm Jim 2 / Earthworm Jim 2 Recompiled (elprogramadorloco-arch)",
-      "summary": "Explore Earthworm Jim 2 / Earthworm Jim 2 Recompiled (elprogramadorloco-arch) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Documented Windows Earthworm Jim 2 source-build route from your own exact European PlayStation disc. Register the completed out/EarthwormJim2_Recompiled.exe; upstream owns rebuilding and updates, including replacement of packaged mods.",
       "project_url": "https://github.com/elprogramadorloco-arch/jim2-recomp",
       "issue_number": 1819,
       "platforms": [],
@@ -17984,6 +18046,30 @@
         "image_sha256": "dc7770125e1c258f5b1beb8a85f5cf79826708a4034212103ddb612743cf6568",
         "game_slug": "earthworm-jim-2--5",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the exact original privately with upstream",
+            "instruction": "Use your own lawfully obtained Earthworm Jim 2 Europe PlayStation SLES-00343 Redump CUE and all 15 BIN tracks. Track01 is 33,631,248 bytes with SHA-256 D251CF65BB60EE375778F4369CF74FB88371E07EAB51EC337C0AD34F8DEF932B. Put the complete set in data/ and keep originals unchanged. The upstream run.bat/build.ps1 route verifies the data track, obtains pinned source/toolchain archives and compiles locally outside Portcove; finish it completely. Respect the pinned psxrecomp noncommercial-use restriction and separate component/original rights. Never redistribute data/, out/ or tools/.build generated game code."
+          },
+          {
+            "title": "Select the documented completed native output",
+            "instruction": "Select out/EarthwormJim2_Recompiled.exe from the successful upstream build, use its complete out/ directory as working directory and leave arguments empty. Keep the matching bios/, assets/, mods/, game.toml and companion output files. This is the documented finished player, not run.bat, update.bat, the portable toolchain or setup intermediates. Select the same complete own CUE in the upstream player if requested. Saving launch details and Play are separate actions; setup, PGO/rebuild and updater actions remain outside this entry."
+          },
+          {
+            "title": "Back up active state before startup and every rebuild",
+            "instruction": "Preserve the entire creating out/ directory plus all active external roots. Defaults include executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ with card1.mcd/card2.mcd, options and save states, mods/, reports/logs/cache/captures and any custom card paths. Established --memcard-dir, explicit card files or PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots; keep exact existing choices. Startup may replace an old settings.toml.bad and rename malformed settings.toml there; save both outside the installation before starting. No save-format or cross-version mod compatibility is promised. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+          },
+          {
+            "title": "Keep build cleanup and runtime replacement with upstream",
+            "instruction": "Upstream/player owns run.bat, update.bat, generation, runtime replacement and recovery. The build installs into out/ and removes/replaces existing out/bios, out/assets and out/mods before copying its new versions; back up your custom mods and old complete output outside those destinations before each build/update. Close every actual game or optional rebuild/restart successor before maintenance and review/relink changed selected bytes afterward. Portcove does not follow optional setup/rebuild successors. Removing registration preserves external files; no Portcove-managed update, rollback, backup, migration or external deletion is offered."
+          }
+        ],
+        "warnings": [
+          "Release ZIPs are source-only updater packages, not complete runnable players. Upstream reports incomplete audio and unverified end-to-end level transitions; keep the old complete build and state when updating. The pinned framework is restricted to noncommercial use."
+        ],
+        "help_url": "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md"
       }
     },
     {
@@ -20758,7 +20844,7 @@
     {
       "id": "goodshepherd23-hellnight-recompiled",
       "name": "Hellnight / Hell Night: Dark Messiah Recompiled (goodshepherd23)",
-      "summary": "Explore Hellnight / Hell Night: Dark Messiah Recompiled (goodshepherd23) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Documented Windows Hell Night: Dark Messiah preparation and completed native build route from your own exact PlayStation disc. Select the finished build-release/Hellnight_Recompiled.exe; upstream owns generation, rebuilding and player data.",
       "project_url": "https://github.com/goodshepherd23/Hellnight-Recompiled",
       "issue_number": 1825,
       "platforms": [],
@@ -20771,6 +20857,34 @@
         "image_sha256": "932718fc24f0f5372f969c818cb6ab94acc7fef630021496dd4d973448179a88",
         "game_slug": "hellnight",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original and permitted complete kit",
+            "instruction": "Use source, components and a completed kit you are independently permitted to use, with your own Hellnight Europe SLES-01562 CUE/BIN, with its complete 633,786,384-byte data track. The selected config accepts Redump MD5 050d2848368af2ef945706bc73ef69ef / SHA-1 6154819380f41c921f5d37f757a9985de7803a8c, NTSC-converted MD5 01ce6367485ab848973be612df58b5b9 / SHA-1 b0c791ebe50e5e678cb36aed531f2ac553b37999, or Undub v1.1 MD5 cb6f8e5a863920bf33d8cfe78dd684df / SHA-1 e5bc992aba7491b3e134d8a366d3f85695138d16. These are distinct supported variants, not permission to acquire patched game data. Keep every original track unchanged and together with its CUE. Released ZIPs are setup kits, not already generated games. No retail BIOS dump is needed by the documented OpenBIOS route; retain its supplied image and applicable notices. The pinned psxrecomp code is noncommercial-use licensed; separate UI/component/original rights still apply."
+          },
+          {
+            "title": "Complete all upstream generation and rebuilding first",
+            "instruction": "Use the documented upstream setup wizard or source-build recipe outside Portcove, including its required Python/toolchain setup and Generate & rebuild step. Wait for the completed native psx-runtime product, normally build-release/Hellnight_Recompiled.exe, with its matching bios, mods, configs, assets and other staged companions. Keep the complete kit/source and completed output together. Root/setup executables forward to another process and exit on Windows; do not register those setup hosts or codegen/helper scripts. A generated-source tree or incomplete build is not the finished player."
+          },
+          {
+            "title": "Select the documented completed build product",
+            "instruction": "Select the finished build-release/Hellnight_Recompiled.exe and use that complete build-release directory as working directory; leave arguments empty. Upstream stages runtime configs for direct build launches. The completed game-dispatch product keeps its normal launcher/game in-process rather than taking the setup-host forward path. Keep the same supported disc selected if the player asks. Saving launch details and Play are separate actions. Setup, Generate & rebuild, PGO optimize or optional relaunch/restart actions remain outside this tracked initial-player route; close any actual successors before another attachment or maintenance."
+          },
+          {
+            "title": "Back up active settings, cards and all custom roots before startup",
+            "instruction": "Preserve the complete creating runtime and upstream kit, executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ (including cards, game options and save states), mods/, reports/logs/caches/captures and original discs. The default game config uses saves/ and card1.mcd/card2.mcd; established explicit card files or --memcard-dir and PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots. Do not merge profiles or infer save compatibility between disc variants. Startup can remove an older settings.toml.bad and rename malformed settings.toml there; back up both outside the runtime beforehand. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+          },
+          {
+            "title": "Keep runtime and mod replacement with upstream",
+            "instruction": "Upstream/player owns generation, rebuilding, updates and recovery. This title’s CMake notes that the framework clears mods/packages during builds before copying title packages back; preserve custom packages and the old complete runtime outside all build/output paths before rebuilding. Close all actual player/setup/rebuild processes first, then review/relink changed executable bytes after preparation. Portcove does not adopt optional rebuild successors. Removing registration preserves external files; no managed update, rollback, backup, save migration or external deletion is offered."
+          }
+        ],
+        "warnings": [
+          "The release is a setup kit; use the completed private build product. Upstream Redump/Undub testing stops at the intro and complete playthrough is unverified. Preserve cards and mods before generation or PGO, and respect the pinned framework’s noncommercial-use terms."
+        ],
+        "help_url": "https://github.com/goodshepherd23/Hellnight-Recompiled/blob/910251a71b14bd0df3b3474f22eecfe820641954/README.md"
       }
     },
     {
@@ -22312,7 +22426,7 @@
     {
       "id": "heromachine-breakdown-recompilation",
       "name": "Breakdown / Breakdown-Recompilation (Heromachine)",
-      "summary": "Explore Breakdown / Breakdown-Recompilation (Heromachine) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Attach an independently permitted, already prepared Breakdown Windows installation; upstream owns its local USA Xbox-disc build, player settings and saves. Early-release limitations remain; no Core-managed build or runtime replacement is offered.",
       "project_url": "https://github.com/Heromachine/Breakdown-Recompilation",
       "issue_number": 1805,
       "platforms": [],
@@ -22325,6 +22439,38 @@
         "image_sha256": "9bc245ca26a70c0d55c8e80029c89642bd2dcfc48e0bccbdfdcea8d3a22f1be6",
         "game_slug": "breakdown",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Heromachine/Breakdown-Recompilation/blob/473b7d22c6c24b74f4bf424ecfff3cc1355c6a5a/README.md",
+        "steps": [
+          {
+            "title": "Prepare the complete owned-disc installation upstream",
+            "instruction": "Use a complete copy and components you are independently permitted to use. The selected0.2.2 route needs your own original Xbox Breakdown USA ISO, Windows10/11 x64, Direct3D11 and roughly6GB for its local build. Keep Breakdown.exe and the entire matching tools/ tree together. Run the supported first-run preparation outside Portcove until the game DLL is ready. The inspected launcher checks Xbox-disc filesystem magic; extraction checks default.xbe exists. Exact accepted full-disc/XBE digest/revision authentication remains Unknown; those checks are not entitlement or a cryptographic USA-identity check. No original, compiler, helper or build is obtained or run by this registration."
+          },
+          {
+            "title": "Select the completed normal native launcher",
+            "instruction": "Select Breakdown.exe in its complete creating Windows package directory, use that directory as working directory and leave arguments empty. Keep the matching prepared installation and companions. The selected launcher loads work/build/breakdown_game.dll and runs the game in its own process/window; it is not an instruction to select a generated DLL, internal standalone executable, build helper or Linux launcher. Review and consent to the exact selected intent, then request Play separately."
+          },
+          {
+            "title": "Preserve the actual installation and all data roots",
+            "instruction": "The launcher normally uses %LOCALAPPDATA%/BreakdownRecomp for settings.ini, work/ with extracted game/generated build/ready markers, and logs/. Preserve that complete tree plus the selected original ISO and package. An established BREAKDOWN_DATA or BREAKDOWN_TOOLS override selects different roots; retain them too without creating a new override here. Logs include build/game/launcher records. Keep complete recovery copies outside generated work and staging trees before rebuilding."
+          },
+          {
+            "title": "Keep the effective save folder separate from rebuild data",
+            "instruction": "The upstream default save folder is %LOCALAPPDATA%/xboxrecomp. Its Options saved-games setting can select another location and is passed through XBOXRECOMP_SAVE_DIR. Preserve the actual save tree, settings and every established custom/external root; that default name does not establish per-title isolation or save compatibility. Choosing another saved-games folder does not move existing saves. This guide performs no save migration, import, backup or destructive management."
+          },
+          {
+            "title": "Complete rebuild and restart paths outside attachment",
+            "instruction": "Ordinary prepared play runs inside the selected process. Upstream repair/rebuild can invalidate ready/build stamps, replace generated work/toolkit/project/build material and request a fresh launcher process; Restart starts a successor and the current process exits. Complete setup, rebuilds and such restarts outside the attached-session scope, close all actual players/helpers/successors, then review/relink changed bytes. Portcove does not adopt or terminate a successor or own runtime replacement; preserve originals and independent recovery copies first."
+          },
+          {
+            "title": "Retain release and ownership limits",
+            "instruction": "Upstream0.2.2 is explicitly early/incomplete: some background music loops, Retry/loading can take a long time and some textures appear late. These remain attributable upstream limitations, not Portcove passes or repaired failures. Keep component notices; project/toolkit/component terms grant no Namco original-game rights. The release assembler takes an external toolkit working checkout, so exact packaged toolkit/source correspondence is not established here. Removing registration preserves every external file. No managed install/update/rollback/backup/removal or Supported/protected acceptance is offered."
+          }
+        ],
+        "warnings": [
+          "Upstream0.2.2 is early/incomplete; music loops, slow Retry/loading and late textures remain known upstream limitations."
+        ]
       }
     },
     {
@@ -24795,7 +24941,7 @@
     {
       "id": "kirby1237-parappatherapperrecomp",
       "name": "PaRappa The Rapper / PaRappaTheRapper Recomp (kirby1237)",
-      "summary": "Explore PaRappa The Rapper / PaRappaTheRapper Recomp (kirby1237) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Attach an independently permitted completed PaRappaTheRapper Windows native copy for your own USA disc, retaining its noncommercial framework terms, player profiles and upstream preparation ownership. The named bundled-box-art acquisition condition remains unresolved; no Core-managed runtime creation or maintenance is offered.",
       "project_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp",
       "issue_number": 1864,
       "platforms": [],
@@ -24808,7 +24954,44 @@
         "image_sha256": "297803dc01107ec402a33435d520abc238f8dc3020c653005b067d6dc0e9c3cb",
         "game_slug": "parappa-the-rapper",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/blob/cff6e6908e7f44032b6fa0edf6136cf360bfea8b/README.md",
+        "steps": [
+          {
+            "title": "Use only a completed independently permitted copy",
+            "instruction": "Use a complete Windows copy and components you are independently permitted to use, for noncommercial use under the actual framework terms. This guide does not authorize fresh acquisition of the selected package’s libretro-sourced PaRappa box art: its specific applicable permission/authorized-source condition remains unresolved. The title CMake embeds the named launcher TGA and its source notice supplies attribution, not an original-art grant. An independently permitted existing copy remains distinct; do not remove mandatory companions or use a private payload bypass."
+          },
+          {
+            "title": "Prepare the exact owned USA disc outside Portcove",
+            "instruction": "The selected title is PaRappa the Rapper USA, SCUS-94183/boot SCUS_941.83. Keep your own full matching CUE/BIN and any companion tracks. Its prepare_disc contract identifies raw dataTrack01 size727718208, MD5 007a1016d499e5fe6eb2702f41ca6c63 and SHA1 181e2efd2a29c028b28e52ac7827ef7a172ca8b4. The upstream preparation helper checks those configured digests for its supported raw-track representation; other formats can use different boot-executable checks. This is not a promise that each normal native launch rehashes the whole disc. Finish supported selection/preparation and any required overlay compilation upstream; do not bypass hash checks. No original, retail BIOS or compiler is acquired or run by this registration."
+          },
+          {
+            "title": "Choose the completed ordinary native program",
+            "instruction": "Select PaRappaTheRapper_Recompiled.exe in the complete creating player directory, set that directory as working directory and leave arguments empty for normal launcher/gameplay. Keep its matching game.toml, runtime companions, bundled OpenBIOS, input.ini, mods and overlay tools/data together. The selected framework’s launcher and game run within the same native program; do not choose Retro Launcher, a PowerShell timing experiment, codegen helper, setup-only placeholder, diagnostic or netplay mode. Review and consent to the exact selected intent, then request Play separately."
+          },
+          {
+            "title": "Preserve every effective player root before first startup",
+            "instruction": "The native program anchors runtime files beside its EXE rather than arbitrary CWD. Preserve game.toml, settings.toml, game_options.toml, input.ini, config.ini, disc.cfg/bios.cfg, the complete mods/cache/overlay/runtime folders and actual original paths. The title config sets saves/; retain all card1.mcd/card2.mcd images, per-game .options, save states and BIOS/disc-scoped subdirectories, temporary/backup variants and logs/diagnostics. Existing explicit card paths or --memcard-dir can select other actual roots; retain those separately and do not silently replace them with defaults."
+          },
+          {
+            "title": "Keep profile migration and save compatibility explicit",
+            "instruction": "Before startup or changing BIOS/settings, back up complete old and new save/profile trees separately. The pinned runtime can move legacy .pst save states into BIOS-scoped directories and names new state files by disc scope; preserve both original locations and destinations. That behavior does not promise cross-BIOS, cross-build, mod or imported PS1 save compatibility. Existing timing profiles/build-timing/timing-saves from optional experiments are separate; this guide neither imports them nor enables those scripts. Network/shared memory-card features are outside this single-player route."
+          },
+          {
+            "title": "Complete rebuild/relaunch and replacement outside attachment",
+            "instruction": "Upstream/user owns generation, overlay preparation, updates, runtime replacement and recovery. Optional Generate & rebuild can request a new program process; complete such preparation/restarts outside the tracked entry, close all actual players/helpers/successors, retain independent recovery copies outside disposable generated/staging/cache paths, then review/relink changed bytes. Ordinary return-to-launcher/session transitions within the same native program do not grant successor adoption or termination. Removing registration preserves every external file; no managed update, backup, rollback, save migration or deletion is offered."
+          },
+          {
+            "title": "Retain title-specific limits and notices",
+            "instruction": "Keep the applicable exact PolyForm Noncommercial framework, MIT recomp-ui and other component notices; these do not grant Sony/NanaOn-Sha original-game or art rights. This preview includes optional rhythm timing assist and experimental widescreen, and other stages/full-stage completion remain unsystematically validated upstream. Preserve existing controller mappings and preferences: the title requires digital-pad behavior, with D-pad directions as the new default rather than assuming stick bindings survive unchanged. No gameplay, timing/device calibration, native/save compatibility or network acceptance is promised by the guide."
+          }
+        ],
+        "warnings": [
+          "Use only an independently permitted completed copy while the named bundled-art acquisition condition is unresolved. Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected PaRappaTheRapper package is held while the applicable permission or authorized-source basis for its embedded libretro-sourced PaRappa box art remains unresolved. BOXART_SOURCE attribution and the framework/UI licences do not supply that artwork grant. Resume with an attributable applicable basis or a reviewed supported package/preparation excluding the unresolved artwork. Independently permitted existing-copy use remains separate."
     },
     {
       "id": "kirbys-return-to-dream-land-kirby-wii-recomp",
@@ -25029,7 +25212,7 @@
     {
       "id": "kumapauz-project-reignition",
       "name": "Sonic and the Secret Rings / Project Reignition (kumapauz)",
-      "summary": "Explore Sonic and the Secret Rings / Project Reignition (kumapauz) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Windows Project Reignition guidance for an independently permitted complete native copy. The retained v0.4.2 launch instruction names Project Reignition.exe; preserve its configurable save location and keep replacement with upstream.",
       "project_url": "https://github.com/kumapauz/project-reignition",
       "issue_number": 1870,
       "platforms": [],
@@ -25042,6 +25225,30 @@
         "image_sha256": "48ac80252098e82ba478d6b9f7bb727a1932cc4e3a126966eb072a2f42eb8d2f",
         "game_slug": "sonic-and-the-secret-rings",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the complete permitted Windows copy",
+            "instruction": "Use a complete Windows copy of Project Reignition and components you are independently permitted to use. The retained v0.4.2 GitHub Windows release has a published launch instruction naming Project Reignition.exe. Keep all matching Godot runtime, resource and other supplied companions; do not copy only the EXE. This remake’s documented route does not request an original Wii disc/ROM/BIOS. Upstream marks the remake freeware/not for sale; its separate code and graphical-asset terms restrict use of those assets to this project, not other games."
+          },
+          {
+            "title": "Select the documented native entry",
+            "instruction": "For a completed copy matching that documented route, select Project Reignition.exe, use its complete containing directory as working directory and leave arguments empty. If your established copy uses upstream’s D3D12 alternative, preserve the two literal arguments --rendering-driver and d3d12 instead of selecting Run-in-D3D12-mode.bat; that script merely starts the native game and exits. Do not select Godot editor, setup/helper scripts or the project source as the player. Saving launch details and Play are separate actions."
+          },
+          {
+            "title": "Back up the actual selected save root before startup",
+            "instruction": "For the inspected v0.4.2 source, a successfully read saveLocation.txt beside the EXE selects an existing custom save directory. When that pointer is successfully read but its destination is missing/invalid, the fallback is save/ beside the EXE; when the pointer file is absent or unreadable, the fallback is Godot user:// for Sonic and the Secret Rings Remake. Preserve all active roots separately, including config.cfg, save*.dat and shared.dat, plus saveLocation.txt and any external/custom files. Saving config/shared data records the chosen directory back into saveLocation.txt. The game’s explicit delete-save command moves that chosen save to the trash; this registration does not manage deletion or migration."
+          },
+          {
+            "title": "Leave replacement and newer-version compatibility with upstream",
+            "instruction": "Upstream/player owns complete package installation, runtime replacement, data and recovery. Close the actual native game before backup or replacement, keep independent copies of old runtime and every save root outside replaced paths, then review/relink changed executable bytes. The current upstream README moves v1-and-newer releases to Game Jolt; their package entry, newer data/mod layout and migration are not established by the older v0.4.2 source/launch instruction. Do not copy newer folder rules over an older profile or assume save compatibility. Removing registration preserves external files; no managed update, rollback, backup, save migration or external deletion is offered."
+          }
+        ],
+        "warnings": [
+          "Keep the complete Windows package and meet its Godot/GPU/runtime requirements. The v0.4.2 route evidence does not qualify newer Game Jolt packages, their migration or mod layout. Keep graphical assets within Project Reignition and retain supplied terms/notices; freeware distribution is not a grant to resell the game or reuse its assets elsewhere."
+        ],
+        "help_url": "https://github.com/kumapauz/project-reignition/releases/tag/v0.4.2"
       }
     },
     {
@@ -27054,7 +27261,8 @@
         "image_sha256": "6620dca4b4c3e2276f5fa141d8690ecbb56edc9d5aa53504afb06c062f615cf8",
         "game_slug": "mercenaries-playground-of-destruction",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "Fresh acquisition of the selected Mercenaries Recompiled Windows launcher/package is held while applicable app-bundling permission or an authorized-source basis for its embedded AgencyFB-Regular.ttf remains unresolved. Its Font Bureau copyright notice and the project MIT or inactive OFL font notices do not supply that grant. Resume with an attributable applicable basis or a reviewed supported package excluding or replacing that font. Independently permitted existing copies remain separate; this does not resolve the launcher lifetime hold."
     },
     {
       "id": "meta-k-bannedpenta01-super-smash-bros-brawl",
@@ -29409,7 +29617,7 @@
     {
       "id": "nevercookfirst-dimensionsrecomp",
       "name": "LEGO Dimensions / DimensionsRecomp (NeverCookFirst)",
-      "summary": "Explore LEGO Dimensions / DimensionsRecomp (NeverCookFirst) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Windows LEGO Dimensions guidance for an independently permitted completed legodimensions.exe installation using your own exact Xbox 360 disc and TU23. Upstream installer/updater owns replacement, content, mods and data.",
       "project_url": "https://github.com/NeverCookFirst/DimensionsRecomp",
       "issue_number": 1817,
       "platforms": [],
@@ -29422,7 +29630,36 @@
         "image_sha256": "926c7b6a37f16a6fdc45dc4d305b21e32bb3fee603ed842892f233ff24a1e80c",
         "game_slug": "lego-dimensions",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep an independently permitted complete installation",
+            "instruction": "Use the completed Windows installation and components you are independently permitted to use. The released setup installs a statically recompiled player; code/component licences and ownership of a disc do not themselves establish permission for every translated game-code package component. Fresh acquisition of that specific component remains conditional on applicable permission or an authorized source; this existing-copy guide grants neither. Keep the full installation and supplied tools/resources/notices."
+          },
+          {
+            "title": "Supply the exact own disc and title update through upstream",
+            "instruction": "Finish upstream setup outside Portcove with your own extracted Xbox360 original disc folder, not an ISO: Default.xex, GAME.DAT/GAME.HDR and all required archives. The source checks title5752084B and media72B1DD2A plus required archive sizes. Use TU23, not TU22/TU24: Default.xexp must be11,114,496bytes with SHA-256 a5169f508036d024312537d3ce64c07bf0680a87d9e0a282ff80461cf4a646a9. Supply the supported raw tu00000003_00000000 package or extracted Default.xexp/PATCH.DAT/PATCH.HDR. DLC is optional and must also be your own permitted input. Keep all original sources unchanged."
+          },
+          {
+            "title": "Select the actual installed native entry",
+            "instruction": "Select legodimensions.exe, use its complete containing installation directory as working directory and leave arguments empty. Keep matching game/, update/, content/, mods/, tools and any update-mods/ companions produced by the installer. Do not select DimensionsRecompiled-Setup.exe, rexupdate.exe, modcli.exe or a tool script. The native window/game stays in the selected process. Saving launch details and Play are separate actions; driver changes and external Toy Pad setup remain upstream/user tasks."
+          },
+          {
+            "title": "Preserve state and paths before startup or relocation",
+            "instruction": "Back up the complete installation, legodimensions.toml, content/ (the configured user-data/save/profile/DLC root), game.log/logs, mods/ and update-mods/, plus custom user_data_root, metadata_root, cache_root, game_data_root, update_data_root and log paths recorded by your setup. Preserve external Toy Pad app settings and original sources separately. The startup relocation helper rewrites paths under an old missing install root to the new executable folder when its game/ exists; it changes configured path references rather than proving save migration. Preserve both locations before moving/starting. Before startup, separately back up both actual vanilla update_data_root and mods_update_root, including PATCH3.DAT/PATCH3.HDR and their .off variants, plus the old/new configuration and recovery copies outside both roots. Upstream applies the fern setting to both roots at startup, renames those files to/from .off and can remove an older .off when a live file exists. Its startup also forces present_effect fsr2/fsr3 to fsr and readback_memexport_batched to false; preserve prior settings without treating those compatibility changes as Portcove migration or feature control."
+          },
+          {
+            "title": "Keep updates, companions and replacement with upstream",
+            "instruction": "Upstream owns installer updates, DLC import, mod application, config merging and recovery. Installer/updater can enforce compatibility settings and replace runtime/mod files; preserve old complete output and custom data outside all replacement paths first. The game may check for updates and, on your choice, start an external updater and exit; that updater/relaunched game is outside this entry’s tracked session. Optional Toy Pad autostart is upstream-owned; externally started companions remain your responsibility. Close every actual game, updater, restart successor and companion before backup/relink/removal. Review/relink changed selected bytes afterward. Removing registration preserves external files; no Portcove-managed update/rollback/backup/migration/deletion or successor adoption is offered."
+          }
+        ],
+        "warnings": [
+          "Only the exact supported Xbox360 disc and TU23 fit; a title-update filename alone is insufficient. Physical USB-pad driver changes and optional companions require upstream setup. Complete campaign, save/mod compatibility and successor continuation are not guaranteed by this guide."
+        ],
+        "help_url": "https://github.com/NeverCookFirst/DimensionsRecomp/blob/a56de4245dbe2ea7f0d7aa6fb7637ebc29a3bed7/README.md"
+      },
+      "download_block_reason": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate."
     },
     {
       "id": "neverdead-native-pc-port-xbox-360-static-recompilation-mateussmeneses-neverdead",
@@ -29768,7 +30005,7 @@
     {
       "id": "njh-1001-wipeout2k97xl",
       "name": "Wipeout XL / Wipeout XL Recompiled (NJH-1001)",
-      "summary": "Explore Wipeout XL / Wipeout XL Recompiled (NJH-1001) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Documented Windows Wipeout XL preparation and completed native build route from your own exact PlayStation disc. Select the finished build-release/Wipeout2K97XL.exe; upstream owns generation, rebuilding and player data.",
       "project_url": "https://github.com/NJH-1001/Wipeout2K97XL",
       "issue_number": 1908,
       "platforms": [],
@@ -29781,6 +30018,34 @@
         "image_sha256": "a306ddcaf6d24f17a938e8b9eb6f5c83ded3ca97a5e67c214ff0fd1e750cf6bf",
         "game_slug": "wipeout-xl",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original and permitted complete kit",
+            "instruction": "Use source, components and a completed kit you are independently permitted to use, with your own Wipeout XL USA SCUS-94351 Redump-style CUE and all 12 BIN tracks. Track01 is 86,045,568 bytes, MD5 bee4ab5e4835235ccf6f16bc8caea5e6 and SHA-1 5694008c30fa9896d17afdd6281e4bebb9f63953. Other regions or revisions are outside this guide. Keep every original track unchanged and together with its CUE. Released ZIPs are setup kits, not already generated games. No retail BIOS dump is needed by the documented OpenBIOS route; retain its supplied image and applicable notices. The pinned psxrecomp code is noncommercial-use licensed; separate UI/component/original rights still apply."
+          },
+          {
+            "title": "Complete all upstream generation and rebuilding first",
+            "instruction": "Use the documented upstream setup wizard or source-build recipe outside Portcove, including its required Python/toolchain setup and Generate & rebuild step. Wait for the completed native psx-runtime product, normally build-release/Wipeout2K97XL.exe, with its matching bios, mods, configs, assets and other staged companions. Keep the complete kit/source and completed output together. Root/setup executables forward to another process and exit on Windows; do not register those setup hosts or codegen/helper scripts. A generated-source tree or incomplete build is not the finished player."
+          },
+          {
+            "title": "Select the documented completed build product",
+            "instruction": "Select the finished build-release/Wipeout2K97XL.exe and use that complete build-release directory as working directory; leave arguments empty. Upstream stages runtime configs for direct build launches. The completed game-dispatch product keeps its normal launcher/game in-process rather than taking the setup-host forward path. Keep the same supported disc selected if the player asks. Saving launch details and Play are separate actions. Setup, Generate & rebuild, PGO optimize or optional relaunch/restart actions remain outside this tracked initial-player route; close any actual successors before another attachment or maintenance."
+          },
+          {
+            "title": "Back up active settings, cards and all custom roots before startup",
+            "instruction": "Preserve the complete creating runtime and upstream kit, executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ (including cards, game options and save states), mods/, reports/logs/caches/captures and original discs. The default game config uses saves/ and card1.mcd/card2.mcd; established explicit card files or --memcard-dir and PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots. Do not merge profiles or infer save compatibility between disc variants. Startup can remove an older settings.toml.bad and rename malformed settings.toml there; back up both outside the runtime beforehand. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+          },
+          {
+            "title": "Keep runtime and mod replacement with upstream",
+            "instruction": "Upstream/player owns generation, rebuilding, updates and recovery. Preserve custom mods, settings/cards and the old complete runtime outside build/output paths before replacing or rebuilding the kit. Close all actual player/setup/rebuild processes first, then review/relink changed executable bytes after preparation. Portcove does not adopt optional rebuild successors. Removing registration preserves external files; no managed update, rollback, backup, save migration or external deletion is offered."
+          }
+        ],
+        "warnings": [
+          "Release ZIPs are setup kits, not generated game builds. Keep the complete own12-track disc and supplied OpenBIOS; controller and enhancement support varies. Back up cards/settings/mods before rebuilding; the pinned framework permits noncommercial use only."
+        ],
+        "help_url": "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
       }
     },
     {
@@ -29918,7 +30183,7 @@
     {
       "id": "nsmbu-recomp-irishbruse",
       "name": "New Super Mario Bros. U Recompiled (IrishBruse)",
-      "summary": "Explore New Super Mario Bros. U Recompiled (IrishBruse) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register the completed native Windows NSMBU game produced by upstream setup, using its own game/save arguments and data working directory. Upstream retains Wii U input preparation, updates and player-data ownership; the setup launcher is not the tracked game entry.",
       "project_url": "https://github.com/IrishBruse/nsmbu-recomp",
       "issue_number": 1712,
       "platforms": [],
@@ -29931,6 +30196,38 @@
         "image_sha256": "d07a74ef95ec7c6e2531e728efb9d985f1915e0fd2c6335b31f37375a1135608",
         "game_slug": "new-super-mario-bros-u",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/nsmbu-recomp/nsmbu-recomp/blob/8495be501f133b57a9070511d2178e810b8eceee/README.md",
+        "steps": [
+          {
+            "title": "Complete the exact owned-input preparation upstream",
+            "instruction": "Use an independently permitted complete Windows release and components. Finish the upstream installer and first-start preparation outside Portcove with your own supported New Super Mario Bros. U dump: USA standalone00050000-10101d00 base0 or matching1.3.0/titleversion64; Europe00050000-10101e00 base0 or matching1.3.0/version80; USAcombo00050000-1014b700 or Europecombo00050000-1014b800 version0 without separate update. Base-only standalone builds do not support mods; updated/combo builds do. The installer identifies the actual code/red-pro2.rpx by its own full SHA256 registry; no whole-disc or entitlement guarantee follows. Disc-image keys, if required for your own representation, stay with the supported upstream setup; no key acquisition/import/compiler is performed here."
+          },
+          {
+            "title": "Choose the supported completed native game, not its setup launcher",
+            "instruction": "In the successful upstream installation, select the actual data/bin/nsmbu.exe game recorded in install.json, with the installation data directory as CWD. Keep its matching bin companions, portable.txt marker when present, game/, nsmbu/ and complete release assets together. The upstream Windows direct shortcut uses literal arguments --game game --save nsmbu/save; use those for its default layout. If upstream established a different game root or save destination, use those exact paths as literal arguments instead of changing roots. Do not select NSMBU.exe, setup.py, a console batch file, an unbuilt placeholder or shader-warm/diagnostic mode."
+          },
+          {
+            "title": "Keep launch and process boundaries explicit",
+            "instruction": "The supported direct native entry accepts --game and --save, starts the guest main thread and owns the renderer event loop in that same process. Saving executable/CWD/arguments and requesting Play are separate actions requiring your consent. The GUI installer and Python launcher start the game as a detached child; they are not offered as the tracked entry. Finish setup/repair/relaunch outside this registration, close every actual game/helper first, and review/relink rebuilt bytes. No private payload bypass, shell wrapper, successor adoption or new Core lifecycle is introduced."
+          },
+          {
+            "title": "Preserve the entire effective portable or legacy profile",
+            "instruction": "The portable release normally installs under its own data/ directory: preserve install.json, bin/, game/, nsmbu/ with saves, controls, settings, states, mods, shader caches and logs, plus setup.log, work/ and all other established state. The game save arguments identify nsmbu/save with common/rp_savedata.dat and user/rp_personal_savedata.dat. bin/portable.txt makes the runtime profile ../nsmbu relative to bin; without it the Windows profile defaults to %APPDATA%/NSMBU. Older/nonportable setup also has its actual per-user data directory. Keep every established custom NSMBU_USER_DIR, state/cache/settings/log/mod root and external game/save path; do not merge them or infer Wii U/runtime/mod save compatibility."
+          },
+          {
+            "title": "Leave repair, imports and deletion with upstream",
+            "instruction": "Upstream setup can import an existing save or installation, rebuild generated outputs, replace directories through .old siblings and delete staging/old material, and optionally remove its downloaded compiler. Those are upstream-owned operations, not this guide’s managed actions. Before setup/repair/update or first profile import, keep separate complete source/profile/runtime backups outside disposable work/toolchain/staging/.old paths. Changing a selected game or save root does not authorize moving/deleting the old one. Portcove performs no save import/migration or rollback and removing registration preserves every external file."
+          },
+          {
+            "title": "Retain requirements, terms and evidence limits",
+            "instruction": "This guide covers the native Windows x86-64 route with upstream Windows10/11 and Vulkan requirements; Android/ARM/macOS/Linux claims are separate. Keep applicable MPL2.0 and exact runtime/component notices. They grant no Nintendo original-game/key/artwork rights. Upstream partial-playability, performance, renderer, controls, save-state and mod claims remain their claims, not Portcove observation or compatibility promises. No Core-managed acquisition/preparation/update/backup/delete or Supported/protected acceptance is offered."
+          }
+        ],
+        "warnings": [
+          "Select the completed native game rather than the GUI installer: the installer can exit while the actual game continues."
+        ]
       }
     },
     {
