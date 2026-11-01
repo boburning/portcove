@@ -2368,6 +2368,7 @@ fn host_tool_state(state: HostToolState) -> &'static str {
 
 fn repair_kind(kind: RepairItemKind) -> &'static str {
     match kind {
+        RepairItemKind::MalformedJournal => "malformed journal",
         RepairItemKind::RetainedPreparation => "retained preparation",
         RepairItemKind::PartialOperation => "partial operation",
         RepairItemKind::CleanupPending => "cleanup pending",

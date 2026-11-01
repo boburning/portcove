@@ -9810,6 +9810,98 @@
         ],
         "type": "object"
       },
+      "JournalDiagnostics": {
+        "description": "Complete SQL enumeration is distinct from successful row interpretation.\nThis is observation only; even a decoded row is not proof of recoverability.",
+        "properties": {
+          "decoded_rows": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enumerated_rows": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enumeration_complete": {
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/$defs/JournalRowProblem"
+            },
+            "type": "array"
+          },
+          "related_assessments_complete": {
+            "description": "False when malformed state prevents dependent orphan/backup assessments.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enumeration_complete",
+          "enumerated_rows",
+          "decoded_rows",
+          "related_assessments_complete",
+          "problems"
+        ],
+        "type": "object"
+      },
+      "JournalRowProblem": {
+        "properties": {
+          "operation_id": {
+            "description": "Bounded untrusted observations. Absent if unreadable or unsafe to display.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "description": "Static explanation; never raw JSON, parser text, paths or environment data.",
+            "type": "string"
+          },
+          "rowid": {
+            "description": "Local SQLite locator, never an operation capability or filesystem path.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "stage": {
+            "$ref": "#/$defs/JournalValidationStage"
+          }
+        },
+        "required": [
+          "rowid",
+          "operation_id",
+          "operation_kind",
+          "port_id",
+          "stage",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "JournalValidationStage": {
+        "enum": [
+          "columns",
+          "kind",
+          "phase",
+          "payload",
+          "family",
+          "acquisition",
+          "acquisition_inventory"
+        ],
+        "type": "string"
+      },
       "Platform": {
         "enum": [
           "windows-x86-64",
@@ -9861,6 +9953,7 @@
       },
       "RepairItemKind": {
         "enum": [
+          "malformed_journal",
           "retained_preparation",
           "partial_operation",
           "cleanup_pending",
@@ -9882,6 +9975,17 @@
               "$ref": "#/$defs/RepairItem"
             },
             "type": "array"
+          },
+          "journal_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/JournalDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent in older reports. A successful current enumeration can still\ncontain invalid rows and is never proof that operations may be recovered."
           }
         },
         "required": [

@@ -3182,3 +3182,118 @@ fn catalog_detail_preserves_managed_output_machine_reads_and_a_player_file() {
     }
     assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }
+
+#[test]
+fn doctor_explains_malformed_journals_without_recovery_or_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    drop(portcove_core::Library::open(&library).unwrap());
+    let sentinel = library.join("retained-sentinel");
+    std::fs::write(&sentinel, b"retained player bytes").unwrap();
+    let run = |args: &[&str]| {
+        Command::new(cli_binary())
+            .arg("--library")
+            .arg(&library)
+            .env(
+                "PORTCOVE_PREFERENCES",
+                temporary.path().join("preferences.json"),
+            )
+            .env(
+                "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+                temporary.path().join("runtime.lock"),
+            )
+            .env_remove("GITHUB_TOKEN")
+            .env_remove("GH_TOKEN")
+            .env_remove("PORTCOVE_GITHUB_TOKEN")
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let db = rusqlite::Connection::open(library.join("portcove.sqlite3")).unwrap();
+    db.execute_batch(
+        "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at) VALUES
+      ('valid-pending','install','zelda64-recomp','preparing',1,2),
+      ('missing-payload','install','zelda64-recomp','prepared',3,4),
+      ('bad-acquisition','acquire_update','zelda64-recomp','preparing',5,6);",
+    )
+    .unwrap();
+    let rows = || {
+        let mut q = db
+            .prepare("SELECT * FROM lifecycle_operations ORDER BY rowid")
+            .unwrap();
+        q.query_map([], |row| {
+            (0..row.as_ref().column_count())
+                .map(|i| row.get::<_, rusqlite::types::Value>(i))
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .unwrap()
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .unwrap()
+    };
+    let before = rows();
+    assert!(
+        portcove_core::PortcoveService::new(portcove_core::Library::open(&library).unwrap())
+            .is_err()
+    );
+    for args in [vec!["--json", "doctor"], vec!["--jsonl", "doctor"]] {
+        let output = run(&args);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let value = json_stdout(&output);
+        assert_eq!(value["ok"], true);
+        let repair = &value["data"]["repair"];
+        assert!(
+            repair["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| item["operation_id"] == "valid-pending")
+        );
+        assert_eq!(repair["journal_diagnostics"]["enumeration_complete"], true);
+        assert_eq!(
+            repair["journal_diagnostics"]["problems"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert!(
+            repair["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| item["kind"] == "malformed_journal")
+        );
+    }
+    let human = run(&["doctor"]);
+    let text = human_stdout(&human);
+    assert!(text.contains("malformed journal"));
+    assert!(text.contains("requires review"));
+    assert!(!text.contains("no repairs needed"));
+    assert_eq!(rows(), before);
+    assert_eq!(std::fs::read(&sentinel).unwrap(), b"retained player bytes");
+    assert!(
+        portcove_core::PortcoveService::new(portcove_core::Library::open(&library).unwrap())
+            .is_err()
+    );
+
+    db.execute_batch("ALTER TABLE lifecycle_operations RENAME TO retained_unreadable_journal")
+        .unwrap();
+    let output = run(&["--json", "doctor"]);
+    assert!(!output.status.success());
+    let failure = json_stdout(&output);
+    assert_eq!(failure["ok"], false);
+    assert!(failure["data"].is_null());
+    assert_eq!(
+        db.query_row(
+            "SELECT count(*) FROM retained_unreadable_journal",
+            [],
+            |row| row.get::<_, i64>(0)
+        )
+        .unwrap(),
+        3
+    );
+}

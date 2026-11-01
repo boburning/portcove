@@ -430,16 +430,21 @@ impl PortcoveService {
         &self,
         preferences: &crate::HostPreferenceStore,
     ) -> Result<DoctorReport> {
-        let statuses = self.statuses()?;
+        // Doctor needs durable active pointers, not hydrated readiness/acquisition
+        // assessments: malformed journals must not block their own diagnosis.
+        let installed_port_count = self.library.connection()?.query_row(
+            "SELECT count(*) FROM port_settings AS settings
+             JOIN installs ON installs.id=settings.active_install_id
+             AND installs.port_id=settings.port_id",
+            [],
+            |row| row.get(0),
+        )?;
         Ok(DoctorReport {
             platform: Platform::current()?,
             library: self.library.storage_summary()?,
             catalog_port_count: self.catalog.ports().len(),
             catalog_provenance: self.catalog_provenance.clone(),
-            installed_port_count: statuses
-                .iter()
-                .filter(|status| status.active.is_some())
-                .count(),
+            installed_port_count,
             registered_source_count: self.library.sources()?.len(),
             host_tools: crate::adapter::host_tool_statuses(preferences)?,
             repair: self.repair_plan()?,
@@ -447,7 +452,11 @@ impl PortcoveService {
     }
 
     pub fn repair_plan(&self) -> Result<RepairPlan> {
-        let operations = OperationStore::new(self.library.clone()).all()?;
+        // Diagnostic observations cannot stand in for the strict operation
+        // inventory required by recovery, cleanup or mutation.
+        let inventory = OperationStore::new(self.library.clone()).diagnostic_inventory()?;
+        let operations = &inventory.decoded;
+        let related_complete = inventory.report.related_assessments_complete;
         let installs = self.library.all_installs()?;
         let registered_paths = installs
             .iter()
@@ -519,7 +528,7 @@ impl PortcoveService {
                 });
             }
         }
-        if self.library.versions_dir().is_dir() {
+        if related_complete && self.library.versions_dir().is_dir() {
             for port_entry in fs::read_dir(self.library.versions_dir())? {
                 let port_entry = port_entry?;
                 if !port_entry.file_type()?.is_dir() {
@@ -545,28 +554,50 @@ impl PortcoveService {
                 }
             }
         }
-        for port in self.catalog.ports() {
-            for problem in self
-                .backup_history_with_operations(&port.id, &operations)?
-                .problems
-            {
-                if problem.operation_id.is_some() {
-                    continue;
+        if related_complete {
+            for port in self.catalog.ports() {
+                for problem in self
+                    .backup_history_with_operations(&port.id, &operations)?
+                    .problems
+                {
+                    if problem.operation_id.is_some() {
+                        continue;
+                    }
+                    items.push(RepairItem {
+                        kind: if problem.kind == BackupProblemKind::RecoveryRequired {
+                            RepairItemKind::BackupRecoveryRequired
+                        } else {
+                            RepairItemKind::DegradedBackup
+                        },
+                        operation_id: None,
+                        port_id: Some(port.id.clone()),
+                        path: Some(problem.path),
+                        message: problem.message,
+                        proposed_action: problem.proposed_action,
+                    });
                 }
-                items.push(RepairItem {
-                    kind: if problem.kind == BackupProblemKind::RecoveryRequired {
-                        RepairItemKind::BackupRecoveryRequired
-                    } else {
-                        RepairItemKind::DegradedBackup
-                    },
-                    operation_id: None,
-                    port_id: Some(port.id.clone()),
-                    path: Some(problem.path),
-                    message: problem.message,
-                    proposed_action: problem.proposed_action,
-                });
             }
         }
+        if !related_complete {
+            for item in &mut items {
+                item.proposed_action = "review the malformed retained journal state before further operations; this report has not attempted recovery".into();
+            }
+        }
+        items.extend(inventory.report.problems.iter().map(|problem| RepairItem {
+            kind: RepairItemKind::MalformedJournal,
+            // The SQLite locator is observation data, never a resumable operation ID.
+            operation_id: None,
+            port_id: None,
+            path: None,
+            message: format!(
+                "lifecycle row {} (observed kind: {}, observed port: {}) requires review: {:?}: {}",
+                problem.rowid,
+                problem.operation_kind.as_deref().unwrap_or("unreadable or unknown"),
+                problem.port_id.as_deref().unwrap_or("unreadable"),
+                problem.stage, problem.reason,
+            ),
+            proposed_action: "preserve retained journal rows and files and obtain support for manual review; orphan and backup assessments are not evaluated while ownership is unknown; this report authorizes no repair".into(),
+        }));
         items.sort_by(|left, right| {
             left.path
                 .cmp(&right.path)
@@ -575,6 +606,7 @@ impl PortcoveService {
         Ok(RepairPlan {
             generated_at: Library::now(),
             items,
+            journal_diagnostics: Some(inventory.report),
         })
     }
 
@@ -8254,6 +8286,21 @@ mod tests {
                 .unwrap()
         };
         let malformed_before = codec_refuses.then(row_snapshot);
+        if codec_refuses {
+            let observer = PortcoveService::new_read_only(library.clone()).unwrap();
+            let preferences =
+                crate::HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+            let report = observer.doctor_with_preferences(&preferences).unwrap();
+            let diagnostic = report.repair.journal_diagnostics.unwrap();
+            assert!(
+                diagnostic
+                    .problems
+                    .iter()
+                    .any(|problem| problem.stage == crate::JournalValidationStage::Family)
+            );
+            assert!(!diagnostic.related_assessments_complete);
+            assert_eq!(Some(row_snapshot()), malformed_before);
+        }
         let installs = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
         let sources = serde_json::to_vec(&library.sources().unwrap()).unwrap();
         let private_tree = serde_json::to_vec(&adoption_copy_plan(&staging).unwrap()).unwrap();
@@ -18640,6 +18687,281 @@ fn main() {
         assert_eq!(
             *blocker.observed.lock().unwrap(),
             [ReleaseChannel::Stable, ReleaseChannel::Beta]
+        );
+    }
+}
+
+#[cfg(test)]
+mod journal_diagnostic_tests {
+    use super::*;
+    use crate::{HostPreferenceStore, JournalValidationStage as Stage};
+
+    fn rows(library: &Library) -> Vec<Vec<rusqlite::types::Value>> {
+        let db = library.connection().unwrap();
+        let mut query = db
+            .prepare("SELECT * FROM lifecycle_operations ORDER BY rowid")
+            .unwrap();
+        query
+            .query_map([], |row| {
+                (0..row.as_ref().column_count())
+                    .map(|i| row.get(i))
+                    .collect()
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    }
+
+    fn database_state(library: &Library) -> Vec<(String, Vec<Vec<rusqlite::types::Value>>)> {
+        let db = library.connection().unwrap();
+        let tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").unwrap()
+            .query_map([], |r| r.get::<_,String>(0)).unwrap().collect::<rusqlite::Result<Vec<_>>>().unwrap();
+        tables
+            .into_iter()
+            .map(|table| {
+                let sql = format!(
+                    "SELECT * FROM \"{}\" ORDER BY rowid",
+                    table.replace('"', "\"\"")
+                );
+                let mut q = db.prepare(&sql).unwrap();
+                let values = q
+                    .query_map([], |row| {
+                        (0..row.as_ref().column_count())
+                            .map(|i| row.get(i))
+                            .collect()
+                    })
+                    .unwrap()
+                    .collect::<rusqlite::Result<_>>()
+                    .unwrap();
+                (table, values)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn doctor_counts_retained_active_metadata_without_hydrating_journal_status() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        super::tests::register_zelda_install(&library, "previous", true);
+        super::tests::register_zelda_install(&library, "active", true);
+        super::tests::register_zelda_install(&library, "staged", false);
+        let mut service = PortcoveService::new_read_only(library.clone()).unwrap();
+        let mut document = service.catalog.authoritative_document();
+        document.ports.retain(|port| port.id != "zelda64-recomp");
+        let sources = document.source_catalog.as_mut().unwrap();
+        sources
+            .contracts
+            .retain(|contract| contract.port_id != "zelda64-recomp");
+        sources
+            .qualification
+            .retain(|record| record.scope.port_id != "zelda64-recomp");
+        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert_eq!(library.all_installs().unwrap().len(), 3);
+        let preferences =
+            HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        assert_eq!(
+            service
+                .doctor_with_preferences(&preferences)
+                .unwrap()
+                .installed_port_count,
+            1
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute_batch(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+             VALUES ('retained-corrupt','install','zelda64-recomp','prepared',1,2)",
+            )
+            .unwrap();
+        let before = database_state(&library);
+        // Compare application/runtime files, not SQLite/WAL mechanics.
+        // Logical database rows are compared separately above and below.
+        let files = || {
+            crate::test_fixture::library_file_snapshot(&library)
+                .into_iter()
+                .filter(|(path, _)| {
+                    !path
+                        .file_name()
+                        .is_some_and(|name| name.to_string_lossy().starts_with("portcove.sqlite3"))
+                })
+                .collect::<Vec<_>>()
+        };
+        let files_before = files();
+        let report = service.doctor_with_preferences(&preferences).unwrap();
+        assert_eq!(report.installed_port_count, 1);
+        assert!(
+            !report
+                .repair
+                .journal_diagnostics
+                .unwrap()
+                .problems
+                .is_empty()
+        );
+        assert_eq!(database_state(&library), before);
+        assert_eq!(files(), files_before);
+    }
+
+    #[test]
+    fn doctor_reports_mixed_malformed_state_without_recovery_or_mutation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let preferences =
+            HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let staging = library.staging_dir().join("pending-install");
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("sentinel"), b"retained runtime bytes").unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut pending = LifecycleOperation::new(
+            "valid-pending",
+            LifecycleOperationKind::Install,
+            "zelda64-recomp",
+        );
+        pending.paths.staging = Some(staging.clone());
+        store.put(&mut pending).unwrap();
+        let mut missing = LifecycleOperation::new(
+            "missing-required",
+            LifecycleOperationKind::Install,
+            "zelda64-recomp",
+        );
+        missing.phase = LifecyclePhase::Prepared;
+        assert!(store.put(&mut missing).is_err());
+        let service = PortcoveService::new_read_only(library.clone()).unwrap();
+        let db = library.connection().unwrap();
+        db.execute_batch("INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at) VALUES
+          ('missing-required','install','zelda64-recomp','prepared',1,2),
+          ('unknown-kind','unknown-secret-kind','zelda64-recomp','preparing',3,4),
+          ('unknown-phase','install','zelda64-recomp','unknown-secret-phase',5,6),
+          ('malformed-json','install','zelda64-recomp','preparing',7,8),
+          ('missing-acquisition','acquire_update','zelda64-recomp','preparing',9,10),
+          ('bad-column','install','zelda64-recomp','preparing',13,14);
+          UPDATE lifecycle_operations SET install_json='{\"secret\":\"payload-canary\"' WHERE id='malformed-json';
+          UPDATE lifecycle_operations SET created_at=X'ff',port_id='token=port-canary',last_error='token=error-canary' WHERE id='bad-column';").unwrap();
+        let unknown_destination = library
+            .versions_dir()
+            .join("zelda64-recomp")
+            .join("uninterpreted-owner");
+        fs::create_dir_all(&unknown_destination).unwrap();
+        fs::write(
+            unknown_destination.join("sentinel"),
+            b"retained destination bytes",
+        )
+        .unwrap();
+        db.execute(
+            "UPDATE lifecycle_operations SET final_path=?1 WHERE id='missing-required'",
+            [unknown_destination.to_str().unwrap()],
+        )
+        .unwrap();
+        let before = database_state(&library);
+        assert!(store.all().is_err());
+        assert!(PortcoveService::new(library.clone()).is_err());
+        let report = service.doctor_with_preferences(&preferences).unwrap();
+        let diagnostic = report.repair.journal_diagnostics.as_ref().unwrap();
+        assert!(diagnostic.enumeration_complete);
+        assert!(!diagnostic.related_assessments_complete);
+        assert_eq!(diagnostic.enumerated_rows, 7);
+        assert_eq!(diagnostic.decoded_rows, 1);
+        assert_eq!(diagnostic.problems.len(), 6);
+        for stage in [
+            Stage::Columns,
+            Stage::Kind,
+            Stage::Phase,
+            Stage::Payload,
+            Stage::Family,
+            Stage::Acquisition,
+        ] {
+            assert!(
+                diagnostic
+                    .problems
+                    .iter()
+                    .any(|problem| problem.stage == stage),
+                "{stage:?}"
+            );
+        }
+        assert!(
+            report
+                .repair
+                .items
+                .iter()
+                .any(|item| item.operation_id.as_deref() == Some("valid-pending"))
+        );
+        assert_eq!(
+            report
+                .repair
+                .items
+                .iter()
+                .filter(|item| item.kind == RepairItemKind::MalformedJournal)
+                .count(),
+            6
+        );
+        for item in report
+            .repair
+            .items
+            .iter()
+            .filter(|item| item.kind == RepairItemKind::MalformedJournal)
+        {
+            assert!(item.path.is_none() && item.port_id.is_none() && item.operation_id.is_none());
+            assert!(!item.proposed_action.contains("restart"));
+        }
+        let serialized = serde_json::to_string(&report).unwrap();
+        for secret in [
+            "payload-canary",
+            "port-canary",
+            "error-canary",
+            "unknown-secret-kind",
+            "unknown-secret-phase",
+        ] {
+            assert!(!serialized.contains(secret), "{secret}");
+        }
+        assert!(
+            !report
+                .repair
+                .items
+                .iter()
+                .any(|item| item.kind == RepairItemKind::OrphanedFinalDirectory)
+        );
+        assert_eq!(database_state(&library), before);
+        assert_eq!(
+            fs::read(unknown_destination.join("sentinel")).unwrap(),
+            b"retained destination bytes"
+        );
+        assert_eq!(
+            fs::read(staging.join("sentinel")).unwrap(),
+            b"retained runtime bytes"
+        );
+        assert!(store.all().is_err());
+    }
+
+    #[test]
+    fn doctor_propagates_query_failure_and_diagnostic_row_limit() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new_read_only(library.clone()).unwrap();
+        let db = library.connection().unwrap();
+        db.execute_batch(
+            "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<4097)
+          INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+          SELECT 'bound-'||i,'install','zelda64-recomp','preparing',i,i FROM n;",
+        )
+        .unwrap();
+        let before = rows(&library);
+        assert!(
+            service
+                .repair_plan()
+                .unwrap_err()
+                .message
+                .contains("coverage is incomplete")
+        );
+        assert_eq!(rows(&library), before);
+        db.execute_batch("ALTER TABLE lifecycle_operations RENAME TO retained_broken_schema")
+            .unwrap();
+        let error = service.repair_plan().unwrap_err();
+        assert!(error.message.contains("lifecycle_operations"));
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM retained_broken_schema", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            4097
         );
     }
 }

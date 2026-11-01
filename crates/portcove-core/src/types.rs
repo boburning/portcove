@@ -1495,6 +1495,7 @@ pub struct DoctorReport {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum RepairItemKind {
+    MalformedJournal,
     RetainedPreparation,
     PartialOperation,
     CleanupPending,
@@ -1518,6 +1519,47 @@ pub struct RepairItem {
 pub struct RepairPlan {
     pub generated_at: i64,
     pub items: Vec<RepairItem>,
+    /// Absent in older reports. A successful current enumeration can still
+    /// contain invalid rows and is never proof that operations may be recovered.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub journal_diagnostics: Option<JournalDiagnostics>,
+}
+
+/// Complete SQL enumeration is distinct from successful row interpretation.
+/// This is observation only; even a decoded row is not proof of recoverability.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct JournalDiagnostics {
+    pub enumeration_complete: bool,
+    pub enumerated_rows: usize,
+    pub decoded_rows: usize,
+    /// False when malformed state prevents dependent orphan/backup assessments.
+    pub related_assessments_complete: bool,
+    pub problems: Vec<JournalRowProblem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct JournalRowProblem {
+    /// Local SQLite locator, never an operation capability or filesystem path.
+    pub rowid: i64,
+    /// Bounded untrusted observations. Absent if unreadable or unsafe to display.
+    pub operation_id: Option<String>,
+    pub operation_kind: Option<String>,
+    pub port_id: Option<String>,
+    pub stage: JournalValidationStage,
+    /// Static explanation; never raw JSON, parser text, paths or environment data.
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum JournalValidationStage {
+    Columns,
+    Kind,
+    Phase,
+    Payload,
+    Family,
+    Acquisition,
+    AcquisitionInventory,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
