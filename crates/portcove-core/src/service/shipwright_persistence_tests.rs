@@ -60,6 +60,7 @@ fn fixture() -> (
     // installed artifact receives a checked runtime-only Save interpretation.
     old_port.source_profile = None;
     old_port.presentation = None;
+    old_port.game_settings = None;
     old_port.persistent_paths.retain(|path| path != "Save");
     let qualification =
         crate::test_fixture::retained_qualification(&old_port, Platform::WindowsX86_64).unwrap();
@@ -875,4 +876,83 @@ fn shipwright_descriptive_catalog_changes_keep_retained_save_correction_for_back
             .persistent_paths
             .contains(&"Save".into())
     );
+}
+
+#[test]
+fn optional_current_settings_preserve_only_the_retained_artifact_save_correction() {
+    for other_operational_drift in [false, true] {
+        let (_temporary, mut service, active, _) = fixture();
+        let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
+        let executable = fs::read(active.path.join("soh.exe")).unwrap();
+        let engine = fs::read(active.path.join("engine.dll")).unwrap();
+        assert!(
+            service
+                .installed_port(&active)
+                .unwrap()
+                .game_settings
+                .is_none()
+        );
+        let mut current = service.catalog.authoritative_document();
+        let port = current
+            .ports
+            .iter_mut()
+            .find(|port| port.id == PORT)
+            .unwrap();
+        port.game_settings = Catalog::embedded()
+            .unwrap()
+            .port(PORT)
+            .unwrap()
+            .game_settings
+            .clone();
+        assert!(port.game_settings.is_some());
+        port.persistent_paths.push("current-only-unreviewed".into());
+        if other_operational_drift {
+            port.launch_arguments.push("--unreviewed".into());
+        }
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+        );
+        game_write(
+            &active,
+            b"runtime progress after optional settings appeared",
+        );
+        fs::write(active.path.join("SoHTimeSplitData.json"), SPLITS_A).unwrap();
+        let interpreted = service.installed_mutability_port(&active).unwrap();
+        assert!(interpreted.game_settings.is_none());
+        assert!(
+            !interpreted
+                .persistent_paths
+                .contains(&"current-only-unreviewed".into())
+        );
+        assert_eq!(
+            interpreted.persistent_paths.contains(&"Save".into()),
+            !other_operational_drift
+        );
+        if !other_operational_drift {
+            assert!(
+                interpreted
+                    .runtime_mutable_paths
+                    .contains(&"logs/Ship of Harkinian.log".into())
+            );
+            let backup = service.create_backup(PORT).unwrap();
+            assert_eq!(
+                fs::read(backup.path.join("data/Save/file1.sav")).unwrap(),
+                b"runtime progress after optional settings appeared"
+            );
+            assert_eq!(
+                fs::read(backup.path.join("data/SoHTimeSplitData.json")).unwrap(),
+                SPLITS_A
+            );
+        } else {
+            let spec = service.prepare_launch(PORT, None).unwrap();
+            assert!(!spec.arguments.contains(&"--unreviewed".into()));
+            assert!(!service.library.user_dir(PORT).join("Save").exists());
+        }
+        assert_eq!(
+            fs::read(active.path.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(fs::read(active.path.join("soh.exe")).unwrap(), executable);
+        assert_eq!(fs::read(active.path.join("engine.dll")).unwrap(), engine);
+    }
 }
