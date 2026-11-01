@@ -13,9 +13,10 @@ export function discoverGroupForPort(portId: string): HTMLElement {
 export async function openDiscoverPort(portId: string) {
   const group = discoverGroupForPort(portId);
   const matching = JSON.parse(group.dataset.discoverMatchingPortIds!) as string[];
-  const direct = matching.length === 1 && matching[0] === portId;
+  const primary = group.dataset.discoverPrimaryPortId;
+  const direct = primary ? primary === portId : matching.length === 1 && matching[0] === portId;
   const trigger =
-    direct || matching.length > 1
+    direct || (!primary && matching.length > 1)
       ? group.querySelector<HTMLButtonElement>(".discover-game-identity")!
       : [...group.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
           button.textContent?.includes("Compare all"),

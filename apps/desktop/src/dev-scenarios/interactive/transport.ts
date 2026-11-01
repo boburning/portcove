@@ -167,6 +167,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
           );
       }
       switch (change.kind) {
+        case "set_preferred_implementation":
+          next.preferred_port_by_game ??= {};
+          if (change.port_id) next.preferred_port_by_game[change.game_id] = change.port_id;
+          else delete next.preferred_port_by_game[change.game_id];
+          break;
         case "set_followed_project":
         case "acknowledge_followed_release":
           applyFollowing(change);

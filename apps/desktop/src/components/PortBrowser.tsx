@@ -13,6 +13,7 @@ import {
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
+import { GroupedLibrary } from "../features/browsing/GroupedLibrary";
 import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
@@ -280,7 +281,12 @@ function usePortBrowser({
   const resultCount =
     view === "catalog"
       ? `${groupCountLabel(groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts))} · ${visiblePorts.length} matching ports`
-      : browserResultCount(view, visiblePorts.length);
+      : view === "library" &&
+          groupCatalog(catalogUniverse ?? ports, visiblePorts).some(
+            (group) => group.ports.length > 1,
+          )
+        ? `${groupCountLabel(groupCatalog(catalogUniverse ?? ports, visiblePorts))} · ${visiblePorts.length} matching implementations`
+        : browserResultCount(view, visiblePorts.length);
   const reset = () => {
     const owner = browserOwner.current;
     const origin = document.activeElement;
@@ -672,24 +678,32 @@ function BrowserResults({
       aria-label={view === "library" ? "Library entries" : "Find games entries"}
       data-focus-group
     >
-      {ports.map((port) => (
-        <PortCard
-          layout={layout}
-          favorites={favorites}
-          onFavoriteToggle={onFavoriteToggle}
-          organization={organization}
-          restoreAfter={restoreAfter}
-          key={port.id}
-          port={port}
-          status={statuses.get(port.id)}
-          readiness={portReadiness(statuses.get(port.id))}
-          onSelect={onSelect}
-          onTask={onTask}
-          onLaunch={onLaunch}
-          nativeSourceDrag={nativeSourceDrag}
-          view="library"
-        />
-      ))}
+      <GroupedLibrary
+        layout={layout}
+        all={allCatalogPorts}
+        matching={ports}
+        statuses={statuses}
+        organization={organization}
+        onSelect={onSelect}
+        renderPort={(port) => (
+          <PortCard
+            layout={layout}
+            favorites={favorites}
+            onFavoriteToggle={onFavoriteToggle}
+            organization={organization}
+            restoreAfter={restoreAfter}
+            key={port.id}
+            port={port}
+            status={statuses.get(port.id)}
+            readiness={portReadiness(statuses.get(port.id))}
+            onSelect={onSelect}
+            onTask={onTask}
+            onLaunch={onLaunch}
+            nativeSourceDrag={nativeSourceDrag}
+            view="library"
+          />
+        )}
+      />
     </section>
   );
 }

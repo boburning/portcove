@@ -74,6 +74,7 @@ import {
 } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
+import { GameAlternatives } from "./features/browsing/GameAlternatives";
 import { PortBrowser, SteamBatchLibraryAction } from "./components/PortBrowser";
 import { ListingDetailPanel } from "./components/ListingDetailPanel";
 import { SelfServiceSetup } from "./components/SelfServiceSetup";
@@ -488,6 +489,7 @@ function useWorkspace(props: WorkspaceProps) {
     close: closePortDetails,
     invalidate: invalidatePortDetails,
     open: openPortDetails,
+    replace: switchPortDetails,
     opening: detailOpening,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   const [pendingToolId, setPendingToolId] = useState<string>();
@@ -677,6 +679,17 @@ function useWorkspace(props: WorkspaceProps) {
         </div>
       </Notice>
     );
+  const implementationControl = model.entry && (
+    <GameAlternatives
+      port={model.entry}
+      ports={model.entries.filter(
+        (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
+      )}
+      statuses={model.statusMap}
+      organization={organization}
+      onSelect={(portId) => switchPortDetails(portId)}
+    />
+  );
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
@@ -693,6 +706,7 @@ function useWorkspace(props: WorkspaceProps) {
         groupPorts={model.entries.filter(
           (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
         )}
+        implementationControl={implementationControl}
         favoriteControl={
           model.status?.external_runtime
             ? renderSelectedPortFavoriteControl({
@@ -713,6 +727,7 @@ function useWorkspace(props: WorkspaceProps) {
     ) : model.port ? (
       <>
         <SelectedPortPanel
+          implementationControl={implementationControl}
           backLabel={detailBackLabel}
           favorites={favorites}
           extraFiles={
@@ -1610,6 +1625,7 @@ function renderSelectedPortFavoriteControl({
 }
 
 function SelectedPortPanel({
+  implementationControl,
   favorites,
   organization,
   openSupport,
@@ -1631,6 +1647,7 @@ function SelectedPortPanel({
   openLibraryStorage,
   close,
 }: {
+  implementationControl?: ReactNode;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
@@ -1685,11 +1702,16 @@ function SelectedPortPanel({
   return (
     <DetailPanel
       backLabel={backLabel}
-      favoriteControl={renderSelectedPortFavoriteControl({
-        favorites,
-        favoritePortId,
-        displayPort: model.entry ?? model.port,
-      })}
+      favoriteControl={
+        <>
+          {implementationControl}
+          {renderSelectedPortFavoriteControl({
+            favorites,
+            favoritePortId,
+            displayPort: model.entry ?? model.port,
+          })}
+        </>
+      }
       organization={organization}
       openSupport={openSupport}
       extraFiles={extraFiles}

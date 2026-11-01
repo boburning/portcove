@@ -15,7 +15,24 @@
       "game_slug": "the-legend-of-zelda-the-minish-cap",
       "match_kind": "underlying-game"
     },
-    "issue_number": 109
+    "issue_number": 109,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-minish-cap",
+      "evidence_urls": [
+        "https://github.com/999sian/tmc/blob/d377558d973c648e8d0dc491bf99af9aaa0d8067/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "game-boy-advance",
+          "title": "Game Boy Advance (region and revision not specified)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/999sian/tmc/blob/d377558d973c648e8d0dc491bf99af9aaa0d8067/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

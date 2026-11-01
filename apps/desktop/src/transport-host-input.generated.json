@@ -513,6 +513,29 @@
       {
         "additionalProperties": false,
         "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "kind": {
+            "const": "set_preferred_implementation",
+            "type": "string"
+          },
+          "port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "game_id"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
           "followed": {
             "type": "boolean"
           },
