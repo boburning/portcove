@@ -3,11 +3,11 @@
   "listing": {
     "id": "street-fighter-ex-plus-alpha-recomp",
     "name": "Street Fighter EX Plus Alpha Recomp",
-    "summary": "Explore Street Fighter EX Plus Alpha Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register a completed upstream-prepared Street Fighter EX Plus Alpha Windows player for your own USA disc and SCPH1001 BIOS.",
     "project_url": "https://github.com/guimaraf/plusalpha-recomp",
     "issue_number": 1116,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/guimaraf/plusalpha-recomp",
     "artwork": {
       "game_id": 38297,
@@ -16,6 +16,34 @@
       "image_sha256": "3670f6c116ef18a1a52ac64fbb9f552664eaf9819cbca40a121ae6b201f2c16e",
       "game_slug": "street-fighter-ex-plus-alpha",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/guimaraf/plusalpha-recomp",
+      "steps": [
+        {
+          "title": "Complete the title’s supported preparation upstream",
+          "instruction": "Use the upstream PlusAlphaProject preparation for your own USA SLUS-00548 CUE/BIN, keeping its raw MODE2/2352 single data track unchanged. The documented BIN is 528049872 bytes with SHA-256 e1050b3b8a3d26e04d4bbe196a7ded17cd0ff1e7de944d0fd7e161c48d60f9ca. Finish generation/build upstream before attachment; do not reuse older generated output with a different ABI. Portcove does not run generators or acquire originals."
+        },
+        {
+          "title": "Keep the exact original and preparation boundary",
+          "instruction": "This port requires your own SCPH1001.BIN, 524288 bytes, SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3. Its configuration disables OpenBIOS fallback. Select the BIOS through the upstream chooser, or retain a supported literal --bios argument for your actual path. Neither the disc nor BIOS is licensed by framework terms."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "Select the completed build-online-static/exPlusAlpha.exe, its executable directory as working directory and --launcher as the literal argument. Do not attach the root setup host, compiler or generator. The completed game-dispatch product bypasses setup forwarding and keeps launcher/game execution in the native process."
+        },
+        {
+          "title": "Review Play and retain one replacement owner",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Keep the complete creating project, prepared player, original CUE/BIN, BIOS and generated-online outputs together with all effective external paths. Default settings.toml, input.ini and memory cards card1.mcd/card2.mcd are executable-relative; configuration can select other card/data paths. Preserve states, controller mappings, mods, assets, caches, backups and every custom root. The framework fork retains PolyForm Noncommercial 1.0.0 and separate third-party notices; comply with those terms and any separately applicable component rights."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+      ]
     }
   }
 }

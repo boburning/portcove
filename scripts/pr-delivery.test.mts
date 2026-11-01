@@ -1350,7 +1350,7 @@ function inspectionClient(
                 link:
                   "<https://api.github.com/repos/boburning/portcove/commits/" +
                   head +
-                  '/check-runs?filter=latest&per_page=100&page=2>; rel="next"',
+                  '/check-runs?filter=all&per_page=100&page=2>; rel="next"',
               },
         );
       return included({
@@ -1609,4 +1609,87 @@ void test("queue exposes age uncertainty without changing the pending-status gat
   assert.equal(queue.selected, null);
   assert.match(candidate.next_action, /hosted lookup\/branch inputs/);
   assert.equal(inspectRenovateQueue(queueClient(), queueConfig, required, queueBase).selected, 7);
+});
+
+void test("watch REST collection resolves complete replay lineage without hiding raw observations", async () => {
+  const old: DeliveryJob[] = workflowJobs();
+  const newer: DeliveryJob = {
+    ...old[0]!,
+    id: 100,
+    run_attempt: 2,
+    check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/100",
+  };
+  const jobs = [...old, newer];
+  const checks = jobs.map((job) => ({
+    id: Number(job.check_run_url!.split("/").at(-1)),
+    name: job.name,
+    head_sha: head,
+    status: job.status,
+    conclusion: job.conclusion,
+  }));
+  let runState = workflow({ run_attempt: 2, status: "completed", conclusion: "success" });
+  const client = new PullRequestDeliveryClient((args) => {
+    const endpoint = requiredFixture(args[2]);
+    if (endpoint === "repos/boburning/portcove/pulls/7") return included(pull());
+    if (endpoint === "repos/boburning/portcove/actions/runs/42")
+      return included({ ...runState, repository: { full_name: "boburning/portcove" } });
+    if (endpoint.includes("/jobs?")) return included({ total_count: jobs.length, jobs });
+    if (endpoint.includes("/check-runs?")) {
+      assert.match(endpoint, /filter=all/);
+      return included({ total_count: checks.length, check_runs: checks });
+    }
+    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+    throw new Error(`unexpected endpoint ${endpoint}`);
+  });
+  const observations: import("./pr-delivery.mts").WatchObservation[] = [];
+  const result = await watchRequiredChecks(client, {
+    ...watchOptions,
+    attempt: 2,
+    observe: (observation) => observations.push(observation),
+  });
+  assert.equal(result.contexts[0]!.check_run_id, 100);
+  const raw = record(observations[0]);
+  assert.equal(array(raw.jobs).length, 6);
+  assert.equal(array(record(array(raw.contexts)[0]).observations).length, 2);
+  assert.equal(
+    client.requiredCheckState(7, head, required).contexts[0]!.conclusion,
+    "ambiguous",
+    "unbound live route must still refuse duplicate observations",
+  );
+  for (const status of ["invented", "in_progress"]) {
+    old[0]!.status = checks[0]!.status = status;
+    old[0]!.conclusion = status === "invented" ? null : "success";
+    checks[0]!.conclusion = old[0]!.conclusion;
+    await assert.rejects(
+      watchRequiredChecks(client, { ...watchOptions, attempt: 2 }),
+      /incomplete or contradictory/,
+    );
+  }
+  old[0]!.status = checks[0]!.status = "completed";
+  old[0]!.conclusion = checks[0]!.conclusion = "success";
+  for (const conclusion of ["failure", "cancelled"]) {
+    newer.conclusion = checks.at(-1)!.conclusion = conclusion;
+    await assert.rejects(
+      watchRequiredChecks(client, { ...watchOptions, attempt: 2 }),
+      /required checks failed/,
+    );
+  }
+  newer.status = checks.at(-1)!.status = "in_progress";
+  newer.conclusion = checks.at(-1)!.conclusion = null;
+  runState = workflow({ run_attempt: 2 });
+  await assert.rejects(
+    watchRequiredChecks(client, {
+      ...watchOptions,
+      attempt: 2,
+      now: () => Date.parse(watchOptions.deadline),
+    }),
+    /timed out/,
+  );
+  newer.status = checks.at(-1)!.status = "completed";
+  newer.conclusion = checks.at(-1)!.conclusion = "success";
+  newer.run_id = 99;
+  await assert.rejects(
+    watchRequiredChecks(client, { ...watchOptions, attempt: 2 }),
+    /invalid or duplicate/,
+  );
 });

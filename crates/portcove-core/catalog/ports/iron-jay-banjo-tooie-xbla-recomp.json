@@ -2,14 +2,38 @@
   "format_version": 1,
   "listing": {
     "id": "iron-jay-banjo-tooie-xbla-recomp",
-    "name": "Banjo-Tooie — XBLA (Banjo Tooie XBLA Recomp)",
-    "summary": "Upstream route: Upstream publishes Windows/Linuxbaregameexecutables, not archive-only bundles; follow documented adjacentruntime/data layout using ownXBLAfiles. SourceClang/CMake/Ninjabuild separate. Upstream owns runtime updates; noN64ROMroute. Limits: Upstream only: Upstream end-to-end XBLA playability claim. No N64 ROM; no Portcove campaign/platform test. Package/dependency layout must follow upstream guide. Windows/Linux executable assets without archive, preserve required adjacent runtime libraries/data and source Clang20 build. Upstream end-to-end claim separate from Portcove. Upstream platforms: Native Windows/Linux/Steam Deck x86-64; CMake3.25/Clang20 source route. Bare executables need documented adjacent files. Original data: Xbox360 XBLA BanjoTooie own package/data; no N64 ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "name": "Banjo-Tooie \u2014 XBLA (Banjo Tooie XBLA Recomp)",
+    "summary": "Documented Windows native source-build route using your own Banjo-Tooie XBLA files. Add only a completed authorized banjotooie.exe build; the packaged outer launcher has a separate process-lifetime hold.",
     "original_game_title": "Banjo-Tooie",
     "project_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
-    "issue_number": 2860
+    "issue_number": 2860,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the documented native source-build route",
+          "instruction": "Use an authorized completed native source build from the upstream Building from source route, keeping its SDK and third-party notices. This route is distinct from the packaged Banjo-Tooie.exe launcher. Upstream requires CMake 3.25+, Clang 20+, Ninja, and the Windows MSVC/Windows SDK toolchain; its documented x86-64-v3 compiler options require a suitable CPU. The selected tree pins the iron-jay ReXGlue fork as a submodule. Runtime/component licenses remain separate, and the repository does not grant original-game rights. No automated acquisition or rebuild is offered by this guide."
+        },
+        {
+          "title": "Complete original-data extraction and generation with upstream",
+          "instruction": "Supply your own legally owned Xbox 360 XBLA Banjo-Tooie package, not an N64 ROM. Deliberately finish upstream extraction outside Portcove, preserving default.xex and the expected extracted files and RAWFiles layout. The source manifest uses ../xbla/files/default.xex and includes overrides.toml. Its generated source and generated/rexglue.cmake are intentionally absent from Git: finish the pinned SDK codegen against that manifest before the documented CMake configure/build target banjotooie. The SDK codegen creates the missing helper after successful generation. Do not point Portcove at an incomplete clone, run a generator through Play, or infer original authenticity from upstream extraction, which does not verify container signatures/hashes."
+        },
+        {
+          "title": "Add only the completed native game executable",
+          "instruction": "Select the completed banjotooie.exe build with its containing output folder as the working folder, retaining rexruntime.dll and every companion staged by the build. Set the two launch arguments --game_data_root and the absolute path to your own extracted XBLA game-data directory, preserving the path as one argument. The selected native app owns its Windows message loop and waits for the guest game; it is a different entry from the outer Banjo-Tooie.exe launcher. That packaged launcher starts a child then exits, so do not use it for a tracked Portcove session or select a private PyInstaller extraction path. Saving launch details and Play are separate actions."
+        },
+        {
+          "title": "Preserve the direct build\u2019s actual player-data roots",
+          "instruction": "Upstream/player owns runtime replacement and the extracted originals. For this direct native app the default player-data root is Documents/banjotooie and its cache is under that root; the executable-side banjotooie.toml is separate. Explicit --user_data_root, --cache_path or opt-in --update_data_root values select other roots. Retain the exact chosen arguments and preserve all active roots before changing builds. The packaged launcher\u2019s BanjoTooie-Data/saves override is a different layout and is not automatically inherited or migrated by a direct build. Portcove does not promise external-save backup, rollback, compatibility or deletion."
+        }
+      ],
+      "warnings": [
+        "This is a conditional, source-inspected native-build guide. No original data, generation, compilation, prepared output, native game, real save, complete dependency ABI, artifact integrity or source-to-binary correspondence was inspected or executed. The Windows packaged-launcher lifetime hold remains; source/component acquisition rights require their own applicable authorization."
+      ],
+      "help_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp#building-from-source"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -3,11 +3,11 @@
   "listing": {
     "id": "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
     "name": "Ace Combat X: Skies of Deception / Ace-Combat-X-Recompilation",
-    "summary": "Explore Ace Combat X: Skies of Deception / Ace-Combat-X-Recompilation and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted upstream-prepared Ace Combat X Windows player with your own USA UMD-derived data.",
     "project_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
     "issue_number": 355,
     "platforms": [],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
     "artwork": {
       "game_id": 14755,
@@ -16,6 +16,34 @@
       "image_sha256": "affe730da2d39118160f0ced75be6bd7cd6b91a364495a7ec1fab2d69afe6a83",
       "game_slug": "ace-combat-x-skies-of-deception",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
+      "steps": [
+        {
+          "title": "Complete the title’s preparation upstream",
+          "instruction": "Use an independently permitted completed native build for Ace Combat X: Skies of Deception USA ULUS10176. Upstream preparation uses your own UMD ISO and your own decrypted EBOOT.elf, generates image.bin and matching native code, and builds the windowed SDL3/Vulkan player. Decryption and extraction tooling remain the user’s upstream preparation, outside Portcove. Preserve disc.manifest and cdi.manifest with extracted data: the runtime uses original sectors. Do not use another Ace Combat game’s disc, BIOS or save contract."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "Select completed build/pspreco-sdl3.exe with its creating project root as working directory. Pass the absolute generated/image.bin and the absolute own ISO or complete extracted-game directory as its two literal arguments, exactly the documented native running route. Do not select the headless developer target, Python tools or a different game. Keep the matching SDL3/Vulkan dependencies and prepared tree."
+        },
+        {
+          "title": "Keep the actual session and successor boundary",
+          "instruction": "The native entry loads its generated image and own disc data, calls the recompiled module and remains in its thread scheduler until shutdown. This is a source-reviewed completed-copy route; no public RAR contents or native behavior were inspected or executed."
+        },
+        {
+          "title": "Review Play and preserve external ownership",
+          "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Retain the complete creating copy and actual data",
+          "instruction": "Keep the entire creating project, generated image/native code, original UMD-derived files, extraction manifests, runtime libraries and permitted fonts. Default saves use memstick/PSP/SAVEDATA relative to the chosen CWD; PSPRECO_MEMSTICK overrides that root. Default pspreco.toml is CWD-relative; PSPRECO_SETTINGS overrides it. Keep textures/ULUS10176 and PSPRECO_TEXTURES, PSPRECO_FONTDIR and every other actual custom path, with mods/scripts, caches, logs and backups. Retain project GPL-2.0 and separate ImGui, ATRAC decoder, Basis/zstd and font notices. The source calls its PPSSPP PGF fonts freely licensed; this is an upstream attribution, not a new grant for PSP firmware or the original game. No cross-game/save compatibility is assumed."
+        }
+      ],
+      "warnings": [
+        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+      ]
     }
   }
 }

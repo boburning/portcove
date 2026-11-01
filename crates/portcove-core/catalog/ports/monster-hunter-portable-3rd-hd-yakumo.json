@@ -3,11 +3,11 @@
   "listing": {
     "id": "monster-hunter-portable-3rd-hd-yakumo",
     "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
-    "summary": "Explore Monster Hunter Portable 3rd HD Ver. Yakumo and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register a completed native Yakumo Windows player for your own supported Monster Hunter Portable 3rd HD original. Keep preparation, restart, replacement and player data upstream-owned.",
     "project_url": "https://github.com/TeamGDB/Yakumo",
     "issue_number": 1120,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/TeamGDB/Yakumo",
     "artwork": {
       "game_id": 78633,
@@ -16,6 +16,39 @@
       "image_sha256": "cc6ccbd1f206dcf4a935c22236d60f7eb70cf214602345ef92a677b62c47811c",
       "game_slug": "monster-hunter-portable-3rd-hd-ver",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/TeamGDB/Yakumo/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["yakumo-", "windows-x86_64-portable.zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/TeamGDB/Yakumo",
+      "steps": [
+        {
+          "title": "Complete the exact owned-input preparation upstream",
+          "instruction": "Use your own Monster Hunter Portable 3rd HD Ver. NPJB-40001 original. The PS3 HD release contains the PSP UMD image that this player uses; do not substitute the ordinary PSP release or feed it a whole PS3-format disc image. Complete normal upstream setup before attachment. The selected source checks the disc ID and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then checks the prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. This does not authenticate every disc byte. Portcove obtains no original, key or preparation tool and does not run installation or generation."
+        },
+        {
+          "title": "Attach the actual native player",
+          "instruction": "Select Yakumo.exe in its complete creating Windows folder, keeping its matching overlay libraries, FFmpeg DLLs, fonts and resources. Use that folder as working directory and no extra arguments for a normal already-prepared copy. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the actual portable or installed profile",
+          "instruction": "The Windows installed profile normally uses %APPDATA%/Yakumo/MHP3rd. The portable package uses data/ beside the executable. Existing portable.txt, a data/ folder, --portable, --data-dir and MHP3RD_DATA_DIR/MHP3RD_PORTABLE choices affect selection; retain the actual established mode and do not add/remove markers or trigger profile-copy prompts as registration work. A non-writable portable directory fails instead of silently falling back. Keep settings.ini, prepared EBOOT.ELF, copied disc.iso or its external in-place original, ms0/PSP/SAVEDATA (including ULJM05800, ULJM05800QST and ULJM05800DAT), mods, texture packs, pipeline caches/keys, logs, controller mappings, translations/fonts, save-backups, temporary files and all custom roots. A source-build game directory may retain its own ms0 and older saves; do not migrate it automatically."
+        },
+        {
+          "title": "Keep upstream restart and replacement separate",
+          "instruction": "The native process runs the game in-process. Upstream Set Up Game Data Again and Restart Now after save import can end it and start a successor. Perform those actions outside the attached session; Core does not automatically adopt the successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement."
+        }
+      ],
+      "warnings": [
+        "MIT covers the project’s own original code; third-party IP remains independently owned. Preserve the applicable packaged FFmpeg LGPL and font/dependency notices; this is not a whole-game rights certificate.",
+        "Upstream documents untranslated/blank save-dialog screens, curved-surface issues and unsupported code mods; reported rendering, multiplayer, controller and save compatibility are publisher claims, not Portcove observations. No game, original, helper, installer or native session was run."
+      ]
     }
   }
 }

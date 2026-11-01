@@ -47,7 +47,7 @@ export function ownedFixtureCommand(
   spawn: FixtureSpawn = spawnCommand,
 ): FixtureCommand {
   return (args: readonly string[], selectedLibrary = library) => {
-    const timeout = args[0] === "adopt" ? 60_000 : 15_000;
+    const timeout = args[0] === "adopt" || args[0] === "remove" ? 60_000 : 15_000;
     const started = performance.now();
     let result: FixtureProcessResult | undefined;
     try {

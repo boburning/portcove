@@ -3,7 +3,7 @@
   "listing": {
     "id": "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
     "name": "Dragon Ball Z: Burst Limit (DBZ Burst Limit Recompiled)",
-    "summary": "Upstream route: Windows native package; Linux ZIP uses Wine Limits: US Xbox 360 version only. Linux package is Wine/DXVK/vkd3d-proton, not a native Linux binary. Upstream platforms: Native Windows10/11 x86-64 package; Linux ZIP runs that Windows runtime through Wine/DXVK/vkd3d-proton, not a native Linux binary. Original data: Own Dragon Ball Z: Burst Limit Xbox 360 USA/NTSC-U disc and complete extracted data folder. default.xex SHA-1 must be aec598f88cf51181fc377b148e0b1ad30db4485c; it is also needed for source compilation. European/PAL and Japanese builds have incompatible addresses. Original disc data remains required at runtime. Portcove setup/gameplay not verified.",
+    "summary": "Register an independently permitted prepared Dragon Ball Z: Burst Limit Windows copy for your own exact US Xbox 360 disc, with external saves and upstream updates preserved.",
     "original_game_title": "Dragon Ball Z: Burst Limit",
     "project_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
     "platforms": [],
@@ -17,7 +17,44 @@
       "game_slug": "dragon-ball-z-burst-limit",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2664
+    "issue_number": 2664,
+    "manual_setup": {
+      "help_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/8faff03f1cc316e123339111c3f7364876e63ab8/README.md",
+      "steps": [
+        {
+          "title": "Complete the exact owned-disc preparation upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. Supply your own US/NTSC-U Dragon Ball Z: Burst Limit Xbox 360 disc and complete matching data; default.xex is 7,983,104 bytes, SHA-1 aec598f88cf51181fc377b148e0b1ad30db4485c. European/PAL or Japanese images are not interchangeable. Complete the official first-run ISO selection/copy upstream before attachment; the original is not modified and full extracted game data remains required at runtime. Portcove does not acquire, extract, install or compile originals."
+        },
+        {
+          "title": "Attach the supported prepared native entry",
+          "instruction": "Select burstlimit.exe with its complete creating Windows player directory as working directory and no extra arguments for normal start-screen/Play flow. Keep the matching SDK/runtime, graphics/upscaler DLLs, resources and their notices together. The source resumes game execution inside the same process after the start screen; its runtime waits for the guest thread and requests host quit at completion. Do not select an online helper, updater, build script or Linux Wine wrapper."
+        },
+        {
+          "title": "Preserve actual original and data-root selection",
+          "instruction": "The source can use game_data_root/ beside the executable when it contains default.xex, while an established game_data_root option/config may select elsewhere. Keep the complete original-derived game folder and every effective custom root. Retain only supported literal arguments your working setup already requires; do not substitute another title\u2019s source or silently relocate original/data paths."
+        },
+        {
+          "title": "Keep upstream updates, restarts and online choices separate",
+          "instruction": "The upstream Update button can download and replace its files and restart; maintenance and any resulting successor remain upstream/user activity outside this attachment. Close all actual players/companions before deliberate replacement, retain old runtime/data and review/relink changed selected bytes. No successor adoption, updater authentication, online account/VPN/router setup, remote service or mod/save import operation is offered by Portcove. Upstream network/ranking features and Windows-user-name defaults are distinct from this local registration; keep identity/profile material private."
+        },
+        {
+          "title": "Review Play and preserve every effective profile",
+          "instruction": "Review and consent to this exact executable, working directory and literal arguments, then request Play separately. Keep burstlimit.toml, game_data_root/, mods/, textures, sounds, any shader_seed and actual log/capture roots beside the creating player. The Windows SDK defaults user data to the actual Documents known folder/burstlimit, with user_data_root override; caches normally live below that user root unless overridden. Preserve saves, online_identity.json, export/import archives in the executable-adjacent saves/ folder, backups and every custom cache/update/metadata/user-data root. Do not assume the export folder contains every live save or that other runtimes have compatible state."
+        },
+        {
+          "title": "Retain one external replacement owner",
+          "instruction": "Upstream and you retain preparation, runtime replacement/recovery and all external files. Removing registration preserves external files. Preserve the whole old creating runtime and all originals, settings, saves, mods, caches, logs and custom roots before maintenance; no external update, backup, rollback, migration or deletion is offered. Keep applicable SDK, NVIDIA/AMD, libjuice, controller-prompt and trophy-sound terms separately; code/framework labels do not license game assets or arbitrary components."
+        },
+        {
+          "title": "Keep recovery copies outside startup cleanup paths",
+          "instruction": "Upstream owns cleanup during normal prepared startup, independently of choosing the Update button. EarlySetup calls BurstLimitUpdateCleanup on the executable directory: it removes update_staging immediately and deletes regular *.old files in the executable directory and licenses/, with deletion retries lasting up to 30 seconds. Before the first prepared startup, keep complete prior working runtimes and recovery backups outside those disposable *.old and update_staging paths. Preserve the actual original, saves, settings and custom roots separately. Portcove does not disable this cleanup, manage the upstream replacement, or promise preservation of files that upstream treats as disposable."
+        }
+      ],
+      "warnings": [
+        "Source and publisher release metadata only: no archive/PE inspection, actual package-to-source/SDK correspondence, upstream game/helper execution, real saves, installed-client, Supported or protected qualification.",
+        "Windows native and Linux Wine-package evidence remain distinct. Upstream performance, renderer, controller, online and full-game claims are not Portcove observations; actual component/original permission remains mandatory."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

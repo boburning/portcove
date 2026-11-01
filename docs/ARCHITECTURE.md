@@ -917,6 +917,24 @@ React UI ── Tauri IPC ───┤
 
 ## Backup service ownership
 
+The optional `BackupInventory.protection` block is a read-only Core projection,
+not a second coverage ledger or an authorization. It identifies each managed or
+registered external installation and keeps current catalog, verified retained
+and effective checked persistence declarations separate. Collection candidates
+are fixed entries and current pattern matches with metadata-only path states;
+their presence does not establish recursive readability, copied contents or save
+compatibility. Unknown retained contracts and partial registration reads remain
+explicit. External runtime data is not automatically adopted. Credential-policy
+notices and declared original-file inclusion retain their existing owners.
+
+The latest completed port-scoped backup is selected from existing manifest-backed
+history. It is not a claim that current data has been backed up, that the payload
+has just been integrity-checked, or that an older game can load newer saves.
+Desktop binds the snapshot to the selected port and active/previous/staged/external
+installation identities and distinguishes current, pending and failed reads.
+Existing assessments, reviewed restore consent, locks and execution remain
+authoritative; software rollback remains separate from player-data restoration.
+
 Restore review checks the existing unfinished-restore and backup-deletion guards
 before loading the selected snapshot or offering its consent review. Preparing
 restore records remain excluded by the execution guard. A restore-only recovery
@@ -3480,7 +3498,16 @@ environment remains authoritative. A runtime-only `Save` interpretation uses the
 existing checked additive-mutability rules. Frozen current/retained catalog
 contracts and manifests remain unchanged, including during checked import.
 `installed_mutability` owns this checked interpretation for both service actions
-and transfer destination verification. Transfer supplies the retained definition
+and transfer destination verification. Its exhaustive operational projection excludes
+display name, summary, project URL, presentation, legacy support tier, qualification observations and
+upstream maintenance status, plus the two
+path lists whose additive changes are proved separately. Release locations,
+executable selection, source/preparation settings, platform/channel policy
+and all other operational inputs must still match. The selected interpretation is
+built from the retained definition; descriptive edits never rewrite retained authority.
+Public ordinary and exact-install collection acquire the port lock before selection
+or mutation. Supervised launch and stale-session recovery use a private already-locked
+exact-install helper under their existing session-wide ownership. Transfer supplies the retained definition
 as both baselines, so current catalog changes cannot expand imported authority;
 immutable overlap and unexpected files still refuse verification.
 The same exact artifact has a persistent `SoHTimeSplitData.json` leaf for
@@ -3517,6 +3544,43 @@ interpret generic flags. Decoding does not write files or journals and is not au
 Catalog identity, port locks, one-use consent, original/source preservation and filesystem
 revalidation remain required. Typed path snapshots cannot replace symlink/ownership
 checks at mutation boundaries. SQLite, public schemas and journal encodings are unchanged.
+
+### Checked lifecycle journal boundary
+
+The released lifecycle row remains the storage codec. Family payload consistency
+is checked on reads and writes; unknown or malformed records stay retained and
+refuse consequential use. `operation::acquisition` owns immutable acquisition
+payload decoding, identity/path validation, legal phase transitions and the
+store's transactional capacity limits. The service owns downloading, resource
+admission and recovery side effects through a checked acquisition value.
+`operation::publication` checks the install/adopt/prepare publication envelope.
+Normal writers use an owned journal with narrow preparation, publication, process
+proof and cleanup methods; recovery uses a checked borrowed view. Both retain
+phase-advance ownership below orchestration. Private cancellation
+cleanup retains its separate interpreter. Existing checked restore, activation,
+removal, backup deletion, source import and relocation representations retain
+their family contracts. No database migration or new durable store is introduced.
+
+### Read-only lifecycle diagnostics
+
+`OperationStore::all` and `get` retain strict decoding and family validation.
+Their complete trusted inventories remain required for consequential ownership,
+recovery and mutation. A separate bounded diagnostic inventory reuses the same
+row decoder and validators, retaining recognized row failures as static typed
+observations. It has no mutation adapter. SQLite access/enumeration errors and
+unexpected validation failures propagate; they never become empty inventory.
+
+Doctor counts all durable same-port active installation pointers as metadata,
+including retained installations absent from the current catalog, without hydrated acquisition
+status reads, so malformed acquisition state cannot prevent its own diagnosis.
+Repair reporting shows decoded pending work without recovering it. Invalid rows
+produce review-only items with synthetic SQLite locators, no owned path and no
+execution control. Their identity fields are bounded untrusted observations.
+`journal_diagnostics` distinguishes completed enumeration with invalid rows from
+failure to enumerate. Unknown ownership suppresses dependent orphan/backup
+assessments and marks that coverage incomplete. Codec acceptance alone is never
+proof that a family-specific recovery operation is safe. Diagnostic generation
+preserves journal rows, timestamps and player/runtime files.
 
 ### Route-bound game-file query construction
 

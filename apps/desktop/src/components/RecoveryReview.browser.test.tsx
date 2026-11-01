@@ -289,3 +289,51 @@ it("explains that journal-only cleanup has no private entries to remove", async 
     host.remove();
   }
 });
+
+it("shows malformed journal observations without offering operation controls", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const review = {
+    ...item(),
+    kind: "malformed_journal" as const,
+    operation_id: "sqlite:lifecycle_operations:rowid:42",
+    port_id: null,
+    path: null,
+    message: "lifecycle row 42 requires review: Family: missing or foreign family payload",
+    proposed_action:
+      "Preserve retained journal rows and files and obtain support for manual review.",
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <RecoveryReview
+          {...freshDiagnostics}
+          repair={{
+            generated_at: 1,
+            items: [review],
+            journal_diagnostics: {
+              enumeration_complete: true,
+              enumerated_rows: 1,
+              decoded_rows: 0,
+              related_assessments_complete: false,
+              problems: [],
+            },
+          }}
+          ports={[port]}
+          onSelect={vi.fn()}
+          onOpenStorage={vi.fn()}
+          onReviewActivity={vi.fn()}
+          availableActivityIds={new Set([review.operation_id])}
+        />,
+      ),
+    );
+    expect(host.textContent).toContain("Retained operation requires review");
+    expect(host.textContent).toContain("assessments are incomplete");
+    expect(host.textContent).toContain("missing or foreign family payload");
+    expect(host.textContent).toContain("rowid:42");
+    expect(host.querySelectorAll("button,a")).toHaveLength(0);
+  } finally {
+    await act(async () => root.unmount());
+  }
+});

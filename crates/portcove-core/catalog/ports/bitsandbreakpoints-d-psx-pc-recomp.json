@@ -3,13 +3,42 @@
   "listing": {
     "id": "bitsandbreakpoints-d-psx-pc-recomp",
     "name": "D (D PC Port)",
-    "summary": "Upstream route: Upstream runtime package for D PC Port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes game logic, pause and save states. v1.0.1 preserves older states; complete three-disc playthrough Unknown here. Windows package includes native game.dll; keep edition/disc set distinct from DOS D. Save states carry across v1.0.0-1.0.1 per upstream. Upstream platforms: Native Windows app documented. Exact CPU architecture beyond selected package/source docs Unknown; no retail BIOS required. Original data: PS1 D USA three discs SLUS-00128/00173/00174, own CUE/BIN images. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Register an independently permitted complete D PlayStation Windows player with matching game.dll and your own USA three-disc set; retain executable-bound save states.",
     "original_game_title": "D",
     "project_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
-    "issue_number": 2741
+    "issue_number": 2741,
+    "manual_setup": {
+      "help_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete permitted Windows player",
+          "instruction": "Use an independently permitted complete D PC port copy with matching d.exe and game.dll together. The documented program is native 32-bit Windows, distinct from the DOS edition, and needs Windows 10 or later. Published host source is incomplete without the unpublished decompiled-game DLL source; no reproducible local build or source-to-binary certificate is established. Do not select game.dll, build.bat, Python setup or a compiler instead of the supported player."
+        },
+        {
+          "title": "Complete your own three-disc setup upstream",
+          "instruction": "Supply your own USA PlayStation D discs SLUS-00128, SLUS-00173 and SLUS-00174 as raw-sector CUE/BIN or supported CHD. ISO lacks the XA movie/audio sectors. Complete the supported CHOOSE DISCS or drag-and-drop setup upstream before attachment; its first-selection data-track hash check is separate from later file size/time caching. Keep all three matching images and selected paths, even when neighboring discs are auto-found. No retail BIOS is required or supplied."
+        },
+        {
+          "title": "Attach the actual native entry",
+          "instruction": "Select d.exe with its complete creating player directory as working directory and no extra arguments for the supported normal launcher. The inspected native source keeps launcher, game loop, pause and return-to-launcher in the same process, using the matching game.dll; no private helper or per-title wrapper is introduced. Review and consent to this exact native executable, working directory and literal arguments, then request Play separately."
+        },
+        {
+          "title": "Preserve creating DLL, all states and effective originals",
+          "instruction": "The documented profile stays beside d.exe: settings.ini, saves/slot1.state through slot8.state and d.log. Preserve the entire saves/ directory, metadata/thumbnails, settings, diagnostics, temporary files, mods, backups and any actual custom/external root, plus the full creating runtime and selected original disc images. State compatibility depends on game.dll code/data layout; upstream version-survival claims are not Portcove real-save qualification. Keep the matching old DLL and runtime with states before replacement. Do not migrate DOS saves or delete originals on the basis of this registration. Preserve any existing D_SAVE_DIR override and its actual state files; Portcove does not set or own that external location."
+        },
+        {
+          "title": "Retain upstream replacement and component boundaries",
+          "instruction": "Upstream and you own setup, runtime replacement, recovery and all external files. Close the actual player before maintenance, keep the old complete working copy and all data, then review/relink changed selected bytes. Removing registration preserves external files. Published host source and library notices do not supply a grant for the separately unpublished decompiled game logic or embedded original-derived tables; use only an actual complete copy and components you are independently permitted to use. No fresh package grant or managed acquisition, backup, rollback, migration or deletion is established by this guide."
+        }
+      ],
+      "warnings": [
+        "No package was downloaded, parsed, hashed, PE-inspected or run. Native entry and layout are source/documentation facts, not actual package ABI, package-source correspondence, native gameplay, real-save, installed-client, Supported or protected acceptance.",
+        "The unpublished game.dll source/component grant remains separate from published host/dependency source. No arbitrary-copy use, new fresh-download recommendation or original-game permission follows from this conditional registration."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

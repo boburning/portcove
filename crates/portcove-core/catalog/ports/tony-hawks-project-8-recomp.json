@@ -3,11 +3,11 @@
   "listing": {
     "id": "tony-hawks-project-8-recomp",
     "name": "Tony Hawks Project 8 Recomp",
-    "summary": "Explore Tony Hawks Project 8 Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, upstream-prepared Tony Hawks Project 8 Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/theokyr/Project8Recomp",
     "issue_number": 1125,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/theokyr/Project8Recomp",
     "artwork": {
       "game_id": 344862,
@@ -16,6 +16,45 @@
       "image_sha256": "37de86645dd516ce7cc08a12f372495ce3583df99e251b76e8611b00ce9674f9",
       "game_slug": "tony-hawks-project-8--1",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/theokyr/Project8Recomp/releases/tag/v0.3.0",
+    "download_asset_hints": {
+      "windows-x86-64": ["Project8Recomp", "windows"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/theokyr/Project8Recomp/releases",
+      "steps": [
+        {
+          "title": "Use an independently permitted completed copy",
+          "instruction": "Fresh bundled-player acquisition remains held for the exact generated-code component described in the download restriction. This guide only attaches an existing complete copy you are independently permitted to use; the project grant does not supply the excluded permission."
+        },
+        {
+          "title": "Prepare your own supported original upstream",
+          "instruction": "Use your own supported Xbox 360 Tony Hawk’s Project 8 World v1.0 USA/Europe original. Upstream expects title415607DD/media2CB96AE4 and default.xex 8,237,056 bytes with SHA256 cfc732340e55defda400e25f03231aa9bb65fd9545b618212f69a4952384a5dd. Complete normal upstream ISO/extracted-tree verification outside Portcove; Japan, demo and Korean inputs are not interchangeable. For0.3 prepare a fresh full player folder rather than mixing0.1/0.2 binaries."
+        },
+        {
+          "title": "Attach the completed native Windows player",
+          "instruction": "Select upstream’s documented public native supervisor thps_p8_launch.exe in the complete prepared package folder, not Project8Recomp.exe or thps_p8_gui.exe: those Windows entrypoints spawn and exit. The public supervisor waits for its child. Use the established supported literal game arguments from the working GUI setup, including --game_data_root=<actual prepared game directory>, --mnk_mode=true and --gpu_plugin=xenos where these are the established settings. Preserve other existing supported GUI settings/performance flags and optional breadcrumb path. Keep the default single-instance guards; do not add force, sweep-only, check-only or custom-child switches."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+        },
+        {
+          "title": "Keep upstream maintenance outside the attached session",
+          "instruction": "Upstream preparation and the public supervisor retain child and cleanup ownership. Its normal launch waits for the game, preserves active-instance guards and performs upstream cleanup; Portcove does not create a wrapper or select an internal child. Close supervisor/game/companions before upstream replacement; retain old data and review changed selected bytes."
+        },
+        {
+          "title": "Preserve the creating copy and every effective data root",
+          "instruction": "Preserve the complete creating player, original game/ tree, saves/, config/settings.toml, config/install.toml, logs/ and every effective external save, data, cache, profile, mod, backup or custom root. Retain all companion native files. Keep the supported frame cap and existing configuration; never infer save migration from the engine family."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "BSD-3-Clause project code with NOTICE for dependencies; original-derived generated game units and original data are outside that grant. Only an independently permitted prepared copy is covered by this attachment guide.",
+        "Windows is explicitly experimental upstream; publisher Proton observations are not native Windows qualification. Upstream warns uncapped cutscenes can run3–5x speed; retain default cap. No execution performed."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the compiled Project 8 recompilation remains held: the selected release contains generated game code that the upstream BSD project grant explicitly excludes. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
   }
 }

@@ -9,7 +9,11 @@ export type BackupReadState = {
   failure?: FailureDisplay;
 };
 
-export function usePortBackups(portId: string | undefined, setError?: (error?: string) => void) {
+export function usePortBackups(
+  portId: string | undefined,
+  setError?: (error?: string) => void,
+  refreshIdentity?: unknown,
+) {
   const selection = useMemo(() => ({ portId }), [portId]);
   const [read, setRead] = useState<{
     selection: typeof selection;
@@ -64,14 +68,26 @@ export function usePortBackups(portId: string | undefined, setError?: (error?: s
     await readInventory();
   }, [portId, selection, readInventory]);
   useEffect(() => {
-    void readInventory();
+    void refresh();
     return () => {
       requestId.current += 1;
     };
-  }, [readInventory]);
+  }, [refresh, refreshIdentity]);
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void refresh();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refresh]);
   const current = read.selection === selection ? read : undefined;
   const inventory = current?.inventory ?? {
     port_id: portId ?? "",
+    protection: undefined,
     create_assessment: undefined,
     restore_assessment: undefined,
     state: "healthy" as const,

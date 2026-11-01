@@ -3,7 +3,7 @@
   "listing": {
     "id": "burnout-3-takedawn-xbox",
     "name": "Burnout 3: Takedown / Takedawn (original Xbox)",
-    "summary": "Explore Burnout 3: Takedown / Takedawn (original Xbox) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an upstream-prepared Takedawn Windows installation for your own original Xbox Burnout 3 disc and preserve its separate game and save folders.",
     "project_url": "https://github.com/xenophobentx/takedawn",
     "issue_number": 2105,
     "platforms": [],
@@ -16,6 +16,34 @@
       "image_sha256": "96f35b0fd243c28e8b6f6863cbf4477cd465a296e089fa53bf971f39af98f4ca",
       "game_slug": "burnout-3-takedown",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/xenophobentx/takedawn",
+      "steps": [
+        {
+          "title": "Complete official installation and original-data setup upstream",
+          "instruction": "Use only an existing Takedawn installation and components you are permitted to use. Takedawn is the original Xbox Burnout 3: Takedown native implementation, separate from the PS2 port and other Burnout games. Windows uses its upstream setup installer, not a portable ZIP. Finish installation and supported GUI preparation separately from Portcove, using your own North American NTSC-U retail Xbox disc as XISO, full disc image or full extracted folder. The upstream importer checks its selected file manifest; registration does not authenticate original data, run the installer, extract data or build the game."
+        },
+        {
+          "title": "Attach the completed Windows player",
+          "instruction": "Select Takedawn.exe in the actual installed program folder, use that containing folder as working directory and no arguments. The default install folder is %LOCALAPPDATA%/Programs/Takedawn; use the actual location if changed. Keep all matching libraries and companions together. Attach the completed game entry, not the setup installer or takedawn-setup.exe. The inspected source runs the title through the host window in the selected process; this guide makes no successor-process supervision claim for upstream Restart game or setup relaunches. Complete those upstream operations outside the attached session, then start a new reviewed Play session."
+        },
+        {
+          "title": "Keep one runtime replacement owner",
+          "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own installation, update checks, deliberate runtime replacement and recovery. Takedawn documents manual updates through its own installer; Portcove does not operate that updater. Close game and setup companions before replacement, retain the prior working program and effective data, then review and relink changed selected bytes. Removing the registration preserves all external files. Portcove supplies no external update, backup, rollback, conversion, migration, uninstall or data deletion."
+        },
+        {
+          "title": "Preserve game data, saves and custom roots separately",
+          "instruction": "Keep %LOCALAPPDATA%/Takedawn/Game or the actual game folder chosen upstream, plus data-folder.txt that remembers an alternate root. Preserve %APPDATA%/Takedawn with settings, controller profiles and UDATA/4541005b saves, backups and save history; retain shader/texture caches, logs, custom music, mods, original images, old program copies and every effective custom root, including any RECOMP_SAVE_DIR override. The upstream program may migrate earlier Burnout3-named data on startup; retain those earlier folders too. Source review does not certify real-save or cross-version compatibility."
+        },
+        {
+          "title": "Retain permissions and honest evidence limits",
+          "instruction": "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate. Public release metadata and upstream BUILDINFO are publisher assertions, not a reproduced build or independently inspected installed package. This guide offers local completed-copy launch only; it grants no network/account setup, gameplay, installed-client, Supported or protected-publication acceptance."
+        }
+      ],
+      "warnings": [
+        "Use only a completed copy and components you are permitted to use. Preserve the whole creating program, original disc data, saves, settings, mods, caches, backups, earlier migrated profiles and all custom roots. Upstream setup, restarts and replacement remain external operations. No installer, player, game or real-save observation was performed for this guide."
+      ]
     }
   }
 }

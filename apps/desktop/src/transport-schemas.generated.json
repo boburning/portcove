@@ -3282,6 +3282,164 @@
         ],
         "type": "string"
       },
+      "InstallationProtection": {
+        "properties": {
+          "collection": {
+            "$ref": "#/$defs/ProtectionCollectionState"
+          },
+          "collection_candidates": {
+            "description": "Declared fixed entries and current pattern matches, not a recursive backup inventory.",
+            "items": {
+              "$ref": "#/$defs/ProtectionPath"
+            },
+            "type": "array"
+          },
+          "collection_root": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effective": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProtectionDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The checked contract used by collection; it can differ from either declaration."
+          },
+          "exclusions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "install_root": {
+            "type": "string"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retained": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProtectionDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None means there is no verified retained declaration, including legacy installs."
+          },
+          "role": {
+            "$ref": "#/$defs/ProtectionInstallRole"
+          },
+          "update_owner": {
+            "$ref": "#/$defs/InstallationUpdateOwner"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "version",
+          "install_root",
+          "role",
+          "update_owner",
+          "retained",
+          "effective",
+          "collection",
+          "collection_root",
+          "collection_candidates",
+          "exclusions",
+          "problem"
+        ],
+        "type": "object"
+      },
+      "InstallationUpdateOwner": {
+        "enum": [
+          "portcove",
+          "upstream_or_user"
+        ],
+        "type": "string"
+      },
+      "PersistentFilePattern": {
+        "properties": {
+          "prefix": {
+            "type": "string"
+          },
+          "suffix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prefix",
+          "suffix"
+        ],
+        "type": "object"
+      },
+      "PlayerDataProtection": {
+        "properties": {
+          "catalog": {
+            "$ref": "#/$defs/ProtectionDeclaration"
+          },
+          "exclusions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/$defs/InstallationProtection"
+            },
+            "type": "array"
+          },
+          "latest_completed_backup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last completed port-scoped snapshot with a valid manifest. Payload integrity and\ncurrent restore eligibility are checked by the existing reviewed restore flow."
+          },
+          "managed_data": {
+            "$ref": "#/$defs/ProtectionPath"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "catalog",
+          "managed_data",
+          "installations",
+          "latest_completed_backup",
+          "exclusions",
+          "problem"
+        ],
+        "type": "object"
+      },
       "PortAction": {
         "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
         "enum": [
@@ -3366,6 +3524,102 @@
           "assessment_incomplete"
         ],
         "type": "string"
+      },
+      "ProtectionCollectionState": {
+        "oneOf": [
+          {
+            "enum": [
+              "direct_to_managed_data",
+              "not_initialized",
+              "inactive",
+              "external_not_collected",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_for_collection",
+            "description": "This active copy passes the existing read-only collection selection.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProtectionDeclaration": {
+        "properties": {
+          "definition_sha256": {
+            "type": "string"
+          },
+          "persistent_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
+          },
+          "persistent_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "saves_and_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SavesAndSettingsBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "definition_sha256",
+          "saves_and_settings",
+          "persistent_paths",
+          "persistent_file_patterns"
+        ],
+        "type": "object"
+      },
+      "ProtectionInstallRole": {
+        "enum": [
+          "active",
+          "previous",
+          "staged",
+          "external"
+        ],
+        "type": "string"
+      },
+      "ProtectionPath": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/ProtectionPathState",
+            "description": "Presence is metadata only; it does not establish readability or backup integrity."
+          }
+        },
+        "required": [
+          "path",
+          "state"
+        ],
+        "type": "object"
+      },
+      "ProtectionPathState": {
+        "enum": [
+          "present",
+          "missing",
+          "unsafe",
+          "unreadable"
+        ],
+        "type": "string"
+      },
+      "SavesAndSettingsBehavior": {
+        "enum": [
+          "portcove-managed",
+          "external-user-owned"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -3388,6 +3642,17 @@
           "$ref": "#/$defs/BackupProblem"
         },
         "type": "array"
+      },
+      "protection": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PlayerDataProtection"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Read-only coverage interpretation; absent in older API responses."
       },
       "restore_assessment": {
         "$ref": "#/$defs/PortActionAssessment",
@@ -9545,6 +9810,98 @@
         ],
         "type": "object"
       },
+      "JournalDiagnostics": {
+        "description": "Complete SQL enumeration is distinct from successful row interpretation.\nThis is observation only; even a decoded row is not proof of recoverability.",
+        "properties": {
+          "decoded_rows": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enumerated_rows": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enumeration_complete": {
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/$defs/JournalRowProblem"
+            },
+            "type": "array"
+          },
+          "related_assessments_complete": {
+            "description": "False when malformed state prevents dependent orphan/backup assessments.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enumeration_complete",
+          "enumerated_rows",
+          "decoded_rows",
+          "related_assessments_complete",
+          "problems"
+        ],
+        "type": "object"
+      },
+      "JournalRowProblem": {
+        "properties": {
+          "operation_id": {
+            "description": "Bounded untrusted observations. Absent if unreadable or unsafe to display.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operation_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "description": "Static explanation; never raw JSON, parser text, paths or environment data.",
+            "type": "string"
+          },
+          "rowid": {
+            "description": "Local SQLite locator, never an operation capability or filesystem path.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "stage": {
+            "$ref": "#/$defs/JournalValidationStage"
+          }
+        },
+        "required": [
+          "rowid",
+          "operation_id",
+          "operation_kind",
+          "port_id",
+          "stage",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "JournalValidationStage": {
+        "enum": [
+          "columns",
+          "kind",
+          "phase",
+          "payload",
+          "family",
+          "acquisition",
+          "acquisition_inventory"
+        ],
+        "type": "string"
+      },
       "Platform": {
         "enum": [
           "windows-x86-64",
@@ -9596,6 +9953,7 @@
       },
       "RepairItemKind": {
         "enum": [
+          "malformed_journal",
           "retained_preparation",
           "partial_operation",
           "cleanup_pending",
@@ -9617,6 +9975,17 @@
               "$ref": "#/$defs/RepairItem"
             },
             "type": "array"
+          },
+          "journal_diagnostics": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/JournalDiagnostics"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent in older reports. A successful current enumeration can still\ncontain invalid rows and is never proof that operations may be recovered."
           }
         },
         "required": [

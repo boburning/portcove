@@ -3442,7 +3442,7 @@ mod tests {
         );
     }
 
-    fn ready_persistence_catalog(expanded: bool, distinct_baseline: bool) -> Catalog {
+    fn ready_persistence_catalog(expanded: bool, distinct_release_authority: bool) -> Catalog {
         let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
         document["ports"][0]["adapter"] = serde_json::json!("staged-source-portable");
         if expanded {
@@ -3454,8 +3454,12 @@ mod tests {
                     serde_json::json!("campaign.tmp"),
                 ]);
         }
-        if distinct_baseline {
-            document["ports"][0]["summary"] = serde_json::json!("Successor package fixture");
+        if distinct_release_authority {
+            // A successor's acquisition authority keeps the old installation's
+            // persistence scope retained. Descriptive metadata cannot provide
+            // that boundary; the inert provider supplies both fixture releases.
+            document["ports"][0]["release"]["repository"] =
+                serde_json::json!("example/successor-game");
         }
         let catalog = Catalog::from_json(&document.to_string()).unwrap();
         assert!(crate::persistence::ready_staged_archive(
@@ -4256,11 +4260,19 @@ mod tests {
                 let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
                 let mut service = build_service(library.clone(), provider.clone());
                 service.replace_catalog_for_test(ready_persistence_catalog(false, false));
-                service
+                let first = service
                     .install(ID, None, None, None, true, |_| {})
                     .await
                     .unwrap();
                 service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+                assert_eq!(
+                    service
+                        .installed_mutability_port(&first)
+                        .unwrap()
+                        .persistent_paths
+                        .len(),
+                    4
+                );
                 *provider.0.lock().unwrap() = server.release("v2", 2);
                 service.update(ID, None, None, true, |_| {}).await.unwrap();
                 if !larger_active {
@@ -4515,6 +4527,14 @@ mod tests {
                 .await
                 .unwrap();
             service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+            assert_eq!(
+                service
+                    .installed_mutability_port(&first)
+                    .unwrap()
+                    .persistent_paths
+                    .len(),
+                4
+            );
             *provider.0.lock().unwrap() = server.release("v2", 2);
             let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
             let root = match location {
@@ -4775,6 +4795,14 @@ mod tests {
         let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
         fs::write(first.path.join("settings.ini"), b"preserve current choice").unwrap();
         service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+        assert_eq!(
+            service
+                .installed_mutability_port(&first)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            4
+        );
         let mut release = server.release("v2", 2);
         {
             let mut content = server.bytes.lock().unwrap();
@@ -5727,5 +5755,406 @@ mod tests {
             b"latest synthetic committed EEPROM"
         );
         assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+    }
+
+    // Actual embedded definition; all packages/state below are inert first-party
+    // fixtures. No upstream player, ROM, compiler, GUI or real save is executed.
+    const TAILS_1895: &str = "mechakotik-tails-adventure";
+    const TAILS_DEFAULT_CONFIG: &[u8] = b"main_volume 8\nmusic_volume 8\n";
+
+    fn tails_1895_release(server: &Server, version: &str, revision: u8) -> ResolvedRelease {
+        let mut release = server.release_with_files(
+            version,
+            revision,
+            "",
+            "tails-adventure.exe",
+            &[
+                ("assets/default_config", TAILS_DEFAULT_CONFIG),
+                ("assets/fixture-resource.bin", &[revision]),
+            ],
+        );
+        release.asset.name = format!("tails-adventure-{version}-windows.zip");
+        release
+    }
+
+    fn tails_1895_launch_root(service: &PortcoveService, install: &InstallRecord) -> PathBuf {
+        let port = service.installed_port(install).unwrap();
+        assert_eq!(port.id, TAILS_1895);
+        assert_eq!(port.adapter, AdapterKind::NativePortable);
+        assert_eq!(port.persistent_paths, ["config", "mods"]);
+        assert!(port.source_profile.is_none());
+        assert!(port.setup_marker.is_none());
+        let spec = crate::adapter::standard(AdapterKind::NativePortable)
+            .launch_spec(
+                &service.library,
+                &port,
+                Platform::WindowsX86_64,
+                &install.path,
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            spec.executable.file_name(),
+            Some(std::ffi::OsStr::new("tails-adventure.exe"))
+        );
+        assert_eq!(
+            spec.executable.parent(),
+            Some(spec.working_directory.as_path())
+        );
+        assert!(spec.arguments.is_empty());
+        assert!(spec.process_spec().fixed_arguments.is_empty());
+        spec.working_directory
+    }
+
+    fn tails_1895_write_state(root: &Path, config: &[u8], palette: &[u8]) {
+        // Model the actual active runtime coordinate, not an out-of-band write
+        // to canonical data. config is a FILE, never a directory.
+        fs::write(root.join("config"), config).unwrap();
+        fs::create_dir_all(root.join("mods/player/nested")).unwrap();
+        fs::write(root.join("mods/player/nested/palette.bin"), palette).unwrap();
+    }
+
+    fn tails_1895_assert_state(root: &Path, config: &[u8], palette: &[u8]) {
+        assert!(root.join("config").is_file());
+        assert_eq!(fs::read(root.join("config")).unwrap(), config);
+        assert_eq!(
+            fs::read(root.join("mods/player/nested/palette.bin")).unwrap(),
+            palette
+        );
+    }
+
+    fn tails_1895_http_json(value: &serde_json::Value) -> String {
+        let body = value.to_string();
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    #[tokio::test]
+    async fn tails_nativeportable_provider_and_pristine_config_file_absence_1895() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port(TAILS_1895).unwrap();
+        let definition = serde_json::to_value(port).unwrap();
+        assert_eq!(port.release.repository, "mechakotik/tails-adventure");
+        assert!(port.release.rolling_tag.is_none());
+        assert!(port.release.direct.is_empty());
+
+        // N is retained official metadata. N+1 and the refusal controls are
+        // synthetic; they do not qualify a future package or save format.
+        let observed = serde_json::json!({
+            "tag_name": "v0.3.2-1", "draft": false, "prerelease": false,
+            "published_at": null,
+            "assets": [{
+                "name": "tails-adventure-v0.3.2-1-windows.zip",
+                "browser_download_url": "https://downloads.example.invalid/tails-adventure-v0.3.2-1-windows.zip",
+                "size": 6625286,
+                "digest": "sha256:3dac0a4d470046b76a72d8e5d8f69afe766920d54f0585e69e5119db5702dd6e"
+            }]
+        });
+        let mut successor = observed.clone();
+        successor["tag_name"] = serde_json::json!("v0.3.3-1");
+        successor["assets"][0]["name"] = serde_json::json!("tails-adventure-v0.3.3-1-windows.zip");
+        successor["assets"][0]["browser_download_url"] = serde_json::json!(
+            "https://downloads.example.invalid/tails-adventure-v0.3.3-1-windows.zip"
+        );
+        successor["assets"][0]["digest"] = serde_json::json!(format!("sha256:{}", "b".repeat(64)));
+        for (release, version, digest) in [
+            (
+                &observed,
+                "v0.3.2-1",
+                "3dac0a4d470046b76a72d8e5d8f69afe766920d54f0585e69e5119db5702dd6e".to_owned(),
+            ),
+            (&successor, "v0.3.3-1", "b".repeat(64)),
+        ] {
+            let (origin, requests, server) = crate::test_http::serve_http(vec![
+                tails_1895_http_json(&serde_json::json!({"archived": false})),
+                tails_1895_http_json(&serde_json::json!([release])),
+            ]);
+            let selected = crate::GithubReleaseProvider::with_api_root(origin)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap();
+            assert_eq!(selected.version, version);
+            assert_eq!(selected.channel, ReleaseChannel::Stable);
+            assert_eq!(selected.asset.sha256, digest);
+            assert_eq!(
+                selected.asset.name,
+                format!("tails-adventure-{version}-windows.zip")
+            );
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2);
+        }
+        for mutation in ["wrong-platform", "ambiguous", "missing-integrity"] {
+            let mut release = successor.clone();
+            match mutation {
+                "wrong-platform" => {
+                    release["assets"][0]["name"] =
+                        serde_json::json!("tails-adventure-v0.3.3-1-linux-amd64.tar.xz")
+                }
+                "missing-integrity" => release["assets"][0]["digest"] = serde_json::Value::Null,
+                "ambiguous" => {
+                    let mut other = release["assets"][0].clone();
+                    other["name"] =
+                        serde_json::json!("tails-adventure-v0.3.3-1-alternate-windows.zip");
+                    other["browser_download_url"] = serde_json::json!(
+                        "https://downloads.example.invalid/tails-adventure-v0.3.3-1-alternate-windows.zip"
+                    );
+                    release["assets"].as_array_mut().unwrap().push(other);
+                }
+                _ => unreachable!(),
+            }
+            let (origin, _, server) = crate::test_http::serve_http(vec![
+                tails_1895_http_json(&serde_json::json!({"archived": false})),
+                tails_1895_http_json(&serde_json::json!([release])),
+            ]);
+            let error = crate::GithubReleaseProvider::with_api_root(origin)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.code,
+                match mutation {
+                    "ambiguous" => crate::ErrorCode::Conflict,
+                    "missing-integrity" => crate::ErrorCode::Verification,
+                    _ => crate::ErrorCode::NotFound,
+                },
+                "{mutation}"
+            );
+            server.join().unwrap();
+        }
+        assert_eq!(serde_json::to_value(port).unwrap(), definition);
+
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(tails_1895_release(
+            &server, "v0.3.2-1", 1,
+        ))));
+        let service = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        let first = service
+            .install(TAILS_1895, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let root = tails_1895_launch_root(&service, &first);
+        assert_eq!(
+            fs::read(root.join("assets/default_config")).unwrap(),
+            TAILS_DEFAULT_CONFIG
+        );
+        assert!(!first.path.join(LAUNCH_MARKER).exists());
+        service.restore_retained_user_data_to(&first).unwrap();
+        for relative in ["config", "mods"] {
+            assert!(!root.join(relative).exists());
+            assert!(!library.user_dir(TAILS_1895).join(relative).exists());
+        }
+    }
+
+    #[tokio::test]
+    async fn tails_nativeportable_progression_rollback_backup_restore_recovery_1895() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(tails_1895_release(
+            &server, "v0.3.2-1", 1,
+        ))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let definition = serde_json::to_value(service.catalog.port(TAILS_1895).unwrap()).unwrap();
+        let first = service
+            .install(TAILS_1895, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let first_root = tails_1895_launch_root(&service, &first);
+        let saved = b"main_volume 8\nslot_0_progress 1\n";
+        let current = b"main_volume 6\nslot_0_progress 2\n";
+        let latest = b"main_volume 5\nslot_0_progress 3\n";
+        tails_1895_write_state(&first_root, saved, b"mod revision1");
+        let backup = service.create_backup(TAILS_1895).unwrap();
+        tails_1895_assert_state(&backup.path.join("data"), saved, b"mod revision1");
+        tails_1895_write_state(&first_root, current, b"mod revision2");
+        *provider.0.lock().unwrap() = tails_1895_release(&server, "v0.3.3-1", 2);
+        assert!(
+            service
+                .check_update(TAILS_1895)
+                .await
+                .unwrap()
+                .update_available
+        );
+        let second = service
+            .update(TAILS_1895, None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_ne!(first.id, second.id);
+        assert_ne!(first.artifact.sha256, second.artifact.sha256);
+        let second_root = tails_1895_launch_root(&service, &second);
+        tails_1895_assert_state(&second_root, current, b"mod revision2");
+        assert_eq!(
+            fs::read(second_root.join("assets/fixture-resource.bin")).unwrap(),
+            [2]
+        );
+        tails_1895_write_state(&second_root, latest, b"mod revision3");
+        let previous = service.rollback(TAILS_1895).unwrap();
+        assert_eq!(previous.id, first.id);
+        let previous_root = tails_1895_launch_root(&service, &previous);
+        tails_1895_assert_state(&previous_root, latest, b"mod revision3");
+        assert_eq!(
+            fs::read(previous_root.join("assets/fixture-resource.bin")).unwrap(),
+            [1]
+        );
+
+        let preview = service
+            .preview_backup_action(TAILS_1895, &backup.id, BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                TAILS_1895,
+                &backup.id,
+                BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let restored = service
+            .restore_backup(TAILS_1895, &backup.id, &consent.token)
+            .unwrap();
+        tails_1895_assert_state(&previous_root, saved, b"mod revision1");
+        tails_1895_assert_state(
+            &restored.safety_backup.unwrap().path.join("data"),
+            latest,
+            b"mod revision3",
+        );
+
+        struct Interrupt;
+        impl LifecycleFaultInjector for Interrupt {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::ActivationMetadataCommitted {
+                    Err(PortcoveError::state(
+                        "Tails fixture interruption after committed activation",
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        tails_1895_write_state(&previous_root, current, b"mod revision2");
+        *provider.0.lock().unwrap() = tails_1895_release(&server, "v0.3.4-1", 3);
+        service.faults = Arc::new(Interrupt);
+        assert!(
+            service
+                .update(TAILS_1895, None, None, true, |_| {})
+                .await
+                .is_err()
+        );
+        let committed = service.status(TAILS_1895).unwrap().active.unwrap();
+        assert_eq!(committed.version, "v0.3.4-1");
+        assert_ne!(committed.id, first.id);
+        let recovered = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        recovered.recover_pending_operations().unwrap();
+        assert_eq!(
+            recovered.status(TAILS_1895).unwrap().active.unwrap().id,
+            committed.id
+        );
+        let root = tails_1895_launch_root(&recovered, &committed);
+        tails_1895_assert_state(&root, current, b"mod revision2");
+        assert_eq!(
+            serde_json::to_value(recovered.catalog.port(TAILS_1895).unwrap()).unwrap(),
+            definition
+        );
+    }
+
+    #[tokio::test]
+    async fn tails_nativeportable_cancel_immutable_refusal_removal_preservation_1895() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(tails_1895_release(
+            &server, "v0.3.2-1", 1,
+        ))));
+        let service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        let first = service
+            .install(TAILS_1895, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let root = tails_1895_launch_root(&service, &first);
+        let config = b"main_volume 7\nslot_0_progress 4\n";
+        tails_1895_write_state(&root, config, b"retained player mod");
+        *provider.0.lock().unwrap() = tails_1895_release(&server, "v0.3.3-1", 2);
+        let cancelled = service
+            .update(TAILS_1895, None, None, true, |event| {
+                if matches!(event.event, crate::OperationEventKind::Started) {
+                    service.request_cancellation(&event.operation_id).unwrap();
+                }
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(cancelled.code, crate::ErrorCode::Cancelled);
+        assert_eq!(
+            service.status(TAILS_1895).unwrap().active.unwrap().id,
+            first.id
+        );
+        tails_1895_assert_state(&root, config, b"retained player mod");
+        service.recover_pending_operations().unwrap();
+
+        let preview = service.preview_removal(TAILS_1895).unwrap();
+        let consent = service
+            .authorize_removal(TAILS_1895, &preview.preview_sha256)
+            .unwrap();
+        let modified = b"player-edited immutable default config";
+        fs::write(root.join("assets/default_config"), modified).unwrap();
+        let error = service
+            .update(TAILS_1895, None, None, true, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.presentation().presentation_key,
+            "portable_runtime_modified"
+        );
+        assert!(service.preview_removal(TAILS_1895).is_err());
+        assert_eq!(
+            service
+                .remove(TAILS_1895, &consent.token)
+                .unwrap_err()
+                .presentation()
+                .presentation_key,
+            "portable_runtime_modified"
+        );
+        assert_eq!(
+            fs::read(root.join("assets/default_config")).unwrap(),
+            modified
+        );
+        tails_1895_assert_state(&root, config, b"retained player mod");
+        assert_eq!(
+            service.status(TAILS_1895).unwrap().active.unwrap().id,
+            first.id
+        );
+
+        // The refusal stays observable above. Model the user's explicit
+        // preservation/reconciliation; do not silently discard changed assets.
+        let preserved = temporary.path().join("preserved-player-default_config");
+        fs::copy(root.join("assets/default_config"), &preserved).unwrap();
+        fs::write(root.join("assets/default_config"), TAILS_DEFAULT_CONFIG).unwrap();
+        let preview = service.preview_removal(TAILS_1895).unwrap();
+        let consent = service
+            .authorize_removal(TAILS_1895, &preview.preview_sha256)
+            .unwrap();
+        service.remove(TAILS_1895, &consent.token).unwrap();
+        assert!(service.status(TAILS_1895).unwrap().active.is_none());
+        tails_1895_assert_state(
+            &library.user_dir(TAILS_1895),
+            config,
+            b"retained player mod",
+        );
+        assert_eq!(fs::read(preserved).unwrap(), modified);
+        let installed = service
+            .install(TAILS_1895, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let installed_root = tails_1895_launch_root(&service, &installed);
+        tails_1895_assert_state(&installed_root, config, b"retained player mod");
+        assert_eq!(
+            fs::read(installed_root.join("assets/default_config")).unwrap(),
+            TAILS_DEFAULT_CONFIG
+        );
     }
 }

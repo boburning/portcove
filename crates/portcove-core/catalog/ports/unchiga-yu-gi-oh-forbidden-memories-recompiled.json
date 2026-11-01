@@ -3,11 +3,11 @@
   "listing": {
     "id": "unchiga-yu-gi-oh-forbidden-memories-recompiled",
     "name": "Yu-Gi-Oh! Forbidden Memories / Yu-Gi-Oh! Forbidden Memories Recompiled (Unchiga)",
-    "summary": "Explore Yu-Gi-Oh! Forbidden Memories / Yu-Gi-Oh! Forbidden Memories Recompiled (Unchiga) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted existing YFM Re-Decomp Windows copy with your own USA original and external save profile.",
     "project_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
     "issue_number": 1910,
     "platforms": [],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
     "artwork": {
       "game_id": 4108,
@@ -16,6 +16,35 @@
       "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
       "game_slug": "yu-gi-oh-forbidden-memories",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
+      "steps": [
+        {
+          "title": "Complete the title’s supported preparation upstream",
+          "instruction": "Use only an already completed native copy and components you are independently permitted to use. This route does not recommend fresh bundled-package acquisition: its MIT grant covers the PC layer, explicitly excludes the upstream decompilation and Konami game/data, and the package explicitly bundles European translation texts. Those named component permissions cannot be inherited from MIT. Keep applicable notices and original-game rights separate."
+        },
+        {
+          "title": "Keep the exact original and preparation boundary",
+          "instruction": "Provide your own Forbidden Memories USA SLUS-01411 raw MODE2/2352 BIN from a CUE/BIN pair. Select the BIN in the upstream Choose ROM screen, not the CUE. ISO, CHD and other regions are unsupported. No BIOS is needed; the ROM stays at its chosen location. Portcove does not acquire, copy or authenticate it through registration."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "Select the existing package’s memories-pc.exe, its package root as working directory and no arguments. The inspected Windows player is a 32-bit I386 executable; the AMD64 SDK emitter is not the player. Keep the whole matching runtime and do not select FM Editor, a mod builder or another repository’s Forbidden Memories player."
+        },
+        {
+          "title": "Review Play and retain one replacement owner",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Preserve Documents/My Games/YFM Re-Decomp and all actual custom roots: settings, controls, memory cards, save states and mods live outside the package. Upstream memory-card import copies into an empty slot and renames the source card .imported; do not use originals as disposable migration input. Emulator save states cannot be imported; native states have build/platform compatibility limits. Keep the creating runtime, original BIN, old saves, native/code mods, caches and backups before upstream updates. Upstream’s update notification is separate from Portcove management."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+      ]
+    },
+    "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold."
   }
 }

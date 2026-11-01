@@ -50,7 +50,7 @@ export function coreProposalInspector(cli: string, root: string) {
       {
         env,
         encoding: "utf8",
-        timeout: 30000,
+        timeout: 120000,
         maxBuffer: (operation === "inspect-listings" ? 10 : 1) * 1024 * 1024,
         windowsHide: true,
       },

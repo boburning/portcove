@@ -299,6 +299,11 @@ export type BackupProblemKind =
   | "identity_mismatch"
   | "unsupported_entry"
   | "recovery_required";
+export type ProtectionCollectionState =
+  | ("direct_to_managed_data" | "not_initialized" | "inactive" | "external_not_collected" | "unavailable")
+  | "selected_for_collection";
+export type ProtectionInstallRole = "active" | "previous" | "staged" | "external";
+export type InstallationUpdateOwner = "portcove" | "upstream_or_user";
 export type BackupInventoryState = "healthy" | "degraded" | "recovery_required";
 export type AdapterKind =
   | (
@@ -493,6 +498,7 @@ export type DestinationArtworkSource =
 export type HostToolSource = "environment" | "saved" | "discovery";
 export type HostToolState = "available" | "missing" | "misconfigured" | "unsupported";
 export type RepairItemKind =
+  | "malformed_journal"
   | "retained_preparation"
   | "partial_operation"
   | "cleanup_pending"
@@ -500,6 +506,8 @@ export type RepairItemKind =
   | "missing_registered_path"
   | "degraded_backup"
   | "backup_recovery_required";
+export type JournalValidationStage =
+  "columns" | "kind" | "phase" | "payload" | "family" | "acquisition" | "acquisition_inventory";
 export type RecommendationDimension = "gameplay" | "stability" | "performance" | "controls" | "setup" | "maintenance";
 export type RecommendationDimensionState = "known" | "unknown" | "not-applicable" | "conflicting";
 export type RecommendationEvidenceDisposition =
@@ -1522,6 +1530,10 @@ export interface OutputBackupInventory {
   create_assessment: PortActionAssessment1;
   port_id: string;
   problems: BackupProblem[];
+  /**
+   * Read-only coverage interpretation; absent in older API responses.
+   */
+  protection?: PlayerDataProtection | null;
   restore_assessment: PortActionAssessment2;
   state: BackupInventoryState;
   [k: string]: unknown;
@@ -1546,6 +1558,59 @@ export interface BackupProblem {
   operation_id: string | null;
   path: string;
   proposed_action: string;
+  [k: string]: unknown;
+}
+export interface PlayerDataProtection {
+  catalog: ProtectionDeclaration;
+  exclusions: string[];
+  installations: InstallationProtection[];
+  /**
+   * Last completed port-scoped snapshot with a valid manifest. Payload integrity and
+   * current restore eligibility are checked by the existing reviewed restore flow.
+   */
+  latest_completed_backup: BackupRecord | null;
+  managed_data: ProtectionPath;
+  port_id: string;
+  problem: string | null;
+  [k: string]: unknown;
+}
+export interface ProtectionDeclaration {
+  definition_sha256: string;
+  persistent_file_patterns: PersistentFilePattern[];
+  persistent_paths: string[];
+  saves_and_settings: SavesAndSettingsBehavior | null;
+  [k: string]: unknown;
+}
+export interface InstallationProtection {
+  collection: ProtectionCollectionState;
+  /**
+   * Declared fixed entries and current pattern matches, not a recursive backup inventory.
+   */
+  collection_candidates: ProtectionPath[];
+  collection_root: string | null;
+  /**
+   * The checked contract used by collection; it can differ from either declaration.
+   */
+  effective: ProtectionDeclaration | null;
+  exclusions: string[];
+  install_id: string;
+  install_root: string;
+  problem: string | null;
+  /**
+   * None means there is no verified retained declaration, including legacy installs.
+   */
+  retained: ProtectionDeclaration | null;
+  role: ProtectionInstallRole;
+  update_owner: InstallationUpdateOwner;
+  version: string;
+  [k: string]: unknown;
+}
+export interface ProtectionPath {
+  path: string;
+  /**
+   * Presence is metadata only; it does not establish readability or backup integrity.
+   */
+  state: "present" | "missing" | "unsafe" | "unreadable";
   [k: string]: unknown;
 }
 /**
@@ -2407,6 +2472,11 @@ export interface StorageSummary {
 export interface RepairPlan {
   generated_at: number;
   items: RepairItem[];
+  /**
+   * Absent in older reports. A successful current enumeration can still
+   * contain invalid rows and is never proof that operations may be recovered.
+   */
+  journal_diagnostics?: JournalDiagnostics | null;
   [k: string]: unknown;
 }
 export interface RepairItem {
@@ -2416,6 +2486,39 @@ export interface RepairItem {
   path: string | null;
   port_id: string | null;
   proposed_action: string;
+  [k: string]: unknown;
+}
+/**
+ * Complete SQL enumeration is distinct from successful row interpretation.
+ * This is observation only; even a decoded row is not proof of recoverability.
+ */
+export interface JournalDiagnostics {
+  decoded_rows: number;
+  enumerated_rows: number;
+  enumeration_complete: boolean;
+  problems: JournalRowProblem[];
+  /**
+   * False when malformed state prevents dependent orphan/backup assessments.
+   */
+  related_assessments_complete: boolean;
+  [k: string]: unknown;
+}
+export interface JournalRowProblem {
+  /**
+   * Bounded untrusted observations. Absent if unreadable or unsafe to display.
+   */
+  operation_id: string | null;
+  operation_kind: string | null;
+  port_id: string | null;
+  /**
+   * Static explanation; never raw JSON, parser text, paths or environment data.
+   */
+  reason: string;
+  /**
+   * Local SQLite locator, never an operation capability or filesystem path.
+   */
+  rowid: number;
+  stage: JournalValidationStage;
   [k: string]: unknown;
 }
 export interface ExternalRuntimePreview {
