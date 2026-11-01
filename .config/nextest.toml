@@ -7,6 +7,27 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# PR #4157 local Linux run retained 30.938/30.527/30.151/30.035-second
+# cutoffs in these six-to-sixteen-case cancellation/recovery fixtures. Related
+# one/two-case fixtures took 8-15 seconds. Keep all ownership/cleanup assertions, two test
+# slots and zero retries; allow finite room for each complete fixture matrix.
+# This changes only the test harness and establishes no product speedup.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & (test(/^cancellation::managed_builder_tests::interrupted_builder_checks_fresh_journal_and_activity_ownership$/) | test(/^cancellation::managed_builder_tests::interrupted_builder_retains_work_for_install_update_and_reconcile$/) | test(/^cancellation::managed_builder_tests::proven_and_legacy_install_cleanup_keep_their_contract$/) | test(/^cancellation::tests::request_and_publication_admission_have_exactly_one_winner$/))'
+slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
+# CI 41262750948/a1 retained a30.193s cutoff in this Windows prepared-
+# receipt preservation fixture. Allow finite60s for complete setup and cleanup;
+# retain every receipt/launch refusal assertion, four hosted/two local slots
+# and zero retries. This is harness headroom, not a causal product-speed fix.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^preparation::tests::execution_tests::retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Genuine scheduled qualification 40866403279/a1 Intel2 retained eight
 # additional 30-second cutoffs during complete cached-catalog, publisher-policy
 # and move-sequence fixtures. Exact identities passed in both prior full runs;

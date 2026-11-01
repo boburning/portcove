@@ -254,7 +254,7 @@ fn published_fixture() -> (
 ) {
     let (temporary, service, worker, mut journal) = fixture(
         ActivityOperation::Install,
-        LifecyclePhase::MetadataCommitted,
+        LifecyclePhase::Preparing,
         Some(true),
     );
     let library = service.library();
@@ -280,6 +280,7 @@ fn published_fixture() -> (
     library.register_install(&install, true).unwrap();
     journal.paths.final_path = Some(destination.clone());
     journal.install = Some(install);
+    journal.phase = LifecyclePhase::MetadataCommitted;
     let cache = staging.join(crate::legacy_cartridge_cleanup::CACHE);
     cvlod_junction_fixture(&staging, &cache.join("IE"));
     let store = OperationStore::new(library.clone());
@@ -298,8 +299,13 @@ fn fixture(
     LifecycleOperation,
 ) {
     let temporary = tempfile::tempdir().unwrap();
-    let library = Library::open(temporary.path().join("library")).unwrap();
-    let service = PortcoveService::new(library).unwrap();
+    let library = crate::test_fixture::phase("builder fixture: open library", || {
+        Library::open(temporary.path().join("library")).unwrap()
+    });
+    let service =
+        crate::test_fixture::phase("builder fixture: initialize recovery service", || {
+            PortcoveService::new(library).unwrap()
+        });
     let (activity, operation) = service
         .begin_cancellable_activity(activity_kind, ActivityTargetKind::Port, Some("sample"))
         .unwrap();
@@ -328,6 +334,7 @@ fn interrupted_builder_checks_fresh_journal_and_activity_ownership() {
         "quarantine",
         "kind",
     ] {
+        eprintln!("builder ownership case: {changed_field}");
         let (_temporary, service, _operation, original) = fixture(
             ActivityOperation::Install,
             LifecyclePhase::Preparing,
@@ -361,12 +368,29 @@ fn interrupted_builder_checks_fresh_journal_and_activity_ownership() {
             // simulate identifier reuse, rather than an ineffective update.
             store.remove(&original.id).unwrap();
         }
-        store.put(&mut changed).unwrap();
+        if changed_field == "phase" {
+            assert_eq!(store.put(&mut changed).unwrap_err().code, ErrorCode::State);
+            // A missing required payload is malformed retained input, not a
+            // state the checked writer can construct. Exercise the codec below it.
+            database::connect(service.library().root())
+                .unwrap()
+                .execute(
+                    "UPDATE lifecycle_operations SET phase='prepared' WHERE id=?1",
+                    [&original.id],
+                )
+                .unwrap();
+        } else {
+            store.put(&mut changed).unwrap();
+        }
         assert_eq!(
             interrupted_install_journal(service.library(), &store, &original)
                 .unwrap_err()
                 .code,
-            ErrorCode::Verification
+            if changed_field == "phase" {
+                ErrorCode::State
+            } else {
+                ErrorCode::Verification
+            }
         );
         assert!(
             original
@@ -377,9 +401,23 @@ fn interrupted_builder_checks_fresh_journal_and_activity_ownership() {
                 .join("owned-private")
                 .is_file()
         );
-        assert!(store.get(&original.id).unwrap().is_some());
+        if changed_field == "phase" {
+            assert!(store.get(&original.id).is_err());
+            let retained: (String, Option<String>) = database::connect(service.library().root())
+                .unwrap()
+                .query_row(
+                    "SELECT phase,install_json FROM lifecycle_operations WHERE id=?1",
+                    [&original.id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(retained, ("prepared".into(), None));
+        } else {
+            assert!(store.get(&original.id).unwrap().is_some());
+        }
     }
     for wrong_activity in ["port", "operation"] {
+        eprintln!("builder activity-ownership case: {wrong_activity}");
         let (_temporary, service, _operation, journal) = fixture(
             ActivityOperation::Install,
             LifecyclePhase::Preparing,
@@ -545,6 +583,7 @@ fn interrupted_builder_retains_work_for_install_update_and_reconcile() {
         ActivityOperation::Reconcile,
     ] {
         for requested in [false, true] {
+            eprintln!("builder retention case: {kind:?}, cancellation requested={requested}");
             let (_temporary, service, operation, journal) =
                 fixture(kind, LifecyclePhase::Preparing, Some(false));
             if requested {
@@ -620,6 +659,7 @@ fn proven_and_legacy_install_cleanup_keep_their_contract() {
             ActivityOperation::Update,
             ActivityOperation::Reconcile,
         ] {
+            eprintln!("builder cleanup case: {kind:?}, quiesced={quiesced:?}");
             let (_temporary, service, operation, journal) =
                 fixture(kind, LifecyclePhase::Preparing, quiesced);
             service.request_cancellation(&journal.id).unwrap();

@@ -3442,7 +3442,7 @@ mod tests {
         );
     }
 
-    fn ready_persistence_catalog(expanded: bool, distinct_baseline: bool) -> Catalog {
+    fn ready_persistence_catalog(expanded: bool, distinct_release_authority: bool) -> Catalog {
         let mut document = serde_json::to_value(catalog().authoritative_document()).unwrap();
         document["ports"][0]["adapter"] = serde_json::json!("staged-source-portable");
         if expanded {
@@ -3454,8 +3454,12 @@ mod tests {
                     serde_json::json!("campaign.tmp"),
                 ]);
         }
-        if distinct_baseline {
-            document["ports"][0]["summary"] = serde_json::json!("Successor package fixture");
+        if distinct_release_authority {
+            // A successor's acquisition authority keeps the old installation's
+            // persistence scope retained. Descriptive metadata cannot provide
+            // that boundary; the inert provider supplies both fixture releases.
+            document["ports"][0]["release"]["repository"] =
+                serde_json::json!("example/successor-game");
         }
         let catalog = Catalog::from_json(&document.to_string()).unwrap();
         assert!(crate::persistence::ready_staged_archive(
@@ -4256,11 +4260,19 @@ mod tests {
                 let provider = Arc::new(Provider(Mutex::new(server.release("v1", 1))));
                 let mut service = build_service(library.clone(), provider.clone());
                 service.replace_catalog_for_test(ready_persistence_catalog(false, false));
-                service
+                let first = service
                     .install(ID, None, None, None, true, |_| {})
                     .await
                     .unwrap();
                 service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+                assert_eq!(
+                    service
+                        .installed_mutability_port(&first)
+                        .unwrap()
+                        .persistent_paths
+                        .len(),
+                    4
+                );
                 *provider.0.lock().unwrap() = server.release("v2", 2);
                 service.update(ID, None, None, true, |_| {}).await.unwrap();
                 if !larger_active {
@@ -4515,6 +4527,14 @@ mod tests {
                 .await
                 .unwrap();
             service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+            assert_eq!(
+                service
+                    .installed_mutability_port(&first)
+                    .unwrap()
+                    .persistent_paths
+                    .len(),
+                4
+            );
             *provider.0.lock().unwrap() = server.release("v2", 2);
             let staged = service.update(ID, None, None, false, |_| {}).await.unwrap();
             let root = match location {
@@ -4775,6 +4795,14 @@ mod tests {
         let receipt = fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap();
         fs::write(first.path.join("settings.ini"), b"preserve current choice").unwrap();
         service.replace_catalog_for_test(ready_persistence_catalog(true, true));
+        assert_eq!(
+            service
+                .installed_mutability_port(&first)
+                .unwrap()
+                .persistent_paths
+                .len(),
+            4
+        );
         let mut release = server.release("v2", 2);
         {
             let mut content = server.bytes.lock().unwrap();

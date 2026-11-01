@@ -947,15 +947,41 @@ fn preparation_cleanup_rejects_busy_wrong_kind_and_out_of_root_work() {
 
     let mut journal = store.all().unwrap().remove(0);
     journal.kind = LifecycleOperationKind::Install;
-    store.put(&mut journal).unwrap();
+    assert_eq!(store.put(&mut journal).unwrap_err().code, ErrorCode::State);
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE lifecycle_operations SET kind='install' WHERE id=?1",
+            [&operation_id],
+        )
+        .unwrap();
+    let row_snapshot = || {
+        library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT * FROM lifecycle_operations WHERE id=?1",
+                [&operation_id],
+                |row| {
+                    (0..row.as_ref().column_count())
+                        .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                },
+            )
+            .unwrap()
+    };
+    let before = row_snapshot();
     assert_eq!(
         fixture
             .service
             .preview_preparation_cleanup(&operation_id)
             .unwrap_err()
             .code,
-        ErrorCode::Conflict
+        ErrorCode::State
     );
+    assert_eq!(row_snapshot(), before);
+    assert!(store.get(&operation_id).is_err());
     assert!(retained.exists());
 
     journal.kind = LifecycleOperationKind::Prepare;
@@ -1310,7 +1336,23 @@ fn assert_recovery_scenario(
         let refusal_message = if activation_refused {
             "prepared publication requires activation"
         } else {
-            "publication operation kind does not own its preparation payload"
+            "lifecycle journal has a missing or foreign family payload"
+        };
+        let valid_journal = journal.clone();
+        let row_snapshot = || {
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT * FROM lifecycle_operations WHERE id=?1",
+                    [&valid_journal.id],
+                    |row| {
+                        (0..row.as_ref().column_count())
+                            .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                            .collect::<rusqlite::Result<Vec<_>>>()
+                    },
+                )
+                .unwrap()
         };
         for kind in kinds {
             journal.kind = kind;
@@ -1318,20 +1360,42 @@ fn assert_recovery_scenario(
                 assert!(journal.activate);
                 journal.activate = false;
             }
-            store.put(&mut journal).unwrap();
             let mut expected = journal.clone();
-            fixture.service.recover_pending_operations().unwrap();
-            journal = store.all().unwrap().remove(0);
+            let persisted_before = if reclassify {
+                assert_eq!(store.put(&mut journal).unwrap_err().code, ErrorCode::State);
+                let mut baseline = valid_journal.clone();
+                store.put(&mut baseline).unwrap();
+                library
+                    .connection()
+                    .unwrap()
+                    .execute(
+                        "UPDATE lifecycle_operations SET kind=?2 WHERE id=?1",
+                        rusqlite::params![journal.id, kind.to_string()],
+                    )
+                    .unwrap();
+                let before = row_snapshot();
+                assert_eq!(
+                    fixture
+                        .service
+                        .recover_pending_operations()
+                        .unwrap_err()
+                        .code,
+                    ErrorCode::State
+                );
+                assert!(store.all().is_err());
+                assert_eq!(row_snapshot(), before);
+                Some(before)
+            } else {
+                store.put(&mut journal).unwrap();
+                fixture.service.recover_pending_operations().unwrap();
+                journal = store.all().unwrap().remove(0);
+                None
+            };
             if activation_refused {
                 assert_eq!(journal.last_error.as_deref(), Some(refusal_message));
             } else {
-                assert!(
-                    journal
-                        .last_error
-                        .as_deref()
-                        .unwrap()
-                        .contains(refusal_message)
-                );
+                assert!(store.get(&journal.id).is_err());
+                assert_eq!(row_snapshot(), *persisted_before.as_ref().unwrap());
             }
             // Recovery may persist its refusal diagnostic and retry timestamp;
             // every other journal field must retain the attempted envelope.
@@ -1355,6 +1419,9 @@ fn assert_recovery_scenario(
                 assert_eq!(error.code, ErrorCode::State);
                 assert_eq!(error.message, refusal_message);
                 assert_eq!(format!("{journal:?}"), format!("{expected:?}"));
+            }
+            if let Some(before) = persisted_before {
+                assert_eq!(row_snapshot(), before);
             }
             assert_eq!(
                 serde_json::to_value(library.all_installs().unwrap()).unwrap(),
@@ -1624,6 +1691,11 @@ fn private_preparation_review_does_not_substitute_a_planned_destination() {
     ] {
         journal.phase = phase;
         journal.paths.staging = staging;
+        journal.install = (phase == LifecyclePhase::Prepared).then(|| crate::InstallRecord {
+            id: journal.id.clone(),
+            path: planned.clone(),
+            ..fixture.install.clone()
+        });
         store.put(&mut journal).unwrap();
         let report = fixture.service.repair_plan().unwrap();
         let item = report
