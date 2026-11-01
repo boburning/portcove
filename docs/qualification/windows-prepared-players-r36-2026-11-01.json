@@ -11,7 +11,12 @@
     "historical1422_additions": 0,
     "actual_complete_at_authoring": 0,
     "directRequired_completed": 0,
-    "partial_must_remain_open": [1891]
+    "partial_must_remain_open": [
+      1792,
+      1799,
+      1891,
+      2734
+    ]
   },
   "ports": [
     {
@@ -161,7 +166,7 @@
           "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/frontend/windows/ai2_game_entry.h"
         }
       ],
-      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "canonical_completion": "PARTIAL OPEN: own exact native-artifact or controlled-build criterion remains unproved; source target/recipe and inert selected-copy controls do not establish it.",
       "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
       "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
     },
@@ -366,7 +371,7 @@
           "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/mingw-toolchain.cmake"
         }
       ],
-      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "canonical_completion": "PARTIAL OPEN: own exact native-artifact or controlled-build criterion remains unproved; source target/recipe and inert selected-copy controls do not establish it.",
       "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
       "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
     },
@@ -589,7 +594,7 @@
           ]
         }
       ],
-      "canonical_completion": "PARTIAL OPEN; exact native artifact/build criterion unmet",
+      "canonical_completion": "PARTIAL OPEN: own exact native-artifact or controlled-build criterion remains unproved; source target/recipe and inert selected-copy controls do not establish it.",
       "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
       "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
     },
@@ -1672,7 +1677,7 @@
           "primary_url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/tools/prepare_disc.py"
         }
       ],
-      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "canonical_completion": "PARTIAL OPEN: own Generate/rebuild-from-disc first-setup criterion remains unproved; upstream instructions and inert selected-copy controls do not establish actual setup.",
       "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
       "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
     },
