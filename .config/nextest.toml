@@ -17,6 +17,16 @@ filter = 'package(portcove-core) & test(/^service::tests::external_adoption_reco
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 41276030610/a1 retained a 30.157s Windows cutoff in this complete
+# retention fixture; the same case passed in 18.953s in 41273346176/a1.
+# Allow finite 60s harness room, preserving assertions, cleanup and zero retries.
+# This calibration does not establish a product performance improvement.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::installed_versions_keep_execution_and_saves_after_catalog_contract_changes$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # PR #4157 local Linux run retained 30.938/30.527/30.151/30.035-second
 # cutoffs in these six-to-sixteen-case cancellation/recovery fixtures. Related
 # one/two-case fixtures took 8-15 seconds. Keep all ownership/cleanup assertions, two test
