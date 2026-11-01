@@ -16241,6 +16241,8 @@ fn main() {
                 eprintln!("[authenticated-retention] {name}: {:?}", started.elapsed());
             } else if retained_format == 2 {
                 eprintln!("[indexed-retention] {name}: {:?}", started.elapsed());
+            } else if retained_format == 1 {
+                eprintln!("[legacy-retention] {name}: {:?}", started.elapsed());
             }
         };
         phase("start");
