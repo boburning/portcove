@@ -3,11 +3,11 @@
   "listing": {
     "id": "wwf-smackdown-2-know-your-role-recomp",
     "name": "WWF SmackDown! 2: Know Your Role Recomp",
-    "summary": "Explore WWF SmackDown! 2: Know Your Role Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register a completed Know Your Role Windows player for your own SLUS-01234 disc, retaining its waiting Play entry and external saves.",
     "project_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
     "issue_number": 1396,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
     "artwork": {
       "game_id": 6444,
@@ -16,6 +16,34 @@
       "image_sha256": "4b987f67896fab09be7e7b210f8333e89ae1a511f2a483d102896fd7f452e276",
       "game_slug": "wwf-smackdown-2-know-your-role",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
+      "steps": [
+        {
+          "title": "Complete the title’s supported preparation upstream",
+          "instruction": "Extract the upstream Windows package to a writable non-synced folder, keep every file, and complete KnowYourRole.exe setup using your own NTSC-U SLUS-01234 CUE/BIN. No BIOS is needed. Keep the disc where it is: the game still reads it. The upstream x64 Visual C++ runtime dependency is separate; Portcove does not install it or run disc preparation."
+        },
+        {
+          "title": "Keep the exact original and preparation boundary",
+          "instruction": "Upstream verifies internal original files: SLUS_012.34 SHA-256 e23acb3165ed001b6d23558ef81624cea70b97d98e68a2a93546e6466a3c2a7f and EXE.PAC SHA-256 83cbdc663f1230b6c6b191e5572db1a9ef22520f65d2c7641c52d6632bae73a6. These member checks and the whole-track size warning are not a Portcove cryptographic certificate for every original input or generated output. Keep private Recompiled.* libraries private."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "After upstream setup reports Ready, select the package-root KnowYourRole.exe with that root as working directory and --play as the literal argument. This supported entry checks readiness, sets the runtime working directory and data/log environment, waits for the actual game process and returns its exit code. Do not substitute a generator, diagnostics helper or a private runner merely because it is executable."
+        },
+        {
+          "title": "Review Play and retain one replacement owner",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Keep the entire package and KnowYourRole-files/runtime, including generated Recompiled.* libraries, build stamp and matching runtime. Back up KnowYourRole-files/user, including carda.sav, cardb.sav, settings.json, interface.ini, launcher.json, user controller mappings and logs. Existing RECOMPONE_DATA_DIR and RECOMPONE_LOG_DIR overrides take precedence: preserve their actual locations as well as mods, caches, backups and original disc. Retain MIT and THIRD-PARTY-NOTICES; framework notices do not grant original-game rights."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+      ]
     }
   }
 }

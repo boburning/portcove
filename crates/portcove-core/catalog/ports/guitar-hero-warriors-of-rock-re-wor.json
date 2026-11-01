@@ -3,11 +3,11 @@
   "listing": {
     "id": "guitar-hero-warriors-of-rock-re-wor",
     "name": "Guitar Hero: Warriors of Rock / re-wor",
-    "summary": "Explore Guitar Hero: Warriors of Rock / re-wor and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, upstream-prepared Guitar Hero: Warriors of Rock / re-wor native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/ronniecloud/re-wor",
     "issue_number": 359,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/ronniecloud/re-wor",
     "artwork": {
       "game_id": 2629,
@@ -16,6 +16,40 @@
       "image_sha256": "6753e2bf3ab41327904aca38ef07a5d2a176cb370cc4e2f80c05a0e928419fb9",
       "game_slug": "guitar-hero-warriors-of-rock",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/ronniecloud/re-wor/releases/tag/v1.1.0",
+    "download_asset_hints": {
+      "windows-x86-64": ["re-wor", ".zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/ronniecloud/re-wor/releases",
+      "steps": [
+        {
+          "title": "Prepare your own supported original upstream",
+          "instruction": "Use your own legitimate Xbox 360 Guitar Hero: Warriors of Rock original, retaining assets/default.xex and assets/data, including streams and scripts. Do not substitute another Guitar Hero game. Complete supported extraction upstream; this guide imports no original and runs no helper. Connect the supported XINPUT-compatible guitar or gamepad before launching, as required by this upstream player; no physical-controller qualification is claimed here."
+        },
+        {
+          "title": "Attach the completed native Windows player",
+          "instruction": "Select Guitar Hero Warriors of Rock.exe, the complete prepared package folder as working directory and no extra arguments for the normal direct native player. Keep only supported literal arguments already needed by your working setup. Do not select re-wor-launcher.exe or a script."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+        },
+        {
+          "title": "Keep upstream maintenance outside the attached session",
+          "instruction": "Upstream and the user retain preparation and runtime replacement. Close the actual game and companions before deliberate replacement; preserve the creating copy and all data and review changed selected bytes before Play."
+        },
+        {
+          "title": "Preserve the creating copy and every effective data root",
+          "instruction": "Keep the complete creating folder, assets tree and every actual SDK user, save, profile, configuration, mod, cache, log, backup and custom root. The inspected title does not override every SDK persistence default; the working directory alone does not establish complete save coverage. Keep existing effective paths and do not migrate another title or version’s saves."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Public attributable upstream release/source; no root project LICENSE found in complete small tree. This absence alone does not establish a prohibition or permit inheriting another engine’s grant. Use only independently permitted components and original data.",
+        "Upstream documents occasional song-transition/audio issues. XINPUT instrument behavior is upstream scope, not our hardware/peripheral qualification."
+      ]
     }
   }
 }
