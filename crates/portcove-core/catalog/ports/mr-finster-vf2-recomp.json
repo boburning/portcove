@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare the exact own-ROM game upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use, with your own vf2.zip (MAME vf2 set, Version2.1). The reviewed0.1.16 runtime reads and recompiles that input locally when it starts; no ROM is supplied by this guide. Follow upstream first-run selection/checks outside Portcove and retain the original archive before any picker copies it into the active roms folder. Another game’s similarly named set is not interchangeable. No original, game program, helper, reference build or test mode is obtained or executed here."
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own vf2.zip (MAME vf2 set, Version2.1). The reviewed 0.1.16 runtime reads and recompiles that input locally when it starts; no ROM is supplied by this guide. Follow upstream first-run selection/checks outside Portcove and retain the original archive before any picker copies it into the active roms folder. Another game’s similarly named set is not interchangeable. No original, game program, helper, reference build or test mode is obtained or executed here."
         },
         {
           "title": "Keep this complete native Windows package",

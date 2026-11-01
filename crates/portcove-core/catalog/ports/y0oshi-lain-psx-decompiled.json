@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare both original Japanese discs upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed0.2.0 native client documents your own Japanese discs SLPS-01603 and SLPS-01604 as Redump .cue/.bin pairs. The data-track SHA1 values are6426fbdb45f27e089af650cddb8c41929c7890de and409668af454a0e0a33a71c1d22918d765e718608 respectively; they are not the original executable hash. Upstream import checks those identities but can also retain an unverified/modded dump with a warning. This guide qualifies only the documented source pair, not every accepted file or language modification. Finish import/setup outside Portcove and keep independent originals."
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.2.0 native client documents your own Japanese discs SLPS-01603 and SLPS-01604 as Redump .cue/.bin pairs. The data-track SHA1 values are 6426fbdb45f27e089af650cddb8c41929c7890de and 409668af454a0e0a33a71c1d22918d765e718608 respectively; they are not the original executable hash. Upstream import checks those identities but can also retain an unverified/modded dump with a warning. This guide qualifies only the documented source pair, not every accepted file or language modification. Finish import/setup outside Portcove and keep independent originals."
         },
         {
           "title": "Keep the complete native client package",
@@ -35,7 +35,7 @@
         },
         {
           "title": "Preserve imported discs, settings and the actual card",
-          "instruction": "Keep the whole active data folder, normally %APPDATA%/LainNative/lain-native on Windows, including imported discs, settings.ini, memcard1.mcd, packs, mods and other player data. The card is a raw128KiB image; that format alone is not save-compatibility acceptance. An already established LAIN_DATA_DIR or LAIN_MEMCARD can select an external data/card path; preserve those too, and the package directory used as a fallback if no per-user path was available. This guide adds no override and performs no card import, migration, backup or deletion."
+          "instruction": "Keep the whole active data folder, normally %APPDATA%/LainNative/lain-native on Windows, including imported discs, settings.ini, memcard1.mcd, packs, mods and other player data. The card is a raw 128 KiB image; that format alone is not save-compatibility acceptance. An already established LAIN_DATA_DIR or LAIN_MEMCARD can select an external data/card path; preserve those too, and the package directory used as a fallback if no per-user path was available. This guide adds no override and performs no card import, migration, backup or deletion."
         },
         {
           "title": "Keep original, translation and component rights separate",

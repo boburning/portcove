@@ -27,7 +27,7 @@
         },
         {
           "title": "Keep the current complete Windows package",
-          "instruction": "The inspected spartanport-windows.zip contains spartanport-windows/SpartanPort.exe, Play SpartanPort.exe, compatibility-name launchers and bin/spartanport-probe.exe with matching DLLs and resources. Keep the entire package together in a writable folder. The current source is a Rust launcher/runner; do not apply older Python-only launch coordinates or select a compatibility shim, GPU helper, internal probe, DLL or PS4 eboot.bin. Upstream specifies Windows10/11 x64, AVX and Vulkan1.3; static PE inspection does not verify a particular CPU/GPU."
+          "instruction": "The inspected spartanport-windows.zip contains spartanport-windows/SpartanPort.exe, Play SpartanPort.exe, compatibility-name launchers and bin/spartanport-probe.exe with matching DLLs and resources. Keep the entire package together in a writable folder. The current source is a Rust launcher/runner; do not apply older Python-only launch coordinates or select a compatibility shim, GPU helper, internal probe, DLL or PS4 eboot.bin. Upstream specifies Windows 10/11 x64, AVX and Vulkan1.3; static PE inspection does not verify a particular CPU/GPU."
         },
         {
           "title": "Select the saved-settings play route",

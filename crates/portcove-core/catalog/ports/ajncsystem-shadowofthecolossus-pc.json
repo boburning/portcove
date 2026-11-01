@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare the PS4 remake with upstream first",
-          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed0.70 Windows route is the Bluepoint2018 PS4 remake: CUSA08809 EU1.01 or CUSA08034 US1.00, with your own decrypted game folder containing eboot.bin, sce_module and sce_sys. PS2/PS3 releases are different inputs. Sound additionally needs your own console-dumped decrypted libSceNgs2.sprx and libSceUlt.sprx; those Sony modules are not supplied by this guide or covered by the runtime license. Follow upstream setup outside Portcove, select the correct game/modules and save settings before attachment."
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.70 Windows route is the Bluepoint2018 PS4 remake: CUSA08809 EU1.01 or CUSA08034 US1.00, with your own decrypted game folder containing eboot.bin, sce_module and sce_sys. PS2/PS3 releases are different inputs. Sound additionally needs your own console-dumped decrypted libSceNgs2.sprx and libSceUlt.sprx; those Sony modules are not supplied by this guide or covered by the runtime license. Follow upstream setup outside Portcove, select the correct game/modules and save settings before attachment."
         },
         {
           "title": "Keep the complete Windows package together",

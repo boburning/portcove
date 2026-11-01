@@ -3,7 +3,7 @@
   "listing": {
     "id": "itsbybanshee-wwe2k14-pc",
     "name": "WWE 2K14 (WWE2K14-PC)",
-    "summary": "Upstream route: Upstream runtime package for WWE2K14-PC; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream advertises mods, graphics, logos, music and localization. Complete campaign and hardware coverage remain Unknown here. Windows launcher runtime with mods; upstream localization/features claims do not prove full campaign. Keep optional original music/logos/DLC data separate. Upstream platforms: Windows player package/launcher documented. Other OS/CPU routes Unknown beyond selected upstream documentation. Original data: Xbox 360 WWE 2K14 own ISO/extracted folder. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared WWE 2K14 Windows base-game player directly, with matching upstream settings and your own extracted Xbox 360 data. Preserve userdata, mods and originals; title-update switching, logos, music and DLC remain upstream-managed.",
     "original_game_title": "WWE 2K14",
     "project_url": "https://github.com/itsbybanshee/wwe2k14-pc",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "wwe-2k14",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2750
+    "issue_number": 2750,
+    "manual_setup": {
+      "help_url": "https://github.com/itsbybanshee/wwe2k14-pc/blob/0386ce905f5707446a436ff30c5ae9e9d55f0a1b/README.md",
+      "steps": [
+        {
+          "title": "Prepare the base-game route upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. Finish upstream preparation outside Portcove, keep independent originals and recovery copies. No original, helper, compiler or game is obtained or executed by this guide. Use your own WWE 2K14 Xbox 360 disc/extracted data and finish the upstream launcher setup. This direct base-player route requires an already extracted GameFolder containing default.xex, a saved Vanilla/base-game selection and no active title update. An ISO-only launcher selection is not assumed to be restored by the direct player. Exact other revisions and converted editions remain unqualified."
+        },
+        {
+          "title": "Keep the complete matching package",
+          "instruction": "The inspected official 1.1.0 Windows ZIP contains the AMD64 base native player bin/wwe2k14.exe, separate bin/wwe2k14_tu.exe and WWE 2K14 PC.exe settings launcher. Keep the complete root, bin libraries and notices. The base native player runs the linked ReXGlue game in process. Do not attach the settings launcher, a compiler, a mod builder or the title-update player for this base-game intent."
+        },
+        {
+          "title": "Attach the matching native variant",
+          "instruction": "Select bin/wwe2k14.exe, set the complete extracted WWE package root as working directory and leave arguments empty. Review the exact intent and request Play separately. Its source finds the parent launcher root and restores the saved extracted GameFolder/settings. Recheck the Vanilla choice before use: a saved Title Update selection can launch the other executable and terminate this process. Change editions/settings and reselect the matching entry outside the attachment; this guide does not promise tracking across that successor."
+        },
+        {
+          "title": "Preserve the whole external library",
+          "instruction": "Keep userdata/launcher.json, profiles/saves, title_update, optional DLC, logos, logo libraries, original imported PS3 saves, music, mods/, logs/ and all configured external game/data roots. The native source uses the package userdata directory when present; an existing explicitly configured runtime root takes precedence. No save, logo, DLC or music compatibility is inferred from file presence, and imports/conversions remain upstream operations. This guide moves or deletes nothing."
+        },
+        {
+          "title": "Keep permissions and optional content separate",
+          "instruction": "Retain the project and ReXGlue/runtime/component notices. They do not license the original game, DLC, third-party mods, imported logos or music; use only content you are independently permitted to use. Additional title-update preparation and total-conversion builds are separate upstream work. No download, credential access, rights determination or optional-content generation is performed here."
+        },
+        {
+          "title": "Maintain the external player",
+          "instruction": "Quit the actual game normally before upstream replacement or data operations; forced termination is not a save-flush guarantee. Review/relink changed executable bytes. Source, package and upstream playability reports do not establish native gameplay, complete-game, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable. The selected upstream reports early-release bugs and unavailable original online services; language and feature reports are not full-campaign evidence."
+        }
+      ],
+      "warnings": [
+        "Use the prepared base player with saved Vanilla settings and extracted game data. Title-update switching can end the selected process; keep all userdata, original imports and optional content separately."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

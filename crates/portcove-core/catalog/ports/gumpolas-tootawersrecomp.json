@@ -3,13 +3,45 @@
   "listing": {
     "id": "gumpolas-tootawersrecomp",
     "name": "The Lord of the Rings: The Two Towers — Original Xbox (Two Towers Recomp)",
-    "summary": "Upstream route: Upstream portableWindows/Linux/macOSpackages include runtime+own-disc setup; first start selectsISO oruses extractedgame_files. Source kit generate.py translates default.xbe thenCMakebuilds. Upstream owns preparation; separate fromAthelasTwoTowersimplementation. Limits: Upstream only: Upstream says fully playable WIP. Co-op/versus alpha, widescreen/unlocked FPS experimental; shadow, lighting and hero/UI issues remain. Windows/Linux/macOS x64 assets, experimental unlocked FPS. Separate from Athelas embedded Two Towers until ancestry/independent maintenance established. Upstream platforms: Windows 7SP1/8.1/10/11 x64, Linux x64 glibc 2.27+, macOS 10.15+ Intel/Rosetta2. Source-build tools separate. Original data: Own originalXbox TheLordOfTheRingsTwoTowers USA2002 ISO or extracted game with default.xbe. Gumpolas pipeline checks USA executable before local translation. Optional GameCube GLOS69 high-resolution texture pack is separate and not needed for basic play. Exact accepted hash/revision not established in reviewed README; no separate BIOS input described. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Two Towers Windows native player directly with your own Xbox USA game files. Preserve its saves, launcher settings and mod data; do not use the separate setup/texture builder as the attached game.",
     "original_game_title": "The Lord of the Rings: The Two Towers",
     "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Gumpolas/TooTawersRecomp",
-    "issue_number": 2796
+    "issue_number": 2796,
+    "manual_setup": {
+      "help_url": "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/README.md",
+      "steps": [
+        {
+          "title": "Prepare the Xbox USA game upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. Finish upstream preparation outside Portcove, keep independent originals and recovery copies. No original, helper, compiler or game is obtained or executed by this guide. Use your own The Lord of the Rings: The Two Towers original Xbox USA data. Finish upstream disc/folder preparation and settings, keep default.xbe with the complete matching data in game_files/ or the already configured game directory, and retain independent originals. Other regions, console editions and Athelas embedded Two Towers are not interchangeable by title."
+        },
+        {
+          "title": "Keep the complete native package",
+          "instruction": "The inspected official 1.9.9 Windows ZIP contains AMD64 twotowers_recomp.exe, the separate The Two Towers Recompiled.exe UI and matching runtime/resources. Keep the complete package. The native player already contains the translated program; the source-build route still translates/compiles from an owner’s original separately. Do not select the setup UI, texture compiler, script or original Xbox executable as the attached game."
+        },
+        {
+          "title": "Attach direct native play",
+          "instruction": "Select twotowers_recomp.exe, set the complete extracted package folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Its native entry reads the existing paths/settings and runs the game in process. The source uses [Paths] game_dir in twotowers_recomp.ini or the package-local game_files default; an already established game-dir environment override wins. Preserve it rather than silently pointing at another copy. Finish missing setup outside the attached attempt."
+        },
+        {
+          "title": "Preserve player data and old settings",
+          "instruction": "Keep saves/ beside the native player, twotowers_recomp.ini, its .ini.old retained by upstream’s legacy settings rewrite, game_files/, screenshots, logs, achievements, mods, texture caches and all configured external game/data paths. Upstream can rewrite an older configuration while carrying selected fields forward; keep independent originals and both versions. This guide performs no migration, restore, backup or deletion and claims no cross-build save compatibility."
+        },
+        {
+          "title": "Separate ancestry, optional packs and notices",
+          "instruction": "Keep the project license, CONTRIBUTION_NOTICES, The128ReBits notice, XboxRecomp/MCPX and all font/component notices. Source credits and independently maintained package identity do not establish another port’s qualification. Grants for port/runtime code do not license original game material, optional GameCube HD packs, music or mods. Use only components you are independently permitted to use. Texture generation, optional Ultra content and co-op/mod changes remain upstream work; no separate pack is downloaded or executed here."
+        },
+        {
+          "title": "Maintain the external player",
+          "instruction": "Quit the actual game normally before upstream replacement or data operations; forced termination is not a save-flush guarantee. Review/relink changed executable bytes. Source, package and upstream playability reports do not establish native gameplay, complete-game, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable. Upstream unlocked-frame-rate, versus and alpha co-op reports are not Portcove observations; preserve the documented compatibility limits instead of treating a package as complete-game acceptance."
+        }
+      ],
+      "warnings": [
+        "Attach twotowers_recomp.exe after setup. Preserve saves, old settings and originals; optional HD/co-op content and another implementation’s acceptance do not transfer."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

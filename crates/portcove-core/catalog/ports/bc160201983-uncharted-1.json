@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare this PS4 collection upstream first",
-          "instruction": "Use a complete copy and components you are independently permitted to use. This record targets Uncharted: Drake’s Fortune within your own decrypted PS4 Nathan Drake Collection CUSA02344 folder, containing eboot.bin and sce_sys (often the uroot folder). The reviewed0.8.0 instructions recommend your own matching1.02 update; without it most port crash fixes are skipped. Follow upstream setup outside Portcove, choose the collection folder/update and save this game’s settings. PS3 original releases are different inputs. No exact full-game digest or other regional edition is qualified here."
+          "instruction": "Use a complete copy and components you are independently permitted to use. This record targets Uncharted: Drake’s Fortune within your own decrypted PS4 Nathan Drake Collection CUSA02344 folder, containing eboot.bin and sce_sys (often the uroot folder). The reviewed 0.8.0 instructions recommend your own matching1.02 update; without it most port crash fixes are skipped. Follow upstream setup outside Portcove, choose the collection folder/update and save this game’s settings. PS3 original releases are different inputs. No exact full-game digest or other regional edition is qualified here."
         },
         {
           "title": "Keep the complete matching package",

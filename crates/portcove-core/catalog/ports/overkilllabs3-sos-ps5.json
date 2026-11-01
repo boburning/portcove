@@ -3,13 +3,45 @@
   "listing": {
     "id": "overkilllabs3-sos-ps5",
     "name": "God of War: Sons of Sparta (Sons Of Sparta PS5 Native)",
-    "summary": "Upstream route: Upstream runtime package for Sons Of Sparta PS5 Native; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream says SonsOfSparta runs. Other versions/regions/repacked dumps untested; no broader PS5 compatibility or complete-game qualification here. Windows through AnyPS5 with Vulkan1.3. Exact tested version only, no genericPS5 scope; source title/native naming not proof full-game compatibility. Upstream platforms: Windows10/11 x64 Vulkan1.3 AnyPS5 route. PPSA28997v01.008.001 only tested upstream; other hosts Unknown. Original data: PS5 GodOfWarSonsSparta PPSA28997 v01.008.001 own decrypted files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, already prepared God of War: Sons of Sparta Windows copy through its waiting upstream launcher. Your own exact PS5 data and generated game remain upstream-managed; preserve _sd and the complete prepared folder.",
     "original_game_title": "God of War: Sons of Sparta",
     "project_url": "https://github.com/OverkillLabs3/SoS-PS5",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/OverkillLabs3/SoS-PS5",
-    "issue_number": 2848
+    "issue_number": 2848,
+    "manual_setup": {
+      "help_url": "https://github.com/OverkillLabs3/SoS-PS5/blob/b62c32c618b57bbc82461eb9df61a66fb3bb1315/README.md",
+      "steps": [
+        {
+          "title": "Finish exact upstream preparation",
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own legally obtained decrypted PS5 PPSA28997 version 01.008.001 data: your decrypted eboot.bin/eboot.elf, sce_sys, sce_module, Media and the complete remaining game files. Other regions, versions, updates and repacked dumps remain untested. Complete upstream relinking, shader preparation, settings and a prepared layout outside Portcove. Keep independent originals. This guide obtains or executes no game, relinker, firmware, key or helper and does not authorize decryption or credential operations."
+        },
+        {
+          "title": "Keep the complete prepared Windows folder",
+          "instruction": "The inspected official Windows ZIP contains the AMD64 SonsOfSparta-PS5.exe launcher, tools/relinker.exe and matching libraries. The launcher is not by itself the complete game: upstream derives a separate Windows game executable from your own original x86-64 program. Keep that prepared output and all matching libraries beside the launcher. This is title-specific native relinking with reimplemented console services and Vulkan shaders, not a static translation of a different CPU or a generic PS5 emulator integration."
+        },
+        {
+          "title": "Attach the waiting launcher",
+          "instruction": "Select SonsOfSparta-PS5.exe, set its complete prepared package folder as working directory and leave arguments empty. Review the exact selected intent and request Play separately; use the upstream settings window/Play if shown. The selected launcher starts the prepared game child and waits for its normal exit. It can reprepare when originals, tools or preparation stamps change: finish such work outside the attached attempt first. Do not select a generated internal executable or relinker to bypass the supported entry. Normal waiting does not establish forced-stop quiescence or save flushing."
+        },
+        {
+          "title": "Preserve actual player data and preparation",
+          "instruction": "Keep the complete _sd save folder beside the launcher, all game files, preparation/generated-runtime files, shader caches, logs, existing configuration and external paths. For Sons of Sparta also keep launcher.ini, _sd/GOWSOSSAVE999/GoW_SoS999.dat, prep/prepared.stamp and resolution.txt.old from upstream’s legacy settings conversion when present. This guide makes no settings, save conversion, migration, cleanup or backup changes; preserve old and new copies independently."
+        },
+        {
+          "title": "Separate component terms from the original game",
+          "instruction": "Retain the project GPLv2 notice, AnyPS5 and all library/component notices. These do not grant rights to the original God of War: Sons of Sparta executable, shaders or assets; use only a complete copy you are independently permitted to use. No other PS5 game or original PC edition is admitted by this title-specific route."
+        },
+        {
+          "title": "Maintain outside the attachment",
+          "instruction": "Quit the actual game normally and wait for the launcher to return before upstream replacement or data operations. Preserve independent recovery copies and review/relink changed executable bytes. Requirements and limits include Vulkan 1.3; selected upstream reports NVIDIA testing only, incomplete whole-game coverage and possible shader, loading and crash problems. These remain upstream claims; no native gameplay, complete-game, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep exact original and prepared-game files plus _sd. The published launcher and relinker alone are not a complete playable game; other versions and native acceptance remain unqualified."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -27,7 +27,7 @@
         },
         {
           "title": "Choose the engine package, not the editing tools",
-          "instruction": "The inspected HERCULAN-1.1.0-win-x64.zip contains AMD64 Herculan.exe with native DLLs, Assets, notices and other matching companions. Keep the complete extracted package. It is a self-contained .NET release; HercWorksCSharp is a different data-viewing/editing tool and is not this player. Upstream specifies Windows10 or newer, x86-64 and OpenGL3.3; package/header inspection alone is not a runtime compatibility pass."
+          "instruction": "The inspected HERCULAN-1.1.0-win-x64.zip contains AMD64 Herculan.exe with native DLLs, Assets, notices and other matching companions. Keep the complete extracted package. It is a self-contained .NET release; HercWorksCSharp is a different data-viewing/editing tool and is not this player. Upstream specifies Windows 10 or newer, x86-64 and OpenGL3.3; package/header inspection alone is not a runtime compatibility pass."
         },
         {
           "title": "Select the prepared normal player",

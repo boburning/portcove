@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare an exact permitted PS4 build upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed0.9.1 source supports your own decrypted Dragon’s Crown Pro PS4 package: USA CUSA10454 base1.00 or base plus1.01; Japan CUSA07001 base1.00 or base plus1.02/1.03; Asia/HongKong CUSA10209 base1.00 or base plus1.02. Updates require the matching base. Follow the pinned upstream title/content/version and per-build eboot.bin SHA256 table, not a title-only match; encrypted console packages and other code versions are refused. Finish upstream import/preparation outside Portcove, retaining originals and each build’s separate testing limits. No PKG, key, helper or game is obtained or run here."
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.9.1 source supports your own decrypted Dragon’s Crown Pro PS4 package: USA CUSA10454 base1.00 or base plus1.01; Japan CUSA07001 base1.00 or base plus1.02/1.03; Asia/HongKong CUSA10209 base1.00 or base plus1.02. Updates require the matching base. Follow the pinned upstream title/content/version and per-build eboot.bin SHA256 table, not a title-only match; encrypted console packages and other code versions are refused. Finish upstream import/preparation outside Portcove, retaining originals and each build’s separate testing limits. No PKG, key, helper or game is obtained or run here."
         },
         {
           "title": "Keep the complete title-specific Windows runtime",

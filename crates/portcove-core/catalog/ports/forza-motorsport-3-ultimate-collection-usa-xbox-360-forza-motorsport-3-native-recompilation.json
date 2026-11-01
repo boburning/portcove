@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare the exact Ultimate Collection edition upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed0.1.3 route accepts Forza Motorsport3 Ultimate Collection USA, TitleID4D53084D, MediaID6F74359D and default.xex version0.0.0.8. Upstream’s identifying disc MD5 values are A527154D55C7B39849EC68CD46F17281 (play disc) and E65FF1CDC189F3EB9B1D0F14F97BAEA4 (content disc); each documented image is7,838,695,424bytes. MD5 is an identification hint, not an authenticity guarantee. Complete the upstream original-disc install and its game_files.sha256 verification outside Portcove, selecting the intended profile and actual game/user paths. No original, installer, mod, compiler, helper or game is obtained or run here."
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.1.3 route accepts Forza Motorsport3 Ultimate Collection USA, TitleID4D53084D, MediaID6F74359D and default.xex version0.0.0.8. Upstream’s identifying disc MD5 values are A527154D55C7B39849EC68CD46F17281 (play disc) and E65FF1CDC189F3EB9B1D0F14F97BAEA4 (content disc); each documented image is7,838,695,424bytes. MD5 is an identification hint, not an authenticity guarantee. Complete the upstream original-disc install and its game_files.sha256 verification outside Portcove, selecting the intended profile and actual game/user paths. No original, installer, mod, compiler, helper or game is obtained or run here."
         },
         {
           "title": "Keep the complete native Windows player package",

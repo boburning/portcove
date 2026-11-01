@@ -15,11 +15,11 @@
       "steps": [
         {
           "title": "Prepare your own game data with upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed1.4.0 route accepts your own Tony Hawk’s Pro Skater USA PlayStation disc SLUS_008.60 as a raw MODE2/2352 .bin, normally thps1.bin beside the player. Upstream first-run preparation copies assets into its Data tree; finish that outside Portcove and retain the original image. An established THPS_DISC may select another source. No disc, converter, BIOS, compiler, helper or extraction is obtained or run by this attachment."
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 1.4.0 route accepts your own Tony Hawk’s Pro Skater USA PlayStation disc SLUS_008.60 as a raw MODE2/2352 .bin, normally thps1.bin beside the player. Upstream first-run preparation copies assets into its Data tree; finish that outside Portcove and retain the original image. An established THPS_DISC may select another source. No disc, converter, BIOS, compiler, helper or extraction is obtained or run by this attachment."
         },
         {
           "title": "Select the inspected x64 player package",
-          "instruction": "The inspected thps-windows-x64-1.4.0.zip has AMD64 thps.exe, README.txt and THIRD-PARTY-NOTICES.txt. This resolves the x64 package’s architecture separately from older source instructions mentioning32bit and the separate x86 release. Keep the matching complete prepared folder and data; upstream specifies Windows10/11 and OpenGL3.3. Do not infer x86, Linux or physical GPU acceptance from this x64 static inspection."
+          "instruction": "The inspected thps-windows-x64-1.4.0.zip has AMD64 thps.exe, README.txt and THIRD-PARTY-NOTICES.txt. This resolves the x64 package’s architecture separately from older source instructions mentioning32bit and the separate x86 release. Keep the matching complete prepared folder and data; upstream specifies Windows 10/11 and OpenGL3.3. Do not infer x86, Linux or physical GPU acceptance from this x64 static inspection."
         },
         {
           "title": "Review the normal play coordinates",

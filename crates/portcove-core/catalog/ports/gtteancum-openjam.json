@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare your purchased On Fire Edition data upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use, with your own purchased Xbox Live Arcade NBA JAM: On Fire Edition container. The reviewed1.1 release manifest identifies LIVE content type000D0000 and TitleID584111EC; other NBA JAM editions, trial entitlements and arcade ROMs are outside this route. Finish the Mod Manager’s upstream unpack/data/UI preparation outside Portcove, retaining the original container and complete outputs. Setup does not generate the game’s native code in this selected release: the inspected published player already contains it. No original, unpacker, mod, compiler or game is obtained or run here."
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own purchased Xbox Live Arcade NBA JAM: On Fire Edition container. The reviewed 1.1 release manifest identifies LIVE content type000D0000 and TitleID584111EC; other NBA JAM editions, trial entitlements and arcade ROMs are outside this route. Finish the Mod Manager’s upstream unpack/data/UI preparation outside Portcove, retaining the original container and complete outputs. Setup does not generate the game’s native code in this selected release: the inspected published player already contains it. No original, unpacker, mod, compiler or game is obtained or run here."
         },
         {
           "title": "Keep the complete actual Windows player unit",
