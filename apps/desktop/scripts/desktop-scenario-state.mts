@@ -19,7 +19,11 @@ export type FixtureSpawn = (
   args: readonly string[],
   options: SpawnSyncOptionsWithStringEncoding,
 ) => FixtureProcessResult;
-export type FixtureCommand = (args: readonly string[], selectedLibrary?: string) => unknown;
+export type FixtureCommand = (
+  args: readonly string[],
+  selectedLibrary?: string,
+  options?: { timeoutMs?: number },
+) => unknown;
 // Owned native fixture state shared across scenario orderings.
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -46,8 +50,17 @@ export function ownedFixtureCommand(
   { cli, library, output, catalogPath }: OwnedFixtureContext,
   spawn: FixtureSpawn = spawnCommand,
 ): FixtureCommand {
-  return (args: readonly string[], selectedLibrary = library) => {
-    const timeout = args[0] === "adopt" || args[0] === "remove" ? 60_000 : 15_000;
+  return (args: readonly string[], selectedLibrary = library, { timeoutMs } = {}) => {
+    const timeout =
+      timeoutMs === undefined
+        ? args[0] === "adopt" || args[0] === "remove"
+          ? 60_000
+          : 15_000
+        : timeoutMs;
+    assert.ok(
+      Number.isSafeInteger(timeout) && timeout > 0,
+      "Fixture timeout must be a finite positive integer",
+    );
     const started = performance.now();
     let result: FixtureProcessResult | undefined;
     try {

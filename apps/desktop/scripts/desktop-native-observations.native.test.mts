@@ -560,9 +560,11 @@ function assertLaunchAdmission(Session: typeof OwnedNativeSession) {
     if (result === "admission-refused") {
       assert.deepEqual(calls, ["admission"], "ADMISSION_BEFORE_REPLACEMENT");
       assert.equal(session.requireQuiescence(), former);
+      assert.deepEqual(session.cleanupDisposition(), { kind: "quiescent", proof: former });
     } else {
       assert.deepEqual(calls, ["admission", "begin", "factory"]);
       assert.throws(() => session.requireQuiescence(), /Current owned launch identity/);
+      assert.throws(() => session.cleanupDisposition(), /Current owned launch identity/);
     }
   }
 }

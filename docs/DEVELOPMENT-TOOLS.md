@@ -1958,6 +1958,11 @@ managed launch and positive exit. These process observations do not establish
 runtime rendering, gameplay, unsupported-edition native acceptance or assistive
 technology behavior; retain those observations separately on the owning issue.
 Raw original and runtime files are private inputs, excluded from public artifacts.
+The real-input CLI preview and reinspection calls have a finite 60-second harness
+budget; ordinary metadata reads retain their 15-second default. A preparation
+failure before any driver/App launch records a separate prelaunch diagnostic,
+without claiming process-exit proof. Every attempted launch still requires the
+existing identity-bound positive cleanup before resource release.
 
 `--scenario native-real-prepared-runtime` is an opt-in standalone Windows journey
 for the two selected real user-prepared definitions, `dkc3-recomp` and

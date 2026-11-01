@@ -4925,21 +4925,39 @@ try {
           });
         browser = undefined;
         await stopDriver();
-        ownedSession.requireQuiescence();
-        const report = path.join(output, `${cleanupName}-cleanup.json`);
-        await writeFile(
-          report,
-          JSON.stringify(
-            {
-              ...ownedSession.cleanup,
-              session_quit_error: quitFailure ? errorMessage(quitFailure.error) : undefined,
-            },
-            null,
-            2,
-          ),
-          { flag: "wx" },
-        );
-        artifacts.push(report);
+        const disposition = ownedSession.cleanupDisposition();
+        if (disposition.kind === "not-started") {
+          const report = path.join(output, `${cleanupName}-prelaunch.json`);
+          await writeFile(
+            report,
+            JSON.stringify(
+              {
+                ...disposition,
+                reason:
+                  "No owned driver or application launch was attempted; no process-exit proof is claimed",
+              },
+              null,
+              2,
+            ),
+            { flag: "wx" },
+          );
+          artifacts.push(report);
+        } else {
+          const report = path.join(output, `${cleanupName}-cleanup.json`);
+          await writeFile(
+            report,
+            JSON.stringify(
+              {
+                ...disposition.proof,
+                session_quit_error: quitFailure ? errorMessage(quitFailure.error) : undefined,
+              },
+              null,
+              2,
+            ),
+            { flag: "wx" },
+          );
+          artifacts.push(report);
+        }
       } catch (error) {
         recordChecks({
           scenario: "native-backup-owned-cleanup",

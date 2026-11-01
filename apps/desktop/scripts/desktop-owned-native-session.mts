@@ -504,6 +504,13 @@ export class OwnedNativeSession {
     }
   }
 
+  cleanupDisposition():
+    | { kind: "not-started" }
+    | { kind: "quiescent"; proof: NativeSessionCleanup } {
+    if (!this.launchAttempted) return { kind: "not-started" };
+    return { kind: "quiescent", proof: this.requireQuiescence() };
+  }
+
   requireQuiescence() {
     assert.ok(this.driver, "Current owned launch identity is required");
     assert.ok(this.inventory, "Current owned exit inventory is required");

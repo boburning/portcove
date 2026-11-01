@@ -71,7 +71,11 @@ export async function prepareRegisteredSourceReuseInputs({
   const command = ownedFixtureCommand({ cli, library, output });
   const preview = transportValue(
     "source_import_plan",
-    command(["source", "inbox", "import", profileId, owned, "--mode", "use-current-location"]),
+    command(
+      ["source", "inbox", "import", profileId, owned, "--mode", "use-current-location"],
+      undefined,
+      { timeoutMs: 60_000 },
+    ),
   );
   assert.equal(preview.existing_registration, null);
   assert.equal(preview.source.size, 33554432);
@@ -239,7 +243,7 @@ export async function registeredSourceReuseScenario(context: Context) {
       );
       const missing = transportValue(
         "source_reuse_review",
-        command(["source", "reuse", profileId]),
+        command(["source", "reuse", profileId], undefined, { timeoutMs: 60_000 }),
       );
       assert.ok(missing.applications.every((app) => !app.can_review_setup));
       report.missing = missing;
