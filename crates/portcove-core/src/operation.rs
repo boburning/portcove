@@ -580,8 +580,40 @@ fn path_string(path: Option<&PathBuf>) -> Result<Option<String>> {
         .transpose()
 }
 
+#[cfg(windows)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SettingsFaultPoint {
+    IntentBeforeInsert,
+    CanonicalStageBeforeCreate,
+    CanonicalStageCreated,
+    CanonicalStageBound,
+    CanonicalStagePartialWrite,
+    CanonicalStageBeforeFlush,
+    CanonicalStageFlushed,
+    BetweenStages,
+    RuntimeStageBeforeCreate,
+    RuntimeStageCreated,
+    RuntimeStageBound,
+    RuntimeStagePartialWrite,
+    RuntimeStageBeforeFlush,
+    RuntimeStageFlushed,
+    Journaled,
+    Prepared,
+    CanonicalMoved,
+    CanonicalPublished,
+    RuntimeMoved,
+    RuntimePublished,
+    MetadataCommitted,
+    CleanupPending,
+    CanonicalRetired,
+    RuntimeRetired,
+    JournalRetired,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecycleFaultPoint {
+    #[cfg(windows)]
+    SettingsBoundary(SettingsFaultPoint),
     #[cfg(test)]
     RecoveryInventoried,
     PreparationJournaled,

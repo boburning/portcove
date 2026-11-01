@@ -735,9 +735,9 @@ impl PortcoveService {
         operation: &mut LifecycleOperation,
     ) -> Result<Option<String>> {
         match operation.kind {
-            LifecycleOperationKind::SettingsChange => Err(PortcoveError::unsupported(
-                "configuration recovery requires its checked Windows settings handler; retained files were not changed",
-            )),
+            LifecycleOperationKind::SettingsChange => self
+                .recover_settings_change(store, operation)
+                .map(|()| None),
             LifecycleOperationKind::AcquireUpdate => Err(PortcoveError::state(
                 "acquisition requires its activity-owner recovery route",
             )),

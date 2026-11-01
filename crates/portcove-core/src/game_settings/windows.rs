@@ -19,10 +19,12 @@ use windows_sys::Win32::Storage::FileSystem::{
     DELETE, FILE_ATTRIBUTE_REPARSE_POINT, FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS,
     FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ, FILE_GENERIC_WRITE, FILE_ID_INFO,
     FILE_RENAME_INFO, FILE_SHARE_READ, FILE_SHARE_WRITE, FileDispositionInfo, FileIdInfo,
-    FileRenameInfo, GetFileInformationByHandleEx, SetFileInformationByHandle,
+    FileRenameInfo, GetFileInformationByHandleEx, SetFileInformationByHandle, WRITE_DAC,
 };
 
 use crate::{PortcoveError, Result};
+
+mod security;
 
 fn changed() -> PortcoveError {
     PortcoveError::conflict(
@@ -115,48 +117,109 @@ pub(crate) struct HeldFile {
     pub(crate) path: PathBuf,
     pub(crate) identity: String,
     pub(crate) parent_identity: String,
+    exclusive: bool,
     _parents: Vec<File>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StageCheckpoint {
+    PartialWrite,
+    BeforeFlush,
+    Flushed,
 }
 
 impl HeldFile {
     pub(crate) fn open(path: &Path) -> Result<Self> {
+        Self::open_existing(path, false)
+    }
+
+    pub(crate) fn open_stage(path: &Path) -> Result<Self> {
+        Self::open_existing(path, true)
+    }
+
+    fn open_existing(path: &Path, writable: bool) -> Result<Self> {
         let parent = path.parent().ok_or_else(changed)?;
         let parents = pin_parents(parent)?;
+        if !writable && std::fs::symlink_metadata(path)?.permissions().readonly() {
+            return Err(PortcoveError::unsupported(
+                "read-only configuration files cannot be edited",
+            ));
+        }
         let file = OpenOptions::new()
             .read(true)
-            .access_mode(FILE_GENERIC_READ | DELETE)
-            .share_mode(FILE_SHARE_READ)
+            .access_mode(
+                FILE_GENERIC_READ
+                    | DELETE
+                    | if writable {
+                        FILE_GENERIC_WRITE | WRITE_DAC
+                    } else {
+                        0
+                    },
+            )
+            .share_mode(if writable { 0 } else { FILE_SHARE_READ })
             .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
             .open(path)?;
         ordinary(&file, false)?;
-        Self::from_held(path, file, parents)
+        Self::from_held(path, file, parents, writable)
     }
 
-    pub(crate) fn stage(path: &Path, bytes: &[u8]) -> Result<Self> {
-        if bytes.len() as u64 > super::MAX_SETTINGS_BYTES {
-            return Err(changed());
-        }
+    pub(crate) fn create_stage(path: &Path) -> Result<Self> {
         let parents = pin_parents(path.parent().ok_or_else(changed)?)?;
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create_new(true)
-            .access_mode(FILE_GENERIC_READ | FILE_GENERIC_WRITE | DELETE)
-            .share_mode(FILE_SHARE_READ)
+            .access_mode(FILE_GENERIC_READ | FILE_GENERIC_WRITE | DELETE | WRITE_DAC)
+            .share_mode(0)
             .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
             .open(path)?;
         ordinary(&file, false)?;
-        // A failed stage is never published. Preserve its owned name on an
-        // ambiguous flush failure rather than removing an unverified path.
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        Self::from_held(path, file, parents)
+        Self::from_held(path, file, parents, true)
     }
 
-    fn from_held(path: &Path, file: File, parents: Vec<File>) -> Result<Self> {
-        let current = crate::external_runtime::open_identity_handle(path)?;
-        if !crate::external_runtime::same_file(&file, &current)? {
+    /// Caller has positively read back this physical identity from the durable
+    /// Preparing journal. Only an exact existing postimage prefix can resume;
+    /// unrelated bytes are never truncated or overwritten.
+    pub(crate) fn fill_stage(
+        &mut self,
+        bytes: &[u8],
+        checkpoint: &dyn Fn(StageCheckpoint) -> Result<()>,
+    ) -> Result<()> {
+        if bytes.len() as u64 > super::MAX_SETTINGS_BYTES {
             return Err(changed());
+        }
+        let prefix = self.bytes(super::MAX_SETTINGS_BYTES)?;
+        if !bytes.starts_with(&prefix) {
+            return Err(changed());
+        }
+        self.file.seek(SeekFrom::End(0))?;
+        let remaining = &bytes[prefix.len()..];
+        let split = remaining.len().div_ceil(2);
+        self.file.write_all(&remaining[..split])?;
+        checkpoint(StageCheckpoint::PartialWrite)?;
+        self.file.write_all(&remaining[split..])?;
+        checkpoint(StageCheckpoint::BeforeFlush)?;
+        self.file.sync_all()?;
+        checkpoint(StageCheckpoint::Flushed)?;
+        if self.bytes(super::MAX_SETTINGS_BYTES)? != bytes {
+            return Err(changed());
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
+    fn stage(path: &Path, bytes: &[u8]) -> Result<Self> {
+        let mut held = Self::create_stage(path)?;
+        held.fill_stage(bytes, &|_| Ok(()))?;
+        Ok(held)
+    }
+
+    fn from_held(path: &Path, file: File, parents: Vec<File>, exclusive: bool) -> Result<Self> {
+        if !exclusive {
+            let current = crate::external_runtime::open_identity_handle(path)?;
+            if !crate::external_runtime::same_file(&file, &current)? {
+                return Err(changed());
+            }
         }
         let identity = physical_identity(&file)?;
         let parent_identity = physical_identity(parents.last().ok_or_else(changed)?)?;
@@ -165,6 +228,7 @@ impl HeldFile {
             path: path.into(),
             identity,
             parent_identity,
+            exclusive,
             _parents: parents,
         })
     }
@@ -242,9 +306,11 @@ impl HeldFile {
             return Err(std::io::Error::last_os_error().into());
         }
         self.path = destination.into();
-        let current = crate::external_runtime::open_identity_handle(destination)?;
-        if !crate::external_runtime::same_file(&self.file, &current)? {
-            return Err(changed());
+        if !self.exclusive {
+            let current = crate::external_runtime::open_identity_handle(destination)?;
+            if !crate::external_runtime::same_file(&self.file, &current)? {
+                return Err(changed());
+            }
         }
         Ok(())
     }

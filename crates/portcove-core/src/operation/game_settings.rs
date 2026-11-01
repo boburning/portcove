@@ -32,7 +32,9 @@ pub(crate) struct FileCustody {
     pub path: PathBuf,
     pub parent_identity: String,
     pub original_identity: String,
-    pub replacement_identity: String,
+    /// None is permitted only in Preparing, before a stage identity has been
+    /// positively recorded. Its reserved pathname never proves ownership.
+    pub replacement_identity: Option<String>,
     pub previous_sha256: String,
     pub proposed_sha256: String,
 }
@@ -155,8 +157,13 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
     for custody in std::iter::once(&payload.canonical).chain(payload.runtime.iter()) {
         if !identity(&custody.parent_identity)
             || !identity(&custody.original_identity)
-            || !identity(&custody.replacement_identity)
-            || custody.original_identity == custody.replacement_identity
+            || custody
+                .replacement_identity
+                .as_ref()
+                .is_some_and(|value| !identity(value))
+            || (custody.replacement_identity.is_none()
+                && operation.phase != super::LifecyclePhase::Preparing)
+            || custody.replacement_identity.as_deref() == Some(custody.original_identity.as_str())
             || !digest(&custody.previous_sha256)
             || !digest(&custody.proposed_sha256)
             || custody.previous_sha256 != payload.canonical.previous_sha256
@@ -218,14 +225,23 @@ mod tests {
             relative_path: "shipofharkinian.json".into(),
             maximum_bytes: 1024,
             review: crate::GameSettingReview {
-                port_id: "shipwright".into(), install_id: "inert-settings-install".into(), file_id: "preferences".into(), setting_id: "master-volume".into(), label: "Master volume".into(), path: "shipofharkinian.json".into(),
-                change: crate::GameSettingChange::Reset, previous_value: Some(serde_json::json!(70)), proposed_value: serde_json::json!(40), configuration_sha256: "c".repeat(64), review_sha256: "e".repeat(64),
+                port_id: "shipwright".into(),
+                install_id: "inert-settings-install".into(),
+                file_id: "preferences".into(),
+                setting_id: "master-volume".into(),
+                label: "Master volume".into(),
+                path: "shipofharkinian.json".into(),
+                change: crate::GameSettingChange::Reset,
+                previous_value: Some(serde_json::json!(70)),
+                proposed_value: serde_json::json!(40),
+                configuration_sha256: "c".repeat(64),
+                review_sha256: "e".repeat(64),
             },
             canonical: FileCustody {
                 path,
                 parent_identity: format!("win128:{:016x}:{:032x}", 1, 11),
                 original_identity: format!("win128:{:016x}:{:032x}", 1, 22),
-                replacement_identity: format!("win128:{:016x}:{:032x}", 1, 33),
+                replacement_identity: Some(format!("win128:{:016x}:{:032x}", 1, 33)),
                 previous_sha256: "c".repeat(64),
                 proposed_sha256: "d".repeat(64),
             },
@@ -282,10 +298,10 @@ mod tests {
                 0 => payload.format_version = 2,
                 1 => payload.relative_path = "../outside.json".into(),
                 2 => payload.canonical.path = temporary.path().join("foreign.json"),
-                3 => payload
-                    .canonical
-                    .replacement_identity
-                    .clone_from(&payload.canonical.original_identity),
+                3 => {
+                    payload.canonical.replacement_identity =
+                        Some(payload.canonical.original_identity.clone())
+                }
                 4 => payload.definition_sha256 = "unknown".into(),
                 5 => changed.paths.quarantine = Some(temporary.path().join("foreign.old")),
                 _ => payload.install.port_id = "another-port".into(),

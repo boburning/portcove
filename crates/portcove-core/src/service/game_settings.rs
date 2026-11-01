@@ -7,6 +7,11 @@ use crate::{
     GameSettingsView,
 };
 
+#[cfg(all(test, windows))]
+mod tests;
+#[cfg(windows)]
+mod transaction;
+
 struct SettingsContext {
     install: InstallRecord,
     port: PortDefinition,
@@ -86,6 +91,10 @@ impl PortcoveService {
                 });
             }
         };
+        self.settings_view_already_locked(&context)
+    }
+
+    fn settings_view_already_locked(&self, context: &SettingsContext) -> Result<GameSettingsView> {
         let files = context
             .port
             .game_settings
@@ -93,7 +102,7 @@ impl PortcoveService {
             .expect("checked descriptor")
             .files
             .iter()
-            .map(|file| match self.read_settings_file(&context, file) {
+            .map(|file| match self.read_settings_file(context, file) {
                 Ok(values) => GameSettingsFileView {
                     id: file.id.clone(),
                     path: file.path.clone(),
@@ -123,8 +132,8 @@ impl PortcoveService {
             })
             .collect();
         Ok(GameSettingsView {
-            port_id: port_id.into(),
-            install_id: Some(context.install.id),
+            port_id: context.port.id.clone(),
+            install_id: Some(context.install.id.clone()),
             available: true,
             reason: None,
             files,
@@ -176,6 +185,54 @@ impl PortcoveService {
             ))
         }
     }
+
+    #[cfg(not(windows))]
+    pub fn apply_game_setting(
+        &self,
+        _port_id: &str,
+        _file_id: &str,
+        _setting_id: &str,
+        _change: GameSettingChange,
+        _review_sha256: &str,
+    ) -> Result<GameSettingsView> {
+        Err(PortcoveError::unsupported(
+            "game settings changes require Windows x86-64",
+        ))
+    }
+
+    #[cfg(not(windows))]
+    pub(super) fn recover_settings_change(
+        &self,
+        _store: &OperationStore,
+        _operation: &mut LifecycleOperation,
+    ) -> Result<()> {
+        Err(PortcoveError::unsupported(
+            "configuration custody requires recovery on its Windows host; retained files were not changed",
+        ))
+    }
+}
+
+#[cfg(windows)]
+#[derive(Serialize)]
+struct ReviewObjects<'a> {
+    canonical: (&'a str, &'a str),
+    runtime: Option<(&'a str, &'a str)>,
+}
+
+#[cfg(windows)]
+fn review_binding(
+    context: &SettingsContext,
+    file: &GameSettingsFile,
+    review: &GameSettingReview,
+    proposed_sha256: &str,
+    objects: ReviewObjects<'_>,
+) -> Result<String> {
+    let mut unsigned = review.clone();
+    unsigned.review_sha256.clear();
+    let binding = serde_json::json!({ "format_version": 1, "install": context.install,
+        "definition_sha256": context.definition_sha256, "file": file,
+        "review": unsigned, "proposed_sha256": proposed_sha256, "objects": objects });
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&binding)?)))
 }
 
 #[cfg(windows)]
@@ -217,11 +274,13 @@ impl PortcoveService {
         let setting = &file.settings[index];
         let mut canonical =
             HeldFile::open(&self.library.user_dir(&context.port.id).join(&file.path))?;
+        canonical.require_editable_security()?;
         let before = canonical.bytes(file.maximum_bytes)?;
         let runtime = if context.direct {
             None
         } else {
             let mut runtime = HeldFile::open(&context.runtime_root.join(&file.path))?;
+            runtime.require_editable_security()?;
             if runtime.bytes(file.maximum_bytes)? != before {
                 return Err(PortcoveError::conflict(
                     "runtime and canonical configuration differ; synchronize and review again",
@@ -239,17 +298,7 @@ impl PortcoveService {
             .remove(index)
             .expect("edited declared value");
         let configuration_sha256 = hex::encode(Sha256::digest(&before));
-        let binding = serde_json::json!({
-            "format_version": 1, "install": context.install,
-            "definition_sha256": context.definition_sha256, "file": file,
-            "setting_id": setting_id, "change": change,
-            "configuration_sha256": configuration_sha256,
-            "proposed_sha256": hex::encode(Sha256::digest(&bytes)),
-            "canonical_identity": canonical.identity, "canonical_parent_identity": canonical.parent_identity,
-            "runtime_identity": runtime.as_ref().map(|held| &held.identity),
-            "runtime_parent_identity": runtime.as_ref().map(|held| &held.parent_identity),
-        });
-        let review = GameSettingReview {
+        let mut review = GameSettingReview {
             port_id: context.port.id.clone(),
             install_id: context.install.id.clone(),
             file_id: file_id.into(),
@@ -260,8 +309,20 @@ impl PortcoveService {
             previous_value,
             proposed_value,
             configuration_sha256,
-            review_sha256: hex::encode(Sha256::digest(serde_json::to_vec(&binding)?)),
+            review_sha256: String::new(),
         };
+        review.review_sha256 = review_binding(
+            context,
+            file,
+            &review,
+            &hex::encode(Sha256::digest(&bytes)),
+            ReviewObjects {
+                canonical: (&canonical.identity, &canonical.parent_identity),
+                runtime: runtime
+                    .as_ref()
+                    .map(|held| (held.identity.as_str(), held.parent_identity.as_str())),
+            },
+        )?;
         Ok(PreparedSettingsChange {
             review,
             bytes,
