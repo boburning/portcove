@@ -252,6 +252,10 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();
         let store = OperationStore::new(library.clone());
+        #[cfg(windows)]
+        assert!(
+            matches!(library.root().components().next(), Some(std::path::Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::Disk(_)))
+        );
         let mut operation = record(&library);
         store.put(&mut operation).unwrap();
         let retained = store.get(&operation.id).unwrap().unwrap();
@@ -291,7 +295,7 @@ mod tests {
         let mut foreign = valid.clone();
         foreign.kind = LifecycleOperationKind::Activate;
         assert!(foreign.validate_family().is_err());
-        for mutation in 0..7 {
+        for mutation in 0..8 {
             let mut changed = valid.clone();
             let payload = changed.game_settings.as_mut().unwrap();
             match mutation {
@@ -304,7 +308,11 @@ mod tests {
                 }
                 4 => payload.definition_sha256 = "unknown".into(),
                 5 => changed.paths.quarantine = Some(temporary.path().join("foreign.old")),
-                _ => payload.install.port_id = "another-port".into(),
+                6 => payload.install.port_id = "another-port".into(),
+                _ => {
+                    payload.install.path = temporary.path().join("foreign-install");
+                    std::fs::create_dir_all(&payload.install.path).unwrap();
+                }
             }
             assert!(validate_journal(&library, &changed).is_err());
         }
