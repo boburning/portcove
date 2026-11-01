@@ -161,20 +161,42 @@ fn observed(fixture: &Fixture) -> Value {
 }
 
 fn replace_retention(fixture: &mut Fixture, catalog: Option<&Catalog>) {
-    let port = fixture
-        .service
-        .catalog
-        .port(&fixture.install.port_id)
-        .unwrap();
-    let qualification = match catalog {
-        Some(catalog) => InstallQualification::from_catalog(
-            catalog,
-            &fixture.install.port_id,
-            Platform::WindowsX86_64,
-        )
-        .unwrap(),
-        None => InstallQualification::from_port(port, Platform::WindowsX86_64).unwrap(),
+    let Some(catalog) = catalog else {
+        // Model an actual pre-retention manifest in this inert library using
+        // the same schema-4 downgrade as install's legacy-reader regression.
+        // Never ask modern publication to create an authority-free manifest.
+        let path = fixture.install.path.join(".portcove-manifest.json");
+        let mut value: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let object = value.as_object_mut().unwrap();
+        object.insert("schema_version".into(), 4.into());
+        object.remove("retained_contract");
+        object.remove("platform");
+        for file in object.get_mut("files").unwrap().as_array_mut().unwrap() {
+            file.as_object_mut().unwrap().remove("executable");
+        }
+        let bytes = serde_json::to_vec_pretty(&value).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        fixture.install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+        fixture
+            .service
+            .library
+            .update_install_manifest(&fixture.install)
+            .unwrap();
+        assert!(
+            Installer::new(fixture.service.library.clone())
+                .unwrap()
+                .retained_catalog(&fixture.install)
+                .unwrap()
+                .is_none()
+        );
+        return;
     };
+    let qualification = InstallQualification::from_catalog(
+        catalog,
+        &fixture.install.port_id,
+        Platform::WindowsX86_64,
+    )
+    .unwrap();
     let (manifest_sha256, selected_executable, runtime) =
         Installer::new(fixture.service.library.clone())
             .unwrap()
