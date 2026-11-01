@@ -477,7 +477,11 @@ function useWorkspace(props: WorkspaceProps) {
     data.refreshFailure,
     installPlanning.review,
   );
-  const backups = usePortBackups(model.port?.id);
+  const backupRefreshIdentity = useMemo(
+    () => [data.catalog, model.status, data.activityFeed],
+    [data.catalog, model.status, data.activityFeed],
+  );
+  const backups = usePortBackups(model.port?.id, undefined, backupRefreshIdentity);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
   const availablePortIds = useMemo(
@@ -1721,6 +1725,7 @@ function SelectedPortPanel({
       backups={backups.backups}
       backupProblems={backups.inventory.problems}
       backupState={backups.inventory.state}
+      backupProtection={backups.inventory.protection}
       backupCreateAssessment={backups.inventory.create_assessment}
       backupRestoreAssessment={backups.inventory.restore_assessment}
       backupReadState={backups.readState}

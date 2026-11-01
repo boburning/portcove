@@ -3506,6 +3506,7 @@ mod tests {
             backup_history(
                 "sample",
                 &BackupInventory {
+                    protection: None,
                     port_id: "sample".into(),
                     create_assessment: backup_fixture_assessment(),
                     restore_assessment: backup_restore_fixture_assessment(),
@@ -3520,6 +3521,7 @@ mod tests {
             backup_history(
                 "sample",
                 &BackupInventory {
+                    protection: None,
                     port_id: "sample".into(),
                     create_assessment: backup_fixture_assessment(),
                     restore_assessment: backup_restore_fixture_assessment(),
@@ -3541,6 +3543,7 @@ mod tests {
         let degraded = backup_list(
             "sample",
             &BackupInventory {
+                protection: None,
                 port_id: "sample".into(),
                 restore_assessment: backup_restore_fixture_assessment(),
                 create_assessment: portcove_core::PortActionAssessment {

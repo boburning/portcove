@@ -917,6 +917,24 @@ React UI ── Tauri IPC ───┤
 
 ## Backup service ownership
 
+The optional `BackupInventory.protection` block is a read-only Core projection,
+not a second coverage ledger or an authorization. It identifies each managed or
+registered external installation and keeps current catalog, verified retained
+and effective checked persistence declarations separate. Collection candidates
+are fixed entries and current pattern matches with metadata-only path states;
+their presence does not establish recursive readability, copied contents or save
+compatibility. Unknown retained contracts and partial registration reads remain
+explicit. External runtime data is not automatically adopted. Credential-policy
+notices and declared original-file inclusion retain their existing owners.
+
+The latest completed port-scoped backup is selected from existing manifest-backed
+history. It is not a claim that current data has been backed up, that the payload
+has just been integrity-checked, or that an older game can load newer saves.
+Desktop binds the snapshot to the selected port and active/previous/staged/external
+installation identities and distinguishes current, pending and failed reads.
+Existing assessments, reviewed restore consent, locks and execution remain
+authoritative; software rollback remains separate from player-data restoration.
+
 Restore review checks the existing unfinished-restore and backup-deletion guards
 before loading the selected snapshot or offering its consent review. Preparing
 restore records remain excluded by the execution guard. A restore-only recovery

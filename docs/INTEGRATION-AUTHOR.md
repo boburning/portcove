@@ -178,6 +178,17 @@ backup execution cap. The reference validates this contract on `backup.list`
 results, rejects it in older envelopes, and keeps private schemas 58/59 outside
 its accepted window. Source parity remains separate from installed updates.
 
+Backup inventory can additionally contain `protection`. Older responses may omit
+it; omission means unknown protection details, not an empty backup list. This
+optional descriptive output does not change the API version or any operation
+eligibility. Consume current/retained/effective declarations and metadata-only
+collection candidates separately from actual completed snapshots. Bind every
+installation identity and the selected library before presenting facts as current;
+retain stale/failed read states. `latest_completed_backup` is port-scoped history
+with a valid manifest, not a fresh payload-integrity check or proof of game-save
+compatibility. Current create/restore assessments and reviewed mutation protocols
+still govern actions.
+
 Runtime discovery is a trust boundary, not permission to execute the first file
 with a matching name. Ask the user to select or approve a verified compatible
 package, validate its documented identity/checksum before negotiation, and show
