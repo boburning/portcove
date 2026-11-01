@@ -3,13 +3,45 @@
   "listing": {
     "id": "wootbeer-btrecomp",
     "name": "BattleTanx (BTRecomp)",
-    "summary": "Upstream route: Upstream runtime package for BTRecomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream modernization release; complete campaign/multiplayer not verified here. Original BattleTanx is distinct from Global Assault. Separate game from Global Assault despite shared runtime; Windows/Linux package; no complete-game claim inferred. Upstream platforms: Windows/Linux N64Recomp/RT64 route. Exact OS minimums/CPU beyond selected player docs Unknown. Original data: N64 BattleTanx USA own ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared BattleTanx Recompiled Windows player for BattleTanx using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual btrecomp configuration/save root and component notices.",
     "original_game_title": "BattleTanx",
     "project_url": "https://github.com/wootbeer/btrecomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/wootbeer/btrecomp",
-    "issue_number": 2793
+    "issue_number": 2793,
+    "manual_setup": {
+      "help_url": "https://github.com/wootbeer/btrecomp/blob/5b06c1bb496c021acd64d5dabd053d9ec5471d8c/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact game upstream",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own BattleTanx ROM: USA .z64 SHA1 535860D941738AC1210C20A9B80114FEA0E0FF17. These SHA1 values identify the documented representation, not ownership or a signature. Upstream also accepts supported byte-order variants; do not apply a .z64 hash to differently ordered bytes. Finish the upstream Load ROM flow before attachment and preserve the independent original. No ROM, BIOS, helper or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Keep the matching Windows package",
+          "instruction": "The inspected official Windows ZIP contains the AMD64 BattleTanxRecompiled.exe native player. Keep its complete extracted directory, assets, renderer/runtime libraries and notices together. The player runs the recompiled game through its linked runtime within the selected process; do not select a ROM, build tool, AppImage or another title’s executable. Source and PE observations do not establish Windows gameplay or dependency resolution."
+        },
+        {
+          "title": "Attach the prepared native player",
+          "instruction": "Select BattleTanxRecompiled.exe, set its complete extracted package directory as working directory and leave arguments empty. Review that exact intent and request Play separately. Use the upstream player UI to choose/start the already prepared game. Complete missing-ROM setup outside the attached attempt before retrying. Quit the actual game normally; forced termination is not a save-flush or recovery guarantee."
+        },
+        {
+          "title": "Preserve the actual data root",
+          "instruction": "The selected source sets program_id to btrecomp; its pinned Frontend normally uses %LOCALAPPDATA%/btrecomp on Windows. An existing portable.txt in the working directory instead selects that directory. Keep the complete active root, imported ROM, saves, settings, input profiles and mods, plus any existing external paths. This guide creates no marker, moves no files and does not infer compatibility from another game. Keep the existing Controller Pak files and controller configuration. Global Assault is a separate game and package; multiplayer and real save compatibility remain unobserved."
+        },
+        {
+          "title": "Retain the exact component terms",
+          "instruction": "Preserve the project GPLv3 notice, title-specific authored patches, N64ModernRuntime, RT64 and all dependency notices. This source pins the unchanged official RecompFrontend base b1a1477c6556aeb7ed45defbfb5924f721efebc1 covered by the existing official license follow-up; that correspondence does not license unrelated forks or original game code/assets. The selected source uses Exo 2, Noto Emoji and promptfont with separate SIL Open Font License notices. Keep those notices and use only components you are independently permitted to use."
+        },
+        {
+          "title": "Maintain the external copy explicitly",
+          "instruction": "Quit the game before upstream replacement, ROM changes, mods or data operations. Preserve independent recovery copies and review/relink changed executable bytes. Keep the existing Controller Pak files and controller configuration. Global Assault is a separate game and package; multiplayer and real save compatibility remain unobserved. Upstream playability and platform reports remain upstream claims; no installed-app, campaign, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed installation, updates, rollback, backup and removal remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Use the exact supported BattleTanx ROM and retain its actual data root; this guide does not qualify other titles, save compatibility or native gameplay."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

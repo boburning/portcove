@@ -3,13 +3,45 @@
   "listing": {
     "id": "forza-motorsport-3-ultimate-collection-usa-xbox-360-forza-motorsport-3-native-recompilation",
     "name": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360) (Forza Motorsport 3 Native Recompilation)",
-    "summary": "Upstream route: Windows package; own original game data Limits: Work in progress: menus/Free Play/races work upstream; full Career and multiplayer need testing, XboxLive unavailable. Upstream platforms: Windows10/11 x86-64 package and source-build route, D3D12; no other documented player platform. Original data: Own Ultimate Collection USA discs 1 and 2; Title ID 4D53084D, Media ID 6F74359D, default.xex version 0.0.0.8; upstream exact image MD5s are identity hints, not security authentication. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Forza Motorsport3 Ultimate Collection USA Windows installation. Upstream’s native player reads its saved launcher profile and data paths; preserve the actual XUID-separated saves, content and retained deleted profiles.",
     "original_game_title": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360)",
     "project_url": "https://github.com/0herculabs/hl360-forza3",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/0herculabs/hl360-forza3",
-    "issue_number": 2675
+    "issue_number": 2675,
+    "manual_setup": {
+      "help_url": "https://github.com/0herculabs/hl360-forza3/blob/861213069ae88042b573db099d9a5b42dcc78dd6/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact Ultimate Collection edition upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.1.3 route accepts Forza Motorsport3 Ultimate Collection USA, TitleID4D53084D, MediaID6F74359D and default.xex version0.0.0.8. Upstream’s identifying disc MD5 values are A527154D55C7B39849EC68CD46F17281 (play disc) and E65FF1CDC189F3EB9B1D0F14F97BAEA4 (content disc); each documented image is7,838,695,424bytes. MD5 is an identification hint, not an authenticity guarantee. Complete the upstream original-disc install and its game_files.sha256 verification outside Portcove, selecting the intended profile and actual game/user paths. No original, installer, mod, compiler, helper or game is obtained or run here."
+        },
+        {
+          "title": "Keep the complete native Windows player package",
+          "instruction": "The inspected FM3.zip contains FM3/fm3.exe, fm3-launcher.exe, fm3tool.exe, matching runtime/GPU DLLs, configuration and component notices. The game and launcher are AMD64; fm3tool is a preparation tool, not this play route. Keep the whole extracted FM3 directory and completed upstream installation. Do not select a DLL, original default.xex, tool or launcher shortcut instead of the normal native game. Static package inspection does not establish native runtime/driver or gameplay acceptance."
+        },
+        {
+          "title": "Select the saved-profile ordinary game",
+          "instruction": "After upstream setup and profile selection, select fm3.exe, use its complete extracted FM3 directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The game reads fm3.toml and then fm3.user.toml, including the chosen game/user-data paths and offline profile; it runs within that native player process. Finish installation, profile creation or missing-data repair outside an attached attempt before retrying. This guide does not sign into an online account or create credentials."
+        },
+        {
+          "title": "Preserve all data, profiles and content roots",
+          "instruction": "Keep fm3.toml, fm3.user.toml, launcher.toml, game_files.sha256, logs and the complete actual game_data_root and user_data_root chosen upstream. Local profiles have separate offline XUID save trees under the selected user root; keep every profile, content package and user/deleted-profiles retention directory, not just the currently selected profile. Preserve original play/content discs and any already configured external roots. A missing user-path setting leaves the runtime’s existing default; this guide does not invent or change it. No migration, save import, backup or deletion is performed here."
+        },
+        {
+          "title": "Complete content and path changes upstream",
+          "instruction": "Disc2/content installation and optional Project Forza Plus3 replace content under upstream’s ownership and have their own retention/restore behavior; they are not Portcove rollback guarantees. Upstream enforces short user-data paths and advises retaining the old copy until relocated game/saves are checked. Complete those operations, profile changes, repair and runtime replacement outside attachment, close all actual players/helpers, keep independent recovery copies and review/relink changed bytes. Do not infer save compatibility across editions, profiles, mods or runtimes."
+        },
+        {
+          "title": "Retain rights and qualification limits",
+          "instruction": "Preserve all upstream/component notices and independently applicable permission for the complete copy. SDK/library grants do not provide Microsoft/Turn10 original-game or third-party mod rights. Upstream play/save/profile statements remain upstream claims; no Portcove gameplay, save/reload, native-installed or Supported acceptance is asserted. Quit normally; forced termination is not a save-flush guarantee. Removing registration preserves every external file; managed install/update/rollback/backup/removal are unavailable."
+        }
+      ],
+      "warnings": [
+        "Use the exact Ultimate Collection USA build and preserve every selected game/user/XUID/content root, including retained deleted profiles and old copies during upstream relocation."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

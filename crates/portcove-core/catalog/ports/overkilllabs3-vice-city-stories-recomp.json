@@ -3,7 +3,7 @@
   "listing": {
     "id": "overkilllabs3-vice-city-stories-recomp",
     "name": "Grand Theft Auto: Vice City Stories (Vice City Stories Recomp)",
-    "summary": "Upstream route: Upstream runtime package for Vice City Stories Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream playable-release/60FPS claim. Full campaign/platform qualification not performed; differs from PS2 VCS and reVC ViceCity. Windows/macOS official assets; static PSP pipeline distinct PS2 or ViceCity original/reVC. Upstream playable60FPS claim, not user testing. Upstream platforms: Windows/macOS runtime packages, native PSP CPU translation. Exact Mac CPU architecture beyond selected package guide Unknown. Original data: PSP GTAViceCityStories own supported game executable/assets. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared VCSNative Windows player using your own supported PSP Vice City Stories data. Select the native player with the existing PSP_DATA layout; preserve its configuration, saves and optional-content boundaries.",
     "original_game_title": "Grand Theft Auto: Vice City Stories",
     "project_url": "https://github.com/OverkillLabs3/vice-city-stories-recomp",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "grand-theft-auto-vice-city-stories",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2858
+    "issue_number": 2858,
+    "manual_setup": {
+      "help_url": "https://github.com/OverkillLabs3/vice-city-stories-recomp/blob/2fd8072f3eda07947aa0fee94081db059d649e0e/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact PSP title",
+          "instruction": "Use a complete copy and components you are independently permitted to use. Finish upstream preparation outside Portcove, keep independent originals and recovery copies. No original, helper, compiler or game is obtained or executed by this guide. Use your own Grand Theft Auto: Vice City Stories PSP ULUS-10160 input targeted by the selected profile. Complete upstream preparation of a decrypted game executable and full PSP_GAME/USRDIR; keep independent original media. This is not GTA Vice City/reVC, the PS2 edition or another PSP title. No decryption, firmware, key or credential operation is authorized by this guide."
+        },
+        {
+          "title": "Keep the complete Windows player",
+          "instruction": "The inspected official Windows ZIP contains AMD64 VCSNative/VCSNative.exe, VCSLauncher.exe and matching runtime libraries. Keep the complete VCSNative directory. The native program uses the generated Allegrex profile, linked PSP services and Vulkan graphics; native CPU output does not remove those system/graphics compatibility layers. Do not select a PSP executable, build helper, macOS application or settings launcher as the attached game."
+        },
+        {
+          "title": "Attach the supported package-local layout",
+          "instruction": "After upstream preparation, keep PSP_DATA beside VCSNative.exe with PSP_GAME/SYSDIR/EBOOT_DECRYPTED.ELF and complete PSP_GAME/USRDIR. Select VCSNative.exe, use the full VCSNative directory as working directory and leave arguments empty. Review the exact intent and request Play separately. Source discovers that package-local layout and runs the game on its native worker while the main thread services events until the worker finishes. A launcher-only remembered external path is not silently substituted for this direct route."
+        },
+        {
+          "title": "Preserve all data roots and originals",
+          "instruction": "Keep VCSNative.ini, ProperShaders.ini, the full active save/profile/memory-stick data, textures, logs and PSP_DATA, plus any established external paths. Preserve complete package and separately configured save roots before replacement; the macOS Application Support path is not a Windows save-path claim. This guide does not migrate PSP saves or verify mission/save compatibility. Keep independent original data and do not treat a linked working tree as its backup."
+        },
+        {
+          "title": "Keep optional packs and component grants separate",
+          "instruction": "Retain the PSPRecomp MIT notice and each profile/component notice, including separately credited graphics/mod components. Those do not license original game code/assets or third-party textures. The optional VCSTexturePack is a separate download and is not part of this guide; keep only existing components you are independently permitted to use. No pack is fetched, generated or executed here."
+        },
+        {
+          "title": "Maintain upstream explicitly",
+          "instruction": "Quit the actual game normally before upstream replacement or data operations; forced termination is not a save-flush guarantee. Review/relink changed executable bytes. Source, package and upstream playability reports do not establish native gameplay, complete-game, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable. Upstream reports playable 60 FPS but less testing of missions/saves than opening areas. Windows Vulkan and macOS platform claims remain distinct; no full campaign or physical-client qualification is asserted."
+        }
+      ],
+      "warnings": [
+        "Keep the exact PSP ULUS-10160 data and complete save/configuration roots. Optional textures, other editions and upstream playability claims have separate scope."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

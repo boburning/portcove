@@ -3,13 +3,45 @@
   "listing": {
     "id": "bc160201983-uncharted-1",
     "name": "Uncharted: Drakes Fortune — PS4 remaster (bc160201983 Uncharted PC port)",
-    "summary": "Upstream route: Upstream runtime package for Uncharted: The Nathan Drake Collection - PC port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Collectionacquisition is shared, while this recordtargets only Uncharted: Drakes Fortune. Limits: Upstream only: Upstream says the three collection games run. Per-game complete campaigns remain Unknown here; CPU execution is direct through a compatibility layer. x86-64 executes directly with PS4 library/Vulkan layer. Separate implementation from Supermedo row73; three independently catalogable games may need expansion, not title-only dedup. Upstream platforms: Windows PS4/Vulkan layer for CUSA02344 collection; direct x86-64 execution documented. Other OS routes not established. Original data: Own decrypted PS4 NathanDrakeCollection CUSA02344 dump containing Uncharted: Drakes Fortune. Exact patch/revision and firmware-module requirements not stated in the reviewed primary summary remain Unknown. Separate game identity shares collection acquisition and implementation, without inherited gameplay qualification. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Fortune. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
     "original_game_title": "Uncharted: Drakes Fortune",
     "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
-    "issue_number": 2773
+    "issue_number": 2773,
+    "manual_setup": {
+      "help_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port/blob/6b2f6c5442f58b1dd895b1c46447f175e3f20e01/README.md",
+      "steps": [
+        {
+          "title": "Prepare this PS4 collection upstream first",
+          "instruction": "Use a complete copy and components you are independently permitted to use. This record targets Uncharted: Drake’s Fortune within your own decrypted PS4 Nathan Drake Collection CUSA02344 folder, containing eboot.bin and sce_sys (often the uroot folder). The reviewed 0.8.0 instructions recommend your own matching1.02 update; without it most port crash fixes are skipped. Follow upstream setup outside Portcove, choose the collection folder/update and save this game’s settings. PS3 original releases are different inputs. No exact full-game digest or other regional edition is qualified here."
+        },
+        {
+          "title": "Keep the complete matching package",
+          "instruction": "Keep Uncharted Launcher.exe with the complete python, launcher, tools, gow3_pc and other package directories from the same prepared Uncharted-windows package. The native starter invokes its bundled python/pythonw.exe and launcher script; it is not a standalone game. Do not select Python, the internal runtime probe, a DLL or an original PS4 game executable for this attachment. This guide obtains or executes no setup tool, original or game."
+        },
+        {
+          "title": "Select the Drake’s Fortune play intent",
+          "instruction": "Select Uncharted Launcher.exe, use its complete extracted package directory as working directory, and set the two arguments --play u1. Review the exact selected intent, then request Play separately. The pinned launcher maps u1 specifically to eboot.bin; the native starter waits for the launcher, and direct play keeps it until its game/probe job completes. Finish any missing setup outside the attached attempt. Collection switching is an upstream feature, not independent qualification of the other titles."
+        },
+        {
+          "title": "Preserve collection and per-game data",
+          "instruction": "Keep the whole package analysis directory, particularly analysis/uncharted-user with savedata, trophy, caches, probe.ini and probe-u1.ini, plus %APPDATA%/Uncharted Launcher/launcher.json. The selected source supports per-game save profiles and separate instance roots; retain every already established custom/instance root and original base/update folder. Do not assume that changing copies, region, profile or runtime migrates or preserves compatible saves automatically. No import, save migration, backup or external-file deletion is performed here."
+        },
+        {
+          "title": "Complete updates and shutdown outside attachment",
+          "instruction": "Upstream owns preparation and its release updater, which replaces program files and restarts the launcher. Close the actual game and all helpers, retain independent recovery copies and complete maintenance outside an attached session, then review/relink changed executable bytes. Quit the game normally before closing its launcher: the GUI explicitly allows closing while the game continues. Its Stop path uses forced process-tree termination; that is not a save-flush or quiescence guarantee. Portcove does not adopt updater successors."
+        },
+        {
+          "title": "Retain title and component boundaries",
+          "instruction": "This is the existing BilalReloaded/bc160201983 collection implementation, derived from gow3_pc/shadPS4, with documented port-specific maintenance; it is not merged with the separate Supermedo implementation by title alone. Preserve LICENSE.txt and all licenses/ component notices, including NVIDIA terms. Runtime grants do not grant original-game rights. Upstream per-title play/performance reports and incomplete test coverage remain upstream claims; no Portcove gameplay, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves all external files; managed install/update/rollback/backup/removal are unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the complete independently permitted collection installation and every player-data root; upstream maintenance can restart the launcher and must finish outside attachment."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

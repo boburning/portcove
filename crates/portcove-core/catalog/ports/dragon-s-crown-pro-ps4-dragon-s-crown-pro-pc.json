@@ -3,7 +3,7 @@
   "listing": {
     "id": "dragon-s-crown-pro-ps4-dragon-s-crown-pro-pc",
     "name": "Dragon's Crown Pro (PS4) (Dragon's Crown Pro PC)",
-    "summary": "Research listing. Upstream route: Windows ZIP and experimental Linux AppImage with own PKG import Limits: Native x86-64 compatibility-layer execution rather than decompilation/recompiler; Linux experimental. Upstream platforms: Windows x86-64 package is primary route; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+/Vulkan1.3. Direct PS4 x86-64 execution with replacement services. Original data: Supply your own decrypted Dragon's Crown Pro PS4 PKG: US CUSA10454 base 1.00 or base plus 1.01 update; Japan CUSA07001 base 1.00 or base plus 1.02/1.03; Asia/Hong Kong CUSA10209 base 1.00 or base plus 1.02. Updates require their matching base. Launcher validates title/content IDs, package versions and the documented per-build eboot.bin SHA-256 before installation; encrypted console packages and other code versions are refused. Preserve each build's separate testing limitations. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Dragon’s Crown Pro Windows installation in its same-process mode. This title-specific PS4 x86-64 compatibility layer owns upstream PKG preparation; overlay handoff, online services and updates retain separate boundaries.",
     "original_game_title": "Dragon's Crown Pro (PS4)",
     "project_url": "https://github.com/saulob/dragons-crown-pro-pc",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "dragons-crown-pro",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2880
+    "issue_number": 2880,
+    "manual_setup": {
+      "help_url": "https://github.com/saulob/dragons-crown-pro-pc/blob/1ec294a8cdcf84f29954f15e90dd7782290994ef/docs/LAUNCHER.md",
+      "steps": [
+        {
+          "title": "Prepare an exact permitted PS4 build upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.9.1 source supports your own decrypted Dragon’s Crown Pro PS4 package: USA CUSA10454 base1.00 or base plus1.01; Japan CUSA07001 base1.00 or base plus1.02/1.03; Asia/HongKong CUSA10209 base1.00 or base plus1.02. Updates require the matching base. Follow the pinned upstream title/content/version and per-build eboot.bin SHA256 table, not a title-only match; encrypted console packages and other code versions are refused. Finish upstream import/preparation outside Portcove, retaining originals and each build’s separate testing limits. No PKG, key, helper or game is obtained or run here."
+        },
+        {
+          "title": "Keep the complete title-specific Windows runtime",
+          "instruction": "The inspected DragonsCrownProPC-v0.9.1-windows-x64.zip contains AMD64 dragons_crown_pro.exe, trg-updater.exe and matching DLLs/resources/licenses. Keep the whole extracted directory with its completed game/image data. The game’s own x86-64 code executes through title-specific replacement PS4 services and Vulkan translation; this is a compatibility-layer native-player route, not a decompilation/static-recompilation claim or new generic-emulator support. Do not select the updater, internal boot image, a DLL or original eboot.bin."
+        },
+        {
+          "title": "Select the same-process prepared play mode",
+          "instruction": "In upstream settings first turn Allow overlay programs Off and complete preparation. Select dragons_crown_pro.exe, use its complete extracted package directory as working directory and set the single public argument --dcp-skip-launcher. Review the exact selected intent, then request Play separately. With the documented overlay setting Off, the source continues from its checks into the game in that process. Allow overlay programs On instead creates a successor and exits, even for direct play; that handoff is outside this tracked route. Registration does not enforce the mutable setting, so confirm it remains Off before use. No observed native lifecycle pass is claimed."
+        },
+        {
+          "title": "Preserve all builds and the actual user tree",
+          "instruction": "Keep the complete game/prepared/<build> and game/image/<build> trees, original PKGs, user/dcp.ini, user/savedata, trophy data, caches and numbered logs. Retain user/keys.json if you previously configured a Trophy Key; this guide neither reads nor obtains it. Existing explicit app0/image, --user, --logs or --log selections can point elsewhere; preserve every effective root without creating overrides here. Selecting another build does not prove save compatibility or migrate data. No import, backup, rollback, credential or deletion operation is performed by this attachment."
+        },
+        {
+          "title": "Complete online, overlay and update work upstream",
+          "instruction": "Keep online account/Friend Code, service/usage-data choices and overlay/injection tools under explicit upstream/user control; this guide does not create an account, request credentials or qualify network play. Complete updater/helper, install/reinstall, build switching, overlay handoff and runtime replacement outside an attached session. Close actual players/helpers/successors, preserve independent recovery copies and review/relink changed bytes. Upstream’s reinstall/recovery behavior is not a Portcove rollback promise. Quit normally; forced termination is not a save-flush or successor-quiescence guarantee."
+        },
+        {
+          "title": "Retain component and acceptance limits",
+          "instruction": "Preserve GPL2-or-later for original project code, TRG Launcher MIT and all component/NVIDIA/font notices; these do not grant original-game or console/package rights. Non-USA builds retain their documented untested-in-game feature limits; Linux/AppImage/SteamDeck and upstream online results do not establish this Windows route’s acceptance. No Portcove gameplay, online, save/reload, installed-app or Supported promotion is asserted. Removing registration preserves every external file; managed install/update/rollback/backup/removal are unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep Allow overlay programs Off for the same-process route; enabling it starts a successor outside the tracked player. Preserve all prepared builds, saves and existing key files."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

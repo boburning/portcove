@@ -3,7 +3,7 @@
   "listing": {
     "id": "iirg4x-mp6-native-port",
     "name": "Mario Party 6 (Starlit Party)",
-    "summary": "Upstream route: Upstream runtime package for Starlit Party; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports boards/modes/ending but only49of81minigames playable. Boards skip unsupported games with a notice; incompleteness remains visible. Only49/81 minigames playable; unsupported boards minigames skipped with notice. Windows/Android/browser assets; browser iPhone route not iOS runtime binary. Upstream platforms: Windows, Android ARM64 and browser/iPhone WebGPU. Web ZIP is not a native iOS binary; other desktop hosts Unknown. Original data: GameCube MarioParty6 USA own disc/extracted files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Starlit Party Windows player for your own Mario Party 6 USA disc. Preserve its actual working-directory saves and content root; limited minigame coverage and title-specific launcher/font permission scope remain explicit.",
     "original_game_title": "Mario Party 6",
     "project_url": "https://github.com/iirg4x/mp6-native-port",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "mario-party-6",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2843
+    "issue_number": 2843,
+    "manual_setup": {
+      "help_url": "https://github.com/iirg4x/mp6-native-port/blob/99e4630d142142c5d745007481fd2b9d1562fb7e/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own USA disc upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. Finish upstream preparation outside Portcove, keep independent originals and recovery copies. No original, helper, compiler or game is obtained or executed by this guide. Use your own Mario Party 6 USA GameCube disc image or matching extracted disc tree. Complete the supported upstream content import and configuration first, retaining the independent original and any selected external content root. Another region or Mario Party game is not admitted by the shared engine. The Windows native player, Android APK and browser/iPhone experience are different artifacts, not a shared native-platform qualification."
+        },
+        {
+          "title": "Keep the complete Windows package",
+          "instruction": "The inspected official 0.5.0 Windows ZIP contains AMD64 mp6native.exe, renderer libraries, res/ and notices. Keep the complete extracted package. The selected native entry launches the UI and calls GameMain within the same process; do not select a GameCube executable, disc image, browser bundle, Android package or build script. Package presence and source review do not establish complete imports, dependencies or Windows gameplay."
+        },
+        {
+          "title": "Attach the prepared player",
+          "instruction": "Select mp6native.exe, use its complete extracted package folder as working directory and leave arguments empty. Review the exact intent and request Play separately, then use the upstream player UI with its already prepared content. Working directory matters: Windows saves are deliberately relative to it. Complete any missing import/preparation outside the attached attempt. Quit the actual game normally; forced termination is not a save-flush guarantee."
+        },
+        {
+          "title": "Preserve actual saves and content configuration",
+          "instruction": "Keep mp6_config.json beside the executable, the saves/ directory relative to the established working directory, memory-card GCIs, states, logs, renderer caches and the selected external content tree. Preserve old working-directory save roots if they differ from the package directory; do not change CWD without reviewing that effect. Upstream states require the same linked build, while GCIs are durable game saves; neither establishes observed restore compatibility. This guide performs no move, migration, backup or deletion."
+        },
+        {
+          "title": "Retain title-specific permission and font evidence",
+          "instruction": "Keep docs/PARTYBOARD_PROVENANCE.md, all author credits, res/fonts/LICENSES.txt and runtime/component notices. The selected upstream publicly records its maintainer’s 2026-09-12 confirmation of permission to redistribute the adapted Partyboard launcher and N64 Party font with this MP6 release. It explicitly does not claim a public general license for those foreign materials; this guide does not reuse that confirmation for another project or artifact. Other fonts have separate OFL/Apache terms. Original game code/assets still require a copy you are independently permitted to use."
+        },
+        {
+          "title": "Maintain the external copy and limited scope",
+          "instruction": "Quit the actual game normally before upstream replacement or data operations; forced termination is not a save-flush guarantee. Review/relink changed executable bytes. Source, package and upstream playability reports do not establish native gameplay, complete-game, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable. The canonical scope records only 49 of 81 minigames playable and unsupported board minigames skipped with notice. Keep these as upstream coverage limits; a prepared player is not whole-campaign, board, microphone or every-platform acceptance."
+        }
+      ],
+      "warnings": [
+        "Preserve working-directory saves and exact USA content. Partial minigame coverage and this release’s limited launcher/font permission record do not grant broader support or reuse rights."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

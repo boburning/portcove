@@ -3,13 +3,45 @@
   "listing": {
     "id": "ajncsystem-shadowofthecolossus-pc",
     "name": "Shadow of the Colossus — 2018 PS4 remake (ShadowOfTheColossus-PC)",
-    "summary": "Upstream route: Upstream runtime package for ShadowOfTheColossus-PC; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims ending/credits. AMD fix not confirmed on physical hardware; no Portcove playthrough or inherited fork qualification. Primary parent for row37 optimized fork. Upstream start-to-end claim; AMD fixes not physically tested. Compare existing PS4 runtime ownership, not PS2/PS3 editions. Upstream platforms: Windows10/11 PS4 layer, EU CUSA08809v1.01. US support belongs to Oussama fork; own console audio modules required. Original data: Own PS4 ShadowOfColossus Bluepoint2018 EU CUSA08809v1.01 game dump with eboot.bin,sce_module,sce_sys. Sound requires owner-dumped decrypted libSceNgs2.sprx and libSceUlt.sprx; silent without them. Modules are Sony firmware, excluded from package. US support belongs to Oussama fork extension, not established for parent. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Shadow of the Colossus PS4-remake Windows installation using its saved-settings play route. Upstream owns setup, runtime replacement and player data; original PS2/PS3 editions do not fit.",
     "original_game_title": "Shadow of the Colossus",
     "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
-    "issue_number": 2840
+    "issue_number": 2840,
+    "manual_setup": {
+      "help_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/5e9744bdfbe99e6699be45cb0615112b0f44a693/README.md",
+      "steps": [
+        {
+          "title": "Prepare the PS4 remake with upstream first",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.70 Windows route is the Bluepoint2018 PS4 remake: CUSA08809 EU1.01 or CUSA08034 US1.00, with your own decrypted game folder containing eboot.bin, sce_module and sce_sys. PS2/PS3 releases are different inputs. Sound additionally needs your own console-dumped decrypted libSceNgs2.sprx and libSceUlt.sprx; those Sony modules are not supplied by this guide or covered by the runtime license. Follow upstream setup outside Portcove, select the correct game/modules and save settings before attachment."
+        },
+        {
+          "title": "Keep the complete Windows package together",
+          "instruction": "The inspected0.70 SotC-PC.zip contains SotC-PC/SotC.exe, bin/bb-probe.exe, companion DLLs, _internal, scripts and launcher resources. Keep the entire extracted SotC-PC directory together in a writable location. SotC.exe is the frozen native frontend; selecting an internal probe, Python executable, DLL or original eboot.bin bypasses its saved setup. This registration does not download, extract or run setup."
+        },
+        {
+          "title": "Select saved-settings play explicitly",
+          "instruction": "Select the prepared package’s SotC.exe, set its complete SotC-PC directory as working directory, and use the single argument --play. Review the exact selected intent, then request Play separately. With a valid saved game folder, this route waits for its --run child, which in turn waits for bin/bb-probe.exe. If setup is missing it opens the GUI instead: finish setup and close that attempt before retrying. No native run or child-cleanup observation is claimed by source inspection."
+        },
+        {
+          "title": "Preserve all actual data locations",
+          "instruction": "The current package keeps launcher_settings.json in its user directory; the ordinary save/cache/log root is also user beside SotC.exe unless the saved user_dir or existing SOTC_USER_DIR selects another location. Keep the complete effective tree, sotc.ini, any legacy %APPDATA%/sotc-launcher/settings.json, original game/update/DLC folders and your console modules. The source can discover neighbouring -UPDATE/-patch folders and established source/data overrides. This guide sets no new override, moves no saves and promises no cross-copy or cross-version compatibility."
+        },
+        {
+          "title": "Leave maintenance and shutdown with their owners",
+          "instruction": "Complete upstream updates, setup changes and repair outside an attached game session; the GUI updater can start an applier/successor. Close the actual game and all helpers before replacing files, retain independent recovery copies, then review/relink changed executable bytes. Let ordinary play end through the game before closing the tracked player. Forced termination is not proof of save flush or child quiescence. Portcove does not adopt updater successors or own runtime replacement."
+        },
+        {
+          "title": "Keep the runtime and original-game limits visible",
+          "instruction": "Preserve the project GPL notice and all component/NVIDIA notices; runtime licensing grants no rights to the original game or console firmware. Upstream performance, ending and GPU reports are attributable upstream claims. Maximum-texture crashes, some AMD GCN graphics problems and experimental frame generation/60FPS limitations remain in the selected upstream instructions. No Portcove gameplay, save/reload, installed-app or Supported acceptance is claimed. Removing registration preserves every external file; managed installation, update, rollback, backup and deletion are not offered."
+        }
+      ],
+      "warnings": [
+        "Use only the independently permitted PS4-remake installation and console modules; retain all external player data and complete maintenance upstream."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

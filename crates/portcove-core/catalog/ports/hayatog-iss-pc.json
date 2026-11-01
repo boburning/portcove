@@ -3,13 +3,45 @@
   "listing": {
     "id": "hayatog-iss-pc",
     "name": "inFAMOUS Second Son (iss_pc)",
-    "summary": "Upstream route: Upstream runtime package for iss_pc; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports early chapters, 20-30 FPS typical on RTX2060 and graphics glitches. Complete campaign and broad GPU coverage unproven. Upstream early chapters, 20-30FPS RTX2060, known graphics errors; AMD RX580 experimental crashes and F16C adaptation. Linux/Windows packages not full campaign proof. Upstream platforms: Windows/Linux x86-64 PS4/Vulkan runtime. RX580 compatibility experimental; older CPU F16C workarounds documented. Original data: PS4 inFAMOUS Second Son CUSA00223 base1.00+update1.07 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared inFAMOUS Second Son Windows installation through its waiting saved-settings play route. Upstream owns game preparation and runtime replacement; keep the actual configurable save root and separate launcher preferences.",
     "original_game_title": "inFAMOUS Second Son",
     "project_url": "https://github.com/HayatoG/iss_pc",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/HayatoG/iss_pc",
-    "issue_number": 2788
+    "issue_number": 2788,
+    "manual_setup": {
+      "help_url": "https://github.com/HayatoG/iss_pc/blob/372273780e2239b2e654229a3566d8f6bc642dcf/README.md",
+      "steps": [
+        {
+          "title": "Prepare this exact PS4 game upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed beta-rc1 route needs your own decrypted inFAMOUS Second Son PS4 folder for CUSA00223 base 1.00 with update 1.07, with the update’s eboot.bin, sce_module/libc.prx and libSceFios2.prx, sce_sys and all matching game data. Follow the selected upstream setup outside Portcove, choose the intended copy and save settings; no other region/revision or exact full-input digest is qualified here. The game uses its own AudioOut/Ajm implementation; this source explicitly requires no console firmware module for sound. Do not import The Last Guardian’s Ngs2 requirement. No original, firmware, helper, script or game is obtained or executed by this registration."
+        },
+        {
+          "title": "Keep the complete matching Windows package",
+          "instruction": "The inspected selected Windows ZIP contains infamous-windows-x86_64/inFAMOUS Second Son.exe, a separate classic frontend, Play shortcut, out/tlg-probe.exe and the matching frozen-runtime, scripts, DLLs and resources. Keep the complete extracted package in a writable location. Select the current ordinary frontend, not its classic sibling, Play wrapper, internal probe/GPU helper, Python, a DLL or the original PS4 eboot.bin. Static AMD64 headers do not establish GPU/driver or dynamic dependency acceptance."
+        },
+        {
+          "title": "Select the waiting direct-play intent",
+          "instruction": "After upstream first setup and preparation are complete, select inFAMOUS Second Son.exe, use its full extracted infamous-windows-x86_64 directory as working directory, and use the single argument --play. Review the exact selected intent, then request Play separately. The pinned frontend dispatches --play to its runner with no finite gameplay timeout; that runner waits/polls for the game child’s exit. The ordinary GUI has separate close-on-play/reopen behavior, so do not substitute that mode as the same process-lifetime evidence. Finish any new preparation outside attachment; no child cleanup or gameplay has been observed here."
+        },
+        {
+          "title": "Preserve the actual save root and both preference files",
+          "instruction": "Keep the whole active user-data tree, including savedata with this title’s infamousss slots, tlg.ini, backups, caches, mods/DLC configuration and logs, plus the original game/module directories. Its source priority is an established ISS_USER_DIR (legacy TLG_USER_DIR also works), then user_dir in %APPDATA%/inFAMOUS-PC/launcher.json, then user beside the package. Also retain %APPDATA%/infamous-launcher/settings.json: it is a different launcher-preference file, not the data-root pointer. GPU/cache/mod overrides or separately configured backup destinations can add roots; preserve all effective locations. Do not set a new override, move a folder or infer compatibility with another Hayato title here."
+        },
+        {
+          "title": "Complete upstream maintenance and detached paths separately",
+          "instruction": "Upstream owns save-management/backup behavior, shader preparation, updates and recovery. These are not Portcove backup/import/rollback guarantees. Complete setup, updater applier/recovery, close-on-play/reopen and runtime replacement outside an attached session; close all actual players, helpers and successors before changing files, keep independent copies, then review/relink changed bytes. The runner’s normal wait does not make forced parent termination a child-quiescence or save-flush guarantee; the GUI and some runner paths create independent children. Quit the actual game normally."
+        },
+        {
+          "title": "Retain title-specific acceptance and rights limits",
+          "instruction": "Preserve the project GPL 2-or-later and all component/NVIDIA/font notices; these do not grant original-game or console-firmware rights. Early chapters, unstable performance and graphics/experimental-fix limitations remain; no complete campaign or broad CPU/GPU qualification is claimed. Upstream audio, save, graphics and controller statements remain attributable upstream claims. No Portcove gameplay, save/reload, native-installed or Supported acceptance is asserted. Removing registration preserves all external files; managed install/update/rollback/backup/deletion are unavailable."
+        }
+      ],
+      "warnings": [
+        "Preserve the actual inFAMOUS-PC data-root pointer, separate launcher settings and every effective save/backup location; complete upstream preparation and restart/update paths outside attachment."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

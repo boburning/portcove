@@ -3,7 +3,7 @@
   "listing": {
     "id": "startupandhold-3on3arcaderecomp",
     "name": "3 on 3 NHL Arcade (3on3 Arcade Recomp)",
-    "summary": "Upstream route: Upstream runtime package for 3on3 Arcade Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream advertises gameplay and online play. Ultrawide is WIP; peers must share compatible roster/build versions. Multiplayer untested here. Windows/Linux x64 packages; ultrawide WIP and roster-version-dependent online matching; separately assess real multiplayer qualification. Upstream platforms: Windows 10/11 x64 and native Linux x86-64 archives, as documented by upstream. Original data: Xbox 360 XBLA 3 on 3 NHL Arcade own game container/extracted files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared NHL 3-on-3 Arcade native Windows player directly after upstream game-package setup. Preserve its game folder, settings and actual runtime save root; roster and online compatibility remain separate.",
     "original_game_title": "3 on 3 NHL Arcade",
     "project_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "3-on-3-nhl-arcade",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2737
+    "issue_number": 2737,
+    "manual_setup": {
+      "help_url": "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own XBLA game",
+          "instruction": "Use a complete copy and components you are independently permitted to use. Finish upstream preparation outside Portcove, keep independent originals and recovery copies. No original, helper, compiler or game is obtained or executed by this guide. Use your own full NHL 3-on-3 Arcade Xbox 360 package, title ID 58410975, Content/0000000000000000/58410975/000D0000, or matching already extracted files. Finish the upstream first extraction, menu/font patching and settings before attachment. Preserve the original package even if upstream says it can be deleted. This route does not grant trial/full-game entitlement or admit another NHL game."
+        },
+        {
+          "title": "Keep the complete native runtime",
+          "instruction": "The inspected official 0.3.1 Windows portable ZIP contains AMD64 nhl3on3.exe, rexruntime.dll, rexgpu-xenos.dll, Visual C++ libraries and notices. Keep the complete extracted folder and game/ tree. The native player already contains its program; first-run extraction prepares original data rather than compiling a new game. The batch/PowerShell settings launcher is separate and is not the selected attached executable."
+        },
+        {
+          "title": "Attach direct native play",
+          "instruction": "After upstream setup, select nhl3on3.exe, set the complete extracted package directory as working directory and leave arguments empty. Review the intent and request Play separately. Upstream documents direct starts after settings are saved; the linked game runs within this process. It searches game/ or game/extracted/ beside the executable/parents, so preserve the prepared layout and avoid accidentally selecting another tree. Finish any remaining setup outside the attachment."
+        },
+        {
+          "title": "Preserve settings and actual save locations",
+          "instruction": "Keep nhl3on3.toml, logs/, game/, originals, the applied data0.big/data0.bh menu changes, selected roster and all external data/configuration paths. The source logs the runtime’s actual user_data_root; preserve that existing save/profile root independently rather than assuming the portable settings folder contains every save. No cross-roster, multiplayer or save-format compatibility is inferred. This guide performs no import, patching, migration, backup or deletion."
+        },
+        {
+          "title": "Separate online and component scope",
+          "instruction": "Keep the project MIT notice, runtime and all component/font notices; those grants do not license the original game or third-party roster data. Use only components you are independently permitted to use. Online/server/address/chat settings and roster-version matching belong to upstream; no network service, account, server or real multiplayer acceptance is provided. Windows requires the documented AVX2 CPU and Direct3D 12 support; Linux’s Vulkan/glibc requirements are a separate platform route."
+        },
+        {
+          "title": "Maintain the external copy",
+          "instruction": "Quit the actual game normally before upstream replacement or data operations; forced termination is not a save-flush guarantee. Review/relink changed executable bytes. Source, package and upstream playability reports do not establish native gameplay, complete-game, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable. Ultrawide remains work in progress and online matching depends on the roster version; no representative match qualifies the whole title."
+        }
+      ],
+      "warnings": [
+        "Keep the original package and actual runtime save root. Portable settings do not prove save isolation, roster compatibility or online acceptance."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

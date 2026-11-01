@@ -3,13 +3,45 @@
   "listing": {
     "id": "obaidr1-hercules-recompiled",
     "name": "Disney's Hercules (Hercules Recompiled)",
-    "summary": "Upstream route: Upstream runtime package for Hercules Recompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream targets five PAL language releases. USA and original PC editions not included by title alone; complete playthrough Unknown here. Windows/Linux packages; not USA game/PC original assumed. Preserve each accepted disc identity and enhancements as upstream claims. Upstream platforms: Windows/Linux native player packages. CPU coverage follows selected player documentation, not the PSX framework. Original data: PS1 DisneyHercules five PAL language editions English/French/German/Italian/Spanish own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Hercules Recompiled Windows folder using your own exact PAL PlayStation disc and language. Its native UI waits for the selected language’s game child; preserve separate language data, cards, settings and optional texture-pack boundaries.",
     "original_game_title": "Disney's Hercules",
     "project_url": "https://github.com/obaidr1/hercules-recompiled",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/obaidr1/hercules-recompiled",
-    "issue_number": 2823
+    "issue_number": 2823,
+    "manual_setup": {
+      "help_url": "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md",
+      "steps": [
+        {
+          "title": "Prepare the matching PAL language upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The selected 0.5.6 release documents your own PS1 PAL SCES-00891 English, 00892 French, 00893 German, 00894 Italian or 00895 Spanish disc, with the upstream-supported disc image format. Finish language/disc selection upstream and retain independent originals and matching disc.cfg/disc-ID configuration. USA SLUS-01029 and the original PC release are different inputs; a title match is not compatibility."
+        },
+        {
+          "title": "Keep the complete native player",
+          "instruction": "The inspected official Windows ZIP contains AMD64 Hercules_Recompiled.exe, matching language builds, runtime resources and overlay_toolchain. The published native game program is already compiled; original graphics, sound, videos and level data still come from your own disc. Optional overlay/HD generation is a separate upstream operation. Keep the whole extracted package; select neither a PS1 executable, disc image, Python nor toolchain helper."
+        },
+        {
+          "title": "Attach the upstream native UI",
+          "instruction": "Select Hercules_Recompiled.exe, set the complete extracted folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Choose the already prepared language and start through the upstream UI. Its Play path launches the selected language build with its own disc/working directory and waits before showing the UI again. Language choice is not three or five separately fixed launch intents. Quit the actual game normally before closing the UI; forced termination does not guarantee child cleanup or save flushing."
+        },
+        {
+          "title": "Preserve language-specific saves and settings",
+          "instruction": "Keep launcher.ini, keybinds.ini, all disc configuration, game.toml/settings.toml, saves and caches in the package and each lang/<disc-ID> tree. An existing runtime.memcard_dir can select an external card/state location; retain it too. Keep imported original images independently. Save states and memory cards are distinct; no cross-build or language compatibility is claimed. This guide performs no migration, restore, backup or deletion."
+        },
+        {
+          "title": "Keep optional packs and permissions separate",
+          "instruction": "Retain upstream provenance and all PSX runtime, SDL and other component notices. Those terms do not grant rights to original game code/assets or third-party HD packs; use only components you are independently permitted to use. Separate published HD packs are not silently part of this route. Existing permitted packs and locally prepared overrides stay upstream-managed; no pack is downloaded, generated or executed here."
+        },
+        {
+          "title": "Maintain the external package explicitly",
+          "instruction": "Finish upstream updates, language replacement, overlay generation and HD operations outside an attached Play attempt. Upstream update/restart helpers can replace files or launch successors; review/relink changed executable bytes and retain independent recovery copies before maintenance. The five-language and enhancement reports remain upstream claims; no complete-game, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Preserve the exact PAL language/disc and its data tree. Optional HD packs, overlays, upstream updates and other editions have separate boundaries."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

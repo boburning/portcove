@@ -3,7 +3,7 @@
   "listing": {
     "id": "jumatt-jetsetradiofuture-unleashed",
     "name": "Jet Set Radio Future (Jet Set Radio Future Unleashed)",
-    "summary": "Upstream route: Upstream runtime package for Jet Set Radio Future Unleashed; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Early playable, not start-to-finish played. Android boot/attract in emulator does not establish physical phone gameplay. Early playable, full playthrough not done. Android boots only emulator not physical phone; iOS user signing and platform package evidence separate. Upstream platforms: macOS ARM64, Windows/Linux x86-64, Android ARM64 and iOS. Android only emulator-tested; iOS user signing required. Original data: Original Xbox JetSetRadioFuture standalone USA NTSC-U disc; not SegaGT combo/Europe/Japan. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared JSRF Unleashed Windows installation for the standalone US Xbox disc. Its waiting native launcher owns setup and remembers the selected game; saves remain in that game folder’s UDATA.",
     "original_game_title": "Jet Set Radio Future",
     "project_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "jet-set-radio-future",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2820
+    "issue_number": 2820,
+    "manual_setup": {
+      "help_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/9ddb226f66d92c8c6bfed56ea9797bcaa2da48a5/README.md",
+      "steps": [
+        {
+          "title": "Prepare the standalone US Xbox game upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.6.1 engine targets the standalone US NTSC2002 Jet Set Radio Future disc (version1, built 28 January 2002), not the Sega GT2002 combo, European or Japanese releases. Follow upstream setup outside Portcove with your own folder containing default.xbe and Media, or your own disc image for upstream unpacking. Its XBE section-layout check can accept patched copies with that layout; it is not a full-image digest or entitlement check. No original, unpacker, helper or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the entire Windows engine and launcher package",
+          "instruction": "The inspected JSRF-Unleashed-windows-x86_64.zip contains JSRF Unleashed.exe, engine/jsrf_recomp.exe, companion DLLs and licences. Keep the complete extracted directory in a writable location. The selected Windows instructions require OpenGL 3.3. The release contains recompiled game code but no original game assets according to upstream; MIT for project code does not grant rights in the original game. Do not select the internal engine, a DLL, original default.xbe, mobile app or build helper for this route."
+        },
+        {
+          "title": "Select the prepared ordinary launcher",
+          "instruction": "After first setup has remembered the correct game folder and storage mode, select JSRF Unleashed.exe, use its complete extracted package directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The launcher starts its matching engine with the saved game folder as the child working directory and waits for that engine’s exit. Finish a repeated setup prompt outside the attached attempt. Source/header inspection is not an observed game or child-cleanup pass."
+        },
+        {
+          "title": "Preserve separate game saves and launcher storage",
+          "instruction": "Keep the selected game folder and its UDATA saves. Settings, cache, logs and upstream-unpacked images normally live in %LOCALAPPDATA%/JSRF Unleashed; an existing portable.txt places them beside the launcher instead. Preserve the active settings file, last-run.log, actual unpacked-image directories, original disc/image and any previously chosen external game folder. Do not add --portable or change the marker to move saves here. The guide performs no migration, backup, import or external-file deletion."
+        },
+        {
+          "title": "Maintain the complete copy outside attachment",
+          "instruction": "Finish upstream setup, data-root changes, resolution/restart paths and runtime replacement outside an attached session; close the actual engine and any helper before changing files. Keep independent recovery copies, then review/relink changed executable bytes. Quit the game normally; forced termination is not a save-flush or quiescence guarantee. Upstream owns runtime replacement and external files. Removing registration leaves those files intact."
+        },
+        {
+          "title": "Retain component and platform limits",
+          "instruction": "Keep licences/LICENSE.txt, NOTICE.txt and all component notices, including LGPL2.1-or-later terms for xemu-derived MCPX/APU code and the separate library terms. No own-code grant is extended to SEGA game code/assets or other components. Upstream’s early playable status and incomplete full playthrough remain upstream claims; Android emulator-only boot and iOS user signing establish no Windows/native/physical acceptance. No Portcove gameplay, save/reload, installed-app or Supported claim is made; managed install/update/rollback/backup/removal are not offered."
+        }
+      ],
+      "warnings": [
+        "Use the standalone US disc data; preserve game-folder UDATA separately from the actual per-user or portable launcher storage."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

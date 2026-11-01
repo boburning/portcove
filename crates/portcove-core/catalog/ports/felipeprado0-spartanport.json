@@ -3,7 +3,7 @@
   "listing": {
     "id": "felipeprado0-spartanport",
     "name": "God of War III Remastered (gow3_pc)",
-    "summary": "Upstream route: Upstream runtime package for gow3_pc; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream port/features and supported CUSA/version pairs. Experimental Linux/GPU limits remain; no independent full playthrough here. Fork parent bloodborne is framework ancestry, different game. Windows/Linux experimental glibc2.39 AVX/Vulkan1.3 package; not original PS3 GodOfWarIII data. Upstream platforms: Windows10/11; experimental Linux x86-64 glibc2.39+, AVX, Vulkan1.3. PS4 edition, not original PS3 game. Original data: PS4 GodOfWarIIIRemastered CUSA01623/CUSA01715 v01.00/01.02 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach a prepared SpartanPort Windows installation for your independently permitted God of War III Remastered PS4 dump. The current Rust launcher owns upstream preparation; keep its saved settings, user data and legacy gow3 migration roots.",
     "original_game_title": "God of War III Remastered",
     "project_url": "https://github.com/FelipePrado0/SpartanPort",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "god-of-war-iii-remastered",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2826
+    "issue_number": 2826,
+    "manual_setup": {
+      "help_url": "https://github.com/FelipePrado0/SpartanPort/blob/a2299cd59bc363fb9d0dbfe11cac26c2a49e5aaa/README.md",
+      "steps": [
+        {
+          "title": "Prepare the PS4 Remastered edition upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed Windows3.0.0 route targets God of War III Remastered for PS4, CUSA01623 or CUSA01715 at01.00/01.02, with your own decrypted eboot.bin, sce_module and sce_sys folder. The original PS3 game is a different input. Follow upstream first setup outside Portcove, choose the actual game/update folders and save the intended configuration. No original, patch, installer, helper or build is obtained or run here."
+        },
+        {
+          "title": "Keep the current complete Windows package",
+          "instruction": "The inspected spartanport-windows.zip contains spartanport-windows/SpartanPort.exe, Play SpartanPort.exe, compatibility-name launchers and bin/spartanport-probe.exe with matching DLLs and resources. Keep the entire package together in a writable folder. The current source is a Rust launcher/runner; do not apply older Python-only launch coordinates or select a compatibility shim, GPU helper, internal probe, DLL or PS4 eboot.bin. Upstream specifies Windows 10/11 x64, AVX and Vulkan1.3; static PE inspection does not verify a particular CPU/GPU."
+        },
+        {
+          "title": "Select the saved-settings play route",
+          "instruction": "After upstream preparation, select SpartanPort.exe, use its complete extracted spartanport-windows directory as working directory and set the single argument --play. Review the exact selected intent, then request Play separately. With a valid saved installation this runs its --run child and waits for the native game/probe result; missing setup opens the GUI instead. Finish that setup outside the attached attempt before retrying. No observed child cleanup, Windows gameplay or dynamic dependency pass is claimed here."
+        },
+        {
+          "title": "Preserve current and legacy data roots",
+          "instruction": "The current ordinary Windows package stores settings.json and spartanport.ini beside the launcher, with user holding saves, shader cache and last_run.log. A saved user_dir or established SPARTAN_DATA_DIR, SPARTAN_USER_DIR or SPARTAN_CONFIG can select other roots; preserve every effective location without setting a new override here. Also retain any existing gow3.ini, old %APPDATA%/gow3-launcher/settings.json, original game/update folders and custom saves. Do not assume the earlier gow3 name, framework ancestry or another PS4 title implies save compatibility."
+        },
+        {
+          "title": "Complete upstream migration and restarts separately",
+          "instruction": "The rename/migration code can copy old settings to new names and retains old files; that is upstream behavior, not a migration performed by this attachment. Finish migration, updater replacement, voice tools, edition/config changes that restart the game, and repairs outside an attached session. Close the actual game and all helpers/successors, retain independent recovery copies, then review/relink changed executable bytes. Normal game exit is preferred; forced termination is not proof of save flush or child quiescence."
+        },
+        {
+          "title": "Keep ownership and qualification explicit",
+          "instruction": "SpartanPort/gow3_pc is this existing God of War implementation; Bloodborne ancestry names a shared framework, not a replacement original-game identity or inherited qualification. Preserve GPL and all bundled component/NVIDIA notices; their grants do not provide original-game rights. Experimental Linux/old-CPU and GPU limitations remain upstream claims at their own scope. Removing registration preserves every external file. Portcove offers no managed install/update/rollback/backup/deletion or Supported/native/installed-app acceptance for this external copy."
+        }
+      ],
+      "warnings": [
+        "Retain package settings, the actual user/save root and legacy gow3 data; complete upstream migrations, updates and restart paths outside attachment."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

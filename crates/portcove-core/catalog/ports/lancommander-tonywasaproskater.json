@@ -3,13 +3,45 @@
   "listing": {
     "id": "lancommander-tonywasaproskater",
     "name": "Tony Hawk's Pro Skater (Tony Was A Pro Skater)",
-    "summary": "Upstream route: Upstream runtime package for Tony Was A Pro Skater; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims fully playable matching-decompilation THPS. CPU documentation mismatch and optional Dreamcast assets remain distinct; no independent full-game test. Native decompilation port; inherited LANCommander/THPS source ancestry, not game-title-only duplicate. README says32bit but release x64 and x86 assets exist: resolve architecture per actual asset. Upstream platforms: README says32-bit Windows/x86 Linux while releases include x64/x86. Resolve actual architecture from selected package layout. Original data: PS1 THPS USA SLUS00860 own disc; optional Dreamcast asset set. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Tony Hawk’s Pro Skater Windows installation using the LANCommander port. Keep its extracted game data and separate Saved Games tree; upstream owns preparation, restarts and runtime replacement.",
     "original_game_title": "Tony Hawk's Pro Skater",
     "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/LANCommander/TonyWasAProSkater",
-    "issue_number": 2831
+    "issue_number": 2831,
+    "manual_setup": {
+      "help_url": "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/platform/pc/dist/README.txt",
+      "steps": [
+        {
+          "title": "Prepare your own game data with upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 1.4.0 route accepts your own Tony Hawk’s Pro Skater USA PlayStation disc SLUS_008.60 as a raw MODE2/2352 .bin, normally thps1.bin beside the player. Upstream first-run preparation copies assets into its Data tree; finish that outside Portcove and retain the original image. An established THPS_DISC may select another source. No disc, converter, BIOS, compiler, helper or extraction is obtained or run by this attachment."
+        },
+        {
+          "title": "Select the inspected x64 player package",
+          "instruction": "The inspected thps-windows-x64-1.4.0.zip has AMD64 thps.exe, README.txt and THIRD-PARTY-NOTICES.txt. This resolves the x64 package’s architecture separately from older source instructions mentioning32bit and the separate x86 release. Keep the matching complete prepared folder and data; upstream specifies Windows 10/11 and OpenGL3.3. Do not infer x86, Linux or physical GPU acceptance from this x64 static inspection."
+        },
+        {
+          "title": "Review the normal play coordinates",
+          "instruction": "Select thps.exe, use its complete prepared package directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The normal entry runs the native game in its own process; do not select a PS1 executable, compiler or internal asset. Complete first setup or data repair outside an attached attempt. Native startup, gameplay and dynamic dependency resolution have not been observed here."
+        },
+        {
+          "title": "Preserve game data and the separate Saved Games tree",
+          "instruction": "Keep the complete Data tree and any already established Data (PlayStation), Data (Dreamcast), mods and original-disc roots. The active Windows Saved Games known folder contains Neversoft/Tony Hawk’s Pro Skater, normally under %USERPROFILE%/Saved Games, holding Settings.ini, thps.log and Saves with Careers/*.career and Replays/*.replay. Preserve its actual redirected/fallback location and any established custom roots. Upstream automatically converts .mcs files placed in Saves and renames them .mcs.imported; keep originals and independent copies before any such upstream import. Portcove performs no migration or save import."
+        },
+        {
+          "title": "Complete restart and maintenance outside attachment",
+          "instruction": "Changing the selected game-data edition can restart the player; on Windows the source starts a successor and exits. Complete edition switches, preparation, repair and runtime replacement outside an attached game session, close all actual successors/helpers and review/relink changed executable bytes. Let the game save and quit normally; forced termination is not a save-flush or quiescence guarantee. Portcove neither adopts restart successors nor owns this external runtime or data."
+        },
+        {
+          "title": "Retain licensing and qualification limits",
+          "instruction": "Keep THIRD-PARTY-NOTICES.txt and the upstream source/credits notice. The README describes the project’s own code as MIT, but the selected source root and inspected ZIP contain no standalone project LICENSE file; no blanket grant for original/recovered game code, disc content or other components is inferred. Use an independently permitted complete installation. The PS1 reverb approximation and other documented upstream limitations remain. No Portcove play/save/installed-app/Supported acceptance is claimed. Removing registration preserves every external file; managed install/update/rollback/backup/removal are not offered."
+        }
+      ],
+      "warnings": [
+        "Keep the original image, prepared Data and actual Saved Games tree; upstream .mcs import and edition switching can change files or start a successor."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

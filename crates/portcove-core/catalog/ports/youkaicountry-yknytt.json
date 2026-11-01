@@ -3,7 +3,7 @@
   "listing": {
     "id": "youkaicountry-yknytt",
     "name": "Knytt Stories (YKnytt)",
-    "summary": "Upstream route: Upstream runtime package for YKnytt; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream Knytt Stories implementation0.7.3. Individual-level bugs tracked; whole community-level corpus compatibility not established. Godot C# engine release Windows/Linux/macOS/Android plus ARM handhelds; preserve level-compatibility limits and no automatic claim entire user-level corpus works. Upstream platforms: Windows/macOS/Linux x64/Android and Linux ARM64 handhelds. Godot3.6.1 Mono/.NET build requirements documented. Original data: Knytt Stories levels/world data compatible with YKnytt. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach a complete permitted YKnytt Windows installation, the Godot C# implementation of Knytt Stories. Preserve its actual user/world/save directories and freeware asset terms; community-level compatibility and optional network actions remain upstream-owned.",
     "original_game_title": "Knytt Stories",
     "project_url": "https://github.com/youkaicountry/yknytt",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "yknytt",
       "match_kind": "port"
     },
-    "issue_number": 2809
+    "issue_number": 2809,
+    "manual_setup": {
+      "help_url": "https://github.com/youkaicountry/yknytt/blob/d667e28166486444e6bf1eb90c6a8f227c2500c3/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete prepared Windows game",
+          "instruction": "Use a complete YKnytt copy and components you are independently permitted to use. The inspected0.7.3 Windows ZIP contains YKnytt_v0.7.3_win/YKnytt.exe as an AMD64 Godot player, YKnytt.pck and the matching data_YKnytt Mono tree. Keep the entire directory together; neither a lone exe nor a source project is the complete player. The package includes several worlds and does not require a player-supplied retail disc or console BIOS by the selected instructions. No Godot editor, compiler, program, level or original game is obtained or executed here."
+        },
+        {
+          "title": "Retain original-game and level terms",
+          "instruction": "The project notice grants MIT terms for YKnytt code and describes the included Knytt Stories assets as freeware copyright Nicklas Nygren. The separately retained Knytt agreement allows clearly identified Knytt Stories mods with original-game attribution, while restricting reuse of music/graphics/creatures in other games and entirely new games. Preserve those notices and the original Knytt Stories attribution/link; do not flatten them into an all-assets MIT grant. Community worlds and their components keep their own rights and compatibility limits."
+        },
+        {
+          "title": "Select the normal native game",
+          "instruction": "Select YKnytt.exe, use its complete extracted YKnytt_v0.7.3_win directory as working directory and leave arguments empty for the already prepared installation. Review the exact selected intent, then request Play separately. The Godot player runs the authored C# scenes in process; do not select a Mono helper, DLL, PCK file or Godot editor. This guide does not establish native startup, runtime dependencies or correctness of every world."
+        },
+        {
+          "title": "Preserve the effective world and save locations",
+          "instruction": "The normal Windows user-data folder is %APPDATA%/YKnytt. An already present Documents/yknytt_data directory takes precedence in the selected source, and an established --data path takes precedence over both; relative --data paths are based on the executable directory. Keep the complete effective directory with Saves, Worlds, settings.ini, input.ini, worlds metadata and cache. Separately configured SavesDirectory or WorldsDirectory can add external roots. Preserve legacy Godot user-data directories too: first migration can move old settings, saves and worlds. This attachment adds no --data option and performs no migration or deletion."
+        },
+        {
+          "title": "Keep network and maintenance actions with their owner",
+          "instruction": "YKnytt offers a Level Downloader and a complain action that upstream documents as sending the latest save to its server. Use those only through the upstream interface with the intended world/save; this registration does not download a world, submit a report or authorize upload of private data. Finish upstream migration, data-location changes, world repair and runtime replacement outside an attached session, close the actual player, retain independent recovery copies and review/relink changed executable bytes."
+        },
+        {
+          "title": "Keep acceptance at its actual scope",
+          "instruction": "YKnytt remains a beta implementation with per-level compatibility limits; a built-in world or one successful level does not qualify the whole community corpus. Quit normally; forced termination is not a save-flush guarantee. Upstream Windows/Linux/macOS/Android/ARM-handheld claims remain distinct and no Portcove gameplay, save/reload, physical-device, installed-app or Supported acceptance is asserted. Removing registration preserves all external data. Managed install/update/rollback/backup/removal are not offered."
+        }
+      ],
+      "warnings": [
+        "Preserve the active base directory and any separate Saves/Worlds roots; upstream’s complain action uploads a save, and community-level permissions/compatibility remain separate."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

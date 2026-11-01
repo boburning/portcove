@@ -3,7 +3,7 @@
   "listing": {
     "id": "hayatog-tlg-pc",
     "name": "The Last Guardian (The Last Guardian — native PC port)",
-    "summary": "Upstream route: Upstream runtime package for The Last Guardian — native PC port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims stable30FPS with sound/saves;60/unlocked experimental. Windows build success is not gameplay evidence; no independent campaign test. Windows automatic build not gameplay tested per README; Linux upstream30FPS claim;60/unlocked experimental. x86-64 direct execution with Vulkan system layer. Upstream platforms: Linux/Windows x86-64 Vulkan. Windows automatic build explicitly not tested in gameplay; other hosts not established. Original data: PS4 LastGuardian CUSA03627 US/CUSA03745 Europe update01.03 own dump. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared The Last Guardian Windows installation through its waiting saved-settings play route. Upstream owns game preparation and runtime replacement; keep the actual configurable save root and separate launcher preferences.",
     "original_game_title": "The Last Guardian",
     "project_url": "https://github.com/HayatoG/tlg_pc",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "the-last-guardian",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2815
+    "issue_number": 2815,
+    "manual_setup": {
+      "help_url": "https://github.com/HayatoG/tlg_pc/blob/4825a991c2ac8fd8865b3c340a18b2f54628c0f0/README.md",
+      "steps": [
+        {
+          "title": "Prepare this exact PS4 game upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed v2026.10.27-4825a99 route needs your own decrypted The Last Guardian PS4 folder for CUSA03627 USA or CUSA03745 Europe with update 01.03, with the update’s eboot.bin, sce_module/libc.prx and libSceFios2.prx, sce_sys and all matching game data. Follow the selected upstream setup outside Portcove, choose the intended copy and save settings; no other region/revision or exact full-input digest is qualified here. The documented native-audio route additionally needs decrypted libSceNgs2.sprx from your own console. No console module is supplied or licensed by the runtime grant; the alternative HLE audio path is a separate upstream setting, not a silently substituted qualification. No original, firmware, helper, script or game is obtained or executed by this registration."
+        },
+        {
+          "title": "Keep the complete matching Windows package",
+          "instruction": "The inspected selected Windows ZIP contains tlg-windows-x86_64/The Last Guardian.exe, a separate classic frontend, Play shortcut, out/tlg-probe.exe and the matching frozen-runtime, scripts, DLLs and resources. Keep the complete extracted package in a writable location. Select the current ordinary frontend, not its classic sibling, Play wrapper, internal probe/GPU helper, Python, a DLL or the original PS4 eboot.bin. Static AMD64 headers do not establish GPU/driver or dynamic dependency acceptance."
+        },
+        {
+          "title": "Select the waiting direct-play intent",
+          "instruction": "After upstream first setup and preparation are complete, select The Last Guardian.exe, use its full extracted tlg-windows-x86_64 directory as working directory, and use the single argument --play. Review the exact selected intent, then request Play separately. The pinned frontend dispatches --play to its runner with no finite gameplay timeout; that runner waits/polls for the game child’s exit. The ordinary GUI has separate close-on-play/reopen behavior, so do not substitute that mode as the same process-lifetime evidence. Finish any new preparation outside attachment; no child cleanup or gameplay has been observed here."
+        },
+        {
+          "title": "Preserve the actual save root and both preference files",
+          "instruction": "Keep the whole active user-data tree, including savedata/<user>/<serial>.memory/memory.dat (SaveDataMemory), existing slot folders and savedata_backups, tlg.ini, backups, caches, mods/DLC configuration and logs, plus the original game/module directories. Its source priority is an established TLG_USER_DIR, then user_dir in %APPDATA%/TLG-PC/launcher.json, then user beside the package. Also retain %APPDATA%/tlg-launcher/settings.json: it is a different launcher-preference file, not the data-root pointer. GPU/cache/mod overrides or separately configured backup destinations can add roots; preserve all effective locations. Do not set a new override, move a folder or infer compatibility with another Hayato title here."
+        },
+        {
+          "title": "Complete upstream maintenance and detached paths separately",
+          "instruction": "Upstream owns save-management/backup behavior, shader preparation, updates and recovery. These are not Portcove backup/import/rollback guarantees. Complete setup, updater applier/recovery, close-on-play/reopen and runtime replacement outside an attached session; close all actual players, helpers and successors before changing files, keep independent copies, then review/relink changed bytes. The runner’s normal wait does not make forced parent termination a child-quiescence or save-flush guarantee; the GUI and some runner paths create independent children. Quit the actual game normally."
+        },
+        {
+          "title": "Retain title-specific acceptance and rights limits",
+          "instruction": "Preserve the project GPL 2-or-later and all component/NVIDIA/font notices; these do not grant original-game or console-firmware rights. Windows is an automatically built package with gameplay explicitly untested in the selected README. Linux30FPS/session claims do not transfer to Windows;60FPS/unlocked modes remain experimental. Upstream audio, save, graphics and controller statements remain attributable upstream claims. No Portcove gameplay, save/reload, native-installed or Supported acceptance is asserted. Removing registration preserves all external files; managed install/update/rollback/backup/deletion are unavailable."
+        }
+      ],
+      "warnings": [
+        "Preserve the actual TLG-PC data-root pointer, separate launcher settings and every effective save/backup location; complete upstream preparation and restart/update paths outside attachment."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
