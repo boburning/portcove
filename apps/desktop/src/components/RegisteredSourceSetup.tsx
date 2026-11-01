@@ -39,6 +39,7 @@ export function RegisteredSourceSetup({
   const owner = useRef<string | undefined>(undefined);
   const flight = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const focusedRead = useRef<typeof read>(undefined);
   useLayoutEffect(() => {
     owner.current = baseline;
     return () => {
@@ -46,6 +47,12 @@ export function RegisteredSourceSetup({
     };
   }, [baseline]);
   const review = read?.baseline === baseline ? read.review : undefined;
+  useLayoutEffect(() => {
+    if (review && read !== focusedRead.current && owner.current === baseline) {
+      heading.current?.focus();
+      focusedRead.current = read;
+    }
+  }, [baseline, read, review]);
   const run = async (operation: (accepts: () => boolean) => Promise<void>) => {
     if (!source || !current || flight.current) return;
     const accepts = () => owner.current === baseline;
@@ -71,9 +78,6 @@ export function RegisteredSourceSetup({
           "The saved game-file location changed. Refresh the library and check it again.",
         );
       setRead({ baseline, review: result });
-      window.requestAnimationFrame(() => {
-        if (accepts()) heading.current?.focus();
-      });
     });
   const repair = () =>
     run(async (accepts) => {

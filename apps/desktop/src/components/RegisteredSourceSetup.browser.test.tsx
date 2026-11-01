@@ -86,7 +86,7 @@ const open = vi.fn();
 const changed = vi.fn(async () => undefined);
 const perform: Perform = async (_name, task) => task();
 let selection: ReturnType<typeof useSetupReviewSelection>;
-function Fixture({ generation = 3 }: { generation?: number }) {
+function Fixture({ generation = 3, current = true }: { generation?: number; current?: boolean }) {
   selection = useSetupReviewSelection();
   return (
     <RegisteredSourceSetup
@@ -94,18 +94,18 @@ function Fixture({ generation = 3 }: { generation?: number }) {
       profiles={[{ ...sourceProfile(), id: source.profile_id }]}
       statuses={statuses}
       generation={generation}
-      current={true}
+      current={current}
       perform={perform}
       onChanged={changed}
       onOpenPort={open}
     />
   );
 }
-const render = (generation = 3) =>
+const render = (generation = 3, current = true) =>
   root.render(
     <SetupReviewSelectionProvider>
       <h1>Add games</h1>
-      <Fixture generation={generation} />
+      <Fixture generation={generation} current={current} />
     </SetupReviewSelectionProvider>,
   );
 const button = (text: string) =>
@@ -164,6 +164,32 @@ it("ignores a completed inspection from the outgoing library generation", async 
   await act(async () => resolve(makeReview()));
   expect(button("Review 2Ship setup using these files")).toBeUndefined();
   expect(open).not.toHaveBeenCalled();
+});
+
+it("focuses the committed review when an animation callback runs before React commits", async () => {
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(performance.now());
+    return 1;
+  });
+  vi.spyOn(desktopApi, "reviewSourceReuse").mockResolvedValue(makeReview());
+  await act(async () => render());
+  await select();
+  await act(async () => button("Check saved game files").click());
+  expect(document.activeElement).toBe(element.querySelector("h3"));
+});
+
+it("does not refocus a cached review when the library becomes current again", async () => {
+  vi.spyOn(desktopApi, "reviewSourceReuse").mockResolvedValue(makeReview());
+  await act(async () => render());
+  await select();
+  await act(async () => button("Check saved game files").click());
+  expect(document.activeElement).toBe(element.querySelector("h3"));
+  const input = element.querySelector("select")!;
+  input.focus();
+  await act(async () => render(3, false));
+  await act(async () => render());
+  expect(element.querySelector("h3")).not.toBeNull();
+  expect(document.activeElement).toBe(input);
 });
 
 it("repairs moved identical files through the existing baseline-bound relink, never registration", async () => {
