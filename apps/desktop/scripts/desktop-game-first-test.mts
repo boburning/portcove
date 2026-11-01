@@ -174,10 +174,11 @@ export async function gameFirstScenarios({
       );
     };
     const detail = async (id: string) => {
-      await browser.wait(
+      const workspace = await browser.wait(
         until.elementLocated(By.css(`[data-detail-workspace][data-detail-port-id="${id}"]`)),
         15_000,
       );
+      await browser.wait(until.elementIsVisible(workspace), 5_000);
       assert.equal(
         (await browser.findElements(By.css('[role="dialog"]'))).length,
         0,
@@ -299,12 +300,30 @@ export async function gameFirstScenarios({
         ).length,
         1,
       );
+      await (
+        await browser.findElement(
+          By.css(
+            '.discover-game[data-detail-return-group="game:the-legend-of-zelda-the-minish-cap"] .discover-game-identity',
+          ),
+        )
+      ).sendKeys(Key.ENTER);
+      await detail(picori.id);
+      await back();
       await expectSearch(gzdoom.id, [gzdoom.id], pair);
       assert.equal(
         (await browser.findElements(By.css('[data-detail-return-group="port:zdoom-gzdoom"]')))
           .length,
         1,
       );
+      await (
+        await browser.findElement(
+          By.css(
+            '.discover-game[data-detail-return-group="port:zdoom-gzdoom"] .discover-game-identity',
+          ),
+        )
+      ).sendKeys(Key.ENTER);
+      await detail(gzdoom.id);
+      await back();
       await searchGame();
       await openComparison();
       const chosen = required(
