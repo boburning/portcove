@@ -233,14 +233,13 @@ impl PortcoveService {
         .await;
         if result.is_err()
             && let Some(record) = journal.as_mut()
-        {
-            if let Err(error) = record.advance(
+            && let Err(error) = record.advance(
                 Phase::AttentionRequired,
                 result.as_ref().err().map(ToString::to_string),
                 &store,
-            ) {
-                tracing::warn!(%error,"unable to record acquisition attention state; retained journal remains recoverable");
-            }
+            )
+        {
+            tracing::warn!(%error,"unable to record acquisition attention state; retained journal remains recoverable");
         }
         let result = self.finish_activity(activity, result);
         emit(operation.finished(OperationResult::from_result(&result)));
