@@ -1404,6 +1404,49 @@ function SavesAndSettingsSummary({
     port,
     status,
   );
+  if (status?.external_runtime) {
+    return (
+      <section
+        aria-label="Saved-data coverage"
+        className="grid min-w-0 gap-3 text-sm wrap-anywhere"
+      >
+        <h3 className="mb-1 text-sm font-semibold">
+          Managed backup data and external declarations
+        </h3>
+        <p>
+          The external runtime directory is not collected. Data already written to Portcove’s
+          managed backup folder can be backed up when Core permits it. External profiles and custom
+          save locations remain excluded.
+        </p>
+        {retainedSetup ? (
+          <details>
+            <summary data-focusable className="cursor-pointer">
+              Recorded external runtime declarations
+            </summary>
+            <p>
+              These retained declarations describe the external runtime, not its collection scope.
+            </p>
+            {declared.length ? (
+              <ul className="my-2 list-disc ps-5">
+                {declared.map((path) => (
+                  <li key={path}>
+                    <code>{path}</code>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No local paths were declared.</p>
+            )}
+          </details>
+        ) : (
+          <p>
+            This installation’s saved-data coverage could not be verified. Runtime collection
+            coverage is unknown here; current catalog paths cannot establish it.
+          </p>
+        )}
+      </section>
+    );
+  }
   return (
     <div className="grid min-w-0 gap-3 text-sm wrap-anywhere">
       <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">

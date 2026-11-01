@@ -33,7 +33,7 @@ describe("external-runtime managed backup access", () => {
     size: 10,
     sha256: "c".repeat(64),
   };
-  function render({ available = true, busy = false, current = true } = {}) {
+  function render({ available = true, busy = false, current = true, withRetained = false } = {}) {
     return renderToStaticMarkup(
       <DetailPanel
         port={{
@@ -41,7 +41,31 @@ describe("external-runtime managed backup access", () => {
           source_profile: null,
           release: { ...port.release, provider: "user-prepared" },
         }}
-        status={{ ...portStatus(), external_runtime: external }}
+        status={{
+          ...portStatus(),
+          external_runtime: external,
+          ...(withRetained
+            ? {
+                readiness: {
+                  launchable: true,
+                  blockers: [],
+                  pending_setup: false,
+                  setup_contract: {
+                    definition_sha256: "d".repeat(64),
+                    retained: true,
+                    platforms: ["windows-x86-64"],
+                    installation_method: "user-prepared-runtime",
+                    source_requirements: [],
+                    saves_and_settings: "portcove-managed",
+                    persistent_paths: ["recorded-external-save"],
+                    persistent_file_patterns: [],
+                    manual_preparation: null,
+                    manual_setup: null,
+                  },
+                },
+              }
+            : {}),
+        }}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
@@ -95,4 +119,15 @@ describe("external-runtime managed backup access", () => {
       expect(button(html, "Restore")).toContain("disabled");
     },
   );
+  it("does not turn verified external declarations into collected coverage", () => {
+    const html = render({ withRetained: true });
+    expect(html).toContain("Recorded external runtime declarations");
+    expect(html).toContain("recorded-external-save");
+    expect(html).toContain("not its collection scope");
+    expect(html).not.toContain("What a backup covers");
+    expect(html).not.toContain("Managed by Portcove for backup and restore");
+    expect(html).not.toContain("<code>save</code>");
+    expect(button(html, "Restore")).not.toContain("disabled");
+    expect(button(html, "Back up now")).not.toContain("disabled");
+  });
 });
