@@ -171,6 +171,40 @@ mod tests {
     };
     const PORT: &str = "zelda64-recomp";
 
+    #[tokio::test]
+    async fn checked_original_reuse_guard_survives_the_existing_install_path_without_reregistering()
+    {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", false);
+        let service = service_with_release(library.clone(), "v1");
+        let original = temporary.path().join("controlled.z64");
+        std::fs::write(
+            &original,
+            b"\x80\x37\x12\x40synthetic guarded-install source",
+        )
+        .unwrap();
+        service.register_source("majoras-mask", &original).unwrap();
+        let review = service.review_source_reuse("majoras-mask").unwrap();
+        let baseline = serde_json::to_value(library.source("majoras-mask").unwrap()).unwrap();
+        let _guard = service
+            .lock_source_reuse(PORT, &review.reference, Some(&original))
+            .unwrap();
+        let installed = service
+            .install(PORT, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(installed.version, "v1");
+        assert_eq!(
+            serde_json::to_value(library.source("majoras-mask").unwrap()).unwrap(),
+            baseline
+        );
+        assert_eq!(
+            std::fs::read(original).unwrap(),
+            b"\x80\x37\x12\x40synthetic guarded-install source"
+        );
+    }
+
     fn register_review_source(library: &Library) {
         let catalog = crate::Catalog::embedded().unwrap();
         library

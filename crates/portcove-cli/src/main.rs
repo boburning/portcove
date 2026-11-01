@@ -1205,6 +1205,28 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::Source {
+            command: SourceCommand::Reuse { profile_id },
+        } => {
+            render_read_success(
+                mode,
+                "source.reuse",
+                service.review_source_reuse(&profile_id)?,
+                |review| {
+                    let mut text = human::source_inspection(&review.inspection);
+                    for application in &review.applications {
+                        text.push_str(&format!(
+                            "\n{}: {}\n",
+                            application.port_name, application.summary
+                        ));
+                        for check in &application.additional_checks {
+                            text.push_str(&format!("  {check}\n"));
+                        }
+                    }
+                    text
+                },
+            )?;
+        }
+        Commands::Source {
             command: SourceCommand::Query(args),
         } => {
             let request = portcove_core::GameFileQueryRefreshRequest {
@@ -3129,6 +3151,7 @@ fn command_name(command: &Commands) -> &'static str {
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Inspect { .. } => "source.inspect",
+            SourceCommand::Reuse { .. } => "source.reuse",
             SourceCommand::Query(_) => "source.query",
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",

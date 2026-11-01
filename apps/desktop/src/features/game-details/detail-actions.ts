@@ -2,7 +2,7 @@ import { defaultReleaseChannel } from "../../view-model";
 import { gameIdentityLabel } from "../../port-identity";
 import { desktopApi } from "../../api";
 import type { DetailActions } from "../../components/DetailPanel";
-import type { PortDefinition, PortStatus } from "../../types";
+import type { PortDefinition, PortStatus, SourceRegistrationReference } from "../../types";
 import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
@@ -31,6 +31,7 @@ export interface DetailActionContext {
   port: PortDefinition;
   status: PortStatus | undefined;
   sourcePath: string;
+  sourceReference?: SourceRegistrationReference | undefined;
   biosPath: string;
   perform: Perform;
   close: () => void;
@@ -44,6 +45,7 @@ export function detailActions({
   port,
   status,
   sourcePath,
+  sourceReference,
   biosPath,
   perform: execute,
   close,
@@ -101,6 +103,7 @@ export function detailActions({
             false,
             libraryGeneration,
             reportEvent,
+            ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
           ),
         );
       } finally {

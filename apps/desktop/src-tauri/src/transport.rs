@@ -92,8 +92,16 @@ mod tests {
             json!({"port_id": "port", "stage": false}),
             json!({"portId": "port"}),
             json!({"portId": "port", "stage": "false"}),
+            json!({"portId": "port", "stage": false, "source_reference": {"profile_id": "game", "reference_sha256": "hash"}}),
+            json!({"portId": "port", "stage": false, "sourceReference": {"profile_id": "game", "reference_sha256": "hash", "allow_changed_bytes": true}}),
         ] {
             assert!(serde_json::from_value::<InstallInput>(invalid).is_err());
         }
+        let reviewed: InstallInput = serde_json::from_value(json!({
+            "portId": "port", "stage": false,
+            "sourceReference": { "profile_id": "game", "reference_sha256": "a".repeat(64) }
+        }))
+        .unwrap();
+        assert_eq!(reviewed.source_reference.unwrap().profile_id, "game");
     }
 }

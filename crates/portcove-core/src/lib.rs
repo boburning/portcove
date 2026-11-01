@@ -101,6 +101,7 @@ mod source_import;
 mod source_inbox;
 mod source_inspection;
 mod source_report;
+mod source_reuse;
 mod source_zip;
 mod stfs;
 mod support_bundle;
@@ -302,6 +303,10 @@ pub use source_report::{
     SourceInspectionReport, SourceIntakeInspection, SourceLegacyCoverage,
     SourceQualificationCoverage, SourceReleaseApplicability,
 };
+pub use source_reuse::{
+    SourceRegistrationReference, SourceReuseApplication, SourceReuseCompatibility,
+    SourceReuseReview,
+};
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
     SupportBundleExport, SupportBundleLimits, SupportBundleManifest, SupportBundleProvenance,
@@ -330,7 +335,8 @@ pub use types::*;
 // Existing response meanings and operation-event schema3 remain unchanged.
 // Public82 adds source-only preparation format3 with no setup executable.
 // Public84 adds reviewed game key art/logos and edition applicability; listing format5 fences strict older readers.
-pub const API_SCHEMA_VERSION: u32 = 84;
+// Public85 adds checked saved-source reuse references and per-integration setup review.
+pub const API_SCHEMA_VERSION: u32 = 85;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

@@ -947,6 +947,8 @@ pub(crate) enum SourceCommand {
         /// Game-file profile ID from `catalog show PORT_ID`; saved profiles appear in `source list`.
         profile_id: String,
     },
+    /// Recheck a saved registration and review each integration's distinct source requirements.
+    Reuse { profile_id: String },
     /// Explicitly refresh route-bound game-file observations for one port on this host.
     Query(SourceQueryArgs),
     /// Recheck registered game files against their saved baselines.

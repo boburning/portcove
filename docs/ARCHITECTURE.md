@@ -1327,6 +1327,19 @@ requires a new review. The CLI and core machine contract remain unchanged.
 
 ## Source-reference removal and shared review state
 
+`source_reuse.rs` projects a checked saved registration into per-integration
+setup choices using the existing inspection report, original-file identity and
+catalog source contracts. The reference fingerprint binds the library identity/root, registration,
+profile and applicable contracts/port definitions. It is ephemeral review input,
+not a registry or permission. Listed variant identity, informational admission,
+complete preparation and actual release qualification remain distinct. The new
+guard accepts only the selected port's original-game profile, holds the existing
+source lock through checked installation, and never re-registers an override.
+BIOS keeps its separate selection path. Desktop preserves the generation and
+stable port ID, expires changed-source review, and presents moved-file repair
+through the existing digest-bound relink plan. Read-only inspection never changes
+the source or saved baseline; relink requires identical validated content.
+
 Settings exposes the existing core source-removal preview inline with the original path,
 installed dependents and all catalog dependents. The review explains that only the
 library reference is removed, other files/state remain, and later use requires

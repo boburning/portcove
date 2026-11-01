@@ -592,6 +592,24 @@ Authentication does not bypass original game-file, artifact, source or operation
 
 ## Find and relink game files
 
+`source reuse PROFILE_ID` reinspects one saved registration without replacing its
+baseline or changing originals. It reports each integration's actual source
+contract separately: a listed edition, a potential match, an incompatible edition
+or unavailable/changed files. A recognized identity is not complete setup or
+gameplay verification. Informational admission remains informational, with its
+legacy evidence gap and additional checks visible. For example, 2Ship lists
+Majora's Mask USA 1.0 and USA GameCube, while Zelda64 lists USA 1.0 only.
+One shared profile does not make the GameCube edition compatible with Zelda64.
+
+In Desktop Add games, **Use saved original files** checks the existing location
+and opens an eligible integration's ordinary setup review without another file
+picker. Core rechecks the exact registration and keeps its source lock through
+installation. **Repair moved file location** uses the existing same-content
+relink plan; changed or substituted bytes are refused and the saved identity is
+not silently replaced. Repair is a location change, not original-file movement
+or deletion. Other originals, installed runtimes and player data retain their
+own contracts. Original-game reuse and BIOS selection remain separate.
+
 Use `catalog show PORT_ID` to identify the applicable game-file or BIOS profile.
 A saved discovery folder, an inspected candidate and a registered source are
 different objects; none alone grants installation or launch permission.

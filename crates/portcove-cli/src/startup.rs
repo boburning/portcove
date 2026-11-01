@@ -102,9 +102,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::UseEmbedded { .. } => Recovering,
         },
         Commands::Source { command } => match command {
-            SourceCommand::List | SourceCommand::Inspect { .. } | SourceCommand::Verify(_) => {
-                ReadOnly
-            }
+            SourceCommand::List
+            | SourceCommand::Inspect { .. }
+            | SourceCommand::Reuse { .. }
+            | SourceCommand::Verify(_) => ReadOnly,
             SourceCommand::Relink { apply, .. } => apply_mode(*apply),
             SourceCommand::Discover(_)
             | SourceCommand::Add { .. }
@@ -339,6 +340,7 @@ mod tests {
             "catalog update --file file",
             "source list",
             "source inspect p",
+            "source reuse p",
             "source verify p",
             "source relink p file",
             "source inbox path p",

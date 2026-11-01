@@ -530,6 +530,8 @@ export const desktopApi = {
     }),
   addSource: (profileId: string, path: string, expectedSha256?: string) =>
     invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
+  reviewSourceReuse: (profileId: string, generation: number) =>
+    invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
     invoke<GameFileRoot[]>("get_game_file_roots", { generation }),
   addGameFileRoot: (path: string, generation: number) =>
@@ -610,10 +612,19 @@ export const desktopApi = {
       onEvent: channel,
     });
   },
-  planSourceRelink: (profileId: string, path: string) =>
-    invoke<SourceRelinkPlan>("plan_source_relink", { profileId, path }),
-  relinkSource: (profileId: string, path: string, previewSha256: string) =>
-    invoke<SourceRecord>("relink_source", { profileId, path, previewSha256 }),
+  planSourceRelink: (profileId: string, path: string, generation?: number) =>
+    invoke<SourceRelinkPlan>("plan_source_relink", {
+      profileId,
+      path,
+      ...(generation === undefined ? {} : { generation }),
+    }),
+  relinkSource: (profileId: string, path: string, previewSha256: string, generation?: number) =>
+    invoke<SourceRecord>("relink_source", {
+      profileId,
+      path,
+      previewSha256,
+      ...(generation === undefined ? {} : { generation }),
+    }),
   previewSourceRemoval: (profileId: string, generation: number) =>
     invoke<SourceRemovalPreview>("preview_source_removal", {
       profileId,
@@ -700,6 +711,7 @@ export const desktopApi = {
     stage: boolean,
     generation: number,
     onEvent?: (event: OperationEvent) => void,
+    sourceReference?: import("./types").SourceRegistrationReference,
   ) => {
     const eventChannel = new Channel<OperationEvent>();
     eventChannel.onmessage = (event) => onEvent?.(event);
@@ -712,6 +724,7 @@ export const desktopApi = {
         source: source || null,
         bios: bios || null,
         stage,
+        ...(sourceReference ? { sourceReference } : {}),
       } satisfies InstallInput,
     });
   },

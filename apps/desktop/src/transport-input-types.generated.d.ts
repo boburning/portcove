@@ -214,8 +214,12 @@ export interface InputDesktopInstallInput {
   channel?: ReleaseChannel | null;
   portId: string;
   source?: string | null;
+  sourceReference?: SourceRegistrationReference | null;
   stage: boolean;
-  [k: string]: unknown;
+}
+export interface SourceRegistrationReference {
+  profile_id: string;
+  reference_sha256: string;
 }
 export interface UpdateNoticeChoice {
   paused: boolean;
