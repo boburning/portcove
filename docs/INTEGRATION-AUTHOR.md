@@ -643,16 +643,27 @@ not implement. Invalid basic/source/launch semantics refuse basic validation.
 declares exact Windows release/archive/source identities and evidence, explicit
 contained persistent configuration files, byte bounds, literal keys and bounded
 boolean/integer/decimal/enum choices and defaults. JSON keys are object-member
-components, not executable expressions. The initial INI declaration means a
-case-sensitive flat `key=value` preference file, not universal INI compatibility.
+components, not executable expressions. One INI key component means case-sensitive
+flat preferences. Two components mean a bounded section/key grammar with ASCII
+case-insensitive identities, including root dotted aliases. A file cannot mix
+these grammars. Sectioned files are UTF-8 without BOM/NUL, at most 32,767 bytes,
+128 entries, 127-byte flattened keys, 1,023-byte values and 1,155-byte physical
+lines. Malformed sections and duplicate declared identities refuse edits.
+Unrelated lines and comments remain intact; this is not universal INI support.
 An installation must retain the declaration; a current catalog advertisement
 cannot grant new file access to an older retained install.
 
 The inspected examples deliberately distinguish consumer representations:
 Shipwright 9.3.1's `CVars.gSettings.Volume.Master` is an integer percentage from
 0 to 100, default 40. Its pinned Libultraship loader distinguishes integers from
-floats. Golden Balloon 1.8.0's `mdkr64_app.ini` `ui_scale` is decimal text within
-0.75–2.0, default 1.0, loaded into its launcher theme on startup. Their exact
+floats. Golden Balloon 1.8.0's `mdkr64.ini` `[Audio]` / `MasterVolume`
+is an integer percentage from 0 to 100, default 100. Its normal `--rom` engine
+route publishes this setting to the audio consumer. Root `Audio.MasterVolume`
+is equivalent; duplicate dotted, sectioned or case aliases refuse edits.
+The earlier `mdkr64_app.ini` / `ui_scale` choice was shell-only and could not
+qualify this launch route. Native evidence must verify the package's executable
+and portable-marker location, resolved INI path, absence of higher-priority
+environment/CLI overrides, restart and actual consumer behavior. Their exact
 released source/asset identities are in the descriptors; another release or
 repacked asset must not inherit these settings by name alone.
 

@@ -53,8 +53,8 @@ pub struct GameSettingsFile {
 #[serde(rename_all = "kebab-case")]
 pub enum GameSettingsFormat {
     Json,
-    /// Version one is the case-sensitive, flat key=value preference grammar.
-    /// Sections, escapes and broader INI dialects are not inferred.
+    /// One key component selects case-sensitive flat preferences; two select
+    /// the bounded section/key grammar. Neither infers general INI dialects.
     Ini,
 }
 
@@ -63,7 +63,7 @@ pub enum GameSettingsFormat {
 pub struct GameSetting {
     pub id: String,
     pub label: String,
-    /// JSON object member components; flat INI uses exactly one literal key.
+    /// JSON object members; INI uses one flat key or two section/key components.
     /// No array indexing, wildcards, substitutions or executable expressions.
     pub key: Vec<String>,
     pub value: GameSettingType,
@@ -351,7 +351,7 @@ impl GameSettingsContract {
                     || setting.key.is_empty()
                     || setting.key.len()
                         > if file.format == GameSettingsFormat::Ini {
-                            1
+                            2
                         } else {
                             8
                         }

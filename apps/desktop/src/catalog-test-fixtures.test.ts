@@ -88,3 +88,42 @@ it("validates intentional source catalog fixtures without inventing missing clai
     "allowed values",
   );
 });
+
+it("validates Core decimal settings without accepting nonnumeric or nonfinite defaults", () => {
+  const settings = structuredClone(
+    currentCatalogPort("diddy-kong-racing-golden-balloon").game_settings,
+  );
+  if (!settings) throw new Error("Missing settings contract fixture");
+  const file = settings.files[0];
+  const setting = file?.settings[0];
+  if (!file || !setting) throw new Error("Missing settings entry fixture");
+  setting.value = {
+    kind: "number",
+    minimum: 0.75,
+    maximum: 2,
+    step: 0.05,
+    default: 1,
+  };
+  const fixture = { ...portDefinition(), game_settings: settings };
+  expect(serializedPortFixture(fixture)).toBe(fixture);
+  for (const value of ["1", Number.NaN, Number.POSITIVE_INFINITY]) {
+    const invalid: unknown = {
+      ...fixture,
+      game_settings: {
+        ...settings,
+        files: [
+          {
+            ...file,
+            settings: [
+              {
+                ...setting,
+                value: { kind: "number", minimum: 0.75, maximum: 2, step: 0.05, default: value },
+              },
+            ],
+          },
+        ],
+      },
+    };
+    expect(() => serializedPortFixture(invalid)).toThrow("Invalid serialized port fixture");
+  }
+});

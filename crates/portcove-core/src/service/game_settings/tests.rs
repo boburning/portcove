@@ -110,7 +110,7 @@ fn fixture(port_id: &str) -> Fixture {
     let original = if port_id == SHIP {
         br#"{"CVars":{"gSettings":{"Volume":{"Master":40},"unknown":"keep"}},"unrelated":[1,null,true]}"#.to_vec()
     } else {
-        b"# player comment\r\nui_scale=1.00\r\nunknown=value=with=equals\nlast=unchanged".to_vec()
+        b"# player comment\r\n[Audio]\r\nMasterVolume=100\r\nunknown=value=with=equals\nlast=unchanged".to_vec()
     };
     for path in [&canonical, &runtime] {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -128,7 +128,7 @@ fn fixture(port_id: &str) -> Fixture {
         proposed: if port_id == SHIP {
             json!(70)
         } else {
-            json!(1.25)
+            json!(70)
         },
     }
 }
@@ -391,7 +391,7 @@ fn both_formats_read_apply_reset_and_restart_through_the_same_core_service() {
         } else {
             assert_eq!(
                 bytes,
-                b"# player comment\r\nui_scale=1.25\r\nunknown=value=with=equals\nlast=unchanged"
+                b"# player comment\r\n[Audio]\r\nMasterVolume=70\r\nunknown=value=with=equals\nlast=unchanged"
             );
         }
         let library = fixture.service.library.clone();

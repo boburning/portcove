@@ -126,12 +126,40 @@ fn scalar_text(value: &Value) -> Result<String> {
 
 pub(crate) fn validate_file_declaration(file: &GameSettingsFile) -> Result<()> {
     if file.format == GameSettingsFormat::Ini {
+        let sectioned = file
+            .settings
+            .first()
+            .is_some_and(|setting| setting.key.len() == 2);
+        if file
+            .settings
+            .iter()
+            .any(|setting| (setting.key.len() == 2) != sectioned)
+            || (sectioned && file.maximum_bytes > 32767)
+        {
+            return Err(invalid(
+                "INI files require one bounded, consistent key grammar",
+            ));
+        }
+        let mut identities = std::collections::BTreeSet::new();
         for setting in &file.settings {
+            if sectioned
+                && (setting.key.join(".").len() > 127
+                    || setting.key.iter().any(|key| key.contains('.'))
+                    || !identities.insert(setting.key.join(".").to_ascii_lowercase()))
+            {
+                return Err(invalid(
+                    "sectioned INI declarations have ambiguous key identities",
+                ));
+            }
             if let GameSettingType::Enum { choices, .. } = &setting.value {
                 let mut encodings = std::collections::BTreeSet::new();
                 for choice in choices {
-                    if !encodings.insert(scalar_text(&choice.value)?) {
-                        return Err(invalid("flat INI enum choices have ambiguous encodings"));
+                    let encoded = scalar_text(&choice.value)?;
+                    if (sectioned
+                        && encoded.trim_matches(|ch: char| ch.is_ascii_whitespace()) != encoded)
+                        || !encodings.insert(encoded)
+                    {
+                        return Err(invalid("INI enum choices have ambiguous encodings"));
                     }
                 }
             }
@@ -140,7 +168,80 @@ pub(crate) fn validate_file_declaration(file: &GameSettingsFile) -> Result<()> {
     Ok(())
 }
 
+// This bounded section grammar is selected only by a two-component INI key.
+// It models the inspected engine consumer, including dotted and case aliases;
+// the one-component flat preference grammar remains separate.
+fn sectioned_ini<'a>(text: &'a str) -> Result<Vec<(usize, String, &'a str)>> {
+    if text.len() > 32767 || text.starts_with('\u{feff}') {
+        return Err(invalid(
+            "sectioned INI exceeds its encoding or byte contract",
+        ));
+    }
+    let trim = |text: &'a str| text.trim_matches(|ch: char| ch.is_ascii_whitespace());
+    let mut section = "";
+    let mut entries = Vec::new();
+    for (index, raw) in text.split_inclusive('\n').enumerate() {
+        let physical = raw.strip_suffix('\n').unwrap_or(raw);
+        if physical.len() > 1155 {
+            return Err(invalid("sectioned INI has an overlong physical line"));
+        }
+        let line = trim(physical);
+        if line.is_empty() || line.starts_with(['#', ';']) {
+            continue;
+        }
+        if line.starts_with('[') {
+            let Some(inner) = line
+                .strip_prefix('[')
+                .and_then(|line| line.strip_suffix(']'))
+            else {
+                return Err(invalid("sectioned INI has an ambiguous section header"));
+            };
+            if inner.contains(['[', ']']) || trim(inner).len() > 127 {
+                return Err(invalid("sectioned INI has an unsupported section header"));
+            }
+            section = trim(inner);
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        let key = trim(key);
+        let value = trim(value);
+        let identity = if section.is_empty() {
+            key.to_owned()
+        } else {
+            format!("{section}.{key}")
+        };
+        if key.is_empty() || identity.len() > 127 || value.len() > 1023 || entries.len() >= 128 {
+            return Err(invalid("sectioned INI exceeds its entry contract"));
+        }
+        entries.push((index, identity, value));
+    }
+    Ok(entries)
+}
+
+fn sectioned_match<'a>(text: &'a str, setting: &GameSetting) -> Result<Option<(usize, &'a str)>> {
+    let target = setting.key.join(".");
+    let mut found = None;
+    for (index, identity, value) in sectioned_ini(text)? {
+        if identity.eq_ignore_ascii_case(&target) {
+            if found.is_some() {
+                return Err(invalid(
+                    "configuration contains duplicate or aliased declared INI keys",
+                ));
+            }
+            found = Some((index, value));
+        }
+    }
+    Ok(found)
+}
+
 fn ini_value(text: &str, setting: &GameSetting) -> Result<Option<Value>> {
+    if setting.key.len() == 2 {
+        return sectioned_match(text, setting)?
+            .map(|(_, value)| ini_scalar(value, setting))
+            .transpose();
+    }
     let key = setting
         .key
         .first()
@@ -243,12 +344,22 @@ pub(crate) fn edit(
         }
         GameSettingsFormat::Ini => {
             let key = &setting.key[0];
+            let sectioned = setting.key.len() == 2;
+            let matched = if sectioned {
+                sectioned_match(text, setting)?.map(|(index, _)| index)
+            } else {
+                None
+            };
             let replacement = scalar_text(&encoded_value)?;
             let newline = if text.contains("\r\n") { "\r\n" } else { "\n" };
             let mut output = String::new();
             let mut replaced = false;
-            for line in text.split_inclusive('\n') {
-                if ini_line(line).is_some_and(|(name, _)| name == key) {
+            for (index, line) in text.split_inclusive('\n').enumerate() {
+                if if sectioned {
+                    matched == Some(index)
+                } else {
+                    ini_line(line).is_some_and(|(name, _)| name == key)
+                } {
                     let ending = if line.ends_with("\r\n") {
                         "\r\n"
                     } else if line.ends_with('\n') {
@@ -256,7 +367,8 @@ pub(crate) fn edit(
                     } else {
                         ""
                     };
-                    output.push_str(&format!("{key}={replacement}{ending}"));
+                    let spelling = line.split_once('=').expect("matched assignment").0;
+                    output.push_str(&format!("{spelling}={replacement}{ending}"));
                     replaced = true;
                 } else {
                     output.push_str(line);
@@ -266,7 +378,14 @@ pub(crate) fn edit(
                 if !output.is_empty() && !output.ends_with('\n') {
                     output.push_str(newline);
                 }
-                output.push_str(&format!("{key}={replacement}{newline}"));
+                if sectioned {
+                    output.push_str(&format!(
+                        "[{}]{newline}{}={replacement}{newline}",
+                        setting.key[0], setting.key[1]
+                    ));
+                } else {
+                    output.push_str(&format!("{key}={replacement}{newline}"));
+                }
             }
             output.into_bytes()
         }
@@ -306,6 +425,109 @@ mod tests {
             .unwrap()
             .files[0]
             .clone()
+    }
+
+    // Independent flat-preference fixture; not a Golden engine consumer claim.
+    fn flat_preferences() -> GameSettingsFile {
+        let mut file = declared("diddy-kong-racing-golden-balloon");
+        file.maximum_bytes = 524288;
+        file.settings[0].key = vec!["ui_scale".into()];
+        file.settings[0].value = GameSettingType::Number {
+            minimum: 0.75,
+            maximum: 2.0,
+            step: 0.05,
+            default: 1.0,
+        };
+        file
+    }
+
+    #[test]
+    fn golden_sectioned_and_dotted_audio_settings_preserve_unrelated_bytes() {
+        let file = declared("diddy-kong-racing-golden-balloon");
+        for (before, expected) in [
+            (
+                "# player\r\n[Audio]\r\nMasterVolume=100\r\nMusicVolume=60\n[Video]\nRenderScale=2",
+                "# player\r\n[Audio]\r\nMasterVolume=70\r\nMusicVolume=60\n[Video]\nRenderScale=2",
+            ),
+            (
+                "; player\n audio.mastervolume =100\n[Other]\nx=value=with=equals",
+                "; player\n audio.mastervolume =70\n[Other]\nx=value=with=equals",
+            ),
+            (
+                "[AUDIO]\n MASTERvolume = 100 \nunknown=keep",
+                "[AUDIO]\n MASTERvolume =70\nunknown=keep",
+            ),
+        ] {
+            assert_eq!(
+                read(&file, before.as_bytes()).unwrap(),
+                vec![Some(json!(100))]
+            );
+            let changed = edit(&file, before.as_bytes(), &file.settings[0].id, &json!(70)).unwrap();
+            assert_eq!(changed, expected.as_bytes());
+            let reset = edit(&file, &changed, &file.settings[0].id, &json!(100)).unwrap();
+            assert_eq!(read(&file, &reset).unwrap(), vec![Some(json!(100))]);
+        }
+        let added = edit(
+            &file,
+            b"[Video]\nRenderScale=2",
+            &file.settings[0].id,
+            &json!(70),
+        )
+        .unwrap();
+        assert_eq!(added, b"[Video]\nRenderScale=2\n[Audio]\nMasterVolume=70\n");
+        assert_eq!(read(&file, &added).unwrap(), vec![Some(json!(70))]);
+    }
+
+    #[test]
+    fn sectioned_ini_refuses_consumer_aliases_ambiguity_and_parser_limits() {
+        let file = declared("diddy-kong-racing-golden-balloon");
+        for before in [
+            "Audio.MasterVolume=100\n[Audio]\nMasterVolume=70",
+            "[Audio]\nMasterVolume=100\nmastervolume=70",
+            "[Audio]\nMasterVolume=100\n[AUDIO]\nMasterVolume=70",
+            "[Audio] trailing\nMasterVolume=100",
+            "[Audio\nMasterVolume=100",
+            "[Audio]\nMasterVolume=100; inline comment",
+            "[Audio]\nMasterVolume=100\0hidden",
+            "\u{feff}[Audio]\nMasterVolume=100",
+            "[Audio]\nMasterVolume=101",
+        ] {
+            assert!(read(&file, before.as_bytes()).is_err(), "{before:?}");
+            assert!(edit(&file, before.as_bytes(), &file.settings[0].id, &json!(70)).is_err());
+        }
+        for before in [
+            format!("{}\n[Audio]\nMasterVolume=100", "#".repeat(1156)),
+            format!("{}[Audio]\nMasterVolume=100", "unknown=1\n".repeat(128)),
+            format!("unknown={}\n[Audio]\nMasterVolume=100", "x".repeat(1024)),
+            format!("{}=x\n[Audio]\nMasterVolume=100", "x".repeat(128)),
+        ] {
+            assert!(read(&file, before.as_bytes()).is_err());
+        }
+        let mut duplicate = file.clone();
+        let mut alias = duplicate.settings[0].clone();
+        alias.id = "other".into();
+        alias.key = vec!["audio".into(), "mastervolume".into()];
+        duplicate.settings.push(alias);
+        assert!(validate_file_declaration(&duplicate).is_err());
+        let mut mixed = file.clone();
+        mixed.settings.push(flat_preferences().settings.remove(0));
+        assert!(validate_file_declaration(&mixed).is_err());
+        let mut padded = file.clone();
+        padded.settings[0].value = GameSettingType::Enum {
+            choices: vec![super::super::GameSettingChoice {
+                label: "Quiet".into(),
+                value: json!(" quiet "),
+            }],
+            default: json!(" quiet "),
+        };
+        assert!(validate_file_declaration(&padded).is_err());
+        padded.settings[0].key = vec!["flat".into()];
+        assert!(validate_file_declaration(&padded).is_ok());
+        let edited = edit(&padded, b"", &padded.settings[0].id, &json!(" quiet ")).unwrap();
+        assert_eq!(
+            read(&padded, &edited).unwrap(),
+            vec![Some(json!(" quiet "))]
+        );
     }
 
     #[test]
@@ -364,8 +586,8 @@ mod tests {
     }
 
     #[test]
-    fn golden_ini_edit_and_reset_preserve_every_unrelated_byte_and_comment() {
-        let file = declared("diddy-kong-racing-golden-balloon");
+    fn flat_ini_edit_and_reset_preserve_every_unrelated_byte_and_comment() {
+        let file = flat_preferences();
         let before = b"# Player preferences\r\nunknown=value=with=equals\nui_scale=1.00\r\n# trailing comment\r\nother=unchanged";
         let changed = edit(&file, before, &file.settings[0].id, &json!(1.25)).unwrap();
         assert_eq!(changed, b"# Player preferences\r\nunknown=value=with=equals\nui_scale=1.25\r\n# trailing comment\r\nother=unchanged");
@@ -379,6 +601,16 @@ mod tests {
         assert_eq!(reset, b"# Player preferences\r\nunknown=value=with=equals\nui_scale=1.0\r\n# trailing comment\r\nother=unchanged");
         assert_eq!(read(&file, &reset).unwrap(), vec![Some(json!(1.0))]);
         assert_eq!(
+            edit(
+                &file,
+                b"[opaque]\nui_scale=1.0\n",
+                &file.settings[0].id,
+                &json!(1.25)
+            )
+            .unwrap(),
+            b"[opaque]\nui_scale=1.25\n"
+        );
+        assert_eq!(
             read(&file, b"UI_SCALE=1.25\n ui_scale=1.5\n").unwrap(),
             vec![None]
         );
@@ -386,7 +618,7 @@ mod tests {
 
     #[test]
     fn ini_ambiguous_values_and_size_refuse_without_modifying_input() {
-        let mut file = declared("diddy-kong-racing-golden-balloon");
+        let mut file = flat_preferences();
         for before in [
             b"ui_scale=1\nui_scale=1.25\n".as_slice(),
             b"ui_scale=NaN",
@@ -407,7 +639,7 @@ mod tests {
 
     #[test]
     fn consumer_rejected_ini_documents_are_not_presented_as_consumed_settings() {
-        let file = declared("diddy-kong-racing-golden-balloon");
+        let file = flat_preferences();
         for mut bytes in [
             b"unknown=hidden\0data\n".to_vec(),
             vec![b'#'; 384 * 1024 + 1],
@@ -453,7 +685,7 @@ mod tests {
 
     #[test]
     fn ini_declaration_refuses_ambiguous_or_escaped_enum_choices() {
-        let mut file = declared("diddy-kong-racing-golden-balloon");
+        let mut file = flat_preferences();
         for values in [
             vec![json!(1), json!("1")],
             vec![json!(true), json!("true")],
