@@ -19,7 +19,9 @@ pub struct GameSettingsView {
 pub struct GameSettingsFileView {
     pub id: String,
     pub path: String,
-    pub configuration_sha256: String,
+    pub available: bool,
+    pub reason: Option<String>,
+    pub configuration_sha256: Option<String>,
     pub settings: Vec<GameSettingView>,
 }
 

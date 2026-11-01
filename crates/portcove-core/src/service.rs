@@ -101,6 +101,7 @@ std::thread_local! {
 
 #[path = "game_install_review.rs"]
 mod game_install_review;
+mod game_settings;
 #[path = "game_update_acquisition.rs"]
 pub(crate) mod game_update_acquisition;
 #[path = "game_update_review.rs"]
@@ -5892,6 +5893,10 @@ impl PortcoveService {
 
     fn require_completed_restore(&self, port_id: &str) -> Result<()> {
         self.library.require_no_settings_recovery(port_id)?;
+        self.require_completed_backup_restore(port_id)
+    }
+
+    fn require_completed_backup_restore(&self, port_id: &str) -> Result<()> {
         if OperationStore::new(self.library.clone())
             .all()?
             .iter()

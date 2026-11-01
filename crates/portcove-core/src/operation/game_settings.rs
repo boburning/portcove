@@ -19,6 +19,7 @@ pub(crate) struct SettingsJournal {
     pub file_id: String,
     pub relative_path: String,
     pub maximum_bytes: u64,
+    pub review: crate::GameSettingReview,
     pub canonical: FileCustody,
     /// A projection of the same canonical postimage, never a second policy or
     /// settings store. Direct-to-user-root runtimes require no second leg.
@@ -125,6 +126,12 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
             != library
                 .user_dir(&operation.port_id)
                 .join(&payload.relative_path)
+        || payload.review.port_id != operation.port_id
+        || payload.review.install_id != payload.install.id
+        || payload.review.file_id != payload.file_id
+        || payload.review.path != payload.relative_path
+        || payload.review.configuration_sha256 != payload.canonical.previous_sha256
+        || !digest(&payload.review.review_sha256)
         || operation.activate
         || !operation.original_paths.is_empty()
     {
@@ -210,6 +217,10 @@ mod tests {
             file_id: "preferences".into(),
             relative_path: "shipofharkinian.json".into(),
             maximum_bytes: 1024,
+            review: crate::GameSettingReview {
+                port_id: "shipwright".into(), install_id: "inert-settings-install".into(), file_id: "preferences".into(), setting_id: "master-volume".into(), label: "Master volume".into(), path: "shipofharkinian.json".into(),
+                change: crate::GameSettingChange::Reset, previous_value: Some(serde_json::json!(70)), proposed_value: serde_json::json!(40), configuration_sha256: "c".repeat(64), review_sha256: "e".repeat(64),
+            },
             canonical: FileCustody {
                 path,
                 parent_identity: format!("win128:{:016x}:{:032x}", 1, 11),

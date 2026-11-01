@@ -1098,6 +1098,7 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    SettingsChange,
     DownloadPackage,
     Prepare,
     UpdateCatalog,
@@ -1130,6 +1131,7 @@ pub enum ActivityOperation {
 impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
+            Self::SettingsChange => "settings_change",
             Self::DownloadPackage => "download_package",
             Self::Prepare => "prepare",
             Self::UpdateCatalog => "update_catalog",
@@ -1166,6 +1168,7 @@ impl FromStr for ActivityOperation {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "settings_change" => Ok(Self::SettingsChange),
             "download_package" => Ok(Self::DownloadPackage),
             "prepare" => Ok(Self::Prepare),
             "update_catalog" => Ok(Self::UpdateCatalog),

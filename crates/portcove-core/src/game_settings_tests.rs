@@ -61,6 +61,9 @@ fn configuration_paths_refuse_escape_alias_and_non_configuration_targets() {
         "GoldenBalloon/mdkr64_app.ini.",
         "GoldenBalloon/rom.z64",
         "GoldenBalloon/player.exe",
+        ".portcove-manifest.json",
+        "GoldenBalloon/.PORTCOVE-manifest.json",
+        ".portcove-private/preferences.ini",
     ] {
         let mut value = fixture();
         value.files[0].path = path.into();

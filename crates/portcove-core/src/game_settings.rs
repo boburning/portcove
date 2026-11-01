@@ -11,6 +11,8 @@ use crate::{Platform, PortcoveError, Result};
 
 pub(crate) mod document;
 mod service_types;
+#[cfg(windows)]
+pub(crate) mod windows;
 pub use service_types::*;
 
 pub(crate) const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
@@ -316,10 +318,10 @@ impl GameSettingsContract {
                 || !file_ids.insert(&file.id)
                 || file.path.len() > 512
                 || file.path.contains(['\\', ':'])
-                || file
-                    .path
-                    .split('/')
-                    .any(|component| component.ends_with(['.', ' ']))
+                || file.path.split('/').any(|component| {
+                    component.ends_with(['.', ' '])
+                        || component.to_ascii_lowercase().starts_with(".portcove")
+                })
                 || !file.path.to_ascii_lowercase().ends_with(suffix)
                 || !files.insert(file.path.to_ascii_lowercase())
                 || file.maximum_bytes == 0
