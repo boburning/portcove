@@ -9,6 +9,10 @@ use serde_json::Value;
 
 use crate::{Platform, PortcoveError, Result};
 
+pub(crate) mod document;
+mod service_types;
+pub use service_types::*;
+
 pub(crate) const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -370,6 +374,7 @@ impl GameSettingsContract {
                     .value
                     .validate(&format!("game_settings.settings.{}", setting.id))?;
             }
+            document::validate_file_declaration(file)?;
         }
         Ok(())
     }

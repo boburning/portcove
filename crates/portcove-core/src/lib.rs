@@ -207,8 +207,9 @@ pub use game_recommendations::{
     StabilityOutcome,
 };
 pub use game_settings::{
-    GameSetting, GameSettingChoice, GameSettingType, GameSettingsContract, GameSettingsFile,
-    GameSettingsFormat, GameSettingsRelease,
+    GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
+    GameSettingView, GameSettingsContract, GameSettingsFile, GameSettingsFileView,
+    GameSettingsFormat, GameSettingsRelease, GameSettingsView,
 };
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;
