@@ -3,11 +3,11 @@
   "listing": {
     "id": "sonic-free-riders-recompiled",
     "name": "Sonic Free Riders: Recompiled",
-    "summary": "Explore Sonic Free Riders: Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, upstream-prepared Sonic Free Riders: Recompiled native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
     "issue_number": 1450,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
     "artwork": {
       "game_id": 20118,
@@ -16,6 +16,45 @@
       "image_sha256": "5a22c2b30c5f1e68a3f3c0fb6e87023772fb7c876ce3fcee5415ddc9bbf36ca1",
       "game_slug": "sonic-free-riders",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled/releases/tag/v0.10.40",
+    "download_asset_hints": {
+      "windows-x86-64": ["FreeRidersRecompiled", "windows-x64"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled/releases",
+      "steps": [
+        {
+          "title": "Use an independently permitted completed copy",
+          "instruction": "Fresh bundled-player acquisition remains held for the exact generated-code component described in the download restriction. This guide only attaches an existing complete copy you are independently permitted to use; the project grant does not supply the excluded permission."
+        },
+        {
+          "title": "Prepare your own supported original upstream",
+          "instruction": "Use your own supported USA/Europe Xbox 360 Sonic Free Riders original. The inspected source documents title5345084D, default.xex14,241,792bytes and documentary SHA2563d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7; upstream installer enforces its supported-XEX size/digest contract separately from the documentary whole-ISO hash. Complete normal ISO/folder import upstream. Keep the complete prepared game/assets and game/image output and shader/runtime companions; Portcove neither imports nor regenerates them."
+        },
+        {
+          "title": "Attach the completed native Windows player",
+          "instruction": "Select FreeRidersRecompiled.exe and its complete prepared Windows package directory, with no extra arguments for the supported normal launcher. Its Windows launcher retains the child handle and waits while the game runs. Do not substitute sfr_cpu_diagnostic.exe or shader-tools executables: the launcher establishes the profile, save directory, input and renderer environment. Keep existing supported literal arguments only if the working setup needs them."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+        },
+        {
+          "title": "Keep upstream maintenance outside the attached session",
+          "instruction": "The public launcher owns game environment, child lifetime and return/error behavior. Upstream and the user own preparation and runtime replacement. Preserve the full old copy, matching runtime/shader tools and all data; close actual player and companions before replacement and review changed selected bytes."
+        },
+        {
+          "title": "Preserve the creating copy and every effective data root",
+          "instruction": "Keep settings.ini, save/, game.log, game/, pipeline-cache, mods and every custom root. The configured save directory may be external or relative to the launcher; retain the effective path and profile name because changing that name changes offline XUID/save identity. Saves include SfrAllData.sav and sidecars; achievements.txt lives with the player saves. Preserve optional local model references/imports and all shader caches, backups and temporary files with the creating runtime."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "GPL-3.0-or-later project code excludes SEGA game code/data. Package THIRD_PARTY names ONNX MIT and MediaPipe model Apache2 components and associated licenses. No Kinect patch code/files are included according to upstream. Conditional independently permitted copy; no inherited whole-game grant.",
+        "Windows x64 AVX withD3D12 orVulkan1.2. Keyboard/controller is useful without Kinect; camera/Kinect/VRM/network modes and actual native gameplay/real saves were not qualified here."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
   }
 }

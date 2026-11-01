@@ -3,7 +3,7 @@
   "listing": {
     "id": "dead-rising-2-case-zero-recomp",
     "name": "Dead Rising 2 Case Zero Xenon Recomp",
-    "summary": "Explore Dead Rising 2 Case Zero Xenon Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, prepared Case Zero native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
     "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
     "issue_number": 1121,
     "platforms": [],
@@ -20,6 +20,10 @@
     "manual_setup": {
       "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/tree/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
       "steps": [
+        {
+          "title": "Keep an independently permitted completed copy",
+          "instruction": "Continue only with an actual player and components you are independently permitted to use. The reviewed v1.1.3 package defers compiled-in libxlive’s licence to XenonLive, and that specific grant is not established by the retained evidence. The title’s own noncommercial grant does not settle this expressly separate scope; offline use does not remove the linked bytes. Fresh acquisition stays held. The previously delivered non-owning preparation and data-preservation guidance below remains applicable to an independently permitted copy."
+        },
         {
           "title": "Prepare the own-game offline Windows copy upstream",
           "instruction": "Use your legally obtained Xbox Live Arcade Dead Rising 2: Case Zero package, Title ID 58410A8D: the approximately 825 MB extensionless package under Content/0000000000000000/58410A8D/000D0000, not the full Dead Rising 2 game. Follow the standalone package’s first-run instructions outside Portcove. Its native runtime performs STFS extraction, shader preparation and game-data overlays; no external compiler or setup helper is run by this guide. The project’s PolyForm Noncommercial grant covers its own work, not the original game or separately licensed components."
@@ -40,6 +44,7 @@
       "warnings": [
         "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
       ]
-    }
+    },
+    "download_block_reason": "The inspected Case Zero v1.1.3 Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove the linked component. This condition grants no permission to use an existing copy."
   }
 }

@@ -3,13 +3,42 @@
   "listing": {
     "id": "abilliontokens-urbz-recomp",
     "name": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
-    "summary": "Upstream route: Upstream runtime package for Urbz recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream port/features available. Full-game completion Unknown here; sibling titles using the SDK do not transfer evidence. WindowsD3D12/LinuxVulkan1.3 x64 packages; distinct from DS/GBA Urbz. Full-game completion not inferred from common SDK. Upstream platforms: Windows 10/11 x64 D3D12 and Linux x86-64 Vulkan1.3; original Xbox edition, not DS/GBA. Original data: Original Xbox Urbz SimsInCity USA own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Register an independently permitted prepared The Urbz: Sims in the City original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Urbz: Sims in the City",
     "project_url": "https://github.com/abilliontokens/urbz-recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/abilliontokens/urbz-recomp",
-    "issue_number": 2813
+    "issue_number": 2813,
+    "manual_setup": {
+      "help_url": "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md",
+      "steps": [
+        {
+          "title": "Complete the exact owned-disc setup upstream",
+          "instruction": "Use an independently permitted complete The Urbz: Sims in the City original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 3,035,136 bytes, SHA-1 5712b6a3e2eaaacfcae228cf6154ade499a0033c, title ID 0x45410060; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove."
+        },
+        {
+          "title": "Attach the supported completed native player",
+          "instruction": "Select Urbz.exe, with its complete creating player directory as working directory and no arguments for normal launch. Keep its matching runtime DLLs, resources, notices and assets/ together. The Windows route uses Direct3D 12 and XAudio2; keep the supported host graphics/runtime dependencies installed upstream. The source locates assets/ beside the executable or in ancestor folders; preserve the actual selected tree rather than redirecting originals during attachment. Do not select build scripts, generators or another title’s executable."
+        },
+        {
+          "title": "Keep the exact session and successor boundary visible",
+          "instruction": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced."
+        },
+        {
+          "title": "Review Play and preserve external ownership",
+          "instruction": "Review and consent to this exact selected executable, established CWD and literal arguments, then request Play separately. Upstream and you retain preparation, runtime replacement, recovery and every external file. Removing registration preserves external files. Before upstream replacement, close all actual sessions, keep the old complete runtime and all data, then review/relink changed selected bytes. No external update, backup, rollback, migration or deletion is offered."
+        },
+        {
+          "title": "Keep the entire effective profile with its creating runtime",
+          "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+        }
+      ],
+      "warnings": [
+        "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
+        "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -3,11 +3,11 @@
   "listing": {
     "id": "silent-hill-silent-hill-decomp-pc-branch",
     "name": "Silent Hill / silent-hill-decomp PC branch",
-    "summary": "Explore Silent Hill / silent-hill-decomp PC branch and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, completed Silent Hill native Windows player. Fresh acquisition remains held on four expressly excluded packaged sound files.",
     "project_url": "https://github.com/SlickAmogus/silent-hill-decomp",
     "issue_number": 351,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/SlickAmogus/silent-hill-decomp",
     "artwork": {
       "game_id": 480,
@@ -16,6 +16,36 @@
       "image_sha256": "cd7fe4d5c1399b156b62e9ee46d767101b3da4a6ebb874d26cabb863a48b11f5",
       "game_slug": "silent-hill",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/SlickAmogus/silent-hill-decomp/releases/tag/crossplatform-beta",
+    "manual_setup": {
+      "help_url": "https://github.com/SlickAmogus/silent-hill-decomp/releases/tag/crossplatform-beta",
+      "steps": [
+        {
+          "title": "Keep an independently permitted completed copy",
+          "instruction": "The inspected SHPC_beta-2026.10.12.1.zip includes achievement.wav, steam.wav, trophy.wav and swish.wav. The project explicitly excludes these sounds from its licence grant and schedules replacement. Fresh acquisition stays held on that condition; a licence for the PC engine or its decompilation origin does not clear these separate assets."
+        },
+        {
+          "title": "Complete original selection and preparation upstream",
+          "instruction": "For the documented USA route, use your own Silent Hill PlayStation SLUS-00707 BIN image and complete upstream’s region/disc setup before registration, keeping the working image under its established gamedata path. Keep the actually working original path, source selections, matching native executable, map DLLs, gamedata, libraries, config.cfg and notices together. This guide does not import, authenticate, extract or convert an original, build the port or grant rights to game data."
+        },
+        {
+          "title": "Select the supported completed native entry",
+          "instruction": "Select SilentHillPC.exe with its already established build/package working directory and no arguments. Upstream’s build script supports running this completed native executable directly; its in-process PC options/F10 controls remain available. The separate .NET SilentHillPC_Launcher.exe starts the native player and closes, so it does not represent the full attached session."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the complete working copy and all player data",
+          "instruction": "Preserve the whole working folder and every actual custom or external root, including config.cfg, original disc, map DLLs, gamedata, mods, logs, saves and backups/temporary files. The inspected source’s PsyCross card shim uses gamedata/save/0.MCD and 1.MCD relative to the effective working directory; quicksave enters the game’s own save screens. Keep that creating layout and all actual data, rather than assuming the release asset was built from the tag or that every later version shares its paths. Upstream replacement does not establish backward-compatible saves or restore player progress."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+      ]
+    },
+    "download_block_reason": "The inspected Windows package contains achievement.wav, steam.wav, trophy.wav and swish.wav whose exact source bytes are explicitly excluded from the project’s licence grant. Fresh acquisition stays held until attributable applicable sound permission or a reviewed released package removes or replaces those assets. The PC-code and named origin grants do not resolve this separate audio condition. Keep only an independently permitted existing copy; this condition grants no permission to acquire or execute it."
   }
 }

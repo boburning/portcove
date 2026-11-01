@@ -32,13 +32,7 @@ pub(crate) fn checked_port(
                 .push("logs/Ship of Harkinian.log".into());
         }
     }
-    let mut retained_baseline = retained.clone();
-    let mut current_baseline = current.clone();
-    retained_baseline.persistent_paths.clear();
-    retained_baseline.runtime_mutable_paths.clear();
-    current_baseline.persistent_paths.clear();
-    current_baseline.runtime_mutable_paths.clear();
-    if serde_json::to_value(&retained_baseline)? != serde_json::to_value(&current_baseline)? {
+    if operational_compatibility(retained) != operational_compatibility(&current) {
         return Ok(retained.clone());
     }
     if !retained
@@ -94,4 +88,97 @@ pub(crate) fn shipwright_windows_cwd_persistence(
         && install.artifact.size == 72_980_600
         && install.artifact.sha256
             == "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c"
+}
+
+/// Compare the retained execution/authority contract, excluding only display
+/// metadata (including the legacy support tier, qualification and maintenance observations) and the two
+/// additive path lists proved separately above. Release
+/// locations, channel/platform policy, source/preparation and launch
+/// inputs remain operational. Exhaustive field handling makes schema additions
+/// require a classification here rather than silently expanding an allowlist.
+fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
+    let PortDefinition {
+        id,
+        name: _,
+        summary: _,
+        project_url: _,
+        support_tier: _,
+        channels,
+        platforms,
+        automated_tested_platforms: _,
+        manually_validated_platforms: _,
+        adapter,
+        release,
+        bundled_runtime,
+        source_profile,
+        bios_source_profile,
+        executable_hints,
+        persistent_paths: _,
+        persistent_file_patterns,
+        runtime_mutable_paths: _,
+        runtime_mutable_file_patterns,
+        windows_runtime_path_policy,
+        windows_temp_directory,
+        portable_marker,
+        n64_windows_initial_d3d12,
+        n64_runtime_at_executable_parent,
+        managed_initialization,
+        runtime_data_policy,
+        mod_package_policy,
+        managed_shared_preferences,
+        managed_shared_preferences_save_id,
+        source_environment,
+        user_data_environment,
+        launch_environment,
+        launch_arguments,
+        runtime_subdirectory,
+        runtime_source_filename,
+        runtime_source_materialization,
+        runtime_source_hashes,
+        runtime_source_set,
+        launch_from_install_root,
+        setup_executable_hints,
+        setup_arguments,
+        setup_marker,
+        setup_output_paths,
+        upstream_status: _,
+        presentation: _,
+    } = port;
+    serde_json::json!({
+        "id": id,
+        "channels": channels,
+        "platforms": platforms,
+        "adapter": adapter,
+        "release": release,
+        "bundled_runtime": bundled_runtime,
+        "source_profile": source_profile,
+        "bios_source_profile": bios_source_profile,
+        "executable_hints": executable_hints,
+        "persistent_file_patterns": persistent_file_patterns,
+        "runtime_mutable_file_patterns": runtime_mutable_file_patterns,
+        "windows_runtime_path_policy": windows_runtime_path_policy,
+        "windows_temp_directory": windows_temp_directory,
+        "portable_marker": portable_marker,
+        "n64_windows_initial_d3d12": n64_windows_initial_d3d12,
+        "n64_runtime_at_executable_parent": n64_runtime_at_executable_parent,
+        "managed_initialization": managed_initialization,
+        "runtime_data_policy": runtime_data_policy,
+        "mod_package_policy": mod_package_policy,
+        "managed_shared_preferences": managed_shared_preferences,
+        "managed_shared_preferences_save_id": managed_shared_preferences_save_id,
+        "source_environment": source_environment,
+        "user_data_environment": user_data_environment,
+        "launch_environment": launch_environment,
+        "launch_arguments": launch_arguments,
+        "runtime_subdirectory": runtime_subdirectory,
+        "runtime_source_filename": runtime_source_filename,
+        "runtime_source_materialization": runtime_source_materialization,
+        "runtime_source_hashes": runtime_source_hashes,
+        "runtime_source_set": runtime_source_set,
+        "launch_from_install_root": launch_from_install_root,
+        "setup_executable_hints": setup_executable_hints,
+        "setup_arguments": setup_arguments,
+        "setup_marker": setup_marker,
+        "setup_output_paths": setup_output_paths,
+    })
 }

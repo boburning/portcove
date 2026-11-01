@@ -3,11 +3,11 @@
   "listing": {
     "id": "eternal-sonata-reprise",
     "name": "Eternal Sonata Reprise",
-    "summary": "Explore Eternal Sonata Reprise and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an Eternal Sonata: Reprise native Windows player for your own supported original. Keep game-library preparation, updater and runtime replacement upstream.",
     "project_url": "https://github.com/birabittoh/EternalSonataReprise",
     "issue_number": 1126,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/birabittoh/EternalSonataReprise",
     "artwork": {
       "game_id": 6990,
@@ -16,6 +16,38 @@
       "image_sha256": "50a21a572f5b3741fd3cbf74e6c13cffbccee71f7dd22ac98557a83a6683baf6",
       "game_slug": "eternal-sonata",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/birabittoh/EternalSonataReprise/releases/tag/v1.3.7",
+    "download_asset_hints": {
+      "windows-x86-64": ["eternalsonata", "win-amd64"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/birabittoh/EternalSonataReprise/releases/tag/v1.3.7",
+      "steps": [
+        {
+          "title": "Keep the complete Windows player and your own supported original",
+          "instruction": "The inspected Windows package contains eternalsonata.exe and its matching rexruntime.dll. Use your own original supported by upstream’s game-library picker and validation: the selected source lists Xbox 360 and PS3 PAL, USA and Japanese variants independently. The PAL-only Xbox 360 source-build prerequisite does not narrow every runtime input. Complete upstream’s normal preparation, keep the selected original/version directory and do not substitute another variant’s executable or files. Portcove imports no disc or generated game code."
+        },
+        {
+          "title": "Attach the completed native player",
+          "instruction": "Select eternalsonata.exe, its existing package directory as working directory and no arguments for the normal in-process start screen/library selection. Retain existing literal arguments only when your working setup requires them. Keep matching resources, configuration and the established library/version selection; a selected game folder can live outside the library root."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Keep upstream updates and restarts outside the attached session",
+          "instruction": "The inspected title and pinned Windows SDK offer game updates and restarts. Applying an update starts a helper that outlives the old process and can replace files and launch a successor. Treat deliberate update/restart as upstream maintenance outside the active attached session: close the actual player and companions, retain the old runtime and all data, then review and relink changed selected bytes. Turning off an update check alone does not give Portcove exclusive replacement ownership; this guide disables no upstream feature and adopts no successor automatically."
+        },
+        {
+          "title": "Preserve every effective library, profile and configuration root",
+          "instruction": "Keep the complete creating runtime and every actual game, user, cache, mod, mod-dump, update, metadata and custom root, including external game-version links. Relative path settings resolve against the configuration’s parent directory in the inspected SDK. A portable.txt beside the executable makes the default user directory user/ beside it; other configurations use platform folders. Preserve settings.toml, runtime configuration, selected-version metadata, install/migration staging, saves, mods, caches, backups and temporary files. Keep established paths and creating-runtime compatibility; the working directory alone does not identify all player data."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+      ]
     }
   }
 }

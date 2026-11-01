@@ -595,11 +595,10 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 
 #[tokio::test]
 async fn embedded_ps1_selected_package_permission_holds_refuse_before_network() {
-    assert_embedded_player_download_holds(&["rage-racer-rage-racer-pc"]).await;
-    assert_embedded_listing_download_holds(
-        &["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"],
-        false,
-    )
+    assert_embedded_player_download_holds(&[
+        "rage-racer-rage-racer-pc",
+        "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+    ])
     .await;
 }
 
@@ -1798,4 +1797,167 @@ async fn cdlewis_snowboardkids_recomp_remaining_component_hold_before_network_18
 #[tokio::test]
 async fn vidanox_banjotooierecompiled_remaining_component_hold_before_network_1795() {
     assert_embedded_player_download_holds(&["vidanox-banjotooierecompiled"]).await;
+}
+
+#[tokio::test]
+async fn blast_corps_recompiled_font_hold_before_network_2558() {
+    assert_embedded_player_download_holds(&["blast-corps-blastcorps-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn final_fantasy_tactics_finfantacrecomp_component_hold_before_network_327() {
+    assert_embedded_player_download_holds(&["final-fantasy-tactics-finfantacrecomp"]).await;
+}
+
+#[tokio::test]
+async fn silent_hill_silent_hill_decomp_pc_branch_component_hold_before_network_351() {
+    assert_embedded_player_download_holds(&["silent-hill-silent-hill-decomp-pc-branch"]).await;
+}
+
+#[tokio::test]
+async fn tenchu_stealth_assassins_tenchu_sa_recomp_component_hold_before_network_353() {
+    assert_embedded_player_download_holds(&["tenchu-stealth-assassins-tenchu-sa-recomp"]).await;
+}
+
+#[tokio::test]
+async fn dead_rising_2_case_west_recomp_libxlive_hold_before_network_1122() {
+    assert_embedded_player_download_holds(&["dead-rising-2-case-west-recomp"]).await;
+}
+
+#[tokio::test]
+async fn exit_shared_release_keeps_title_recommendations_distinct_362_363() {
+    for (id, expected_id) in [
+        ("exit-rexglue-exit-exit1", 11),
+        ("exit-2-rexglue-exit-exit2", 12),
+    ] {
+        let (_temporary, mut service, _request) = fixture();
+        service.catalog = Catalog::embedded().unwrap();
+        let repository = "FluffyQuack/ReXGlue-EXIT";
+        let bytes = archive();
+        let expected = crate::signed_catalog::digest(&bytes);
+        let github = GithubFixture::for_repository(
+            repository,
+            bytes,
+            Some(format!("sha256:{expected}")),
+            None,
+        );
+        let template = github.assets.lock().unwrap()[0].clone();
+        let names = [
+            "EXIT1-Recomp.zip",
+            "EXIT2-Recomp.zip",
+            "rexglue-sdk-0.9.1-linux-amd64.zip",
+            "rexglue-sdk-0.9.1-win-amd64.zip",
+        ];
+        *github.assets.lock().unwrap() = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                let mut asset = template.clone();
+                asset["id"] = json!(11 + index);
+                asset["name"] = json!(name);
+                asset
+            })
+            .collect();
+        github.releases.lock().unwrap()[0]["tag_name"] = json!("v0.9.1");
+        let options = service
+            .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+            .await
+            .unwrap();
+        assert!(options.allowed);
+        assert_eq!(options.candidates.len(), 4);
+        if Platform::current().unwrap() == Platform::WindowsX86_64 {
+            assert_eq!(options.recommended_asset_id, Some(expected_id));
+        }
+        // Recommendations do not filter the explicit generic-download choices.
+        for name in names {
+            assert!(options.candidates.iter().any(|asset| asset.name == name));
+        }
+        assert!(service.pending_setups().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn dead_rising_2_case_zero_recomp_libxlive_hold_before_network_1121() {
+    assert_embedded_player_download_holds(&["dead-rising-2-case-zero-recomp"]).await;
+}
+
+#[tokio::test]
+async fn condemned_2_bloodshot_condemned2recomp_component_hold_before_network_361() {
+    assert_embedded_player_download_holds(&["condemned-2-bloodshot-condemned2recomp"]).await;
+}
+
+#[tokio::test]
+async fn silent_hill_downpour_downpourrecomp_component_hold_before_network_358() {
+    assert_embedded_player_download_holds(&["silent-hill-downpour-downpourrecomp"]).await;
+}
+
+#[tokio::test]
+async fn tony_hawks_project_8_recomp_component_hold_before_network_1125() {
+    assert_embedded_player_download_holds(&["tony-hawks-project-8-recomp"]).await;
+}
+
+#[tokio::test]
+async fn sonic_free_riders_recompiled_component_hold_before_network_1450() {
+    assert_embedded_player_download_holds(&["sonic-free-riders-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn unchiga_yu_gi_oh_forbidden_memories_recompiled_component_hold_before_network_1910() {
+    assert_embedded_player_download_holds(&["unchiga-yu-gi-oh-forbidden-memories-recompiled"])
+        .await;
+}
+
+#[tokio::test]
+async fn james2doyle_ffta_recomp_component_hold_before_network_2824() {
+    assert_embedded_player_download_holds(&["james2doyle-ffta-recomp"]).await;
+}
+
+#[tokio::test]
+async fn kingdom_hearts_chain_of_memories_gba_rekhcom_component_hold_before_network_2586() {
+    assert_embedded_player_download_holds(&["kingdom-hearts-chain-of-memories-gba-rekhcom"]).await;
+}
+
+#[tokio::test]
+async fn vibecodekun_shantaerecomp_component_hold_before_network_1881() {
+    assert_embedded_player_download_holds(&["vibecodekun-shantaerecomp"]).await;
+}
+
+#[tokio::test]
+async fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_component_hold_before_network_356() {
+    assert_embedded_player_download_holds(&["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"])
+        .await;
+}
+
+#[tokio::test]
+async fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_component_hold_before_network_2570()
+ {
+    assert_embedded_player_download_holds(&[
+        "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_component_hold_before_network_2577()
+ {
+    assert_embedded_player_download_holds(&[
+        "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn hard_corps_uprising_hard_corps_uprising_recompiled_component_hold_before_network_2581() {
+    assert_embedded_player_download_holds(&["hard-corps-uprising-hard-corps-uprising-recompiled"])
+        .await;
+}
+
+#[tokio::test]
+async fn crackdown_crackdown_recompiled_component_hold_before_network_2559() {
+    assert_embedded_player_download_holds(&["crackdown-crackdown-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn crazyriddler_finesthourremastered_component_hold_before_network_2785() {
+    assert_embedded_player_download_holds(&["crazyriddler-finesthourremastered"]).await;
 }

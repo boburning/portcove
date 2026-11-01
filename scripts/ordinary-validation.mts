@@ -1960,6 +1960,7 @@ explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   "scripts/release-windows-webview-driver.test.mts",
   "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
+  "scripts/release-control-inputs.test.mts",
   "scripts/renovate-engine-probe.test.mts",
   "scripts/desktop-staged-layout.test.mts",
   "scripts/ci-windows-helpers.test.mts",

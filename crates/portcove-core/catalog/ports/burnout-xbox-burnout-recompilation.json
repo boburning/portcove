@@ -3,13 +3,41 @@
   "listing": {
     "id": "burnout-xbox-burnout-recompilation",
     "name": "Burnout (Xbox) (Burnout Recompilation)",
-    "summary": "Upstream route: Upstream Windows launcher compiles from owned disc Limits: Version0.1.0 is explicitly early and incomplete; local compilation route exists. Upstream platforms: Windows10/11 x86-64 source/setup package; local Xbox game compilation. Early incomplete release. Original data: Own Burnout USA original Xbox disc as ISO. Upstream launcher extracts the data and compiles the game on the player computer. This is the 2001/2002 original Burnout Xbox edition, not Burnout 2/3; exact executable revision/hash is not specified in reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "Register the completed original Burnout Xbox native Windows launcher and preserve its separate build, settings and save folders.",
     "original_game_title": "Burnout (Xbox)",
     "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Heromachine/Burnout-Recompilation",
-    "issue_number": 2637
+    "issue_number": 2637,
+    "manual_setup": {
+      "help_url": "https://github.com/Heromachine/Burnout-Recompilation",
+      "steps": [
+        {
+          "title": "Complete the original Burnout preparation upstream",
+          "instruction": "Use only an already completed native copy and components you are permitted to use. This targets the original Burnout for Xbox, not Burnout 2, Burnout 3 or a PS2 edition. Complete the supported Burnout.exe disc-selection and local-build flow separately with your own USA Xbox ISO. Its pinned source manifest identifies title 0x41430006, a 1,986,560-byte default.xbe with SHA-256 42bd7d38feb39c17783197c4433435bfc06d8f5872d6f4b45048d9daac82013b. That published identity does not make registration a disc authenticator or authorize proprietary output redistribution."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "Select Burnout.exe, its containing package directory as working directory and no arguments. Keep its complete matching tools folder and the completed external build together. The supported launcher loads work/build/burnout_game.dll in its own process and runs the game on a thread there; normal Play does not detach to a private game executable. Do not select an internal tool, Python build driver or generated DLL as the entry."
+        },
+        {
+          "title": "Keep preparation and rebuild restarts outside the attached session",
+          "instruction": "Finish the upstream build before attachment. The upstream Rebuild flow deliberately starts a fresh launcher process and exits the old one; Portcove does not claim to supervise that successor. Perform rebuild or update preparation separately, close all resulting players and companions, then review the completed copy and start a new Play session through the selected entry."
+        },
+        {
+          "title": "Retain one replacement owner and all creating data",
+          "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, runtime replacement and recovery. Preserve the whole program, tools, original ISO and %LOCALAPPDATA%/BurnoutRecomp, including settings.ini, work/, logs/ and saves/. Keep every chosen save folder and any effective BURNOUT_DATA or BURNOUT_TOOLS location; choosing another saved-games folder does not move old saves. Retain prior creating runtimes, backups, caches, mods and unknown custom files before replacement."
+        },
+        {
+          "title": "Preserve permissions and non-owning limits",
+          "instruction": "Retain applicable project and bundled-component notices, including the separate xboxrecomp MIT, xemu-derived GPL and tool licences. These do not grant original-game rights or permission to redistribute the locally generated game DLL. Removing registration preserves all external files. Portcove offers no external update, backup, rollback, conversion, migration, preparation or deletion. This early release has upstream-reported looping scrape audio and lighting limitations; those are not claimed repaired or independently tested here."
+        }
+      ],
+      "warnings": [
+        "Use only a completed copy and components you are permitted to use. Preserve originals, the creating runtime and tools, all save/settings/build/log/cache/mod folders, backups and custom roots. Source/release review is not package-byte authentication, gameplay, real-save compatibility, installed-client, managed or Supported acceptance."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,0 +1,1863 @@
+{
+  "format_version": 1,
+  "kind": "dated primary-source/static-package and existing-capability prepared-player batch",
+  "source_base": "e201f5fc4bb515db694765250e5ef7375ce4887e",
+  "owning_issues": [2510, 2926, 1422],
+  "counts": {
+    "guides_added": 5,
+    "conditional_guides": 2,
+    "existing_guides_conditioned": 1,
+    "first_party_new_cases": 8,
+    "first_party_existing_case_hold_expectation_updated": 1,
+    "managed_added": 0,
+    "strict_definitions": 286,
+    "listings": 1424,
+    "source_bindings": 140,
+    "unique_source_contents": 108,
+    "complete_tree_contexts": 12
+  },
+  "routes": [
+    {
+      "issue": 362,
+      "id": "exit-rexglue-exit-exit1",
+      "path": "crates/portcove-core/catalog/ports/exit-rexglue-exit-exit1.json",
+      "preimage_sha256": "f04b0e48ed5e71b5a10f932dce91779c791c60d9ab4a01ad59cbf17f9993e5f3",
+      "postimage_sha256": "a2c3acba8ac18df5eb4f075b90e9de062c69f4fd6ddf106b0d6e71d6a7db86c4",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": false
+    },
+    {
+      "issue": 363,
+      "id": "exit-2-rexglue-exit-exit2",
+      "path": "crates/portcove-core/catalog/ports/exit-2-rexglue-exit-exit2.json",
+      "preimage_sha256": "3d625e15da90acbea819f2614eed4b11226eb698b75092614c0ced684b83a4f2",
+      "postimage_sha256": "10ba7acafed613ad98bc74a634bb7c1161c9c6c1e0bfb7e7390265ef2017405c",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": false
+    },
+    {
+      "issue": 1124,
+      "id": "fable-ii-recomp",
+      "path": "crates/portcove-core/catalog/ports/fable-ii-recomp.json",
+      "preimage_sha256": "06d65e14d9775114594edff01e5621b5fc4411118863dd0b58115847cda9918f",
+      "postimage_sha256": "554f582c29505dab047e544903bf70c926ecb61358b781966f3893efa4781917",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": false
+    },
+    {
+      "issue": 1126,
+      "id": "eternal-sonata-reprise",
+      "path": "crates/portcove-core/catalog/ports/eternal-sonata-reprise.json",
+      "preimage_sha256": "02ca9856db8be9c9cb14d78ddb1fe204b925eb0ac09b9f864210b33cfb7ff148",
+      "postimage_sha256": "92d48cadc59615e73a2ac49393cd940253e873257b089402b3e14b367834f0f1",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": false
+    },
+    {
+      "issue": 1122,
+      "id": "dead-rising-2-case-west-recomp",
+      "path": "crates/portcove-core/catalog/ports/dead-rising-2-case-west-recomp.json",
+      "preimage_sha256": "b96c9f7301fdbd15e2f92610b37a9f3eaba366ab1852b97e640d28585120764a",
+      "postimage_sha256": "e66dcd8114163d397e629cd5d431ba828e68b262075889bccdf55326f1fdc33a",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": true
+    },
+    {
+      "issue": 1121,
+      "id": "dead-rising-2-case-zero-recomp",
+      "path": "crates/portcove-core/catalog/ports/dead-rising-2-case-zero-recomp.json",
+      "preimage_sha256": "4a9fcf0ce197ce1d4562777cc25ddebdf85778fd05243082ee262283d953b0ad",
+      "preparation_context": "Previously prepared five uncommitted guide records present; additive listing-only correction inspected against their combined current source.",
+      "postimage_sha256": "403a1532f5d47ee6d1c3f819414ce6caf7d7da7b28a7f9040a6d0f2545ed1278",
+      "route": "nonowning-user-selected-completed-player",
+      "fresh_acquisition_held": true
+    }
+  ],
+  "unchanged_observer": {
+    "issue": 2639,
+    "id": "call-of-duty-3-cod3recomp",
+    "record_sha256": "e2f340bd61bd58997ef4c2f17d948a143ee24647cbe85c46cdbb6e7d84b03e85",
+    "condition": "OPEN: explicit compiled-target region/revision and cryptographic original executable digest unresolved. Source size check/address table and metadata-only 257373696-byte v0.5.0 asset are not that identity. No new licence prohibition inferred from root-file absence; no new native/ABI result. Whole record/body/planning and approved scheduling preserved."
+  },
+  "decisions": {
+    "362": "Potential finite prepared EXIT1 Windows handoff after delivered checks; own fullXBLA and required ownTU, separate title selection/profile. No gameplay claim.",
+    "363": "Potential finite prepared EXIT2 Windows handoff; independent ownXBLA, no EXIT1 TU or optionalDLC basegate.",
+    "1124": "Potential finite completed fable_2.exe direct native handoff; own matching GOTYUSA/EU data, selected XEX hash and content checks retained, no bypass offered. Title selected grant MIT.",
+    "1126": "Potential finite direct native handoff; actual own updater/helper/restart preserves upstream replacement owner, not disabling features or claiming Core successor adoption.",
+    "1121": "Retain delivered R20 finite already-permitted nonowning minimum CLOSED/Done/Source contract known; additive guard and conditional wording repair actual unread packaged notice, not a new permission grant or erased historical test outcome.",
+    "1122": "Potential finite independently-permitted prepared-copy handoff after exact fresh-acquisition guard and full offered-operation delivery; actual compiled-in libxlive grant deferred by package and unresolved in retained separate component context. Conditional independently-permitted completed copy only; acquisition restriction remains regardless issue state. Actual retained minimum names no stronger mandatory managed-first or linked-grant-resolution criterion; prior unconditional OPEN proposal corrected by exact independent scope review. Future managed-fit requires scoped component/persistence evidence, not a new family gate."
+  },
+  "process_and_data": {
+    "EXIT": "Root native exit1.exe or exit2.exe/own prepared root CWD/zeroargs, respective matching DLL and OWN original. EXIT1 patched default.xex+dat with own TU upstream; EXIT2 independent baseXBLA. Shared SDK paths CWD game/update defaults; Portable=True title overrides user=CWD/cache=CWD/cache/config=CWD/<app>.toml; <app>.ini alwaysCWD. PortableFalse/custom external roots retained. No licence-mask changes offered. Whole original/update/DLC/profile/save/cache/log/screenshot/config/backup/temp/custom roots unowned.",
+    "FableII": "Actual native fable_2.exe/parentCWD/zeroargs for adjacent ownGOTYdefault.xex+data, existing supported external --game_data_root literal intent retained separately. WPFlauncher unawaited not selected. Title unconditionally exe/saves + exe/cache; exe SDK/user/launcher configs, logs, original data/manifest repair, data/scripts/custommods and backups preserved. XEXsha88c4ef2e18e65409444d1b068eff921d1f7e180a5ae64edc64ba6b0872372662 is publisher selected input metadata, not acquired original.",
+    "EternalSonata": "Actual two-member Windows native player/parentCWD/zeroargs inprocess library/intro; selected game library root differs mounted version, custom external links preserved. Actual six360/PS3 regional release hashes source-bound, 360PAL source-build requirement distinct. Pinned4e720 SDK config-parent-relative roots; portable.txt default exe/user; all effective game/user/cache/mod/dump/update/metadata/custom roots/settings/selected-version/migration staging preserved. User deliberate ApplyAndRestart creates detached Windows helper, other restart spawns successor; check-disabled alone not exclusive ownership. No Core automatic adoption, feature disabling or managed update promise.",
+    "CaseWest": "Selected Windows cw_runtime.exe/CaseWestRecompCWD/zeroargs, matching entire package. OwnXBLA58410B00 firstRun+GPU shader work inprocess, no CPUgeneration claim. Direct offline profile noaccount, optional online launcher independent. CW_ROOT whole resource root not data-only; assets package/game/save/shader_spv/config/tools/resources/logs/keymaps/custom roots plus redirected Windows SavedGames/DeadRising2CaseWest profiles unowned; no complete managed-persistence proof. Not CaseZero; stale user-error example does not change actual magic/title validator."
+  },
+  "maintenance": "Upstream/player owns preparation/replacement/recovery; deliberate changes outside active attachment, close actual player/companions, keep old copy and all data, review/relink changed selected bytes. Core external update/backup/rollback/migration/delete not offered. Ordinary compatible progression uses explicit existing selection without requiring per-version application edits or a new review gate. Known material executable/process/data/permission changes need scoped review; integrity/intent/stale guards do not automatically discover arbitrary semantics. Recommendations remain advisory, explicit generic-download selection remains available except exact acquisition hold.",
+  "permission_scope": "EXIT root/package BSD3 grant; FableII selectedMIT; EternalSonataMIT and pinned SDKBSD3; CaseWest ownPolyForm positive and explicitly separate libxlive component unresolved. Common publisher, public availability, offline operation and no-root-LICENSE alone do not settle component grants. No complete IP/copyright/compliance/game-data licence certificate. No whole-title newhold from optional unknown attribution.",
+  "static_packages": [
+    {
+      "issue": 362,
+      "release_id": 350408130,
+      "tag": "v0.9.1",
+      "asset_id": 469293024,
+      "asset": "EXIT1-Recomp.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "557d6b5050fbae64164f83aee13d8e25be90b51002df83f2d00e4d411e2f66ab",
+      "observed_sha256": "557d6b5050fbae64164f83aee13d8e25be90b51002df83f2d00e4d411e2f66ab",
+      "bytes": 7181968,
+      "raw_preparser_bounds": {
+        "records": 5,
+        "central_bytes": 474,
+        "declared_expanded_bytes": 22969068
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "rexruntime.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "exit1.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "13030a147614f43e3e34f7ae7de509f2efc62e864dbad5a5aa0eb19e13c2c4c8",
+      "scope": "Public package static index/docs/native prefix only. No upstream helper/compiler/installer/player/game execution, complete ABI/dependency or reproducible-build proof."
+    },
+    {
+      "issue": 363,
+      "release_id": 350408130,
+      "tag": "v0.9.1",
+      "asset_id": 469293060,
+      "asset": "EXIT2-Recomp.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "024a9633635c6851e4c73ea3e293304b8e4584ad0cef7d8e945ebfcf1875d08d",
+      "observed_sha256": "024a9633635c6851e4c73ea3e293304b8e4584ad0cef7d8e945ebfcf1875d08d",
+      "bytes": 7574084,
+      "raw_preparser_bounds": {
+        "records": 5,
+        "central_bytes": 474,
+        "declared_expanded_bytes": 24514506
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "rexruntime.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "exit2.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "71f1e85b372bd57b207cccf9ab306a78593f28da5ed098fa73ceda51ec237fa1",
+      "scope": "Public package static index/docs/native prefix only. No upstream helper/compiler/installer/player/game execution, complete ABI/dependency or reproducible-build proof."
+    },
+    {
+      "issue": 1122,
+      "release_id": 412467241,
+      "tag": "v1.1.2",
+      "asset_id": 639672022,
+      "asset": "CaseWestRecomp-windows-x86_64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "be45510874c596d5f14908d176e088c196d9676181e511ef5ed91d6a9b0d1c60",
+      "observed_sha256": "be45510874c596d5f14908d176e088c196d9676181e511ef5ed91d6a9b0d1c60",
+      "bytes": 24923332,
+      "raw_preparser_bounds": {
+        "records": 46,
+        "central_bytes": 3708,
+        "declared_expanded_bytes": 71302785
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "CaseWestRecomp/avcodec-62.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 320,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/avutil-60.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/cw_runtime.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/libcurl-x64.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/msvcp140.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 264,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 256,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/vcruntime140.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseWestRecomp/vcruntime140_1.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "b4a70b8c9f6483e654aa3d26a8cd9df2730a1949ee6adc9170bed234b2af4f34",
+      "scope": "Public package static index/docs/native prefix only. No upstream helper/compiler/installer/player/game execution, complete ABI/dependency or reproducible-build proof."
+    },
+    {
+      "issue": 1124,
+      "release_id": 409942171,
+      "tag": "1.5.0",
+      "asset_id": 631889838,
+      "asset": "Fable_2_recomp_v1.5.0_windows.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "18a4420725442d4f24c08a07da8361cc62d2a875169a3cc95d5d3ee294d4558c",
+      "observed_sha256": "18a4420725442d4f24c08a07da8361cc62d2a875169a3cc95d5d3ee294d4558c",
+      "bytes": 100829524,
+      "raw_preparser_bounds": {
+        "records": 16,
+        "central_bytes": 1643,
+        "declared_expanded_bytes": 285521434
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "Fable 2 1.5.0/Fable2Launcher.exe",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Fable 2 1.5.0/fable_2.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Fable 2 1.5.0/rexgpu-xenos.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Fable 2 1.5.0/rexruntime.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "3cfe8d5a67a38c8160962bdaeb3ba4e6fbfe379b5c27d35e2bf41a1a92ef8d5f",
+      "scope": "Public package static index/docs/native prefix only. No upstream helper/compiler/installer/player/game execution, complete ABI/dependency or reproducible-build proof."
+    },
+    {
+      "issue": 1126,
+      "release_id": 427372178,
+      "tag": "v1.3.7",
+      "asset_id": 686975012,
+      "asset": "eternalsonata-v1.3.7-win-amd64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "a1f04fd7ba75c0abd7123a9d1335479a01acbd09c9d9821b1c366c1635d5a58b",
+      "observed_sha256": "a1f04fd7ba75c0abd7123a9d1335479a01acbd09c9d9821b1c366c1635d5a58b",
+      "bytes": 26586917,
+      "raw_preparser_bounds": {
+        "records": 2,
+        "central_bytes": 123,
+        "declared_expanded_bytes": 71184896
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "eternalsonata.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "rexruntime.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "4fee5ec49b92107f8330792b38a667d5d32b8da7a2e5824508a441a90f3b06f5",
+      "scope": "Public package static index/docs/native prefix only. No upstream helper/compiler/installer/player/game execution, complete ABI/dependency or reproducible-build proof."
+    },
+    {
+      "issue": 1121,
+      "release_id": 411995299,
+      "tag": "v1.1.3",
+      "asset_id": 639723296,
+      "asset": "CaseZeroRecomp-windows-x86_64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "f821dd717c08baa83b06ae11ece1963835bbe07816b43a52792f3040cfd99a28",
+      "observed_sha256": "f821dd717c08baa83b06ae11ece1963835bbe07816b43a52792f3040cfd99a28",
+      "bytes": 24956419,
+      "raw_preparser_bounds": {
+        "records": 46,
+        "central_bytes": 3708,
+        "declared_expanded_bytes": 71221031
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "boundary_fixtures": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "bounded_native_headers": [
+        {
+          "path": "CaseZeroRecomp/avcodec-62.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 320,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/avutil-60.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/cz_runtime.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/libcurl-x64.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/msvcp140.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 264,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 256,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/vcruntime140.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "CaseZeroRecomp/vcruntime140_1.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "inventory_sha256": "7fe18ac2fc7a7b0b54f0ca7fd9ad8ea2a048d015b4142f011c7e3396f200706b",
+      "scope": "Public package static index/docs/native prefix only. No upstream helper/compiler/installer/player/game execution, complete ABI/dependency or reproducible-build proof."
+    }
+  ],
+  "casewest_packaged_component_notice": {
+    "receipt_sha256": "cd20dbf0be7b9332c5265dd4ffd744c94254d013ca9eb1b1a94beef9b38bfb22",
+    "scope": "1533-byte actual unique raw backslash ZIP member read after physical central-directory/hash bounds; no extraction/upstream execution. Actual packaged libxlive deferral, not selected-binary=currentXenonLive-build equality."
+  },
+  "source_bindings": [
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": ".gitmodules",
+      "blob": "245c381ce05834f81499bafdf4d176efcf6e48b8",
+      "bytes": 2461,
+      "sha256": "dddcdf42c02c6a218da0ecc4526d2956af7d4f67ccae9c827e0d85b431b2e586"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "CMakeLists.txt",
+      "blob": "83902e7eb2d4ee758d5ed10faafe475fabff9b3d",
+      "bytes": 9126,
+      "sha256": "f8e00cc751754df86b28e5fc033da085cb1105ac3f26e6c657b581388494717b"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "LICENSE",
+      "blob": "989af8778ded5b67521da99f4ed0a71960ac9caa",
+      "bytes": 1659,
+      "sha256": "8e065be1da2ff9a16b1f063d4636d8b67e6a654bb90583ea4332e66ac421bb18"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "README.md",
+      "blob": "9e5b57e56279cd6043a9bd1b0fbffd5b854e9064",
+      "bytes": 4610,
+      "sha256": "4ab3672416200decbe995588208bc2a24c71072b083492b1b4935671b9960774"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit1/src/main.cpp",
+      "blob": "9171cb80bfda6bdbbbc661f517671ca28758b6db",
+      "bytes": 4528,
+      "sha256": "115b1ec8f3d73b24187d2f67988ee1bbb1ada566111a8cd00e306e4f48874833"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit2/src/main.cpp",
+      "blob": "c8ba50e9e753e7459b16d4d318d7a124c56c5ce1",
+      "bytes": 4801,
+      "sha256": "f096a8ec740d6b0f451972882f4971d8e4ddf7aa74057206ff3c7c191d667c7d"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit1/exit1_config.toml",
+      "blob": "6bf226fe5329c21571e7aedaff047e6f5fe0e13e",
+      "bytes": 16794,
+      "sha256": "49b5a88aa44f36d85356c68a3ac36cce21265ef34ab3246d8ca6e21183de3961"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit2/exit2_config.toml",
+      "blob": "8d4563bd398bb51363bb3a292652cce097d87985",
+      "bytes": 17931,
+      "sha256": "5ef6a6f1217f7774dfda2acbf2a4063337a1d2889b469924a29c5eda7708ac23"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "src/ui/rex_app.cpp",
+      "blob": "54dc2309c78df00717070f6e1a5db5267d951e82",
+      "bytes": 17023,
+      "sha256": "a54582d7d5baacadb2736e18429d356e34957372f11d68d3591afc529abbd5e6"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "src/ui/windowed_app.cpp",
+      "blob": "ab9950e4a7e2263dfdaf7320289d82ae112bd59a",
+      "bytes": 991,
+      "sha256": "105bd85c98374e82683803f73b82b08c24104c03b4ad794dbae23468f1852c77"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit1/src/exit1_app.h",
+      "blob": "874294090333aaed33cd1ff5bf5c5337c90e32f3",
+      "bytes": 6286,
+      "sha256": "b9fa2c0086f0a0767658b643ff8713913485028633c8faa64b9b7e7df5fbe148"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit2/src/exit2_app.h",
+      "blob": "843550df1e0e447b71db5e50bf64239dc116b61d",
+      "bytes": 6728,
+      "sha256": "07491bd0a2d852ed587cff26104a97f61d3cb780466deadc410916db3ff21d0b"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit1/CMakeLists.txt",
+      "blob": "c2c48b7cf11bbe2d6766a0a8e5db22cd27793a05",
+      "bytes": 876,
+      "sha256": "2439b6aa13f84af9037c65cfb34c7a353890f441b3ab83cdc54c8df553a577ee"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit2/CMakeLists.txt",
+      "blob": "1b3ec11649145c08df0e8735f0e85d152c04db72",
+      "bytes": 876,
+      "sha256": "377162531bac1df63c1dcd780fc3ae04d151c735d2216616f7b3cf7e95480f80"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit_common/src/settings.cpp",
+      "blob": "c83ba55daa3061874868208b1f584272c4cef8e5",
+      "bytes": 8113,
+      "sha256": "e1c99728e1bed06c6501faea35b6cce244c55ea6d597071e417411a43aa43b01"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit1/exit1_manifest.toml",
+      "blob": "1e2e9e27904b623e6ff5ddb069d0b23d181a1fd8",
+      "bytes": 2479,
+      "sha256": "87ed780896572508f69e6f08e1b4d4497c15d72f1551f19aa872ae85fbe53494"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit2/exit2_manifest.toml",
+      "blob": "a13624a91161667453ad195099791637d1b89056",
+      "bytes": 2660,
+      "sha256": "dfcb8359bebd49afda06ff439f523242210fc6ea32e0d2f4526758c060044d3f"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "include/rex/rex_app.h",
+      "blob": "a0ca7a83f6a04594d0f1c1a8a1920b27b6344afa",
+      "bytes": 8842,
+      "sha256": "63fc0ab5e6b6b850712d1037aee6ee45245f6f4fa527b80718073463aa31e6e4"
+    },
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "path": "exit_common/include/exit_common/settings.h",
+      "blob": "7bab211bab680c2201eb23c5a446c6736134f43d",
+      "bytes": 4385,
+      "sha256": "105343f4b6561cc6cd6fffd77744fa1120f2443cc1fe4e6ca1ff9d262a20a2ed"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "LICENSE",
+      "blob": "282625065bc840227a373851bbfa0add8872120b",
+      "bytes": 5989,
+      "sha256": "462cb9daa6278e4fa742903683a1907e8f2bdb046e4eef2d30cf5c35193135bf"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "README.md",
+      "blob": "ee6c087a8f5bcb78701c8048a3a7c94a88c3f83a",
+      "bytes": 13782,
+      "sha256": "498964d785d2f1369bcbf3709bba192d00a67c5ab7c0fe27b98211c94ed37f76"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "LICENSE",
+      "blob": "282625065bc840227a373851bbfa0add8872120b",
+      "bytes": 5989,
+      "sha256": "462cb9daa6278e4fa742903683a1907e8f2bdb046e4eef2d30cf5c35193135bf"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "README.md",
+      "blob": "ee6c087a8f5bcb78701c8048a3a7c94a88c3f83a",
+      "bytes": 13782,
+      "sha256": "498964d785d2f1369bcbf3709bba192d00a67c5ab7c0fe27b98211c94ed37f76"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "THIRD_PARTY.md",
+      "blob": "fabdda093d2993d51d232f17234eb8346d3030fb",
+      "bytes": 5597,
+      "sha256": "07bd9c68441f5c3f38328a75b46547ce40e35c2fec0437d1a727d85830e4c9a7"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "runtime/main.cpp",
+      "blob": "517e3b7255a793de8711a951d03d675edf2a7937",
+      "bytes": 45876,
+      "sha256": "4fda4bf4d08952e3dd7024905393ba37c5453fc243aed394d8a3f707a340d65f"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "runtime/host/host_paths.cpp",
+      "blob": "7a596579ac88ba7302485c457d7fc22940d22f64",
+      "bytes": 10078,
+      "sha256": "9dffb21cddde1afeb484a7238ace119e02a692caca2af43bcda62a73f7e400f0"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "runtime/host/host_paths.h",
+      "blob": "966c387c4c6d6ab583cea7e57412c965c0f98140",
+      "bytes": 5628,
+      "sha256": "0a9b364cdc9f3d66b08bd5ab62af44341e9dbe6f99dd8968040f30e78377324b"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "runtime/CMakeLists.txt",
+      "blob": "7e59d4d2918cdd1e6d745aae5e6a3e942ca4bb81",
+      "bytes": 44781,
+      "sha256": "de7c4be13bff9fce9777abf23c77b0969297cfe874277682741c8273c3e5c1f2"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "config/CaseWest.toml",
+      "blob": "dbb3fb3dc1f37ed8c9c7b169f8bf0c3f6334cc4a",
+      "bytes": 9823,
+      "sha256": "b2a512bfdb89046c98068b35173715ad36353d5eeab165c5190925f066db0697"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "THIRD_PARTY.md",
+      "blob": "fabdda093d2993d51d232f17234eb8346d3030fb",
+      "bytes": 5597,
+      "sha256": "07bd9c68441f5c3f38328a75b46547ce40e35c2fec0437d1a727d85830e4c9a7"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "runtime/main.cpp",
+      "blob": "517e3b7255a793de8711a951d03d675edf2a7937",
+      "bytes": 45876,
+      "sha256": "4fda4bf4d08952e3dd7024905393ba37c5453fc243aed394d8a3f707a340d65f"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "runtime/host/host_paths.cpp",
+      "blob": "7a596579ac88ba7302485c457d7fc22940d22f64",
+      "bytes": 10078,
+      "sha256": "9dffb21cddde1afeb484a7238ace119e02a692caca2af43bcda62a73f7e400f0"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "runtime/host/host_paths.h",
+      "blob": "966c387c4c6d6ab583cea7e57412c965c0f98140",
+      "bytes": 5628,
+      "sha256": "0a9b364cdc9f3d66b08bd5ab62af44341e9dbe6f99dd8968040f30e78377324b"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "runtime/CMakeLists.txt",
+      "blob": "7e59d4d2918cdd1e6d745aae5e6a3e942ca4bb81",
+      "bytes": 44781,
+      "sha256": "de7c4be13bff9fce9777abf23c77b0969297cfe874277682741c8273c3e5c1f2"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "config/CaseWest.toml",
+      "blob": "dbb3fb3dc1f37ed8c9c7b169f8bf0c3f6334cc4a",
+      "bytes": 9823,
+      "sha256": "b2a512bfdb89046c98068b35173715ad36353d5eeab165c5190925f066db0697"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "runtime/host/first_run.cpp",
+      "blob": "0c667cd043f6c6497735154f68f18faa3cc8211a",
+      "bytes": 9814,
+      "sha256": "99f89f9e34be05a9fc8f3d4dac22c66890203bf84599b4aff529dab9ced4e13c"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "runtime/host/first_run.h",
+      "blob": "f2605dc4689eb22f12ddcc7536e1c1a4c9600d4c",
+      "bytes": 3464,
+      "sha256": "44a57f49684d098e73d86cb847afa72f19873f6f67687ac089f8c45079742b74"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "path": "tools/release_package_windows.ps1",
+      "blob": "0c470544607c159398227746639e6baefc70b267",
+      "bytes": 13099,
+      "sha256": "8ddd2e0af05832dae662a45a52c5fc8da161d0ce0f367c28ca3a9d5ba685948b"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "runtime/host/first_run.cpp",
+      "blob": "0c667cd043f6c6497735154f68f18faa3cc8211a",
+      "bytes": 9814,
+      "sha256": "99f89f9e34be05a9fc8f3d4dac22c66890203bf84599b4aff529dab9ced4e13c"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "runtime/host/first_run.h",
+      "blob": "f2605dc4689eb22f12ddcc7536e1c1a4c9600d4c",
+      "bytes": 3464,
+      "sha256": "44a57f49684d098e73d86cb847afa72f19873f6f67687ac089f8c45079742b74"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "path": "tools/release_package_windows.ps1",
+      "blob": "0c470544607c159398227746639e6baefc70b267",
+      "bytes": 13099,
+      "sha256": "8ddd2e0af05832dae662a45a52c5fc8da161d0ce0f367c28ca3a9d5ba685948b"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": ".gitmodules",
+      "blob": "13995795ac298384ce7f7faefd1351aee5c53696",
+      "bytes": 131,
+      "sha256": "42834d6c694b43b38bcf3ba73c90123ccfd6fd93a9af5f8f7794fd9dc8229870"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "CMakeLists.txt",
+      "blob": "a9a2b6aba5a5855ad6bc55010a912d9d238f8e4c",
+      "bytes": 30159,
+      "sha256": "7c0fb767f27a746868bdec229d8f76d3630c2c578347a8777a30f9ffeef48270"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "LICENSE",
+      "blob": "37d8a582c8f38495eb55db514faa515e49d638bb",
+      "bytes": 1052,
+      "sha256": "642e94b28c21e681be38733e667d134f3826c80bfe00225177455bc0202a07f9"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "README.md",
+      "blob": "13b39c31c692a3e08b3921ccb75778285507d748",
+      "bytes": 33280,
+      "sha256": "5810b3b2300094768b5b734ab196e50b6eb99151ac2cdb88b316d4085d8bfdf1"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": ".gitmodules",
+      "blob": "13995795ac298384ce7f7faefd1351aee5c53696",
+      "bytes": 131,
+      "sha256": "42834d6c694b43b38bcf3ba73c90123ccfd6fd93a9af5f8f7794fd9dc8229870"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "CMakeLists.txt",
+      "blob": "d904df2ed298dae076a7b67475f92700df750113",
+      "bytes": 30023,
+      "sha256": "3764aada11e1eedd64a42bb0fcc9924e7ac819571c722c264a32ceed635797a8"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "LICENSE",
+      "blob": "37d8a582c8f38495eb55db514faa515e49d638bb",
+      "bytes": 1052,
+      "sha256": "642e94b28c21e681be38733e667d134f3826c80bfe00225177455bc0202a07f9"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "README.md",
+      "blob": "13b39c31c692a3e08b3921ccb75778285507d748",
+      "bytes": 33280,
+      "sha256": "5810b3b2300094768b5b734ab196e50b6eb99151ac2cdb88b316d4085d8bfdf1"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "src/main.cpp",
+      "blob": "f7edd720c99dcf679c40037345b035a3dad3a2f8",
+      "bytes": 4634,
+      "sha256": "23efe91047543b0a8e78af6b89614dece27754724c7c1baa8dd655e99a85b865"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "launcher/README.md",
+      "blob": "962816302f4c242a67514fff7a44ef4cfab14d29",
+      "bytes": 5471,
+      "sha256": "aebe753e3aba84a539dc2743f05f2b14ed16b008d31657f520c50d7ae83f48f9"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "config/game_builds.toml",
+      "blob": "0b7c34e7a12eaa97ac710ce9f17d7820371d29ce",
+      "bytes": 308,
+      "sha256": "c8839dca9c4a5e10a852f83a8e8682c95f1395d270d9b2e0cd476fef9c0873f9"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "config/fable2_config.toml",
+      "blob": "74062610b1fa1d9e9bcb47d02db201dcab66b8da",
+      "bytes": 7005,
+      "sha256": "899563e5674f61038285de8e5eeb417d862b6990c005866324e8e701020e2651"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "fable_2_manifest.toml",
+      "blob": "28d7513799a697cf870d0de50d5cf1951537e65e",
+      "bytes": 3903136,
+      "sha256": "9a7587c0791e79886c6a979fde9375f062990f7d23efef99e0bc4c091759bff2"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "src/main.cpp",
+      "blob": "f7edd720c99dcf679c40037345b035a3dad3a2f8",
+      "bytes": 4634,
+      "sha256": "23efe91047543b0a8e78af6b89614dece27754724c7c1baa8dd655e99a85b865"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "launcher/README.md",
+      "blob": "962816302f4c242a67514fff7a44ef4cfab14d29",
+      "bytes": 5471,
+      "sha256": "aebe753e3aba84a539dc2743f05f2b14ed16b008d31657f520c50d7ae83f48f9"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "config/game_builds.toml",
+      "blob": "0b7c34e7a12eaa97ac710ce9f17d7820371d29ce",
+      "bytes": 308,
+      "sha256": "c8839dca9c4a5e10a852f83a8e8682c95f1395d270d9b2e0cd476fef9c0873f9"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "config/fable2_config.toml",
+      "blob": "5127dbb51f2fe540d6a5a673db1f8de8d9f558cb",
+      "bytes": 10347,
+      "sha256": "c9150c0c5ed141f6165223e4f32173e138dd6019d81242665224816f4aa1eb8c"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "fable_2_manifest.toml",
+      "blob": "918031646ca23e3873e095abdc9b00ec9fbefbf9",
+      "bytes": 3909156,
+      "sha256": "2453164c6bdae0e8a8597faf56a47a3110e42346280e31fe5ee530f5b68caed6"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "launcher/Fable2.Launcher/MainWindow.xaml.cs",
+      "blob": "ea8d591e4b5dc82c1b57555fb2f20c4ab2319d36",
+      "bytes": 45723,
+      "sha256": "4bb6506c3e62219146c5d7f390aef320a5056f52ea578801163cbab68dccb4ca"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "launcher/Fable2.Launcher/Fable2ConfigFile.cs",
+      "blob": "eddbd0aee759a4d5b94defd68d1c8111dcb2bb29",
+      "bytes": 14168,
+      "sha256": "007c2bc990690566800ebbe29f606c7b5263be5df74d704591d6404c8aaeb8dd"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "launcher/Fable2.Launcher/LauncherConfigFile.cs",
+      "blob": "3325cf129e196822049105c4016ab0d5342fd75d",
+      "bytes": 3838,
+      "sha256": "10e64a0c8b2bdd06386251ae79a51bca33c2affa5a1516ea5d53a59b614a4f6d"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "src/core/fable2_config.cpp",
+      "blob": "9838988101d74b37cd3e37444c4c72bb9e8ac398",
+      "bytes": 13798,
+      "sha256": "1dea67d557b851e2effbc758ed5636842d3bd5005da884aca5d00067f2f6371e"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "launcher/Fable2.Launcher/MainWindow.xaml.cs",
+      "blob": "ce1aab1184ff6af63ea35e8c9a5dc3f8247744af",
+      "bytes": 45871,
+      "sha256": "385ae0d4e2b18e9bbe1a5a7b098a725ee6e180c515671d58361be5c8a4963a51"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "launcher/Fable2.Launcher/Fable2ConfigFile.cs",
+      "blob": "74e064075735c1ef8099b8157dbf802e6a58d27a",
+      "bytes": 14606,
+      "sha256": "bb3b83793be651a331952a153fb149acda9b7785c986dd0913d37e01d52c5bd3"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "launcher/Fable2.Launcher/LauncherConfigFile.cs",
+      "blob": "3325cf129e196822049105c4016ab0d5342fd75d",
+      "bytes": 3838,
+      "sha256": "10e64a0c8b2bdd06386251ae79a51bca33c2affa5a1516ea5d53a59b614a4f6d"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "src/core/fable2_config.cpp",
+      "blob": "372f3731e2d4854150265d7282845e899c4d46a3",
+      "bytes": 21580,
+      "sha256": "c7e06718ce4e6c2779cb53d1a1ce605cf25e0588d4d1d06aed2b3ca65eaf2ae3"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "src/core/fable_2_app.h",
+      "blob": "b1f6adc09cd704e2d94bcd2a54713c5a29f7710f",
+      "bytes": 28056,
+      "sha256": "8b085f932d3549873e44dfd1456d663e3ecc933d493d9fa1c76330809969d786"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "constants/game_versions.json",
+      "blob": "cf0cb05ae4052ff1cfa1ea02a4d45ac6f7ce34bf",
+      "bytes": 6073,
+      "sha256": "ffcec4f608a0ef785efe8e92a466b463e9929ea3d897dbe5c0de11db10ee9053"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "path": "constants/README.md",
+      "blob": "f5cf48cd131ab3faea3e25b6214a0c629aca3736",
+      "bytes": 1317,
+      "sha256": "5b0f85552fba56b42f4950d23052fcbcd872b4c265cc8b882da094f83ceb25a9"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "src/core/fable_2_app.h",
+      "blob": "b4f13b419bfd649c1d334592eac1a44fc2918918",
+      "bytes": 28249,
+      "sha256": "dc69b9d9e12922b7d63307736a7c3b411097140945fc94dbdd0d401dad07bf89"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "constants/game_versions.json",
+      "blob": "cf0cb05ae4052ff1cfa1ea02a4d45ac6f7ce34bf",
+      "bytes": 6073,
+      "sha256": "ffcec4f608a0ef785efe8e92a466b463e9929ea3d897dbe5c0de11db10ee9053"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "path": "constants/README.md",
+      "blob": "f5cf48cd131ab3faea3e25b6214a0c629aca3736",
+      "bytes": 1317,
+      "sha256": "5b0f85552fba56b42f4950d23052fcbcd872b4c265cc8b882da094f83ceb25a9"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": ".gitmodules",
+      "blob": "efefed3ed62b375328a52f1ea479a2c2fd747617",
+      "bytes": 290,
+      "sha256": "b36487c946ad315b97810ec66b461a849ca5904e1d2cb3edebb2188a86e8662b"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "CMakeLists.txt",
+      "blob": "209aa0e8c2e70b0cd1c41366a968075ce504598e",
+      "bytes": 31436,
+      "sha256": "2d7ba5ed0ea07d49045031d9b09375ebfe95518b6d47f7774db29be29c8799e5"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "LICENSE",
+      "blob": "fa0e0efe863c5cccf5e1ba4781caa5e7f1b926db",
+      "bytes": 1082,
+      "sha256": "01de69e1385c940923cdda79e230d6124dad57ef1dd1099c3e8b83353eeaf323"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "README.md",
+      "blob": "3fc19a563628772095b95d4e94d0b1d46b83e746",
+      "bytes": 5532,
+      "sha256": "5398d73b2a818bfa8e80b5c1cbb02e0da2cef9868d770704450dfe5cc24cb77f"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/core/main.cpp",
+      "blob": "3e8554c18c6c46f69b9d9bf8cb19a0af610a5db7",
+      "bytes": 253,
+      "sha256": "d612e1d159d8d6a7c8e09d2521c19863d4abbd42dd52eba1bc21888c5e28fd02"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/installer/game_data.cpp",
+      "blob": "9f6c76a362df493a90d131acbf95c68bc29d3c53",
+      "bytes": 30601,
+      "sha256": "edcaafc5da0bc734397d44e9cce386b062c2d149e0a80a54e558ff7e18715844"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/installer/game_library.cpp",
+      "blob": "425361bd8c1a142cd6febecc0bd163ec6344aafa",
+      "bytes": 15103,
+      "sha256": "0fc14c400c77da84ea6f174fcc0824705a40f5d955ef1513d16b968c92d5a5c5"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/installer/install_pipeline.cpp",
+      "blob": "7dc6a6de8daff5de05c3e8d9a89fff6e3fed2011",
+      "bytes": 9599,
+      "sha256": "82171e6e468880a1732767efbdb9abf008945ff3195aa44b1bbe0b73ac4c6c09"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/installer/release_id.cpp",
+      "blob": "9fa61d3c81e48fc81a3ae40853850e25e3fb9259",
+      "bytes": 4800,
+      "sha256": "9bd912e6d0bfed4c67cc017e32113910e66e269051a3f1b397116eb607810e62"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "eternalsonata_manifest.toml",
+      "blob": "979d4bac526ce8f540da259a9db1089fd117ae1e",
+      "bytes": 1013,
+      "sha256": "2c5cf9855758815b4b0be41ed01c65133a91a2120ba8d8edfea6f075942b7252"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/core/eternalsonata_app.h",
+      "blob": "698517b2cb6106c4a3fdab6c06625d868c5b4737",
+      "bytes": 30883,
+      "sha256": "1a76dce12cb59219d6bb4d9e15cc7a520efb090f277f3a86f12782f14fa8de85"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/core/settings.cpp",
+      "blob": "a4815876c636f2d82c48b5ca9a89c1e11c149c3f",
+      "bytes": 114274,
+      "sha256": "cd3833869f0b136b12f909aa8823e5aaaa30d735b3e356b7f28bfbd22642a5b4"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/core/game_settings.cpp",
+      "blob": "59708514c3322f19ef915b00e56fc1a1c0e1c865",
+      "bytes": 31099,
+      "sha256": "571fa35f86d36dec583af732b8a5f66c2be50b4b4955d021b2be29ed236708ac"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": ".sdk-version",
+      "blob": "f0fd19ae4339c834e64c83fdfb6762a28a8a3947",
+      "bytes": 63,
+      "sha256": "c158d80c879f9528ec09e0067a4b37e2be438064e462b526969b328b12ca00a3"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "path": "src/installer/game_library.h",
+      "blob": "577f7066c62f789a703cdf40d5bd51fb6e1b0d88",
+      "bytes": 3344,
+      "sha256": "c1f84361e13167997f1d97241f2fa1d5ca7e65e026909cf30b9a556e93470395"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": ".gitmodules",
+      "blob": "19d86276a185d1e1a0ab46c8a9dc3db8d2d4b6c5",
+      "bytes": 110,
+      "sha256": "d3c9b804fe53d3c4e7c8322a2849ad03427e439172b8b8e630e9f40c1d98c0ca"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "CMakeLists.txt",
+      "blob": "abd03b2666930ee4bddea83d390344e28d34417c",
+      "bytes": 1489,
+      "sha256": "d1cae1700db391cdfc77d0dae1a0f3936e26dcedd9b12bb23af32b290c9533fd"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "README.md",
+      "blob": "c2fb9066d4c7d385881b9f7e94d817d632d197ef",
+      "bytes": 14715,
+      "sha256": "617085b76ee024982606151e1c7620326f5553de11af41974c7ad79b94b3ddd1"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": ".gitmodules",
+      "blob": "19d86276a185d1e1a0ab46c8a9dc3db8d2d4b6c5",
+      "bytes": 110,
+      "sha256": "d3c9b804fe53d3c4e7c8322a2849ad03427e439172b8b8e630e9f40c1d98c0ca"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "CMakeLists.txt",
+      "blob": "abd03b2666930ee4bddea83d390344e28d34417c",
+      "bytes": 1489,
+      "sha256": "d1cae1700db391cdfc77d0dae1a0f3936e26dcedd9b12bb23af32b290c9533fd"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "README.md",
+      "blob": "c98c767df3293aee72f4f170992e02e993ecde8c",
+      "bytes": 14693,
+      "sha256": "a7b9bd655a6799c0dd1eb9fbc6f1f7155976e8833a3313a9c56bfc4175c77496"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "CoD3Host/main.cpp",
+      "blob": "a5d1180d5610f3ad268c8866a6467213d9b0e69c",
+      "bytes": 15758,
+      "sha256": "01c99edc4a794463042960a67a24526634c97bd1ddee86c1278e20141cc39c11"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "CoD3Host/updater.cpp",
+      "blob": "318d167bf73947ee97f5f3e2ee17c9401d36379f",
+      "bytes": 15731,
+      "sha256": "1923018568d0d676cf048c9cfd20ba4cc08d2711cb615c4522e3dc84cb5922cc"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "CoD3Host/installer.cpp",
+      "blob": "7170cbe857ced8685c1a86360c59eec156194508",
+      "bytes": 19135,
+      "sha256": "acbf1166f4fe8851b5d0c6d60db81bbc932594555ea1389c51d30680cec119c3"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "CoD3RecompLib/config/CoD3.toml",
+      "blob": "fb8b86c543af48f91291a2785caa15d5cccff792",
+      "bytes": 8358,
+      "sha256": "2959f0631f84a2f891f9bf7081d1da835b211c7a092ef6acc03e26595b8ad42f"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "CoD3Host/main.cpp",
+      "blob": "a5d1180d5610f3ad268c8866a6467213d9b0e69c",
+      "bytes": 15758,
+      "sha256": "01c99edc4a794463042960a67a24526634c97bd1ddee86c1278e20141cc39c11"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "CoD3Host/updater.cpp",
+      "blob": "318d167bf73947ee97f5f3e2ee17c9401d36379f",
+      "bytes": 15731,
+      "sha256": "1923018568d0d676cf048c9cfd20ba4cc08d2711cb615c4522e3dc84cb5922cc"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "CoD3Host/installer.cpp",
+      "blob": "7170cbe857ced8685c1a86360c59eec156194508",
+      "bytes": 19135,
+      "sha256": "acbf1166f4fe8851b5d0c6d60db81bbc932594555ea1389c51d30680cec119c3"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "CoD3RecompLib/config/CoD3.toml",
+      "blob": "fb8b86c543af48f91291a2785caa15d5cccff792",
+      "bytes": 8358,
+      "sha256": "2959f0631f84a2f891f9bf7081d1da835b211c7a092ef6acc03e26595b8ad42f"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "CoD3Host/settings.cpp",
+      "blob": "82ec9baf3394f4b9977971acd720225dcb43baab",
+      "bytes": 14632,
+      "sha256": "3df972254333bc1cde949a958abe12e710af1ddfa830e509ebb96b34ea6c250d"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "path": "CoD3Host/settings.h",
+      "blob": "9ef6732aecc49b07e3c41564bcbc9a93de16288c",
+      "bytes": 5111,
+      "sha256": "3ba1540a85e17f9a27a40c4ae9cf172e06376524f28ee30e195ba2fd8204f32b"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "CoD3Host/settings.cpp",
+      "blob": "82ec9baf3394f4b9977971acd720225dcb43baab",
+      "bytes": 14632,
+      "sha256": "3df972254333bc1cde949a958abe12e710af1ddfa830e509ebb96b34ea6c250d"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "path": "CoD3Host/settings.h",
+      "blob": "9ef6732aecc49b07e3c41564bcbc9a93de16288c",
+      "bytes": 5111,
+      "sha256": "3ba1540a85e17f9a27a40c4ae9cf172e06376524f28ee30e195ba2fd8204f32b"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "10d45b0952dd1b7f53f29dbff0795a27abb81ff7",
+      "path": "LICENSE",
+      "blob": "282625065bc840227a373851bbfa0add8872120b",
+      "bytes": 5989,
+      "sha256": "462cb9daa6278e4fa742903683a1907e8f2bdb046e4eef2d30cf5c35193135bf"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "10d45b0952dd1b7f53f29dbff0795a27abb81ff7",
+      "path": "README.md",
+      "blob": "b35c33272e9a61ccbefbceda83e4ab6cae22e25c",
+      "bytes": 13344,
+      "sha256": "07816b357b6a8714209ecb917e283a6229703614b6e1a921fcc2fbc7a4accd0d"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "LICENSE",
+      "blob": "282625065bc840227a373851bbfa0add8872120b",
+      "bytes": 5989,
+      "sha256": "462cb9daa6278e4fa742903683a1907e8f2bdb046e4eef2d30cf5c35193135bf"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "README.md",
+      "blob": "b35c33272e9a61ccbefbceda83e4ab6cae22e25c",
+      "bytes": 13344,
+      "sha256": "07816b357b6a8714209ecb917e283a6229703614b6e1a921fcc2fbc7a4accd0d"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/host_paths.cpp",
+      "blob": "563283d4691a5ef19ab695c605ef2115ee244054",
+      "bytes": 10078,
+      "sha256": "8e1faa8fd5d5a80dacc45d233ac33b2bcc09d69080c38b6b2e5cd885ccc91992"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/first_run.cpp",
+      "blob": "a520dfb05b0ca74834b5cfa751de12fab4c66d7a",
+      "bytes": 8464,
+      "sha256": "01dd64ff03cad213f0df2736e832a6d996bcc35362ecb805c9b4092243fa3bac"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/settings.cpp",
+      "blob": "1784c11bca79f50c8c95a523045abb6eda03dff5",
+      "bytes": 25208,
+      "sha256": "32103372988f73d176c5fe14160f5a26fe87903c9b18391a8de41f6e84d5f7da"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/main.cpp",
+      "blob": "0106a2381cf0eeee94bdf82853e4d58146584f5f",
+      "bytes": 46088,
+      "sha256": "9ee74d90e5db1078c66b19f551540bb51dad4d485805c933aa4beee01c45dd5b"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/host_paths.h",
+      "blob": "de8c8c88c3a9f08cc4f625579ba0d14df6bfe96e",
+      "bytes": 5628,
+      "sha256": "a893dc33689f66bf051bd029903b228ef9b1e19f6930b632aa2e91c28da2f250"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/stfs_extract.cpp",
+      "blob": "e140d3feb601fa010277d83d3533c66c834e9215",
+      "bytes": 12483,
+      "sha256": "f76585ed3648fc7a7a263928f6339bb98b9709fa9e1c5d9106e271b0fe302f6d"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/overlay_gen.cpp",
+      "blob": "1e20c7b9a86b0036c2283ed645811a20d0f9ff8e",
+      "bytes": 84571,
+      "sha256": "8e96edd274fb1528870399d09ee0ed2ac63f79f742040cda0fc5595b828905dc"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/log_file.cpp",
+      "blob": "3f6d7f0009cf4ff68a34725fba483df3370009df",
+      "bytes": 14269,
+      "sha256": "2ea841d5b1081432cbc758e213970743665b01610fdb96b25e6dad535138ce25"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/host/bug_report.cpp",
+      "blob": "61cbe91a39bcd28cb9170cab2a3c0c48c5986f90",
+      "bytes": 27937,
+      "sha256": "185ac1bf81ab3ed68b4e45c081aa5362eced17126115c20cae7749005337542c"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/xlive_glue.cpp",
+      "blob": "db689e0be496708726e71bf541ab09f7c9e492ce",
+      "bytes": 19015,
+      "sha256": "99988ff0ef2299c2b84964433cb9d1e027e093829fe1a8b85697d03df4d8a377"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/xlive_glue.h",
+      "blob": "2a54dce1c26f3d5bcd6074c40dfd275bc145f8a1",
+      "bytes": 6843,
+      "sha256": "019a02feac54cd0f1e4a7a784131b5d9949193c05e8817695582bae89d018759"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": ".github/workflows/build.yml",
+      "blob": "ddb812dff891930c46d21c0abd12fbf6f2c7a83b",
+      "bytes": 12581,
+      "sha256": "0ed4ccfd7943a0654c24ac7698d37998c04da55da3ae0b07a4ca875812e83e03"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "THIRD_PARTY.md",
+      "blob": "2287d1bc863b0cd5db08e1009689e721c3218e3a",
+      "bytes": 4624,
+      "sha256": "7d1ca1f3968f442bef309fe320a7dae66067e74c0206b168ca7dfc3b002eebc7"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "tools/release_package_windows.ps1",
+      "blob": "54832fb49c5a8b9f7b838a23fa58f06a90ba96a9",
+      "bytes": 13070,
+      "sha256": "2496c087ad8479582488f749ba0acbcb740d068145e9d6010dfa14b19ea0fe77"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/content.cpp",
+      "blob": "74754f48d1a8bfe4ef6b78ca2b9458d3cbaa8220",
+      "bytes": 42842,
+      "sha256": "99fa4668b811a0bdaca023a29873e1cd6614d79f643bcd21d341c2d24e5f5af0"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "path": "runtime/kernel/content.h",
+      "blob": "d482e0ac8ce2eeb0efe1a81e7af5cda8cb546202",
+      "bytes": 3518,
+      "sha256": "1b0b750700548b321ee2ef1a61f3be1ddd93a6ebc4f12c5dae58cd0189ab1888"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "LICENSE",
+      "blob": "989af8778ded5b67521da99f4ed0a71960ac9caa",
+      "bytes": 1659,
+      "sha256": "8e065be1da2ff9a16b1f063d4636d8b67e6a654bb90583ea4332e66ac421bb18"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "src/ui/rex_app.cpp",
+      "blob": "ed68204d3ac69b3940bfd0e6c97811815b3eda89",
+      "bytes": 46230,
+      "sha256": "3e6f46945597637bed5fda78810d2d0826d90d7d82f6abc70d20eab13e364a2d"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "include/rex/rex_app.h",
+      "blob": "3205877fcf9151c6ed55bcfea678cafac56c088a",
+      "bytes": 19347,
+      "sha256": "eb2a1f46104f398a9a7905e43a876abc8ee01323302e20f7405d486d57aa64b1"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "src/core/cvar.cpp",
+      "blob": "2d22ab292c9e1fc090292b4e6fc1b297cc2462a7",
+      "bytes": 33022,
+      "sha256": "efc904ef38730714bf42aff5ec933631773476d3d8b4b4a6b86dee13de7b00c9"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "src/system/auto_updater.cpp",
+      "blob": "a9af4ff59ff3799909a17c007297f61016384733",
+      "bytes": 17776,
+      "sha256": "4e9424db515db99cc49485f68b860c02b7275288e02439ea6857c9f51b0de882"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "src/system/auto_updater_win.cpp",
+      "blob": "24c09947fe557e35793da34da4a7fec967f4f3a4",
+      "bytes": 6371,
+      "sha256": "5a171641186beb124e1e57ed824a712a9662fa00e25dfc39878a5b3f58dc9735"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "include/rex/system/auto_updater.h",
+      "blob": "028ecf9aec08f366be04eaa240529929bedcf8b2",
+      "bytes": 8232,
+      "sha256": "5815a4ce7fc38309a271b5da2dec3de163602ea11bf3d36914b4da0b752f507e"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "path": "src/ui/windowed_app_main_sdl.cpp",
+      "blob": "f287671c172267095f8dcbbe98155d148cd2155e",
+      "bytes": 4950,
+      "sha256": "2ee134df06b7637aebc630d4797f58f6926c5b210ec8d3dd75e4f7b03f7bdfae"
+    },
+    {
+      "repository": "wivi514/XenonLive",
+      "commit": "134d49b96f42a85323134a9af436dddfa987a7ea",
+      "path": "README.md",
+      "blob": "4819f2b1a9ade2e671a726b2787f5647903fc1ef",
+      "bytes": 5140,
+      "sha256": "f91307ed78a087235b17df59e25824c38e7346f6621dc6301efb485b1945c327"
+    },
+    {
+      "repository": "wivi514/XenonLive",
+      "commit": "134d49b96f42a85323134a9af436dddfa987a7ea",
+      "path": "client/include/xlive/client.h",
+      "blob": "3ee4ce620988c4de01f070441fccd41bc991c080",
+      "bytes": 47047,
+      "sha256": "a40cb1680e863cd3cee1ed12b0e8de53b1112eab1ef7d536ce6b754c7b5f67f0"
+    },
+    {
+      "repository": "wivi514/XenonLive",
+      "commit": "134d49b96f42a85323134a9af436dddfa987a7ea",
+      "path": "client/src/client.cpp",
+      "blob": "22189274ddc023810329f010852863fe4c7c3d0b",
+      "bytes": 162953,
+      "sha256": "6a1960df8acb6bb81f988e7d08c79c2333ec5ce1518f6db1c33fb5a67b8c03ab"
+    },
+    {
+      "repository": "wivi514/XenonLive",
+      "commit": "134d49b96f42a85323134a9af436dddfa987a7ea",
+      "path": "client/CMakeLists.txt",
+      "blob": "d53598841340f9a2837a74f8c176b534a52d9193",
+      "bytes": 3418,
+      "sha256": "9209186e11c7b7beb0bfce4213e4e4bf3dc39a429e0f91055fe5324e3e57decf"
+    },
+    {
+      "repository": "wivi514/XenonLive",
+      "commit": "134d49b96f42a85323134a9af436dddfa987a7ea",
+      "path": "docs/client-library.md",
+      "blob": "38db186af9433214ce7a0b77bc7f81e51044a420",
+      "bytes": 17426,
+      "sha256": "e8783b71080843b7b5b3d22a3b64cc5a9243b759994b488a84365cfb496e28b9"
+    },
+    {
+      "repository": "wivi514/XenonLive",
+      "commit": "134d49b96f42a85323134a9af436dddfa987a7ea",
+      "path": "docs/integrating-a-port.md",
+      "blob": "531d90d5a49987845c1608d9e00acc667d6ce634",
+      "bytes": 9231,
+      "sha256": "9450810be97dfbb3d85fc77b10696540c9183947d539250eac7a6a1c034b0e47"
+    }
+  ],
+  "source_contexts": [
+    {
+      "repository": "FluffyQuack/ReXGlue-EXIT",
+      "commit": "aca5cc83ae1e31c451a499a0bd830e7f5bb313b2",
+      "tree": "5665f7a2c272b89c61eff5c63ea1b7c216f773a3",
+      "entries": 1472,
+      "tree_receipt_sha256": "6f8222b3095f162def98601b2ade20c7f795f7063739e4304f71f9d5831a5784",
+      "commit_receipt_sha256": "7dbb975707d6c4dbdb23d3ab70cdc66ca6a8f508e0e1c38a959788e40cb188d0"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "d9f3ff2dc3614ea42ac0fa701b6ce61e3e6120bd",
+      "tree": "bb0c88fa297a7a6fccbf46d37c4230d59122c169",
+      "entries": 327,
+      "tree_receipt_sha256": "91bc1595414008c6b3e909bf20c7385f78652779c1a6607a78ee008d07f47a60",
+      "commit_receipt_sha256": "539a2be0fb6caa7e20415885d0464dc6fcca0040ff9f826600de3789ff23108a"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
+      "commit": "ba78bde572d654022f35e00eb9860be6c4583456",
+      "tree": "1c800c037fc028b86a2a9d7962a198d6ff2ef1d0",
+      "entries": 328,
+      "tree_receipt_sha256": "9c3ef9d7314b06b11e71e9e7947f2a613532c616fc2b1a438a7009f3ee36b70d",
+      "commit_receipt_sha256": "58c902207c19951c3d22dad7a1ccd823cc269652af54770494ab23379884f2ef"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "e12f40d7faa30c6c816008135e67fcd94f055824",
+      "tree": "6c2c8570d9a0acbad588969a3d922a37fe92b62a",
+      "entries": 315,
+      "tree_receipt_sha256": "1559e2f126e62d429f3bdc2f500592dd940f53ccd8da24e25bc30c775bae87f5",
+      "commit_receipt_sha256": "72114badf9faa82420c2549db0cbfe61e09817b575c3c1ba56f2f2933e37303f"
+    },
+    {
+      "repository": "himdo/Fable-2-Recomp",
+      "commit": "f379bdd235ffd70401a9ea337a3d16770ef32405",
+      "tree": "a0607fa284445d989cc348cd214ee6367dea6b98",
+      "entries": 338,
+      "tree_receipt_sha256": "a5abd9591bbd649b76da74aedf05cfe19f4045d3714c487995fbdf296654d5f0",
+      "commit_receipt_sha256": "4e3ff219cfc57589b546b910348d86bcb6ffe82e8be022e21d6dc9f42cd468df"
+    },
+    {
+      "repository": "birabittoh/EternalSonataReprise",
+      "commit": "457fe597e2daae712f8f844349e7641b04e76ac2",
+      "tree": "bde29ac795f581cbe9251050f77f418e2b09bcfd",
+      "entries": 451,
+      "tree_receipt_sha256": "2cadb0bc8201da4f9dedf6390983a1f63f862e8509e10e271b2b663b60c0a7e1",
+      "commit_receipt_sha256": "f276c56d46b6c50a8f1d3dfecea81eb4e559ffc2d1c0b35bbe34cd93a50f1d8e"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "ac3b2a528829de5b9f3af09345f182cd35ad3f1d",
+      "tree": "b32f651d68d73f281f63865c505600ac10944176",
+      "entries": 238,
+      "tree_receipt_sha256": "c31e183a01709e6ba699fea188091c299f4bc59b4b48a70be24559fc2095832d",
+      "commit_receipt_sha256": "4ebb123a5d1cd645be9fe16bbc0da74d23e348dad93dff5820dcea30fb233507"
+    },
+    {
+      "repository": "FrankHUN88453/CoD3Recomp",
+      "commit": "3c3178a85075cfa6e0703de5e553ff472acc7916",
+      "tree": "e971adc8796000c8385ad74bacc520470563d0cd",
+      "entries": 232,
+      "tree_receipt_sha256": "31526579747094d8e72180e8265b29826b6c36a8d770c39fca00ce2429ea1b9e",
+      "commit_receipt_sha256": "f97744b113b0b05cc823e258157b5a09b5eadb3058f6805ab4fe35dff86dde03"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
+      "tree": "caffeed4800d07b107cda4ba244eaac0aa45dbba",
+      "entries": 725,
+      "tree_receipt_sha256": "8a2df2f7a6fe21f2caf4e6a1517d471d3ee68e9c86084f03c5fa328ce1c6ff15",
+      "commit_receipt_sha256": "81834deb8648138215907cf66d95649cf3ad7281c54516bd8971c57aafd99742"
+    },
+    {
+      "repository": "wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+      "commit": "10d45b0952dd1b7f53f29dbff0795a27abb81ff7",
+      "tree": "25b27e687242c226c8e36b719763fefe7468475d",
+      "entries": 726,
+      "tree_receipt_sha256": "ad40a17f4c94aefa49acb97f48ce458f45668dc9b154c36fa1ba35dbcb696123",
+      "commit_receipt_sha256": "fbc744c28b929f915a8a848a8c70fed8b31dd09ab1907480c680dbaa5a0d5a52"
+    },
+    {
+      "repository": "birabittoh/rexglue-sdk",
+      "commit": "4e720f3fa0f94dc9a213557503a8eb000918e7b6",
+      "tree": "471a2b17d182f2cd3dffd5b0e1846c36ac7b45e1",
+      "entries": 1574,
+      "tree_receipt_sha256": "24481abd2dd8c4315df8db55e2353fd2e87c8318ac99b14951eec4d735f04f7a",
+      "commit_receipt_sha256": "69ded132b7aaf2a045a54193a9e813c91a32ca1f303b9550623447b61a07844f"
+    },
+    {
+      "repository": "wivi514/XenonLive",
+      "commit": "134d49b96f42a85323134a9af436dddfa987a7ea",
+      "tree": "33043bebc05df7419f65dc46547fdad3e8887cef",
+      "entries": 143,
+      "tree_receipt_sha256": "81d4b6c110ae8429f4d3e5402543d0eacd1e29964f043cc32431300cf0218702",
+      "commit_receipt_sha256": "be971a0a6799249b9c84bda7dd185e97873eeab2a0d4563ff65e5a137e97cfd9"
+    }
+  ],
+  "core_inspection": {
+    "ports": 286,
+    "listings": 1424,
+    "port_input_sha256": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "listing_input_sha256": "512b70c9d16551f098c61ef10d36292fd16009798d7fbdbeca92c5823e1cd4c0",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "b739f29e10fd4bcb7b808a3cf7b272a89420562407171c8232e3c75365336f3d",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 286,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    },
+    "strict_receipt_reuse": {
+      "path": "/home/boburning/code/portcove-workstreams/b1-upstream-prepared-xbox360-players-20261031/work/b1-upstream-prepared-xbox360-players-20261031/final-core-validation/core-port-receipt.json",
+      "sha256": "781a61e3845112c07e39540016a3c4882be5c7cf2b33f8f211f797524aabfe23",
+      "scope": "Exact unchanged strict input reuses preceding successful inspection; only combined listing inspection newly executed after additive CaseZero condition."
+    }
+  },
+  "preservation": {
+    "crates/portcove-core/catalog/catalog.json": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "crates/portcove-core/catalog/catalog-current-authoring.json": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "crates/portcove-core/catalog/catalog-schema1-fixture.json": "6007d4962a722751bfbb789d08b23b6c0f5eba3b09ef28eedd5c480d417529b0",
+    "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json": "b739f29e10fd4bcb7b808a3cf7b272a89420562407171c8232e3c75365336f3d"
+  },
+  "first_party_cases": [
+    "service::user_selected::tests::exit_rexglue_exit_exit1_prepared_player_route_362",
+    "service::user_selected::tests::exit_2_rexglue_exit_exit2_prepared_player_route_363",
+    "service::user_selected::tests::fable_ii_recomp_prepared_player_route_1124",
+    "service::user_selected::tests::eternal_sonata_reprise_prepared_player_route_1126",
+    "service::user_selected::tests::dead_rising_2_case_west_recomp_prepared_player_route_1122",
+    "service::catalog_download::tests::dead_rising_2_case_west_recomp_libxlive_hold_before_network_1122",
+    "service::catalog_download::tests::exit_shared_release_keeps_title_recommendations_distinct_362_363",
+    "service::catalog_download::tests::dead_rising_2_case_zero_recomp_libxlive_hold_before_network_1121",
+    "service::user_selected::tests::dead_rising_2_case_zero_recomp_prepared_player_route_1121"
+  ],
+  "preparation": [
+    {
+      "issue": 362,
+      "report_sha256": "1a406fed7330a2acc93e9bb47d40a19eb4044c1e56804ce251e3046442d35e42",
+      "route": "listing",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "a2302a89627eb7640a5b9fda2e5f8fa348566552678af49d9b3b11366c69cb76",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "scope": "Maintained authoring and exact Core listing inspection only; not native title execution."
+    },
+    {
+      "issue": 363,
+      "report_sha256": "2c3f8fda906d7a31038976e723cce2102bf4f1a227896ea8879411cd3d08842f",
+      "route": "listing",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "d35b8b21db51537504c67e3f522f8cdd9b93cb31277a8f9e54fc77b4b0aca4d9",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "scope": "Maintained authoring and exact Core listing inspection only; not native title execution."
+    },
+    {
+      "issue": 1124,
+      "report_sha256": "a9380ffba6d2e57c491764282e267a5c169c0250aa1149d30eec5f5cc233cedc",
+      "route": "listing",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "7e4bbcf6e6c9affdc13e94766aa542c394d5b71de0d007d74ba369cc24f6a527",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "scope": "Maintained authoring and exact Core listing inspection only; not native title execution."
+    },
+    {
+      "issue": 1126,
+      "report_sha256": "834396363aacf2a5c2b5607eea49b22ad9f97757be2848bf6cf237905ef61633",
+      "route": "listing",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "14473e1058416d15dad45f973dab7435f302bf3fffab1f25f92f0078dd275387",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "scope": "Maintained authoring and exact Core listing inspection only; not native title execution."
+    },
+    {
+      "issue": 1122,
+      "report_sha256": "b0309fbe0fc88822bd6c57f7f6fa1ebe1e3b86189209563df930257e1aa6e2dd",
+      "route": "listing",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "4a3dfbf4ea1ee1d27b094154f64910171c5a58bbb65d985574bf68bb7b9ef8b7",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "scope": "Maintained authoring and exact Core listing inspection only; not native title execution."
+    },
+    {
+      "issue": 1121,
+      "report_sha256": "60c4718f7e096e048c917d57124de772a801257b97f3ca2416ae08368a31f2e5",
+      "route": "listing",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "512b70c9d16551f098c61ef10d36292fd16009798d7fbdbeca92c5823e1cd4c0",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "scope": "Maintained authoring and exact Core listing inspection only; not native title execution."
+    }
+  ],
+  "scope": "Five new Windows prepared-player guides and one existing guide correction, two precise fresh-acquisition conditions, no new strict integration/source profile/family adapter/Core importer/CPU compiler/SDK/pin/protected authority. No original/private-save acquisition or upstream execution. No native GUI/gameplay/save/installed acceptance. B1 human GUI stop preserved. Full frozen858 scope continues; overall B1 incomplete.",
+  "casezero_supplemental_notice": {
+    "receipt_sha256": "f92ce7b840de244a465c89c3631b51f6f525d428151742c0dd6f413b3b2ff428",
+    "same_member_sha256_as_casewest": true,
+    "scope": "Previously retained R20 v1.1.3 provider-bound public package, newly bounded unique raw member read; no new package download or upstream execution. Earlier documentation filter omission is acknowledged; R20 actual finite lifecycle evidence retained."
+  }
+}

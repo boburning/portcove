@@ -3,11 +3,11 @@
   "listing": {
     "id": "dead-rising-2-case-west-recomp",
     "name": "Dead Rising 2 Case West Xenon Recomp",
-    "summary": "Explore Dead Rising 2 Case West Xenon Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, prepared Case West native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
     "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
     "issue_number": 1122,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
     "artwork": {
       "game_id": 21764,
@@ -16,6 +16,39 @@
       "image_sha256": "dfd2adc8add2ceb52ba7e9bce03d4af6565d248abf247b58f1a383dd576b919d",
       "game_slug": "dead-rising-2-case-west",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp/releases/tag/v1.1.2",
+    "download_asset_hints": {
+      "windows-x86-64": ["CaseWestRecomp", "windows-x86_64"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp/releases/tag/v1.1.2",
+      "steps": [
+        {
+          "title": "Keep an independently permitted completed copy",
+          "instruction": "Continue only with an actual player and components you are independently permitted to use. The package defers compiled-in libxlive’s licence to XenonLive, and that specific component grant is not established in the retained evidence. The title’s own noncommercial grant does not settle this separately named scope; offline use does not remove the linked bytes. Fresh acquisition remains held."
+        },
+        {
+          "title": "Complete Case West preparation through its own player",
+          "instruction": "Keep the complete CaseWestRecomp folder, matching DLLs, assets, tools, defaults and shader resources. Use your own Dead Rising 2 Case West XBLA package, title 58410B00. The native player’s own first-run picker/import and GPU shader preparation run in-process; no separate CPU recompilation is required by this guide. This is not Case Zero and its input/profile is not interchangeable. Complete upstream preparation outside Portcove; no original or helper is acquired or executed here."
+        },
+        {
+          "title": "Select the direct offline player",
+          "instruction": "Select the completed cw_runtime.exe, its CaseWestRecomp directory as working directory and no arguments for the normal native launcher. The direct player has an offline default profile and requires no account. XenonLiveLauncher and online sign-in are optional separate upstream features, not a prerequisite for this offline attachment. Keep existing explicit path choices; do not point CW_ROOT at a data-only subfolder because it selects the whole resource root."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Keep the complete working root and external profiles",
+          "instruction": "Preserve the entire creating runtime/resource root, including assets/package, assets/game, assets/save, assets/shader_spv, config, tools, defaults, recipes, logs, key maps and all custom locations. The inspected Windows source also resolves the redirected Saved Games known folder under Dead Rising 2 Case West, falling back through USERPROFILE/Saved Games and finally the executable directory. Keep offline and per-gamertag profiles, all saves, original packages, backups and temporary files. These are separate unowned roots; this guide does not claim a complete managed backup or cross-profile migration."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+      ]
+    },
+    "download_block_reason": "The selected Case West Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove a compiled-in component. This condition grants no permission to use an existing copy."
   }
 }

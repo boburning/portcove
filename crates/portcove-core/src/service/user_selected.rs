@@ -2453,7 +2453,7 @@ mod tests {
 
     #[test]
     fn dead_rising_2_case_zero_recomp_prepared_player_route_1121() {
-        assert_listing_only_player_route("dead-rising-2-case-zero-recomp", Some(false));
+        assert_listing_only_player_route("dead-rising-2-case-zero-recomp", Some(true));
     }
 
     #[test]
@@ -2527,5 +2527,365 @@ mod tests {
     #[test]
     fn cbfd_recompiled_sciaschi_frontend_license_player_route_1216() {
         assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(false));
+    }
+
+    #[test]
+    fn blast_corps_recompiled_permitted_player_route_2558() {
+        assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(true));
+    }
+    #[test]
+    fn final_fantasy_tactics_finfantacrecomp_prepared_player_route_327() {
+        assert_listing_only_player_route("final-fantasy-tactics-finfantacrecomp", Some(true));
+    }
+
+    #[test]
+    fn einhander_einhander_recompiled_prepared_player_route_350() {
+        assert_listing_only_player_route("einhander-einhander-recompiled", Some(false));
+    }
+
+    #[test]
+    fn syphon_filter_sf_pc_port_prepared_player_route_344() {
+        assert_listing_only_player_route("syphon-filter-sf-pc-port", Some(false));
+    }
+
+    #[test]
+    fn silent_hill_silent_hill_decomp_pc_branch_prepared_player_route_351() {
+        assert_listing_only_player_route("silent-hill-silent-hill-decomp-pc-branch", Some(true));
+    }
+
+    #[test]
+    fn tenchu_stealth_assassins_tenchu_sa_recomp_prepared_player_route_353() {
+        assert_listing_only_player_route("tenchu-stealth-assassins-tenchu-sa-recomp", Some(true));
+    }
+
+    #[test]
+    fn exit_rexglue_exit_exit1_prepared_player_route_362() {
+        assert_listing_only_player_route("exit-rexglue-exit-exit1", Some(false));
+    }
+
+    #[test]
+    fn exit_2_rexglue_exit_exit2_prepared_player_route_363() {
+        assert_listing_only_player_route("exit-2-rexglue-exit-exit2", Some(false));
+    }
+
+    #[test]
+    fn fable_ii_recomp_prepared_player_route_1124() {
+        assert_listing_only_player_route("fable-ii-recomp", Some(false));
+    }
+
+    #[test]
+    fn eternal_sonata_reprise_prepared_player_route_1126() {
+        assert_listing_only_player_route("eternal-sonata-reprise", Some(false));
+    }
+
+    #[test]
+    fn dead_rising_2_case_west_recomp_prepared_player_route_1122() {
+        assert_listing_only_player_route("dead-rising-2-case-west-recomp", Some(true));
+    }
+
+    #[test]
+    fn condemned_2_bloodshot_condemned2recomp_prepared_player_route_361() {
+        assert_listing_only_player_route("condemned-2-bloodshot-condemned2recomp", Some(true));
+    }
+
+    #[test]
+    fn guitar_hero_warriors_of_rock_re_wor_prepared_player_route_359() {
+        assert_listing_only_player_route("guitar-hero-warriors-of-rock-re-wor", Some(false));
+    }
+
+    #[test]
+    fn project_gotham_racing_4_pgr4_recomp_prepared_player_route_360() {
+        assert_listing_only_player_route("project-gotham-racing-4-pgr4-recomp", Some(false));
+    }
+
+    #[test]
+    fn silent_hill_downpour_downpourrecomp_prepared_player_route_358() {
+        assert_listing_only_player_route("silent-hill-downpour-downpourrecomp", Some(true));
+    }
+
+    #[test]
+    fn tony_hawks_project_8_recomp_prepared_player_route_1125() {
+        assert_listing_only_player_route("tony-hawks-project-8-recomp", Some(true));
+    }
+
+    #[test]
+    fn sonic_free_riders_recompiled_prepared_player_route_1450() {
+        assert_listing_only_player_route("sonic-free-riders-recompiled", Some(true));
+    }
+
+    #[test]
+    fn x_men_destiny_xmd_recompiled_prepared_player_route_365() {
+        assert_listing_only_player_route("x-men-destiny-xmd-recompiled", Some(false));
+    }
+
+    #[test]
+    fn sega_superstars_tennis_rematch_prepared_player_route_378() {
+        assert_listing_only_player_route("sega-superstars-tennis-rematch", Some(false));
+    }
+
+    #[test]
+    fn street_fighter_ex_plus_alpha_recomp_prepared_player_route_1116() {
+        assert_listing_only_player_route("street-fighter-ex-plus-alpha-recomp", Some(false));
+    }
+
+    #[test]
+    fn street_fighter_ex2_plus_recompiled_prepared_player_route_1117() {
+        assert_listing_only_player_route("street-fighter-ex2-plus-recompiled", Some(false));
+    }
+
+    #[test]
+    fn strider_2_recompiled_prepared_player_route_1118() {
+        assert_listing_only_player_route("strider-2-recompiled", Some(false));
+    }
+
+    #[test]
+    fn wwf_smackdown_2_know_your_role_recomp_prepared_player_route_1396() {
+        assert_listing_only_player_route("wwf-smackdown-2-know-your-role-recomp", Some(false));
+    }
+
+    #[test]
+    fn space_channel_5_native_prepared_player_route_1540() {
+        assert_listing_only_player_route("space-channel-5-native", Some(false));
+    }
+
+    #[test]
+    fn kirbys_return_to_dream_land_kirby_wii_recomp_prepared_player_route_1131() {
+        assert_listing_only_player_route(
+            "kirbys-return-to-dream-land-kirby-wii-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn unchiga_yu_gi_oh_forbidden_memories_recompiled_prepared_player_route_1910() {
+        assert_listing_only_player_route(
+            "unchiga-yu-gi-oh-forbidden-memories-recompiled",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn james2doyle_ffta_recomp_prepared_player_route_2824() {
+        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(true));
+    }
+
+    #[test]
+    fn final_fantasy_tactics_advance_fftarecomp_prepared_player_route_2575() {
+        assert_listing_only_player_route("final-fantasy-tactics-advance-fftarecomp", Some(false));
+    }
+
+    #[test]
+    fn kingdom_hearts_chain_of_memories_gba_rekhcom_prepared_player_route_2586() {
+        assert_listing_only_player_route(
+            "kingdom-hearts-chain-of-memories-gba-rekhcom",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn vibecodekun_shantaerecomp_prepared_player_route_1881() {
+        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(true));
+    }
+
+    #[test]
+    fn monster_hunter_portable_3rd_hd_yakumo_prepared_player_route_1120() {
+        assert_listing_only_player_route("monster-hunter-portable-3rd-hd-yakumo", Some(false));
+    }
+
+    #[test]
+    fn mario_party_4_party_board_prepared_player_route_1130() {
+        assert_listing_only_player_route("mario-party-4-party-board", Some(false));
+    }
+
+    #[test]
+    fn pokemon_platinum_pokeplatinum_pc_port_lead_prepared_player_route_373() {
+        assert_listing_only_player_route("pokemon-platinum-pokeplatinum-pc-port-lead", Some(false));
+    }
+
+    #[test]
+    fn ace_combat_5_static_recompilation_prepared_player_route_1119() {
+        assert_listing_only_player_route("ace-combat-5-static-recompilation", Some(false));
+    }
+
+    #[test]
+    fn ace_combat_x_skies_of_deception_ace_combat_x_recompilation_prepared_player_route_355() {
+        assert_listing_only_player_route(
+            "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn star_wars_episode_iii_revenge_of_the_sith_prepared_player_route_1310() {
+        assert_listing_only_player_route("star-wars-episode-iii-revenge-of-the-sith", Some(false));
+    }
+
+    #[test]
+    fn the_simpsons_game_thesimpsonsgamerecomp_prepared_player_route_379() {
+        assert_listing_only_player_route("the-simpsons-game-thesimpsonsgamerecomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_sims1_recomp_prepared_player_route_2733() {
+        assert_listing_only_player_route("abilliontokens-sims1-recomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_sims2_recomp_prepared_player_route_2752() {
+        assert_listing_only_player_route("abilliontokens-sims2-recomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_urbz_recomp_prepared_player_route_2813() {
+        assert_listing_only_player_route("abilliontokens-urbz-recomp", Some(false));
+    }
+
+    #[test]
+    fn bitsandbreakpoints_d_psx_pc_recomp_prepared_player_route_2741() {
+        assert_listing_only_player_route("bitsandbreakpoints-d-psx-pc-recomp", Some(false));
+    }
+
+    #[test]
+    fn bluddy_rails_prepared_player_route_2787() {
+        assert_listing_only_player_route("bluddy-rails", Some(false));
+    }
+
+    #[test]
+    fn legend_of_legaia_legend_of_legaia_recomp_prepared_player_route_352() {
+        assert_listing_only_player_route("legend-of-legaia-legend-of-legaia-recomp", Some(false));
+    }
+
+    #[test]
+    fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_prepared_player_route_356() {
+        assert_listing_only_player_route(
+            "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn burnout_3_takedown_ps2_burnout3_pc_prepared_player_route_2638() {
+        assert_listing_only_player_route("burnout-3-takedown-ps2-burnout3-pc", Some(false));
+    }
+
+    #[test]
+    fn burnout_3_takedawn_xbox_prepared_player_route_2105() {
+        assert_listing_only_player_route("burnout-3-takedawn-xbox", Some(false));
+    }
+
+    #[test]
+    fn burnout_xbox_burnout_recompilation_prepared_player_route_2637() {
+        assert_listing_only_player_route("burnout-xbox-burnout-recompilation", Some(false));
+    }
+
+    #[test]
+    fn dead_or_alive_3_doa3_recomp_prepared_player_route_2560() {
+        assert_listing_only_player_route("dead-or-alive-3-doa3-recomp", Some(false));
+    }
+
+    #[test]
+    fn goliathret_edgeoftimerecomp_prepared_player_route_1818() {
+        assert_listing_only_player_route("goliathret-edgeoftimerecomp", Some(false));
+    }
+
+    #[test]
+    fn dragon_ball_z_burst_limit_dbz_burst_limit_recompiled_prepared_player_route_2664() {
+        assert_listing_only_player_route(
+            "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn dudux42_freedomunbound_prepared_player_route_2808() {
+        assert_listing_only_player_route("dudux42-freedomunbound", Some(false));
+    }
+
+    #[test]
+    fn erreib_pure_recomp_prepared_player_route_2749() {
+        assert_listing_only_player_route("erreib-pure-recomp", Some(false));
+    }
+
+    #[test]
+    fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_prepared_player_route_2570() {
+        assert_listing_only_player_route(
+            "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_prepared_player_route_2577() {
+        assert_listing_only_player_route(
+            "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn hard_corps_uprising_hard_corps_uprising_recompiled_prepared_player_route_2581() {
+        assert_listing_only_player_route(
+            "hard-corps-uprising-hard-corps-uprising-recompiled",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn jedeyesniv_art_pacman_ce_pc_recomp_prepared_player_route_2727() {
+        assert_listing_only_player_route("jedeyesniv-art-pacman-ce-pc-recomp", Some(false));
+    }
+
+    #[test]
+    fn iron_jay_banjo_tooie_xbla_recomp_prepared_player_route_2860() {
+        assert_listing_only_player_route("iron-jay-banjo-tooie-xbla-recomp", Some(false));
+    }
+
+    #[test]
+    fn fataldecomp_roller_prepared_player_route_2792() {
+        assert_listing_only_player_route("fataldecomp-roller", Some(false));
+    }
+
+    #[test]
+    fn bountyhunterkanden_secondhunt_prepared_player_route_2845() {
+        assert_listing_only_player_route("bountyhunterkanden-secondhunt", Some(false));
+    }
+
+    #[test]
+    fn citrongames_dora64_3_prepared_player_route_2724() {
+        assert_listing_only_player_route("citrongames-dora64-3", Some(false));
+    }
+
+    #[test]
+    fn clergyman0013_arizona_vamp_recomp_prepared_player_route_2740() {
+        assert_listing_only_player_route("clergyman0013-arizona-vamp-recomp", Some(false));
+    }
+
+    #[test]
+    fn crackdown_crackdown_recompiled_prepared_player_route_2559() {
+        assert_listing_only_player_route("crackdown-crackdown-recompiled", Some(true));
+    }
+
+    #[test]
+    fn dannyowelch_deception_recomp_prepared_player_route_2735() {
+        assert_listing_only_player_route("dannyowelch-deception-recomp", Some(false));
+    }
+
+    #[test]
+    fn daytona_usa_sega_model_2_arcade_daytona_usa_static_recompilation_prepared_player_route_2651()
+    {
+        assert_listing_only_player_route(
+            "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn def_jam_fight_for_ny_defjamffny_recomp_prepared_player_route_2562() {
+        assert_listing_only_player_route("def-jam-fight-for-ny-defjamffny-recomp", Some(false));
+    }
+
+    #[test]
+    fn crazyriddler_finesthourremastered_prepared_player_route_2785() {
+        assert_listing_only_player_route("crazyriddler-finesthourremastered", Some(true));
     }
 }

@@ -135,21 +135,42 @@ export function validateMergedCommit(actual: unknown, sha: string, message: Deli
     throw new Error("Actual merged commit message differs from the checked squash message");
 }
 
-export function assertSuccessfulWorkflowJobs(
+interface WorkflowBinding {
+  head: string;
+  run: number;
+  attempt: number;
+}
+
+function workflowJobInventory(
   jobs: readonly DeliveryJob[],
-  contexts: readonly WatchContext[],
-  { head, run, attempt }: { head: string; run: number; attempt: number },
+  { head, run, attempt }: WorkflowBinding,
 ) {
+  if (
+    !sha(head) ||
+    !Number.isSafeInteger(run) ||
+    run < 1 ||
+    !Number.isSafeInteger(attempt) ||
+    attempt < 1
+  )
+    throw new Error("watch run/attempt/source binding is invalid");
   const checks = new Map<number, DeliveryJob>();
   const latestJobs = new Map<string, DeliveryJob>();
   const executions = new Set<string>();
+  const identities = new Set<number>();
   for (const job of jobs) {
+    providerState(
+      { name: job.name, status: job.status, conclusion: job.conclusion },
+      "workflow job",
+    );
     const match =
       /^https:\/\/api\.github\.com\/repos\/boburning\/portcove\/check-runs\/([1-9]\d*)$/u.exec(
         job.check_run_url ?? "",
       );
     const checkId = Number(match?.[1]);
     if (
+      !Number.isSafeInteger(job.id) ||
+      job.id < 1 ||
+      identities.has(job.id) ||
       job.run_id !== run ||
       !Number.isSafeInteger(job.run_attempt) ||
       job.run_attempt < 1 ||
@@ -162,11 +183,21 @@ export function assertSuccessfulWorkflowJobs(
       throw new Error(
         "watch job inventory has invalid or duplicate run/attempt/source/check identity",
       );
+    identities.add(job.id);
     checks.set(checkId, job);
     executions.add(`${job.name}:${job.run_attempt}`);
     if ((latestJobs.get(job.name)?.run_attempt ?? 0) < job.run_attempt)
       latestJobs.set(job.name, job);
   }
+  return { checks, latestJobs };
+}
+
+export function assertSuccessfulWorkflowJobs(
+  jobs: readonly DeliveryJob[],
+  contexts: readonly WatchContext[],
+  binding: WorkflowBinding,
+) {
+  const { checks, latestJobs } = workflowJobInventory(jobs, binding);
   for (const context of contexts) {
     const job = context.check_run_id === undefined ? undefined : checks.get(context.check_run_id);
     if (
@@ -188,6 +219,7 @@ export function requiredCheckContexts(
   checkRuns: DeliveryCheckRun[],
   statuses: (Omit<DeliveryStatus, "id"> & { id?: number })[],
   requiredContexts: string[],
+  binding?: WorkflowBinding & { jobs: readonly DeliveryJob[] },
 ): RequiredContext[] {
   const candidates = new Map<string, RequiredContext["observations"]>(
     requiredContexts.map((context) => [context, []]),
@@ -220,8 +252,57 @@ export function requiredCheckContexts(
       url: status.target_url ?? null,
     });
   }
+  // Only an explicitly bound, complete job inventory can disambiguate executions.
+  // Keep every observation; unbound routes deliberately retain name ambiguity.
+  const lineage = binding ? workflowJobInventory(binding.jobs, binding) : undefined;
+  if (binding)
+    for (const check of checkRuns) {
+      providerState(
+        { name: check.name, status: check.status, conclusion: check.conclusion },
+        "check run",
+      );
+      if (check.head_sha !== binding.head)
+        throw new Error("Check source differs from expected head");
+    }
   const contexts = requiredContexts.map((context): RequiredContext => {
     const matches = candidates.get(context) ?? [];
+    if (lineage && binding) {
+      const seen = new Set<number>();
+      for (const observation of matches) {
+        const id = observation.check_run_id;
+        const job = id === undefined ? undefined : lineage.checks.get(id);
+        const raw = checkRuns.find((check) => check.id === id);
+        if (
+          observation.source !== "check-run" ||
+          id === undefined ||
+          seen.has(id) ||
+          !job ||
+          job.name !== context ||
+          raw?.head_sha !== binding.head
+        )
+          throw new Error(`required check ${context} has unjoined or conflicting observations`);
+        seen.add(id);
+        const outcome =
+          job.status === "completed"
+            ? job.conclusion === "success"
+              ? "success"
+              : "failure"
+            : "pending";
+        if (
+          observation.outcome !== outcome ||
+          observation.conclusion !== (job.conclusion ?? job.status)
+        )
+          throw new Error(`required check ${context} disagrees with its workflow job`);
+      }
+      for (const [id, job] of lineage.checks)
+        if (job.name === context && !seen.has(id))
+          throw new Error(`required check ${context} job has no check observation`);
+      const latest = lineage.latestJobs.get(context);
+      const selected =
+        latest &&
+        matches.find((observation) => lineage.checks.get(observation.check_run_id!) === latest);
+      if (selected) return { context, ...selected, observations: matches };
+    }
     if (matches.length > 1)
       return { context, outcome: "failure", conclusion: "ambiguous", observations: matches };
     if (!matches.length)
@@ -676,6 +757,12 @@ export function prepareMergeSnapshot(
     checks as unknown as DeliveryCheckRun[],
     statuses as unknown as DeliveryStatus[],
     expected.contexts,
+    {
+      head: expected.head,
+      run: expected.run!,
+      attempt: expected.attempt!,
+      jobs: jobs as unknown as DeliveryJob[],
+    },
   );
   assertSuccessfulWorkflowJobs(jobs as unknown as DeliveryJob[], contexts, {
     head: expected.head,

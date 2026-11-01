@@ -3,11 +3,11 @@
   "listing": {
     "id": "einhander-einhander-recompiled",
     "name": "Einhänder / Einhander-Recompiled",
-    "summary": "Explore Einhänder / Einhander-Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Use an upstream-prepared Einhänder Windows player for your own supported USA disc. Upstream owns local generation and runtime replacement; Portcove can register the completed player.",
     "project_url": "https://github.com/strider973/Einhander-Recompiled",
     "issue_number": 350,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/strider973/Einhander-Recompiled",
     "artwork": {
       "game_id": 1360,
@@ -16,6 +16,31 @@
       "image_sha256": "d4ea5352ae0d8572e5fd9612111123508c8e67048fd1ec48c21bb51948391849",
       "game_slug": "einhander",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+    "manual_setup": {
+      "help_url": "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+      "steps": [
+        {
+          "title": "Complete the owned-input preparation upstream",
+          "instruction": "Use your own USA Einhänder PlayStation disc, SCUS-94243, as its CUE and every referenced BIN. The official Windows setup ZIP is a local build kit, not a ready game: it supplies no original disc, retail BIOS or generated game code. Complete upstream’s supported Generate & rebuild flow with its Python/toolchain outside Portcove. OpenBIOS is generated locally by default; an optional retail BIOS must be your own permitted copy. Keep the actual working disc and BIOS selections. This guide runs no compiler/helper and imports no original through Core."
+        },
+        {
+          "title": "Attach the completed product",
+          "instruction": "After successful upstream preparation, select build-release/Einhander_Recompiled.exe, the completed executable’s parent directory as working directory and the supported --launcher literal argument. Keep its staged game.toml and matching resources in place. The root setup executable starts a replacement product and exits on Windows, so select the completed product instead. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; an intentional rebuild can end or replace the process."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the whole creating project and effective player data",
+          "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+      ]
     }
   }
 }

@@ -3,11 +3,11 @@
   "listing": {
     "id": "syphon-filter-sf-pc-port",
     "name": "Syphon Filter / SF-pc-port",
-    "summary": "Explore Syphon Filter / SF-pc-port and follow the upstream project for requirements, downloads and setup.",
+    "summary": "A Windows native Syphon Filter player for your own USA v1.1 BIN/CUE. Keep package selection and replacement upstream, then register the completed native player.",
     "project_url": "https://github.com/Madxbio97/SF-pc-port",
     "issue_number": 344,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/Madxbio97/SF-pc-port",
     "artwork": {
       "game_id": 4115,
@@ -16,6 +16,35 @@
       "image_sha256": "20acf73d36a68feb7a54b5a2347279935265d80fe4ef582f6439cc58a0efea00",
       "game_slug": "syphon-filter",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+    "manual_setup": {
+      "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
+      "steps": [
+        {
+          "title": "Choose an actual upstream Windows player package",
+          "instruction": "The inspected public-test.16 Windows x64 ZIP contains the native player; later listed 0.2.0 beta and test releases have no attached player packages at this observation. Select an actual published Windows package explicitly from upstream and verify its published identity before preparation. An empty newer release is not a replacement package. This guide does not pin automatic updates to an old test or offer Core-managed replacement."
+        },
+        {
+          "title": "Keep the complete player and your own supported image",
+          "instruction": "Keep syphon_filter.exe with matching DLLs, locales, assets and notices. Use your own Syphon Filter USA v1.1 SCUS-94240 BIN/CUE, keeping every referenced BIN beside its CUE. The selected native player opens BROWSE/DEPLOY in-process and validates the supported game executable. The package supplies no game image; this attachment adds no separate BIOS import or compilation step."
+        },
+        {
+          "title": "Select the native player and its normal launcher",
+          "instruction": "Select the completed syphon_filter.exe, its package directory as working directory and no arguments for the normal image picker. Choose your own CUE through the upstream launcher. A CMD wrapper or separate setup process is not needed."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Retain both current and legacy user data",
+          "instruction": "For the inspected public-test.16 source, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; its fallback is the executable directory or working directory. Campaign saves use the effective user-data root under SyphonFilterPC/Saves/<sanitized serial>.sav, with backups and temporary files; the root can fall back through APPDATA and the system temporary directory. Upstream can migrate a legacy SyphonFilterPC.sav beside the CUE. Preserve that whole profile, every legacy original/save location, package, settings, mods and custom paths before replacing or moving a copy. Do not infer current-release storage or save compatibility from this older test package."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+      ]
     }
   }
 }

@@ -3,11 +3,11 @@
   "listing": {
     "id": "condemned-2-bloodshot-condemned2recomp",
     "name": "Condemned 2: Bloodshot / Condemned2Recomp",
-    "summary": "Explore Condemned 2: Bloodshot / Condemned2Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, upstream-prepared Condemned 2: Bloodshot / Condemned2Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/psxrestore/Condemned2Recomp",
     "issue_number": 361,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/psxrestore/Condemned2Recomp",
     "artwork": {
       "game_id": 6943,
@@ -16,6 +16,45 @@
       "image_sha256": "befb6920b7ae80cb0e18600c26e5940334cffba3351873e04d093a49c73cdf33",
       "game_slug": "condemned-2-bloodshot",
       "match_kind": "underlying-game"
-    }
+    },
+    "release_url": "https://github.com/psxrestore/Condemned2Recomp/releases/tag/0.5.1",
+    "download_asset_hints": {
+      "windows-x86-64": ["condemned2recomp", "windows"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/psxrestore/Condemned2Recomp/releases",
+      "steps": [
+        {
+          "title": "Use an independently permitted completed copy",
+          "instruction": "Attach only a complete existing copy and components you are independently permitted to use. Fresh acquisition of the selected package remains held for the named ZT Nature font components; the BSD project grant does not resolve their separate application-bundling permission."
+        },
+        {
+          "title": "Prepare your own supported original upstream",
+          "instruction": "Use your own legitimate Xbox 360 Condemned 2: Bloodshot. Complete upstream’s ISO and required title-update preparation outside the attached session; the inspected player requires its own default.xex and default.xexp. Preserve the full original layout. Optional QuickBMS full-asset extraction remains upstream preparation, not a Portcove operation."
+        },
+        {
+          "title": "Attach the completed native Windows player",
+          "instruction": "Select condemned2recomp.exe and its complete prepared package folder as working directory. Keep the established configuration and supported literal custom-root arguments; use no extra arguments for the normal already-prepared in-process player. Do not attach condemned2recomp_updater.exe or an extraction utility."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+        },
+        {
+          "title": "Keep upstream maintenance outside the attached session",
+          "instruction": "The in-process start screen offers updates. Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
+        },
+        {
+          "title": "Preserve the creating copy and every effective data root",
+          "instruction": "The inspected title defaults game data to Assets, user data to UserData and cache to Cache beside its configuration; explicit configured roots override defaults. Preserve the full creating folder, runtime configuration, originals, title update, profiles, saves, mods, logs, caches, backups, temporary files and all effective custom roots. An update can rewrite configuration; retain it with the creating runtime."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
+        "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the selected Condemned 2 package remains held for its bundled ZT Nature Black/Medium fonts: the captured project/dependency notices do not establish an applicable bundled-application redistribution grant for those exact font bytes. Resume with attributable permission for that operation or a reviewed compatible package resolving the component. Later source replacement fonts do not qualify this older package. Independently permitted existing-copy registration does not clear this acquisition hold."
   }
 }

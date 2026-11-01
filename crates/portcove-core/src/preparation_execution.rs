@@ -289,7 +289,8 @@ impl PortcoveService {
         journal.preparation_process_quiesced = Some(true);
         journal.activate = true;
         let store = OperationStore::new(self.library().clone());
-        store.put(&mut journal)?;
+        let mut journal = crate::operation::publication::PublicationJournal::begin(journal)?;
+        journal.persist(&store)?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationJournaled)?;
         crate::path::refuse_symlink_ancestors(&prepared.operation_root)?;
         fs::create_dir_all(
@@ -373,13 +374,11 @@ impl PortcoveService {
         .map_err(|error| error.detail("preparation_phase", "bind manifest"))?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationOutputsValidated)?;
         install.path = destination;
-        journal.install = Some(install.clone());
         operation.begin_publication()?;
-        journal.phase = LifecyclePhase::Prepared;
-        store.put(&mut journal)?;
+        journal.prepare(install.clone(), &store)?;
         self.check_lifecycle_fault(LifecycleFaultPoint::PreparationPrepared)?;
         emit(operation.message("info", "Publishing the verified prepared installation"));
-        recover(self, &store, &mut journal)?;
+        recover(self, &store, &mut journal.into_record())?;
         Ok(install)
     }
 

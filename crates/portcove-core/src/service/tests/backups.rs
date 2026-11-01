@@ -1267,10 +1267,50 @@ fn restore_recovery_preserves_persisted_incompatible_family_payloads() {
         intent.paths.quarantine = Some(previous.clone());
         intent.preparation_process_quiesced = quiesced;
         intent.original_paths = original_paths;
-        store.put(&mut intent).unwrap();
-
-        // Exercise the persisted compatibility envelope, not only an in-memory guard.
-        let mut decoded = store.get(&intent.id).unwrap().unwrap();
+        if quiesced.is_some() {
+            assert_eq!(
+                store.put(&mut intent).unwrap_err().code,
+                crate::ErrorCode::State
+            );
+            let mut baseline = intent.clone();
+            baseline.preparation_process_quiesced = None;
+            store.put(&mut baseline).unwrap();
+            intent.updated_at = baseline.updated_at;
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE lifecycle_operations SET preparation_process_quiesced=?2 WHERE id=?1",
+                    rusqlite::params![intent.id, quiesced.map(i64::from)],
+                )
+                .unwrap();
+        } else {
+            store.put(&mut intent).unwrap();
+        }
+        let row_snapshot = || {
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT * FROM lifecycle_operations WHERE id=?1",
+                    [&intent.id],
+                    |row| {
+                        (0..row.as_ref().column_count())
+                            .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                            .collect::<rusqlite::Result<Vec<_>>>()
+                    },
+                )
+                .unwrap()
+        };
+        let before = row_snapshot();
+        // Exercise both the persisted codec and the operation-specific guard.
+        let mut decoded = if quiesced.is_some() {
+            assert!(store.get(&intent.id).is_err());
+            assert!(service.recover_lifecycle_operations_for_test().is_err());
+            intent.clone()
+        } else {
+            store.get(&intent.id).unwrap().unwrap()
+        };
         let error = crate::recovery::recover_restore(&service, &store, &mut decoded).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::State, "{name}");
         assert!(
@@ -1278,7 +1318,13 @@ fn restore_recovery_preserves_persisted_incompatible_family_payloads() {
                 .message
                 .contains("incompatible identity or family payload")
         );
-        let retained = store.get(&intent.id).unwrap().unwrap();
+        assert_eq!(row_snapshot(), before);
+        let retained = if quiesced.is_some() {
+            assert!(store.get(&intent.id).is_err());
+            intent.clone()
+        } else {
+            store.get(&intent.id).unwrap().unwrap()
+        };
         assert_eq!(retained.phase, LifecyclePhase::MetadataCommitted);
         assert_eq!(retained.last_error, intent.last_error);
         assert_eq!(retained.preparation_process_quiesced, quiesced);
@@ -2732,16 +2778,53 @@ fn assert_backup_deletion_family_rejects_payload(variant: u8) {
         3 => operation.paths.staging = Some(temporary.path().join("unrelated")),
         _ => operation.original_paths.push(user_root.clone()),
     }
-    store.put(&mut operation).unwrap();
-    let persisted = store.get(&operation.id).unwrap().unwrap();
-    let before = format!("{persisted:?}");
+    let persisted = if variant <= 1 {
+        assert_eq!(
+            store.put(&mut operation).unwrap_err().code,
+            crate::ErrorCode::State
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE lifecycle_operations SET preparation_process_quiesced=?2 WHERE id=?1",
+                rusqlite::params![
+                    operation.id,
+                    operation.preparation_process_quiesced.map(i64::from)
+                ],
+            )
+            .unwrap();
+        assert!(store.get(&operation.id).is_err());
+        operation.clone()
+    } else {
+        store.put(&mut operation).unwrap();
+        store.get(&operation.id).unwrap().unwrap()
+    };
+    let row_snapshot = || {
+        library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT * FROM lifecycle_operations WHERE id=?1",
+                [&operation.id],
+                |row| {
+                    (0..row.as_ref().column_count())
+                        .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                },
+            )
+            .unwrap()
+    };
+    let before = row_snapshot();
     let mut rejected = persisted.clone();
     crate::recovery::recover_backup_deletion(&service, &store, &mut rejected)
         .expect_err("incompatible deletion payload must not authorize recovery");
-    assert_eq!(
-        format!("{:?}", store.get(&operation.id).unwrap().unwrap()),
-        before
-    );
+    assert_eq!(row_snapshot(), before);
+    if variant <= 1 {
+        assert!(store.get(&operation.id).is_err());
+        assert!(service.recover_lifecycle_operations_for_test().is_err());
+        assert_eq!(row_snapshot(), before);
+    }
     assert_eq!(fs::read(backup.path.join("backup.json")).unwrap(), manifest);
     assert_eq!(fs::read(user_root.join("save.dat")).unwrap(), b"live");
     assert!(!quarantine.exists());

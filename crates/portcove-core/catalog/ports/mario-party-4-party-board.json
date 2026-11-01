@@ -3,11 +3,11 @@
   "listing": {
     "id": "mario-party-4-party-board",
     "name": "Mario Party 4 Party Board",
-    "summary": "Explore Mario Party 4 Party Board and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted Party Board alpha Windows copy for your own USA revision-0 Mario Party 4 image. Preserve its controller requirement, external profile and known crash limits.",
     "project_url": "https://github.com/mariopartyrd/partyboard",
     "issue_number": 1130,
     "platforms": [],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/mariopartyrd/partyboard",
     "artwork": {
       "game_id": 2330,
@@ -16,6 +16,36 @@
       "image_sha256": "46115e471f2e3265d4b3ffe4f05945cdde7945c12f067dde680374281236ddd9",
       "game_slug": "mario-party-4",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/mariopartyrd/partyboard/releases",
+    "manual_setup": {
+      "help_url": "https://github.com/mariopartyrd/partyboard",
+      "steps": [
+        {
+          "title": "Keep the exact early-alpha copy and original",
+          "instruction": "The selected partyboard_0.2.0 release supports your own GameCube Mario Party 4 USA GMPE01 revision 0 ISO/RVZ. Complete its normal setup outside Portcove; a newer source README mentioning revision 1 does not broaden this alpha’s accepted input. The upstream release prefers its Win32/x86 build because the separate x64 build may crash in additional places. Use an already-working independently permitted copy on a compatible Windows host; no curated x64-package or other-platform acceptance is claimed."
+        },
+        {
+          "title": "Keep the required controller and known limits visible",
+          "instruction": "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. This guide repairs none of them and claims no full-game, physical-controller or completed-save qualification."
+        },
+        {
+          "title": "Attach the actual native player",
+          "instruction": "Select partyboard.exe and its complete creating package directory as working directory, with no extra arguments for the normal in-process startup. The source can browse an original each time; the documented GMPE01_00.iso or GMPE01_00.rvz beside the executable avoids that repeated pick. Keep the actual original, extracted GMPE01_00 tree and matching runtime/resources. Do not substitute a different revision, architecture or decompilation build."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the external profile and creating data",
+          "instruction": "Upstream locates this alpha’s saves in %APPDATA%/Party Board. Preserve the entire external profile, its settings/cache and any actual custom locations, plus the complete creating package, original image, extracted data, logs, mods, backups and temporary files. Dolphin save compatibility is only an upstream claim; no migration or import is performed. Unknown extra data grants no deletion rights. Upstream and you retain runtime replacement; keep the creating copy and review changed selected bytes after maintenance."
+        }
+      ],
+      "warnings": [
+        "The independently selected native route is separate from curated package CPU classification. Win32 is not relabeled as Win64, and no generic provider exception is added.",
+        "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game."
+      ]
     }
   }
 }

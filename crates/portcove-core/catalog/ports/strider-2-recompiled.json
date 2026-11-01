@@ -3,11 +3,11 @@
   "listing": {
     "id": "strider-2-recompiled",
     "name": "Strider 2 Recompiled",
-    "summary": "Explore Strider 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register a completed upstream-prepared Strider 2 Windows player for your own USA disc; upstream owns preparation and replacement.",
     "project_url": "https://github.com/strider973/STRIDER-2-Recompiled",
     "issue_number": 1118,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/strider973/STRIDER-2-Recompiled",
     "artwork": {
       "game_id": 5923,
@@ -16,6 +16,34 @@
       "image_sha256": "5da0305f60f569bfe5fd0c1530d4a694f6863226b79046e41e72fab198bc4003",
       "game_slug": "strider-2",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/strider973/STRIDER-2-Recompiled",
+      "steps": [
+        {
+          "title": "Complete the title’s supported preparation upstream",
+          "instruction": "Complete the supported upstream setup from your own USA SLUS-01163 CUE and every associated BIN before attachment. The release-root Strider_Recompiled.exe is a setup host; it generates and builds the completed game in build-release. Keep the whole creating project and output together. Portcove does not perform generation or redistribute private generated game code."
+        },
+        {
+          "title": "Keep the exact original and preparation boundary",
+          "instruction": "This title uses generated OpenBIOS by default. A separately owned retail BIOS is optional under its upstream setup; do not copy Street Fighter EX2 Plus’s mandatory retail-BIOS requirement into this title. Preserve your actual selected BIOS and configuration if you use one."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "Select the completed build-release/Strider_Recompiled.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
+        },
+        {
+          "title": "Review Play and retain one replacement owner",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Keep the complete creating project/build-release, own original CUE/BIN, generated game code and any selected BIOS. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and every effective custom root. Retain the framework PolyForm and separate third-party notices; no cross-title or cross-fork save/runtime compatibility is assumed."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+      ]
     }
   }
 }

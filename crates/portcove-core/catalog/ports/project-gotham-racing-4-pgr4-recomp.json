@@ -3,11 +3,11 @@
   "listing": {
     "id": "project-gotham-racing-4-pgr4-recomp",
     "name": "Project Gotham Racing 4 / PGR4-Recomp",
-    "summary": "Explore Project Gotham Racing 4 / PGR4-Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, upstream-prepared Project Gotham Racing 4 / PGR4-Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
     "project_url": "https://github.com/beatrixzy/PGR4-Recomp",
     "issue_number": 360,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/beatrixzy/PGR4-Recomp",
     "artwork": {
       "game_id": 2540,
@@ -16,6 +16,40 @@
       "image_sha256": "298c851b4b05844dc20d54b12ef826012aec8e15d5d32936a288b77a5c137ce8",
       "game_slug": "project-gotham-racing-4",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/beatrixzy/PGR4-Recomp/releases/tag/v1.2.2",
+    "download_asset_hints": {
+      "windows-x86-64": ["PGR4-Recomp", ".zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/beatrixzy/PGR4-Recomp/releases",
+      "steps": [
+        {
+          "title": "Prepare your own supported original upstream",
+          "instruction": "Use your own legitimate Xbox 360 Project Gotham Racing 4 original. Complete upstream’s supported GOD/ISO/extracted-data preparation outside Portcove and retain the original file tree. No extraction tool, original or title data is obtained or executed by this guide."
+        },
+        {
+          "title": "Attach the completed native Windows player",
+          "instruction": "Select pgr4_recompiled.exe in the complete win-amd64-release-xenos player directory. Match the shipped run.bat as literal executable arguments: --game_data_root followed by your actual prepared data directory, --execute_unclipped_draw_vs_on_cpu, --gpu_plugin=xenos and --fullscreen=false. Enter arguments individually, keeping a path with spaces one argument. Preserve established supported settings. Select the native executable, not run.bat. Explicitly set win-amd64-release-xenos as working directory and supply an absolute path to your own prepared data for --game_data_root; retain your actual established configuration."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+        },
+        {
+          "title": "Keep upstream maintenance outside the attached session",
+          "instruction": "Preparation and runtime replacement remain with upstream and the user. Retain the old working copy and all data; close the actual player and companions before replacement and review/relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the creating copy and every effective data root",
+          "instruction": "Keep the complete creating player and prepared original, plus every effective SDK user/profile/save/configuration/mod/cache/log/backup and custom root. No complete per-user save location is established by this bounded title-source read. Preserve existing paths and compatibility; the package working directory alone is insufficient to identify all player data."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "MIT project code; original game remains independently supplied. Shared SDK/project labels do not certify rights to another title or generated original-derived content.",
+        "Upstream documents Geometry Wars minigame crash and Lotus Esprit Essex Turbo freeze. These are disclosed upstream limitations, not repaired or tested here."
+      ]
     }
   }
 }

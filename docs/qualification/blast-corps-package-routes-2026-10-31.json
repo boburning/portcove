@@ -1,0 +1,883 @@
+{
+  "format_version": 1,
+  "kind": "dated source/static public package and first-party existing-capability integration evidence",
+  "source_base": "1b8fade5402d87e639dfe25523c03837245c5333",
+  "owning_issues": [2510, 2926, 1422],
+  "counts": {
+    "managed_added": 1,
+    "conditional_guides_added": 1,
+    "guides_added_total": 2,
+    "unchanged_condition_observers": 1,
+    "strict_definitions": 286,
+    "listings": 1424,
+    "source_bindings": 59,
+    "unique_source_contents": 53,
+    "complete_tree_contexts": 6
+  },
+  "routes": [
+    {
+      "issue": 2557,
+      "id": "blast-corps-power-dozer",
+      "path": "crates/portcove-core/catalog/ports/blast-corps-power-dozer.json",
+      "preimage_sha256": "38cc9402dd98994d78fda1ddc78311a7b15bb988df2d96a7f7a7817965800348",
+      "postimage_sha256": "0a7f133b4570fd0a782ce28d6fde9fdb8597adc89c8161d00d0fb95cec0a1622"
+    },
+    {
+      "issue": 2558,
+      "id": "blast-corps-blastcorps-recompiled",
+      "path": "crates/portcove-core/catalog/ports/blast-corps-blastcorps-recompiled.json",
+      "preimage_sha256": "ad7a33002cfb78a2972b84a2627d4bc7f60cfde007779678a535d8ef406ea857",
+      "postimage_sha256": "6fbbb25b93d0ce9ff1f1ff754e7e8c4cdc34dac15452888ea05c93c637ddc1fd"
+    }
+  ],
+  "unchanged_observer": {
+    "issue": 1571,
+    "id": "rush-2-recompiled",
+    "record_sha256": "16fa34822716c01d452c13520e9938c3451ceecc2b295edda51044ae3be87d61",
+    "decision": "OPEN exact project-grant and base-input hash-algorithm conditions; stronger preadmission scope preserved, no substitute guide; optional Rush/2049 inputs not base gates"
+  },
+  "maintenance": {
+    "2557": {
+      "owner": "Core official Windows package; upstream owns original import",
+      "policy": "managed-compatible-release",
+      "current_tag": "v0.84",
+      "stream": "stable",
+      "support_tier": "beta",
+      "selection": "all hints power-dozer- and -windows-x86_64.zip; wrong platform/CPU, sidecars, source and ambiguity retain shared refusal",
+      "future_evidence": "controlled synthetic v0.85 with accepted synthetic provider digest, not a second actual upstream release or gameplay result",
+      "reconsideration": "changed package entry, process, data semantics, integrity/variant ambiguity or actual contrary acquisition evidence requires fresh scoped review; current definition follows compatible releases without edit"
+    },
+    "2558": {
+      "owner": "upstream/player for conditional already-permitted copy",
+      "policy": "manual-upstream-replacement",
+      "condition": "exact separate Suplexmentary Comic NC.ttf permission or reviewed corrected release; no fresh Core acquisition or managed engine replacement",
+      "record_state": "OPEN"
+    },
+    "1571": {
+      "owner": "existing upstream/project-grant condition",
+      "policy": "not offered",
+      "record_state": "OPEN unchanged"
+    }
+  },
+  "permission_scope": {
+    "2557": "GPL3+ project source and retained component notices. Exact NOTICE positively attributes supplied control-artwork public repo/runtime/source redistribution permission to publisher; original author/license remains unidentified. Not independent author verification, whole-IP/source audit or reproducible-build certification. No contrary applicable grant has been established in this review.",
+    "2558": "Official base Frontend GPL3 resolution is already delivered separately; it does not grant the exact separate known NC/no-license font. Fresh acquisition held; permitted-copy guide does not grant component rights."
+  },
+  "ownership": {
+    "2557": "NativePortable no source_profile/setup marker/user_data_environment; exact launch_environment BLASTCORPS_DATA_DIR=data, selected executable-parent CWD, whole persistent_paths[data] across version wrappers. Cached original/EEPROM/committed Pak/settings/controls/backups/temp/import staging retained. Pak working transaction is not certified durable, _Exit is not graceful flushing. External RT64 LocalAppData/blastcorps-feasibility and explicit custom paths remain user-owned/excluded. Existing external registrations keep their replacement owner.",
+    "2558": "Root AMD64 BlastCorpsRecompiled.exe normal in-process player; Windows LocalAppData/BlastCorpsRecompiled, portable marker CWD and known-folder failure relative fallback. Actual original/cache/mods/settings/saves/backups/temp all external. Explicit-intent attachment, separate Play and registration-only removal; no external ownership inferred."
+  },
+  "static_packages": [
+    {
+      "observed_at": "2026-10-31T17:00:16.978930+00:00",
+      "release_id": 410159926,
+      "tag": "v0.84",
+      "asset_id": 633621837,
+      "asset": "power-dozer-v0.84-windows-x86_64.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "5b25d339376065442d82972917c921fa25f3b9e2f5bb87252389a993a4723533",
+      "observed_sha256": "5b25d339376065442d82972917c921fa25f3b9e2f5bb87252389a993a4723533",
+      "bytes": 14232529,
+      "raw_preparser_bounds": {
+        "records": 84,
+        "central_bytes": 10546,
+        "declared_expanded_bytes": 33494579
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "bounded_PE_headers": [
+        {
+          "path": "power-dozer-v0.84-windows-x86_64/SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "power-dozer-v0.84-windows-x86_64/dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "power-dozer-v0.84-windows-x86_64/dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "power-dozer-v0.84-windows-x86_64/power-dozer.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 312,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 2557,
+      "retained_inventory_sha256": "b28ca2341b842773d2a5c17d3b7998ae0bb4ecf4b094f577008403b61c0169ec",
+      "member_count": 84
+    },
+    {
+      "observed_at": "2026-10-31T17:00:16.938840+00:00",
+      "release_id": 428326127,
+      "tag": "1.1.1",
+      "asset_id": 689718673,
+      "asset": "BlastCorpsRecompiled-1.1.1-Windows-RelWithDebInfo.zip",
+      "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+      "expected_sha256": "811d2831c566b68be61e3fca67972262d9e72598de3f76f576855462c92c07eb",
+      "observed_sha256": "811d2831c566b68be61e3fca67972262d9e72598de3f76f576855462c92c07eb",
+      "bytes": 26709495,
+      "raw_preparser_bounds": {
+        "records": 40,
+        "central_bytes": 2851,
+        "declared_expanded_bytes": 53737199
+      },
+      "policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "bounded_PE_headers": [
+        {
+          "path": "BlastCorpsRecompiled.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxil.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "dxcompiler.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 304,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL2.dll",
+          "machine": "0x8664",
+          "sections": 12,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "issue": 2558,
+      "retained_inventory_sha256": "a594cdd11bd388ad246a1fc10ca314f00a77e406af34942d9f3b144cc0463d58",
+      "member_count": 40
+    }
+  ],
+  "font_identity": {
+    "observed_at": "2026-10-31T19:01:50.018833+00:00",
+    "archive_sha256": "811d2831c566b68be61e3fca67972262d9e72598de3f76f576855462c92c07eb",
+    "raw_preparser_bounds": {
+      "records": 40,
+      "central_bytes": 2851,
+      "declared_expanded_bytes": 53737199
+    },
+    "font_path": "assets/Suplexmentary Comic NC.ttf",
+    "font_bytes": 118452,
+    "font_sha256": "3b849afe7f85e52a588ba47e5d51ab6200cef0f180263f0e9ee17f0002b6ce9b",
+    "font_git_blob": "65b1e6fe4f800389760d2c20a6eaa76c8a4babd1",
+    "source_matches": [
+      {
+        "issue": 2558,
+        "selected_commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+        "path": "assets/Suplexmentary Comic NC.ttf",
+        "git_blob": "65b1e6fe4f800389760d2c20a6eaa76c8a4babd1"
+      },
+      {
+        "issue": 1795,
+        "selected_commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+        "path": "assets/Suplexmentary Comic NC.ttf",
+        "git_blob": "65b1e6fe4f800389760d2c20a6eaa76c8a4babd1"
+      }
+    ],
+    "scope": "Already retained public archive; bounded physical index before ZipFile; read/hash exact118452bytefont only, no extraction writes/execution/rendering/new acquisition. Same bytes as selected1795font with its known distinct source permission condition. Current acquisition condition is the separate font grant; the attributable game-project and official Frontend grants do not supply it.",
+    "extraction_writes": 0,
+    "upstream_or_font_execution": false,
+    "archive_name": "BlastCorpsRecompiled-1.1.1-Windows-RelWithDebInfo.zip"
+  },
+  "source_bindings": [
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "6fa43404e005ff999b84ac9b444aea7634b017c0",
+      "path": "CMakeLists.txt",
+      "blob": "1f88ed7f87f4dc4741cfb22ffc4c7be4e9daf804",
+      "bytes": 35990,
+      "sha256": "24367339ca8d6be3b960fe05b3350bd8fbf22852b6305695c94094b4aaf2fd28",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/CMakeLists.txt"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "6fa43404e005ff999b84ac9b444aea7634b017c0",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/LICENSE"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "6fa43404e005ff999b84ac9b444aea7634b017c0",
+      "path": "NOTICE",
+      "blob": "f3349f390e6ac540e49771c2dca889261d94ebf0",
+      "bytes": 1469,
+      "sha256": "6e418248e4c4f1baa1ff7a6e487f198a4a70e3dbcaaca61c3fdff2e76507b8b4",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/NOTICE"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "6fa43404e005ff999b84ac9b444aea7634b017c0",
+      "path": "README.md",
+      "blob": "197740a2d3a1af33074fcbb97581b37bde8ec1e7",
+      "bytes": 6828,
+      "sha256": "1baf34897ec8953a3de1e34f7d1755609aa56543a05470c61ca71a01c461725b",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "CMakeLists.txt",
+      "blob": "f9bcd4035aa65053fdd4749915683e3e9af26580",
+      "bytes": 35807,
+      "sha256": "9c1bfb9ca23b4cb2046838e650a1a0a555bf66a8351205b1c8f3f8a505553ba9",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/CMakeLists.txt"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "LICENSE",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/LICENSE"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "NOTICE",
+      "blob": "f3349f390e6ac540e49771c2dca889261d94ebf0",
+      "bytes": 1469,
+      "sha256": "6e418248e4c4f1baa1ff7a6e487f198a4a70e3dbcaaca61c3fdff2e76507b8b4",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/NOTICE"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "README.md",
+      "blob": "699974c3d891362101401034feb213df3effeb49",
+      "bytes": 6883,
+      "sha256": "45cbce6062e0087642c4fc4086dd0a13d43d010b6cd6b71409944170e7738c90",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/README.md"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/main.cpp",
+      "blob": "38df829ec730b47b27d2238497f2ca7ab23db5c4",
+      "bytes": 18556,
+      "sha256": "b5f7aa7e71ccc376faefde6d38838b6ebbd99fe154f734372b9b9ee6709f94f0",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/main.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "6fa43404e005ff999b84ac9b444aea7634b017c0",
+      "path": "src/main.cpp",
+      "blob": "38df829ec730b47b27d2238497f2ca7ab23db5c4",
+      "bytes": 18556,
+      "sha256": "b5f7aa7e71ccc376faefde6d38838b6ebbd99fe154f734372b9b9ee6709f94f0",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/src/main.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "include/data_directory.h",
+      "blob": "3e23c44651b46fc0c0abebd509e924357abf42ec",
+      "bytes": 459,
+      "sha256": "defcd362d65866bf0cde070f68302c4b395ce6f345d55196b62ed5f6e83a8866",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/include/data_directory.h"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/data_import.cpp",
+      "blob": "9ac9b9b33182cd104d6c5fbcaee90c48ddc7e5fe",
+      "bytes": 4671,
+      "sha256": "a6ece36db8773964f99817b79ea47c81a3285a2d816f81cbc9de64b34aad600a",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/data_import.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/pak_runtime.cpp",
+      "blob": "d07167765594fb40025b75408a8a9cef2d7b4a80",
+      "bytes": 6719,
+      "sha256": "7619683a968ad80f28daff1b4a88b67a8b8007ed5c7102dd4b8cc722d5c48f3c",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/pak_runtime.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/rom_input.cpp",
+      "blob": "c66becfbdecbeb9fa213d52fd0a6fb6796f3bc6f",
+      "bytes": 7401,
+      "sha256": "08fc7aa3b771b57ba9495d1e154fe87a03af79e1036177d7f4c0d4afda96f24e",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/rom_input.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/rom_selection.cpp",
+      "blob": "4017bf0f5550a53c3304c6c02c24cdaad72a1018",
+      "bytes": 393,
+      "sha256": "f920711a7437d370b0254fd0b17b10061cc5df16b8568e9cb7b895b083394f00",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/rom_selection.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/save_migration.cpp",
+      "blob": "1e47ee2b4ca4aa3d7d1d85856cfa9463a8fbea72",
+      "bytes": 4061,
+      "sha256": "0a4852008bd8ce3664b9ca0c299233d574cb7f62882973ef97867cfc6f25f219",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/save_migration.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/save_store.cpp",
+      "blob": "b6d47caf1575bd90b42ba6477b728f4a5542bdcc",
+      "bytes": 2441,
+      "sha256": "ceb17d9920ab41f63d64b9fcc23f1a34433cb9fb17ddd529ade66999163e30fc",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/save_store.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/settings.cpp",
+      "blob": "81e7c2b22d1cd5c9181b976c8b20265fc95e1ea4",
+      "bytes": 4491,
+      "sha256": "57be317ae969ee67587af2aa937c7276b00f385b8ae2563fd76893e91f18cc49",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/settings.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": ".gitmodules",
+      "blob": "f3e908980c677f10f06568f904f0cd5e515859f3",
+      "bytes": 638,
+      "sha256": "ccbcfb01c6226f1835dc1a3d5431abf68f3136f717b6f52091ece72f7e71a63c",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/.gitmodules"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": "CMakeLists.txt",
+      "blob": "f22b0d69dfec5c80b946c614d504e2bfa471e6b1",
+      "bytes": 15027,
+      "sha256": "62309cec839d4e7e8fbfea7599f893d2d7579f4bf174bc0e06e4ff2207e3a345",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/CMakeLists.txt"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": "COPYING",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/COPYING"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": "README.md",
+      "blob": "36b9fb9afac80cd1abdfa073adb0f012d342ef19",
+      "bytes": 8664,
+      "sha256": "fa1eaf8bd9940212f6911233e97a754ff6120f84fe57a93733e079742ef8a537",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": "src/main/main.cpp",
+      "blob": "fa9f5620e526f968962b56b0d87cb888d3e5a9f7",
+      "bytes": 28915,
+      "sha256": "8353e0f413e08950d2e3cd8c20f8c6cc77ca8e798d47f52c0d455f26be6dd0d0",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/src/main/main.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": "src/game/config.cpp",
+      "blob": "0cbf2a4834344b3cc77e62268cad0221cf5271cd",
+      "bytes": 12282,
+      "sha256": "bed8f966cd8a0961d795abef395d44680d9c40c97dfbbe285584f4d19111462e",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/src/game/config.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/RecompFrontend",
+      "commit": "b1a1477c6556aeb7ed45defbfb5924f721efebc1",
+      "path": "README.md",
+      "blob": "89c1d350abcb0475fa56559797894912b1fc5620",
+      "bytes": 1372,
+      "sha256": "d75ebed25568819d8d3b8eea63ca550a47f58ab00ef67b584a47e91387691347",
+      "url": "https://github.com/SlaveOfIDO/RecompFrontend/blob/b1a1477c6556aeb7ed45defbfb5924f721efebc1/README.md"
+    },
+    {
+      "repository": "SlaveOfIDO/RecompFrontend",
+      "commit": "b1a1477c6556aeb7ed45defbfb5924f721efebc1",
+      "path": "recompui/src/util/file.cpp",
+      "blob": "7ee84ed4a6a8389441911a2f5eb04cc7d6b258c3",
+      "bytes": 5224,
+      "sha256": "36b016bb4b02d1293cb3bc2efb85ec94f72d10006ced0c3841f6f8f1d6532815",
+      "url": "https://github.com/SlaveOfIDO/RecompFrontend/blob/b1a1477c6556aeb7ed45defbfb5924f721efebc1/recompui/src/util/file.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/RecompFrontend",
+      "commit": "b1a1477c6556aeb7ed45defbfb5924f721efebc1",
+      "path": "recompui/src/util/program_config.cpp",
+      "blob": "5fb8b5e22c858b84392d1df3489002c705ebf152",
+      "bytes": 914,
+      "sha256": "d1502bec028faa269ef6203b5dc8bfabccb3831dd4dbfe1950017f739ea80d7b",
+      "url": "https://github.com/SlaveOfIDO/RecompFrontend/blob/b1a1477c6556aeb7ed45defbfb5924f721efebc1/recompui/src/util/program_config.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/RecompFrontend",
+      "commit": "b1a1477c6556aeb7ed45defbfb5924f721efebc1",
+      "path": "recompui/src/config/ui_config.cpp",
+      "blob": "6c84c0531464f211705d094afabbf7414b6ac504",
+      "bytes": 7489,
+      "sha256": "c7298a57e3fd1a18e4631b7a67e9ea1ed297b0eac206ec36e5b808c8d8d3c6c3",
+      "url": "https://github.com/SlaveOfIDO/RecompFrontend/blob/b1a1477c6556aeb7ed45defbfb5924f721efebc1/recompui/src/config/ui_config.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "COPYING",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/COPYING"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "README.md",
+      "blob": "aa8cf304c893200b3ad5a6838772522fec0d27bc",
+      "bytes": 1901,
+      "sha256": "8257a33872c922d3c94a1df5d848f2a6dd88c092273e49c33cb9e4c6dc19a475",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/README.md"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "librecomp/src/config.cpp",
+      "blob": "6bc03fd7959bbb6b998da65e80c22900202ddf80",
+      "bytes": 23979,
+      "sha256": "18e25f89fb4eb49258b5e27dd3c4b59d44b40e0e59456f19e856b4ad7347312a",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/librecomp/src/config.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "librecomp/src/files.cpp",
+      "blob": "af6f18d7960ad6b304a7ea9a3bbaec08e78a3789",
+      "bytes": 1728,
+      "sha256": "81a7e94f53859b5ca534c9e864d460a819eb1d2ebe5415d4bfeb4631509f7887",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/librecomp/src/files.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/atomic_file.cpp",
+      "blob": "3f8be5b9c397fe71108d16091dc876ff8678940b",
+      "bytes": 3201,
+      "sha256": "7efc7099bfcbf0120611fadd8a4d74351c6746ace8ce86c7c3f2fcdb76ae7f29",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/atomic_file.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/pak_session.cpp",
+      "blob": "1c95d26b0d6e486120e481b7a7d676885adc1342",
+      "bytes": 2332,
+      "sha256": "3f986ba2cb7de9fcb0997091110c5a1674d2335d5dc62d7c0d23a041ea51aec8",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/pak_session.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/pak_store.cpp",
+      "blob": "e4b0a4b6e4d0e3674fe042f21934e80ac76190d8",
+      "bytes": 5600,
+      "sha256": "f663fefdc6cf2e8093b2359b22f48f678de5357526a2393ce2ea96de799bfc86",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/pak_store.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/controls_store.cpp",
+      "blob": "0b438c18caeb3143a0ea1751875d0848c4ad79d9",
+      "bytes": 5995,
+      "sha256": "2edd35981969cdc726f38736a36d3fbe8f104abae4793673972dcd8924e378be",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/controls_store.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "config/source-build.json",
+      "blob": "a3d7ec9f42677850b989176e01b7ae95be7ec35f",
+      "bytes": 4392,
+      "sha256": "b51cf71803bb624f9a64a68e0225f8416c5ed22fc286881b990112db6125f8fc",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/config/source-build.json"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "CREDITS.md",
+      "blob": "d4c9a0e93446978a946164fa591802d848f525d3",
+      "bytes": 20509,
+      "sha256": "85df5d82bf22033e3bd18bc21934e0c1c74a45a4d905962b9977b0ee10be227b",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/CREDITS.md"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/renderer.cpp",
+      "blob": "855e860f81e97daf2ebee8093aff4ae9442b7b0f",
+      "bytes": 10636,
+      "sha256": "f042739a7537e137a6c1fdf6780115ceb36152fa09cc5341cc72234594a741ce",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/renderer.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/runtime.cpp",
+      "blob": "959fd0937a03be34aa41699c00310ae93bf66d6a",
+      "bytes": 17167,
+      "sha256": "a2f5be642892fca942b7a37c02d50f5ded23e37bbe05550d4378ae6dc6b6afa5",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/runtime.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/input.cpp",
+      "blob": "723485892814c45eb9a6c7dfad820e976dfb2981",
+      "bytes": 10766,
+      "sha256": "941fa0fd6a998542c78d71e732c4ce65a0b390e275971326fef681bd3f555036",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/input.cpp"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "path": "src/main_menu.cpp",
+      "blob": "6b73257a4c14f460dc9a74e63a43f1bdbaa93169",
+      "bytes": 1255,
+      "sha256": "836accac8c9cb1073898101ca97cc6d26d3ca87f95f4492c333e839843bb947e",
+      "url": "https://github.com/djultra64/Power-Dozer/blob/a0ed0d5665c9cd181119125f3820bb9a008a912a/src/main_menu.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": "include/banjo_config.h",
+      "blob": "699edf9306a952ee7935ec1233273664ae4ad7e7",
+      "bytes": 3431,
+      "sha256": "93220bca58a4716f932155ffe1e60757ee89461d9d48317f0d9627f58cfab5cf",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/include/banjo_config.h"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "path": "us.v11.toml",
+      "blob": "b5dbf50b7d938054f3770c0562f38af674b9044c",
+      "bytes": 1585,
+      "sha256": "9c00e73918dfa71dc9bbba1e8d826819d799d8a613ce37e4aaefaeeaf5617def",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/us.v11.toml"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "librecomp/src/recomp.cpp",
+      "blob": "850689d67df54e8d474af23a525e5baa7828af0c",
+      "bytes": 35396,
+      "sha256": "07a6cff619c458a6d07aeb9410875e469f0bf9e7ffa31b3825914aca5b262f20",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/librecomp/src/recomp.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "librecomp/src/eep.cpp",
+      "blob": "048246e030e64a72fa927dcc9e51e6df128b20d6",
+      "bytes": 2625,
+      "sha256": "981ac13ab7b3f1a1eeded6ae14bb7cc2a925f5d4e397a4b0edf9fdcdaae489aa",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/librecomp/src/eep.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "librecomp/src/mods.cpp",
+      "blob": "0f7de8310dc2de055d9d2e0c8b7f6dc4fc708677",
+      "bytes": 111465,
+      "sha256": "b540f86fab2ee648602e7a8fa7cb3f8b987270b91fa16c9ac5468b68b57bf767",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/librecomp/src/mods.cpp"
+    },
+    {
+      "repository": "SlaveOfIDO/N64ModernRuntime",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "path": "librecomp/src/pak.cpp",
+      "blob": "0be1513e8cbb7af88013be0a518c37bdbf35aa29",
+      "bytes": 1445,
+      "sha256": "7eaf2d4f806d300d4cdab7b10d471a6d8290e5129d6d9000c250514f4e7c7e23",
+      "url": "https://github.com/SlaveOfIDO/N64ModernRuntime/blob/957781feb680096fc30179e2f31072219b579338/librecomp/src/pak.cpp"
+    },
+    {
+      "repository": "rt64/rt64",
+      "commit": "43373749dac9bbc1b653e6a02aed40a9e1783bed",
+      "path": "LICENSE",
+      "blob": "29af80fcf30194cca33d59c781a5a5aabbd187c4",
+      "bytes": 1074,
+      "sha256": "03d52856ed09784f7f57694f690ab0093d3cd40db69f9a318d45062f130f7116",
+      "url": "https://github.com/rt64/rt64/blob/43373749dac9bbc1b653e6a02aed40a9e1783bed/LICENSE"
+    },
+    {
+      "repository": "rt64/rt64",
+      "commit": "43373749dac9bbc1b653e6a02aed40a9e1783bed",
+      "path": "src/hle/rt64_application.cpp",
+      "blob": "ee8bc1f23a1e2c00f46fede308c6e112f1fe879d",
+      "bytes": 34096,
+      "sha256": "c46696042709053654b502c76132cdeb81f52f8393a79f66f9b2b2384134a826",
+      "url": "https://github.com/rt64/rt64/blob/43373749dac9bbc1b653e6a02aed40a9e1783bed/src/hle/rt64_application.cpp"
+    },
+    {
+      "repository": "rt64/rt64",
+      "commit": "43373749dac9bbc1b653e6a02aed40a9e1783bed",
+      "path": "src/hle/rt64_application.h",
+      "blob": "6c83fe0157c48101b01cb79caeff77f6adc8072b",
+      "bytes": 6094,
+      "sha256": "7d36ce05c422d6d537aebcf1577560d65a304d6c48f53a8e8de321ff12abf27b",
+      "url": "https://github.com/rt64/rt64/blob/43373749dac9bbc1b653e6a02aed40a9e1783bed/src/hle/rt64_application.h"
+    },
+    {
+      "repository": "rt64/rt64",
+      "commit": "43373749dac9bbc1b653e6a02aed40a9e1783bed",
+      "path": "src/common/rt64_user_paths.cpp",
+      "blob": "f38d8ebc636855c049b6a3038ca5109b49a312a2",
+      "bytes": 2282,
+      "sha256": "c0a423f39533bbd5df159a9a873648aa10468d9c5cf1a2385075b03ef97f436a",
+      "url": "https://github.com/rt64/rt64/blob/43373749dac9bbc1b653e6a02aed40a9e1783bed/src/common/rt64_user_paths.cpp"
+    },
+    {
+      "repository": "rt64/rt64",
+      "commit": "43373749dac9bbc1b653e6a02aed40a9e1783bed",
+      "path": "src/common/rt64_user_paths.h",
+      "blob": "df9e0b7482e6f5ffeafa505b1c80de4bfdd36b61",
+      "bytes": 506,
+      "sha256": "256ba068fd45ed2747aac9401059f61c155a5f403b1ec52c7a5fe7be0758d3df",
+      "url": "https://github.com/rt64/rt64/blob/43373749dac9bbc1b653e6a02aed40a9e1783bed/src/common/rt64_user_paths.h"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": ".gitmodules",
+      "blob": "fd6004049622a23573d582ee62b2645c52f16272",
+      "bytes": 400,
+      "sha256": "11db02c2c9b132ab1c5899421069a859669d4b5054be530dc644afbd0c89ad3b",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/.gitmodules"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "CMakeLists.txt",
+      "blob": "c33980eb0f45127b8d5295922419af7ae52796e3",
+      "bytes": 13789,
+      "sha256": "4fc61bdb3af81d371e6386f6bca073e3d270b64de862aea1f2d1a75b69c1949b",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/CMakeLists.txt"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "COPYING",
+      "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/COPYING"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "README.md",
+      "blob": "cc150009eababb5b497ca3ff0320fbd422fa199c",
+      "bytes": 19372,
+      "sha256": "5dca694eac91e5d42d56da94caef207ed0bbd6b74538f548a0d7a9b48771e785",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": "tools/setup_deps.py",
+      "blob": "edafb6eba2adcb972b25dbc26c77b4938bc93402",
+      "bytes": 4337,
+      "sha256": "5b7e4cdfbee1d41942936c853a050e4681b1480af15b4b11f621d87659484398",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/tools/setup_deps.py"
+    },
+    {
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "commit": "9e5852541ba1436417e2c4468960e8c6de6deda5",
+      "path": ".github/workflows/build.yml",
+      "blob": "0c1220c01aa67f4b3c8a038c91eefc7b080d4111",
+      "bytes": 20854,
+      "sha256": "ef2df2189e64b52109baf1d353c0e1d2dc62c664536c9eb76cc9dd7597b651a7",
+      "url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/.github/workflows/build.yml"
+    }
+  ],
+  "source_contexts": [
+    {
+      "repository": "djultra64/Power-Dozer",
+      "role": "current",
+      "commit": "6fa43404e005ff999b84ac9b444aea7634b017c0",
+      "tree": "507288ec75d34d603c77dd4d907723e45e408902",
+      "entries": 303,
+      "truncated": false,
+      "tree_response_sha256": "3447095b509c6cc95584ba3166990aaeb4a8095a59c62fff5f3f47dfbeac0879",
+      "url": "https://github.com/djultra64/Power-Dozer/tree/6fa43404e005ff999b84ac9b444aea7634b017c0"
+    },
+    {
+      "repository": "djultra64/Power-Dozer",
+      "role": "tag",
+      "commit": "a0ed0d5665c9cd181119125f3820bb9a008a912a",
+      "tree": "e594a78b0a22685bf959b88acf1ce7c3665248d8",
+      "entries": 302,
+      "truncated": false,
+      "tree_response_sha256": "6acf66765cbf6a218405455becb0c919f5a8ef08d400254ae14ca1e2092ffa47",
+      "url": "https://github.com/djultra64/Power-Dozer/tree/a0ed0d5665c9cd181119125f3820bb9a008a912a"
+    },
+    {
+      "repository": "SlaveOfIDO/blastcorps-recomp",
+      "role": "tag",
+      "commit": "b5510451aabc2373079cd01e8c0ec2a8d01eb742",
+      "tree": "fe59cc2bded02c85668de437e568b5be4f78236d",
+      "entries": 179,
+      "truncated": false,
+      "tree_response_sha256": "0c0ce13628b12db309f4782b8240ec54c690d8272c8ec8312f106786172f2f62",
+      "url": "https://github.com/SlaveOfIDO/blastcorps-recomp/tree/b5510451aabc2373079cd01e8c0ec2a8d01eb742"
+    },
+    {
+      "repository": "N64Recomp/RecompFrontend",
+      "role": "pinned",
+      "commit": "b1a1477c6556aeb7ed45defbfb5924f721efebc1",
+      "tree": "292c5e7e512a7809c09eba2690b8089c17458965",
+      "entries": 177,
+      "truncated": false,
+      "tree_response_sha256": "13692f22780db4f094e5566b74449a4f0f89a9e1e8a3db78b1cfe1b7c8b14413",
+      "url": "https://github.com/N64Recomp/RecompFrontend/tree/b1a1477c6556aeb7ed45defbfb5924f721efebc1"
+    },
+    {
+      "repository": "N64Recomp/N64ModernRuntime",
+      "role": "pinned",
+      "commit": "957781feb680096fc30179e2f31072219b579338",
+      "tree": "0b086ca2515abec47b5b9f13655e625f28143370",
+      "entries": 99,
+      "truncated": false,
+      "tree_response_sha256": "6dcb268f0189c4e3f977da2e024d231a252814a14a1526046e1817353387ce28",
+      "url": "https://github.com/N64Recomp/N64ModernRuntime/tree/957781feb680096fc30179e2f31072219b579338"
+    },
+    {
+      "repository": "rt64/rt64",
+      "role": "pinned",
+      "commit": "43373749dac9bbc1b653e6a02aed40a9e1783bed",
+      "tree": "ebafadafe7ef487f5fd5b77409b8aa05d4caaa71",
+      "entries": 344,
+      "truncated": false,
+      "tree_response_sha256": "e0652c1e8d5428dc10939a5618a0d4fb8661632bd71367ab6ffae4fe9e1dfa96",
+      "url": "https://github.com/rt64/rt64/tree/43373749dac9bbc1b653e6a02aed40a9e1783bed"
+    }
+  ],
+  "core_inspection": {
+    "ports": 286,
+    "listings": 1424,
+    "port_input_sha256": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "listing_input_sha256": "b53569a8c0ea4277c3212d0b74ab205f55a56e7c00769db18df2d81287715d93",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "compatibility": {
+      "status": "matched",
+      "fixture": "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+      "fixture_sha256": "b739f29e10fd4bcb7b808a3cf7b272a89420562407171c8232e3c75365336f3d",
+      "collections": {
+        "source_profile_ids": {
+          "expected_count": 116,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        },
+        "port_ids": {
+          "expected_count": 286,
+          "unreviewed_ids": [],
+          "missing_expected_ids": []
+        }
+      },
+      "scope": "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks."
+    }
+  },
+  "preservation": {
+    "all285_prior_definitions_exact": true,
+    "all_other_authored_records_byte_exact": true,
+    "all_source_profiles_exact": true,
+    "old_compatibility_ordered_prefix_exact": true,
+    "artwork_original_title_lineage_identity_exact": true,
+    "full_frozen_scope": 858,
+    "cohorts": "524original+312affected+22Roadmap; historical317rows/316identities overlap, not additive"
+  },
+  "first_party_cases": [
+    {
+      "case": "release::tests::unchanged_definition::power_dozer_unchanged_definition_selects_windows_runtime_and_refuses_unsafe_variants_2557",
+      "scope": "production provider on local synthetic metadata; observed v0.84 metadata plus synthetic v0.85/variant/integrity controls, no actual download/gameplay",
+      "status": "Not run at source checkpoint; hosted exact-head results separate"
+    },
+    {
+      "case": "service::native_portable::tests::power_dozer_managed_progression_preserves_data_across_versioned_wrappers_2557",
+      "scope": "Windows-only inert actual-ID package progression, launch coordinates/env without execution, latest data through update/rollback, modified-runtime/stale-removal refusal",
+      "status": "Not run at source checkpoint; hosted exact-head results separate"
+    },
+    {
+      "case": "service::user_selected::tests::blast_corps_recompiled_permitted_player_route_2558",
+      "scope": "existing actual-ID selected-player intent/relink/separate fixture launch/preservation helper; not upstream executable",
+      "status": "Not run at source checkpoint; hosted exact-head results separate"
+    },
+    {
+      "case": "service::catalog_download::tests::blast_corps_recompiled_font_hold_before_network_2558",
+      "scope": "actual-ID guide-present option/preview/mutation refusal, zero provider calls and no destination mutation",
+      "status": "Not run at source checkpoint; hosted exact-head results separate"
+    }
+  ],
+  "preparation": {
+    "2557": "final exact candidate semantically accepted; initial mirrored listing/integration platforms refused and retained",
+    "2558": "final exact authored-format1 candidate accepted; initial incorrect authored-format2 refused and retained; aggregate listing format is a different authority",
+    "private_parent_refusal": "missing owned output parent refused before checkpoint; retained, created parent without weakening guard; no completed2557preparation repeated",
+    "first_party_validator_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+  },
+  "scope": "New source declarations, static public package observations and first-party fixtures only. No upstream executable/helper/compiler/player, ROM/private save, B1 GUI/native/installed/device/human observation, gameplay/real-save restoration, signing/publication/protected acceptance or whole B1 completion. HUMAN B1 GUI stop remains. Potential finite2557closure only after qualified delivery and canonical review;2558and1571OPEN."
+}
