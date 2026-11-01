@@ -3561,6 +3561,27 @@ cleanup retains its separate interpreter. Existing checked restore, activation,
 removal, backup deletion, source import and relocation representations retain
 their family contracts. No database migration or new durable store is introduced.
 
+### Read-only lifecycle diagnostics
+
+`OperationStore::all` and `get` retain strict decoding and family validation.
+Their complete trusted inventories remain required for consequential ownership,
+recovery and mutation. A separate bounded diagnostic inventory reuses the same
+row decoder and validators, retaining recognized row failures as static typed
+observations. It has no mutation adapter. SQLite access/enumeration errors and
+unexpected validation failures propagate; they never become empty inventory.
+
+Doctor counts all durable same-port active installation pointers as metadata,
+including retained installations absent from the current catalog, without hydrated acquisition
+status reads, so malformed acquisition state cannot prevent its own diagnosis.
+Repair reporting shows decoded pending work without recovering it. Invalid rows
+produce review-only items with synthetic SQLite locators, no owned path and no
+execution control. Their identity fields are bounded untrusted observations.
+`journal_diagnostics` distinguishes completed enumeration with invalid rows from
+failure to enumerate. Unknown ownership suppresses dependent orphan/backup
+assessments and marks that coverage incomplete. Codec acceptance alone is never
+proof that a family-specific recovery operation is safe. Diagnostic generation
+preserves journal rows, timestamps and player/runtime files.
+
 ### Route-bound game-file query construction
 
 Core constructs `GameFileQuerySnapshot` from a batch retained by its own worker

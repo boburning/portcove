@@ -498,6 +498,7 @@ export type DestinationArtworkSource =
 export type HostToolSource = "environment" | "saved" | "discovery";
 export type HostToolState = "available" | "missing" | "misconfigured" | "unsupported";
 export type RepairItemKind =
+  | "malformed_journal"
   | "retained_preparation"
   | "partial_operation"
   | "cleanup_pending"
@@ -505,6 +506,8 @@ export type RepairItemKind =
   | "missing_registered_path"
   | "degraded_backup"
   | "backup_recovery_required";
+export type JournalValidationStage =
+  "columns" | "kind" | "phase" | "payload" | "family" | "acquisition" | "acquisition_inventory";
 export type RecommendationDimension = "gameplay" | "stability" | "performance" | "controls" | "setup" | "maintenance";
 export type RecommendationDimensionState = "known" | "unknown" | "not-applicable" | "conflicting";
 export type RecommendationEvidenceDisposition =
@@ -2469,6 +2472,11 @@ export interface StorageSummary {
 export interface RepairPlan {
   generated_at: number;
   items: RepairItem[];
+  /**
+   * Absent in older reports. A successful current enumeration can still
+   * contain invalid rows and is never proof that operations may be recovered.
+   */
+  journal_diagnostics?: JournalDiagnostics | null;
   [k: string]: unknown;
 }
 export interface RepairItem {
@@ -2478,6 +2486,39 @@ export interface RepairItem {
   path: string | null;
   port_id: string | null;
   proposed_action: string;
+  [k: string]: unknown;
+}
+/**
+ * Complete SQL enumeration is distinct from successful row interpretation.
+ * This is observation only; even a decoded row is not proof of recoverability.
+ */
+export interface JournalDiagnostics {
+  decoded_rows: number;
+  enumerated_rows: number;
+  enumeration_complete: boolean;
+  problems: JournalRowProblem[];
+  /**
+   * False when malformed state prevents dependent orphan/backup assessments.
+   */
+  related_assessments_complete: boolean;
+  [k: string]: unknown;
+}
+export interface JournalRowProblem {
+  /**
+   * Bounded untrusted observations. Absent if unreadable or unsafe to display.
+   */
+  operation_id: string | null;
+  operation_kind: string | null;
+  port_id: string | null;
+  /**
+   * Static explanation; never raw JSON, parser text, paths or environment data.
+   */
+  reason: string;
+  /**
+   * Local SQLite locator, never an operation capability or filesystem path.
+   */
+  rowid: number;
+  stage: JournalValidationStage;
   [k: string]: unknown;
 }
 export interface ExternalRuntimePreview {

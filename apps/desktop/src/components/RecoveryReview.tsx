@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 type Repair = DoctorReport["repair"];
 type Item = Repair["items"][number];
 const labels: Record<Item["kind"], string> = {
+  malformed_journal: "Retained operation requires review",
   retained_preparation: "Unfinished setup files",
   partial_operation: "Unfinished operation",
   cleanup_pending: "Unfinished files need review",
@@ -117,6 +118,14 @@ export function RecoveryReview({
           Refresh recovery information
         </Button>
       )}
+      {repair?.journal_diagnostics &&
+        (!repair.journal_diagnostics.enumeration_complete ||
+          !repair.journal_diagnostics.related_assessments_complete) && (
+          <p className="mb-0 text-sm text-pc-warning-foreground" role="status">
+            Journal or related assessments are incomplete. Retained state requires review; no repair
+            was attempted.
+          </p>
+        )}
       {!!repair?.items.length && (
         <>
           <p className="mb-0 text-sm text-pc-secondary-foreground">
@@ -155,6 +164,12 @@ export function RecoveryReview({
                         : "Recovery information needs review"}
                     </summary>
                     <dl className="text-xs">
+                      {item.kind === "malformed_journal" && (
+                        <>
+                          <dt>Diagnostic observation</dt>
+                          <dd className="mt-1 mb-3">{item.message}</dd>
+                        </>
+                      )}
                       <dt>Recorded location</dt>
                       <dd className="mt-1 mb-3">
                         {item.path ? (
@@ -232,6 +247,8 @@ function recoveryNavigation(
     ? { label: "Review library storage", open: destinations.storage }
     : undefined;
   switch (item.kind) {
+    case "malformed_journal":
+      return undefined;
     case "retained_preparation":
       return game ? { label: "Review game setup", open: () => game() } : storage;
     case "partial_operation":
