@@ -7660,6 +7660,14 @@ mod tests {
         point: LifecycleFaultPoint,
         destination_case: Option<(LifecyclePhase, bool)>,
     ) {
+        let started = std::time::Instant::now();
+        let observe = |step: &str| {
+            eprintln!(
+                "[adoption-recovery] format=1 point={point:?} destination={destination_case:?} step={step} elapsed={:?}",
+                started.elapsed()
+            );
+        };
+        observe("fixture-start");
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("existing-install");
@@ -7686,6 +7694,7 @@ mod tests {
         let error = service
             .adopt(&source, Some("zelda64-recomp"), &authorization.token)
             .unwrap_err();
+        observe("adoption-fault-returned");
         assert!(error.message.contains("injected lifecycle failure"));
         assert_eq!(
             error.presentation().mutation_state,
@@ -7790,6 +7799,7 @@ mod tests {
                     fs::read(staging.join("user/general.json")).unwrap(),
                     b"adopted settings"
                 );
+                observe("contradictory-destination-preserved");
                 journal = store.get(&journal.id).unwrap().unwrap();
                 journal.paths.final_path = Some(destination);
                 store.put(&mut journal).unwrap();
@@ -7804,6 +7814,7 @@ mod tests {
                 fs::read(source.join("general.json")).unwrap(),
                 b"adopted settings"
             );
+            observe("destination-recovery-verified");
         }
 
         let recovered = service_with_release(library.clone(), "v2");
@@ -7825,6 +7836,7 @@ mod tests {
         assert!(recovered.repair_plan().unwrap().items.is_empty());
         assert!(store.get(&journal.id).unwrap().is_none());
         assert!(!staging.exists());
+        observe("recovered-status-verified");
         let recovered_installs = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
         let reopened = PortcoveService::new(library.clone()).unwrap();
         assert_eq!(
@@ -7853,6 +7865,7 @@ mod tests {
             serde_json::to_vec(&retained_activity.failure).unwrap(),
             serde_json::to_vec(&activity.failure).unwrap()
         );
+        observe("assertions-complete");
     }
 
     #[test]

@@ -610,6 +610,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsContradictoryAdoptionFilter =
+    "package(portcove-core) & test(/^service::tests::external_adoption_recovery_retains_contradictory_destinations$/)";
+  assert.deepEqual(overrideFor(windowsContradictoryAdoptionFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsContradictoryAdoptionFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const olderIntelRetainedLifecycle = intelObservedLifecycle[0];
   assert.ok(olderIntelRetainedLifecycle);
   for (const [index, { filter, periods }] of intelRetainedContractBudgets.entries()) {
@@ -714,6 +722,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
       { platform: "x86_64-unknown-linux-gnu", filter: linuxBuilderRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPreparedReceiptFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsContradictoryAdoptionFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxWholeProjectionFilter },
       { platform: "x86_64-apple-darwin", filter: intelObservedControlFilter },
