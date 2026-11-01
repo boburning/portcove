@@ -458,9 +458,10 @@ export async function gameFirstScenarios({
           10_000,
         );
       }
+      await capture("choice-enlarged-200", `.discover-game${groupSelector} .collection-title`, 200);
       await capture(
-        "choice-enlarged-200",
-        `.discover-game${groupSelector} .discover-game-identity`,
+        "choice-action-enlarged-200",
+        `.discover-game${groupSelector} .discover-game-actions .discover-card-action`,
         200,
       );
       await resetSize();
