@@ -94,13 +94,15 @@ describe("external-runtime managed backup access", () => {
     expect(html).toContain("canonical-backup");
     expect(html).toContain("Back up now");
     const coverage = [
-      ...html.matchAll(/<section aria-label="Saved-data coverage">([\s\S]*?)<\/section>/gu),
+      ...html.matchAll(
+        /<section\b[^>]*aria-label="Saved-data coverage"[^>]*>([\s\S]*?)<\/section>/gu,
+      ),
     ];
     expect(coverage.length).toBeGreaterThan(1);
     for (const [, section] of coverage) expect(section).not.toContain("<code>save</code>");
     expect(html).toContain("coverage could not be verified");
     expect(html).toContain("Runtime collection coverage is unknown");
-    expect(button(html, "Restore")).not.toContain("disabled");
+    expect(button(html, "Restore")).not.toMatch(/\sdisabled(?:=|\s|>)/u);
   });
 
   it("keeps missing managed data distinct from protection and external update ownership", () => {
@@ -108,15 +110,15 @@ describe("external-runtime managed backup access", () => {
     expect(html).toContain("No saves or settings managed by Portcove were found");
     expect(html).toContain("No backups yet");
     expect(html).not.toContain("canonical-backup");
-    expect(button(html, "Back up now")).toContain("disabled");
+    expect(button(html, "Back up now")).toMatch(/\sdisabled(?:=|\s|>)/u);
   });
 
   it.each([{ busy: true }, { current: false }])(
     "preserves existing unavailable-action guards (%j)",
     (state) => {
       const html = render(state);
-      expect(button(html, "Back up now")).toContain("disabled");
-      expect(button(html, "Restore")).toContain("disabled");
+      expect(button(html, "Back up now")).toMatch(/\sdisabled(?:=|\s|>)/u);
+      expect(button(html, "Restore")).toMatch(/\sdisabled(?:=|\s|>)/u);
     },
   );
   it("does not turn verified external declarations into collected coverage", () => {
@@ -127,7 +129,7 @@ describe("external-runtime managed backup access", () => {
     expect(html).not.toContain("What a backup covers");
     expect(html).not.toContain("Managed by Portcove for backup and restore");
     expect(html).not.toContain("<code>save</code>");
-    expect(button(html, "Restore")).not.toContain("disabled");
-    expect(button(html, "Back up now")).not.toContain("disabled");
+    expect(button(html, "Restore")).not.toMatch(/\sdisabled(?:=|\s|>)/u);
+    expect(button(html, "Back up now")).not.toMatch(/\sdisabled(?:=|\s|>)/u);
   });
 });
