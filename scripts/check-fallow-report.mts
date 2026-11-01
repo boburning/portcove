@@ -4,6 +4,10 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// Wire-contract review is explicit; the manifest consistency test makes a new
+// dependency proposal fail until its report consumer has been reviewed too.
+export const reviewedFallowVersion = "3.38.1";
+
 function object(value: unknown, field: string) {
   if (!isRecord(value)) throw new Error(`Invalid Fallow ${field}: expected object`);
   return value;
@@ -27,9 +31,13 @@ function metric(value: unknown, field: string, maximum = Number.MAX_SAFE_INTEGER
 // alone cannot make parsed JSON trustworthy. Version changes require review.
 function validateFallowReport(value: unknown) {
   const report = object(value, "report");
-  if (report.kind !== "combined" || report.schema_version !== 14 || report.version !== "3.37.0")
+  if (
+    report.kind !== "combined" ||
+    report.schema_version !== 14 ||
+    report.version !== reviewedFallowVersion
+  )
     throw new Error(
-      "Unsupported Fallow report kind, schema or tool version (expected combined/14/3.37.0)",
+      `Unsupported Fallow report kind, schema or tool version (expected combined/14/${reviewedFallowVersion})`,
     );
   const check = object(report.check, "check");
   const dupes = object(report.dupes, "dupes");
