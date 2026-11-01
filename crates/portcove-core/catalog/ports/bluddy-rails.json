@@ -3,13 +3,42 @@
   "listing": {
     "id": "bluddy-rails",
     "name": "Railroad Tycoon (Open Railroad Tycoon)",
-    "summary": "Upstream route: Upstream runtime package for Open Railroad Tycoon; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes railway/economy/AI/save features. Exact simulation parity and complete original-game coverage remain Unknown here. Feature completeness follows docs/FEATURES.md; runtime packages alone do not prove exact original simulation parity. Upstream platforms: Windows x86-64, Linux x86-64 AppImage/tar.gz, macOS ARM64/x86-64; OCaml5/opam/SDL2 builds. Original data: Own original RailroadTycoon DOS files *.PIC,*.PAN,*.DTA in data/ or --data-dir. Exact game revision/hash is not specified in reviewed README. No separate BIOS/firmware input is described. Portcove setup/gameplay not verified.",
+    "summary": "Register a prepared Rails Windows remake of Railroad Tycoon using your own DOS assets and preserve its working-directory saves.",
     "original_game_title": "Railroad Tycoon",
     "project_url": "https://github.com/bluddy/rails",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/bluddy/rails",
-    "issue_number": 2787
+    "issue_number": 2787,
+    "manual_setup": {
+      "help_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/README.md",
+      "steps": [
+        {
+          "title": "Keep a complete permitted Windows player",
+          "instruction": "Use a complete Rails Windows copy and components you are permitted to use. The inspected v0.1.4 source and upstream release instructions identify rails.exe and supplied SDL2/codec DLLs; keep its shaders, assets and notices together. Source and release metadata do not certify an uninspected package binary. Complete any build or setup upstream; Portcove does not compile OCaml or install host libraries."
+        },
+        {
+          "title": "Provide your own supported DOS data",
+          "instruction": "Use your own original Railroad Tycoon DOS assets in data/ beside the player, or retain the supported --data-dir literal for your actual external data folder. The inspected startup also requires FONTS.RR, alongside EASTUS.PIC, WESTUS.PIC, CITIES0.DTA, SPRITES.PIC, TRACKS.PIC and TITLEM.PAN; the README’s wildcard list alone is incomplete. No original is bundled or licensed by this registration. No exact retail revision/hash or simulation-parity qualification is established here."
+        },
+        {
+          "title": "Attach the supported native entry",
+          "instruction": "Select rails.exe with its complete creating player folder as working directory and no extra arguments for normal play. Retain existing supported --data-dir or other literal options only when actually required by your working copy. The source enters its game/main SDL loop in-process until Quit; do not select dune/opam, an AppImage, or a tool instead. Review and consent to the exact executable, working directory and arguments, then request Play separately."
+        },
+        {
+          "title": "Preserve working-directory saves and all actual roots",
+          "instruction": "The inspected source writes save slots game0.sav through game9.sav relative to the working directory, with transient .tmp files during replacement. These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root. Original-data search can use --data-dir/RAILS_DATA_DIR, working-directory/executable data/ or %APPDATA%/Rails/data; asset search also honors RAILS_ASSETS_DIR and component directories. Do not assume all assets or originals live beside rails.exe."
+        },
+        {
+          "title": "Keep upstream maintenance and compatibility ownership",
+          "instruction": "Upstream and you own preparation, runtime replacement, recovery and external files. Close the actual player before maintenance, retain the old runtime and all effective data, then review/relink changed selected bytes. Removing registration preserves external files. MIT applies to original project code separately from original-game assets and dependency notices; no title/source label supplies rights to DOS data. No external update, backup, rollback, migration, deletion, full simulation parity or actual gameplay/save qualification is offered."
+        }
+      ],
+      "warnings": [
+        "Use only originals, components and a completed copy you are independently permitted to use. Preserve every effective data root with its creating runtime.",
+        "Pinned source and public release metadata only; no archive/PE inspection, source-to-binary certificate, game/helper/native session, real-save, installed Desktop, Supported or protected acceptance. Upstream feature/parity claims remain distinct from Portcove evidence."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

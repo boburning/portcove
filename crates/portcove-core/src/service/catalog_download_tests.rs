@@ -595,11 +595,10 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 
 #[tokio::test]
 async fn embedded_ps1_selected_package_permission_holds_refuse_before_network() {
-    assert_embedded_player_download_holds(&["rage-racer-rage-racer-pc"]).await;
-    assert_embedded_listing_download_holds(
-        &["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"],
-        false,
-    )
+    assert_embedded_player_download_holds(&[
+        "rage-racer-rage-racer-pc",
+        "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+    ])
     .await;
 }
 
@@ -1921,4 +1920,34 @@ async fn kingdom_hearts_chain_of_memories_gba_rekhcom_component_hold_before_netw
 #[tokio::test]
 async fn vibecodekun_shantaerecomp_component_hold_before_network_1881() {
     assert_embedded_player_download_holds(&["vibecodekun-shantaerecomp"]).await;
+}
+
+#[tokio::test]
+async fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_component_hold_before_network_356() {
+    assert_embedded_player_download_holds(&["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"])
+        .await;
+}
+
+#[tokio::test]
+async fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_component_hold_before_network_2570()
+ {
+    assert_embedded_player_download_holds(&[
+        "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_component_hold_before_network_2577()
+ {
+    assert_embedded_player_download_holds(&[
+        "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn hard_corps_uprising_hard_corps_uprising_recompiled_component_hold_before_network_2581() {
+    assert_embedded_player_download_holds(&["hard-corps-uprising-hard-corps-uprising-recompiled"])
+        .await;
 }

@@ -3,13 +3,37 @@
   "listing": {
     "id": "jedeyesniv-art-pacman-ce-pc-recomp",
     "name": "Pac-Man Championship Edition (Pac-Man Championship Edition (2007): native PC port)",
-    "summary": "Upstream route: Upstream runtime package for Pac-Man Championship Edition (2007): native PC port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes playable 2007 Championship Edition and random mazes. No independent full-game/platform qualification here. Windows 10/11 Vulkan/D3D12 package; Steam Deck uses Proton, not native Linux. ReXGlue retains Xenia-derived GPU/kernel/audio scope. Upstream platforms: Windows 10/11 with Vulkan or D3D12; x86-64 translation. Steam Deck uses Proton, not a documented native Linux player. Original data: Xbox 360 XBLA Pac-Man Championship Edition 2007 own package or default.xex/media/data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Prepared native Windows Pac-Man Championship Edition (2007) player using your own Xbox 360 package or matching extracted files. Upstream owns runtime updates and portable saves; Steam Deck uses Proton.",
     "original_game_title": "Pac-Man Championship Edition",
     "project_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
-    "issue_number": 2727
+    "issue_number": 2727,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Windows player with upstream",
+          "instruction": "Obtain an authorized upstream Windows package and extract the complete folder with its DLLs, GPU plugin, configuration and licenses. Follow the selected release README. The project code is MIT No Attribution; bundled ReXGlue and LGPL components have their own notices and source obligations. Those terms do not grant Pac-Man game rights. Public release digest metadata is not a local verification of downloaded package bytes."
+        },
+        {
+          "title": "Supply your own 2007 Xbox 360 original",
+          "instruction": "Place your own Pac-Man Championship Edition 2007 package in game/ beside pacman.exe, or supply default.xex with media/ and data/. The selected source recognizes Xbox 360 STFS LIVE/CON/PIRS packages and XEX execution-info title ID 58410877. This title-ID check is not a full original-content hash or an entitlement check; an exact accepted original digest is Unknown in this review. The supported SDK mounts a selected package read-only. Preserve your original dump; other Pac-Man editions are not equivalent."
+        },
+        {
+          "title": "Add the prepared native player",
+          "instruction": "Finish upstream preparation deliberately outside Portcove. Choose pacman.exe with its containing package folder as working folder and no arguments for the documented portable layout. This is the native application using the ReXGlue event loop, not a setup launcher. If you intentionally use --game_data_root, --user_data_root or --cache_root overrides, retain those exact working paths. Saving launch details and Play remain separate actions. Steam Deck instructions use this Windows build through Proton and do not establish a native Linux player."
+        },
+        {
+          "title": "Preserve portable data and upstream ownership",
+          "instruction": "Upstream/player owns installation and runtime replacement. Preserve game/, configuration, and userdata/ beside pacman.exe, including achievements, save-backups/ and cache/. If userdata/ cannot be created, the selected source falls back to Documents/pacman; explicit user/cache roots remain in effect. Upstream creates changed-save snapshots in save-backups/ and retains ten; that is upstream behavior, not Portcove backup coverage or a guarantee of save compatibility. Keep every active root and your own backup before updates; Portcove does not delete or roll back these external files."
+        }
+      ],
+      "warnings": [
+        "This is pinned source and provider-metadata evidence. Archive layout/integrity, installed-host prerequisites, native launch, graphics, gameplay and real-save restoration were not executed or certified."
+      ],
+      "help_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

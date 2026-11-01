@@ -3,7 +3,7 @@
   "listing": {
     "id": "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
     "name": "Geometry Wars: Retro Evolved 2 (Geometry Wars 2 Recompiled)",
-    "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Requires original Xbox 360 XBLA package; exact source and updater ownership remain integration work. Upstream platforms: Windows x86-64 ZIP and experimental native Linux x86-64 AppImage; Linux requires Vulkan and lacks broad device validation. Original data: Own Geometry Wars: Retro Evolved 2 XBLA package, title 584108FF. Extracted default.xex must be 704,512 bytes, SHA-256 6D5D9980A1D17DC74B9CCF540CEC16C2E144E7CEE3A74938E78C237B8ACEEB88. Launcher checks package identity/type and executable; per-owner container hashes vary. Portcove setup/gameplay not verified.",
+    "summary": "Prepared Windows Geometry Wars 2 copy using your own matching XBLA package. Upstream owns setup, runtime replacement and portable player data; Portcove can record the ordinary native player separately from Play.",
     "original_game_title": "Geometry Wars: Retro Evolved 2",
     "project_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
     "platforms": [],
@@ -17,7 +17,32 @@
       "game_slug": "geometry-wars-retro-evolved-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2577
+    "issue_number": 2577,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare an authorized upstream copy",
+          "instruction": "Use an independently obtained, authorized Windows copy and the selected upstream guide. The GPL license of the project does not cover the original game or automatically cover every bundled component: the pinned TRG launcher revision has no explicit license file. Automated acquisition needs a separate rights decision. Preserve the complete package, runtime libraries, configuration and notices in a writable folder; do not register an updater or installer. Before the first upstream startup, make separate backups of any existing Documents/geometry_wars_retro_evolved_2 profile and portable user_data/ profile; a successful upstream migration removes the legacy folder."
+        },
+        {
+          "title": "Install your own matching Xbox 360 original",
+          "instruction": "Deliberately finish upstream setup outside Portcove using your own Geometry Wars: Retro Evolved 2 XBLA LIVE package, title 584108FF and content type 000D0000. The extracted default.xex must be 704,512 bytes with SHA-256 6D5D9980A1D17DC74B9CCF540CEC16C2E144E7CEE3A74938E78C237B8ACEEB88. Individual container hashes can vary. The launcher installs the game into adjacent game/. A container or another Xbox title is not a substitute for this executable gate."
+        },
+        {
+          "title": "Add the prepared native player",
+          "instruction": "Choose geometry_wars_retro_evolved_2.exe with its containing package folder as the working folder and no arguments for ordinary Play. Its built-in launcher starts the game in the same native process. Finish setup and any update or setting that requires Restart before adding or starting a tracked session; Restart and the separate updater may replace the process. Saving launch details and Play are separate actions. Use the actual selected copy, not a guessed path."
+        },
+        {
+          "title": "Preserve original and player data",
+          "instruction": "Upstream/player remains the only runtime-replacement owner. Preserve game/, user_data/, logs/, the executable TOML and any chosen custom roots before changing versions. Portable user_data/ contains the 584108FF profile/local scores, achievements, cache and launcher settings. Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion."
+        }
+      ],
+      "warnings": [
+        "The selected release and source recipe were inspected as public metadata/source only; package contents, native launch, gameplay, real saves and update execution were not tested. Experimental Linux AppImages are a separate route."
+      ],
+      "help_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme"
+    },
+    "download_block_reason": "New downloads are waiting for attributable distribution permission covering this title’s selected package and bundled TRG launcher. The title’s own documentation identifies TRG launcher revision b384a28c712c9320eea8f9d50639dec49981b6c1 and acknowledges that it has no explicit license; a different component’s or title’s license is not a grant for that bundled launcher. Reconsider on an attributable applicable grant or a separately reviewed supported package/preparation route that excludes the unresolved component."
   },
   "upstream_lineage": {
     "format_version": 1,

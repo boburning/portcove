@@ -3,7 +3,7 @@
   "listing": {
     "id": "dead-or-alive-3-doa3-recomp",
     "name": "Dead or Alive 3 (DOA3 Recomp)",
-    "summary": "Upstream route: Windows package; first-run disc import Limits: Upstream says all game modes are fully playable; that claim is not Portcove testing. Upstream platforms: Windows x86-64 package with first-run Xbox disc import; other OS packages are not established. Original data: Own USA original Xbox Dead or Alive 3 disc as XISO; select it on first DOA3.exe launch for upstream extraction. README repeats the .xiso extension and does not establish another container format or exact executable revision/hash. Portcove setup/gameplay not verified.",
+    "summary": "Register a completed USA DOA3 Recomp Windows player and preserve its separate settings, extracted game data and saves.",
     "original_game_title": "Dead or Alive 3",
     "project_url": "https://github.com/parkerallan/doa3-recomp",
     "issue_number": 2560,
@@ -17,6 +17,34 @@
       "image_sha256": "71ac6e59f8d26522f8b48f4382d3a1ff368ddfb38952f82d14a7fe6a5402e5c1",
       "game_slug": "dead-or-alive-3",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/parkerallan/doa3-recomp",
+      "steps": [
+        {
+          "title": "Complete the USA title’s supported preparation upstream",
+          "instruction": "Use only an already completed DOA3 native copy and components you are permitted to use, with your own unmodified Dead or Alive 3 USA (En,Ja) Xbox disc. The inspected USA importer accepts XISO at game-partition offset zero, .xiso.iso, or the original full .iso with a supported game-partition offset. It requires title 0x54430001 and default.xbe of 3,928,064 bytes with upstream FNV-1a64 value A2F3BDCB2A5B02D4; this is not a cryptographic full-disc certificate. Other regional builds are distinct; do not use the Japan player or inherit USA save compatibility."
+        },
+        {
+          "title": "Attach the completed supported Windows native entry",
+          "instruction": "Finish upstream extraction into assets/ before attachment. Select the USA copy’s DOA3.exe, its containing directory as working directory and no arguments. The inspected main ignores arguments, anchors its working directory to the executable, loads assets/default.xbe and calls the translated game entry in the same process. Keep the complete matching runtime and companions together; do not select a build tool or another Xbox game’s entry."
+        },
+        {
+          "title": "Retain one runtime replacement owner",
+          "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, Check for Updates, runtime replacement and recovery. Complete update/restart operations outside the attached session, close all players and companions, preserve the old working copy separately from the updater’s disposable .old file, then review and relink changed selected bytes. Removing registration preserves every external file. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve original, package and profile data separately",
+          "instruction": "Keep original disc images and the complete assets/ folder beside the executable, together with doa3_settings.ini, doa3_input.ini, doa3_log.txt when enabled, mods, caches, unknown files and every custom root. The USA save root defaults to %LOCALAPPDATA%/DeadOrAlive3, with TitleData/, UserData/ and Cache/; if the platform path is unavailable the inspected runtime falls back to SaveData/ in the current directory. Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
+        },
+        {
+          "title": "Keep component permission and feature scope explicit",
+          "instruction": "Preserve the project MIT and separate component notices. Their grants cover their own code, not Tecmo or Koei Tecmo original-game content; your original-disc and other component permissions remain separate. This guide offers local completed-copy launch. Online matches, router/firewall changes, account setup and cross-version save behavior are outside its evidence. Upstream claims of complete gameplay are not Portcove observations."
+        }
+      ],
+      "warnings": [
+        "Use only a completed copy and components you are permitted to use. Preserve the whole creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Static source/release metadata review is not an inspected package, native game run, real-save, installed-client, managed, Supported or protected acceptance."
+      ]
     }
   },
   "upstream_lineage": {

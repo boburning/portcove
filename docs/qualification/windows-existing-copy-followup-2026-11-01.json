@@ -1,0 +1,2997 @@
+{
+  "format_version": 1,
+  "date": "2026-11-01",
+  "source_base": "13d53cf9f43abb839a38b5de327af992d671230c",
+  "mechanism": "Existing nonowning explicit native executable/working-directory/literal-argument route. No schema, provider or shared Core behavior change.",
+  "accounting": {
+    "records_changed": 11,
+    "original_524_members": 3,
+    "affected_312_members": 8,
+    "historical_1422_members_nonadditive": 2,
+    "new_strict_definitions": 0,
+    "prospective_finite_minima": 9,
+    "partial_only_OPEN": [352, 2105],
+    "fresh_acquisition_held": [356],
+    "direct_required_beta_closures": 0,
+    "full_B1_complete": false
+  },
+  "records": [
+    {
+      "issue": 2733,
+      "id": "abilliontokens-sims1-recomp",
+      "title": "The Sims — Original Xbox (The Sims - Static Recompilation)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "Sims1.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "Use an independently permitted complete The Sims original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 2,183,168 bytes, SHA-1 40ab6f97e8ee3bf4102a5a7820dcb8047fc30097, title ID 0x4541002F; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove.",
+      "lifetime_and_successors": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
+          "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide.",
+          "Upstream documents fullscreen movie cropping and unanalysed Hor+ behavior; its real-Windows/playthrough reports remain upstream evidence only."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": null
+      },
+      "package_integrity_evidence": {
+        "tag": "v0.2.0",
+        "assets": [
+          {
+            "name": "Sims1-win64.zip",
+            "id": 661855601,
+            "bytes": 5010874,
+            "provider_sha256": "sha256:911059a82def04cfb7421bee95572724a2efd02688f3f21b759b3974c943afc7",
+            "url": "https://github.com/abilliontokens/sims1-recomp/releases/download/v0.2.0/Sims1-win64.zip"
+          }
+        ],
+        "scope": "Primary release asset digest/size metadata only; no package download, computed archive hash, parse, extraction, PE inspection, execution or source-binary certificate."
+      },
+      "source_bindings": [
+        {
+          "repository": "abilliontokens/sims1-recomp",
+          "commit": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "path": "README.md",
+          "sha256": "a4310142d6c5d847c200c54f7f38e9785f54384b07ad6dc111a0401a4ef6afe2",
+          "local_path": {
+            "retained_file": "source--README.md",
+            "sha256": "a4310142d6c5d847c200c54f7f38e9785f54384b07ad6dc111a0401a4ef6afe2"
+          },
+          "git_blob": "77ed798e5e3fe7a3292cae8448095f1b2977091a",
+          "retained_declared_ref": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "primary_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
+        },
+        {
+          "repository": "abilliontokens/sims1-recomp",
+          "commit": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "path": ".gitmodules",
+          "sha256": "9e94f83df06ae2e4cbcbd17c221bb2a27a13e204361fc5b50263be296c257e40",
+          "local_path": {
+            "retained_file": "source--.gitmodules",
+            "sha256": "9e94f83df06ae2e4cbcbd17c221bb2a27a13e204361fc5b50263be296c257e40"
+          },
+          "git_blob": "ed88f529a18fd136783442d64600d966b7bc8102",
+          "retained_declared_ref": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "primary_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/.gitmodules"
+        },
+        {
+          "repository": "abilliontokens/sims1-recomp",
+          "commit": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "path": "CMakeLists.txt",
+          "sha256": "665e99f5e1ce16f657937394c38fc47c5a9945340df3bc5acc2310bc63600495",
+          "local_path": {
+            "retained_file": "source--CMakeLists.txt",
+            "sha256": "665e99f5e1ce16f657937394c38fc47c5a9945340df3bc5acc2310bc63600495"
+          },
+          "git_blob": "12f7a7ca16bebeace7cb4c1c12fe54f6c161ffa0",
+          "retained_declared_ref": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "primary_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/CMakeLists.txt"
+        },
+        {
+          "repository": "abilliontokens/sims1-recomp",
+          "commit": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "path": "config/game.toml",
+          "sha256": "f3b932089c35f8e7942c33f7dc3db7da76fd81ce2fee66466295fa7376745371",
+          "local_path": {
+            "retained_file": "source--config__game.toml",
+            "sha256": "f3b932089c35f8e7942c33f7dc3db7da76fd81ce2fee66466295fa7376745371"
+          },
+          "git_blob": "798198acbabb4fb78bce581a3ca25e5857f60ac1",
+          "retained_declared_ref": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "primary_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/config/game.toml"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "path": "LICENSE",
+          "sha256": "b61d0b216ea6b3a6be922ef85f6348568069fb3c5fc816d021ee66ec43de8157",
+          "local_path": {
+            "retained_file": "sdk--LICENSE",
+            "sha256": "b61d0b216ea6b3a6be922ef85f6348568069fb3c5fc816d021ee66ec43de8157"
+          },
+          "git_blob": "f9e2426224a871c336005d4f58f1c5b2d491e7b0",
+          "retained_declared_ref": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/2c5c84496eaabf794d820b420c9b84ec09134f54/LICENSE"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "path": "runtime/app/main.cpp",
+          "sha256": "efa9eca0242c620302c11b8eb98cc1df25879e220a76065c67dadec1ae604c4d",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__main.cpp",
+            "sha256": "efa9eca0242c620302c11b8eb98cc1df25879e220a76065c67dadec1ae604c4d"
+          },
+          "git_blob": "a68b5a2ea7e154ec3c9aef92636c2e9a264de997",
+          "retained_declared_ref": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/2c5c84496eaabf794d820b420c9b84ec09134f54/runtime/app/main.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "path": "runtime/kernel/files.cpp",
+          "sha256": "29d1c34c164e446571859513d1c38a653f15378c92f509aa50ab6779f5c69911",
+          "local_path": {
+            "retained_file": "sdk--runtime__kernel__files.cpp",
+            "sha256": "29d1c34c164e446571859513d1c38a653f15378c92f509aa50ab6779f5c69911"
+          },
+          "git_blob": "6ba6ef606948812b520a29e11bab67ae7e645515",
+          "retained_declared_ref": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/2c5c84496eaabf794d820b420c9b84ec09134f54/runtime/kernel/files.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "path": "runtime/app/game_files.cpp",
+          "sha256": "6722295dd3f90b4c3ca3037358777df8e7cc2aa85153847308b2ba8f8b3f27bc",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__game_files.cpp",
+            "sha256": "6722295dd3f90b4c3ca3037358777df8e7cc2aa85153847308b2ba8f8b3f27bc"
+          },
+          "git_blob": "6841de5bf2bef11381927d5eb938ce88cb8ad222",
+          "retained_declared_ref": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/2c5c84496eaabf794d820b420c9b84ec09134f54/runtime/app/game_files.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "path": "runtime/app/settings.cpp",
+          "sha256": "e2b39901f68c440135ca7fd5c811c0f09d76dc81d86614718f931673a61fffed",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__settings.cpp",
+            "sha256": "e2b39901f68c440135ca7fd5c811c0f09d76dc81d86614718f931673a61fffed"
+          },
+          "git_blob": "e38c3b2cfe6ce81091efc72cc475db66d2c08fcd",
+          "retained_declared_ref": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/2c5c84496eaabf794d820b420c9b84ec09134f54/runtime/app/settings.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "path": "runtime/app/handover.cpp",
+          "sha256": "def4a1b2997f9db9bf95d0a864c41e9b87dc5ad6ac3aa7a8abee7619bfffa470",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__handover.cpp",
+            "sha256": "def4a1b2997f9db9bf95d0a864c41e9b87dc5ad6ac3aa7a8abee7619bfffa470"
+          },
+          "git_blob": "6976b1571d3dcba137cedebd2e76ce892b0a3e55",
+          "retained_declared_ref": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/2c5c84496eaabf794d820b420c9b84ec09134f54/runtime/app/handover.cpp"
+        },
+        {
+          "repository": "abilliontokens/sims1-recomp",
+          "commit": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "path": "src/common/game_info.cpp",
+          "sha256": "9a9a63e2a676f1aa1a92401686749fc15a8155d79a9290812365e4c35869bf53",
+          "local_path": {
+            "retained_file": "source--src__common__game_info.cpp",
+            "sha256": "9a9a63e2a676f1aa1a92401686749fc15a8155d79a9290812365e4c35869bf53"
+          },
+          "git_blob": "40b8923eb5fd62303a50af01e12753baf69db97a",
+          "retained_declared_ref": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "primary_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/src/common/game_info.cpp"
+        },
+        {
+          "repository": "abilliontokens/sims1-recomp",
+          "commit": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "path": "docs/xbe-analysis.md",
+          "sha256": "4d727158e1a131ebf1d126ae495cec9efcbbf0d54876dae7d73d67f71b7f2fa7",
+          "local_path": {
+            "retained_file": "source--docs__xbe-analysis.md",
+            "sha256": "4d727158e1a131ebf1d126ae495cec9efcbbf0d54876dae7d73d67f71b7f2fa7"
+          },
+          "git_blob": "94bfbb812198941f89afb5e951b67c4e417b74f0",
+          "retained_declared_ref": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "primary_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/docs/xbe-analysis.md"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2733,
+          "file": {
+            "retained_file": "source-tree.json",
+            "sha256": "3299f780e041064f7462dbb511c40b91deb34abc3210024e457f1a98b96146e3"
+          },
+          "sha256": "3299f780e041064f7462dbb511c40b91deb34abc3210024e457f1a98b96146e3",
+          "response_sha": "aa665356bc893a702cdfeea58e2ee20ed466a16a",
+          "reconstructed_root_tree": "e727bd26d1658306d0078b31311f3bcbba5b797d",
+          "entries": 71,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2733,
+          "file": {
+            "retained_file": "sdk-tree.json",
+            "sha256": "bd53ee448d17fe6ca3c1347a409bec56a3f044fe857025e198cbffde00f0f865"
+          },
+          "sha256": "bd53ee448d17fe6ca3c1347a409bec56a3f044fe857025e198cbffde00f0f865",
+          "response_sha": "2c5c84496eaabf794d820b420c9b84ec09134f54",
+          "reconstructed_root_tree": "05a53a24c50fec87c19abb6cdbbd24770011f017",
+          "entries": 147,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/abilliontokens-sims1-recomp.json",
+      "preimage_sha256": "949fb173ce3928fa89a9b5181debab5df1dc048241104f8e6a52bdf756edc8b2",
+      "prepared_candidate_sha256": "5d51c046c3111af4f01c0325b4384fc219b87831aae748aa9bfaddb30f29237b",
+      "formatted_postimage_sha256": "5d51c046c3111af4f01c0325b4384fc219b87831aae748aa9bfaddb30f29237b",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "f49112b60d18c82c6841610601fb21d4db017172d811ea206cfe9a177265aeee",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2752,
+      "id": "abilliontokens-sims2-recomp",
+      "title": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "Sims2.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "Use an independently permitted complete The Sims 2 original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 3,399,680 bytes, SHA-1 16f9e41ce26c315a758f25d43ba1fa9d3809d1ad, title ID 0x4541038B; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove.",
+      "lifetime_and_successors": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
+          "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide.",
+          "The upstream headline describes Windows/Linux live gameplay, while its status table labels the cross-built Windows smoke as Wine-only and not real Windows. Retain that evidence distinction; neither wording is a Portcove Windows observation."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": null
+      },
+      "package_integrity_evidence": {
+        "tag": "v0.2.0",
+        "assets": [
+          {
+            "name": "Sims2-win64.zip",
+            "id": 658260594,
+            "bytes": 6101556,
+            "provider_sha256": "sha256:109645b9dbfcd0fd1a00836e6f48370572c55f6f179e4d92dcaa85a995bce28d",
+            "url": "https://github.com/abilliontokens/sims2-recomp/releases/download/v0.2.0/Sims2-win64.zip"
+          }
+        ],
+        "scope": "Primary release asset digest/size metadata only; no package download, computed archive hash, parse, extraction, PE inspection, execution or source-binary certificate."
+      },
+      "source_bindings": [
+        {
+          "repository": "abilliontokens/sims2-recomp",
+          "commit": "8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689",
+          "path": ".gitmodules",
+          "sha256": "38162209a4fb70fb5b8161291e6294933878d3d329688557f9b0fb7036230779",
+          "local_path": {
+            "retained_file": "source--.gitmodules",
+            "sha256": "38162209a4fb70fb5b8161291e6294933878d3d329688557f9b0fb7036230779"
+          },
+          "git_blob": "5de03695be65b74f4138d609d75d27809022d03f",
+          "retained_declared_ref": "8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689",
+          "primary_url": "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/.gitmodules"
+        },
+        {
+          "repository": "abilliontokens/sims2-recomp",
+          "commit": "8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689",
+          "path": "README.md",
+          "sha256": "ea832742c2d7e6e73defd7d888cc210a5208e44b3d51a6042c74e473ecbb552a",
+          "local_path": {
+            "retained_file": "source--README.md",
+            "sha256": "ea832742c2d7e6e73defd7d888cc210a5208e44b3d51a6042c74e473ecbb552a"
+          },
+          "git_blob": "51b7755e3bb5bb3194257e2fcab996efe3698392",
+          "retained_declared_ref": "8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689",
+          "primary_url": "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
+        },
+        {
+          "repository": "abilliontokens/sims2-recomp",
+          "commit": "8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689",
+          "path": "src/common/game_info.cpp",
+          "sha256": "a0f67189fe32032f130f873977c57e273511a51202ee35605ebff3bfc7f7f902",
+          "local_path": {
+            "retained_file": "source--src__common__game_info.cpp",
+            "sha256": "a0f67189fe32032f130f873977c57e273511a51202ee35605ebff3bfc7f7f902"
+          },
+          "git_blob": "4b729431d6c278ff4ad879a4b9d13c95eaabf789",
+          "retained_declared_ref": "8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689",
+          "primary_url": "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/src/common/game_info.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "path": "LICENSE",
+          "sha256": "b61d0b216ea6b3a6be922ef85f6348568069fb3c5fc816d021ee66ec43de8157",
+          "local_path": {
+            "retained_file": "sdk--LICENSE",
+            "sha256": "b61d0b216ea6b3a6be922ef85f6348568069fb3c5fc816d021ee66ec43de8157"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "f9e2426224a871c336005d4f58f1c5b2d491e7b0",
+          "retained_declared_ref": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/adc40ab688be14da932514bd9f6f59a29dab3c65/LICENSE"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "path": "runtime/app/main.cpp",
+          "sha256": "efa9eca0242c620302c11b8eb98cc1df25879e220a76065c67dadec1ae604c4d",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__main.cpp",
+            "sha256": "efa9eca0242c620302c11b8eb98cc1df25879e220a76065c67dadec1ae604c4d"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "a68b5a2ea7e154ec3c9aef92636c2e9a264de997",
+          "retained_declared_ref": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/adc40ab688be14da932514bd9f6f59a29dab3c65/runtime/app/main.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "path": "runtime/kernel/files.cpp",
+          "sha256": "29d1c34c164e446571859513d1c38a653f15378c92f509aa50ab6779f5c69911",
+          "local_path": {
+            "retained_file": "sdk--runtime__kernel__files.cpp",
+            "sha256": "29d1c34c164e446571859513d1c38a653f15378c92f509aa50ab6779f5c69911"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "6ba6ef606948812b520a29e11bab67ae7e645515",
+          "retained_declared_ref": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/adc40ab688be14da932514bd9f6f59a29dab3c65/runtime/kernel/files.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "path": "runtime/app/game_files.cpp",
+          "sha256": "6722295dd3f90b4c3ca3037358777df8e7cc2aa85153847308b2ba8f8b3f27bc",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__game_files.cpp",
+            "sha256": "6722295dd3f90b4c3ca3037358777df8e7cc2aa85153847308b2ba8f8b3f27bc"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "6841de5bf2bef11381927d5eb938ce88cb8ad222",
+          "retained_declared_ref": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/adc40ab688be14da932514bd9f6f59a29dab3c65/runtime/app/game_files.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "path": "runtime/app/settings.cpp",
+          "sha256": "e2b39901f68c440135ca7fd5c811c0f09d76dc81d86614718f931673a61fffed",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__settings.cpp",
+            "sha256": "e2b39901f68c440135ca7fd5c811c0f09d76dc81d86614718f931673a61fffed"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "e38c3b2cfe6ce81091efc72cc475db66d2c08fcd",
+          "retained_declared_ref": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/adc40ab688be14da932514bd9f6f59a29dab3c65/runtime/app/settings.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "path": "runtime/app/handover.cpp",
+          "sha256": "def4a1b2997f9db9bf95d0a864c41e9b87dc5ad6ac3aa7a8abee7619bfffa470",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__handover.cpp",
+            "sha256": "def4a1b2997f9db9bf95d0a864c41e9b87dc5ad6ac3aa7a8abee7619bfffa470"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "6976b1571d3dcba137cedebd2e76ce892b0a3e55",
+          "retained_declared_ref": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/adc40ab688be14da932514bd9f6f59a29dab3c65/runtime/app/handover.cpp"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2752,
+          "file": {
+            "retained_file": "source-tree.json",
+            "sha256": "c1d622f18163802993358a3fab5815a1c77c1a3e4a5b3913c3e4a563007881d6"
+          },
+          "sha256": "c1d622f18163802993358a3fab5815a1c77c1a3e4a5b3913c3e4a563007881d6",
+          "response_sha": "8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689",
+          "reconstructed_root_tree": "86a51ee51b8974703f5e86e99283b35235c6e92c",
+          "entries": 49,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2752,
+          "file": {
+            "retained_file": "sdk-tree.json",
+            "sha256": "39d6a89242dbef999fc5e8ab18fa0b6f886ac2a793f617228998ecbc7fb0f75d"
+          },
+          "sha256": "39d6a89242dbef999fc5e8ab18fa0b6f886ac2a793f617228998ecbc7fb0f75d",
+          "response_sha": "adc40ab688be14da932514bd9f6f59a29dab3c65",
+          "reconstructed_root_tree": "ee3c46c4979d7b0cf43e49ecf25e7815dcfc051d",
+          "entries": 141,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/abilliontokens-sims2-recomp.json",
+      "preimage_sha256": "e4f911070ea0675fc096efd298aee4cd8a29cea66ed2a61cca1a4664af97f1cd",
+      "prepared_candidate_sha256": "68c6ab34c6c143015768445dda44b5a967f2d471f69ed60c81fa106ef19b8335",
+      "formatted_postimage_sha256": "68c6ab34c6c143015768445dda44b5a967f2d471f69ed60c81fa106ef19b8335",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "1cd888085c93ccfdd108aaba52f09adc06b8cf36bf067c4b30387b69726c19d9",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2813,
+      "id": "abilliontokens-urbz-recomp",
+      "title": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "Urbz.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "Use an independently permitted complete The Urbz: Sims in the City original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 3,035,136 bytes, SHA-1 5712b6a3e2eaaacfcae228cf6154ade499a0033c, title ID 0x45410060; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove.",
+      "lifetime_and_successors": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
+          "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": null
+      },
+      "package_integrity_evidence": {
+        "tag": "v0.6.0",
+        "assets": [
+          {
+            "name": "Urbz.zip",
+            "id": 658024390,
+            "bytes": 5913472,
+            "provider_sha256": "sha256:d6019ec58490356f15aa6224279a5cacc06a495b8dd30e414cf024fe6c56a960",
+            "url": "https://github.com/abilliontokens/urbz-recomp/releases/download/v0.6.0/Urbz.zip"
+          }
+        ],
+        "scope": "Primary release asset digest/size metadata only; no package download, computed archive hash, parse, extraction, PE inspection, execution or source-binary certificate."
+      },
+      "source_bindings": [
+        {
+          "repository": "abilliontokens/urbz-recomp",
+          "commit": "aac2198e767fece3d690863fab6ff3d42776fb3f",
+          "path": ".gitmodules",
+          "sha256": "7e6cb9de4ae41835c9d29fa131c1b582c0f6de0783fa1b27c70e0883c11c1d4c",
+          "local_path": {
+            "retained_file": "source--.gitmodules",
+            "sha256": "7e6cb9de4ae41835c9d29fa131c1b582c0f6de0783fa1b27c70e0883c11c1d4c"
+          },
+          "git_blob": "d64f44446e1854b9ec54e0c6bcce9227974a948e",
+          "retained_declared_ref": "aac2198e767fece3d690863fab6ff3d42776fb3f",
+          "primary_url": "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/.gitmodules"
+        },
+        {
+          "repository": "abilliontokens/urbz-recomp",
+          "commit": "aac2198e767fece3d690863fab6ff3d42776fb3f",
+          "path": "README.md",
+          "sha256": "2848d76a3e46af47f5e4a111f3e4ee0743c8a6393d82609a09613f1c0457f7d9",
+          "local_path": {
+            "retained_file": "source--README.md",
+            "sha256": "2848d76a3e46af47f5e4a111f3e4ee0743c8a6393d82609a09613f1c0457f7d9"
+          },
+          "git_blob": "5309c42d02b37977e785b79659a8204996e4292a",
+          "retained_declared_ref": "aac2198e767fece3d690863fab6ff3d42776fb3f",
+          "primary_url": "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
+        },
+        {
+          "repository": "abilliontokens/urbz-recomp",
+          "commit": "aac2198e767fece3d690863fab6ff3d42776fb3f",
+          "path": "src/common/game_info.cpp",
+          "sha256": "af6cf256130c7ebb7a389b91b70647d61f2b10fb1611ea6aac26d5baf32f5619",
+          "local_path": {
+            "retained_file": "source--src__common__game_info.cpp",
+            "sha256": "af6cf256130c7ebb7a389b91b70647d61f2b10fb1611ea6aac26d5baf32f5619"
+          },
+          "git_blob": "f8e4e9ce4e95ade90d36ac8cef934b1e38d09f65",
+          "retained_declared_ref": "aac2198e767fece3d690863fab6ff3d42776fb3f",
+          "primary_url": "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/src/common/game_info.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "path": "LICENSE",
+          "sha256": "b61d0b216ea6b3a6be922ef85f6348568069fb3c5fc816d021ee66ec43de8157",
+          "local_path": {
+            "retained_file": "sdk--LICENSE",
+            "sha256": "b61d0b216ea6b3a6be922ef85f6348568069fb3c5fc816d021ee66ec43de8157"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "f9e2426224a871c336005d4f58f1c5b2d491e7b0",
+          "retained_declared_ref": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd/LICENSE"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "path": "runtime/app/main.cpp",
+          "sha256": "efa9eca0242c620302c11b8eb98cc1df25879e220a76065c67dadec1ae604c4d",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__main.cpp",
+            "sha256": "efa9eca0242c620302c11b8eb98cc1df25879e220a76065c67dadec1ae604c4d"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "a68b5a2ea7e154ec3c9aef92636c2e9a264de997",
+          "retained_declared_ref": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd/runtime/app/main.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "path": "runtime/kernel/files.cpp",
+          "sha256": "29d1c34c164e446571859513d1c38a653f15378c92f509aa50ab6779f5c69911",
+          "local_path": {
+            "retained_file": "sdk--runtime__kernel__files.cpp",
+            "sha256": "29d1c34c164e446571859513d1c38a653f15378c92f509aa50ab6779f5c69911"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "6ba6ef606948812b520a29e11bab67ae7e645515",
+          "retained_declared_ref": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd/runtime/kernel/files.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "path": "runtime/app/game_files.cpp",
+          "sha256": "6722295dd3f90b4c3ca3037358777df8e7cc2aa85153847308b2ba8f8b3f27bc",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__game_files.cpp",
+            "sha256": "6722295dd3f90b4c3ca3037358777df8e7cc2aa85153847308b2ba8f8b3f27bc"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "6841de5bf2bef11381927d5eb938ce88cb8ad222",
+          "retained_declared_ref": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd/runtime/app/game_files.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "path": "runtime/app/settings.cpp",
+          "sha256": "e2b39901f68c440135ca7fd5c811c0f09d76dc81d86614718f931673a61fffed",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__settings.cpp",
+            "sha256": "e2b39901f68c440135ca7fd5c811c0f09d76dc81d86614718f931673a61fffed"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "e38c3b2cfe6ce81091efc72cc475db66d2c08fcd",
+          "retained_declared_ref": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd/runtime/app/settings.cpp"
+        },
+        {
+          "repository": "abilliontokens/XboxXBERecomp",
+          "commit": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "path": "runtime/app/handover.cpp",
+          "sha256": "def4a1b2997f9db9bf95d0a864c41e9b87dc5ad6ac3aa7a8abee7619bfffa470",
+          "local_path": {
+            "retained_file": "sdk--runtime__app__handover.cpp",
+            "sha256": "def4a1b2997f9db9bf95d0a864c41e9b87dc5ad6ac3aa7a8abee7619bfffa470"
+          },
+          "method": "Reused exact matching blob from2733; own SDK tree proves applicability.",
+          "git_blob": "6976b1571d3dcba137cedebd2e76ce892b0a3e55",
+          "retained_declared_ref": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "primary_url": "https://github.com/abilliontokens/XboxXBERecomp/blob/07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd/runtime/app/handover.cpp"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2813,
+          "file": {
+            "retained_file": "source-tree.json",
+            "sha256": "21ba13f6460f4b105954825feeb7e946b182effd4dc3d282eb34b9b525625a38"
+          },
+          "sha256": "21ba13f6460f4b105954825feeb7e946b182effd4dc3d282eb34b9b525625a38",
+          "response_sha": "aac2198e767fece3d690863fab6ff3d42776fb3f",
+          "reconstructed_root_tree": "4fa1cf447391aa4ea440afebab485899b5a2f798",
+          "entries": 49,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2813,
+          "file": {
+            "retained_file": "sdk-tree.json",
+            "sha256": "1c071d58155ecae231fb59d619212f642142f8980c3545893ab03a14a1472a08"
+          },
+          "sha256": "1c071d58155ecae231fb59d619212f642142f8980c3545893ab03a14a1472a08",
+          "response_sha": "07ae85cb9dfcb5fb6338ef374e7e1622335b5fcd",
+          "reconstructed_root_tree": "3b0e3f9b407144139b6f26be7f2fd46dede701be",
+          "entries": 141,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/abilliontokens-urbz-recomp.json",
+      "preimage_sha256": "3e3fa8563cd9ff8618831e2c0d01e2ee1b0d6630dcc947b3ce4896451850b71b",
+      "prepared_candidate_sha256": "6ae7beeeca17500f31d9e1ac028fd048a52431330e192f2c7f0b12cbb78ae63e",
+      "formatted_postimage_sha256": "6ae7beeeca17500f31d9e1ac028fd048a52431330e192f2c7f0b12cbb78ae63e",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "d98e8311599301be34e24e7dd196df5cfaefca99e04f57821d5bdc834c1fd08b",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2741,
+      "id": "bitsandbreakpoints-d-psx-pc-recomp",
+      "title": "D (D PC Port)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "d.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "Supply your own USA PlayStation D discs SLUS-00128, SLUS-00173 and SLUS-00174 as raw-sector CUE/BIN or supported CHD. ISO lacks the XA movie/audio sectors. Complete the supported CHOOSE DISCS or drag-and-drop setup upstream before attachment; its first-selection data-track hash check is separate from later file size/time caching. Keep all three matching images and selected paths, even when neighboring discs are auto-found. No retail BIOS is required or supplied.",
+      "lifetime_and_successors": "Select d.exe with its complete creating player directory as working directory and no extra arguments for the supported normal launcher. The inspected native source keeps launcher, game loop, pause and return-to-launcher in the same process, using the matching game.dll; no private helper or per-title wrapper is introduced. Review and consent to this exact native executable, working directory and literal arguments, then request Play separately.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "The documented profile stays beside d.exe: settings.ini, saves/slot1.state through slot8.state and d.log. Preserve the entire saves/ directory, metadata/thumbnails, settings, diagnostics, temporary files, mods, backups and any actual custom/external root, plus the full creating runtime and selected original disc images. State compatibility depends on game.dll code/data layout; upstream version-survival claims are not Portcove real-save qualification. Keep the matching old DLL and runtime with states before replacement. Do not migrate DOS saves or delete originals on the basis of this registration. Preserve any existing D_SAVE_DIR override and its actual state files; Portcove does not set or own that external location.",
+      "restrictions": {
+        "manual_warnings": [
+          "No package was downloaded, parsed, hashed, PE-inspected or run. Native entry and layout are source/documentation facts, not actual package ABI, package-source correspondence, native gameplay, real-save, installed-client, Supported or protected acceptance.",
+          "The unpublished game.dll source/component grant remains separate from published host/dependency source. No arbitrary-copy use, new fresh-download recommendation or original-game permission follows from this conditional registration."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": null
+      },
+      "package_integrity_evidence": {
+        "tag": "v1.0.2",
+        "assets": [
+          {
+            "name": "d-pc.zip",
+            "id": 682586241,
+            "bytes": 2490090,
+            "provider_sha256": "sha256:8507e272d9e08c9ccfc56179b2f0f68d0fffa003371afff583dab07314ffa037",
+            "url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/releases/download/v1.0.2/d-pc.zip"
+          }
+        ],
+        "scope": "Primary release asset digest/size metadata only; no package download, computed archive hash, parse, extraction, PE inspection, execution or source-binary certificate."
+      },
+      "source_bindings": [
+        {
+          "repository": "Bitsandbreakpoints/d-psx-pc-recomp",
+          "commit": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "path": "README.md",
+          "sha256": "fde0d773cc55676a06743f5d987c43aa8751c415e6f964c7d03687a1cf7b164d",
+          "local_path": {
+            "retained_file": "source--README.md",
+            "sha256": "fde0d773cc55676a06743f5d987c43aa8751c415e6f964c7d03687a1cf7b164d"
+          },
+          "git_blob": "58c387a0e845076c13b10a0755eb3bce93965731",
+          "retained_declared_ref": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "primary_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/README.md"
+        },
+        {
+          "repository": "Bitsandbreakpoints/d-psx-pc-recomp",
+          "commit": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "path": "source/README.md",
+          "sha256": "1116798556c8f54b22a365e244c39a02cf36132c33c4b29f9ba331d39202c061",
+          "local_path": {
+            "retained_file": "source--source__README.md",
+            "sha256": "1116798556c8f54b22a365e244c39a02cf36132c33c4b29f9ba331d39202c061"
+          },
+          "git_blob": "16484dcb46e689a26dd3cf65736b44d088287cb6",
+          "retained_declared_ref": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "primary_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/source/README.md"
+        },
+        {
+          "repository": "Bitsandbreakpoints/d-psx-pc-recomp",
+          "commit": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "path": "source/src/main_pc.cpp",
+          "sha256": "23f48d22835a68d6fccbc8b01c41106fbc333a7da6fc5345dbe49cc71482f9fd",
+          "local_path": {
+            "retained_file": "source--source__src__main_pc.cpp",
+            "sha256": "23f48d22835a68d6fccbc8b01c41106fbc333a7da6fc5345dbe49cc71482f9fd"
+          },
+          "git_blob": "3071a707bdd74197f2191dde2d260d90afcb4e6f",
+          "retained_declared_ref": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "primary_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/source/src/main_pc.cpp"
+        },
+        {
+          "repository": "Bitsandbreakpoints/d-psx-pc-recomp",
+          "commit": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "path": "source/src/platform/files.cpp",
+          "sha256": "ad107413495914202036b94a111660f43f67e46c246faef3b0469613b6f7da93",
+          "local_path": {
+            "retained_file": "source--source__src__platform__files.cpp",
+            "sha256": "ad107413495914202036b94a111660f43f67e46c246faef3b0469613b6f7da93"
+          },
+          "git_blob": "f1f25ff562484b0ac9f5781fe1df5bccfcb35f8a",
+          "retained_declared_ref": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "primary_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/source/src/platform/files.cpp"
+        },
+        {
+          "repository": "Bitsandbreakpoints/d-psx-pc-recomp",
+          "commit": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "path": "source/src/launcher/states.cpp",
+          "sha256": "53a8795baefded87ccda0a04502175a182c6713f6ca21829b30d93b7a04c1205",
+          "local_path": {
+            "retained_file": "source--source__src__launcher__states.cpp",
+            "sha256": "53a8795baefded87ccda0a04502175a182c6713f6ca21829b30d93b7a04c1205"
+          },
+          "git_blob": "33a868ee0860825b6184614254d34a3ae077350b",
+          "retained_declared_ref": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "primary_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/source/src/launcher/states.cpp"
+        },
+        {
+          "repository": "Bitsandbreakpoints/d-psx-pc-recomp",
+          "commit": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "path": "source/src/launcher/settings.cpp",
+          "sha256": "45c94ea0d10b281ba1397c61b2009424bf94732be903267c811598158d3c5a26",
+          "local_path": {
+            "retained_file": "source--source__src__launcher__settings.cpp",
+            "sha256": "45c94ea0d10b281ba1397c61b2009424bf94732be903267c811598158d3c5a26"
+          },
+          "git_blob": "f64968b9647f3eb9f49290301744e5ee7bae716e",
+          "retained_declared_ref": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "primary_url": "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/source/src/launcher/settings.cpp"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2741,
+          "file": {
+            "retained_file": "source-tree.json",
+            "sha256": "7c4442520b61c65510cdd925a7a09f0c0fda84e9caeb47b9c610e87d6fa82c60"
+          },
+          "sha256": "7c4442520b61c65510cdd925a7a09f0c0fda84e9caeb47b9c610e87d6fa82c60",
+          "response_sha": "9e8d7f28bb78a71dcccceb92019037e5cca12955",
+          "reconstructed_root_tree": "b253cccc3f494bad4e24f0d2b3642df0098aa887",
+          "entries": 192,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited.",
+        "Unpublished decompiled game.dll source and embedded game-derived tables remain separate component scope; conditional actual-copy permission is required, not established by published host/dependency source. Root adds only the existing D_SAVE_DIR preservation sentence."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/bitsandbreakpoints-d-psx-pc-recomp.json",
+      "preimage_sha256": "0d957de899dbebe271f5472239d15f08d3a717fb2ccd9fa2d402d1a6bc6dff5f",
+      "prepared_candidate_sha256": "dd39f49944930beef97131b55eaa9db556f16af7d226e4be87d247f4e5e147fb",
+      "formatted_postimage_sha256": "dd39f49944930beef97131b55eaa9db556f16af7d226e4be87d247f4e5e147fb",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "f492a573173cc7e60ea3153346f67b10f3d274afbc042b07f37202df8788ef79",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2787,
+      "id": "bluddy-rails",
+      "title": "Railroad Tycoon (Open Railroad Tycoon)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "rails.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "Use your own original Railroad Tycoon DOS assets in data/ beside the player, or retain the supported --data-dir literal for your actual external data folder. The inspected startup also requires FONTS.RR, alongside EASTUS.PIC, WESTUS.PIC, CITIES0.DTA, SPRITES.PIC, TRACKS.PIC and TITLEM.PAN; the README’s wildcard list alone is incomplete. No original is bundled or licensed by this registration. No exact retail revision/hash or simulation-parity qualification is established here.",
+      "lifetime_and_successors": "Select rails.exe with its complete creating player folder as working directory and no extra arguments for normal play. Retain existing supported --data-dir or other literal options only when actually required by your working copy. The source enters its game/main SDL loop in-process until Quit; do not select dune/opam, an AppImage, or a tool instead. Review and consent to the exact executable, working directory and arguments, then request Play separately.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "The inspected source writes save slots game0.sav through game9.sav relative to the working directory, with transient .tmp files during replacement. These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root. Original-data search can use --data-dir/RAILS_DATA_DIR, working-directory/executable data/ or %APPDATA%/Rails/data; asset search also honors RAILS_ASSETS_DIR and component directories. Do not assume all assets or originals live beside rails.exe.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only originals, components and a completed copy you are independently permitted to use. Preserve every effective data root with its creating runtime.",
+          "Pinned source and public release metadata only; no archive/PE inspection, source-to-binary certificate, game/helper/native session, real-save, installed Desktop, Supported or protected acceptance. Upstream feature/parity claims remain distinct from Portcove evidence."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": null
+      },
+      "package_integrity_evidence": {
+        "tag": "v0.1.4",
+        "assets": [
+          {
+            "name": "rails-0.1.4-windows-x86_64.zip",
+            "id": 631445166,
+            "bytes": 10568271,
+            "provider_sha256": "sha256:b0edc2fe57d7b190dacf9eb9197d58e48de9cde316926c51d086a2f1113a6e15",
+            "url": "https://github.com/bluddy/rails/releases/download/v0.1.4/rails-0.1.4-windows-x86_64.zip"
+          }
+        ],
+        "scope": "Primary release asset digest/size metadata only; no package download, computed archive hash, parse, extraction, PE inspection, execution or source-binary certificate."
+      },
+      "source_bindings": [
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "README.md",
+          "sha256": "488a78074a3e1e5c497a36656ff3de8f05b671d4dfdac2cde7499a79630caf47",
+          "local_path": {
+            "retained_file": "tag--README.md",
+            "sha256": "488a78074a3e1e5c497a36656ff3de8f05b671d4dfdac2cde7499a79630caf47"
+          },
+          "git_blob": "ac9e874f6b8ee8e79d5f110fdf49287c2ae30ca4",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/README.md"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "LICENSE",
+          "sha256": "54d9d1942681247cc4d58ec52fc85c64ea508c4829b07649ff5105053a73608a",
+          "local_path": {
+            "retained_file": "tag--LICENSE",
+            "sha256": "54d9d1942681247cc4d58ec52fc85c64ea508c4829b07649ff5105053a73608a"
+          },
+          "git_blob": "4668f0a5eaaab94eff12aea66cad60f30887c1d2",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/LICENSE"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "packaging/README_RELEASE.txt",
+          "sha256": "3e2ea95592617643b2d72d1120ab77d7f2586440b22be73a0674b5223cc24319",
+          "local_path": {
+            "retained_file": "tag--packaging__README_RELEASE.txt",
+            "sha256": "3e2ea95592617643b2d72d1120ab77d7f2586440b22be73a0674b5223cc24319"
+          },
+          "git_blob": "15eb9fbc45791d089b326997bb261162a0feaaab",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/packaging/README_RELEASE.txt"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": ".github/workflows/release.yml",
+          "sha256": "b556b217aa4e25cfd0ffa869a143d1c5b7e46ad42a5887f0ffaddc6d0630cbf8",
+          "local_path": {
+            "retained_file": "tag--.github__workflows__release.yml",
+            "sha256": "b556b217aa4e25cfd0ffa869a143d1c5b7e46ad42a5887f0ffaddc6d0630cbf8"
+          },
+          "git_blob": "46657c293d861e3241264e0d00500a03fb9ac6ab",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/.github/workflows/release.yml"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "src/rails_lib/main.ml",
+          "sha256": "040a1ffdfc7c4cc43ac41e01a60d54d6ffafa365d098d79b70b022f9de002797",
+          "local_path": {
+            "retained_file": "tag--src__rails_lib__main.ml",
+            "sha256": "040a1ffdfc7c4cc43ac41e01a60d54d6ffafa365d098d79b70b022f9de002797"
+          },
+          "git_blob": "dc91294ce1b237e5f94e39b1f6e75214425a14d5",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/src/rails_lib/main.ml"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "src/rails_lib/ui/save_game.ml",
+          "sha256": "67705bb270335ae125723410d6be4ea53c9e2651f5b41c7d39c1060b526139bf",
+          "local_path": {
+            "retained_file": "tag--src__rails_lib__ui__save_game.ml",
+            "sha256": "67705bb270335ae125723410d6be4ea53c9e2651f5b41c7d39c1060b526139bf"
+          },
+          "git_blob": "089fcfae2655a88656912e70058aad0c678aedc5",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/src/rails_lib/ui/save_game.ml"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "src/rails_lib/ui/save_game_d.ml",
+          "sha256": "6c6230c9eddcb8c7610fec0f8612f91898443edcaaf9a89edb31b956448b9c5f",
+          "local_path": {
+            "retained_file": "tag--src__rails_lib__ui__save_game_d.ml",
+            "sha256": "6c6230c9eddcb8c7610fec0f8612f91898443edcaaf9a89edb31b956448b9c5f"
+          },
+          "git_blob": "8d1222771bef075b8d353177de4c2baa46756a17",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/src/rails_lib/ui/save_game_d.ml"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "docs/FEATURES.md",
+          "sha256": "80523101ae02ca4156bcedd36027a3c77c4d5b4b9765ef1fa283f69eedbb7151",
+          "local_path": {
+            "retained_file": "tag--docs__FEATURES.md",
+            "sha256": "80523101ae02ca4156bcedd36027a3c77c4d5b4b9765ef1fa283f69eedbb7151"
+          },
+          "git_blob": "90558de3fcee0f6ddeaccec3db06c827ad08d606",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/docs/FEATURES.md"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "src/engine/utils/paths.ml",
+          "sha256": "1ec48dfb4f0de9156099adac0d0e70ef4342965b1a1d641bcd2498a10ca66cfc",
+          "local_path": {
+            "retained_file": "tag--src__engine__utils__paths.ml",
+            "sha256": "1ec48dfb4f0de9156099adac0d0e70ef4342965b1a1d641bcd2498a10ca66cfc"
+          },
+          "git_blob": "e6830e8091e1a9f8502d86508992d8a57d0211be",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/src/engine/utils/paths.ml"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "src/engine/mainloop.ml",
+          "sha256": "fefdc3dc933c084fbceaffa2b1a3fde31c9b14212b518c6f54ece4fc9147bdaa",
+          "local_path": {
+            "retained_file": "tag--src__engine__mainloop.ml",
+            "sha256": "fefdc3dc933c084fbceaffa2b1a3fde31c9b14212b518c6f54ece4fc9147bdaa"
+          },
+          "git_blob": "e735ac3a84f3fe02dbe8b9372cbf72f408d69641",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/src/engine/mainloop.ml"
+        },
+        {
+          "repository": "bluddy/rails",
+          "commit": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "path": "src/rails_lib/utils/save_compression.ml",
+          "sha256": "5972927f3369b2b30e9a987e46d91d2b4296b272f98aa102210c759d0932d9d2",
+          "local_path": {
+            "retained_file": "tag--src__rails_lib__utils__save_compression.ml",
+            "sha256": "5972927f3369b2b30e9a987e46d91d2b4296b272f98aa102210c759d0932d9d2"
+          },
+          "git_blob": "bb04aad7aa4c587480dd39e08cad4d95e8689051",
+          "retained_declared_ref": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "primary_url": "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/src/rails_lib/utils/save_compression.ml"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2787,
+          "file": {
+            "retained_file": "tag-tree.json",
+            "sha256": "a4b28ed78ac50f18c16fb23da5103f980d6e8f9d9c14be8fd9593eb7f94f8364"
+          },
+          "sha256": "a4b28ed78ac50f18c16fb23da5103f980d6e8f9d9c14be8fd9593eb7f94f8364",
+          "response_sha": "3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0",
+          "reconstructed_root_tree": "0022bebdf09ae6ac7c5ae93f15a418b8ac336255",
+          "entries": 293,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/bluddy-rails.json",
+      "preimage_sha256": "6ef344a0a4c680411912a67e5ac551e6d0787b0a8a81e13548bac09f772ffaa2",
+      "prepared_candidate_sha256": "453bbd0377279587d729022e5acaa04c8e28699d6613088113fe2864149d0c95",
+      "formatted_postimage_sha256": "453bbd0377279587d729022e5acaa04c8e28699d6613088113fe2864149d0c95",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "9e37e6401d20e2c6fa369dc15ebd2126bd1a2c51e1e37c49eebebd67d9d802b3",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 352,
+      "id": "legend-of-legaia-legend-of-legaia-recomp",
+      "title": "Legend of Legaia / legend-of-legaia-recomp",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "route": {
+        "exe": "LegaiaRecomp.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "Use an independently permitted complete Windows playtest copy. Supply your own legally dumped USA disc: extracted SCUS_942.54 in disc/, matching CUE/BIN in game/, and your own US SCPH1001.BIN in bios/. The documented CUE name is Legend of Legaia (USA).cue; retain the matching game.toml if your upstream working copy uses another path. A filename is not a whole-disc identity certificate. Portcove obtains or extracts no disc, executable, BIOS or helper.",
+      "lifetime_and_successors": "Review and consent to the exact native executable, established CWD and literal arguments; request Play separately. The reviewed source provides the normal in-process launcher/runtime route; package build flags and package-to-source correspondence remain unverified. Independently started setup, helper, mod-preparation or successor sessions remain upstream activity outside this attachment. Close every actual player and companion before maintenance, retain the old runtime/data and review or relink changed selected bytes. Removing registration preserves all external files.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths. No cross-version card/state compatibility or migration is established.",
+      "restrictions": {
+        "manual_warnings": [
+          "Only attach actual originals, runtime and components you are independently permitted to use. Runtime PolyForm Noncommercial terms and SDL/dependency notices apply separately; no source label or upstream package assertion grants Sony/game rights.",
+          "Source/README/config and retained release digest metadata only: no package download, archive/PE inspection, acquired-source-to-binary certificate, actual title launch, save, game, installed-client, Supported or protected acceptance. Do not infer uninspected runtime build flags or immutable package contents."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": null
+      },
+      "package_integrity_evidence": {
+        "tag": "v0.1.7-diagnostic-playtest",
+        "asset": "LegaiaRecomp-windows-x64-v0.1.7-diagnostic-playtest.zip",
+        "bytes": 9880572,
+        "provider_and_release_notes_expected_sha256": "dc90a938fab56230d4a07d3f8958a1c9075d5450ab1e2ebe5a9d848d9d880bde",
+        "scope": "Retained primary metadata/release-note assertion only; no locally computed package hash, ZIP/PE inspection or source/binary correspondence."
+      },
+      "source_bindings": [
+        {
+          "repository": "SamSteProjects/legend-of-legaia-recomp",
+          "commit": "261a40d12a800a73426367f643d2267e8393db3f",
+          "path": "game.toml",
+          "sha256": "a47bc07b32279b0019ee8c71781fe16b9fbd851e0f18ad1a6ee4c3bc96cbf59b",
+          "local_path": {
+            "retained_file": "tag--game.toml",
+            "sha256": "a47bc07b32279b0019ee8c71781fe16b9fbd851e0f18ad1a6ee4c3bc96cbf59b"
+          },
+          "git_blob": "fd8351024237a5f355e0558cfeebe886c67aedc7",
+          "retained_declared_ref": "v0.1.7-diagnostic-playtest",
+          "primary_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/game.toml"
+        },
+        {
+          "repository": "SamSteProjects/legend-of-legaia-recomp",
+          "commit": "261a40d12a800a73426367f643d2267e8393db3f",
+          "path": "Run LegaiaRecomp.bat",
+          "sha256": "80e3a098bf1a02058d72f7e902c2c285b4edb83646d582640d6ee9e1da5c6e9e",
+          "local_path": {
+            "retained_file": "tag--Run LegaiaRecomp.bat",
+            "sha256": "80e3a098bf1a02058d72f7e902c2c285b4edb83646d582640d6ee9e1da5c6e9e"
+          },
+          "git_blob": "75fb10cbcf205ff902076c4998b01a8f2f5c01d6",
+          "retained_declared_ref": "v0.1.7-diagnostic-playtest",
+          "primary_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/Run LegaiaRecomp.bat"
+        },
+        {
+          "repository": "SamSteProjects/legend-of-legaia-recomp",
+          "commit": "261a40d12a800a73426367f643d2267e8393db3f",
+          "path": "tools/package-playtest.ps1",
+          "sha256": "84c8ef8317d0719c88760f07b8f124980704cbfc45d23b046d0ec5728dfd4a86",
+          "local_path": {
+            "retained_file": "tag--tools__package-playtest.ps1",
+            "sha256": "84c8ef8317d0719c88760f07b8f124980704cbfc45d23b046d0ec5728dfd4a86"
+          },
+          "git_blob": "58a2cde82e3d5ad02b7a785641d6264209f66322",
+          "retained_declared_ref": "v0.1.7-diagnostic-playtest",
+          "primary_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/tools/package-playtest.ps1"
+        },
+        {
+          "repository": "SamSteProjects/legend-of-legaia-recomp",
+          "commit": "261a40d12a800a73426367f643d2267e8393db3f",
+          "path": "RELEASE_NOTES_v0.1.7.md",
+          "sha256": "9f2e064ae6dead8ddec810ff4f42cda1dabdbd17b03e94e97cfe4ed40205f2ed",
+          "local_path": {
+            "retained_file": "tag--RELEASE_NOTES_v0.1.7.md",
+            "sha256": "9f2e064ae6dead8ddec810ff4f42cda1dabdbd17b03e94e97cfe4ed40205f2ed"
+          },
+          "git_blob": "1421c6438b81ada8947887906d275d069f62b756",
+          "retained_declared_ref": "v0.1.7-diagnostic-playtest",
+          "primary_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/RELEASE_NOTES_v0.1.7.md"
+        },
+        {
+          "repository": "SamSteProjects/legend-of-legaia-recomp",
+          "commit": "261a40d12a800a73426367f643d2267e8393db3f",
+          "path": "settings.toml",
+          "sha256": "b22d5d7c8e2c48eb0184cb53d6deb07cd593db8d5215264ff978d5934fb1fb87",
+          "local_path": {
+            "retained_file": "tag--settings.toml",
+            "sha256": "b22d5d7c8e2c48eb0184cb53d6deb07cd593db8d5215264ff978d5934fb1fb87"
+          },
+          "git_blob": "36471172d330b532dad4008d2bdfb2d4f3d980d6",
+          "retained_declared_ref": "v0.1.7-diagnostic-playtest",
+          "primary_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/settings.toml"
+        },
+        {
+          "repository": "SamSteProjects/psxrecomp",
+          "commit": "ce833027d71f3ef4c16096060b769657da01754c",
+          "path": "LICENSE",
+          "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2",
+          "local_path": {
+            "retained_file": "runtime--LICENSE",
+            "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2"
+          },
+          "git_blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+          "retained_declared_ref": "ce833027d71f3ef4c16096060b769657da01754c",
+          "primary_url": "https://github.com/SamSteProjects/psxrecomp/blob/ce833027d71f3ef4c16096060b769657da01754c/LICENSE"
+        },
+        {
+          "repository": "SamSteProjects/psxrecomp",
+          "commit": "ce833027d71f3ef4c16096060b769657da01754c",
+          "path": "runtime/src/main.cpp",
+          "sha256": "53ba7d7ce7d9b4df4c1b2445bf7537cc524bc3fad100dd47315265515b1f202e",
+          "local_path": {
+            "retained_file": "runtime--runtime__src__main.cpp",
+            "sha256": "53ba7d7ce7d9b4df4c1b2445bf7537cc524bc3fad100dd47315265515b1f202e"
+          },
+          "git_blob": "fa4391cd79cd3f2c7ab74571f7d250b70272db2d",
+          "retained_declared_ref": "ce833027d71f3ef4c16096060b769657da01754c",
+          "primary_url": "https://github.com/SamSteProjects/psxrecomp/blob/ce833027d71f3ef4c16096060b769657da01754c/runtime/src/main.cpp"
+        },
+        {
+          "repository": "SamSteProjects/psxrecomp",
+          "commit": "ce833027d71f3ef4c16096060b769657da01754c",
+          "path": "runtime/src/mod_runtime.cpp",
+          "sha256": "bc15675485caa7ece0767521bc099d83670b43611e9d67f0831b6445b04054eb",
+          "local_path": {
+            "retained_file": "runtime--runtime__src__mod_runtime.cpp",
+            "sha256": "bc15675485caa7ece0767521bc099d83670b43611e9d67f0831b6445b04054eb"
+          },
+          "git_blob": "b4d72770a30da11ea62649369bfcf7cedc70b8db",
+          "retained_declared_ref": "ce833027d71f3ef4c16096060b769657da01754c",
+          "primary_url": "https://github.com/SamSteProjects/psxrecomp/blob/ce833027d71f3ef4c16096060b769657da01754c/runtime/src/mod_runtime.cpp"
+        },
+        {
+          "repository": "SamSteProjects/psxrecomp",
+          "commit": "ce833027d71f3ef4c16096060b769657da01754c",
+          "path": "runtime/src/memcard.c",
+          "sha256": "7ac56ef4ad56ac480900e09fb330226df45d8cfc9b75e6d12105621b57d04452",
+          "local_path": {
+            "retained_file": "runtime--runtime__src__memcard.c",
+            "sha256": "7ac56ef4ad56ac480900e09fb330226df45d8cfc9b75e6d12105621b57d04452"
+          },
+          "git_blob": "215f17fcab8032e78850fa8eff1e1110acab4970",
+          "retained_declared_ref": "ce833027d71f3ef4c16096060b769657da01754c",
+          "primary_url": "https://github.com/SamSteProjects/psxrecomp/blob/ce833027d71f3ef4c16096060b769657da01754c/runtime/src/memcard.c"
+        },
+        {
+          "repository": "SamSteProjects/psxrecomp",
+          "commit": "ce833027d71f3ef4c16096060b769657da01754c",
+          "path": "runtime/src/psx_savestate_menu.c",
+          "sha256": "d8703a11fcb5801282f780d473cf1c985c611ee4108345bfd0796b0edb10333d",
+          "local_path": {
+            "retained_file": "runtime--runtime__src__psx_savestate_menu.c",
+            "sha256": "d8703a11fcb5801282f780d473cf1c985c611ee4108345bfd0796b0edb10333d"
+          },
+          "git_blob": "1004b9440524dd28ddbd836dc41cc3d6ec0f0613",
+          "retained_declared_ref": "ce833027d71f3ef4c16096060b769657da01754c",
+          "primary_url": "https://github.com/SamSteProjects/psxrecomp/blob/ce833027d71f3ef4c16096060b769657da01754c/runtime/src/psx_savestate_menu.c"
+        },
+        {
+          "repository": "SamSteProjects/legend-of-legaia-recomp",
+          "commit": "261a40d12a800a73426367f643d2267e8393db3f",
+          "tag": "v0.1.7-diagnostic-playtest",
+          "path": "README.md",
+          "bytes": 5046,
+          "sha256": "463be89b6db013bc88ba7c340040ce7d12900a31b19944340a74c82c91112dde",
+          "local_path": {
+            "retained_file": "tag--README.md",
+            "sha256": "463be89b6db013bc88ba7c340040ce7d12900a31b19944340a74c82c91112dde"
+          },
+          "retained_api_artifact": {
+            "retained_file": "readme.api.json",
+            "sha256": "d9eea02983be7549d01bd515556748c47a0325e0495d3b31d8dc7c27594f43f3"
+          },
+          "retained_raw_artifact": {
+            "retained_file": "README.current.md",
+            "sha256": "463be89b6db013bc88ba7c340040ce7d12900a31b19944340a74c82c91112dde"
+          },
+          "applicability": "Exact existing retained blob equals the blob in complete exact-tag tree; no new upstream read.",
+          "git_blob": "8ae5fcc5e36b91ba36968a744cb6d15f3989b7b8",
+          "retained_declared_ref": "261a40d12a800a73426367f643d2267e8393db3f",
+          "primary_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 352,
+          "file": {
+            "retained_file": "runtime-tree.json",
+            "sha256": "00b25ca2933ec4a9852252e590a5f28cbda5867fd91cedb407e779316d77c1ec"
+          },
+          "sha256": "00b25ca2933ec4a9852252e590a5f28cbda5867fd91cedb407e779316d77c1ec",
+          "response_sha": "ce833027d71f3ef4c16096060b769657da01754c",
+          "reconstructed_root_tree": "33cd78b5568e57986b71238df537bd56a3c206e5",
+          "entries": 1786,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 352,
+          "file": {
+            "retained_file": "tag-tree.json",
+            "sha256": "72a94e1ba70581fe9936b8efff119e4632a74600726da0e9797574c4725a0416"
+          },
+          "sha256": "72a94e1ba70581fe9936b8efff119e4632a74600726da0e9797574c4725a0416",
+          "response_sha": "261a40d12a800a73426367f643d2267e8393db3f",
+          "reconstructed_root_tree": "1f2c65ff1b06af8b902766f9a122b09b11fe6ce4",
+          "entries": 20,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited.",
+        "Direct/noargs entry is supported by exact-tag README binding; wrapper argv/CD-XA environment is separate, no equivalence inferred.",
+        "Retained Oct14 owner-approved1.0 diagnostic/stability/reproducible runtime/write acceptance remains operative; source guide is PARTIAL OPEN."
+      ],
+      "exact_closure_eligibility": "PARTIAL OPEN; preserve whole owner fields and existing1.0/diagnostic/stability criteria. Useful source-only guide does not settle stronger actual acceptance.",
+      "remaining_operation_hold": "Retained diagnostic/stability criterion; canonical owner staysOPEN.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/legend-of-legaia-legend-of-legaia-recomp.json",
+      "preimage_sha256": "0b5d9d0065fd25ec3250197e25dc1971b8e536d09466c4e6146e43c0db4e2590",
+      "prepared_candidate_sha256": "7bef1eca53b91fd7da623c20374658b55880cc8cb4a5aaf2862f0a38e018fe74",
+      "formatted_postimage_sha256": "7bef1eca53b91fd7da623c20374658b55880cc8cb4a5aaf2862f0a38e018fe74",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "c438684659125f0968fe37845250f8368a91042345d2c2cde781395227cf5db6",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "1.0",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 356,
+      "id": "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+      "title": "X-Men: Mutant Academy 2 / xmen-mutant-academy-2-pc",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "route": {
+        "exe": "XMenMA2.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": ["<absolute supported USA CUE or CHD>"]
+      },
+      "own_originals_and_upstream_preparation": "Own USA SLUS01382 CUE/BIN all13tracks or CHD; no BIOS image documented. Only alreadycompletedindependentlypermittednativecopy. Upstream preparation remains external; no Portcove acquisition/extract/build/source authentication.",
+      "lifetime_and_successors": "XMenMA2.exe; CWD containing executable; argv one literal absolute supported CUE or CHD path. Native Windowsx64 stated by exact upstreamREADME; Program.Main Runtime.Run/Entry.Run executes in-process and shuts down before returning.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "Program anchors CWD to actual Environment.ProcessPath executableparent; settings.json seeded only when CdPath absent. Preservewholecreatingcopy, originals, memorycards/othersaves, packs/mods/logs/dumps/screenshots/backups/customroots. Exact runtime save filenames/crossversion compatibility Unknown.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a copy and components you are permitted to use. This conditional existing-copy guide does not clear the selected fresh-acquisition hold or certify a package, full original image, gameplay, real-save compatibility, installed-client, managed or protected acceptance. Preserve unknown files and all custom roots."
+        ],
+        "fresh_acquisition_hold": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative.",
+        "component_terms": null
+      },
+      "package_integrity_evidence": {
+        "scope": "R31 source/metadata only. Retained Sept13 package byte inspection/local+provider SHA belongs only to its dated prior qualification; not refreshed or relabeled current.",
+        "retained_scope": "Selected v1.1 fccfbd2f7a6db28900402b26a911187e5e349b95. RetainedSept13package195403142B/localSHA547ac5204095dd546234d2e4fc4b9ce29c3fde41ec15dabaa3e5f6e30313747f/provider match remains dated; no package refetch/reinspection. Five ownsourceleaves Gitblobverifiedagainst retainednontruncatedtree; no currentpackagecertificate."
+      },
+      "source_bindings": [
+        {
+          "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+          "commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+          "path": "README.md",
+          "git_blob": "00f2f02dc14cf2067f649684cd46427a4f561cbb",
+          "sha256": "53b8c73a24e26e78a1493b8bcafa3df0d5e371774cb72e63718a4b42500a6d4e",
+          "local_path": {
+            "retained_file": "README.md",
+            "sha256": "53b8c73a24e26e78a1493b8bcafa3df0d5e371774cb72e63718a4b42500a6d4e"
+          },
+          "primary_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/blob/fccfbd2f7a6db28900402b26a911187e5e349b95/README.md"
+        },
+        {
+          "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+          "commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+          "path": "port/README.md",
+          "git_blob": "c025795cb075c9aed9e67cf5368bad40461e360c",
+          "sha256": "157ffc59ab67fd56c7ca4268dfaad2502f0bfa8af33acc30e1dbc611b01dda80",
+          "local_path": {
+            "retained_file": "README.md",
+            "sha256": "157ffc59ab67fd56c7ca4268dfaad2502f0bfa8af33acc30e1dbc611b01dda80"
+          },
+          "primary_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/blob/fccfbd2f7a6db28900402b26a911187e5e349b95/port/README.md"
+        },
+        {
+          "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+          "commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+          "path": "port/Program.cs",
+          "git_blob": "f59f7fac74a317a506d187ff7ba27552eaf11947",
+          "sha256": "675e9f6053119b16ff05cb6da190da1a08cf3d96ab1bb4f1c72c1218e072f21c",
+          "local_path": {
+            "retained_file": "Program.cs",
+            "sha256": "675e9f6053119b16ff05cb6da190da1a08cf3d96ab1bb4f1c72c1218e072f21c"
+          },
+          "primary_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/blob/fccfbd2f7a6db28900402b26a911187e5e349b95/port/Program.cs"
+        },
+        {
+          "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+          "commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+          "path": "port/tools/package.sh",
+          "git_blob": "311cb9bd56e299e0ce4c6df8a151f9f3adb4e14e",
+          "sha256": "eb1b19f31ee25f1ec56a09b6685088390dc4ddb637658dd06164feaa5ff6ad57",
+          "local_path": {
+            "retained_file": "package.sh",
+            "sha256": "eb1b19f31ee25f1ec56a09b6685088390dc4ddb637658dd06164feaa5ff6ad57"
+          },
+          "primary_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/blob/fccfbd2f7a6db28900402b26a911187e5e349b95/port/tools/package.sh"
+        },
+        {
+          "repository": "GTTeancum/xmen-mutant-academy-2-pc",
+          "commit": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+          "path": "port/XMenMA2.csproj",
+          "git_blob": "a44be5e12aeea28cd3d4fb3816ab626026386047",
+          "sha256": "6671fda3f5c0281bcfc4a301a3b792bd3082870349c15288f3c2baf6cc600b8d",
+          "local_path": {
+            "retained_file": "XMenMA2.csproj",
+            "sha256": "6671fda3f5c0281bcfc4a301a3b792bd3082870349c15288f3c2baf6cc600b8d"
+          },
+          "primary_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc/blob/fccfbd2f7a6db28900402b26a911187e5e349b95/port/XMenMA2.csproj"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 356,
+          "file": {
+            "retained_file": "xmen-tree.json",
+            "sha256": "bdb0dcdcb6c09ff5e0c0dda92ff4613058e907c16f0388d0944482dfb4950f10"
+          },
+          "sha256": "bdb0dcdcb6c09ff5e0c0dda92ff4613058e907c16f0388d0944482dfb4950f10",
+          "response_sha": "fccfbd2f7a6db28900402b26a911187e5e349b95",
+          "reconstructed_root_tree": "8f55836d1ab57d183c52b03ba84e842c65f0b980",
+          "entries": 134,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/x-men-mutant-academy-2-xmen-mutant-academy-2-pc.json",
+      "preimage_sha256": "7eb5fe7dc5c04fb7a17e58dee1829103a3477b678769fc3c41a75610ef4582a3",
+      "prepared_candidate_sha256": "32bd0c6c61510d2c0147d53482c53d5ad20c755ee20e346c9f21f5b65cb1509e",
+      "formatted_postimage_sha256": "32bd0c6c61510d2c0147d53482c53d5ad20c755ee20e346c9f21f5b65cb1509e",
+      "fresh_acquisition_held": true,
+      "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative.",
+      "current_issue_context_sha256": "1a712cfd5b23d91f391168fb1998f9180dc60189b8472f9fcdcd6a984322507e",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Release integrity qualified",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2638,
+      "id": "burnout-3-takedown-ps2-burnout3-pc",
+      "title": "Burnout 3: Takedown (PS2) (Burnout3 PC)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "burnout3.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "OwnPS2Burnout3 NTSC-U SLUS21050ISO; upstreamdiscchoice beforeattach, runtimechecksbootexecutable notcryptofullimage. No region/enginepermission inheritance.",
+      "lifetime_and_successors": "burnout3.exe / executableparent / argv[] supportednormalentry. AVX2inprocess ps2host::Main; supportedSSE4.1fallback CreateProcessW+WaitForSingleObject+GetExitCodeProcess in CPUentry; no privatebypass.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "pc_settings.ini remembersdisc;memcard/;texturepack/;custom_songs/;burnout3.log;captures/;originalISO/backups/mods/caches/unknowns/effectivecustomroots+creatingruntime.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve originals, the whole creating runtime, saves, settings, mods, caches, backups, unknown files and every custom root. Static source/release metadata review is not a package-byte certificate, native gameplay, real-save, installed-client or Supported acceptance."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": "ProjectMIT expresslyexcludesEAcode/assets; engineMIT and separatecomponentnotices preserved. No thirdpartytexture/musicgrant inferred."
+      },
+      "package_integrity_evidence": {
+        "scope": "Source and retained release-provider metadata only. v0.8.0-alpha WindowsZIP46089696B providerSHA9a0c8d72040755b8bed19b78505ca000dbc88037ab6d08ecca2f19bdaf5dca68 metadataonly; source tag562b55342d34a7dfa4ca2ce89e942d7cec43bd4b binds engine f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2. Currentengine606a differsbut5consequentialleaves exactlysametagblobs."
+      },
+      "source_bindings": [
+        {
+          "git_blob": "3785ca32e30ad135e4476bd81401e63cdbcb4fb0",
+          "sha256": "9aac05f4cf66d737f3557bd2f83e608e23d5fc98530242d4455b4ccb656c518d",
+          "bytes": 20438,
+          "local_path": {
+            "retained_file": "README.md",
+            "sha256": "9aac05f4cf66d737f3557bd2f83e608e23d5fc98530242d4455b4ccb656c518d"
+          },
+          "retained_receipt": {
+            "retained_file": "README.blob.json",
+            "sha256": "a6279c1ee57779461571e203d0c87a8f40a2dde1f8577ec72d8fa2c8bad97bbb"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+              "path": "README.md",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/README.md"
+            },
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "562b55342d34a7dfa4ca2ce89e942d7cec43bd4b",
+              "path": "README.md",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/562b55342d34a7dfa4ca2ce89e942d7cec43bd4b/README.md"
+            }
+          ],
+          "repository": "danielgomesvieira2000/burnout3-pc",
+          "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+          "path": "README.md",
+          "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/README.md"
+        },
+        {
+          "git_blob": "e8b85529338f3d05a869489b03d3dc514118a522",
+          "sha256": "801f38c399f0c618882484dc0f0597598aa0f1a32cb9ebb093630b6f943d07a9",
+          "bytes": 1282,
+          "local_path": {
+            "retained_file": "LICENSE",
+            "sha256": "801f38c399f0c618882484dc0f0597598aa0f1a32cb9ebb093630b6f943d07a9"
+          },
+          "retained_receipt": {
+            "retained_file": "LICENSE.blob.json",
+            "sha256": "fa00f4adb9b8c88aa57c16327ab23b4a4c33e313c545c4adef8ee6e67a6e2312"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/LICENSE"
+            },
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "562b55342d34a7dfa4ca2ce89e942d7cec43bd4b",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/562b55342d34a7dfa4ca2ce89e942d7cec43bd4b/LICENSE"
+            }
+          ],
+          "repository": "danielgomesvieira2000/burnout3-pc",
+          "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+          "path": "LICENSE",
+          "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/LICENSE"
+        },
+        {
+          "git_blob": "ab429f74483d748ac7e86a3859554391383517f6",
+          "sha256": "5d4ef8847aaedf2982efdae90c9dca43b8c887c528c6ea2bcb6f90a8a8169461",
+          "bytes": 104,
+          "local_path": {
+            "retained_file": ".gitmodules",
+            "sha256": "5d4ef8847aaedf2982efdae90c9dca43b8c887c528c6ea2bcb6f90a8a8169461"
+          },
+          "retained_receipt": {
+            "retained_file": ".gitmodules.blob.json",
+            "sha256": "b67abe53812850350b9e33c085d7717f38abb0f18a8fd80312054fa310abf204"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+              "path": ".gitmodules",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/.gitmodules"
+            },
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "562b55342d34a7dfa4ca2ce89e942d7cec43bd4b",
+              "path": ".gitmodules",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/562b55342d34a7dfa4ca2ce89e942d7cec43bd4b/.gitmodules"
+            }
+          ],
+          "repository": "danielgomesvieira2000/burnout3-pc",
+          "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+          "path": ".gitmodules",
+          "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/.gitmodules"
+        },
+        {
+          "git_blob": "629b8d0cdeedf5dc68e76b4beb8cd873ba6f2fb4",
+          "sha256": "ee88c01e7b87ecb3541d7c248b54bfa0df845c62540210830cfddaac2c999653",
+          "bytes": 1268,
+          "local_path": {
+            "retained_file": "LICENSE",
+            "sha256": "ee88c01e7b87ecb3541d7c248b54bfa0df845c62540210830cfddaac2c999653"
+          },
+          "retained_receipt": {
+            "retained_file": "LICENSE.blob.json",
+            "sha256": "9da41ab3477941bddea55c52df8a568c6a126c74f2a133efcae3d3abafcca908"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/LICENSE"
+            },
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "606a451c26994878c14e78605ac9bc164ca70688",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/606a451c26994878c14e78605ac9bc164ca70688/LICENSE"
+            }
+          ],
+          "repository": "danielgomesvieira2000/ps2-port-engine",
+          "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+          "path": "LICENSE",
+          "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/LICENSE"
+        },
+        {
+          "git_blob": "d8c0e60f5531b6eb8afb6874cf794f7fb7b91907",
+          "sha256": "dfba27a649fa2c63ec8aac9c35f840de2e6e394936f0711421912e785b3d35fe",
+          "bytes": 21350,
+          "local_path": {
+            "retained_file": "CMakeLists.txt",
+            "sha256": "dfba27a649fa2c63ec8aac9c35f840de2e6e394936f0711421912e785b3d35fe"
+          },
+          "retained_receipt": {
+            "retained_file": "CMakeLists.txt.blob.json",
+            "sha256": "e3c7fb9290553e991934635149dd27fae228d30a48e6398d4bf89b2189e99391"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+              "path": "host/CMakeLists.txt",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/CMakeLists.txt"
+            },
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "606a451c26994878c14e78605ac9bc164ca70688",
+              "path": "host/CMakeLists.txt",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/606a451c26994878c14e78605ac9bc164ca70688/host/CMakeLists.txt"
+            }
+          ],
+          "repository": "danielgomesvieira2000/ps2-port-engine",
+          "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+          "path": "host/CMakeLists.txt",
+          "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/CMakeLists.txt"
+        },
+        {
+          "git_blob": "de6ca1af710c10010950a69c2dfee0471a20575a",
+          "sha256": "e5e76dfac4527ebc935b160525924568c6bf4e7c8e01452daa1441289e9b03ad",
+          "bytes": 18461,
+          "local_path": {
+            "retained_file": "disc.cpp",
+            "sha256": "e5e76dfac4527ebc935b160525924568c6bf4e7c8e01452daa1441289e9b03ad"
+          },
+          "retained_receipt": {
+            "retained_file": "disc.cpp.blob.json",
+            "sha256": "4588c71748c100064466ea3870d61d0855bca93b9fdcf33f9b6825a7499a1170"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+              "path": "host/src/disc.cpp",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/src/disc.cpp"
+            },
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "606a451c26994878c14e78605ac9bc164ca70688",
+              "path": "host/src/disc.cpp",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/606a451c26994878c14e78605ac9bc164ca70688/host/src/disc.cpp"
+            }
+          ],
+          "repository": "danielgomesvieira2000/ps2-port-engine",
+          "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+          "path": "host/src/disc.cpp",
+          "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/src/disc.cpp"
+        },
+        {
+          "git_blob": "e1620aa58aac99462b9fab06e0d6cadbaa9f2132",
+          "sha256": "a7effb82e019942ac9493e2b94b47003be8f13664bf58ca1c857a493c51ab890",
+          "bytes": 4610,
+          "local_path": {
+            "retained_file": "cpu_check.cpp",
+            "sha256": "a7effb82e019942ac9493e2b94b47003be8f13664bf58ca1c857a493c51ab890"
+          },
+          "retained_receipt": {
+            "retained_file": "cpu_check.cpp.blob.json",
+            "sha256": "710076cf281867c71f80313e82c103e1fac16df82901029f1b93380fb4b76d02"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+              "path": "host/src/cpu_check.cpp",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/src/cpu_check.cpp"
+            },
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "606a451c26994878c14e78605ac9bc164ca70688",
+              "path": "host/src/cpu_check.cpp",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/606a451c26994878c14e78605ac9bc164ca70688/host/src/cpu_check.cpp"
+            }
+          ],
+          "repository": "danielgomesvieira2000/ps2-port-engine",
+          "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+          "path": "host/src/cpu_check.cpp",
+          "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/src/cpu_check.cpp"
+        },
+        {
+          "git_blob": "37f13f97c487d15b0cdf7a00678b2cb4cbc34f93",
+          "sha256": "ddb0c121fd0791f70557a93aa2fd19937799d88d8c1a1101823d9264d2121cff",
+          "bytes": 18521,
+          "local_path": {
+            "retained_file": "main.cpp",
+            "sha256": "ddb0c121fd0791f70557a93aa2fd19937799d88d8c1a1101823d9264d2121cff"
+          },
+          "retained_receipt": {
+            "retained_file": "main.cpp.blob.json",
+            "sha256": "bcbc0579e801876dcfa7224aaf8f2d88fc4c6a0041292f6548981971bb301be3"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+              "path": "host/src/main.cpp",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/src/main.cpp"
+            },
+            {
+              "repository": "danielgomesvieira2000/ps2-port-engine",
+              "commit": "606a451c26994878c14e78605ac9bc164ca70688",
+              "path": "host/src/main.cpp",
+              "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/606a451c26994878c14e78605ac9bc164ca70688/host/src/main.cpp"
+            }
+          ],
+          "repository": "danielgomesvieira2000/ps2-port-engine",
+          "commit": "f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2",
+          "path": "host/src/main.cpp",
+          "primary_url": "https://github.com/danielgomesvieira2000/ps2-port-engine/blob/f1b01200e1bd8f9c80a6efb55dfbdbb116fe8fc2/host/src/main.cpp"
+        },
+        {
+          "git_blob": "1c93c8c3e4fa0be1aa03a97bf6ae5c12ab53486a",
+          "sha256": "aebda9020f6f38f7a32170128c3a2e8b6c97fbaa5120dfe5d3e4d492e49cc038",
+          "bytes": 939,
+          "local_path": {
+            "retained_file": "game.json",
+            "sha256": "aebda9020f6f38f7a32170128c3a2e8b6c97fbaa5120dfe5d3e4d492e49cc038"
+          },
+          "retained_receipt": {
+            "retained_file": "game.json.blob.json",
+            "sha256": "302987fe67701e552aa2ea9e33a0a627adf42abe42ba04d5ddd0e8c441de9e3f"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+              "path": "games/burnout3/game.json",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/games/burnout3/game.json"
+            },
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "562b55342d34a7dfa4ca2ce89e942d7cec43bd4b",
+              "path": "games/burnout3/game.json",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/562b55342d34a7dfa4ca2ce89e942d7cec43bd4b/games/burnout3/game.json"
+            }
+          ],
+          "repository": "danielgomesvieira2000/burnout3-pc",
+          "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+          "path": "games/burnout3/game.json",
+          "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/games/burnout3/game.json"
+        },
+        {
+          "git_blob": "f2da8efbbd0a4530e56154d291801245bca6456d",
+          "sha256": "384efe8091d4590e3364c748a75dd390783568afd1959e1044601ded7c0bd05e",
+          "bytes": 4865,
+          "local_path": {
+            "retained_file": "CMakeLists.txt",
+            "sha256": "384efe8091d4590e3364c748a75dd390783568afd1959e1044601ded7c0bd05e"
+          },
+          "retained_receipt": {
+            "retained_file": "CMakeLists.txt.blob.json",
+            "sha256": "8184d6753059a7ae403ab5521e59f534d4a752d8ad1fe03aae425e3ebe0d497f"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+              "path": "games/burnout3/port/CMakeLists.txt",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/games/burnout3/port/CMakeLists.txt"
+            },
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "562b55342d34a7dfa4ca2ce89e942d7cec43bd4b",
+              "path": "games/burnout3/port/CMakeLists.txt",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/562b55342d34a7dfa4ca2ce89e942d7cec43bd4b/games/burnout3/port/CMakeLists.txt"
+            }
+          ],
+          "repository": "danielgomesvieira2000/burnout3-pc",
+          "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+          "path": "games/burnout3/port/CMakeLists.txt",
+          "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/games/burnout3/port/CMakeLists.txt"
+        },
+        {
+          "git_blob": "f8388ec9701e43791573dad7a002f7c4a0d1735d",
+          "sha256": "b7c57ba8b49ebbe0778c7b52ad2d7017bab3decaa323b5711d5a8010fa5ad706",
+          "bytes": 17902,
+          "local_path": {
+            "retained_file": "README.txt",
+            "sha256": "b7c57ba8b49ebbe0778c7b52ad2d7017bab3decaa323b5711d5a8010fa5ad706"
+          },
+          "retained_receipt": {
+            "retained_file": "README.txt.blob.json",
+            "sha256": "1903f1488415db3e31ad6db219c54edccf81c0b2cca53832fa555480a973e891"
+          },
+          "source_locations": [
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+              "path": "games/burnout3/port/release/README.txt",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/games/burnout3/port/release/README.txt"
+            },
+            {
+              "repository": "danielgomesvieira2000/burnout3-pc",
+              "commit": "562b55342d34a7dfa4ca2ce89e942d7cec43bd4b",
+              "path": "games/burnout3/port/release/README.txt",
+              "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/562b55342d34a7dfa4ca2ce89e942d7cec43bd4b/games/burnout3/port/release/README.txt"
+            }
+          ],
+          "repository": "danielgomesvieira2000/burnout3-pc",
+          "commit": "69e4cfadb10e8e71fb451aad4222fcf3bc95e585",
+          "path": "games/burnout3/port/release/README.txt",
+          "primary_url": "https://github.com/danielgomesvieira2000/burnout3-pc/blob/69e4cfadb10e8e71fb451aad4222fcf3bc95e585/games/burnout3/port/release/README.txt"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2638,
+          "file": {
+            "retained_file": "tag-engine-tree.json",
+            "sha256": "0bfff7d9131ae0b0ce791a89700091d5265383f68af4a7e10d9b3f24e1dda96d"
+          },
+          "sha256": "0bfff7d9131ae0b0ce791a89700091d5265383f68af4a7e10d9b3f24e1dda96d",
+          "response_sha": "eb0fd3ec16fd8b59c1dbeb3236e9a9815e28d1b5",
+          "reconstructed_root_tree": "eb0fd3ec16fd8b59c1dbeb3236e9a9815e28d1b5",
+          "entries": 327,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2638,
+          "file": {
+            "retained_file": "current-tree.json",
+            "sha256": "e84a50b8fbd6eab73b8ef1e3be25b8e7418a359139795cc418ad0d955130bbd6"
+          },
+          "sha256": "e84a50b8fbd6eab73b8ef1e3be25b8e7418a359139795cc418ad0d955130bbd6",
+          "response_sha": "4f68ed9e831df4cbe87cb5efca1d5f2c44474131",
+          "reconstructed_root_tree": "4f68ed9e831df4cbe87cb5efca1d5f2c44474131",
+          "entries": 121,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2638,
+          "file": {
+            "retained_file": "tag-tree.json",
+            "sha256": "a2311004e696ca1443448d3075882ae00c47c9e4f5d94f5d5bd82669bdf8c7db"
+          },
+          "sha256": "a2311004e696ca1443448d3075882ae00c47c9e4f5d94f5d5bd82669bdf8c7db",
+          "response_sha": "ddc1e3b27dbe5d3b1c58ab184cfe3bf41c5a5e7c",
+          "reconstructed_root_tree": "ddc1e3b27dbe5d3b1c58ab184cfe3bf41c5a5e7c",
+          "entries": 121,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2638,
+          "file": {
+            "retained_file": "engine-tree.json",
+            "sha256": "c10659a28a65709c38fdbd537f878b1868b3491e7fdaae3c8e984e5bf3097c31"
+          },
+          "sha256": "c10659a28a65709c38fdbd537f878b1868b3491e7fdaae3c8e984e5bf3097c31",
+          "response_sha": "1329152140e8c73f26d2d21af0bfa23bffb8f607",
+          "reconstructed_root_tree": "1329152140e8c73f26d2d21af0bfa23bffb8f607",
+          "entries": 327,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/burnout-3-takedown-ps2-burnout3-pc.json",
+      "preimage_sha256": "ac787b85513f85609806beca86e43e8ddf5ea54d4e508cd048b2ed6661c2c838",
+      "prepared_candidate_sha256": "c1635363984eef449b764efc4ce9ada590ce414896657f1c304efb604f1a60ba",
+      "formatted_postimage_sha256": "c1635363984eef449b764efc4ce9ada590ce414896657f1c304efb604f1a60ba",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "2925ea459b335b8b6a731c55ab12a734baf8a4343009c902c9ade732840d44c1",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2105,
+      "id": "burnout-3-takedawn-xbox",
+      "title": "Burnout 3: Takedown / Takedawn (original Xbox)",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "Takedawn.exe",
+        "cwd": "actual installed-program directory (normally %LOCALAPPDATA%/Programs/Takedawn)",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "Own NTSC-UoriginalXboxBurnout3 retail; XISO/full discimage/extractedfolder; upstream GUI716-file manifest import completed outsidePortcove. Game rootLocalAppData/Takedawn/Game or chosenroot+data-folder.txt.",
+      "lifetime_and_successors": "Takedawn.exe / actual installed-program directory (defaultLocalAppData/Programs/Takedawn) / argv[]; normal documentednative game entry. Source invokes host window/main inprocess. Setup and optional Restart game external to attachment; no successor-supervision claim.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "AppData/TakedawnUDATA4541005b/settings/profiles/backups/history plus game root, data-folder.txt, shader/texture caches, logs, mods/custommusic, originals/previousruntime/allcustoms includingRECOMP_SAVE_DIR. EarlierBurnout3profilemigration retained.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve the whole creating program, original disc data, saves, settings, mods, caches, backups, earlier migrated profiles and all custom roots. Upstream setup, restarts and replacement remain external operations. No installer, player, game or real-save observation was performed for this guide."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": "OwnprojectMIT plus namedseparate LGPL/GPL/componentlicenses and sourceinformation; no originalgamegrant inferred. Independentlypermittedcompletedcopy only."
+      },
+      "package_integrity_evidence": {
+        "scope": "Source and retained release-provider metadata only. v0.2.1Windows setup18549137B providerSHA85ab4e81ece174f29656f9e39bf68bc39cd7e1f0018870d89a49bc596d06da7e; no installerbytes acquired. BUILDINFO4004B providerSHA d83c98a02b60293f7a91db32a5fd32902761fe9078d6011706264f5fe7b26469 verified. Tag e493... and current e75a... are source observations, not certified packagebytes."
+      },
+      "source_bindings": [
+        {
+          "git_blob": "d73307f5970758711a9ad117992e82939be7e050",
+          "sha256": "d1b7ef70f3d2e3c35f616e434ed7cff8afcccfb843dfbfd823c1b0d50bc1ded6",
+          "bytes": 68627,
+          "local_path": {
+            "retained_file": "README.md",
+            "sha256": "d1b7ef70f3d2e3c35f616e434ed7cff8afcccfb843dfbfd823c1b0d50bc1ded6"
+          },
+          "retained_receipt": {
+            "retained_file": "README.blob.json",
+            "sha256": "94a5dc8fa89620d49c1afcaa805521fde03308de622e70996447eab9f6417317"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "README.md",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/README.md"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "README.md",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/README.md"
+        },
+        {
+          "git_blob": "1a15e1a613a5c945d524fcaccf0cf48ab3f36718",
+          "sha256": "0de8327ee50d7638222c6590a40aed91f2d2565557a72f134061b65fe918da99",
+          "bytes": 1095,
+          "local_path": {
+            "retained_file": "LICENSE",
+            "sha256": "0de8327ee50d7638222c6590a40aed91f2d2565557a72f134061b65fe918da99"
+          },
+          "retained_receipt": {
+            "retained_file": "LICENSE.blob.json",
+            "sha256": "e612e54835d4ccab824476cf16382bcc94971688674fc9671ff5efefa70e19a8"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/LICENSE"
+            },
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/LICENSE"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "LICENSE",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/LICENSE"
+        },
+        {
+          "git_blob": "7e9124184c7f47b9d3944162d962a4d64121ab78",
+          "sha256": "6d9dedd950c189a55bd227e0365c97e6b16ffd3a79c74f506ecedf2d86763dd5",
+          "bytes": 15810,
+          "local_path": {
+            "retained_file": "THIRD_PARTY_NOTICES.md",
+            "sha256": "6d9dedd950c189a55bd227e0365c97e6b16ffd3a79c74f506ecedf2d86763dd5"
+          },
+          "retained_receipt": {
+            "retained_file": "THIRD_PARTY_NOTICES.md.blob.json",
+            "sha256": "9824032b37f782772371f499e90d52c4eee92057697720d996432f22c934d4a9"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "THIRD_PARTY_NOTICES.md",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/THIRD_PARTY_NOTICES.md"
+            },
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "THIRD_PARTY_NOTICES.md",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/THIRD_PARTY_NOTICES.md"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "THIRD_PARTY_NOTICES.md",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "git_blob": "0ee580229d07a6c0fb8d121bfa59e5023418e4c4",
+          "sha256": "02b7d736cdd51e43b6e5b826fb78d0d98d682767bc143e5a38a2f03461e21fda",
+          "bytes": 66310,
+          "local_path": {
+            "retained_file": "README.md",
+            "sha256": "02b7d736cdd51e43b6e5b826fb78d0d98d682767bc143e5a38a2f03461e21fda"
+          },
+          "retained_receipt": {
+            "retained_file": "README.md.blob.json",
+            "sha256": "00b628c8b14a371f580a35ad15b1ccd26a9f8b4ce0b98d601e6f57502fbd59ba"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "README.md",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/README.md"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+          "path": "README.md",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/README.md"
+        },
+        {
+          "git_blob": "1a15e1a613a5c945d524fcaccf0cf48ab3f36718",
+          "sha256": "0de8327ee50d7638222c6590a40aed91f2d2565557a72f134061b65fe918da99",
+          "bytes": 1095,
+          "local_path": {
+            "retained_file": "LICENSE",
+            "sha256": "0de8327ee50d7638222c6590a40aed91f2d2565557a72f134061b65fe918da99"
+          },
+          "retained_receipt": {
+            "retained_file": "LICENSE.blob.json",
+            "sha256": "e612e54835d4ccab824476cf16382bcc94971688674fc9671ff5efefa70e19a8"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/LICENSE"
+            },
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "LICENSE",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/LICENSE"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "LICENSE",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/LICENSE"
+        },
+        {
+          "git_blob": "233d73c025cedba63a28aad853a092f84197ade0",
+          "sha256": "2b6eb2f1012c346b033491a47f42f026085afba422db84f53309460b631489ad",
+          "bytes": 6290,
+          "local_path": {
+            "retained_file": "CMakeLists.txt",
+            "sha256": "2b6eb2f1012c346b033491a47f42f026085afba422db84f53309460b631489ad"
+          },
+          "retained_receipt": {
+            "retained_file": "CMakeLists.txt.blob.json",
+            "sha256": "16e31e6e1769d8e92de4d0e035cfe8789d038caa6da95f082d182ebe60041a74"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "CMakeLists.txt",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/CMakeLists.txt"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "CMakeLists.txt",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/CMakeLists.txt"
+        },
+        {
+          "git_blob": "7e9124184c7f47b9d3944162d962a4d64121ab78",
+          "sha256": "6d9dedd950c189a55bd227e0365c97e6b16ffd3a79c74f506ecedf2d86763dd5",
+          "bytes": 15810,
+          "local_path": {
+            "retained_file": "THIRD_PARTY_NOTICES.md",
+            "sha256": "6d9dedd950c189a55bd227e0365c97e6b16ffd3a79c74f506ecedf2d86763dd5"
+          },
+          "retained_receipt": {
+            "retained_file": "THIRD_PARTY_NOTICES.md.blob.json",
+            "sha256": "9824032b37f782772371f499e90d52c4eee92057697720d996432f22c934d4a9"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "THIRD_PARTY_NOTICES.md",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/THIRD_PARTY_NOTICES.md"
+            },
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "THIRD_PARTY_NOTICES.md",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/THIRD_PARTY_NOTICES.md"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "THIRD_PARTY_NOTICES.md",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "git_blob": "9f40cdea22b904ab2a90aff74f0e6e38313fc414",
+          "sha256": "290b9e751f8ec0740d15970ba1726cf6493fff71d6a6abb0eba570218f463c2a",
+          "bytes": 3263,
+          "local_path": {
+            "retained_file": "windows-setup.iss",
+            "sha256": "290b9e751f8ec0740d15970ba1726cf6493fff71d6a6abb0eba570218f463c2a"
+          },
+          "retained_receipt": {
+            "retained_file": "windows-setup.iss.blob.json",
+            "sha256": "96e876fef4c52fe9cca06587b20daf2dda2c79d6942b05f9a56e242533fe3d71"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "tools/install/gui/packaging/windows-setup.iss",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/tools/install/gui/packaging/windows-setup.iss"
+            },
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "tools/install/gui/packaging/windows-setup.iss",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/tools/install/gui/packaging/windows-setup.iss"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "tools/install/gui/packaging/windows-setup.iss",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/tools/install/gui/packaging/windows-setup.iss"
+        },
+        {
+          "git_blob": "8ad1f5c262db93331ae08484cd351aeb6c2aa7ba",
+          "sha256": "a133ea8f40fbb1155fd0c62f71acb671c19007f3ef2f9f4abe4cbd64994b2a40",
+          "bytes": 1804,
+          "local_path": {
+            "retained_file": "README.txt",
+            "sha256": "a133ea8f40fbb1155fd0c62f71acb671c19007f3ef2f9f4abe4cbd64994b2a40"
+          },
+          "retained_receipt": {
+            "retained_file": "README.txt.blob.json",
+            "sha256": "90ba5e8711618c53dd1ebaa2e59fe7ef94d5d53301d2455373f4bb7b055677ce"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "tools/release/windows/README.txt",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/tools/release/windows/README.txt"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "tools/release/windows/README.txt",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/tools/release/windows/README.txt"
+        },
+        {
+          "git_blob": "191c801e943a40ffb4bf7dbab88db50b9c2541ef",
+          "sha256": "bb86a946448ec50fe37c63bc917bb3509ab1b17c9ad3e6f5f77831e0a32d8471",
+          "bytes": 45345,
+          "local_path": {
+            "retained_file": "install.c",
+            "sha256": "bb86a946448ec50fe37c63bc917bb3509ab1b17c9ad3e6f5f77831e0a32d8471"
+          },
+          "retained_receipt": {
+            "retained_file": "install.c.blob.json",
+            "sha256": "04cde440a61a56a38556939fe3131bb1dce7676c2b00b5409fb1f226c3c4bff6"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "src/game/install.c",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/src/game/install.c"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "src/game/install.c",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/src/game/install.c"
+        },
+        {
+          "git_blob": "9b29c24f75d4eed45bb0c2eb35f177010ba71491",
+          "sha256": "163e44aa9a4b0113746be1f91e9d1385ea443fa512db9ec3f3ee6b074038051b",
+          "bytes": 174863,
+          "local_path": {
+            "retained_file": "main.c",
+            "sha256": "163e44aa9a4b0113746be1f91e9d1385ea443fa512db9ec3f3ee6b074038051b"
+          },
+          "retained_receipt": {
+            "retained_file": "main.c.blob.json",
+            "sha256": "94fc6edf743b7cb4d52d519e8a3d2ee14478b2d4f33d0a6ef4401233ceda71ee"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "src/game/main.c",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/src/game/main.c"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "src/game/main.c",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/src/game/main.c"
+        },
+        {
+          "git_blob": "214de7fae3adee109798879aafc27517aef3bcc6",
+          "sha256": "8f0d5eabc675e847e26aafefc3b7992d59b0610987d63a575e11d6ae12e3c010",
+          "bytes": 2182,
+          "local_path": {
+            "retained_file": "pins.env",
+            "sha256": "8f0d5eabc675e847e26aafefc3b7992d59b0610987d63a575e11d6ae12e3c010"
+          },
+          "retained_receipt": {
+            "retained_file": "pins.env.blob.json",
+            "sha256": "cd4c809fc2d5cc9dad51712c913e925025e42e551f8ba8168f54f9e286263a04"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+              "path": "tools/release/pins.env",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/tools/release/pins.env"
+            },
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "tools/release/pins.env",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/tools/release/pins.env"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e75aeb6d8116c13b801735ff2ec1638cb8fbe382",
+          "path": "tools/release/pins.env",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e75aeb6d8116c13b801735ff2ec1638cb8fbe382/tools/release/pins.env"
+        },
+        {
+          "git_blob": "35af8429482a7f9519b322062a06c0235b0c0f63",
+          "sha256": "8956200b1da63733ea7037b59a19a4e113beb89f1b3ac3c458c055ae0eea6eed",
+          "bytes": 12058,
+          "local_path": {
+            "retained_file": "takedawn.iss",
+            "sha256": "8956200b1da63733ea7037b59a19a4e113beb89f1b3ac3c458c055ae0eea6eed"
+          },
+          "retained_receipt": {
+            "retained_file": "takedawn.iss.blob.json",
+            "sha256": "6f352fa017c2f6c7aceae038899f6186034d5b935a20be1f46f4564bbd3033b4"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "tools/release/windows/takedawn.iss",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/tools/release/windows/takedawn.iss"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+          "path": "tools/release/windows/takedawn.iss",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/tools/release/windows/takedawn.iss"
+        },
+        {
+          "git_blob": "47a494c0b8a422d685cc5646fc30e18ebe184b98",
+          "sha256": "928c5f6d2f3dd24a89f558154cd0ca80a4b792a5caf7da11d7fcc9e471a84e7e",
+          "bytes": 44883,
+          "local_path": {
+            "retained_file": "install.c",
+            "sha256": "928c5f6d2f3dd24a89f558154cd0ca80a4b792a5caf7da11d7fcc9e471a84e7e"
+          },
+          "retained_receipt": {
+            "retained_file": "install.c.blob.json",
+            "sha256": "1855bfdfb57bcdcbb31a06620bb3a342713b62ba73a2238af8517b80f9724d32"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "src/game/install.c",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/src/game/install.c"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+          "path": "src/game/install.c",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/src/game/install.c"
+        },
+        {
+          "git_blob": "27cb070fe0343d99ab8e80181798885bd9645a98",
+          "sha256": "6c3a0967df083e200f79468b81604fcc67ed64d9215f32d488c620c65bd4d163",
+          "bytes": 167936,
+          "local_path": {
+            "retained_file": "main.c",
+            "sha256": "6c3a0967df083e200f79468b81604fcc67ed64d9215f32d488c620c65bd4d163"
+          },
+          "retained_receipt": {
+            "retained_file": "main.c.blob.json",
+            "sha256": "286fc4c23e40b1f7935c46a59c90016cd9cd40ebf73249be22e39f3fd05f0930"
+          },
+          "source_locations": [
+            {
+              "repository": "xenophobentx/takedawn",
+              "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+              "path": "src/game/main.c",
+              "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/src/game/main.c"
+            }
+          ],
+          "repository": "xenophobentx/takedawn",
+          "commit": "e4933315601eb001a2d6372ba484d1a142fb88be",
+          "path": "src/game/main.c",
+          "primary_url": "https://github.com/xenophobentx/takedawn/blob/e4933315601eb001a2d6372ba484d1a142fb88be/src/game/main.c"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2105,
+          "file": {
+            "retained_file": "current-tree.json",
+            "sha256": "4e80ae9390a0e5d9a2744d060cb0cce159c27be91bff0d2bbd72983d63617cb8"
+          },
+          "sha256": "4e80ae9390a0e5d9a2744d060cb0cce159c27be91bff0d2bbd72983d63617cb8",
+          "response_sha": "2f03027efcd287f26423358434d7c33bf3fb0ceb",
+          "reconstructed_root_tree": "2f03027efcd287f26423358434d7c33bf3fb0ceb",
+          "entries": 522,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2105,
+          "file": {
+            "retained_file": "tag-tree.json",
+            "sha256": "4f4732cd5e39e4d04eddcc2c754296909296d74ef7a9a669f75502ba2d6f9cce"
+          },
+          "sha256": "4f4732cd5e39e4d04eddcc2c754296909296d74ef7a9a669f75502ba2d6f9cce",
+          "response_sha": "309613b4e60f266c016c15b7f665573d8ed3fdfa",
+          "reconstructed_root_tree": "309613b4e60f266c016c15b7f665573d8ed3fdfa",
+          "entries": 486,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited.",
+        "Actual BUILDINFO game daa1f33f3a and toolkit e04d11d957 requests unresolved422; inspected e493 tag/e75a current source is not proof of installer/inner runtime binary correspondence. d83c is BUILDINFO digest prefix, not game commit."
+      ],
+      "exact_closure_eligibility": "PARTIAL OPEN: own exact tagged package/installer, install/uninstall behavior, source-manifest and integrity qualification remains unsatisfied. Useful source-reviewed conditional existing-copy guide does not replace that acceptance.",
+      "remaining_operation_hold": "B1 exact tagged package/installer and source correspondence review; published BUILDINFO game daa1f33f3a/toolkit e04d11d957 roots unavailable422 and no installer bytes inspected. Resume with new attributable exact package/source evidence; no native quota added.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/burnout-3-takedawn-xbox.json",
+      "preimage_sha256": "37dd5ab61874a947ad71ae5ec2d94635c00bccf0d8a4e8e08e48bc274205c00f",
+      "prepared_candidate_sha256": "8ba6d5f7a01675be33e4af155d00f7eafb09afee5e9dfe6c1b0991282990052a",
+      "formatted_postimage_sha256": "8ba6d5f7a01675be33e4af155d00f7eafb09afee5e9dfe6c1b0991282990052a",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "4964c3bee3d05ac68ad013f089552ebd44495cd22b69ab8f16ce24a92329af89",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2637,
+      "id": "burnout-xbox-burnout-recompilation",
+      "title": "Burnout (Xbox) (Burnout Recompilation)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "Burnout.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "OriginalBurnoutXboxUSAISO; manifesttitle41430006/default.xbe1986560B/SHA25642bd7d38feb39c17783197c4433435bfc06d8f5872d6f4b45048d9daac82013b. SourceISO1468268544B/SHAa43cf4a91e1bb96f4d85d44d8610fbf4ecdbb90047e578d4ca030daf1cbe9c9d is exactretainedmanifest not titlebroaderallUSA guarantee. Upstreambuild completedoutsidePortcove.",
+      "lifetime_and_successors": "Burnout.exe / packageparent / argv[]; completed supportedlauncher loadswork/build/burnout_game.dll viaLoadLibraryExW and GameThread callsactualgameinprocess; normalclosingendsprocess. Rebuild optionalCreateProcess/restartdoesnotwait and remainsoutsideattachment.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "LocalAppData/BurnoutRecomp/settings.ini,work/,logs/,saves/; BURNOUT_DATA/BURNOUT_TOOLS andselectedcustomsavefolder; choosingnewsavefolderdoesnotmoveold. Preservewholetools/program/originals/creatingruntime/unknowns/backups/caches/mods.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve originals, the creating runtime and tools, all save/settings/build/log/cache/mod folders, backups and custom roots. Source/release review is not package-byte authentication, gameplay, real-save compatibility, installed-client, managed or Supported acceptance."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": "Readmecreditsexacttool/runtimecomponentMIT/GPL/toollicenses; do notinferwholeprojectororiginalgamederivedoutput grant. Independentlypermittedcompletedcopy andallapplicablenotices required; generatedDLLnotredistributed."
+      },
+      "package_integrity_evidence": {
+        "scope": "Source and retained release-provider metadata only. v0.1.0tag==current1068afc478b28d6cc15f8d0ed325e156cf7c7848; ZIP143526891B providerSHAb5def55015493a318570a1238bbc82274f676911a3df53b3dc1f22aa9b0e79a2 metadataonly."
+      },
+      "source_bindings": [
+        {
+          "git_blob": "f7922ec09c22906cc90512f9770970c03032a8f2",
+          "sha256": "e8d8e911d56e0107b361ed4872b236f5c6af29be6c0e4eb2bceeb0645c519911",
+          "bytes": 5182,
+          "local_path": {
+            "retained_file": "README.md",
+            "sha256": "e8d8e911d56e0107b361ed4872b236f5c6af29be6c0e4eb2bceeb0645c519911"
+          },
+          "retained_receipt": {
+            "retained_file": "README.blob.json",
+            "sha256": "186375232acd59220a8acb35bb0ae54d2c6994561d369f2a304f8c919a427035"
+          },
+          "source_locations": [
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "README.md",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/README.md"
+            },
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "README.md",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/README.md"
+            }
+          ],
+          "repository": "Heromachine/Burnout-Recompilation",
+          "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+          "path": "README.md",
+          "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/README.md"
+        },
+        {
+          "git_blob": "bcdfe9dd2d5e44262dd8d938cba50b5e1347075b",
+          "sha256": "067c319ed2cc7d72cb38eb5cf1a03e98e16f2361abe70f767b5d61b82d374739",
+          "bytes": 2645,
+          "local_path": {
+            "retained_file": "README.txt",
+            "sha256": "067c319ed2cc7d72cb38eb5cf1a03e98e16f2361abe70f767b5d61b82d374739"
+          },
+          "retained_receipt": {
+            "retained_file": "README.txt.blob.json",
+            "sha256": "eab6a75e3899c14f96d1261f9c1b9f4b6fa118e469e0ec398991042f19b8c3bf"
+          },
+          "source_locations": [
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "launcher-win/README.txt",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/launcher-win/README.txt"
+            },
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "launcher-win/README.txt",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/launcher-win/README.txt"
+            }
+          ],
+          "repository": "Heromachine/Burnout-Recompilation",
+          "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+          "path": "launcher-win/README.txt",
+          "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/launcher-win/README.txt"
+        },
+        {
+          "git_blob": "74ac09a8389ced55cf5e33fa0cd2fa0068e82bf1",
+          "sha256": "480af1c612ff2dbd602d0399ebba6f8410ea2c48493dbf200a3164f0b81e9ad5",
+          "bytes": 2959,
+          "local_path": {
+            "retained_file": "source-manifest.json",
+            "sha256": "480af1c612ff2dbd602d0399ebba6f8410ea2c48493dbf200a3164f0b81e9ad5"
+          },
+          "retained_receipt": {
+            "retained_file": "source-manifest.json.blob.json",
+            "sha256": "c001c0cafb97c92a89830c087efb4ad91f249182983a531ce420d8e63d4bf701"
+          },
+          "source_locations": [
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "config/source-manifest.json",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/config/source-manifest.json"
+            },
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "config/source-manifest.json",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/config/source-manifest.json"
+            }
+          ],
+          "repository": "Heromachine/Burnout-Recompilation",
+          "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+          "path": "config/source-manifest.json",
+          "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/config/source-manifest.json"
+        },
+        {
+          "git_blob": "b38bc22df225fa096936a8a71dd33eb8395fa162",
+          "sha256": "4e10311b226dd22615780a9b052039c4f7a577e6ce35c0e262f70b2a0b77cd8d",
+          "bytes": 39941,
+          "local_path": {
+            "retained_file": "main.c",
+            "sha256": "4e10311b226dd22615780a9b052039c4f7a577e6ce35c0e262f70b2a0b77cd8d"
+          },
+          "retained_receipt": {
+            "retained_file": "main.c.blob.json",
+            "sha256": "5e02b5ba67178658bdf480ce07de13f87e80363948c38dc9556498fc51443fbe"
+          },
+          "source_locations": [
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "src/main.c",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/src/main.c"
+            },
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "src/main.c",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/src/main.c"
+            }
+          ],
+          "repository": "Heromachine/Burnout-Recompilation",
+          "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+          "path": "src/main.c",
+          "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/src/main.c"
+        },
+        {
+          "git_blob": "bc26eced11b38994e65f1985b2927e87945b60aa",
+          "sha256": "c73c2e094d9dabc0b781fa3bc36e81f322426d092a36e7d3c2f041c53c808108",
+          "bytes": 60596,
+          "local_path": {
+            "retained_file": "main.cpp",
+            "sha256": "c73c2e094d9dabc0b781fa3bc36e81f322426d092a36e7d3c2f041c53c808108"
+          },
+          "retained_receipt": {
+            "retained_file": "main.cpp.blob.json",
+            "sha256": "4f1d505b23526612eb3126e9362603f5bd5d46a0aeb7b51622157c2aa2d6a7ea"
+          },
+          "source_locations": [
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "launcher-win/src/main.cpp",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/launcher-win/src/main.cpp"
+            },
+            {
+              "repository": "Heromachine/Burnout-Recompilation",
+              "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+              "path": "launcher-win/src/main.cpp",
+              "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/launcher-win/src/main.cpp"
+            }
+          ],
+          "repository": "Heromachine/Burnout-Recompilation",
+          "commit": "1068afc478b28d6cc15f8d0ed325e156cf7c7848",
+          "path": "launcher-win/src/main.cpp",
+          "primary_url": "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/launcher-win/src/main.cpp"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2637,
+          "file": {
+            "retained_file": "current-tree.json",
+            "sha256": "5797fd9d797d19cae14fe9502443be4985f8c822fa4f3283105a45a6abeb4467"
+          },
+          "sha256": "5797fd9d797d19cae14fe9502443be4985f8c822fa4f3283105a45a6abeb4467",
+          "response_sha": "3f11bf5b2af9442b3977277480b25b8aba417b0f",
+          "reconstructed_root_tree": "3f11bf5b2af9442b3977277480b25b8aba417b0f",
+          "entries": 51,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2637,
+          "file": {
+            "retained_file": "tag-tree.json",
+            "sha256": "5797fd9d797d19cae14fe9502443be4985f8c822fa4f3283105a45a6abeb4467"
+          },
+          "sha256": "5797fd9d797d19cae14fe9502443be4985f8c822fa4f3283105a45a6abeb4467",
+          "response_sha": "3f11bf5b2af9442b3977277480b25b8aba417b0f",
+          "reconstructed_root_tree": "3f11bf5b2af9442b3977277480b25b8aba417b0f",
+          "entries": 51,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/burnout-xbox-burnout-recompilation.json",
+      "preimage_sha256": "790c79570917d9070e77f46923f704b8647ded5b0f0a576da0ea0bd2ff24a8fd",
+      "prepared_candidate_sha256": "2c39d68f4058f11288c6fc3592e267c6729ee718f09dab0f533094f62e3f2017",
+      "formatted_postimage_sha256": "2c39d68f4058f11288c6fc3592e267c6729ee718f09dab0f533094f62e3f2017",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "5391b23a039f0900c2fd080651da745809327660100d1c24b46310cd2fa6197b",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2560,
+      "id": "dead-or-alive-3-doa3-recomp",
+      "title": "Dead or Alive 3 (DOA3 Recomp)",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "route": {
+        "exe": "DOA3.exe",
+        "cwd": "complete creating player directory containing selected executable",
+        "argv": []
+      },
+      "own_originals_and_upstream_preparation": "USA DOA3(En,Ja),title54430001/default.xbe3928064B/FNV1a64A2F3BDCB2A5B02D4. Sourceimporter explicitlyacceptsXISO/.xiso.iso/fullISO partitionoffsets; READMEduplicatedextensionresolvedfromactualownsource. FNV64+requiredsizesareupstreamchecksNOTcryptographicfullimagecertificate.",
+      "lifetime_and_successors": "USA DOA3.exe / executableparent / argv[] (mainignoresargv), anchorsCWD, loadsassets/default.xbe andcallsxbe_entry_point sameprocess. Updater/restart external; donotrelyondisposable.exe.old backup.",
+      "runtime_replacement_owner": "Upstream/user owns all preparation, runtime replacement/recovery and external files. Core owns explicit selected-native intent/consent, registration, separate Play, relink and preserving registration-only removal.",
+      "persistence": "Exeparentassets/,doa3_settings.ini,doa3_input.ini,doa3_log.txtwhenenabled,unknowns/mods/caches; USA LocalAppData/DeadOrAlive3 TitleData/UserData/Cache elseCWD/SaveData fallback. JPNcompilevariantseparateDeadOrAlive3_JPN noUSAsaveinheritance. Wholecopy/creatingruntime/originals/customs/backups preserved.",
+      "restrictions": {
+        "manual_warnings": [
+          "Use only a completed copy and components you are permitted to use. Preserve the whole creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Static source/release metadata review is not an inspected package, native game run, real-save, installed-client, managed, Supported or protected acceptance."
+        ],
+        "fresh_acquisition_hold": null,
+        "component_terms": "OwnREADMEprojectMIT explicitlyseparatesTecmo/KoeiTecmoassets; separatecomponentnotices andoriginalrights retained. No network/router/onlineacceptance."
+      },
+      "package_integrity_evidence": {
+        "scope": "Source and retained release-provider metadata only. v1.0.7tag==current919c49f7f364fce67e85f13e75d4921e148422d9; WindowsZIP8222510B providerSHA4d749122ceb7ba27a95798c99961cd06a64b3468f6a695bcf06da7efa6fd4e68 metadataonly, notdownloaded."
+      },
+      "source_bindings": [
+        {
+          "git_blob": "7d7ce83c34fff00f3a6fb2c4a02fda127ad96c0e",
+          "sha256": "17a978c03017a8f33f7eb071c03aa61b87051fb92f1a1325e0425a29b6098d72",
+          "bytes": 2666,
+          "local_path": {
+            "retained_file": "README.md",
+            "sha256": "17a978c03017a8f33f7eb071c03aa61b87051fb92f1a1325e0425a29b6098d72"
+          },
+          "retained_receipt": {
+            "retained_file": "README.blob.json",
+            "sha256": "e2800ff41ea875b3009bb9251df22d22dc734f11e6c31c67937347d8af6ab3e9"
+          },
+          "source_locations": [
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "README.md",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/README.md"
+            },
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "README.md",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/README.md"
+            }
+          ],
+          "repository": "parkerallan/doa3-recomp",
+          "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+          "path": "README.md",
+          "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/README.md"
+        },
+        {
+          "git_blob": "0dda7145f06d21d340b0a88cde10fd8bd0d3e0d3",
+          "sha256": "a33c647532216c9ae0f4a88be05731c3b32244507b7edfe941a865de4546447c",
+          "bytes": 67480,
+          "local_path": {
+            "retained_file": "main.c",
+            "sha256": "a33c647532216c9ae0f4a88be05731c3b32244507b7edfe941a865de4546447c"
+          },
+          "retained_receipt": {
+            "retained_file": "main.c.blob.json",
+            "sha256": "448a542d6576add0bdfc2c51ffef9d8d54d34219295ee4ac1cd53def5b2cce11"
+          },
+          "source_locations": [
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/game/main.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/main.c"
+            },
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/game/main.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/main.c"
+            }
+          ],
+          "repository": "parkerallan/doa3-recomp",
+          "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+          "path": "doa3/src/game/main.c",
+          "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/main.c"
+        },
+        {
+          "git_blob": "3ac5c35c55a5e37cc9c9dd6c46e9a04ce0fc0a01",
+          "sha256": "12039e7461a60b2ba9731631fc53f4c8ada36c382531914120ce461fd1c64804",
+          "bytes": 21679,
+          "local_path": {
+            "retained_file": "xiso_extract.c",
+            "sha256": "12039e7461a60b2ba9731631fc53f4c8ada36c382531914120ce461fd1c64804"
+          },
+          "retained_receipt": {
+            "retained_file": "xiso_extract.c.blob.json",
+            "sha256": "9df48c3993493228e61d0fda28fc853607e7773e0ab88c4101ac823a1f2d59ac"
+          },
+          "source_locations": [
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/game/xiso_extract.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/xiso_extract.c"
+            },
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/game/xiso_extract.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/xiso_extract.c"
+            }
+          ],
+          "repository": "parkerallan/doa3-recomp",
+          "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+          "path": "doa3/src/game/xiso_extract.c",
+          "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/xiso_extract.c"
+        },
+        {
+          "git_blob": "8fe609c75d8f02bcb0bfa23312dc294e93e238a6",
+          "sha256": "b5e114028354e0685295d55fb9470a054beb90fe629b01101d1cd70e85e5813d",
+          "bytes": 6110,
+          "local_path": {
+            "retained_file": "video_settings.c",
+            "sha256": "b5e114028354e0685295d55fb9470a054beb90fe629b01101d1cd70e85e5813d"
+          },
+          "retained_receipt": {
+            "retained_file": "video_settings.c.blob.json",
+            "sha256": "01a6661980d67ccc140ad419a5983cb929d2425fea06b1db1d27500ec4e94d6b"
+          },
+          "source_locations": [
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/game/video_settings.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/video_settings.c"
+            },
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/game/video_settings.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/video_settings.c"
+            }
+          ],
+          "repository": "parkerallan/doa3-recomp",
+          "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+          "path": "doa3/src/game/video_settings.c",
+          "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/game/video_settings.c"
+        },
+        {
+          "git_blob": "3f6ed7cc31bae8ef8e3db9e0750008d1a4151654",
+          "sha256": "d11a037a115b8969e08df2dc50883ec038d19a1b5521d4b1ace8c1e3e794fed2",
+          "bytes": 7619,
+          "local_path": {
+            "retained_file": "kernel_path.c",
+            "sha256": "d11a037a115b8969e08df2dc50883ec038d19a1b5521d4b1ace8c1e3e794fed2"
+          },
+          "retained_receipt": {
+            "retained_file": "kernel_path.c.blob.json",
+            "sha256": "5ead6388aaf4b4bfbfdb553af8ee762562b65c815c94299feb8b085fae584313"
+          },
+          "source_locations": [
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/kernel/kernel_path.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/kernel/kernel_path.c"
+            },
+            {
+              "repository": "parkerallan/doa3-recomp",
+              "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+              "path": "doa3/src/kernel/kernel_path.c",
+              "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/kernel/kernel_path.c"
+            }
+          ],
+          "repository": "parkerallan/doa3-recomp",
+          "commit": "919c49f7f364fce67e85f13e75d4921e148422d9",
+          "path": "doa3/src/kernel/kernel_path.c",
+          "primary_url": "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/doa3/src/kernel/kernel_path.c"
+        }
+      ],
+      "actual_source_tree_proofs": [
+        {
+          "issue": 2560,
+          "file": {
+            "retained_file": "current-tree.json",
+            "sha256": "c0ea6979b98ba1ed07f4ec3c2c4308dd071720b6f4d64f3054572882fc674c46"
+          },
+          "sha256": "c0ea6979b98ba1ed07f4ec3c2c4308dd071720b6f4d64f3054572882fc674c46",
+          "response_sha": "16757a41d3119005cdf846b69dab9e2d13aa564e",
+          "reconstructed_root_tree": "16757a41d3119005cdf846b69dab9e2d13aa564e",
+          "entries": 1362,
+          "all_child_tree_objects_verified": true
+        },
+        {
+          "issue": 2560,
+          "file": {
+            "retained_file": "tag-tree.json",
+            "sha256": "c0ea6979b98ba1ed07f4ec3c2c4308dd071720b6f4d64f3054572882fc674c46"
+          },
+          "sha256": "c0ea6979b98ba1ed07f4ec3c2c4308dd071720b6f4d64f3054572882fc674c46",
+          "response_sha": "16757a41d3119005cdf846b69dab9e2d13aa564e",
+          "reconstructed_root_tree": "16757a41d3119005cdf846b69dab9e2d13aa564e",
+          "entries": 1362,
+          "all_child_tree_objects_verified": true
+        }
+      ],
+      "tree_proof_scope": "actual reconstructed_root_tree values from separate reviewer local Git serialization; raw response_sha may echo commit and is NOT asserted as tree-object ID. Complete source trees do not establish component permission or package contents.",
+      "unknowns": [
+        "No new package acquisition/archive parse/PE inspection or actual native/title/original/real-save/installed-client/protected observation in R31.",
+        "Source/tree metadata, public expected digests and actual binary/runtime correspondence remain separate scopes; no title/family code grant or save compatibility is inherited."
+      ],
+      "exact_closure_eligibility": "PROSPECTIVE finite independently permitted completed-copy register/explicit Play/relink/preserving removal minimum only after final source/combined CI/delivery and exact canonical review. No closure or full required outcome credited by this index.",
+      "remaining_operation_hold": "No new fresh-acquisition permission or unoffered lifecycle acceptance supplied; conditional copy use and disclosed exceptions remain.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/dead-or-alive-3-doa3-recomp.json",
+      "preimage_sha256": "0f1ba85603075d99958b2ca0f8ff30837980ae82d2294e3448545c2d68094e60",
+      "prepared_candidate_sha256": "9633dc64a494b3c3fe87f97d393f6040928289f484f5389d4d610c16368dd5be",
+      "formatted_postimage_sha256": "9633dc64a494b3c3fe87f97d393f6040928289f484f5389d4d610c16368dd5be",
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "current_issue_context_sha256": "49af09bed0194b73564c54d1d04d5e1a53775163154222238fa875a545dfff00",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    }
+  ],
+  "maintained_preparations": [
+    {
+      "issue": 2733,
+      "report_sha256": "58e3bd668cb556b6d34512f1f0e79a30973758428575666ad65d3c31c452c718",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "ed01874d95d6948cf7a9d5934d5172511ff142d587bf67f17466e554810370ea",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2752,
+      "report_sha256": "d023a991131c8637039aeb78c75640d84782f11a6b7f0567f5a6b95b67d9941e",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "a5ec59dec5bbcd5c4819c1242c156fd597fd2adb59fefea65088bf30410a068e",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2813,
+      "report_sha256": "c9e83a9735c481d90674ce602e5f191516eb7667cffb2e69b3c6c6040e617376",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "75f44eb0466cdc6bffdb51a822ff1d0f00fa07ebea684fafb0b6f1cc2877bfe8",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2741,
+      "report_sha256": "30f2eb75f08b312ee50b8871a59cab1ac041973047552164100acc89563868fb",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "1cf23ac286a5e9958ef96c6e67821840a6822e2ef10fcc2d15e84d1d010286ec",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2787,
+      "report_sha256": "8a6dc6b0de117a05f5c22341dc835c6f33547bc3bde5428d1a1e85d8c5d26b30",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "17d2c6129b30f5d8ead4a45c9c3d9145f8f04aea2e3e67ab0fd95ff0a369134e",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 352,
+      "report_sha256": "573b3dd85268454673db6c27dd98a8261051bae60097b108579154c311b53a08",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "7e3019bca0bbd24580ae1402848239c60194dc56b4fb8192d54dd4f52bc14b00",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 356,
+      "report_sha256": "46c9f0cd2e7ec0c1c8ecc6eebfd56f6b40a07fa443e1dd1476823c85f8aa7544",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "53478b8edcb35cfd5f84e726a91e1852092a993285a7fc2100838cdc4fc0ad54",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2638,
+      "report_sha256": "51549bdb4f29a9b94b9974d0b78dc1af3b9882fd0bfc8ee5584a59571855b410",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "1dda0e369909350ce5a276cb5d81e366f59cde81625fa59027377a67bfa47944",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2105,
+      "report_sha256": "0c9691f5f4546db4ad50c59c45fd3b7b5d3ba417f4956798a2dd4d29159a6dd4",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "1ebf694afdc34f4fe6fb5fbf6c3eb0f7fa2268213e881ec0fd84d2d45fa7c506",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2637,
+      "report_sha256": "42f6e0a80d3e60550864358c3d28ce99b62b1273d17684447da8bd155f546763",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "3b76d447e9a442833a5d96c7f6b73615c9da6ff6ef7ed0eac147e9cfc50f4481",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2560,
+      "report_sha256": "64eb67c14a71ea5ae8411d13c2869b38d86b19be0334a5a17eaf5e03ccd13d6c",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "98e4256d8ae0bb1de4347ca26d0006160fd7b4a04b8033eb5d0fdcd7eca5d6ff",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    }
+  ],
+  "combined_core_validation": {
+    "ports": 286,
+    "listings": 1424,
+    "port_input_sha256": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "listing_input_sha256": "88203dbbc6449ed41b32ebd0498e132c4955dadd8be2525c23a201737966a3ba",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "strict_receipt_reuse": {
+      "sha256": "781a61e3845112c07e39540016a3c4882be5c7cf2b33f8f211f797524aabfe23",
+      "scope": "Exact unchanged strict/schema parsing only; newer lifecycle behavior not established by retained validator; current-head CI remains required."
+    }
+  },
+  "required_first_party_cases": [
+    "service::user_selected::tests::abilliontokens_sims1_recomp_prepared_player_route_2733",
+    "service::user_selected::tests::abilliontokens_sims2_recomp_prepared_player_route_2752",
+    "service::user_selected::tests::abilliontokens_urbz_recomp_prepared_player_route_2813",
+    "service::user_selected::tests::bitsandbreakpoints_d_psx_pc_recomp_prepared_player_route_2741",
+    "service::user_selected::tests::bluddy_rails_prepared_player_route_2787",
+    "service::user_selected::tests::legend_of_legaia_legend_of_legaia_recomp_prepared_player_route_352",
+    "service::user_selected::tests::x_men_mutant_academy_2_xmen_mutant_academy_2_pc_prepared_player_route_356",
+    "service::user_selected::tests::burnout_3_takedown_ps2_burnout3_pc_prepared_player_route_2638",
+    "service::user_selected::tests::burnout_3_takedawn_xbox_prepared_player_route_2105",
+    "service::user_selected::tests::burnout_xbox_burnout_recompilation_prepared_player_route_2637",
+    "service::user_selected::tests::dead_or_alive_3_doa3_recomp_prepared_player_route_2560",
+    "service::catalog_download::tests::x_men_mutant_academy_2_xmen_mutant_academy_2_pc_component_hold_before_network_356"
+  ],
+  "source_consumer_binding_count": 99,
+  "early_independent_review_sha256": "458f9a53c95bc67eeeffe438d519a5970813d2e9166707b44a4c93b5d3aa0b10",
+  "validator_parser_only_review_sha256": "214c2bc19ec4c05991d44321bfba6b0b7f458bd0065612a1fdb0963069a49372",
+  "qualification_boundary": "Own source/metadata and inert first-party Core fixtures only. No package content/PE inspection is inferred from an asset digest or filename; no game/helper/installer/compiler/native GUI/private originals/real saves/installed-client/protected acceptance. Source-binary and full ABI/permission closure remain Unknown where recorded. Actual final-head CI, target composition and canonical decisions belong to the PR evidence.",
+  "retained_failures_and_repairs": "Missing Legaia exact-tag README binding was repaired from existing retained bytes; no source refetch. API tree sha labels echoing commit IDs were distinguished from reconstructed actual serialized tree roots. A private expected Rails-literal-escape assertion refused because the actual raw/parsed candidate had none; no blind unescape or source edit was performed. Only already-reviewed D_SAVE_DIR preservation wording was added to its Root candidate. Original proposals, refusals and corrections remain retained. Combined generation succeeded before Core inspection refused copying into a retained read-only R27 output path; that failure is preserved. Only the private R31 inspection output path was corrected, without changing earlier evidence or repeating generation.",
+  "execution_efficiency": "Reused a completed clean B1-owned checkout with old branch/evidence retained and unchanged pinned tool inputs; no repeat bootstrap or machine-wide install. Preparation and combined validation use normal finite analysis admission. No timing speedup is inferred."
+}

@@ -3,7 +3,7 @@
   "listing": {
     "id": "hard-corps-uprising-hard-corps-uprising-recompiled",
     "name": "Hard Corps: Uprising (Hard Corps: Uprising Recompiled)",
-    "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Requires own XBLA package. Upstream launcher/update ownership needs bounded integration. Upstream platforms: Windows x86-64 ZIP and experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+; not Wine/Proton packaging. Original data: Own Hard Corps: Uprising XBLA package, title 58410A18. Extracted default.xex must be 12,955,648 bytes, SHA-256 530EDE8ED5271051A2AB19C077A97FB167E4F30B094C292E8F59D37D0D2069DC. Optional character DLC uses separately owned Marketplace packages for that title, content type 00000002. Portcove setup/gameplay not verified.",
+    "summary": "Prepared Windows Hard Corps: Uprising copy using your own matching XBLA package. Keep upstream setup, optional DLC, runtime replacement and player data outside Portcove management.",
     "original_game_title": "Hard Corps: Uprising",
     "project_url": "https://github.com/saulob/hard-corps-uprising-recompiled",
     "platforms": [],
@@ -17,7 +17,32 @@
       "game_slug": "hard-corps-uprising",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2581
+    "issue_number": 2581,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare an authorized upstream copy",
+          "instruction": "Use an independently obtained, authorized Windows copy and its upstream guide. Project GPL terms do not grant original-game/DLC rights or automatically cover every bundled component: the pinned TRG launcher has no explicit license file. Automated acquisition needs a separate rights decision. Keep the complete package, runtime libraries, configuration and notices in a writable folder. Do not select an installer or updater as the game. Before the first upstream startup, make separate backups of any existing Documents/hard_corps_uprising profile and portable user_data/ profile; a successful upstream migration removes the legacy folder."
+        },
+        {
+          "title": "Install this title and any separately owned DLC",
+          "instruction": "Deliberately finish upstream setup outside Portcove using your own Hard Corps: Uprising XBLA LIVE package, title 58410A18 and content type 000D0000. Its extracted default.xex must be 12,955,648 bytes with SHA-256 530EDE8ED5271051A2AB19C077A97FB167E4F30B094C292E8F59D37D0D2069DC. Package container hashes can vary. Optional character DLC requires separately owned Marketplace packages for this title, content type 00000002; it is not required by or authorized through the base-game route."
+        },
+        {
+          "title": "Add the prepared native player",
+          "instruction": "Select hard_corps_uprising.exe, its containing package folder as working folder, and no arguments for ordinary Play. The embedded launcher resumes the native game in-process. Complete installation, updates and settings that require Restart outside a tracked session: Restart explicitly starts a successor process and exits this one, and the separate updater is not a game entry. Saving launch details and Play are separate Portcove actions."
+        },
+        {
+          "title": "Keep upstream ownership and all active data roots",
+          "instruction": "Upstream/player owns runtime replacement. Preserve game/, logs/, the executable TOML and the complete user_data/ tree: settings.toml, 58410A18 local scores, achievements, cache and 0000000000000000/58410A18 DLC. Before the first upstream startup, back up the legacy Documents/hard_corps_uprising profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not manage their backup, rollback, compatibility or deletion."
+        }
+      ],
+      "warnings": [
+        "Public release metadata and pinned source establish this guide, not archive-byte inspection, native gameplay, real-save acceptance or executed updater behavior. Experimental native Linux/AppImage is a separate route."
+      ],
+      "help_url": "https://github.com/saulob/hard-corps-uprising-recompiled#readme"
+    },
+    "download_block_reason": "New downloads are waiting for attributable distribution permission covering this title’s selected package and bundled TRG launcher. The title’s own documentation identifies TRG launcher revision b384a28c712c9320eea8f9d50639dec49981b6c1 and acknowledges that it has no explicit license; a different component’s or title’s license is not a grant for that bundled launcher. Reconsider on an attributable applicable grant or a separately reviewed supported package/preparation route that excludes the unresolved component."
   },
   "upstream_lineage": {
     "format_version": 1,
