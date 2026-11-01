@@ -422,6 +422,15 @@ impl Catalog {
         let mut port_ids = HashSet::new();
         for port in &self.document.ports {
             crate::native_temp::validate(port)?;
+            if let Some(settings) = &port.game_settings {
+                settings.validate(&port.persistent_paths)?;
+                if !port.platforms.contains(&crate::Platform::WindowsX86_64) {
+                    return Err(PortcoveError::usage(
+                        "settings contract requires a declared Windows x86-64 integration",
+                    )
+                    .detail("port_id", &port.id));
+                }
+            }
             let native_archive_release = port.release.provider == ReleaseSource::Github
                 || (port.release.provider == ReleaseSource::DirectManifest
                     && port.release.direct.values().all(|release| {

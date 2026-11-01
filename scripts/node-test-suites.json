@@ -4531,6 +4531,14 @@
         ["catalog-full-2", 2652],
         ["release-check", 752]
       ]
+    },
+    {
+      "file": "scripts/port-descriptor.test.mts",
+      "memberships": [
+        ["catalog-full-2", 50000],
+        ["release-check", 50000]
+      ],
+      "qualification": { "linux-x86_64": "catalog-full-2" }
     }
   ]
 }

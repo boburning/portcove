@@ -175,6 +175,7 @@ mod tests {
             managed_initialization: None,
             runtime_data_policy: None,
             mod_package_policy: None,
+            game_settings: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,

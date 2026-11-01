@@ -39,6 +39,7 @@ mod failure;
 mod game_file_query;
 mod game_file_root;
 mod game_recommendations;
+mod game_settings;
 mod ghostship_data_store;
 mod gitlab;
 mod host_preferences;
@@ -204,6 +205,10 @@ pub use game_recommendations::{
     RECOMMENDATION_METADATA_VERSION, RecommendationCapabilityObservation, RecommendationMetadata,
     RecommendationMetadataState, RecommendationObservation, RecommendationOutcome, SetupOutcome,
     StabilityOutcome,
+};
+pub use game_settings::{
+    GameSetting, GameSettingChoice, GameSettingType, GameSettingsContract, GameSettingsFile,
+    GameSettingsFormat, GameSettingsRelease,
 };
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use gitlab::GitlabReleaseProvider;

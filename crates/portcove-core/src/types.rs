@@ -693,6 +693,10 @@ pub struct PortDefinition {
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
+    /// Optional, release-bound editable configuration. Retained installations
+    /// keep the exact declaration; today's catalog never grants edits to them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_settings: Option<crate::GameSettingsContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_shared_preferences: Option<PreparedSharedPreferencesContract>,
     /// Reviewed engine save identifier used only to bound managed GB save paths.
