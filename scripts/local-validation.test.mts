@@ -1985,8 +1985,23 @@ void test("transport changes select both language scopes and contract comparator
   assert.equal(selection.transport, true);
   assert.ok(selection.packages.has("portcove-core"));
   assert.ok(selection.nodeTests.has("scripts/transport-types.test.mts"));
+  assert.ok(selection.nodeTests.has("scripts/transport-values.test.mts"));
   assert.ok(!ids(plan).includes("transport-export"));
   assert.ok(!ids(plan).includes("transport-policy"));
+});
+
+void test("generated transport schema changes retain the actual runtime schema consumer", () => {
+  for (const path of [
+    "apps/desktop/src/transport-schemas.generated.json",
+    "apps/desktop/src/transport-host-output.generated.json",
+  ]) {
+    for (const status of ["A", "M", "D"]) {
+      const selection = classifyChanges([{ status, path }], { fileExists: allFilesExist });
+      assert.ok(selection.nodeTests.has("scripts/transport-values.test.mts"), `${status}: ${path}`);
+    }
+  }
+  const unrelated = classifyChanges([{ status: "M", path: "docs/README.md" }]);
+  assert.ok(!unrelated.nodeTests.has("scripts/transport-values.test.mts"));
 });
 
 void test("workflow and justfile changes select exact contract tests and actionlint", () => {
@@ -2183,6 +2198,21 @@ void test("non-ignored untracked files use the same deterministic mapping", () =
     fileExists: allFilesExist,
   });
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mts"));
+});
+
+void test("native author descriptor examples retain their projection and authoring consumers", () => {
+  for (const file of [
+    "examples/integrations/shipwright/portcove.json",
+    "examples/integrations/shipwright/basic.portcove.json",
+    "examples/integrations/golden-balloon/portcove.json",
+  ]) {
+    for (const status of ["A", "M", "D"]) {
+      const selection = classifyChanges([{ status, path: file }], { fileExists: allFilesExist });
+      assert.deepEqual([...selection.unknown], []);
+      assert.ok(selection.nodeTests.has("scripts/port-descriptor.test.mts"));
+      assert.ok(selection.nodeTests.has("scripts/generate-catalog.test.mts"));
+    }
+  }
 });
 
 void test("every tracked repository path has an explicit local selection owner", () => {

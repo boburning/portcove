@@ -3,7 +3,7 @@
   "listing": {
     "id": "gabrielnnk-bigodao",
     "name": "Wario Land: Super Mario Land 3 / Bigodão (GABRIELNNK)",
-    "summary": "Explore Wario Land: Super Mario Land 3 / Bigodão (GABRIELNNK) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Link an independently permitted, completed Bigodão Windows build; upstream owns exact ROM/DX preparation, updates and save storage.",
     "project_url": "https://github.com/GABRIELNNK/Bigodao",
     "issue_number": 1799,
     "platforms": [],
@@ -16,6 +16,40 @@
       "image_sha256": "5873adbc749035989cbc2d03e7f5571859f2b29d1a05d964b741a089aac0ab83",
       "game_slug": "wario-land-super-mario-land-3",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use a completed Windows copy",
+          "instruction": "Use an independently permitted completed Windows copy. The inspected 1.7 ZIP (SHA-256 21e13616bbc0d62dcf1341be10d392694b1f6033965dc4c9ab15f13a8f028ac6) contains bigodao_1.7_win/bigodao_1.7_win.exe and tools/wl_sm3_dx_v12_patch.json beneath that folder. Keep both together in a writable folder. A separately completed source build instead uses wario_land_port.exe; this route does not supply missing generated game code or establish source-to-binary reproducibility."
+        },
+        {
+          "title": "Keep exact original and patch inputs",
+          "instruction": "For upstream first-run preparation, supply your legally obtained Wario Land - Super Mario Land 3 (World) ROM (SHA-256 ac1682f17abcf590311a233289ee325214c2d71ab3a5aa175004002d85075e56) and independently permitted korxo DX v1.2 IPS patch (SHA-256 599d9f59090df3e1e77c1678e069290a2cd9ce59c71cf58d66c4dc3db8b7facd). Owning the game or the project code license does not grant acquisition or redistribution of the patch or optional music/art packs."
+        },
+        {
+          "title": "Back up old and new storage before startup",
+          "instruction": "Before first startup or an update, close Bigodão and separately back up the complete old and new folders, saves/, legacy loose .sav/.rtc/.state files, wario.o2r and any .tmp recovery file, mods/, and the SDL preference directory for gbrecompiled/runtime (normally %APPDATA%/gbrecompiled/runtime/runtime_prefs.ini; local runtime_prefs.ini is a fallback). Startup copies eligible legacy loose saves into missing saves/ destinations and retains the old files; failure to create saves/ falls back to beside-executable storage."
+        },
+        {
+          "title": "Let upstream prepare its private data package",
+          "instruction": "Complete the upstream ROM/IPS picker before registration. It patches a copy in memory and creates wario.o2r beside the executable, with a current-directory fallback for an existing package. An older texture recipe can request re-preparation; creation verifies a temporary package, then removes the prior package before renaming the replacement. Keep the separate pre-start backup and original inputs; cancelling that update can continue with the previously loaded old ROM."
+        },
+        {
+          "title": "Link the ordinary native executable",
+          "instruction": "For the inspected 1.7 Windows package, add bigodao_1.7_win.exe through the existing-copy route, use the bigodao_1.7_win folder containing it as the working directory, and leave arguments empty. For a separately completed source build, select its wario_land_port.exe with that executable's parent folder and no arguments. The reviewed source runs its picker and ordinary game loop in one process; this is source evidence, not an observed launch of the package. Do not select Android files, packaging tools, or a compiler helper."
+        },
+        {
+          "title": "Preserve saves, preferences and mods",
+          "instruction": "Preserve the complete saves/ folder, legacy save copies, preferences, mods/ including 3d_marcas.txt, captures and custom packs. The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
+        },
+        {
+          "title": "Keep replacement ownership upstream",
+          "instruction": "Quit the game completely before maintenance, relinking or removal. Upstream and the user own preparation, runtime replacement and updates; Portcove only links the selected executable and does not install, update, roll back, move or delete this external copy or its player data."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/README.md"
     }
   }
 }

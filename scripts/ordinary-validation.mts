@@ -2701,6 +2701,14 @@ function classifyOnePath(
     recognized = true;
   }
 
+  // Runnable author descriptors are consumer inputs, not inert JSON examples.
+  if (/^examples\/integrations\/[^/]+\/[^/]+\.json$/u.test(file)) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/port-descriptor.test.mts");
+    for (const testFile of catalogAuthoringContractTests) addNodeTest(selection, testFile);
+    recognized = true;
+  }
+
   if (
     file.startsWith("crates/portcove-core/catalog/ports/") ||
     file === "crates/portcove-core/catalog/catalog-shared.json" ||
@@ -2840,6 +2848,7 @@ function classifyOnePath(
     addNodeTest(selection, "scripts/check-transport-contract.test.mts");
     addNodeTest(selection, "scripts/check-transport-contract.integration.test.mts");
     addNodeTest(selection, "scripts/transport-types.test.mts");
+    addNodeTest(selection, "scripts/transport-values.test.mts");
     recognized = true;
   }
 

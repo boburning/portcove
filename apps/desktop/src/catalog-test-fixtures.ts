@@ -14,6 +14,7 @@ const ajv = new Ajv2020({
   useDefaults: false,
   removeAdditional: false,
   formats: {
+    double: { type: "number", validate: Number.isFinite },
     int32: true,
     int64: true,
     uint: true,

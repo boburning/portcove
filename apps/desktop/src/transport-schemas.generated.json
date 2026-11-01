@@ -40,6 +40,7 @@
       },
       "ActivityOperation": {
         "enum": [
+          "settings_change",
           "download_package",
           "prepare",
           "update_catalog",
@@ -4367,6 +4368,266 @@
         ],
         "type": "string"
       },
+      "GameSetting": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/$defs/GameSettingType"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "key",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingType": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "integer",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "minimum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "step": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "double",
+                "type": "number"
+              },
+              "kind": {
+                "const": "number",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "double",
+                "type": "number"
+              },
+              "minimum": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/$defs/GameSettingChoice"
+                },
+                "type": "array"
+              },
+              "default": true,
+              "kind": {
+                "const": "enum",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "choices",
+              "default"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GameSettingsContract": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsFile"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsRelease"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "releases",
+          "files"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFile": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/GameSettingsFormat"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maximum_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "description": "An explicit configuration file inside this port's retained persistent\npaths, never a home-directory template or a caller-provided absolute path.",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/$defs/GameSetting"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "format",
+          "maximum_bytes",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFormat": {
+        "oneOf": [
+          {
+            "enum": [
+              "json"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ini",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
+            "type": "string"
+          }
+        ]
+      },
+      "GameSettingsRelease": {
+        "additionalProperties": false,
+        "description": "Both the released archive and its inspected source are explicit. A matching\ntitle or version string alone cannot qualify another package's settings.",
+        "properties": {
+          "archive_sha256": {
+            "type": "string"
+          },
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "source_commit": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "platform",
+          "archive_sha256",
+          "source_commit",
+          "evidence_urls"
+        ],
+        "type": "object"
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -4677,6 +4938,17 @@
               }
             },
             "type": "object"
+          },
+          "game_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameSettingsContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional, release-bound editable configuration. Retained installations\nkeep the exact declaration; today's catalog never grants edits to them."
           },
           "id": {
             "type": "string"
@@ -13667,6 +13939,624 @@
       "plan_sha256"
     ],
     "title": "GameInstallPlan",
+    "type": "object"
+  },
+  "game_setting_change": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "set",
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "action",
+          "value"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "reset",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "GameSettingChange"
+  },
+  "game_setting_review": {
+    "$defs": {
+      "GameSettingChange": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "const": "set",
+                "type": "string"
+              },
+              "value": true
+            },
+            "required": [
+              "action",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "const": "reset",
+                "type": "string"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "One-file, one-key review. Apply recomputes this binding from authoritative\nretained state and fresh bytes; a client-supplied review is never authority.",
+    "properties": {
+      "change": {
+        "$ref": "#/$defs/GameSettingChange"
+      },
+      "configuration_sha256": {
+        "type": "string"
+      },
+      "file_id": {
+        "type": "string"
+      },
+      "install_id": {
+        "type": "string"
+      },
+      "label": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "previous_value": true,
+      "proposed_value": true,
+      "review_sha256": {
+        "type": "string"
+      },
+      "setting_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "install_id",
+      "file_id",
+      "setting_id",
+      "label",
+      "path",
+      "change",
+      "previous_value",
+      "proposed_value",
+      "configuration_sha256",
+      "review_sha256"
+    ],
+    "title": "GameSettingReview",
+    "type": "object"
+  },
+  "game_settings_contract": {
+    "$defs": {
+      "GameSetting": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/$defs/GameSettingType"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "key",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingType": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "integer",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "minimum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "step": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "double",
+                "type": "number"
+              },
+              "kind": {
+                "const": "number",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "double",
+                "type": "number"
+              },
+              "minimum": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/$defs/GameSettingChoice"
+                },
+                "type": "array"
+              },
+              "default": true,
+              "kind": {
+                "const": "enum",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "choices",
+              "default"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GameSettingsFile": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/GameSettingsFormat"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maximum_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "description": "An explicit configuration file inside this port's retained persistent\npaths, never a home-directory template or a caller-provided absolute path.",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/$defs/GameSetting"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "format",
+          "maximum_bytes",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFormat": {
+        "oneOf": [
+          {
+            "enum": [
+              "json"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ini",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
+            "type": "string"
+          }
+        ]
+      },
+      "GameSettingsRelease": {
+        "additionalProperties": false,
+        "description": "Both the released archive and its inspected source are explicit. A matching\ntitle or version string alone cannot qualify another package's settings.",
+        "properties": {
+          "archive_sha256": {
+            "type": "string"
+          },
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "source_commit": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "platform",
+          "archive_sha256",
+          "source_commit",
+          "evidence_urls"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "files": {
+        "items": {
+          "$ref": "#/$defs/GameSettingsFile"
+        },
+        "type": "array"
+      },
+      "format_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "releases": {
+        "items": {
+          "$ref": "#/$defs/GameSettingsRelease"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "format_version",
+      "releases",
+      "files"
+    ],
+    "title": "GameSettingsContract",
+    "type": "object"
+  },
+  "game_settings_view": {
+    "$defs": {
+      "GameSettingChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingType": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "integer",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "minimum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "step": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "double",
+                "type": "number"
+              },
+              "kind": {
+                "const": "number",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "double",
+                "type": "number"
+              },
+              "minimum": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/$defs/GameSettingChoice"
+                },
+                "type": "array"
+              },
+              "default": true,
+              "kind": {
+                "const": "enum",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "choices",
+              "default"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GameSettingView": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "description": "None means this declared key is absent; the verified consumer default\nremains separate from an observed persisted value."
+          },
+          "value_type": {
+            "$ref": "#/$defs/GameSettingType"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "value_type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFileView": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "configuration_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/$defs/GameSettingView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "available",
+          "reason",
+          "configuration_sha256",
+          "settings"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A missing optional capability is local to settings. It does not disable the\ninstallation's independently assessed basic setup or launch capabilities.",
+    "properties": {
+      "available": {
+        "type": "boolean"
+      },
+      "files": {
+        "items": {
+          "$ref": "#/$defs/GameSettingsFileView"
+        },
+        "type": "array"
+      },
+      "install_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "port_id",
+      "install_id",
+      "available",
+      "reason",
+      "files"
+    ],
+    "title": "GameSettingsView",
     "type": "object"
   },
   "game_update_acquisition": {
@@ -24348,6 +25238,266 @@
         ],
         "type": "string"
       },
+      "GameSetting": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/$defs/GameSettingType"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "key",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingType": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "integer",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "minimum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "step": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "double",
+                "type": "number"
+              },
+              "kind": {
+                "const": "number",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "double",
+                "type": "number"
+              },
+              "minimum": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/$defs/GameSettingChoice"
+                },
+                "type": "array"
+              },
+              "default": true,
+              "kind": {
+                "const": "enum",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "choices",
+              "default"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GameSettingsContract": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsFile"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsRelease"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "releases",
+          "files"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFile": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/GameSettingsFormat"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maximum_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "description": "An explicit configuration file inside this port's retained persistent\npaths, never a home-directory template or a caller-provided absolute path.",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/$defs/GameSetting"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "format",
+          "maximum_bytes",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFormat": {
+        "oneOf": [
+          {
+            "enum": [
+              "json"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ini",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
+            "type": "string"
+          }
+        ]
+      },
+      "GameSettingsRelease": {
+        "additionalProperties": false,
+        "description": "Both the released archive and its inspected source are explicit. A matching\ntitle or version string alone cannot qualify another package's settings.",
+        "properties": {
+          "archive_sha256": {
+            "type": "string"
+          },
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "source_commit": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "platform",
+          "archive_sha256",
+          "source_commit",
+          "evidence_urls"
+        ],
+        "type": "object"
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -25194,6 +26344,17 @@
           }
         },
         "type": "object"
+      },
+      "game_settings": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/GameSettingsContract"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Optional, release-bound editable configuration. Retained installations\nkeep the exact declaration; today's catalog never grants edits to them."
       },
       "id": {
         "type": "string"
@@ -31668,6 +32829,266 @@
         ],
         "type": "string"
       },
+      "GameSetting": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "$ref": "#/$defs/GameSettingType"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "key",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingType": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "integer",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "minimum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "step": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "double",
+                "type": "number"
+              },
+              "kind": {
+                "const": "number",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "double",
+                "type": "number"
+              },
+              "minimum": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/$defs/GameSettingChoice"
+                },
+                "type": "array"
+              },
+              "default": true,
+              "kind": {
+                "const": "enum",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "choices",
+              "default"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GameSettingsContract": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsFile"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsRelease"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "format_version",
+          "releases",
+          "files"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFile": {
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/GameSettingsFormat"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maximum_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "description": "An explicit configuration file inside this port's retained persistent\npaths, never a home-directory template or a caller-provided absolute path.",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/$defs/GameSetting"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "format",
+          "maximum_bytes",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFormat": {
+        "oneOf": [
+          {
+            "enum": [
+              "json"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ini",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
+            "type": "string"
+          }
+        ]
+      },
+      "GameSettingsRelease": {
+        "additionalProperties": false,
+        "description": "Both the released archive and its inspected source are explicit. A matching\ntitle or version string alone cannot qualify another package's settings.",
+        "properties": {
+          "archive_sha256": {
+            "type": "string"
+          },
+          "evidence_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "source_commit": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "platform",
+          "archive_sha256",
+          "source_commit",
+          "evidence_urls"
+        ],
+        "type": "object"
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -31978,6 +33399,17 @@
               }
             },
             "type": "object"
+          },
+          "game_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameSettingsContract"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional, release-bound editable configuration. Retained installations\nkeep the exact declaration; today's catalog never grants edits to them."
           },
           "id": {
             "type": "string"

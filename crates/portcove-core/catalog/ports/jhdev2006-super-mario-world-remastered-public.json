@@ -3,7 +3,7 @@
   "listing": {
     "id": "jhdev2006-super-mario-world-remastered-public",
     "name": "Super Mario World / Super Mario World Remastered (JHDev2006)",
-    "summary": "Explore Super Mario World / Super Mario World Remastered (JHDev2006) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Link a permitted Windows export of archived JHDev2006 Super Mario World Remastered, preserving its ROM gate and profile shared with Remastered Plus.",
     "project_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public",
     "issue_number": 1891,
     "platforms": [],
@@ -16,6 +16,41 @@
       "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
       "game_slug": "super-mario-world",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep this archived parent distinct",
+          "instruction": "Use an independently permitted, already completed Windows Godot game export of JHDev2006 Super Mario World Remastered, keeping its native game executable and any companion .pck/data together. The upstream project is archived and abandoned. This is the parent project, not BTFighter Remastered Plus, snesrev/smw, or another similarly named implementation; their binaries and qualification are not interchangeable."
+        },
+        {
+          "title": "Keep artwork and original-file permissions separate",
+          "instruction": "Fresh package acquisition remains conditional on permission for its bundled original sprites and music. The root ISC code license and owning a Super Mario World ROM do not establish that component grant. This guide only links a completed copy you are independently permitted to use; it does not obtain the game, rebuild or extract Nintendo assets, or bypass that condition."
+        },
+        {
+          "title": "Use the exact upstream ROM gate",
+          "instruction": "Place your own recognized SNES ROM at baserom.sfc in the SuperMarioWorldRemastered user-data folder shown by the ROM screen. The selected checker accepts seven full-file hashes; the explicitly labelled USA1.0 image has SHA-256 0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b. Other exact Japanese, European and headered variants are listed upstream, while one accepted hash has no established edition label. The gate checks the file hash; it does not extract or license the already bundled artwork/music."
+        },
+        {
+          "title": "Back up the actual shared profile before startup",
+          "instruction": "With this game and Remastered Plus closed, separately back up the complete old and new runtime folders and the actual SuperMarioWorldRemastered Godot profile, normally %APPDATA%/SuperMarioWorldRemastered on Windows. Preserve baserom.sfc, settings.cfg, Saves/ with campaign subfolders, modlist.json and every referenced external resource pack. Startup creates settings when missing and verifies/rewrites existing settings; save creation/replacement and the in-game delete action can overwrite or remove a campaign slot. Keep recovery copies outside the active profile."
+        },
+        {
+          "title": "Keep parent and fork data recoverable",
+          "instruction": "The independently checked parent configuration and the existing Remastered Plus record select the same SuperMarioWorldRemastered custom user directory. Do not run or switch them against an unbacked-up shared profile. No save, mod, campaign or settings compatibility between forks or versions, and no automatic profile migration, is qualified."
+        },
+        {
+          "title": "Link the completed game export",
+          "instruction": "Choose the native game .exe in your completed Windows export, use its containing game folder as the working directory, and leave arguments empty. The exact packaged filename and release-ZIP layout have not been established here; do not select a Godot editor, console/helper wrapper or installer. The selected project starts the ROM-check scene and transitions within its Godot process; its title-screen Quit ends that process."
+        },
+        {
+          "title": "Keep updates and external data upstream",
+          "instruction": "Close the game completely before replacing, relinking or removing an external copy. Upstream and the user own the runtime, companion files, custom packs and all player data. Portcove only links the selected existing executable and does not install, update, roll back, move or delete it. An archived release is not a promise of future maintenance or live online-service availability."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/README.md"
+    },
+    "download_block_reason": "Fresh acquisition of the selected parent Super Mario World Remastered Windows export is held while an attributable permission or authorized-source basis for its bundled original-game sprite and music assets remains unresolved. The project ISC code grant and an owner-supplied ROM do not establish that separate media basis. Resume with an applicable reviewed basis or a supported clean package/preparation excluding or independently sourcing those assets; independently permitted existing completed copies remain distinct."
   }
 }

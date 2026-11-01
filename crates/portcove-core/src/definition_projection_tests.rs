@@ -220,6 +220,46 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
 }
 
 #[test]
+fn settings_are_complete_operational_projection_content_not_listing_metadata() {
+    let mut document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "shipwright")
+        .unwrap();
+    let authored: Value =
+        serde_json::from_str(include_str!("../catalog/ports/shipwright.json")).unwrap();
+    let expected = authored["integration"]["game_settings"].clone();
+    document["catalog"]["ports"][position]["game_settings"] = expected.clone();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    let inspected = inspect(&valid, &contract).unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            inspected
+                .catalog()
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .as_ref()
+                .unwrap()
+        )
+        .unwrap(),
+        expected,
+    );
+    let mut changed = valid.clone();
+    changed["port"]["game_settings"]["files"][0]["settings"][0]["value"]["default"] = json!(60);
+    assert!(inspect(&changed, &contract).is_err());
+    let mut absent = valid;
+    absent["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("game_settings");
+    assert!(inspect(&absent, &contract).is_err());
+}
+
+#[test]
 fn current_projection_routes_keep_distinct_capability_floors() {
     let document = projection();
     let contract = serde_json::to_vec(&document).unwrap();

@@ -422,6 +422,15 @@ impl Catalog {
         let mut port_ids = HashSet::new();
         for port in &self.document.ports {
             crate::native_temp::validate(port)?;
+            if let Some(settings) = &port.game_settings {
+                settings.validate(&port.persistent_paths)?;
+                if !port.platforms.contains(&crate::Platform::WindowsX86_64) {
+                    return Err(PortcoveError::usage(
+                        "settings contract requires a declared Windows x86-64 integration",
+                    )
+                    .detail("port_id", &port.id));
+                }
+            }
             let native_archive_release = port.release.provider == ReleaseSource::Github
                 || (port.release.provider == ReleaseSource::DirectManifest
                     && port.release.direct.values().all(|release| {
@@ -3007,6 +3016,15 @@ mod tests {
         // Presentation and concise summaries are additive schema-2 client
         // contracts. Exclude them from the frozen schema-1 lifecycle comparison.
         for port in &mut migrated_legacy_ports {
+            // Frozen schema-1 rows predate optional settings authority. This
+            // comparison covers their original fields; separate retention and
+            // complete-projection tests cover modern settings and historical None.
+            let legacy = expected_ports
+                .iter()
+                .find(|expected| expected.id == port.id)
+                .unwrap();
+            assert!(legacy.game_settings.is_none());
+            port.game_settings = None;
             port.presentation = None;
             port.summary = expected_ports
                 .iter()
@@ -6616,7 +6634,9 @@ mod tests {
             port.launch_environment.get("MDKR_APP_PREFS_DIR"),
             Some(&".".into())
         );
-        assert_eq!(port.launch_arguments, ["--rom", "dkr-v80.z64"]);
+        // Golden's --rom route bypasses the interactive shell and its settings
+        // overlay. The shell remembers a player-reviewed ROM choice instead.
+        assert_eq!(port.launch_arguments, ["--ui"]);
         assert_eq!(port.runtime_subdirectory.as_deref(), Some("GoldenBalloon"));
         for path in [
             "GoldenBalloon/dkr-v80.z64",
@@ -6633,7 +6653,13 @@ mod tests {
         }
         assert_eq!(
             port.runtime_mutable_paths,
-            ["mdkr64.log", "mdkr64.prev.log", "mdkr64-online-failure.txt",]
+            [
+                "mdkr64.log",
+                "mdkr64.prev.log",
+                "mdkr64-online-failure.txt",
+                "mdkr64.ini.lock",
+                "mdkr64_app.ini.lock",
+            ]
         );
         assert_eq!(
             port.runtime_mutable_paths
@@ -6647,6 +6673,8 @@ mod tests {
                 "GoldenBalloon/mdkr64.log",
                 "GoldenBalloon/mdkr64.prev.log",
                 "GoldenBalloon/mdkr64-online-failure.txt",
+                "GoldenBalloon/mdkr64.ini.lock",
+                "GoldenBalloon/mdkr64_app.ini.lock",
             ]
         );
 

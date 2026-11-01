@@ -123,6 +123,31 @@ export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "c
 };
 
 export const desktopApi = {
+  gameSettings: (portId: string, generation: number) =>
+    invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
+  reviewGameSetting: (
+    portId: string,
+    fileId: string,
+    settingId: string,
+    change: import("./types").GameSettingChange,
+    generation: number,
+  ) =>
+    invoke<import("./types").GameSettingReview>("review_game_setting", {
+      portId,
+      fileId,
+      settingId,
+      change,
+      generation,
+    }),
+  applyGameSetting: (review: import("./types").GameSettingReview, generation: number) =>
+    invoke<import("./types").GameSettingsView>("apply_game_setting", {
+      portId: review.port_id,
+      fileId: review.file_id,
+      settingId: review.setting_id,
+      change: review.change,
+      reviewSha256: review.review_sha256,
+      generation,
+    }),
   compareGamePorts: (request: GameComparisonRequest, generation: number) =>
     invoke<GameComparison>("compare_game_ports", { request, generation }),
   organizationPreferences: (generation: number) =>

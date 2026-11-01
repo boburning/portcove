@@ -13145,6 +13145,48 @@
           "game_slug": "ship-of-harkinian",
           "match_kind": "port"
         }
+      },
+      "game_settings": {
+        "format_version": 1,
+        "releases": [
+          {
+            "version": "9.3.1",
+            "platform": "windows-x86-64",
+            "archive_sha256": "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c",
+            "source_commit": "f0599f96f8d442f26d0fa1c5cedafddacd56633f",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/Shipwright/blob/f0599f96f8d442f26d0fa1c5cedafddacd56633f/soh/soh/Enhancements/audio/AudioSettings.cpp",
+              "https://github.com/kenix3/libultraship/blob/da6daf1a50a5e46d6641408d52227e31e85e46df/src/ship/config/ConsoleVariable.cpp"
+            ]
+          }
+        ],
+        "files": [
+          {
+            "id": "preferences",
+            "path": "shipofharkinian.json",
+            "format": "json",
+            "maximum_bytes": 1048576,
+            "settings": [
+              {
+                "id": "master-volume",
+                "label": "Master volume (%)",
+                "key": [
+                  "CVars",
+                  "gSettings",
+                  "Volume",
+                  "Master"
+                ],
+                "value": {
+                  "kind": "integer",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "step": 1,
+                  "default": 40
+                }
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -19063,7 +19105,9 @@
       "runtime_mutable_paths": [
         "mdkr64.log",
         "mdkr64.prev.log",
-        "mdkr64-online-failure.txt"
+        "mdkr64-online-failure.txt",
+        "mdkr64.ini.lock",
+        "mdkr64_app.ini.lock"
       ],
       "launch_environment": {
         "MDKR_APP_PREFS_DIR": "."
@@ -19073,8 +19117,7 @@
       "runtime_source_filename": "dkr-v80.z64",
       "runtime_source_materialization": "n64-big-endian",
       "launch_arguments": [
-        "--rom",
-        "dkr-v80.z64"
+        "--ui"
       ],
       "presentation": {
         "installation_method": "portable-recompilation",
@@ -19096,6 +19139,49 @@
           "game_slug": "golden-balloon",
           "match_kind": "port"
         }
+      },
+      "game_settings": {
+        "format_version": 1,
+        "releases": [
+          {
+            "version": "v1.8.0",
+            "platform": "windows-x86-64",
+            "archive_sha256": "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1",
+            "source_commit": "2b69e748ec04f87a4dc6f032c598726de1b0e813",
+            "evidence_urls": [
+              "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/video_config.c",
+              "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/video_config_runtime.c",
+              "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/config_ini.c",
+              "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/audio_volume.c",
+              "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/user_paths.c"
+            ]
+          }
+        ],
+        "files": [
+          {
+            "id": "audio",
+            "path": "GoldenBalloon/mdkr64.ini",
+            "format": "ini",
+            "maximum_bytes": 32767,
+            "settings": [
+              {
+                "id": "master-volume",
+                "label": "Master volume",
+                "key": [
+                  "Audio",
+                  "MasterVolume"
+                ],
+                "value": {
+                  "kind": "integer",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "step": 1,
+                  "default": 100
+                }
+              }
+            ]
+          }
+        ]
       }
     },
     {

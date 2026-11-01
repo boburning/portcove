@@ -15,6 +15,14 @@ export type InputCatalogUpdateSource =
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 export type GameFileRouteKind = "managed_install" | "external_registration" | "managed_launch" | "external_launch";
+export type InputGameSettingChange =
+  | {
+      action: "set";
+      value: unknown;
+    }
+  | {
+      action: "reset";
+    };
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
@@ -95,6 +103,7 @@ export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
   definition_capability_request: InputDefinitionCapabilityRequest;
   game_file_query_request: InputGameFileQueryRequest;
+  game_setting_change: InputGameSettingChange;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_application_update_choice: InputDesktopApplicationUpdateChoice;

@@ -3,13 +3,54 @@
   "listing": {
     "id": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
     "name": "Hogs of War / Frontschweine (PlayStation German PAL) (Frontschweine Recompiled)",
-    "summary": "Upstream route: Windows x64 setup ZIP with source; user supplies Python3.11+, then Generate & rebuild compiles privately. No prebuilt game code. Limits: Upstream start-to-finish claim with retained interpreter fallback when optional overlay toolchain fails; German edition only. Upstream platforms: Windows10/11 x86-64 setup pack, user Python3.11+ and downloaded toolchain; local PS1 code generation/build. No other established player package. Original data: User-owned German PAL SLES-02767 CUE plus three BIN tracks; exact data-track checksum checked; other regions unsupported. Portcove setup/gameplay not verified.",
+    "summary": "Windows x64 native player for Frontschweine / Hogs of War German PAL (SLES-02767), prepared locally from your own disc using upstream tools. Finish generation and rebuild first, then select build/Frontschweine_Recompiled.exe with its complete runtime. Preserve saves, mods, extracted data and overlay caches. Upstream owns preparation and replacement; other regions and Portcove-managed builds are not offered.",
     "original_game_title": "Hogs of War / Frontschweine (PlayStation German PAL)",
     "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Nero2611/FrontschweineRecomp",
-    "issue_number": 2680
+    "issue_number": 2680,
+    "manual_setup": {
+      "help_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact German disc",
+          "instruction": "Use your independently permitted noncommercial copy and own Frontschweine German PAL disc (SLES-02767), with its CUE and all three BIN tracks. Keep the complete original set separate. Upstream identifies data Track 01 by size391706784, MD5a833706e9f28020cc665b9f1d5148f74 and SHA1ba85ec068293da37cdc261c2b77143dfb2057774; these do not identify the CUE or whole set and do not grant game-data rights."
+        },
+        {
+          "title": "Complete upstream setup",
+          "instruction": "Use the matching v0.1.0 Windows setup kit or documented source recipe. Supply your own disc, Generate and rebuild outside Portcove; Windows uses Git and Python3.11 and the upstream toolchain setup. Its rebuild includes PGO training runs. Finish all preparation before registration. Bundled OpenBIOS replaces a retail BIOS. Preserve the exact title/framework/UI combination, staged mods, BIOS and runtime dependencies."
+        },
+        {
+          "title": "Select the completed game",
+          "instruction": "Select build/Frontschweine_Recompiled.exe, use its complete creating build directory as working directory and leave arguments empty. Do not register the root setup host, unfinished output, toolchain or rebuild process. The completed game-dispatch product keeps the normal launcher and game in its process; optional Generate/rebuild successors are outside this route. Saving launch details and requesting Play are separate actions requiring consent."
+        },
+        {
+          "title": "Back up effective data before startup",
+          "instruction": "With the game closed, retain a separate complete prior runtime and copies of exe-local settings.toml, disc.cfg, bios.cfg, mods, saves/, game.toml and game_options.toml, every configured external card/save/disc path and overlay-capture root. Default cards and states use the title saves directory; explicit card paths and --memcard-dir can change effective roots. Include loose legacy state_*.pst, openbios/scph1001 state folders and the .pst_bios_isolated marker: upstream can move legacy states on first startup and write its marker even after skipped moves. Do not assume retries or cross-BIOS/build state compatibility. Card initialization can attempt a blank-card write after an existing image cannot be opened. Include current settings.toml.bad outside the active installation: malformed settings cause startup to delete the older .bad file, then rename current settings.toml to .bad before future settings writes."
+        },
+        {
+          "title": "Preserve extracted files, mods and caches",
+          "instruction": "The game-owned Instant Loading mod reads or rewrites exe-local extracted/ files from the mounted disc and removes a failed partial extraction. Runtime-loaded overlays can be translated and cached; preserve build/cache, custom capture roots, extracted data and all custom mods separately before rebuilding. Build staging owns bundled mod content. Missing overlay tools can leave upstream interpreter fallback; this guide does not promise every code path is already compiled."
+        },
+        {
+          "title": "Preserve both mod layouts before migration",
+          "instruction": "Before startup, separately back up the complete exe-local mods/ tree, including packages/, bundled/, installed/ and state.toml. The pinned runtime migrates legacy mods/packages/<id>/<version> into mods/installed/<id>/<version>, preferring a rename then recursive copy fallback. It deletes legacy versions already present in bundled/ or installed/, and removes the remaining legacy packages tree when its migration reports no stranded version/error. Do not rely on duplicate legacy folders or unrecognized loose files as recovery copies; preserve them outside that tree before starting. Build-staged bundled mods and user-installed mods remain upstream-owned."
+        },
+        {
+          "title": "Keep one replacement owner",
+          "instruction": "Upstream and the player own tools, generation, rebuilds, updates, game settings, cards and recovery. Portcove only registers your selected completed native copy; it does not acquire originals, build or replace the runtime or delete its external files. Finish upstream maintenance outside a tracked session, retain a complete recovery copy, then revalidate the selected executable. Recover runtime and current player data deliberately rather than rewinding saves with an old build."
+        },
+        {
+          "title": "Keep title and permission limits",
+          "instruction": "This is the German PAL title, not a promise for another Hogs of War region or build. The upstream playthrough statement is its report, not a new qualification of your prepared copy. Preserve the project and pinned framework PolyForm Noncommercial notices, the UI notice and supplied OpenBIOS licence; their component terms do not grant the original disc contents."
+        }
+      ],
+      "warnings": [
+        "Use an independently permitted completed native copy for the noncommercial purposes allowed by its components.",
+        "Setup, PGO, optional netplay and rebuilding remain upstream operations; save compatibility is not promised."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

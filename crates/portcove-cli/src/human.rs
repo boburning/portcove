@@ -2198,6 +2198,7 @@ pub(crate) fn profile_name(catalog: &portcove_core::Catalog, id: &str) -> String
 pub(crate) fn operation_name(operation: portcove_core::ActivityOperation) -> &'static str {
     use portcove_core::ActivityOperation as Operation;
     match operation {
+        Operation::SettingsChange => "Change game setting",
         Operation::Prepare => "Prepare game data",
         Operation::UpdateCatalog => "Update catalog",
         Operation::DiscoverSources => "Find game files",

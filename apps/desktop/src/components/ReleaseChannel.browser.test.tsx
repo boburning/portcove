@@ -59,10 +59,14 @@ it.each([false, true])(
     );
     const trigger = container.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
     await userEvent.click(trigger);
+    await expect
+      .poll(() => document.activeElement?.matches('[role="option"][aria-selected="true"]'))
+      .toBe(true);
     const rolling = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (option) => option.textContent === "Rolling",
     )!;
-    rolling.focus();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => document.activeElement).toBe(rolling);
     await userEvent.keyboard("{Enter}");
     await expect.poll(() => trigger.disabled).toBe(true);
     await expect

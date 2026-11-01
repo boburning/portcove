@@ -907,6 +907,40 @@ impl Library {
         self.require_ghostship_recovery_owner(port_id, None)
     }
 
+    pub(crate) fn try_lock_port_for_settings_recovery(
+        &self,
+        port_id: &str,
+        operation_id: &str,
+    ) -> Result<PortOperationGuard> {
+        let owned: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2 AND kind='settings_change')",
+            rusqlite::params![operation_id, port_id], |row| row.get(0),
+        )?;
+        if !owned {
+            return Err(PortcoveError::verification(
+                "settings recovery has no matching owner",
+            ));
+        }
+        self.lock_port(port_id, "settings-recovery", None, Some(operation_id))
+    }
+
+    pub(crate) fn require_no_settings_recovery(&self, port_id: &str) -> Result<()> {
+        self.require_settings_recovery_owner(port_id, None)
+    }
+
+    fn require_settings_recovery_owner(&self, port_id: &str, allowed: Option<&str>) -> Result<()> {
+        let blocked: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='settings_change' AND (?2 IS NULL OR id<>?2))",
+            rusqlite::params![port_id, allowed], |row| row.get(0),
+        )?;
+        if blocked {
+            return Err(PortcoveError::conflict(
+                "configuration recovery must finish before another operation",
+            ));
+        }
+        Ok(())
+    }
+
     fn require_ghostship_recovery_owner(
         &self,
         port_id: &str,
@@ -938,6 +972,7 @@ impl Library {
             .acquire_lock(&key, port_id, operation)
             .map_err(|error| error.detail("port_id", port_id))?;
         self.require_ghostship_recovery_owner(port_id, allowed_operation_id)?;
+        self.require_settings_recovery_owner(port_id, allowed_operation_id)?;
         if let Some(session) = self.launch_session_for_port(port_id)?
             && Some(session.id.as_str()) != allowed_session_id
         {

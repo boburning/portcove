@@ -296,6 +296,82 @@ mod tests {
     use super::*;
 
     #[test]
+    fn optional_game_settings_retain_exact_legacy_indexed_and_admitted_semantics() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap();
+        port.game_settings = None;
+        let basic = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let old = InstalledContract::capture(&basic, "shipwright").unwrap();
+        assert!(
+            old.catalog("shipwright")
+                .unwrap()
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .is_none()
+        );
+        assert!(
+            serde_json::to_value(basic.port("shipwright").unwrap())
+                .unwrap()
+                .get("game_settings")
+                .is_none()
+        );
+
+        let authored: serde_json::Value =
+            serde_json::from_str(include_str!("../catalog/ports/shipwright.json")).unwrap();
+        let expected = authored["integration"]["game_settings"].clone();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap();
+        port.game_settings = Some(serde_json::from_value(expected.clone()).unwrap());
+        let configured = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        for catalog in [
+            configured.clone(),
+            crate::test_fixture::indexed_catalog(&configured, "shipwright"),
+            crate::test_fixture::admitted_indexed_catalog(&configured, "shipwright"),
+        ] {
+            let retained = InstalledContract::capture(&catalog, "shipwright").unwrap();
+            let bytes = serde_json::to_vec(&retained).unwrap();
+            let restored: InstalledContract = serde_json::from_slice(&bytes).unwrap();
+            let retained_catalog = restored.catalog("shipwright").unwrap();
+            let actual = retained_catalog
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .as_ref()
+                .unwrap();
+            assert_eq!(serde_json::to_value(actual).unwrap(), expected);
+            assert_eq!(
+                actual.files[0].settings[0].value.default_value(),
+                serde_json::json!(40)
+            );
+            assert_eq!(
+                serde_json::to_vec(
+                    &InstalledContract::capture(&retained_catalog, "shipwright").unwrap()
+                )
+                .unwrap(),
+                bytes
+            );
+        }
+        // Advertising settings today never changes the already retained basic
+        // contract, even when the port and offered release have the same names.
+        assert!(
+            old.catalog("shipwright")
+                .unwrap()
+                .port("shipwright")
+                .unwrap()
+                .game_settings
+                .is_none()
+        );
+    }
+
+    #[test]
     fn versioned_mod_envelope_preserves_all_origins_and_refuses_downgrades() {
         let original = crate::test_fixture::versioned_mod_catalog();
         let id = &original.ports()[0].id;
