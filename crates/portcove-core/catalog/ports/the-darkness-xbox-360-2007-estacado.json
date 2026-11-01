@@ -3,13 +3,45 @@
   "listing": {
     "id": "the-darkness-xbox-360-2007-estacado",
     "name": "The Darkness (Xbox 360, 2007) (Estacado)",
-    "summary": "Upstream route: Portable Windows x64 ZIP; TheDarknessSettings.exe imports owned disc or game folder Limits: Prerelease with limited maintainer hardware testing; whole-campaign completion is upstream claim only. Upstream platforms: Windows10/11 x86-64 portable ZIP, D3D12; upstream test coverage limited. Other desktop packages not established. Original data: Owned supported Xbox 360 release Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Estacado Windows player directly through TheDarkness.exe after upstream game setup. Preserve Saved Games or the existing portable/legacy layout, verified migration copies and original data; the separate settings launcher owns preparation and updates.",
     "original_game_title": "The Darkness (Xbox 360, 2007)",
     "project_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
-    "issue_number": 2615
+    "issue_number": 2615,
+    "manual_setup": {
+      "help_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/661d493ccf64bb8b0a957986d9630171c19b38ea/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported code upstream",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own The Darkness Xbox 360 USA/Europe (En/Fr/De/Es/It), title 545407EE. The documented disc SHA256 is 46f7305c1e1972e888d3624f15b0ed483923aeeb50ecad0c6bf5b42f69d52a90; default.xex SHA256 is aace35a8f9bcdc7f28aeab9ff8cf3bdf200353f5c83705f6284487347acb3c5f. Upstream can accept localized headers/text when its decoded code, structure and required data match; that is not a claim every region or title update works. Finish TheDarknessSettings.exe setup, data validation and settings outside Portcove, retaining independent originals. No disc, helper, compiler or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Keep the complete native player package",
+          "instruction": "The inspected official 0.9.8 Windows ZIP contains AMD64 TheDarkness.exe, separate TheDarknessSettings.exe and matching runtime libraries/notices. Keep the complete extracted folder. The settings launcher starts the native program as a separate process; do not attach that settings window as the game. This is the Estacado implementation, with its own source/runtime/data contract, not the separately cataloged PortingPete implementation."
+        },
+        {
+          "title": "Attach the prepared direct player",
+          "instruction": "Select TheDarkness.exe, set the complete extracted runtime directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The settings launcher’s default command is this same program without extra arguments. The native parser defaults to normal Run and resolves the existing configured game location or prepared game/default.xex; it does not require a fabricated private-cache path or launcher environment. Finish missing/unsupported game setup upstream before retrying. The game runs in the selected native process."
+        },
+        {
+          "title": "Preserve Saved Games and migration recovery",
+          "instruction": "The normal root is the Windows Saved Games location, usually %USERPROFILE%/Saved Games/Estacado, with TheDarkness.pc.toml, content/ saves and other player data. Per-user logs, caches and diagnostics also use the separate %LOCALAPPDATA%/Estacado root (or the runtime’s actual local fallback); preserve it too. Use the actual Windows known-folder locations if Saved Games or Local AppData has been relocated. An already existing portable.txt beside TheDarkness.exe instead keeps the legacy package-local configuration/runtime_data; explicit external config/user-data roots also remain authoritative. Upstream’s 0.9.0 transition copies and checks old data, keeps originals and writes SAVES_MOVED.txt; if copying fails it can retain the old layout and retry. Preserve all old/new roots, screenshot/data copies, original images and the configured game-location pointer. This guide creates no marker and performs no import, migration, backup or deletion."
+        },
+        {
+          "title": "Keep components, originals and optional content separate",
+          "instruction": "Retain the project, ReXGlue, XenonRecomp and all component notices in THIRD_PARTY_NOTICES. Their grants do not license the original game, localized commercial assets, HD textures, language packs or mods; use only a complete copy you are independently permitted to use. Package/version reports contain names/sizes/hashes rather than permission to upload game material. No report upload, account, credential, online or optional-content operation is performed here."
+        },
+        {
+          "title": "Maintain outside the attachment",
+          "instruction": "Quit the actual game normally before upstream replacement, importing old saves, changing game data or updating mods/settings. The external settings/updater workflow owns runtime replacement and successor launches; preserve recovery copies and review/relink changed executable bytes. Forced termination is not a save-flush guarantee. Upstream limited-hardware and playability reports are not native/installed, campaign, save/reload or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Select TheDarkness.exe after setup. Preserve the actual Saved Games, portable or legacy roots and retained migration copies; another Darkness implementation and settings/updater processes have separate ownership."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

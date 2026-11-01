@@ -3,7 +3,7 @@
   "listing": {
     "id": "ninja-gaiden-black-ninja-gaiden-black-recompiled",
     "name": "Ninja Gaiden Black (Ninja Gaiden Black Recompiled)",
-    "summary": "Upstream route: Windows ZIP and Linux AppImage; first-run disc import Limits: USA Xbox title 5443000D; no game data in package. macOS source is unsupported. Upstream platforms: Windows x86-64 ZIP and Linux x86-64 AppImage (glibc2.35+,Vulkan1.3). Apple-Silicon macOS26 source route explicitly unsupported/unmaintained; no official Mac package. Original data: Own retail USA/NTSC-U Ninja Gaiden Black Xbox disc, title 5443000D. Upstream imports full/trimmed disc images, supported ZIP/7z disc containers, or extracted data with default.xbe on first launch. Keep the full game-data tree; this is not another region or the original Ninja Gaiden edition. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Ninja Gaiden Black Windows player using your own supported original Xbox data. Preserve separate Local/Roaming roots and matching arcade companions; arcade handoffs and VM/Proton reports do not qualify a whole native Windows journey.",
     "original_game_title": "Ninja Gaiden Black",
     "project_url": "https://github.com/gamboozino/ngbrecomp",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "ninja-gaiden-black",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2598
+    "issue_number": 2598,
+    "manual_setup": {
+      "help_url": "https://github.com/gamboozino/ngbrecomp/blob/10f25f0f8622ef387b46eb55edefca6ed2e2856b/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported original upstream",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own Ninja Gaiden Black Xbox USA data, title 5443000D. The selected importer identifies its exact default.xbe by 4,571,136 bytes and FNV-1a-64 3602ba6a6079c8cd; it can also accept matching section contents under a different header layout. This is structural/source compatibility, not cryptographic authentication or permission for another revision. Finish the upstream owned-disc or extracted-folder setup before attachment and keep independent originals. This guide enables no mismatch-bypass/debug override and obtains or executes no original, extractor, helper or game."
+        },
+        {
+          "title": "Keep the complete Windows package",
+          "instruction": "The inspected official 0.9.52 ZIP contains AMD64 NinjaGaidenBlack/NinjaGaidenBlack.exe plus matching libraries and NinjaTrilogy.exe/NinjaTomoe.exe companions. Keep the complete folder and notices. Upstream identifies those companions as the separate 1988 arcade programs from the supported Xbox title’s disc/region, not an unrelated NES trilogy admission. Their presence is not independent gameplay or source acceptance for another title or region."
+        },
+        {
+          "title": "Attach the main prepared player",
+          "instruction": "Select NinjaGaidenBlack.exe, use the full extracted NinjaGaidenBlack directory as working directory and leave arguments empty. Review the exact intent and request Play separately, using the already installed data/settings. The normal main game runs through the linked Xbox-compatible runtime. Complete missing original/setup prompts outside the attached attempt. The arcade menu/cabinet and return path hand off to companion programs; their process/lifetime behavior is not qualified by this main-player attachment. Finish such transitions outside its claimed journey instead of assuming successor tracking."
+        },
+        {
+          "title": "Preserve the separate Windows data roots",
+          "instruction": "Keep installed game data, saves, log.txt and shaders under the actual data root, normally %LOCALAPPDATA%/NinjaGaidenBlack, and settings.ini/controls.ini under %APPDATA%/NinjaGaidenBlack. Preserve any established NGB_SAVE_DIR, NGB_CONFIG_DIR, NGB_GAME_DIR or other external game/config roots and original discs independently. The main game and arcade companions share their upstream layout; no cross-region, chapter, arcade or imported-save compatibility is inferred. This guide performs no install, migration, restore, backup or deletion."
+        },
+        {
+          "title": "Retain original and component terms",
+          "instruction": "Keep the project GPLv3-or-later notice, XboxRecomp and all runtime/audio/renderer notices, plus the separately credited OFL fonts and Xelu/Kenney prompt assets. Those grants do not license the original Tecmo game, disc data or third-party mods. Use only a complete copy and components you are independently permitted to use. Optional cheats, graphics/mod content, arcade programs and another platform’s delivery remain upstream operations with separate compatibility scope."
+        },
+        {
+          "title": "Maintain the external player explicitly",
+          "instruction": "Quit the actual game and any companion normally before upstream replacement or data changes. Preserve independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush or descendant-quiescence guarantee. Upstream Windows testing is reported under Proton and a Windows 11 VM; that is not a physical Windows, complete campaign, save/reload, installed-app or Supported observation. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep both Windows data/config roots and matching companions. Main-game attachment does not establish arcade handoff, real-save or physical Windows qualification."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
