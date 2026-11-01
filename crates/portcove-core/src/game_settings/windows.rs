@@ -339,8 +339,13 @@ impl HeldFile {
             return Err(changed());
         }
         let name_bytes = units.len().checked_mul(2).ok_or_else(changed)?;
+        // Win32 path conversion consumes a NUL-terminated FileName. Reserve
+        // that terminator explicitly: allocator alignment padding is not part
+        // of the string and may disappear for an exactly aligned name.
+        // FileNameLength still describes only the path's UTF-16 bytes.
         let length = offset_of!(FILE_RENAME_INFO, FileName)
             .checked_add(name_bytes)
+            .and_then(|length| length.checked_add(size_of::<u16>()))
             .ok_or_else(changed)?;
         let length_u32 = u32::try_from(length).map_err(|_| changed())?;
         // usize storage supplies the C structure's pointer alignment. Reserve
@@ -524,6 +529,38 @@ mod tests {
         original.retire().unwrap();
         assert!(!backup.exists());
         assert!(path.is_file());
+    }
+
+    #[test]
+    fn publication_reopens_only_the_exact_name_for_every_utf16_alignment() {
+        for verbatim in [false, true] {
+            for padding in 0..4 {
+                let temporary = tempfile::tempdir().unwrap();
+                let root = if verbatim {
+                    fs::canonicalize(temporary.path()).unwrap()
+                } else {
+                    temporary.path().to_owned()
+                };
+                let stage_path = root.join("owned.new");
+                let filename = format!("{}-published-𝄞.ini", "x".repeat(padding));
+                let published = root.join(&filename);
+                let mut stage = HeldFile::stage(&stage_path, b"exact postimage").unwrap();
+                let identity = stage.identity.clone();
+                stage.move_to(&published).unwrap();
+                assert_eq!(physical_identity(&stage.file).unwrap(), identity);
+                drop(stage);
+                assert_eq!(fs::read(&published).unwrap(), b"exact postimage");
+                let reopened = HeldFile::open(&published).unwrap();
+                assert_eq!(reopened.identity, identity);
+                drop(reopened);
+                let entries: Vec<_> = fs::read_dir(&root)
+                    .unwrap()
+                    .map(|entry| entry.unwrap().file_name())
+                    .collect();
+                assert_eq!(entries, [std::ffi::OsString::from(filename)]);
+                assert!(!stage_path.exists());
+            }
+        }
     }
 
     #[test]

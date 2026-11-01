@@ -34,6 +34,8 @@ fn fixture(port_id: &str) -> Fixture {
     // declaration as well. Production authored source contracts stay intact.
     port.source_profile = None;
     port.runtime_source_materialization = None;
+    // A filename alone implies the legacy N64 materialization contract too.
+    port.runtime_source_filename = None;
     port.presentation = None;
     let descriptor = port.game_settings.as_ref().unwrap();
     let file = descriptor.files[0].clone();
@@ -48,12 +50,14 @@ fn fixture(port_id: &str) -> Fixture {
         .join(port_id)
         .join("settings-fixture");
     fs::create_dir_all(&root).unwrap();
-    if port_id == GOLDEN {
-        fs::create_dir_all(root.join("GoldenBalloon")).unwrap();
-    }
+    let executable_root = port
+        .runtime_subdirectory
+        .as_ref()
+        .map_or_else(|| root.clone(), |directory| root.join(directory));
+    fs::create_dir_all(&executable_root).unwrap();
     let executable = &port.executable_hints[&Platform::WindowsX86_64][0];
     fs::write(
-        root.join(executable),
+        executable_root.join(executable),
         b"inert settings fixture executable, never run",
     )
     .unwrap();
