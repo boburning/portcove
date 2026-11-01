@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import { portStatus, sourceProfile } from "../test-fixtures";
+import { failureReport, portStatus, sourceProfile } from "../test-fixtures";
 import type { SourceRecord, SourceReuseReview } from "../types";
 import {
   SetupReviewSelectionProvider,
@@ -197,13 +197,42 @@ it("refuses a stale repair baseline and preserves substituted-input failure with
   await act(async () => button("Repair moved file location").click());
   expect(element.textContent).toContain("registration changed");
   expect(apply).not.toHaveBeenCalled();
-  plan.mockRejectedValueOnce(
-    new Error(
-      "Relink requires the same original bytes. Choose the moved original, not another edition.",
-    ),
-  );
+  plan.mockRejectedValueOnce(failureReport());
   await act(async () => button("Repair moved file location").click());
-  expect(element.textContent).toContain("not another edition");
+  expect(element.textContent).toContain(failureReport().presentation.summary);
+  expect(element.textContent).toContain("Location repair needs the same original content");
+  expect(element.textContent).toContain("check different files separately");
   expect(apply).not.toHaveBeenCalled();
   expect(changed).not.toHaveBeenCalled();
+});
+
+it("keeps ordinary source-check errors separate from moved-location guidance", async () => {
+  vi.spyOn(desktopApi, "reviewSourceReuse").mockRejectedValue(failureReport());
+  await act(async () => render());
+  await select();
+  await act(async () => button("Check saved game files").click());
+  expect(element.textContent).toContain(failureReport().presentation.summary);
+  expect(element.textContent).not.toContain("Location repair needs");
+  expect(open).not.toHaveBeenCalled();
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it("keeps a refresh failure separate after the moved location was repaired", async () => {
+  const replacement = { ...source, path: "E:/moved.z64", updated_at: 2 };
+  vi.spyOn(picker, "pickSourcePath").mockResolvedValue(replacement.path);
+  vi.spyOn(desktopApi, "planSourceRelink").mockResolvedValue({
+    original: source,
+    replacement,
+    preview_sha256: "c".repeat(64),
+  });
+  const apply = vi.spyOn(desktopApi, "relinkSource").mockResolvedValue(replacement);
+  changed.mockRejectedValueOnce(new Error("Workspace refresh failed"));
+  await act(async () => render());
+  await select();
+  await act(async () => button("Repair moved file location").click());
+  expect(apply).toHaveBeenCalledTimes(1);
+  expect(element.textContent).toContain("Location repaired");
+  expect(element.textContent).toContain("Workspace refresh failed");
+  expect(element.textContent).not.toContain("Location repair needs");
+  expect(changed).toHaveBeenCalledTimes(1);
 });

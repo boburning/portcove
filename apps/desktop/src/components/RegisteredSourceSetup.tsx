@@ -102,7 +102,13 @@ export function RegisteredSourceSetup({
           refresh: "none",
           propagateFailure: true,
         },
-      );
+      ).catch((value: unknown) => {
+        if (accepts())
+          setError(
+            `${errorText(value)} Location repair needs the same original content. Choose the moved original; check different files separately.`,
+          );
+        return undefined;
+      });
       if (!repaired) return;
       if (accepts()) {
         setRead(undefined);
