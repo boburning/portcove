@@ -700,8 +700,8 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
 fn unsupported_capabilities_remain_reportable_and_the_adapter_is_required() {
     let baseline = fixture();
     let mut value = baseline.clone();
-    value["required_capabilities"][0]["minimum_version"] = json!(2);
-    value["required_capabilities"][0]["maximum_version"] = json!(2);
+    value["required_capabilities"][0]["minimum_version"] = json!(3);
+    value["required_capabilities"][0]["maximum_version"] = json!(3);
     assert!(!inspect(&value).unwrap().capabilities().compatible);
     value["required_capabilities"]
         .as_array_mut()
