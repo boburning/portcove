@@ -2844,4 +2844,48 @@ mod tests {
     fn fataldecomp_roller_prepared_player_route_2792() {
         assert_listing_only_player_route("fataldecomp-roller", Some(false));
     }
+
+    #[test]
+    fn bountyhunterkanden_secondhunt_prepared_player_route_2845() {
+        assert_listing_only_player_route("bountyhunterkanden-secondhunt", Some(false));
+    }
+
+    #[test]
+    fn citrongames_dora64_3_prepared_player_route_2724() {
+        assert_listing_only_player_route("citrongames-dora64-3", Some(false));
+    }
+
+    #[test]
+    fn clergyman0013_arizona_vamp_recomp_prepared_player_route_2740() {
+        assert_listing_only_player_route("clergyman0013-arizona-vamp-recomp", Some(false));
+    }
+
+    #[test]
+    fn crackdown_crackdown_recompiled_prepared_player_route_2559() {
+        assert_listing_only_player_route("crackdown-crackdown-recompiled", Some(true));
+    }
+
+    #[test]
+    fn dannyowelch_deception_recomp_prepared_player_route_2735() {
+        assert_listing_only_player_route("dannyowelch-deception-recomp", Some(false));
+    }
+
+    #[test]
+    fn daytona_usa_sega_model_2_arcade_daytona_usa_static_recompilation_prepared_player_route_2651()
+    {
+        assert_listing_only_player_route(
+            "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn def_jam_fight_for_ny_defjamffny_recomp_prepared_player_route_2562() {
+        assert_listing_only_player_route("def-jam-fight-for-ny-defjamffny-recomp", Some(false));
+    }
+
+    #[test]
+    fn crazyriddler_finesthourremastered_prepared_player_route_2785() {
+        assert_listing_only_player_route("crazyriddler-finesthourremastered", Some(true));
+    }
 }

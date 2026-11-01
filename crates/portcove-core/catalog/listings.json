@@ -10628,7 +10628,7 @@
     {
       "id": "bountyhunterkanden-secondhunt",
       "name": "Metroid Prime Hunters (Second Hunt)",
-      "summary": "Upstream route: Upstream runtime package for Second Hunt; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims campaign completion/crossplay. Optional imported Metroid content has separate inputs; no independent campaign/device test here. SecondHunt fork of NoneGiven/MphRead, game-native engine; compare parent existing ownership before standalone issue. Windows/Android beta; original campaign/multiplayer claims attributed. Upstream platforms: Windows x64/Android ARM64 beta runtimes from MphRead C# recreation. Exact OS minimums beyond reviewed docs Unknown. Original data: Own MetroidPrimeHunters NintendoDS USA v1.0 orv1.1, gamecodeAMHE; other regions unsupported. Optional additional content requires own MetroidPrime1/2/3/Trilogy discs or Prime4Beyond Switch files/keys, but these are not required for base Hunters. Exact baseROM hashes/BIOS requirements remain Unknown here. Portcove setup/gameplay not verified.",
+      "summary": "Attach your independently permitted prepared Second Hunt Windows copy for an owned USA Hunters ROM, preserving its actual data roots and upstream-only updater/replay boundaries.",
       "original_game_title": "Metroid Prime Hunters",
       "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
       "platforms": [],
@@ -10642,7 +10642,40 @@
         "game_slug": "metroid-prime-hunters",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2845
+      "issue_number": 2845,
+      "manual_setup": {
+        "help_url": "https://github.com/BountyHunterKanden/SecondHunt/blob/6a41f47fa6ed580c0b3ff8f90b2f841acd1d738c/src/SecondHunt.Desktop/dist/README.txt",
+        "steps": [
+          {
+            "title": "Prepare the exact supported Hunters copy upstream",
+            "instruction": "Use an independently permitted complete official Second Hunt Windows copy for personal, noncommercial use under its applicable terms. Supply your own Metroid Prime Hunters USA .nds, gamecodeAMHE, revision0/v1.0 orrevision1/v1.1. The selected setup checks the header gamecode and version byte, not a full-ROM cryptographic digest or entitlement; exact accepted ROM SHA remains Unknown. Complete the upstream picker/drop and extraction until its own game/.extracted marker is established, outside Portcove. No ROM, original assets, keys, importer or extraction is obtained or run by this registration."
+          },
+          {
+            "title": "Attach the normal Windows program",
+            "instruction": "Choose SecondHunt.exe in its complete creating release folder, with that folder as CWD and no arguments for ordinary menus/play after setup. Keep all supplied companions and notices; Windows10/11 x64 and OpenGL3.3+ remain upstream requirements. Public builds use the normal menu path and DesktopApp.Run owns the window/game loop in-process. Do not attach a server, match host, tool, test/replay-prep mode or updater. Review and consent to this exact selected intent, then request Play separately."
+          },
+          {
+            "title": "Preserve the whole effective data root",
+            "instruction": "The public default is %LOCALAPPDATA%/Second Hunt, distinct from development MPH Recomp. Preserve game/files and .extracted, recomp_settings.json, saves/, mods/, cache/, crash/, logs/, replays/imports and all other established state under that root. portable.txt beside the exe selects data/ beside it; the supported --data argument selects its exact full path instead. Preserve the chosen root and any original or imported external sources without inferring another MphRead fork’s saves, migration or compatibility. This guide does not import/export DS saves or promise cross-version/mod save compatibility."
+          },
+          {
+            "title": "Keep updates and recursive cleanup under upstream ownership",
+            "instruction": "The app checks GitHub at launch when its own update-alert setting permits; an accepted upstream update swaps files to .old/.oldN, starts the new program with --after-update and exits. Complete updates/restarts outside attachment and review/relink changed selected bytes; no successor adoption or termination is promised. Independently of an update argument, EVERY normal startup calls AfterUpdate and recursively deletes matching .old/.oldN files anywhere under the executable folder, including a portable data subtree. Before first prepared startup, keep complete recovery copies outside that whole executable tree and its disposable update/staging paths. Core does not disable or own this updater/cleanup."
+          },
+          {
+            "title": "Keep optional content and network operations separate",
+            "instruction": "The base Hunters route does not require Prime1/2/3/Trilogy discs, Prime4Beyond files/keys or optional imported characters/music/arenas. Each additional source has its own ownership/permission requirements. Online/LAN/voice/chat/profile sharing and replay-preparation workers are upstream features, not qualifications or operations offered through this guide. Replay preparation can use background helper invocations; close all actual players/helpers/successors before replacement or another attachment. No private diagnostic shortcut or new Core shell/watcher is introduced."
+          },
+          {
+            "title": "Retain license and replacement boundaries",
+            "instruction": "Second Hunt original post-October20 code/art/documents uses PolyForm Strict with additional personal/noncommercial private modification permission and a redistribution prohibition; MphRead-derived and earlier MIT parts and third-party components retain their own terms. Official licensor-published builds are distinguished in that license; do not mirror or redistribute a copy through this guide. These terms grant no Nintendo/game rights. Upstream/user owns runtime replacement/recovery and every external file. Removing registration preserves all external files; no external update, backup/rollback, save migration, deletion or protected delivery is offered."
+          }
+        ],
+        "warnings": [
+          "Published v0.4.2-beta package integrity is provider expected metadata only; no ZIP/PE bytes or source-to-binary inspection occurred. Header/marker checks are not whole-ROM authentication.",
+          "Upstream campaign/multiplayer/controller/replay/gameplay claims retain their scope. No actual native/game/helper/installer/private source/save, installed-client, Supported or protected acceptance was performed."
+        ]
+      }
     },
     {
       "id": "brawl-recompiled",
@@ -12319,7 +12352,7 @@
     {
       "id": "citrongames-dora64-3",
       "name": "Doraemon 3: Nobita no Machi SOS! (Dora3-64)",
-      "summary": "Upstream route: Upstream runtime package for Dora3-64; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream advertises gameplay, translations and autosave. Complete playthrough evidence Unknown; inspect Android ZIP layout before describing its install route. Linux glibc 2.43 minimum; Android README calls an APK but actual release supplies Android ZIP. Select verified asset and inspect its layout before configuring route. Upstream platforms: Windows x64, Linux x86-64 (glibc 2.43+, Vulkan), Android ARM64. Android release ZIP differs from README APK name. Original data: N64 Doraemon 3 Japan N3DJ revision 0, 16 MiB big-endian ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Attach an independently permitted prepared Dora64-3 Windows player for your own Japanese revision0 ROM, keeping local saves, settings and upstream maintenance together.",
       "original_game_title": "Doraemon 3: Nobita no Machi SOS!",
       "project_url": "https://github.com/citrongames/Dora64-3",
       "platforms": [],
@@ -12333,18 +12366,76 @@
         "game_slug": "doraemon-3-nobita-no-machi-sos",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2724
+      "issue_number": 2724,
+      "manual_setup": {
+        "help_url": "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/docs/user-guide.md",
+        "steps": [
+          {
+            "title": "Complete the exact owned-ROM setup upstream",
+            "instruction": "Use a complete copy and components you are independently permitted to use. Supply your own Japanese Doraemon3 N3DJ revision0,16MiB big-endian .z64 ROM. The selected README identifies SHA-256 410f99bdd58795639da272c9be9d1ab8c35b61f24f7c1fb92f7e83e1069a2602. The actual native loader checks file size0x1000000 and XXH3-64 F3BFFF0C58827510; that is a compatibility check, not a demonstrated SHA-256/entitlement check of supplied data. The ROM is not included. Convert other representations and complete any upstream generation/build outside Portcove; no ROM, BIOS, compiler or helper is acquired or run by this registration."
+          },
+          {
+            "title": "Select the documented direct Windows player",
+            "instruction": "Keep the entire creating writable Windows folder with matching DLLs, assets and notices. Place the supported .z64 beside Dora64-3.exe, choose that native executable and its containing directory, and use no arguments. Windows wmain rejects extra arguments and discovers the matching adjacent ROM; do not use the private ROM/run-directory diagnostic interface, research probes, Android package or Linux setup script. Review and consent to the exact executable/CWD/arguments, then request Play separately."
+          },
+          {
+            "title": "Preserve local saves and every settings file",
+            "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+          },
+          {
+            "title": "Keep lifetime and maintenance ownership explicit",
+            "instruction": "The native entry calls the pinned runtime in-process and waits for its game/event/saving threads before returning. The documented reset restarts the game in the same window; it is not a new Core orchestration path. Upstream/user owns preparation, replacement and recovery. Close the actual player normally, keep a separate working runtime/data backup, perform upstream maintenance, then review/relink changed selected bytes. Removing registration preserves external files; Portcove offers no external update, backup, rollback, migration, deletion or cross-version save guarantee."
+          },
+          {
+            "title": "Retain platform, content and evidence limits",
+            "instruction": "This guide concerns Windows10/11 x64 and the selected direct entry only. Linux glibc2.43 and the Android README APK versus published ZIP discrepancy remain separate. GPL3-or-later project and runtime/component terms do not grant ROM or original/extracted assets; localized wordmarks/artwork retain their own provenance and permissions. Use only actual material you are permitted to use. Upstream gameplay/autosave/translation claims are not Portcove observations."
+          }
+        ],
+        "warnings": [
+          "Selected live startup source explicitly calls itself a research frontend with no validated gameplay loop and retains a not-playable log label. The documented Windows build enables LIVE_RT64 and disables diagnostic logging by default, so that log label is compiled out; this does not establish that the underlying comment is stale or that the game is usable. dora3_pending still stops with code77 if reached; no actual reachability/failure or normal playable session was observed. Keep this source/README1.0 conflict open for exact per-port review; do not count the guide as stable/playable runtime qualification or bypass stop paths.",
+          "Source/tag and provider expected package digest only; no ZIP/PE bytes, package/source correspondence, native/game/real-save/installed-client/Supported/protected acceptance was inspected or executed."
+        ]
+      }
     },
     {
       "id": "clergyman0013-arizona-vamp-recomp",
       "name": "Darkwatch (Arizona Vamp Recomp)",
-      "summary": "Upstream route: Upstream ZIP includes Darkwatch.exe setup/runtime. First start builds game code locally from own Xbox copy with progress; source build documented separately and maytake30-90minutes. Upstream owns generated runtime/preparation. Limits: Upstream only: Beta with upstream co-op and modern-settings claims. Initial local compilation may take 30-90 minutes; complete-game and multiplayer behavior unverified here. Distinct Arizona Vamp implementation from Darker Edition; first start builds native code locally; beta and online/co-op claims need independent scope checks. Upstream platforms: Windows x86-64 D3D12/XAudio2; Visual Studio/Git source-build route. Other hosts not established. Original data: Original Xbox Darkwatch own supported disc/extracted data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Attach an independently permitted completed Arizona Vamp Windows player for your own Darkwatch data, leaving local generation, runtime replacement and external saves with upstream.",
       "original_game_title": "Darkwatch",
       "project_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
-      "issue_number": 2740
+      "issue_number": 2740,
+      "manual_setup": {
+        "help_url": "https://github.com/Clergyman0013/arizona-vamp-recomp/blob/e4fa6f32661decb0850b9336cfc45af238435946/darkwatch-hle/tools/README-release-windows.txt",
+        "steps": [
+          {
+            "title": "Complete this implementation’s owned-input preparation upstream",
+            "instruction": "Use an independently permitted complete Arizona Vamp Recomp Windows copy and your own original-Xbox Darkwatch USA-release disc image or extracted default.xbe with matching files. This is the Clergyman0013 implementation, not Darker Edition or the older reference port. The selected game config identifies title0x43430016 and XDK5849; the Windows preparation document specifies the USA release, but an exact accepted disc revision/default.xbe digest is not established here. The host compares the XBE with its creating build’s expectedSHA1, but that generated value is not supplied by another title or this guide. Finish upstream input selection and first-start generation/compilation before attachment; no game, BIOS, extractor, compiler or helper is acquired or run by Portcove."
+          },
+          {
+            "title": "Select the completed native player and all companions",
+            "instruction": "Select Darkwatch.exe, its complete creating writable output/package directory and no arguments for normal Play. Keep the matching generated Darkwatch.dll, assets, compiler resources, GPU/runtime dependencies and notices together. The documented source-build output is darkwatch-hle/out/build/release/Darkwatch.exe, but choose the actual completed location. Windows10/11 x64 and Direct3D12 are upstream prerequisites; Proton/macOS/Android are not qualified by this Windows route. Review the exact executable/CWD/arguments and consent, then request Play separately."
+          },
+          {
+            "title": "Preserve upstream preparation and lifetime boundaries",
+            "instruction": "The selected pinned SDK plus title patch adds PrepareGameCode before the ordinary native window/game loop: it checks stale DLL targets, can launch/wait for compiler children with a progress window, then loads the generated DLL into the native program. Complete those setup/rebuild paths outside this attachment and retain a separate known-working copy before first prepared startup; if inputs/compiler/configuration change, startup may rebuild again. Ordinary ready-player execution stays in the native process. The SDK also supports Xbox quick-reboot handoff to another executable; actual title use is unqualified and successors are outside this attached-session promise. Close all actual players/compiler/helpers/successors before maintenance."
+          },
+          {
+            "title": "Keep every creating-runtime data and diagnostic root",
+            "instruction": "Preserve settings.toml, the whole executable-adjacent hdd/ tree including hdd/E saves and any numbered instance hdd roots, original assets/disc, generated/runtime/compiler working outputs, shader/pipeline caches, logs/compile.log, CrashDumps/, reports/ and captures/. Preserve actual XBE_CAPTURE_DIR and other established custom/external locations too; this guide does not create environment settings or assume another port’s root. First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
+          },
+          {
+            "title": "Retain component permissions and one replacement owner",
+            "instruction": "Project/SDK and compiler/third-party licenses apply to their own code and do not grant the original game/assets or arbitrary mods. Use only a completed copy, sources and components you are independently permitted to use. Upstream/user owns generation, preparation, updates, runtime replacement and recovery. Keep previous complete runtime/data separately, maintain it upstream, then review/relink changed selected bytes. Removing registration preserves every external file; no Core builder, external update/backup/rollback/migration, save conversion or deletion is offered."
+          }
+        ],
+        "warnings": [
+          "Beta/playthrough/co-op/rendering and performance claims belong to upstream; selected source/patch evidence is not an observed completed native build or full campaign acceptance.",
+          "Windows package SHA-256 is provider expected metadata only. No ZIP/PE payload, compiler/generated output, source-to-binary/ABI, actual input/game/save/native/installed-client/Supported/protected acceptance was inspected or executed."
+        ]
+      }
     },
     {
       "id": "cod3pc-call-of-duty-3-native-windows-port-alekszverr-jpg-call-of-duty-3",
@@ -13513,13 +13604,47 @@
     {
       "id": "crackdown-crackdown-recompiled",
       "name": "Crackdown (Crackdown Recompiled)",
-      "summary": "Upstream route: Windows package; Linux AppImage experimental Limits: Official launcher/setup expects own Xbox 360 files. Decide one update owner if launcher continues updating. Upstream platforms: Windows x86-64 ZIP; experimental native Linux x86-64/SteamDeck AppImage, glibc2.31+, Vulkan. Linux has no broad real-hardware validation claim. Original data: Own original, unupdated Crackdown Xbox 360 retail disc, title 4D5307DC, as ISO or extracted folder. Default.xex must be 14,270,464 bytes with SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Upstream launcher verifies executable and required files; $SystemUpdate is unnecessary. Portcove setup/gameplay not verified.",
+      "summary": "Attach an independently permitted prepared Crackdown Windows copy, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
       "original_game_title": "Crackdown",
       "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
       "issue_number": 2559,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled"
+      "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
+      "manual_setup": {
+        "help_url": "https://github.com/saulob/crackdown-xbox360-recompiled/blob/757ad47070719c4cdb6405bc0047fd6d64bbe108/README.md",
+        "steps": [
+          {
+            "title": "Finish exact original-disc setup upstream",
+            "instruction": "Use a complete Windows copy/components you are independently permitted to use and your own original, unupdated Crackdown Xbox360 retail disc: title4D5307DC, Default.xex14,270,464bytes, SHA-256 7AAA7A8920D1C3C737E58CF583DEBAFE6013BE0A96BEC3EC136E5DE7E3377E5A. Complete upstream ISO/extracted-folder validation and installation until Ready to play; game/ is adjacent and $SystemUpdate is unnecessary. No disc extraction, original acquisition, compilation or installer is invoked by this registration."
+          },
+          {
+            "title": "Select the prepared native game entry",
+            "instruction": "Select crackdown.exe, its complete containing writable package directory and no arguments for ordinary Play. Keep the matching SDK/runtime/GPU DLLs, launcher resources, game data, configuration and notices together. The embedded launcher calls the native ReXApp game path in-process. Review and consent to the exact executable/CWD/arguments, then request Play separately. Windows10/11 x64, Direct3D12 and the applicable VC++ x64 runtime remain upstream prerequisites; Linux/AppImage is separate."
+          },
+          {
+            "title": "Complete restarts and updates outside attachment",
+            "instruction": "Window size, monitor, VSync or adapter changes can make the next launcher Play start a successor window/process; upstream restart explicitly relaunches and quits the selected process. Finish settings/setup/restart and upstream updater work separately, close every actual game/helper/successor, then attach the resulting prepared player. Do not register trg-updater.exe or rely on automatic successor adoption/termination. Upstream/user is the sole runtime-replacement owner; Core offers no external update or rollback."
+          },
+          {
+            "title": "Back up the actual user-data root before first prepared startup",
+            "instruction": "The selected source uses user_data/ beside the program, or explicit --user_data_root; if the default is not writable it refuses rather than claiming another profile. Preserve settings.toml, all4D5307DC profile/campaign/header data, save-versions/base and tu6 snapshots, achievements, caches, separate originals/game/, logs and every actual --cache_root/--update_data_root/custom location. No legacy Documents migration is inferred from another title. Keep a separate complete recovery copy outside upstream transaction/workspace directories."
+          },
+          {
+            "title": "Retain upstream save switching and cleanup boundaries",
+            "instruction": "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises. TU6 and Four-Play/Free-for-All DLC are optional separately owned inputs with their own exact source checks; Free-for-All requires TU6. Do not remove/update content through this guide. The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
+          },
+          {
+            "title": "Preserve component permissions and external ownership",
+            "instruction": "Project GPL and ReXGlue/component terms do not grant the original game/TU/DLC or every bundled launcher component. This title identifies TRG revisionb384a28c712c9320eea8f9d50639dec49981b6c1 and expressly says it has no explicit license: fresh package acquisition/distribution needs its own attributable applicable permission or reviewed alternative; this conditional guide only attaches an independently permitted complete copy. Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
+          }
+        ],
+        "warnings": [
+          "Source/metadata-only evidence: own v0.6.2 source differs from later HEAD; published package SHA-256 is a provider expectation, not inspected ZIP/PE bytes or compiled SDK/source correspondence.",
+          "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of this Crackdown Windows package is held: its own v0.6.2 source requires and bundles the TRG launcher at b384a28c712c9320eea8f9d50639dec49981b6c1, for which upstream explicitly defers an applicable license grant. Resume with attributable permission covering that selected component/package operation or a separately reviewed supported route excluding it. This condition does not prohibit independently permitted completed-copy registration or establish a title-wide rights ruling."
     },
     {
       "id": "craigshaw-fzerorecomp",
@@ -13815,7 +13940,7 @@
     {
       "id": "crazyriddler-finesthourremastered",
       "name": "Call of Duty: Finest Hour (Finest Hour Remastered)",
-      "summary": "Upstream route: Initial route is multipartv1.0installer: Setup.exe+index+all data.NNNparts import own ISO and install runtime, then first start prepares shaders. Latestupdate tag contains updater-only. Upstream installer/updater owns replacement; Wine/Proton route reuses it. Limits: Upstream only: Initial v1.0 multipart setup differs from updater-only latest asset. Upstream renderer/shader claims are not independent performance or campaign proof. Latest update release contains updater executable, not necessarily clean full installer. Resolve full initial-install release independently; preserve upstream installer ownership. Upstream platforms: Windows installer/runtime; Linux/Deck via Proton/Wine. Native Linux player not established; exact CPU follows selected package docs. Original data: Original Xbox Call of Duty Finest Hour own supported disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Windows Finest Hour Remastered guidance for an independently permitted, already completed CODFH.exe installation using your exact PAL Xbox copy. Upstream owns setup and updates; continuation across quick-reboot, updater or restart successors is outside this entry’s scope.",
       "original_game_title": "Call of Duty: Finest Hour",
       "project_url": "https://github.com/crazyriddler/FinestHourRemastered",
       "platforms": [],
@@ -13829,7 +13954,40 @@
         "game_slug": "call-of-duty-finest-hour",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2785
+      "issue_number": 2785,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use an independently permitted completed installation",
+            "instruction": "Use a complete Windows installation and components you are independently permitted to use. Upstream’s full initial v1.0 route needs FinestHourRemasteredSetup.exe, FinestHourRemastered.index and every FinestHourRemastered.data.NNN part together; the latest update tag contains an updater, not a clean initial installer. This guide does not authorize fresh acquisition of the required original-derived remaster pack: its specific permission/authorized-source condition remains unresolved. An existing permitted copy can be retained independently; no hidden pack bypass is offered."
+          },
+          {
+            "title": "Keep the exact supported original and preparation with upstream",
+            "instruction": "The supported original is your own PAL Europe Xbox Call of Duty: Finest Hour, title 4156002A version 3, with default.xbe SHA-1 938a7b1e17928de49cb3c5834d61abcd3d9081c8 and its complete game files. Upstream accepts a supported extracted folder (default.xbe, COD.PAK, AUDIO, SHELL and companions) or supported full-disc/XISO image. Keep originals unchanged; other regions, revisions or console versions are outside this guide. Complete upstream installation and first-start GPU shader preparation outside Portcove. The source-build route also requires the release’s remaster pack, shader recipes and settings; a compiled EXE alone is not a complete player."
+          },
+          {
+            "title": "Select the ordinary initial native entry",
+            "instruction": "Select the completed installation’s CODFH.exe, use its complete creating installation directory as working directory, and leave arguments empty. Keep the matching assets, shader recipes/default settings and other installed companions. Do not select Setup.exe, Update.exe, release-unpack scripts, generated intermediates or another title. Saving launch details and Play are separate actions. This entry covers the selected initial native process; no full-campaign or all-transition session claim is made."
+          },
+          {
+            "title": "Keep successor and updater operations outside this entry",
+            "instruction": "The SDK has a conditional quick-reboot path that starts a successor and exits the original process after readiness or a short wait. Retained evidence does not establish that a normal Finest Hour transition requires it; actual title use is Unknown. Portcove does not follow, adopt or terminate that successor, an updater’s relaunched game, or a settings-restart successor. Those operations and continuation through them are not offered by this entry. Close every actual game/successor and updater yourself before another attachment, relinking, backup, replacement or removal; a stopped original PID does not prove successors closed."
+          },
+          {
+            "title": "Preserve every active data and recovery location",
+            "instruction": "Back up the complete installation and each active profile before upstream startup or maintenance. Settings live in codfh.toml beside the EXE, saves in hdd/, prepared shaders in shadercache/, and logs beside the game. Preserve any existing crash dumps and the original inputs separately. If an established external setup uses --instance N, preserve its hddN and instance logs separately rather than merging them with the default hdd. Do not keep recovery files in %TEMP%/FinestHourRemastered: upstream startup attempts cleanup of that updater scratch directory and retries locked leftovers. No migration, backup or save compatibility promise is supplied by this registration."
+          },
+          {
+            "title": "Leave replacement and recovery with upstream",
+            "instruction": "Upstream installer/player owns preparation, first-start shader writes and runtime replacement. Its optional in-game Update action checks updater size/SHA-256, closes the game and starts an external updater that can relaunch it; do that outside this entry’s tracked-session scope and review the resulting completed installation before relinking changed bytes. Preserve independent backups and original files before updating or uninstalling. Removing Portcove registration preserves external files; Portcove does not own updates, rollback, data deletion, successor continuation or external-file recovery."
+          }
+        ],
+        "warnings": [
+          "Source inspection and release metadata only: no installer, multipart payload, compiled output, native game, real save, installed-client or protected qualification was performed. Expected provider hashes are not newly observed package integrity or source/binary certification. Windows requirements include SSE4.2/x86-64-v2 and upstream-documented GPU requirements; no host hardware acceptance is claimed. Applicable code/component terms do not grant original-game/remaster-pack rights; the named fresh-acquisition condition remains separate."
+        ],
+        "help_url": "https://github.com/crazyriddler/FinestHourRemastered/blob/d908d2f994ecb64379986aaced826de3adf0d06a/README.md"
+      },
+      "download_block_reason": "Fresh Core acquisition of the selected Finest Hour Windows installer/required remaster-pack asset set is held: upstream identifies original COD.PAK textures and remastered game models in that pack, but an applicable grant for those selected components has not been established by the code/tool licenses. Resume with attributable permission/authorized source for the selected asset set or a separately reviewed supported preparation route excluding the unresolved components. An independently permitted completed copy remains distinct; successor-process continuation is not offered by its conditional ordinary-entry guide."
     },
     {
       "id": "cristalis-claudio5702-crystal-defenders-xbox-live-arcade",
@@ -14112,7 +14270,7 @@
     {
       "id": "dannyowelch-deception-recomp",
       "name": "Tecmo's Deception: Invitation to Darkness (Deception-recomp)",
-      "summary": "Upstream route: Upstream WindowsZIP/setup orLinuxAppImage asks for exact supported disc then builds game locally on first start. Laterstarts reuse prepared build; development .NET10SDK requirement is separate from packaged route. Limits: Upstream only: Upstream says playable and explicitly lacks a verified full playthrough. First-start local compilation and disc validation are separate from gameplay qualification. First launch compiles from own disc; .NET 10 SDK required for source build. Upstream says playable, full playthrough unverified. Fork of verdite2 is framework reuse, not same game. Upstream platforms: Windows x64 ZIP/setup and Linux x86-64 AppImage. .NET 10 SDK is documented for source builds. Original data: PS1 Tecmo Deception Invitation to Darkness NTSC-U SLUS-00340 CUE/BIN or CHD v5. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Prepared Windows Deception player for your own North American SLUS-00340 disc. Upstream owns first-run compilation, runtime updates and external profiles; full playthrough remains unverified.",
       "original_game_title": "Tecmo's Deception: Invitation to Darkness",
       "project_url": "https://github.com/dannyowelch/deception-recomp",
       "platforms": [],
@@ -14126,7 +14284,35 @@
         "game_slug": "tecmos-deception-invitation-to-darkness",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2735
+      "issue_number": 2735,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the complete permitted Windows copy",
+            "instruction": "Use a complete independently permitted Deception Windows copy and its selected upstream guide. Keep Deception.exe with bin/, content/ and all runtime libraries and notices. The portable ZIP and Windows installer are different delivery forms; finish any installer separately. Project, RecompOne and Verdite Core MIT terms do not supply original-game or arbitrary component rights. Back up existing Deception and earlier named profile folders separately before the first upstream startup."
+          },
+          {
+            "title": "Complete upstream preparation from your own disc",
+            "instruction": "Deliberately finish first-run setup and compilation outside Portcove using your own North American Tecmo’s Deception: Invitation to Darkness SLUS-00340 CUE with its referenced BIN tracks, or supported CHD v5. The selected source checks the boot-file serial and required file presence/minimum lengths; this is not full-image cryptographic authentication. It refuses other named games rather than treating a shared framework as interchangeable. The packaged launcher builds its game assembly on first run and reuses its keyed build afterward. The .NET 10 SDK documented for source development is separate from the self-contained package. Keep the original image at its selected path."
+          },
+          {
+            "title": "Add the supported waiting player entry",
+            "instruction": "Choose the package-root Deception.exe with that complete package directory as working directory and no arguments for the established saved-disc layout. Its Windows stub waits for bin/DeceptionLauncher.exe; the launcher loads and calls the prepared Deception game assembly in that child process until play returns. Keep that supplied chain intact. If your established setup deliberately passes the supported disc path as its first argument, preserve that exact path as one argument. Saving launch details and requesting Play are separate actions; do not select a setup executable, generator, DLL or private build-cache path."
+          },
+          {
+            "title": "Preserve all effective profile and build locations",
+            "instruction": "The packaged launcher changes its own working directory to %LOCALAPPDATA%/Deception, or an already established DECEPTION_DATA override. Preserve settings.json, interface.ini, carda.sav/cardb.sav and their backups/metadata, builds/, mods/ with .cache, crashes, logs and every effective custom root. Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
+          },
+          {
+            "title": "Keep runtime replacement with upstream and the player",
+            "instruction": "Upstream/player owns setup, first-run rebuilds, runtime replacement, update choices and all external originals/player files. A changed version can require another keyed build and clean its temporary generated-source directory; keep recovery data outside disposable build work. Finish deliberate maintenance with actual players and companions closed, retain a working copy and profiles, then review/relink changed selected executable bytes. Removing registration preserves external files; Portcove does not promise external update, backup, rollback, save conversion or deletion."
+          }
+        ],
+        "warnings": [
+          "Pinned source and provider metadata only: no ZIP/installer/PE inspection, first-run generation, game/helper execution, real saves, installed-client or protected acceptance. Exact original content hashes, package/source correspondence and full-playthrough compatibility remain unqualified. Other games and Linux routes do not inherit this Windows evidence."
+        ],
+        "help_url": "https://github.com/dannyowelch/deception-recomp/blob/fd60be7758bb20ef6622c6055f00ada1b6b7ded4/README.md"
+      }
     },
     {
       "id": "dante-s-inferno-hells-gate-recomp",
@@ -14248,13 +14434,37 @@
     {
       "id": "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
       "name": "Daytona USA (Sega Model 2 arcade) (Daytona USA static recompilation)",
-      "summary": "Upstream route: Source setup builds locally from own ROM set on Windows/macOS/Linux; no GitHub releases. Limits: Playable desktop routes; experimental hardware renderer/link play/wheels. Android/iOS/Vita documented, Dreamcast only tested in Flycast. Setup installs toolchains/dependencies (Windows VS C++/Clang, mac Homebrew, Linux packages); updates require pulling and rerunning generation. Main builds have CI compile coverage, not a proof of runtime playthrough. Distinguish original arcade title from Daytona Championship USA or other console ports.... Upstream platforms: Documented local source-build route for Windows/macOS/Linux; no GitHub release package. Windows compiler/Clang and macOS/Linux toolchain setup required; selected host CPU coverage not mapped in frozen evidence. Original data: User-owned daytona93 (Deluxe93) or daytona (Revision A1994) MAME-format zip/7z; other sets rejected. Both generated privately. Portcove setup/gameplay not verified.",
+      "summary": "Documented Windows Daytona USA arcade source-build route for your own daytona93 or daytona ROM set. Choose the completed matching native build; upstream/player owns rebuilding and separate per-set profiles.",
       "original_game_title": "Daytona USA (Sega Model 2 arcade)",
       "project_url": "https://github.com/alphanu1/daytona-arcade-recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/alphanu1/daytona-arcade-recomp",
-      "issue_number": 2651
+      "issue_number": 2651,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Complete the documented upstream build deliberately",
+            "instruction": "Use source and components you are independently permitted to use. This route has no observed public runtime release: finish the documented Windows setup/source build outside Portcove before registration. Upstream setup can install Visual Studio C++/Clang and other development tools and fetch pinned dependencies; review that activity yourself. A source checkout or generated C++ alone is not a completed player. Keep the complete working project, build outputs, supplied runtime companions and notices."
+          },
+          {
+            "title": "Supply the exact arcade ROM set for that build",
+            "instruction": "Use your own MAME-format daytona93.zip/.7z for Daytona USA Deluxe ’93, or daytona.zip/.7z for Revision A (1994), with the upstream-required members. These are separate compiled variants, not interchangeable input names. The source has per-file size and CRC checks for the selected set, including the different program/sound ROMs; a matching filename alone is insufficient and CRC is not cryptographic entitlement or whole-archive authentication. Keep all original archives unchanged. Console Daytona titles and other arcade revisions are outside this guide."
+          },
+          {
+            "title": "Add the actual completed Windows player",
+            "instruction": "Select the matching completed daytona.exe from the output location printed by upstream setup: normally build/Release/daytona.exe (or build/daytona.exe with Ninja) for daytona93, and the corresponding build-daytona/ output for Revision A. Use the project root containing roms/ and those build folders as working directory. Supply --rom and the absolute path to your own matching archive as two literal arguments. The native process owns both its launcher and game loop. If your established setup also uses --profile <name>, preserve that exact profile argument. Do not select a setup/recompile script, test/oracle executable or another variant. Saving launch details and Play are separate actions."
+          },
+          {
+            "title": "Preserve separate settings and runtime ownership",
+            "instruction": "Upstream/player owns toolchain setup, ROM generation, rebuilding and runtime replacement. Windows settings, EEPROM, backup RAM and logs use %APPDATA%/daytona-recomp/daytona93 or daytona, with a separate <set>-<profile> folder when --profile is used; preserve launcher.ini, ioboard_eeprom.bin, backup_ram.bin, daytona.log and every active profile. Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied. Removing registration preserves external files; Portcove does not own backups, rollback, save migration, compatibility or deletion."
+          }
+        ],
+        "warnings": [
+          "Pinned source and documented build contract only. No ROM archive, generated source/output, compiled player, package integrity, native game, real save, hardware renderer, link play or device qualification was executed. Source BSD3 and separate component terms do not grant Sega ROM rights; actual independently permitted source/components/originals remain required."
+        ],
+        "help_url": "https://github.com/alphanu1/daytona-arcade-recomp/blob/f32c48ff9b9bb41ecc7a25d9998c281b9bd0952c/docs/getting-started.md"
+      }
     },
     {
       "id": "db-final-bout-recomp-novapowers0-novapowers0-dragon-ball-gt-final-bout",
@@ -14772,7 +14982,7 @@
     {
       "id": "def-jam-fight-for-ny-defjamffny-recomp",
       "name": "Def Jam: Fight for NY (DefJamFFNY Recomp)",
-      "summary": "Upstream route: Windows/Linux/macOS setup packages; local build from own dump Limits: Stable0.10.7;0.11.0 is preview with visual issues and pending Mac/Linux playtesting. Network multiplayer unsupported. Upstream platforms: Setup packages: Windows x86-64 EXE, Linux x86-64/SteamDeck archive, macOS Apple-Silicon ARM64 DMG. Setup builds game locally. Original data: Own USA/NTSC-U original Xbox Def Jam: Fight for NY dump, title 45410049 (EA-073), as ISO or extracted tree. Manifest requires default.xbe size 3,284,992, SHA-256 31cc0d11f7c656b1a6f337fdf7d9bbaac9df11c324a2fb881f7eb639d4be00c2, plus XML and assets/audio/fonts/motion/movies/screens paths. PS2/GameCube data is incompatible; setup verifies and compiles locally. Portcove setup/gameplay not verified.",
+      "summary": "Windows Def Jam: Fight for NY setup compiles your verified USA Xbox dump locally. Register the completed installation’s waiting DefJamLauncher.exe; upstream setup owns runtime replacement and its separate installed data location.",
       "original_game_title": "Def Jam: Fight for NY",
       "project_url": "https://github.com/vyanhursky/DefJamFFNY-recomp",
       "issue_number": 2562,
@@ -14786,6 +14996,34 @@
         "image_sha256": "d1a6333b311d1daa7f81254e2b25ccba66b992825bca75b9438b2cd7f87e9508",
         "game_slug": "def-jam-fight-for-ny",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Complete upstream setup with your own USA Xbox copy",
+            "instruction": "Use the upstream Windows x64 setup and components you are independently permitted to use. It compiles locally from your own USA/NTSC-U Xbox title 45410049 (EA-073) ISO/XISO or extracted tree. The required default.xbe is 3,284,992 bytes with SHA-256 31cc0d11f7c656b1a6f337fdf7d9bbaac9df11c324a2fb881f7eb639d4be00c2; the complete required XML and assets/audio/fonts/motion/movies/screens files are also needed. PS2/GameCube copies do not fit. Keep originals unchanged. The published setup is preparation, not the player; its provider digest is expected metadata, not our inspection of installer bytes."
+          },
+          {
+            "title": "Choose separate install and data destinations",
+            "instruction": "Finish upstream installation outside Portcove, including its original verification, extraction and local compilation. Install, data and original dump paths must be separate and non-nested, writable and within upstream path limits. Review any requested Microsoft compiler installation and consent yourself. Preserve the exact chosen install/data paths, installed.ini and complete successful version tree. Optional HD textures are generated locally from your dump; no separate texture-pack permission is inferred."
+          },
+          {
+            "title": "Register the stable installed launcher",
+            "instruction": "Select <install>/DefJamLauncher.exe, use that actual install root as working directory, and leave arguments empty. This documented native launcher reads installed.ini, supplies the chosen DEFJAM_DATA, DEFJAM_INSTALL_DIR and log root, and starts the recorded compiled player with its recorded source directory as child working directory. It holds play.lock and waits for that child to exit. Do not select the setup wizard, setup scripts or an internal versioned defjam_recomp.exe. Saving launch details and Play are separate actions. An interrupted setup transaction requires upstream setup recovery."
+          },
+          {
+            "title": "Back up every active data and recovery root before startup or maintenance",
+            "instruction": "Preserve the complete chosen data folder: settings.ini, save/ (including UserData, TitleData, cache and partition images), extracted originals, mods, texture/HD caches and artwork. Also retain setup logs under %LOCALAPPDATA%/DefJamSetup/logs, install logs, and the active version source/logs; custom RECOMP_SETTINGS or RECOMP_SAVE_DIR paths remain separate roots when present. The pinned runtime copies missing disc UDATA metadata without overwriting it; its legacy save-name compatibility lookup does not rename or rewrite saves. Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
+          },
+          {
+            "title": "Keep replacement and cleanup with upstream setup",
+            "instruction": "Close the game before upstream install/repair/update/rebuild/uninstall. Setup owns its activation journal, versioned builds and stable launcher; successful older builds may be retained, failed/cancelled attempts remove their own candidate, and upstream uninstall removes recognized application versions/launcher/receipts while retaining player data and originals. Preserve independent backups outside those application/version paths before maintenance. Review the selected release’s actual offered operations; documented future updater protocol is not proof of a published compatible pair. After replacement review/relink changed launcher bytes. Removing Portcove registration preserves external files; Portcove does not own update, rollback, backup, migration or deletion."
+          }
+        ],
+        "warnings": [
+          "Pinned v0.12.3 source and release metadata only: no installer/payload/provenance bytes, generated output, compiler, native game, real save, installed-client or protected qualification was performed. The project MIT licence covers its code, not the original game; the pinned toolkit has separate MIT/LGPL-2.1-or-later and component notices. Preserve applicable notices and use independently permitted inputs/components. Network multiplayer and complete gameplay compatibility are not claimed."
+        ],
+        "help_url": "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md"
       }
     },
     {
