@@ -432,6 +432,17 @@ export async function installRegisteredSourceAndPlay(
       30000,
     );
     assert.ok(running);
+    // Core retains extended-length paths; the Windows process inventory reports
+    // ordinary image paths. Bind both to the same image before passing the
+    // observed spelling to the existing strict native snapshot/close checks.
+    const observedExecutable = running.identity.path;
+    assert.equal(
+      path.win32.toNamespacedPath(observedExecutable).toLowerCase(),
+      path.win32.toNamespacedPath(executable).toLowerCase(),
+    );
+    const observedExecutableIdentity = await fileIdentity(observedExecutable);
+    assert.equal(observedExecutableIdentity.sha256, executableIdentity.sha256);
+    assert.equal(observedExecutableIdentity.bytes, executableIdentity.bytes);
     const candidates = context
       .ownedLaunchSessions()
       .filter(
@@ -466,7 +477,7 @@ export async function installRegisteredSourceAndPlay(
       "-ExpectedParentProcessId",
       String(session.supervisor_pid),
       "-ApplicationPath",
-      executable,
+      observedExecutable,
       "-ExpectedApplicationSha256",
       executableIdentity.sha256,
     ]);
@@ -480,7 +491,7 @@ export async function installRegisteredSourceAndPlay(
       "-DriverProcessId",
       String(session.supervisor_pid),
       "-ApplicationPath",
-      executable,
+      observedExecutable,
     ]);
     artifacts.push(closeFile);
     assert.deepEqual(close.driver, supervisor.driver);
@@ -496,7 +507,7 @@ export async function installRegisteredSourceAndPlay(
     await requestRealRuntimeClose({
       native,
       closeFile,
-      executable,
+      executable: observedExecutable,
       requestFile: path.join(output, `${port.id}-d-close-request.json`),
       route,
       artifacts,
