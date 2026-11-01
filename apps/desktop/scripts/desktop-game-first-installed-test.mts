@@ -57,6 +57,18 @@ import { INTERFACE_SIZES } from "../src/interface-size-controller.ts";
 export const gameFirstInstalledScenarioId = "native-game-first-installed-picori";
 const portId = "project-picori";
 const sourceProfile = "minish-cap-gba";
+/** Exact current representatives admitted to this native harness helper. */
+export type InstalledManagedPortId = "project-picori" | "2ship2harkinian" | "zelda64-recomp";
+export type InstalledManagedGameContext = Pick<
+  GameFirstInstalledContext,
+  | "browser"
+  | "application"
+  | "library"
+  | "output"
+  | "artifacts"
+  | "operatorObservation"
+  | "captureGameFrame"
+>;
 export interface GameFirstInstalledContext extends ScenarioContext {
   invoke: ScenarioInvoke;
   library: string;
@@ -93,12 +105,12 @@ function samePath(left: string, right: string) {
     path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
   return normalized(left) === normalized(right);
 }
-function sessionIds(library: string) {
+function sessionIds(library: string, selectedPortId: InstalledManagedPortId = portId) {
   const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
   try {
     return database
       .prepare("SELECT id FROM launch_sessions WHERE port_id = ? ORDER BY started_at, id")
-      .all(portId)
+      .all(selectedPortId)
       .map((row) => {
         assert.equal(typeof row.id, "string");
         return String(row.id);
@@ -490,13 +502,14 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         path.join(output, "picori-installed-accessibility.json"),
         artifacts,
       );
-      const launch = await launchManagedPicori({
+      const launch = await launchInstalledManagedGame({
         context: { ...context, browser },
         installed,
         executableIdentity,
         play: () => click(By.css(playTarget)),
         core,
         prefix: "picori",
+        expectedPortId: portId,
       });
       report.launch = launch;
       report.game_frame = launch.game_frame;
@@ -617,13 +630,14 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
           await libraryView();
           assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
           await capture("picori-provider-unavailable-play", playTarget, 100);
-          provider.launch = await launchManagedPicori({
+          provider.launch = await launchInstalledManagedGame({
             context: { ...context, browser, operatorObservation: false },
             installed,
             executableIdentity,
             play: () => click(By.css(playTarget)),
             core,
             prefix: "picori-provider-unavailable",
+            expectedPortId: portId,
           });
           assert.deepEqual(await durableState(), durableBefore);
           const current = await status();
@@ -741,23 +755,36 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
   });
 }
 
-async function launchManagedPicori({
+export async function launchInstalledManagedGame({
   context,
   installed,
   executableIdentity,
   play,
   core,
   prefix,
+  expectedPortId,
 }: {
-  context: GameFirstInstalledContext;
+  context: InstalledManagedGameContext;
   installed: InstallRecord;
   executableIdentity: FileIdentity;
   play: () => Promise<void>;
   core: (args: readonly string[]) => unknown;
   prefix: string;
+  expectedPortId: InstalledManagedPortId;
 }) {
   const { browser, application, library, output, artifacts } = context;
   assert.match(prefix, /^[a-z0-9-]+$/u);
+  assert.ok(["project-picori", "2ship2harkinian", "zelda64-recomp"].includes(expectedPortId));
+  assert.equal(
+    installed.port_id,
+    expectedPortId,
+    "Managed launch must match the actual active installation",
+  );
+  assert.deepEqual(
+    transportValue("status", core(["status", expectedPortId])).active,
+    installed,
+    "The normal Core active installation must still match before Play",
+  );
   const route: Record<string, unknown> = {
     gameplay: "not-evaluated",
     game_frame: { status: "unavailable" },
@@ -785,7 +812,7 @@ async function launchManagedPicori({
     assert.equal(result.status, 0, result.stderr || result.stdout);
     return readNativeSessionObservation(mode, JSON.parse(result.stdout));
   };
-  const before = new Set(sessionIds(library));
+  const before = new Set(sessionIds(library, expectedPortId));
   const earliest = Date.now();
   let failure: Error | undefined;
   let secondary: Error | undefined;
@@ -795,14 +822,14 @@ async function launchManagedPicori({
   try {
     await play();
     const session = await browser.wait(async () => {
-      const fresh = sessionIds(library).filter((id) => !before.has(id));
+      const fresh = sessionIds(library, expectedPortId).filter((id) => !before.has(id));
       assert.ok(fresh.length <= 1, "One Play must create exactly one managed session");
       if (!fresh[0]) return false;
       const current = required(
         transportValue("launch_request", core(["launch", "show", fresh[0]])),
       );
       assert.equal(current.owner_kind, "managed");
-      assert.equal(current.port_id, portId);
+      assert.equal(current.port_id, expectedPortId);
       assert.equal(current.install_id, installed.id);
       assert.ok(samePath(current.install_root, installed.path));
       assert.equal(current.outcome, null, "Retain early game failures");
@@ -929,7 +956,10 @@ async function launchManagedPicori({
     const supervisorExited = native("Wait", supervisorExit);
     assert.equal(supervisorExited.observed_processes, 1);
     route.supervisor_exit = supervisorExited;
-    assert.deepEqual(sessionIds(library).toSorted(), [...before, session.id].sort());
+    assert.deepEqual(
+      sessionIds(library, expectedPortId).toSorted(),
+      [...before, session.id].sort(),
+    );
   } catch (error) {
     failure = retainedError(error);
     route.failure = errorMessage(error);

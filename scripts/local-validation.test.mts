@@ -4115,6 +4115,15 @@ void test("native transport producers retain their actual Node consumers across 
       ],
     ],
     [
+      "apps/desktop/scripts/desktop-game-first-installed-mm-test.mts",
+      [
+        "scripts/desktop-runtime-exit-observation.test.mts",
+        "scripts/desktop-game-first-installed-inputs.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+      ],
+    ],
+    [
       "scripts/desktop-game-first-installed-inputs.mts",
       [
         "scripts/desktop-game-first-installed-inputs.test.mts",

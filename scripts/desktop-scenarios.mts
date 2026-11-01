@@ -18,6 +18,10 @@ interface DesktopScenario {
 
 const nativeResources = ["native-desktop", "keyboard-pointer"];
 
+// Two finite install waits, source scan, owned game observation and cleanup.
+// This explicit MM case does not change product or other scenario deadlines.
+export const gameFirstMMHarnessDeadlineMs = 40 * 60_000;
+
 function scenario(
   id: string,
   description: string,
@@ -487,6 +491,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-game-first-installed-mm",
+    "Normal-app MM source reuse, two genuine installations, grouped choices and one managed launch with both alternatives retained.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop"],
+      source: "desktop-game-first-installed-mm-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-release-channel-selection-and-restart",
     "Release-channel selection survives renderer restart.",
     {
@@ -806,6 +820,11 @@ export function resolveDesktopSelection({
     throw new Error("native-linux-webview-origin-boundary requires Linux");
   if (uniqueRequested.includes("native-library-organization-restart") && platform !== "win32")
     throw new Error("native-library-organization-restart requires Windows");
+  if (uniqueRequested.includes("native-game-first-installed-mm")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-game-first-installed-mm requires one exact standalone scenario");
+    if (platform !== "win32") throw new Error("native-game-first-installed-mm requires Windows");
+  }
   if (uniqueRequested.includes("native-game-first-installed-picori")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-game-first-installed-picori requires one exact standalone scenario");
@@ -924,6 +943,8 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
+    return gameFirstMMHarnessDeadlineMs;
   // Private-input custody, real copy review, managed game close and owned restart.
   // This outer harness budget does not change any product deadline or retry policy.
   if (selection.selected_scenarios.includes("native-game-first-installed-picori")) return 1_200_000;

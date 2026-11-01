@@ -391,6 +391,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
             "native-game-first-installed-picori",
+            "native-game-first-installed-mm",
           ].includes(id),
       ),
     });
@@ -1678,6 +1679,77 @@ void test("Picori private-input selection captures the normal CLI and every supp
           "/metadata",
         ]).values,
       ),
+    /exact standalone/u,
+  );
+});
+
+void test("MM selection binds only its normal CLI and exact private inputs", () => {
+  const id = "native-game-first-installed-mm";
+  const args = [
+    "--scenario",
+    id,
+    "--preparation-cli",
+    "/cli.exe",
+    "--game-first-mm-inputs",
+    "/metadata",
+    "--game-first-mm-source",
+    "/source",
+    "--game-first-operator-observation",
+  ];
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(plan.fixtures.owned, false);
+  assert.equal(plan.fixtures.install, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "game-first-installed-mm");
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-cli",
+    ),
+  );
+  assert.ok(
+    !plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-tool",
+    ),
+  );
+  for (const name of ["game-first-mm-inputs", "game-first-mm-source"])
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.kind === "argument-file" && input.name === name)
+        .length,
+      1,
+    );
+  for (const file of [
+    "desktop-game-first-installed-mm-test.mts",
+    "desktop-game-first-installed-test.mts",
+    "desktop-runtime-exit-observation.mts",
+  ])
+    assert.equal(
+      plan.receiptInputs.filter(
+        (input) => input.kind === "file" && input.path === `apps/desktop/scripts/${file}`,
+      ).length,
+      1,
+    );
+  const resolve = (values: string[]) =>
+    resolveDesktopHarnessSelection(parseDesktopHarnessOptions(values).values);
+  if (process.platform === "win32") assert.deepEqual(resolve(args).selected_scenarios, [id]);
+  assert.throws(() => resolve(args.slice(0, -1)), /requires --game-first-operator-observation/u);
+  assert.throws(
+    () =>
+      resolve(args.filter((value) => value !== "--game-first-mm-source" && value !== "/source")),
+    /requires --game-first-mm-source/u,
+  );
+  assert.throws(
+    () => resolve([...args, "--preparation-tool", "/probe"]),
+    /without a fixture tool/u,
+  );
+  assert.throws(
+    () => resolve([...args, "--game-first-source", "/mixed"]),
+    /cannot consume Picori/u,
+  );
+  assert.throws(
+    () => resolve(["--scenario", "empty-library", "--game-first-mm-source", "/source"]),
     /exact standalone/u,
   );
 });

@@ -241,6 +241,7 @@ const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-artwork-correction-test.mts",
   "apps/desktop/scripts/desktop-game-first-test.mts",
   "apps/desktop/scripts/desktop-game-first-installed-test.mts",
+  "apps/desktop/scripts/desktop-game-first-installed-mm-test.mts",
   "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
   "scripts/desktop-runtime-exit-observation.test.mts",
   "scripts/desktop-game-first-installed-inputs.mts",

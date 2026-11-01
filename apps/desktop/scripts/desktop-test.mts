@@ -123,7 +123,12 @@ import {
   externalRuntimeReviewScenario,
 } from "./desktop-external-runtime-test.mts";
 import { prepareRealRuntimeInputs, realRuntimeScenario } from "./desktop-real-runtime-test.mts";
-import { parseGameFirstInstalledInputPaths } from "../../../scripts/desktop-game-first-installed-inputs.mts";
+import {
+  parseGameFirstInstalledInputPaths,
+  parseGameFirstMMInputPaths,
+  prepareGameFirstMMInputs,
+  verifyGameFirstMMInputs,
+} from "../../../scripts/desktop-game-first-installed-inputs.mts";
 import {
   nativePickerObservation,
   nativePreparedRuntimePicker,
@@ -2791,6 +2796,51 @@ try {
       restartApplication,
       onManagedGame: (game) => {
         assert.equal(game.installation.port_id, "project-picori");
+        ownedSession.game = game;
+        if (
+          !ownedSession.games.some((previous) => previous.installation.id === game.installation.id)
+        )
+          ownedSession.games.push(game);
+      },
+    });
+  }
+  if (selection.selected_scenarios.includes("native-game-first-installed-mm")) {
+    const { gameFirstInstalledMMScenario } =
+      await import("./desktop-game-first-installed-mm-test.mts");
+    const prepared = await prepareGameFirstMMInputs(parseGameFirstMMInputPaths(values), output);
+    const pickerContext = {
+      application,
+      getDriverPid: () => required(required(driver).pid),
+      getDriverIdentity: () => ownedSession.driver,
+      output,
+      artifacts,
+    };
+    await gameFirstInstalledMMScenario({
+      browser: driverBrowser(),
+      invoke,
+      scenario,
+      output,
+      artifacts,
+      library,
+      cli: required(values["preparation-cli"]),
+      application,
+      sourceDirectory: prepared.sourceDirectory,
+      inputBaseline: {
+        source: prepared.source,
+        verify: () =>
+          verifyGameFirstMMInputs(
+            parseGameFirstMMInputPaths(values),
+            prepared.metadata,
+            prepared.metadataIdentity,
+            prepared.source,
+          ),
+      },
+      operatorObservation: values["game-first-operator-observation"],
+      confirmNative: nativeConfirmation(pickerContext),
+      chooseGameFileFolder: nativeGameFileFolderPicker(pickerContext),
+      restartApplication,
+      onManagedGame: (game) => {
+        assert.ok(["2ship2harkinian", "zelda64-recomp"].includes(game.installation.port_id));
         ownedSession.game = game;
         if (
           !ownedSession.games.some((previous) => previous.installation.id === game.installation.id)

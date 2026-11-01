@@ -1997,6 +1997,22 @@ and accessibility reports do not establish rendering, gameplay, real saves,
 screen-reader use, total network offline or installed multi-implementation behavior.
 Missing observations remain explicit in the result; this case does not close #4154.
 
+`--scenario native-game-first-installed-mm` is a separate standalone Windows
+journey using normal Desktop, catalog and `--preparation-cli`. Supply
+`--game-first-mm-inputs` (version-1 metadata for `majoras-mask/ntsc-u-1-0`),
+`--game-first-mm-source` (the original big-endian ROM) and
+`--game-first-operator-observation`. Captured fingerprints establish input
+custody; Core still decides source admission and installation eligibility.
+The case scans and reviews the source through normal UI, installs both 2Ship
+and Zelda64 through their ordinary installation reviews, checks grouped choices,
+filters and separate title/action layouts, then launches the selected Zelda64
+installation once and verifies restart retention. Its 40-minute outer budget
+covers two bounded installations, source scanning, operator observation and
+cleanup; product deadlines remain unchanged. This case requires its own
+uncontended native window and applicable interaction authorization. Source tests
+and generated receipts do not establish native execution, runtime pixels,
+gameplay, real saves or completion of #4154.
+
 `--scenario native-direct-preparation-recovery` is an opt-in Windows journey
 through a real failed owned setup child. Its original source/runtime inputs and
 active installation remain unchanged; the actual Core failure supplies the

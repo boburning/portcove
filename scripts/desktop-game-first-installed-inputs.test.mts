@@ -10,6 +10,10 @@ import {
   parseGameFirstInstalledMetadata,
   prepareGameFirstInstalledInputs,
   verifyGameFirstInstalledInputs,
+  gameFirstMMArgumentNames,
+  parseGameFirstMMInputPaths,
+  prepareGameFirstMMInputs,
+  verifyGameFirstMMInputs,
 } from "./desktop-game-first-installed-inputs.mts";
 
 const digest = (bytes: Buffer) => ({
@@ -165,4 +169,197 @@ void test("Picori post-run baseline verifies metadata and every captured input i
       );
     });
   }
+});
+
+async function mmFixture(
+  action: (value: Awaited<ReturnType<typeof createMMFixture>>) => Promise<void>,
+) {
+  const current = await createMMFixture();
+  try {
+    await action(current);
+  } finally {
+    await rm(current.root, { recursive: true, force: true });
+  }
+}
+async function createMMFixture() {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-mm-inputs-"));
+  const output = path.join(root, "output");
+  await mkdir(output);
+  // Inert bytes with only the canonical header/order. Not a real ROM or a
+  // catalog-compatible source: Core admission is deliberately outside this test.
+  const bytes = Buffer.concat([
+    Buffer.from([0x80, 0x37, 0x12, 0x40]),
+    Buffer.from("synthetic fixture only"),
+  ]);
+  const inputPaths = {
+    metadata: path.join(root, "metadata.json"),
+    source: path.join(root, "captured-source-object"),
+  };
+  const metadata = {
+    format_version: 1 as const,
+    source_profile: "majoras-mask" as const,
+    variant: "ntsc-u-1-0" as const,
+    source: { ...digest(bytes), sha1: createHash("sha1").update(bytes).digest("hex") },
+  };
+  await writeFile(inputPaths.source, bytes, { flag: "wx" });
+  await writeFile(inputPaths.metadata, JSON.stringify(metadata), { flag: "wx" });
+  return { root, output, bytes, inputPaths, metadata };
+}
+void test("MM input paths require only their two exact captured absolute arguments", () => {
+  assert.deepEqual(gameFirstMMArgumentNames, ["game-first-mm-inputs", "game-first-mm-source"]);
+  const values = Object.fromEntries(
+    gameFirstMMArgumentNames.map((name) => [name, path.resolve(name)]),
+  );
+  assert.deepEqual(parseGameFirstMMInputPaths(values), {
+    metadata: values["game-first-mm-inputs"],
+    source: values["game-first-mm-source"],
+  });
+  for (const name of gameFirstMMArgumentNames)
+    for (const invalid of [undefined, "relative", `${path.resolve("file")}\0`])
+      assert.throws(() => parseGameFirstMMInputPaths({ ...values, [name]: invalid }));
+});
+void test("MM preparation makes one exact raw copy with separate captured metadata baseline", async () =>
+  mmFixture(async ({ output, inputPaths, bytes, metadata }) => {
+    const prepared = await prepareGameFirstMMInputs(inputPaths, output);
+    assert.deepEqual(prepared.metadata, metadata);
+    assert.equal(prepared.sourceDirectory, path.join(output, "selected-setup-inputs"));
+    assert.equal(prepared.source.path, path.join(prepared.sourceDirectory, "majoras-mask.z64"));
+    assert.deepEqual(await readFile(prepared.source.path), bytes);
+    assert.deepEqual(await readFile(inputPaths.source), bytes);
+    assert.equal((await readFile(inputPaths.metadata)).toString(), JSON.stringify(metadata));
+    await verifyGameFirstMMInputs(
+      inputPaths,
+      prepared.metadata,
+      prepared.metadataIdentity,
+      prepared.source,
+    );
+    await assert.rejects(prepareGameFirstMMInputs(inputPaths, output), /EEXIST/u);
+  }));
+void test("MM metadata is a closed finite fixture expectation and cannot claim admission", async () => {
+  const changes = [
+    { format_version: 2 },
+    { source_profile: "minish-cap-gba" },
+    { variant: "gamecube-usa" },
+    { admitted: true },
+    { port_id: "2ship2harkinian" },
+    { runtime: "inert.exe" },
+  ];
+  for (const change of changes)
+    await mmFixture(async ({ inputPaths, output, metadata }) => {
+      await writeFile(inputPaths.metadata, JSON.stringify({ ...metadata, ...change }));
+      await assert.rejects(prepareGameFirstMMInputs(inputPaths, output));
+    });
+  for (const change of [
+    { bytes: 0 },
+    { bytes: 3 },
+    { bytes: 64 * 1024 ** 2 + 1 },
+    { bytes: 1.5 },
+    { bytes: Infinity },
+    { sha256: "0" },
+    { sha1: "0" },
+    { admitted: true },
+  ])
+    await mmFixture(async ({ inputPaths, output, metadata }) => {
+      await writeFile(
+        inputPaths.metadata,
+        JSON.stringify({ ...metadata, source: { ...metadata.source, ...change } }),
+      );
+      await assert.rejects(prepareGameFirstMMInputs(inputPaths, output));
+    });
+});
+void test("MM refuses compressed/byte-swapped payloads even when fixture hashes match", async () => {
+  for (const prefix of [
+    [0x50, 0x4b, 0x03, 0x04],
+    [0x37, 0x80, 0x40, 0x12],
+    [0x40, 0x12, 0x37, 0x80],
+  ])
+    await mmFixture(async ({ inputPaths, output, metadata, bytes }) => {
+      Buffer.from(prefix).copy(bytes);
+      await writeFile(inputPaths.source, bytes);
+      await writeFile(
+        inputPaths.metadata,
+        JSON.stringify({
+          ...metadata,
+          source: { ...digest(bytes), sha1: createHash("sha1").update(bytes).digest("hex") },
+        }),
+      );
+      await assert.rejects(
+        prepareGameFirstMMInputs(inputPaths, output),
+        /Canonical raw big-endian/u,
+      );
+    });
+});
+void test("MM refuses size, SHA256 and SHA1 mismatches without modifying originals", async () => {
+  await mmFixture(async ({ inputPaths, output, bytes }) => {
+    const changed = Buffer.from(bytes);
+    changed[changed.length - 1] = (changed.at(-1) ?? 0) ^ 1;
+    await writeFile(inputPaths.source, changed);
+    await assert.rejects(prepareGameFirstMMInputs(inputPaths, output), /SHA256 differs/u);
+    assert.deepEqual(await readFile(inputPaths.source), changed);
+  });
+  await mmFixture(async ({ inputPaths, output, metadata }) => {
+    await writeFile(
+      inputPaths.metadata,
+      JSON.stringify({ ...metadata, source: { ...metadata.source, sha1: "0".repeat(40) } }),
+    );
+    await assert.rejects(prepareGameFirstMMInputs(inputPaths, output), /SHA1 differs/u);
+  });
+  await mmFixture(async ({ inputPaths, output, bytes }) => {
+    await writeFile(inputPaths.source, bytes.subarray(1));
+    await assert.rejects(prepareGameFirstMMInputs(inputPaths, output), /size\/type changed/u);
+  });
+});
+void test("MM input readers reject linked ancestors, nonregular files and oversized metadata", async () => {
+  for (const name of ["source", "metadata"] as const)
+    await mmFixture(async ({ root, inputPaths, output }) => {
+      const link = path.join(root, "linked-inputs");
+      await symlink(root, link, process.platform === "win32" ? "junction" : "dir");
+      await assert.rejects(
+        prepareGameFirstMMInputs(
+          { ...inputPaths, [name]: path.join(link, path.basename(inputPaths[name])) },
+          output,
+        ),
+        /symbolic links/u,
+      );
+    });
+  await mmFixture(async ({ inputPaths, output }) => {
+    await rm(inputPaths.source);
+    await mkdir(inputPaths.source);
+    await assert.rejects(prepareGameFirstMMInputs(inputPaths, output), /size\/type changed/u);
+  });
+  await mmFixture(async ({ inputPaths, output }) => {
+    await writeFile(inputPaths.metadata, Buffer.alloc(16 * 1024 + 1, 32));
+    await assert.rejects(
+      prepareGameFirstMMInputs(inputPaths, output),
+      /bounded nonempty regular file/u,
+    );
+  });
+});
+void test("MM post-run verification detects changed captured metadata, original and owned copy", async () => {
+  for (const selected of ["metadata", "source", "copy"] as const)
+    await mmFixture(async ({ inputPaths, output }) => {
+      const prepared = await prepareGameFirstMMInputs(inputPaths, output);
+      const file = selected === "copy" ? prepared.source.path : inputPaths[selected];
+      const bytes = await readFile(file);
+      bytes[bytes.length - 1] = (bytes.at(-1) ?? 0) ^ 1;
+      await writeFile(file, bytes);
+      await assert.rejects(
+        verifyGameFirstMMInputs(
+          inputPaths,
+          prepared.metadata,
+          prepared.metadataIdentity,
+          prepared.source,
+        ),
+      );
+    });
+  await mmFixture(async ({ inputPaths, output }) => {
+    const prepared = await prepareGameFirstMMInputs(inputPaths, output);
+    await assert.rejects(
+      verifyGameFirstMMInputs(inputPaths, prepared.metadata, prepared.metadataIdentity, {
+        ...prepared.source,
+        path: inputPaths.source,
+      }),
+      /Separate owned MM copy/u,
+    );
+  });
 });

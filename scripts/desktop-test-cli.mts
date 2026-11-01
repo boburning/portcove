@@ -143,6 +143,9 @@ async function executeDesktopTest() {
       "Picori only: --scenario native-game-first-installed-picori --preparation-cli ABS --game-first-inputs ABS --game-first-source ABS --game-first-runtime ABS --game-first-shapes ABS --game-first-logic ABS --game-first-archive ABS [--game-first-operator-observation]",
     );
     console.log(
+      "MM only: --scenario native-game-first-installed-mm --preparation-cli ABS --game-first-mm-inputs ABS --game-first-mm-source ABS --game-first-operator-observation",
+    );
+    console.log(
       "Current-installed NSIS: --current-installed --installer ABS --package-evidence ABS --expected-app ABS --expected-version VERSION --test-base ABS --evidence ABS",
     );
     console.log(

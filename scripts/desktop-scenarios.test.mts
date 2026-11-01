@@ -3206,3 +3206,25 @@ void test("installed Picori is explicit, standalone and excludes inert fixture a
       /requires Windows/u,
     );
 });
+
+void test("installed MM is Windows-only standalone with two-install custody budget", () => {
+  const id = "native-game-first-installed-mm";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 2_400_000);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: [id, "native-game-first-installed-picori"],
+        platform: "win32",
+      }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});
