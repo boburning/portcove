@@ -36,7 +36,7 @@
     "@vitest/browser-playwright": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "es-module-lexer": "3.0.4",
-    "fallow": "3.37.0",
+    "fallow": "3.38.1",
     "playwright": "1.64.1",
     "vite-plus": "catalog:",
     "vitest": "catalog:",
