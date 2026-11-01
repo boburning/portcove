@@ -247,6 +247,7 @@ export function planDesktopExecution(
       "desktop-source-reuse-test.mts",
       "desktop-real-runtime-test.mts",
       "desktop-review-controls.mts",
+      "desktop-source-dialog-test.mts",
     ])
       inputs.push(receiptSource(new URL(name, harnessUrl)));
   if (registeredSourceReuse)

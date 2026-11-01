@@ -19,6 +19,12 @@ void test("real source reuse requires standalone Windows with normal production 
   assert.deepEqual(plan.build.cliFeatures, []);
   assert.deepEqual(plan.build.qualificationFeatures, []);
   assert.equal(plan.receiptInputs.filter((input) => input.path === helper).length, 1);
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) => input.path === "apps/desktop/scripts/desktop-source-dialog-test.mts",
+    ).length,
+    1,
+  );
   assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
   for (const platform of ["linux", "darwin"] as const)
     assert.throws(() => resolveDesktopSelection({ platform, scenarios: [id] }));
@@ -100,6 +106,58 @@ void test("runtime preparation refuses replacement and terminal sessions before 
     let inspected=false;
     await assert.rejects(()=>observeRegisteredRuntimeStartup({session,readSession:()=>inspected?{...session,phase:'collecting',outcome:'failed'}:session,inspectArchive:async()=>{inspected=true;return {path:'owned/mm.o2r',bytes:30,sha256:'final'}},wait:async observe=>observe()}),/Runtime ended/);
     await assert.rejects(()=>observeRegisteredRuntimeStartup({session,readSession:()=>session,inspectArchive:async()=>undefined,wait:async observe=>{assert.equal(await observe(),false);throw Error('finite startup deadline')} }),/finite startup deadline/);
+  `,
+  );
+});
+
+void test("settled nonzero Play remains an aggregate failure and cannot admit other failure classes", () => {
+  runDesktopModuleFixture(
+    new URL(`../${helper}`, import.meta.url),
+    `
+    const {retainSettledRuntimeOutcome,requireSuccessfulRegisteredRuntimeRoutes} = await import(entry);
+    const terminal={outcome:'failed',exit_code:1,message:'the game process did not exit successfully'};
+    const first={port_id:'2ship2harkinian'};
+    retainSettledRuntimeOutcome(first,terminal);
+    assert.equal(first.terminal,terminal);assert.equal(terminal.outcome,'failed');
+    assert.equal(first.stage,'settled-with-play-failure');assert.match(first.failure.message,/exit 1/);
+    const second={port_id:'zelda64-recomp'};
+    retainSettledRuntimeOutcome(second,{outcome:'succeeded',exit_code:0,message:null});
+    assert.throws(()=>requireSuccessfulRegisteredRuntimeRoutes([first,second]),/Actual Play failures remain failed/);
+    assert.throws(()=>requireSuccessfulRegisteredRuntimeRoutes([second]));
+    assert.throws(()=>requireSuccessfulRegisteredRuntimeRoutes([second,second]));
+    assert.throws(()=>requireSuccessfulRegisteredRuntimeRoutes([{port_id:'2ship2harkinian'},second]));
+    for(const value of [
+      {outcome:'cancelled',exit_code:null,message:null},
+      {outcome:'failed',exit_code:0,message:'data collection failed'},
+      {outcome:'failed',exit_code:null,message:'the game process did not exit successfully'},
+      {outcome:'failed',exit_code:1,message:'source identity changed'},
+    ]) assert.throws(()=>retainSettledRuntimeOutcome({},value));
+    const clean={port_id:'2ship2harkinian'};
+    retainSettledRuntimeOutcome(clean,{outcome:'succeeded',exit_code:0,message:null});
+    requireSuccessfulRegisteredRuntimeRoutes([clean,second]);
+  `,
+  );
+});
+
+void test("operator runtime observation keeps identity and exit proof separate from close intent", () => {
+  runDesktopModuleFixture(
+    new URL(`../${helper}`, import.meta.url),
+    `
+    const {observeRegisteredRuntimeExit} = await import(entry);
+    const session={child_pid:11,child_identity:'windows-filetime:123'};
+    const route={};let reads=0;const calls=[];
+    const native=(mode,snapshot)=>{calls.push(mode);assert.equal(snapshot,'bound-game.json');
+      if(mode==='Observe')return {processes:[{pid:11,started_filetime:'123',state:++reads===1?'running':'exited'}]};
+      assert.equal(mode,'Wait');return {observed_processes:2,exited_at:'fixture'};
+    };
+    await observeRegisteredRuntimeExit({session,snapshot:'bound-game.json',native,route,wait:async(observe,timeout)=>{assert.equal(timeout,120000);assert.equal(observe(),false);const exited=observe();assert.equal(exited,true);return exited}});
+    assert.deepEqual(calls,['Observe','Observe','Wait']);
+    assert.equal(route.observed_game_exit.observed_processes,2);
+    assert.equal('ordinary_game_close' in route,false);assert.equal('rendering' in route,false);
+    for(const changed of [{pid:12,started_filetime:'123',state:'exited'},{pid:11,started_filetime:'999',state:'exited'}]){
+      await assert.rejects(()=>observeRegisteredRuntimeExit({session,snapshot:'bound',route:{},native:mode=>{assert.equal(mode,'Observe');return {processes:[changed]}},wait:async observe=>observe()}));
+    }
+    await assert.rejects(()=>observeRegisteredRuntimeExit({session,snapshot:'bound',route:{},native:mode=>{assert.equal(mode,'Observe');return {processes:[{pid:11,started_filetime:'123',state:'running'}]}},wait:async observe=>{assert.equal(observe(),false);throw Error('operator observation deadline')}}),/operator observation deadline/);
   `,
   );
 });

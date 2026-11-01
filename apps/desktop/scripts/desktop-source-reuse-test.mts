@@ -1,7 +1,7 @@
 // Real-input Windows journey. Automated process observations do not establish runtime rendering or gameplay.
 import assert from "node:assert/strict";
 import { constants } from "node:fs";
-import { copyFile, lstat, rename, writeFile } from "node:fs/promises";
+import { copyFile, lstat, realpath, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity, type FileIdentity } from "../../../scripts/development-evidence.mts";
@@ -24,12 +24,14 @@ import type {
 
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
 import { executeBrowserScript } from "./browser-script.mts";
-import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { requestRealRuntimeClose } from "./desktop-real-runtime-test.mts";
+import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mts";
 import {
   nativeSessionScript,
   readNativeSessionObservation,
   type NativeSessionMode,
+  type NativeSessionObservations,
 } from "./desktop-owned-native-session.mts";
 import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
 
@@ -37,6 +39,81 @@ const scenarioId = "native-registered-source-reuse";
 const profileId = "majoras-mask";
 const canonicalUsa10 = "d6133ace5afaa0882cf214cf88daba39e266c078";
 const portIds = ["2ship2harkinian", "zelda64-recomp"] as const;
+
+// Called only after positive game/supervisor exit and unchanged source records.
+// A known nonzero game exit can leave later observations safe, never successful.
+export function retainSettledRuntimeOutcome(
+  route: Record<string, unknown>,
+  terminal: LaunchSessionRecord,
+) {
+  route.terminal = terminal;
+  if (
+    terminal.outcome === "failed" &&
+    Number.isSafeInteger(terminal.exit_code) &&
+    terminal.exit_code !== 0 &&
+    terminal.message === "the game process did not exit successfully"
+  ) {
+    route.failure = {
+      stage:
+        route.runtime_close_mode === "external-operator-observation"
+          ? "operator-observed-exit"
+          : "normal-close",
+      message: `Core recorded failed game exit ${terminal.exit_code}`,
+    };
+    route.stage = "settled-with-play-failure";
+    return;
+  }
+  assert.equal(terminal.outcome, "succeeded");
+  assert.equal(terminal.exit_code, 0);
+  route.stage = "settled";
+}
+
+export function requireSuccessfulRegisteredRuntimeRoutes(routes: Record<string, unknown>[]) {
+  assert.deepEqual(
+    routes.map((route) => route.port_id),
+    [...portIds],
+  );
+  const failures = routes.filter((route) => route.failure !== undefined);
+  assert.equal(
+    failures.length,
+    0,
+    "Actual Play failures remain failed after the independent reuse observations",
+  );
+  for (const route of routes) {
+    assert.equal(route.stage, "settled");
+    assert.ok(isRecord(route.terminal));
+    assert.equal(route.terminal.outcome, "succeeded");
+    assert.equal(route.terminal.exit_code, 0);
+  }
+}
+
+export async function observeRegisteredRuntimeExit({
+  session,
+  snapshot,
+  native,
+  wait,
+  route,
+}: {
+  session: LaunchSessionRecord;
+  snapshot: string;
+  native: <Mode extends "Observe" | "Wait">(
+    mode: Mode,
+    snapshot: string,
+  ) => NativeSessionObservations[Mode];
+  wait: (observe: () => boolean, timeout: number) => Promise<boolean>;
+  route: Record<string, unknown>;
+}) {
+  const exited = await wait(() => {
+    const observation = native("Observe", snapshot);
+    route.last_operator_exit_observation = observation;
+    const game = observation.processes.find((entry) => entry.pid === session.child_pid);
+    assert.ok(game);
+    assert.equal(`windows-filetime:${game.started_filetime}`, session.child_identity);
+    return game.state === "exited";
+  }, 120_000);
+  assert.equal(exited, true);
+  route.observed_game_exit = native("Wait", snapshot);
+}
 
 // A generated archive is preparation evidence, never a rendered-frame claim.
 // Two matching observations avoid closing on the first partial output copy.
@@ -104,6 +181,8 @@ export async function prepareRegisteredSourceReuseInputs({
 }) {
   assert.equal(process.platform, "win32");
   assert.equal(process.env.PORTCOVE_QUALIFICATION_CATALOG, undefined);
+  const runtimeObservation = process.env.PORTCOVE_SOURCE_REUSE_RUNTIME_OBSERVATION;
+  assert.ok(runtimeObservation === undefined || runtimeObservation === "operator");
   assert.ok(path.isAbsolute(original), "An explicit absolute controlled original is required");
   assert.equal(path.extname(original).toLowerCase(), ".zip");
   let ancestor = original;
@@ -143,7 +222,14 @@ export async function prepareRegisteredSourceReuseInputs({
   for (const port of ports) assert.equal(port.source_profile, profileId);
   assert.equal((await fileIdentity(original)).sha256, before.sha256);
   // Raw original/runtime files must not be added to public artifact lists.
-  return { before, copy, owned, preview, ports };
+  return {
+    before,
+    copy,
+    owned,
+    preview,
+    ports,
+    operatorRuntimeObservation: runtimeObservation === "operator",
+  };
 }
 
 type Fixture = Awaited<ReturnType<typeof prepareRegisteredSourceReuseInputs>>;
@@ -161,10 +247,12 @@ export async function registeredSourceReuseScenario(context: Context) {
   const { browser, output, artifacts, library, cli, fixture, confirmNative } = context;
   await context.scenario(scenarioId, async () => {
     const command = ownedFixtureCommand({ cli, library, output });
+    const routes: Record<string, unknown>[] = [];
     const report: Record<string, unknown> = {
       scope: scenarioId,
       input: fixture.preview,
-      routes: [],
+      runtime_observation_mode: fixture.operatorRuntimeObservation ? "operator" : "automatic",
+      routes,
     };
     const { button, click } = reviewControls(browser);
     const snapshot = async (name: string, target: Parameters<typeof captureKeyboardTarget>[2]) =>
@@ -283,6 +371,18 @@ export async function registeredSourceReuseScenario(context: Context) {
       assert.ok(installsBeforeRepair.every(Boolean));
       // Both installRegisteredSourceAndPlay calls returned only after identity-bound game and supervisor exit.
 
+      const ownedOriginal = await lstat(fixture.owned);
+      assert.ok(ownedOriginal.isFile() && !ownedOriginal.isSymbolicLink());
+      assert.equal(ownedOriginal.nlink, 1, "Only the independent owned copy may be moved");
+      assertOwnedSelectedSetupPath(
+        await realpath(fixture.owned),
+        path.join(await realpath(output), "d-majoras-mask-original.zip"),
+      );
+      report.moved_file_ownership = {
+        regular: true,
+        symbolic_link: false,
+        links: ownedOriginal.nlink,
+      };
       const moved = path.join(output, "d-majoras-mask-moved.zip");
       await rename(fixture.owned, moved);
       await selectPrimaryNavigation(browser, "Library");
@@ -347,6 +447,13 @@ export async function registeredSourceReuseScenario(context: Context) {
       await writeFile(substituted, Buffer.from([0x80, 0x37, 0x12, 0x40, 0x01, 0x02, 0x03]), {
         flag: "wx",
       });
+      const substitutedMetadata = await lstat(substituted);
+      assert.ok(substitutedMetadata.isFile() && !substitutedMetadata.isSymbolicLink());
+      assert.equal(substitutedMetadata.nlink, 1);
+      assertOwnedSelectedSetupPath(
+        await realpath(substituted),
+        path.join(await realpath(output), "d-controlled-substituted.z64"),
+      );
       await clickVisible(
         browser,
         await repairSection.findElement(
@@ -379,6 +486,7 @@ export async function registeredSourceReuseScenario(context: Context) {
       );
       assert.equal((await fileIdentity(fixture.before.path)).sha256, fixture.before.sha256);
       assert.equal((await fileIdentity(moved)).sha256, fixture.copy.sha256);
+      requireSuccessfulRegisteredRuntimeRoutes(routes);
     } finally {
       const receipt = path.join(output, "registered-source-reuse-desktop.json");
       await writeFile(receipt, JSON.stringify(report, null, 2), { flag: "wx" });
@@ -585,23 +693,35 @@ export async function installRegisteredSourceAndPlay(
     }
     // Actual runtime rendering/input observations remain separately identified;
     // neither an App screenshot nor these Core/process records imply gameplay.
-    route.stage = "normal-close";
-    await requestRealRuntimeClose({
-      native,
-      closeFile,
-      executable: observedExecutable,
-      requestFile: path.join(output, `${port.id}-d-close-request.json`),
-      route,
-      artifacts,
-      write: writeFile,
-    });
+    if (context.fixture.operatorRuntimeObservation) {
+      route.stage = "operator-runtime-observation";
+      route.runtime_close_mode = "external-operator-observation";
+      await observeRegisteredRuntimeExit({
+        session,
+        snapshot: gameFile,
+        native,
+        route,
+        wait: (observe, timeout) => browser.wait(observe, timeout, undefined, 2000),
+      });
+      // Operator intent and rendered frames require their separate actual UI
+      // observations. Process exit alone cannot establish either claim.
+    } else {
+      route.stage = "normal-close";
+      await requestRealRuntimeClose({
+        native,
+        closeFile,
+        executable: observedExecutable,
+        requestFile: path.join(output, `${port.id}-d-close-request.json`),
+        route,
+        artifacts,
+        write: writeFile,
+      });
+    }
     const terminal = await browser.wait(() => {
       const current = transportValue("launch_request", command(["launch", "show", session.id]));
       return current?.outcome !== null && current?.finished_at ? current : false;
     }, 30000);
     assert.ok(terminal);
-    assert.equal(terminal.outcome, "succeeded");
-    assert.equal(terminal.exit_code, 0);
     route.terminal = terminal;
     const supervisorExitFile = path.join(output, `${port.id}-d-supervisor-exit-input.json`);
     await writeFile(
@@ -622,7 +742,12 @@ export async function installRegisteredSourceAndPlay(
     route.stage = "supervisor-exit";
     route.supervisor_exit = native("Wait", supervisorExitFile);
     assert.deepEqual(transportValues("source", command(["source", "list"])), [original]);
-    route.stage = "settled";
+    const sourceAfterExit = await fileIdentity(original.path);
+    assert.match(original.storage_sha256 ?? "", /^[0-9a-f]{64}$/);
+    assert.equal(sourceAfterExit.sha256, original.storage_sha256);
+    assert.equal(sourceAfterExit.bytes, original.storage_size);
+    route.original_storage_after_exit = sourceAfterExit;
+    retainSettledRuntimeOutcome(route, terminal);
     return route;
   } catch (error) {
     route.failure = { stage: route.stage, message: errorMessage(error) };

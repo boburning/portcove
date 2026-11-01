@@ -1958,6 +1958,17 @@ managed launch and positive exit. These process observations do not establish
 runtime rendering, gameplay, unsupported-edition native acceptance or assistive
 technology behavior; retain those observations separately on the owning issue.
 Raw original and runtime files are private inputs, excluded from public artifacts.
+For actual runtime observation, optionally set
+`PORTCOVE_SOURCE_REUSE_RUNTIME_OBSERVATION=operator`. The same owned harness
+then waits at most 120 seconds for each exact game to exit while the operator
+observes and closes its window. It records identity-bound exit observations;
+operator close intent and usable rendering require separately retained UI
+observations. It does not fabricate an automatic close request or turn a failed
+Core outcome into success. Without this option, ordinary automatic close remains.
+Later independent observations can continue after a known nonzero game exit only
+after positive game/supervisor quiescence and unchanged registration/storage
+bytes. Such a Play failure still forces the final aggregate case to fail; source,
+security, cancellation and collection errors abort immediately.
 The real-input CLI preview and reinspection calls have a finite 60-second harness
 budget; ordinary metadata reads retain their 15-second default. A preparation
 failure before any driver/App launch records a separate prelaunch diagnostic,

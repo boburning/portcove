@@ -22,6 +22,7 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "libultraship-portable",
+    "windows_runtime_path_policy": "relative-file-max-path",
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "release": {
