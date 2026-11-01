@@ -3,7 +3,7 @@
   "listing": {
     "id": "burnout-3-takedown-ps2-burnout3-pc",
     "name": "Burnout 3: Takedown (PS2) (Burnout3 PC)",
-    "summary": "Upstream route: Windows alpha ZIP; own NTSC-U SLUS-21050 image Limits: PS2-specific Windows alpha, distinct from Xbox Burnout3; no Portcove completion claim. Upstream platforms: Windows10/11 x86-64 ZIP with source/preparation; no other documented package target established. Original data: Own Burnout 3: Takedown NTSC-U PS2 disc SLUS-21050 as ISO. Upstream setup reads/extracts that original disc and locally builds the translated program; keep required source image/data available per upstream configuration. PAL/NTSC-J editions are outside the documented target. Portcove setup/gameplay not verified.",
+    "summary": "Register the completed Burnout3 PC Windows player for your own NTSC-U PS2 disc and preserve its local card, settings and mods.",
     "original_game_title": "Burnout 3: Takedown (PS2)",
     "project_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "burnout-3-takedown",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2638
+    "issue_number": 2638,
+    "manual_setup": {
+      "help_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
+      "steps": [
+        {
+          "title": "Complete the PS2 title’s supported setup upstream",
+          "instruction": "Use only a completed native copy and components you are permitted to use. This implementation targets Burnout 3: Takedown for PS2, NTSC-U SLUS-21050, using your own ISO. It is separate from the Xbox Takedawn and original Burnout projects. Complete disc selection and upstream setup before registration. Portcove does not acquire original data, run an extractor or compiler, or certify the full disc image; the inspected runtime identifies the disc by its boot executable."
+        },
+        {
+          "title": "Attach the supported Windows native entry",
+          "instruction": "Select burnout3.exe in the writable completed package, its containing directory as working directory and no arguments. Keep burnout3-sse4.exe and every matching DLL, notice and companion together. The inspected supported entry runs the native player in-process on AVX2 machines; on a supported SSE4.1 processor without AVX2, its documented CPU entry starts the matching SSE4 build, waits for it and returns its exit code. Do not attach a build tool or invent arguments for a private runner."
+        },
+        {
+          "title": "Retain one runtime replacement owner",
+          "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, deliberate replacement and recovery. Close the actual player and companions before replacing files, retain the prior working copy and all effective data, then review and relink changed selected bytes. Registration removal preserves every external file; Portcove offers no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the creating copy and all effective player data",
+          "instruction": "Keep pc_settings.ini, which stores settings and the remembered disc path; memcard/ for game saves; texture pack/; custom_songs/; burnout3.log; captures/; the original ISO; backups, mods, caches, unknown files and every effective custom root. Another executable may use the same locations. Preserve the creating runtime with saves before upstream updates; cross-version or cross-platform card compatibility is not certified."
+        },
+        {
+          "title": "Keep permission and evidence scope distinct",
+          "instruction": "Retain the project and engine MIT notices plus each bundled component’s separate notices. Their grants cover their own code, not Electronic Arts game code or assets; original-game rights and any third-party texture or music permissions remain separate. This alpha’s upstream gameplay and device claims are not Portcove observations. This guide offers local existing-copy launch; it does not qualify LAN, VPN, online accounts, network setup, managed preparation or protected publication."
+        }
+      ],
+      "warnings": [
+        "Use only a completed copy and components you are permitted to use. Preserve originals, the whole creating runtime, saves, settings, mods, caches, backups, unknown files and every custom root. Static source/release metadata review is not a package-byte certificate, native gameplay, real-save, installed-client or Supported acceptance."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
