@@ -389,6 +389,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-library-layout",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
+            "native-game-first-choice-and-restart",
           ].includes(id),
       ),
     });
@@ -398,6 +399,8 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
     assert.ok(!selection.selected_scenarios.includes("native-update-acquisition-lifecycle"));
     assert.ok(selection.excluded_scenarios.includes("native-update-acquisition-lifecycle"));
+    assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
+    assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =

@@ -296,7 +296,7 @@ export async function gameFirstScenarios({
         `[role="dialog"] button[data-discover-port-id="${chosen.id}"]`,
         100,
       );
-      await clickVisible(browser, use);
+      await use.sendKeys(Key.ENTER);
       await detail(chosen.id);
       await browser.wait(
         async () => (await read()).organization.preferred_port_by_game?.[gameId] === chosen.id,
@@ -337,6 +337,16 @@ export async function gameFirstScenarios({
         "Viewing an alternative must not silently replace the deliberate choice",
       );
       await back();
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (id) => document.activeElement?.getAttribute("data-detail-game-id") === id,
+            chosen.id,
+          ),
+        10_000,
+        "Back from an alternative must restore the chosen game identity focus",
+      );
       await browser.wait(until.elementLocated(By.css(`.discover-game${groupSelector}`)), 15_000);
       await browser.wait(
         async () =>
@@ -408,7 +418,9 @@ export async function gameFirstScenarios({
         `.discover-game${groupSelector} .discover-game-identity`,
         100,
       );
-      await click(`.discover-game${groupSelector} .discover-game-identity`);
+      await (
+        await browser.findElement(By.css(`.discover-game${groupSelector} .discover-game-identity`))
+      ).sendKeys(Key.ENTER);
       await detail(chosen.id);
       await back();
       failed = false;

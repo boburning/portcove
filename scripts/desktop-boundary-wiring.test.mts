@@ -110,7 +110,7 @@ void test("preparation dispatch consumes the imported game-first owner with ordi
   const observed = route(source);
   route(
     edit(source, [
-      { ...range(observed.binding.local), text: "$aliasedGameFirst" },
+      { ...range(observed.binding), text: "gameFirstScenarios as $aliasedGameFirst" },
       { ...range(observed.call.callee), text: "$aliasedGameFirst" },
     ]),
   );
