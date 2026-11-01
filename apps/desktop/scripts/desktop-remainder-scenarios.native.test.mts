@@ -10,6 +10,63 @@ function callable(value: unknown) {
     Reflect.apply(value as (...args: unknown[]) => unknown, undefined, args);
 }
 
+void test("game-first owner registers its exact scenario without native, source or installation effects", () => {
+  const entry = new URL("./desktop-game-first-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+      const {gameFirstScenarios}=await import(entry);
+      const attempts=[];
+      await gameFirstScenarios({scenario:async(id,action)=>{
+        assert.equal(typeof action,'function');attempts.push(id);
+      }});
+      assert.deepEqual(attempts,['native-game-first-choice-and-restart']);
+    `,
+        variant === "original" ? undefined : { exportName: "gameFirstScenarios", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
+});
+
+void test("game-first serialized capture retains optional alerts while requiring fonts and actual interface size", () => {
+  const entry = new URL("./desktop-game-first-test.mts", import.meta.url);
+  for (const variant of ["original", "aliased", "wrong-export"] as const) {
+    const execute = () =>
+      runDesktopModuleFixture(
+        entry,
+        `
+      const {runInNewContext}=await import('node:vm');
+      const {observeGameFirstCaptureReadiness:observe}=await import(entry);
+      const document={fonts:{status:'loaded'},body:{textContent:'Interface size 200%.'},
+        documentElement:{scrollWidth:480,clientWidth:480},
+        querySelectorAll:selector=>{
+          assert.equal(selector,'[role="alert"]');
+          return [{textContent:' Optional comparison evidence unavailable '}];
+        }};
+      const read=()=>JSON.parse(JSON.stringify(runInNewContext('('+String(observe)+')(200)',{
+        document,innerWidth:480,innerHeight:320,devicePixelRatio:2
+      })));
+      const settled=read();
+      assert.equal(settled.ready,true);
+      assert.deepEqual(settled.alerts,['Optional comparison evidence unavailable']);
+      assert.deepEqual(settled.viewport,{width:480,height:320,dpr:2});
+      document.fonts.status='loading';assert.equal(read().ready,false);
+      document.fonts.status='loaded';document.body.textContent='Applying interface size 200%.';
+      assert.equal(read().ready,false);
+      document.body.textContent='Interface size 100%.';assert.equal(read().ready,false);
+    `,
+        variant === "original"
+          ? undefined
+          : { exportName: "observeGameFirstCaptureReadiness", variant },
+      );
+    if (variant === "wrong-export") assert.throws(execute);
+    else execute();
+  }
+});
+
 // Exercise the actual serialized probe with a deterministic frame consumer. The
 // consumer models layout receivers, not production controller functionality.
 async function controllerObservation(probeSource: string) {

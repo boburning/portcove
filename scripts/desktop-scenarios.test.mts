@@ -2665,6 +2665,29 @@ void test("organization persistence selects the normal owned-fixture path withou
   assert.ok(!selection.prerequisites.includes("steam-fixture"));
 });
 
+void test("game-first choice is one explicit normal Windows journey without installation authority", () => {
+  const id = "native-game-first-choice-and-restart";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.deepEqual(selection.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.equal(
+    required(DESKTOP_SCENARIOS.find((entry) => entry.id === id)).source,
+    "desktop-game-first-test.mts",
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});
+
 void test("staged native composition installs its isolated fixture before review", () => {
   const selection = resolveDesktopSelection({ scenarios: ["native-staged-update-composition"] });
   assert.deepEqual(selection.selected_scenarios, ["native-staged-update-composition"]);

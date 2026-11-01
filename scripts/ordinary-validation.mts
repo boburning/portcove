@@ -1725,6 +1725,7 @@ for (const [file, tests] of [
   ...[
     "apps/desktop/scripts/desktop-preparation-test.mts",
     "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+    "apps/desktop/scripts/desktop-game-first-test.mts",
   ].map((file): [string, string[]] => [
     file,
     [

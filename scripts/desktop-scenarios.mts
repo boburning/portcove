@@ -467,6 +467,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-game-first-choice-and-restart",
+    "Normal-app game grouping and deliberate implementation choice persist across an owned restart; installation and gameplay remain separate.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-game-first-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-release-channel-selection-and-restart",
     "Release-channel selection survives renderer restart.",
     {
@@ -786,6 +796,14 @@ export function resolveDesktopSelection({
     throw new Error("native-linux-webview-origin-boundary requires Linux");
   if (uniqueRequested.includes("native-library-organization-restart") && platform !== "win32")
     throw new Error("native-library-organization-restart requires Windows");
+  if (uniqueRequested.includes("native-game-first-choice-and-restart")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error(
+        "native-game-first-choice-and-restart requires one exact standalone scenario",
+      );
+    if (platform !== "win32")
+      throw new Error("native-game-first-choice-and-restart requires Windows");
+  }
   if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
     throw new Error("native-startup-network-diagnostic requires Windows");
   if (uniqueRequested.includes("native-saved-folder-selected-setup")) {

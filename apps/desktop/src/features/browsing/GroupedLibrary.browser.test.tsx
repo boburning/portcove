@@ -339,7 +339,7 @@ it.each([
       .not.toBeInTheDocument();
     expect(launch).not.toHaveBeenCalled();
     await page.screenshot({
-      path: `../../../../outputs/a1/grouped-library-${layout}-${theme}-${width}-${zoom}.png`,
+      path: `../../../../../outputs/a1/grouped-library-${layout}-${theme}-${width}-${zoom}.png`,
     });
   },
 );

@@ -1429,6 +1429,40 @@ void test("organization restart retains normal builds and requires owned host ex
   assert.equal(combined.session.cleanupName, "backup-focus");
 });
 
+void test("game-first choice retains normal builds, its consumed inputs and existing restart custody", () => {
+  const id = "native-game-first-choice-and-restart";
+  const platform = "win32";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform });
+  const plan = planDesktopExecution(selection, { platform });
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.fixtures.install, false);
+  assert.equal(plan.fixtures.steam, false);
+  assert.equal(plan.session.reviewedWorkflowSession, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "native-review");
+  assert.deepEqual(familyMembers(plan, "preparation"), [{ id, role: "selected" }]);
+  for (const input of [
+    "apps/desktop/scripts/desktop-game-first-test.mts",
+    "apps/desktop/src/interface-size-controller.ts",
+  ]) {
+    assert.equal(
+      plan.receiptInputs.filter((entry) => entry.kind === "file" && entry.path === input).length,
+      1,
+    );
+    // The preparation owner imports this module for all selections. Retain the
+    // actual loaded dependency even where the game-first scenario is unselected.
+    for (const profile of ["smoke", "presentation", "full"])
+      assert.equal(
+        planDesktopExecution(resolveDesktopSelection({ profile, platform }), {
+          platform,
+        }).receiptInputs.filter((entry) => entry.kind === "file" && entry.path === input).length,
+        1,
+      );
+  }
+});
+
 void test("fixed Windows presentation and sizing retain normal builds with positive exit custody", () => {
   for (const options of [{ profile: "presentation" }, { scenarios: ["native-interface-size"] }]) {
     const selection = resolveDesktopSelection({ ...options, platform: "win32" });

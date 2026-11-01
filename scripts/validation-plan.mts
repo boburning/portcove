@@ -239,6 +239,7 @@ const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
   "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+  "apps/desktop/scripts/desktop-game-first-test.mts",
   "apps/desktop/scripts/desktop-default-cover-test.mts",
   "apps/desktop/scripts/desktop-install-fixture.test.mts",
   "apps/desktop/scripts/desktop-install-fixture.native.test.mts",

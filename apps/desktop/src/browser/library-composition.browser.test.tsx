@@ -245,7 +245,15 @@ it("names exact port choices from their visible identity and readiness inside gr
   await expect
     .element(row)
     .toHaveAccessibleName(/Super Mario 64.*Mario modern port.*Ready to play/);
-  expect(row.textContent?.match(/Modern renderer/g)).toHaveLength(1);
+  expect(row.querySelectorAll("h3")).toHaveLength(1);
+  await expect
+    .element(row.querySelector("h3")!)
+    .toHaveTextContent("Mario modern port · Modern renderer");
+  await expect
+    .element(
+      dialog.getByRole("button", { name: "Use Mario modern port · Modern renderer", exact: true }),
+    )
+    .toBeEnabled();
   await expect.element(row).toMatchTextContent("Stable");
   choice.scrollIntoView({ block: "nearest" });
   expect(choice.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);

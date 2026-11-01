@@ -14,8 +14,10 @@ export const nativeTransportReceiptSources = Object.freeze([
   "apps/desktop/scripts/desktop-scenario-outcomes.mts",
   "apps/desktop/scripts/desktop-review-presentation.mts",
   "apps/desktop/scripts/desktop-staged-layout.mts",
+  "apps/desktop/scripts/desktop-game-first-test.mts",
   "apps/desktop/scripts/transport-values.mts",
   "apps/desktop/src/port-identity.ts",
+  "apps/desktop/src/interface-size-controller.ts",
   "apps/desktop/src/transport-schemas.generated.json",
   "apps/desktop/src/transport-host-output.generated.json",
   "apps/desktop/package.json",
@@ -94,6 +96,7 @@ export function planDesktopExecution(
         "native-staged-update-composition",
         "native-local-artwork-picker-and-recovery",
         "native-artwork-catalog-correction",
+        "native-game-first-choice-and-restart",
         "appearance-restart",
         "native-workspace-refresh-recovery",
       ].includes(id),
@@ -379,6 +382,7 @@ export function planDesktopExecution(
     "desktop-cli-handoff-test.mts",
     "desktop-artwork-test.mts",
     "desktop-artwork-correction-test.mts",
+    "desktop-game-first-test.mts",
   ]);
   const fixtureFamilies = [
     {

@@ -4100,6 +4100,7 @@ void test("native transport producers retain their actual Node consumers across 
     ...[
       "apps/desktop/scripts/desktop-preparation-test.mts",
       "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+      "apps/desktop/scripts/desktop-game-first-test.mts",
     ].map((file): [string, string[]] => [
       file,
       [
