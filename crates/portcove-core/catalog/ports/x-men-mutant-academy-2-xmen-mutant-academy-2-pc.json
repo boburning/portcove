@@ -3,7 +3,7 @@
   "listing": {
     "id": "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
     "name": "X-Men: Mutant Academy 2 / xmen-mutant-academy-2-pc",
-    "summary": "X-Men: Mutant Academy 2 remains discoverable, with selected project/package permission and original-derived texture-pack provenance unresolved.",
+    "summary": "Register an independently permitted completed X-Men: Mutant Academy 2 Windows copy with your own USA disc and preserved external data.",
     "project_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
     "issue_number": 356,
     "platforms": [],
@@ -17,6 +17,34 @@
       "game_slug": "x-men-mutant-academy-2",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative."
+    "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative.",
+    "manual_setup": {
+      "help_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
+      "steps": [
+        {
+          "title": "Use an independently permitted completed copy",
+          "instruction": "Use only an already completed XMenMA2 native copy and components you are independently permitted to use. Fresh package acquisition remains held: the selected v1.1 package includes original-derived 4x textures, and exclusion of those files from the source tree does not settle their package permission. This guide does not establish a grant, recommend that download, or authorize generation or redistribution of game-derived code, art or output."
+        },
+        {
+          "title": "Keep the title-specific original and preparation boundary",
+          "instruction": "The inspected upstream Windows x64 player targets X-Men: Mutant Academy 2 USA SLUS-01382. Keep your own CUE/BIN with all 13 tracks or supported CHD. No BIOS image is documented as required for this RecompOne player. Complete all upstream preparation separately; Portcove does not extract, compile, obtain or authenticate original data. The source checks the disc volume label, which is not full-image digest verification."
+        },
+        {
+          "title": "Attach the completed native player",
+          "instruction": "Select the existing XMenMA2.exe, its containing directory as working directory, and one literal absolute path to your supported CUE or CHD as its first argument. Keep the complete creating copy and matching components. The inspected Program.Main runs the game in the selected process and shuts its runtime down before returning; it also anchors writes to the executable directory. Do not attach a build script, generator, package tool or another PS1 player."
+        },
+        {
+          "title": "Review Play and retain one replacement owner",
+          "instruction": "Review and consent to the exact executable, working directory and literal disc argument, then choose Play separately. You and upstream own preparation, deliberate runtime replacement and recovery. Close the player and companions before replacement, retain the old working copy and all effective data, then review and relink changed selected bytes. Portcove offers no external update, backup, rollback, conversion, migration or deletion. Removing registration preserves all external files."
+        },
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Retain the executable directory with settings.json, memory-card and other saves, packs, logs, dumps, screenshots, mods and every effective custom root, plus original images and backups. The selected entry seeds settings.json only when its disc setting is absent and resolves runtime writes against the executable directory; exact runtime-created save filenames and cross-version compatibility remain unqualified. Preserve applicable project and component notices separately; an upstream source-tree exclusion or another RecompOne title does not grant package or original-game rights."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. This conditional existing-copy guide does not clear the selected fresh-acquisition hold or certify a package, full original image, gameplay, real-save compatibility, installed-client, managed or protected acceptance. Preserve unknown files and all custom roots."
+      ]
+    }
   }
 }

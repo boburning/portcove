@@ -2724,4 +2724,62 @@ mod tests {
     fn the_simpsons_game_thesimpsonsgamerecomp_prepared_player_route_379() {
         assert_listing_only_player_route("the-simpsons-game-thesimpsonsgamerecomp", Some(false));
     }
+
+    #[test]
+    fn abilliontokens_sims1_recomp_prepared_player_route_2733() {
+        assert_listing_only_player_route("abilliontokens-sims1-recomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_sims2_recomp_prepared_player_route_2752() {
+        assert_listing_only_player_route("abilliontokens-sims2-recomp", Some(false));
+    }
+
+    #[test]
+    fn abilliontokens_urbz_recomp_prepared_player_route_2813() {
+        assert_listing_only_player_route("abilliontokens-urbz-recomp", Some(false));
+    }
+
+    #[test]
+    fn bitsandbreakpoints_d_psx_pc_recomp_prepared_player_route_2741() {
+        assert_listing_only_player_route("bitsandbreakpoints-d-psx-pc-recomp", Some(false));
+    }
+
+    #[test]
+    fn bluddy_rails_prepared_player_route_2787() {
+        assert_listing_only_player_route("bluddy-rails", Some(false));
+    }
+
+    #[test]
+    fn legend_of_legaia_legend_of_legaia_recomp_prepared_player_route_352() {
+        assert_listing_only_player_route("legend-of-legaia-legend-of-legaia-recomp", Some(false));
+    }
+
+    #[test]
+    fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_prepared_player_route_356() {
+        assert_listing_only_player_route(
+            "x-men-mutant-academy-2-xmen-mutant-academy-2-pc",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn burnout_3_takedown_ps2_burnout3_pc_prepared_player_route_2638() {
+        assert_listing_only_player_route("burnout-3-takedown-ps2-burnout3-pc", Some(false));
+    }
+
+    #[test]
+    fn burnout_3_takedawn_xbox_prepared_player_route_2105() {
+        assert_listing_only_player_route("burnout-3-takedawn-xbox", Some(false));
+    }
+
+    #[test]
+    fn burnout_xbox_burnout_recompilation_prepared_player_route_2637() {
+        assert_listing_only_player_route("burnout-xbox-burnout-recompilation", Some(false));
+    }
+
+    #[test]
+    fn dead_or_alive_3_doa3_recomp_prepared_player_route_2560() {
+        assert_listing_only_player_route("dead-or-alive-3-doa3-recomp", Some(false));
+    }
 }
