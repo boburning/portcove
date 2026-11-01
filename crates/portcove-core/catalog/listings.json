@@ -26292,12 +26292,10 @@
     },
     {
       "id": "mechakotik-tails-adventure",
-      "name": "Tails Adventure / Tails Adventure Remake (mechakotik)",
-      "summary": "Explore Tails Adventure / Tails Adventure Remake (mechakotik) and follow the upstream project for requirements, downloads and setup.",
+      "name": "Tails Adventure Remake",
+      "summary": "Play the Tails Adventure remake while keeping your saved progress, settings and mods.",
       "project_url": "https://github.com/mechakotik/tails-adventure",
       "issue_number": 1895,
-      "platforms": [],
-      "availability": "unknown",
       "setup_url": "https://github.com/mechakotik/tails-adventure",
       "artwork": {
         "game_id": 265890,
@@ -26306,7 +26304,35 @@
         "image_sha256": "e84e3792a2bb3322534371e801ff214a3b4b6b562cd64f8a8eec466e87856db9",
         "game_slug": "tails-adventure-remake",
         "match_kind": "port"
-      }
+      },
+      "release_url": "https://github.com/mechakotik/tails-adventure/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "tails-adventure-",
+          "-windows.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/mechakotik/tails-adventure",
+        "steps": [
+          {
+            "title": "Keep the complete portable player",
+            "instruction": "The inspected Windows ZIP contains tails-adventure.exe and its assets tree; no original ROM, BIOS, first-run extraction or compilation is required by this route. Keep matching assets/default_config and packaged resources."
+          },
+          {
+            "title": "Keep your saves, options and mods",
+            "instruction": "The Windows player stores both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
+          }
+        ],
+        "warnings": [
+          "Upstream reports missing nonessential original features; completion/gameplay claims belong to upstream and have not been repeated here. Preserve a separate copy before changing mods or data."
+        ]
+      },
+      "original_game_title": "Tails Adventure",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "unknown"
     },
     {
       "id": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
