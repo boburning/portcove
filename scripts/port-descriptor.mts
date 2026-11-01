@@ -227,7 +227,9 @@ async function main() {
     ["--json", "--non-interactive", "schema", "export", "--contract", "input"],
     {
       encoding: "utf8",
-      timeout: 30000,
+      // A captured debug Core executable can cold-start slowly on a busy host.
+      // Keep the schema probe finite without treating a timed-out export as valid.
+      timeout: 90000,
       maxBuffer: 32 * 1024 * 1024,
       windowsHide: true,
       env: { ...process.env, PORTCOVE_LIBRARY: undefined },
