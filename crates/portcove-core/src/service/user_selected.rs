@@ -2663,4 +2663,65 @@ mod tests {
             Some(true),
         );
     }
+
+    #[test]
+    fn james2doyle_ffta_recomp_prepared_player_route_2824() {
+        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(true));
+    }
+
+    #[test]
+    fn final_fantasy_tactics_advance_fftarecomp_prepared_player_route_2575() {
+        assert_listing_only_player_route("final-fantasy-tactics-advance-fftarecomp", Some(false));
+    }
+
+    #[test]
+    fn kingdom_hearts_chain_of_memories_gba_rekhcom_prepared_player_route_2586() {
+        assert_listing_only_player_route(
+            "kingdom-hearts-chain-of-memories-gba-rekhcom",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn vibecodekun_shantaerecomp_prepared_player_route_1881() {
+        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(true));
+    }
+
+    #[test]
+    fn monster_hunter_portable_3rd_hd_yakumo_prepared_player_route_1120() {
+        assert_listing_only_player_route("monster-hunter-portable-3rd-hd-yakumo", Some(false));
+    }
+
+    #[test]
+    fn mario_party_4_party_board_prepared_player_route_1130() {
+        assert_listing_only_player_route("mario-party-4-party-board", Some(false));
+    }
+
+    #[test]
+    fn pokemon_platinum_pokeplatinum_pc_port_lead_prepared_player_route_373() {
+        assert_listing_only_player_route("pokemon-platinum-pokeplatinum-pc-port-lead", Some(false));
+    }
+
+    #[test]
+    fn ace_combat_5_static_recompilation_prepared_player_route_1119() {
+        assert_listing_only_player_route("ace-combat-5-static-recompilation", Some(false));
+    }
+
+    #[test]
+    fn ace_combat_x_skies_of_deception_ace_combat_x_recompilation_prepared_player_route_355() {
+        assert_listing_only_player_route(
+            "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn star_wars_episode_iii_revenge_of_the_sith_prepared_player_route_1310() {
+        assert_listing_only_player_route("star-wars-episode-iii-revenge-of-the-sith", Some(false));
+    }
+
+    #[test]
+    fn the_simpsons_game_thesimpsonsgamerecomp_prepared_player_route_379() {
+        assert_listing_only_player_route("the-simpsons-game-thesimpsonsgamerecomp", Some(false));
+    }
 }

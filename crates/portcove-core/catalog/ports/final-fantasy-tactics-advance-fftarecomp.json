@@ -3,11 +3,11 @@
   "listing": {
     "id": "final-fantasy-tactics-advance-fftarecomp",
     "name": "Final Fantasy Tactics Advance (FFTARecomp)",
-    "summary": "Upstream route: Windows/Linux/Steam Deck installer packages plus Android APK; owned-ROM compilation Limits: Work in progress with useful native player route; ROM-region documentation is inconsistent between installation and release notes. Upstream platforms: Windows x86-64 and Linux x86-64/SteamDeck setup archives; Android APK also observed, APK ABI unknown in frozen research. Original data: Own GBA ROM; v3 notes add Europe although installation section still says USA Portcove setup/gameplay not verified.",
+    "summary": "Register an already prepared FFTARecomp Windows player using your own supported USA or Europe ROM and retained external saves.",
     "original_game_title": "Final Fantasy Tactics Advance",
     "project_url": "https://github.com/Jorge262007/FFTARecomp",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/Jorge262007/FFTARecomp",
     "artwork": {
       "game_id": 414,
@@ -17,7 +17,39 @@
       "game_slug": "final-fantasy-tactics-advance",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2575
+    "issue_number": 2575,
+    "manual_setup": {
+      "help_url": "https://github.com/Jorge262007/FFTARecomp",
+      "steps": [
+        {
+          "title": "Complete supported preparation upstream",
+          "instruction": "Use a complete FFTARecomp copy and components you are permitted to use. Complete the official upstream Installer.exe preparation in a writable folder first; select the resulting installed FFTARecomp.exe, not Installer.exe or the payload template. The v3.0 package carries both FFTARecomp.exe and recomp.exe. Keep them, gamedb.sqlite, TinyCC/compiler support and their applicable notices together. Upstream owns setup, native translation/cache generation and replacement; Portcove does not run the installer or build the game."
+        },
+        {
+          "title": "Keep the exact owned original",
+          "instruction": "Use your own supported original FFTA USA ROM (SHA-256 43fc8204c6dceee58828aebc7af0c72eb807e99f35ad641c8bb0a4fa8b6edc19) or Europe ROM (8fab1e390cb9d5e695bfdb86e81246892e1aa8c0cb4014db8235ff76538ea632). v3 source supports both, despite older USA-only README wording. No BIOS is needed. The installer can warn and install an unverified image without FFTA patches; that is not this guide’s verified-original route, and success is not proof of exact source identity."
+        },
+        {
+          "title": "Attach the supported prepared player",
+          "instruction": "Select the completed installed FFTARecomp.exe with its installed directory as working directory and no arguments. This supported wrapper finds its adjacent ffta.gba or the LocalAppData/FFTARecomp fallback, runs its matching recomp.exe play and waits for that initial process through command.output(). Keep the exact prepared tree and private generated translations."
+        },
+        {
+          "title": "Keep optional successor sessions separate",
+          "instruction": "The optional in-game Switch ROM operation deliberately starts a successor process and ends the current game. The attached wrapper does not wait for that successor after its initial child ends. Treat switching as upstream activity outside this attached session: close every actual player before replacement or another attachment. Do not infer successor tracking, adoption or termination from the registration’s status. Keep the feature intact; no argument or private entry is used to disable or bypass it."
+        },
+        {
+          "title": "Review Play and retain external ownership",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the whole copy and effective data",
+          "instruction": "Preserve the installed tree and originals, %LOCALAPPDATA%/FFTARecomp data and shared-save-path.txt, %APPDATA%/FFTARecomp/input.cfg and av.cfg, and every effective custom root. Saves resolve FFTA_SAVE_PATH first, then a remembered existing save, then the ROM basename .sav; one neighboring .sav may be chosen and several open a picker. Normal gameplay writes the chosen save. Keep old saves and creating runtime: upstream cross-region compatibility claims and a shared path are not Portcove save qualification. Preserve caches/FFTARecomp translated libraries, mods, logs and backups; upstream may sweep superseded translation-revision caches. MIT project code, MIT/Apache foundation, CC0 gamedb, TinyCC LGPL and font/dependency notices apply separately; code grants do not grant ROM or third-party artwork rights."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

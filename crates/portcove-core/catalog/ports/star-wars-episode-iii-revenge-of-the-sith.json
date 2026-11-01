@@ -3,11 +3,11 @@
   "listing": {
     "id": "star-wars-episode-iii-revenge-of-the-sith",
     "name": "Star Wars: Episode III - Revenge of the Sith (SWROTS-PC)",
-    "summary": "Explore Star Wars: Episode III - Revenge of the Sith (SWROTS-PC) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register a completed SWROTS-PC Windows player with its matching core library, your own North American Xbox data and retained saves.",
     "project_url": "https://github.com/jedijosh920/SWROTS-PC",
     "issue_number": 1310,
     "platforms": [],
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/jedijosh920/SWROTS-PC",
     "artwork": {
       "game_id": 6159,
@@ -16,6 +16,34 @@
       "image_sha256": "a67c8361ebec3bcceba214c28edda40cd8c1f188ef336f4a88bb0c669549cbfd",
       "game_slug": "star-wars-episode-iii-revenge-of-the-sith",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/jedijosh920/SWROTS-PC",
+      "steps": [
+        {
+          "title": "Complete the title’s preparation upstream",
+          "instruction": "Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "After upstream setup completes, select swrots.exe with the complete player directory as working directory and no arguments. This is the documented native 32-bit Windows entry; it loads the matching core.dll in the same process and keeps the game there. Do not attach core.dll, an installer/archive helper or a different console edition. Keep the established Windows graphics/audio/controller dependencies."
+        },
+        {
+          "title": "Keep the actual session and successor boundary",
+          "instruction": "Normal level changes, mission restarts and saves use the default in-process reboot path. An explicit Debug ProcessReboot setting, or a reboot fallback, may deliberately create a --relaunch successor and exit without waiting. That successor is outside the attached session: close every actual game before maintenance or another attachment. Do not infer successor adoption or termination from registration status, or disable upstream features with invented arguments."
+        },
+        {
+          "title": "Review Play and preserve external ownership",
+          "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Retain the complete creating copy and actual data",
+          "instruction": "Keep the entire creating runtime and GameData, saves, settings.ini, controls.ini, mods, cache, logs and all custom paths. SWROTS_TEST_SAVES can redirect saves; preserve any actual configured location rather than treating it as disposable test data. Save logs include current/previous run and Message.log; reboot launch-data files may also be local. Preserve originals, loose mods, native companions and backups before upstream updates. Project GPL-3.0-or-later, adapted Cxbx-Reloaded GPL-2.0-or-later and ImGui MIT notices apply separately from Lucasfilm game content; no code licence grants original-game rights."
+        }
+      ],
+      "warnings": [
+        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+      ]
     }
   }
 }
