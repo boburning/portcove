@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Use a completed Windows copy",
-          "instruction": "Use an independently permitted, already completed Windows native Bigodão build with wario_land_port.exe from the upstream CMake target. Keep its complete runtime and tools/wl_sm3_dx_v12_patch.json together in a writable folder. This route does not build missing generated game code or identify the contents of an uninspected release ZIP."
+          "instruction": "Use an independently permitted completed Windows copy. The inspected 1.7 ZIP (SHA-256 21e13616bbc0d62dcf1341be10d392694b1f6033965dc4c9ab15f13a8f028ac6) contains bigodao_1.7_win/bigodao_1.7_win.exe and tools/wl_sm3_dx_v12_patch.json beneath that folder. Keep both together in a writable folder. A separately completed source build instead uses wario_land_port.exe; this route does not supply missing generated game code or establish source-to-binary reproducibility."
         },
         {
           "title": "Keep exact original and patch inputs",
@@ -37,7 +37,7 @@
         },
         {
           "title": "Link the ordinary native executable",
-          "instruction": "Add the completed wario_land_port.exe through the existing-copy route, choose its containing folder as the working directory, and leave arguments empty. The picker and normal game loop run inside that process. Do not select Android files, packaging tools, or a compiler helper."
+          "instruction": "For the inspected 1.7 Windows package, add bigodao_1.7_win.exe through the existing-copy route, use the bigodao_1.7_win folder containing it as the working directory, and leave arguments empty. For a separately completed source build, select its wario_land_port.exe with that executable's parent folder and no arguments. The reviewed source runs its picker and ordinary game loop in one process; this is source evidence, not an observed launch of the package. Do not select Android files, packaging tools, or a compiler helper."
         },
         {
           "title": "Preserve saves, preferences and mods",
