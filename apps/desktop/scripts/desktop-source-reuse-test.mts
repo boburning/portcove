@@ -4,7 +4,7 @@ import { constants } from "node:fs";
 import { copyFile, lstat, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
-import { fileIdentity } from "../../../scripts/development-evidence.mts";
+import { fileIdentity, type FileIdentity } from "../../../scripts/development-evidence.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import {
@@ -37,6 +37,57 @@ const scenarioId = "native-registered-source-reuse";
 const profileId = "majoras-mask";
 const canonicalUsa10 = "d6133ace5afaa0882cf214cf88daba39e266c078";
 const portIds = ["2ship2harkinian", "zelda64-recomp"] as const;
+
+// A generated archive is preparation evidence, never a rendered-frame claim.
+// Two matching observations avoid closing on the first partial output copy.
+export async function observeRegisteredRuntimeStartup({
+  session,
+  readSession,
+  inspectArchive,
+  wait,
+}: {
+  session: LaunchSessionRecord;
+  readSession: () => LaunchSessionRecord | null | undefined;
+  inspectArchive: () => Promise<FileIdentity | undefined>;
+  wait: (
+    observe: () => Promise<FileIdentity | false>,
+    timeout: number,
+  ) => Promise<FileIdentity | false>;
+}) {
+  let previous: FileIdentity | undefined;
+  const requireLiveSession = () => {
+    const current = readSession();
+    assert.ok(current, "The observed runtime session disappeared during startup");
+    for (const key of [
+      "id",
+      "port_id",
+      "install_id",
+      "supervisor_pid",
+      "supervisor_identity",
+      "child_pid",
+      "child_identity",
+    ] as const)
+      assert.equal(current[key], session[key], `Runtime startup changed ${key}`);
+    assert.equal(current.phase, "running", "Runtime ended before startup preparation was observed");
+    assert.equal(current.outcome, null, "Runtime failed before startup preparation was observed");
+  };
+  const observed = await wait(async () => {
+    requireLiveSession();
+    const archive = await inspectArchive();
+    requireLiveSession();
+    const stable =
+      archive &&
+      archive.bytes > 0 &&
+      previous &&
+      archive.path === previous.path &&
+      archive.bytes === previous.bytes &&
+      archive.sha256 === previous.sha256;
+    previous = archive;
+    return stable ? archive : false;
+  }, 120_000);
+  assert.ok(observed, "No stable runtime preparation output was observed");
+  return observed;
+}
 
 // The existing Core preview establishes identity. This helper copies only the
 // explicitly supplied original into the new owned output; it never registers it.
@@ -406,6 +457,27 @@ export async function installRegisteredSourceAndPlay(
     route.installed = installed;
     assert.deepEqual(transportValues("source", command(["source", "list"])), [original]);
     const executable = path.join(installed.path, installed.selected_executable);
+    const generatedArchive = path.join(installed.path, "mm.o2r");
+    const inspectGeneratedArchive = async () => {
+      const metadata = await lstat(generatedArchive).catch((error: unknown) => {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+        throw error;
+      });
+      if (!metadata) return undefined;
+      assert.ok(
+        metadata.isFile() && !metadata.isSymbolicLink(),
+        "Owned generated archive must be a regular unlinked file",
+      );
+      return fileIdentity(generatedArchive);
+    };
+    if (port.id === "2ship2harkinian") {
+      assert.equal(
+        await inspectGeneratedArchive(),
+        undefined,
+        "First owned startup must not borrow a preexisting mm.o2r",
+      );
+      route.upstream_archive_preexisted = false;
+    }
     const executableIdentity = await fileIdentity(executable);
     const appIdentity = await fileIdentity(context.application);
     const play = await browser.wait(async () => {
@@ -501,6 +573,16 @@ export async function installRegisteredSourceAndPlay(
       capturedGame.driver,
     );
     route.actual_game = { executableIdentity, supervisor, capturedGame, close };
+    if (port.id === "2ship2harkinian") {
+      route.stage = "upstream-startup-preparation";
+      route.upstream_generated_archive = await observeRegisteredRuntimeStartup({
+        session,
+        readSession: () =>
+          transportValue("launch_request", command(["launch", "show", session.id])),
+        inspectArchive: inspectGeneratedArchive,
+        wait: (observe, timeout) => browser.wait(observe, timeout, undefined, 2000),
+      });
+    }
     // Actual runtime rendering/input observations remain separately identified;
     // neither an App screenshot nor these Core/process records imply gameplay.
     route.stage = "normal-close";

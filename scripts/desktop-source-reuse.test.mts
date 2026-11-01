@@ -66,3 +66,40 @@ void test("a failed real setup retains its route and failure stage before any na
   `,
   );
 });
+
+void test("runtime preparation waits through missing, empty and changing output without granting rendering", () => {
+  runDesktopModuleFixture(
+    new URL(`../${helper}`, import.meta.url),
+    `
+    const {observeRegisteredRuntimeStartup} = await import(entry);
+    const session = {id:'one',port_id:'2ship2harkinian',install_id:'owned',supervisor_pid:10,supervisor_identity:'supervisor',child_pid:11,child_identity:'child',phase:'running',outcome:null};
+    const first={path:'owned/mm.o2r',bytes:20,sha256:'first'};
+    const final={path:'owned/mm.o2r',bytes:30,sha256:'final'};
+    const observations=[undefined,{...first,bytes:0},first,final,final];
+    let reads=0,polls=0;
+    const result=await observeRegisteredRuntimeStartup({session,readSession:()=>{reads++;return {...session}},inspectArchive:async()=>observations.shift(),wait:async(observe,timeout)=>{
+      assert.equal(timeout,120000);
+      for(let i=0;i<5;i++){polls++;const value=await observe();if(value)return value;}
+      assert.fail('Expected the stable nonempty output');
+    }});
+    assert.deepEqual(result,final);assert.equal(polls,5);assert.equal(reads,10);
+    assert.equal('rendering' in result,false);
+  `,
+  );
+});
+
+void test("runtime preparation refuses replacement and terminal sessions before or during output inspection", () => {
+  runDesktopModuleFixture(
+    new URL(`../${helper}`, import.meta.url),
+    `
+    const {observeRegisteredRuntimeStartup} = await import(entry);
+    const session={id:'one',port_id:'2ship2harkinian',install_id:'owned',supervisor_pid:10,supervisor_identity:'supervisor',child_pid:11,child_identity:'child',phase:'running',outcome:null};
+    for(const change of [{child_pid:12},{child_identity:'replacement'},{install_id:'other'},{id:'other'},{phase:'collecting',outcome:'failed'},{outcome:'failed'}]){
+      await assert.rejects(()=>observeRegisteredRuntimeStartup({session,readSession:()=>({...session,...change}),inspectArchive:async()=>assert.fail('Refuse before file inspection'),wait:async observe=>observe()}));
+    }
+    let inspected=false;
+    await assert.rejects(()=>observeRegisteredRuntimeStartup({session,readSession:()=>inspected?{...session,phase:'collecting',outcome:'failed'}:session,inspectArchive:async()=>{inspected=true;return {path:'owned/mm.o2r',bytes:30,sha256:'final'}},wait:async observe=>observe()}),/Runtime ended/);
+    await assert.rejects(()=>observeRegisteredRuntimeStartup({session,readSession:()=>session,inspectArchive:async()=>undefined,wait:async observe=>{assert.equal(await observe(),false);throw Error('finite startup deadline')} }),/finite startup deadline/);
+  `,
+  );
+});
