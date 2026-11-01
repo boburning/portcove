@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { lstat, readdir, writeFile } from "node:fs/promises";
+import { lstat, readdir, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { By, Key, until } from "selenium-webdriver";
@@ -798,6 +798,14 @@ export async function launchInstalledManagedGame({
     game_frame: { status: "unavailable" },
   };
   const appIdentity = await fileIdentity(application);
+  // Core can return an extended Windows path; CIM reports its ordinary spelling.
+  const nativeExecutablePath = await realpath(executableIdentity.path);
+  assert.ok(samePath(nativeExecutablePath, executableIdentity.path));
+  const nativeExecutableIdentity = await fileIdentity(nativeExecutablePath, {
+    maxBytes: executableIdentity.bytes,
+  });
+  assert.equal(nativeExecutableIdentity.bytes, executableIdentity.bytes);
+  assert.equal(nativeExecutableIdentity.sha256, executableIdentity.sha256);
   const native = <Mode extends NativeSessionMode>(
     mode: Mode,
     snapshot: string,
@@ -872,7 +880,7 @@ export async function launchInstalledManagedGame({
       "-ExpectedParentProcessId",
       String(session.supervisor_pid),
       "-ApplicationPath",
-      executableIdentity.path,
+      nativeExecutableIdentity.path,
       "-ExpectedApplicationSha256",
       executableIdentity.sha256,
     ]);
@@ -888,7 +896,7 @@ export async function launchInstalledManagedGame({
       "-DriverProcessId",
       String(session.supervisor_pid),
       "-ApplicationPath",
-      executableIdentity.path,
+      nativeExecutableIdentity.path,
     ]);
     artifacts.push(closeFile);
     assert.deepEqual(close.driver, supervisor.driver);
@@ -897,12 +905,12 @@ export async function launchInstalledManagedGame({
       close.processes.filter((item) => item.pid === session.child_pid),
       [game.driver],
     );
-    route.live_game = { supervisor, game, close, executableIdentity };
+    route.live_game = { supervisor, game, close, executableIdentity, nativeExecutableIdentity };
     if (context.captureGameFrame) {
       const frame = await context.captureGameFrame({
         name: `${prefix}-real-runtime`,
         session,
-        executable: executableIdentity.path,
+        executable: nativeExecutableIdentity.path,
         executableSha256: executableIdentity.sha256,
         game,
         output,
@@ -932,7 +940,7 @@ export async function launchInstalledManagedGame({
       await requestRealRuntimeClose({
         native,
         closeFile,
-        executable: executableIdentity.path,
+        executable: nativeExecutableIdentity.path,
         requestFile: path.join(output, `${prefix}-ordinary-game-close.json`),
         route,
         artifacts,
@@ -984,7 +992,7 @@ export async function launchInstalledManagedGame({
           await requestRealRuntimeClose({
             native,
             closeFile,
-            executable: executableIdentity.path,
+            executable: nativeExecutableIdentity.path,
             requestFile: path.join(output, `${prefix}-failure-ordinary-close.json`),
             route,
             artifacts,
