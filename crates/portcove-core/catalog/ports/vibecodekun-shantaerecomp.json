@@ -3,11 +3,11 @@
   "listing": {
     "id": "vibecodekun-shantaerecomp",
     "name": "Shantae / shantaerecomp (vibecodekun)",
-    "summary": "Explore Shantae / shantaerecomp (vibecodekun) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted Shantae Recomp Windows copy for your own exact USA ROM and retained portable state.",
     "project_url": "https://github.com/vibecodekun/shantaerecomp",
     "issue_number": 1881,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/vibecodekun/shantaerecomp",
     "artwork": {
       "game_id": 8432,
@@ -16,6 +16,39 @@
       "image_sha256": "7df41a67e947e2e6179f7fc876f2e4ce2671e6f7c1b485844ad49bfec6be7fb3",
       "game_slug": "shantae",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/vibecodekun/shantaerecomp",
+      "steps": [
+        {
+          "title": "Complete supported preparation upstream",
+          "instruction": "Use an independently permitted complete shantae-recomp Windows copy and preserve the matching runtime DLLs, assets, shaders, notices and any selected patches. Normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
+        },
+        {
+          "title": "Keep the exact owned original",
+          "instruction": "Use your own exact Shantae USA Game Boy Color ROM, SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. Other releases including World, Switch and Limited Run Games are different ROMs. The chooser enables Play only for the accepted original or explicitly supported compiled patch variants; patch compatibility must be established for that actual build. No ROM is supplied or licensed by this registration."
+        },
+        {
+          "title": "Attach the supported prepared player",
+          "instruction": "Select shantae.exe with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
+        },
+        {
+          "title": "Keep optional successor sessions separate",
+          "instruction": "Ordinary Quit ends the current process. Only explicitly choosing Return to Launcher schedules an atexit restart after saves close: on Windows that restart creates a new process without waiting. Treat that successor as upstream activity outside the attached session. Close every actual player and reopened launcher before maintenance or another attachment; registration status does not establish successor adoption or termination. This preserves the optional feature and does not disable it with arguments."
+        },
+        {
+          "title": "Review Play and retain external ownership",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the whole copy and effective data",
+          "instruction": "Keep the whole creating package, original ROM and every effective external root. Windows defaults portable state beside the executable; GBRECOMP_STATE_DIR overrides state and GBRECOMP_ASSET_DIR overrides assets. Preserve rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini, .sav battery data, .rtc, .stateN, map/patch-specific data, mods, shader_presets, shader_cache, logs and backups. Patch/native state compatibility is build-specific; do not infer save compatibility from another gbrecompiled game. Preserve per-shader licences and complete component notices."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the selected bundled engine-fork scope remains held: THIRD-PARTY-LICENSES.md explicitly names the gbrecompiled fork as stating no licence of its own, separately from the parent gb-recompiled MIT and title PolyForm Noncommercial grants. The pinned build uses vibecodekun/gbrecompiled 314fce0895f66a3a7b41734a01040352e47a5b0b; do not inherit a grant for its separately authored changes. Use only an independently permitted existing copy. Resume with an attributable applicable grant for this exact fork scope or a reviewed compatible replacement package. Original game code/data and other named components retain their own rights."
   }
 }

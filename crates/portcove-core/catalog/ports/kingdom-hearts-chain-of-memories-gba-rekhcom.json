@@ -3,11 +3,11 @@
   "listing": {
     "id": "kingdom-hearts-chain-of-memories-gba-rekhcom",
     "name": "Kingdom Hearts: Chain of Memories (GBA) (ReKHCoM)",
-    "summary": "Upstream route: Keep stable versus prerelease clear. x86 Linux dependencies and optional HD mod using separate owned PC assets are distinct. Limits: Stable1.9.14 distinct from2.0 prerelease; optional HD mod needs separate owned PC assets. Platform betas differ. Upstream platforms: Stable Windows x86 and Linux x86 packages (32-bit); Android and ARMHF handheld betas are separate. Preserve32-bit Linux runtime dependencies. Original data: Own USA/Europe/Japan cartridge dump; native port based on Pheenoh/khcom matching decompilation. Portcove setup/gameplay not verified.",
+    "summary": "Register an independently permitted ReKHCoM Windows copy with its supported waiting launcher and your own supported cartridge dump.",
     "original_game_title": "Kingdom Hearts: Chain of Memories (GBA)",
     "project_url": "https://github.com/MatyMeatBoy/ReKHCoM",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/MatyMeatBoy/ReKHCoM",
     "artwork": {
       "game_id": 1220,
@@ -17,7 +17,40 @@
       "game_slug": "kingdom-hearts-chain-of-memories",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2586
+    "issue_number": 2586,
+    "manual_setup": {
+      "help_url": "https://github.com/MatyMeatBoy/ReKHCoM",
+      "steps": [
+        {
+          "title": "Complete supported preparation upstream",
+          "instruction": "Use an independently permitted complete Windows ReKHCoM copy, keeping ReKHCoM.exe, bin, bin64, assets, libraries and notices together. Complete original-ROM setup through its supported launcher upstream before attachment. The root launcher is 32-bit; the package also contains the optional 64-bit runtime. Do not use a private bin/bin64 runner or infer native parity from a package label."
+        },
+        {
+          "title": "Keep the exact owned original",
+          "instruction": "Use your own 32 MiB cartridge dump: Europe B8CP SHA-1 8db73586cdb11b3795907edebf43228dbcd3e6b2, USA B8CE 10729bd884f8fdca7a310b6d606c52e46657aa48 or Japan B8CJ 59ec0a0a4ccd1e6acb3bbd7bfb21d63988958cfa. The launcher verifies and places its selected original under roms. No ROM is included. Optional HD imports require separate owned ReMIX assets and are not a base-game prerequisite or a Portcove import operation."
+        },
+        {
+          "title": "Attach the supported prepared player",
+          "instruction": "Select root ReKHCoM.exe with the complete package root as working directory and no arguments. Its supported Play path starts the selected 32-bit game or compatible bin64 runtime, supplies the shared data root and selected ROM, hides and waits until that game exits. Automatic 64-bit mode requires the matching host, guest image, SDL3 and SSE4.1; it can fall back to 32-bit. Retain upstream architecture choices instead of bypassing the launcher."
+        },
+        {
+          "title": "Keep optional successor sessions separate",
+          "instruction": "Upstream and you own runtime replacement and architecture preference changes. After replacement, close actual games and launcher, retain the old complete copy and every data root, then review and relink changed selected bytes. This guide neither invokes an updater nor claims tracking of an independently relaunched or replaced program. The packaged README retains older version/32-bit-only text; use the inspected v2.3 root launcher and matching complete package rather than that stale architecture description."
+        },
+        {
+          "title": "Review Play and retain external ownership",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the whole copy and effective data",
+          "instruction": "Preserve the whole package and effective custom data roots: roms, kh_com*.sav and all save banks, kh_com*.ini, decompui.ini, states, backups, kh_com.log, retroachievements.ini, achievements*.dat, netlink.cfg, mods and optional hd assets/import journals. Save states are build-specific and do not contain cartridge SRAM. Upstream can adopt files from a neighboring older install and move HD scenes during startup; preserve both locations before maintenance. Keep account/token-bearing configuration private. CC0 source/decompilation and SDL3/ImGui/rcheevos notices remain separate from Square Enix/Disney artwork and game content."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+      ]
+    },
+    "download_block_reason": "Fresh bundled-package acquisition remains held for the separately excluded launcher artwork scope in assets/NOTICE.md: boxart.jpg, logo.png and rekhcom.ico belong to Square Enix/Disney and the source-code licence explicitly does not apply. Use only an independently permitted existing copy. Resume fresh acquisition with applicable permission for these exact components or a reviewed compatible package resolving that scope; CC0 source terms do not clear them."
   },
   "upstream_lineage": {
     "format_version": 1,

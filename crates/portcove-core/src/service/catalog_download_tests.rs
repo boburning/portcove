@@ -1907,3 +1907,18 @@ async fn unchiga_yu_gi_oh_forbidden_memories_recompiled_component_hold_before_ne
     assert_embedded_player_download_holds(&["unchiga-yu-gi-oh-forbidden-memories-recompiled"])
         .await;
 }
+
+#[tokio::test]
+async fn james2doyle_ffta_recomp_component_hold_before_network_2824() {
+    assert_embedded_player_download_holds(&["james2doyle-ffta-recomp"]).await;
+}
+
+#[tokio::test]
+async fn kingdom_hearts_chain_of_memories_gba_rekhcom_component_hold_before_network_2586() {
+    assert_embedded_player_download_holds(&["kingdom-hearts-chain-of-memories-gba-rekhcom"]).await;
+}
+
+#[tokio::test]
+async fn vibecodekun_shantaerecomp_component_hold_before_network_1881() {
+    assert_embedded_player_download_holds(&["vibecodekun-shantaerecomp"]).await;
+}
