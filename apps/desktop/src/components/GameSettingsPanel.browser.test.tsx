@@ -104,7 +104,7 @@ it("requires review and explicit save, then passes Core's exact binding to apply
   });
   expect(apply).not.toHaveBeenCalled();
   expect(document.querySelector("[role=dialog]")?.textContent).toContain("Verified default");
-  expect(document.activeElement?.textContent).toBe("Review game setting");
+  await expect.poll(() => document.activeElement?.textContent).toBe("Review game setting");
   await click("Save setting");
   expect(apply).toHaveBeenCalledExactlyOnceWith(reviewed({ action: "reset" }));
   expect(changed).toHaveBeenCalledExactlyOnceWith(settings());
