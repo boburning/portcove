@@ -4,7 +4,7 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 
 const context = { cli: "owned-cli", library: "isolated-library", output: "isolated-output" };
 
-void test("owned adoption gets bounded copy time without changing later observation budgets", () => {
+void test("owned setup mutations get bounded time without changing later observation budgets", () => {
   const budgets: Array<number | undefined> = [];
   const command = ownedFixtureCommand(context, (_cli, _args, options) => {
     budgets.push(options.timeout);
@@ -13,9 +13,10 @@ void test("owned adoption gets bounded copy time without changing later observat
   assert.deepEqual(command(["adopt", "original", "--port", "exact-port", "--yes"]), {
     id: "owned-result",
   });
+  command(["remove", "exact-port", "--yes"]);
   command(["status", "exact-port"]);
   command(["catalog", "show", "exact-port"]);
-  assert.deepEqual(budgets, [60_000, 15_000, 15_000]);
+  assert.deepEqual(budgets, [60_000, 60_000, 15_000, 15_000]);
 });
 
 void test("fixture timeout preserves cause and process observations without granting success", () => {
