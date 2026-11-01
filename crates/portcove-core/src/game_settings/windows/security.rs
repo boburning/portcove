@@ -450,9 +450,12 @@ pub(crate) struct MediumIntegrityTest {
 impl MediumIntegrityTest {
     pub(crate) fn enter() -> Self {
         use windows_sys::Win32::Security::{
-            Authorization::ConvertStringSidToSidW, ImpersonateSelf, SE_GROUP_INTEGRITY,
-            SID_AND_ATTRIBUTES, SecurityImpersonation, SetTokenInformation, TOKEN_ADJUST_DEFAULT,
+            Authorization::ConvertStringSidToSidW, ImpersonateSelf, SID_AND_ATTRIBUTES,
+            SecurityImpersonation, SetTokenInformation, TOKEN_ADJUST_DEFAULT,
         };
+        // Windows SDK SE_GROUP_INTEGRITY (SystemServices): a SID attribute,
+        // kept local to this test fixture without widening production features.
+        const SE_GROUP_INTEGRITY: u32 = 0x20;
         let mut existing = std::ptr::null_mut();
         // No borrowed impersonation state may be overwritten or reverted.
         let opened = unsafe { OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, 1, &mut existing) };
