@@ -268,7 +268,10 @@ mod tests {
                 .validate_and_remember_source(port, Some(selected), &operation)
                 .unwrap()
                 .unwrap();
-            assert_eq!(accepted.path, std::fs::canonicalize(selected).unwrap());
+            assert_eq!(
+                std::fs::canonicalize(accepted.path).unwrap(),
+                std::fs::canonicalize(selected).unwrap()
+            );
         }
         let review = service.review_source_reuse("majoras-mask").unwrap();
         let app = review
@@ -309,6 +312,7 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(error.code, ErrorCode::SourceInvalid);
+        assert!(error.message.contains("not supported"));
         assert!(library.sources().unwrap().is_empty());
         assert!(service.status(PORT).unwrap().active.is_none());
         assert_eq!(

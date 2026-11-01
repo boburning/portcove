@@ -297,7 +297,7 @@ pub(crate) mod tests {
 
     pub(crate) const USA_BYTES: &[u8] = b"\x80\x37\x12\x40controlled inert source identity fixture";
     pub(crate) const GC_BYTES: &[u8] =
-        b"\x80\x37\x12\x40controlled inert GameCube identity fixture";
+        b"\x80\x37\x12\x40controlled inert GameCube identity fixture..";
 
     pub(crate) fn fixture(variant: &str) -> (tempfile::TempDir, PortcoveService, PathBuf) {
         let started = std::time::Instant::now();
@@ -342,6 +342,15 @@ pub(crate) mod tests {
         eprintln!(
             "source reuse fixture: catalog ready at {:?}",
             started.elapsed()
+        );
+        let inspection = service.inspect_source("majoras-mask", &path).unwrap();
+        assert!(
+            matches!(
+                &inspection.assessment.classification,
+                SourceClassification::Recognized { identity } if identity.variant_id == variant
+            ),
+            "the inert fixture must be recognized as its intended edition: {:?}",
+            inspection.assessment.classification
         );
         service.register_source("majoras-mask", &path).unwrap();
         eprintln!(
