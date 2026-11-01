@@ -480,7 +480,14 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
       };
       const playTarget = `article:has(${libraryCard}) button.library-card-play`;
       const playControl = await browser.findElement(By.css(playTarget));
-      assert.equal(await playControl.getText(), "Play");
+      const launchReadiness = required((await status()).readiness);
+      assert.equal(launchReadiness.launchable, true);
+      assert.deepEqual(launchReadiness.blockers, []);
+      assert.equal(launchReadiness.pending_setup, false);
+      // Adoption preserves byte identity without claiming source compatibility.
+      assert.equal(launchReadiness.source, "not_checked");
+      assert.equal(required(launchReadiness.source_assessment).health, "not_checked");
+      assert.equal(await playControl.getText(), "Try launch");
       assert.equal(await playControl.isEnabled(), true);
       for (const layout of [
         { name: "ordinary", width: 1280, height: 900, size: 100 },
