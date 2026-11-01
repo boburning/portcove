@@ -115,7 +115,7 @@ export function RegisteredSourceSetup({
   if (!sources.length) return null;
   return (
     <section aria-label="Reuse saved game files" className="my-4 grid gap-3">
-      <h3>Use saved original files</h3>
+      <h2>Use saved original files</h2>
       <p>
         Check an existing registration for each game's own requirements. Your originals stay where
         they are.
@@ -167,9 +167,9 @@ export function RegisteredSourceSetup({
       {notice && <p role="status">{notice}</p>}
       {review && (
         <div aria-live="polite">
-          <h4 ref={heading} tabIndex={-1}>
+          <h3 ref={heading} tabIndex={-1}>
             Choose an implementation for these files
-          </h4>
+          </h3>
           <p>{review.inspection.summary}</p>
           <p>{review.inspection.next_action}</p>
           {!review.applications.length && (

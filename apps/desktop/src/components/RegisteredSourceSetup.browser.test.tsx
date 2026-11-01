@@ -1,4 +1,5 @@
 import { act } from "react";
+import axe from "axe-core";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
@@ -103,6 +104,7 @@ function Fixture({ generation = 3 }: { generation?: number }) {
 const render = (generation = 3) =>
   root.render(
     <SetupReviewSelectionProvider>
+      <h1>Add games</h1>
       <Fixture generation={generation} />
     </SetupReviewSelectionProvider>,
   );
@@ -131,6 +133,10 @@ it("uses Core's per-integration result and carries the checked reference without
   await act(async () => render());
   await select();
   await act(async () => button("Check saved game files").click());
+  const accessibility = await axe.run(element, {
+    runOnly: { type: "rule", values: ["heading-order"] },
+  });
+  expect(accessibility.violations).toEqual([]);
   expect(check).toHaveBeenCalledWith(source.profile_id, 3);
   expect(element.textContent).toContain("Choose USA 1.0");
   expect(button("Review Zelda64 setup using these files")).toBeUndefined();
