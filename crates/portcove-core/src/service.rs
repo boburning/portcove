@@ -18775,7 +18775,19 @@ mod journal_diagnostic_tests {
             )
             .unwrap();
         let before = database_state(&library);
-        let files = crate::test_fixture::library_file_snapshot(&library);
+        // Compare application/runtime files, not SQLite/WAL mechanics.
+        // Logical database rows are compared separately above and below.
+        let files = || {
+            crate::test_fixture::library_file_snapshot(&library)
+                .into_iter()
+                .filter(|(path, _)| {
+                    !path
+                        .file_name()
+                        .is_some_and(|name| name.to_string_lossy().starts_with("portcove.sqlite3"))
+                })
+                .collect::<Vec<_>>()
+        };
+        let files_before = files();
         let report = service.doctor_with_preferences(&preferences).unwrap();
         assert_eq!(report.installed_port_count, 1);
         assert!(
@@ -18787,7 +18799,7 @@ mod journal_diagnostic_tests {
                 .is_empty()
         );
         assert_eq!(database_state(&library), before);
-        assert_eq!(crate::test_fixture::library_file_snapshot(&library), files);
+        assert_eq!(files(), files_before);
     }
 
     #[test]
