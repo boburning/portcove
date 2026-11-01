@@ -15,7 +15,8 @@ export function resolveGameChoice(
   preferences: Readonly<Record<string, string>> | undefined,
 ): GameChoice {
   const gameId = originalGame(group.ports[0]!)?.id;
-  const preferredPortId = gameId && preferences?.[gameId];
+  const preferredPortId =
+    gameId && preferences && Object.hasOwn(preferences, gameId) ? preferences[gameId] : undefined;
   if (preferredPortId) {
     const port = group.ports.find((candidate) => candidate.id === preferredPortId);
     if (!port) return { reason: "stale", preferredPortId };

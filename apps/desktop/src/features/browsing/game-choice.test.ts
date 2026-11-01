@@ -74,6 +74,27 @@ it("keeps an unambiguous installed offline target when optional choices cannot b
   expect(resolveGameChoice(group, statuses, { game: "missing" }).reason).toBe("stale");
 });
 
+it("uses only stored choices for valid game IDs that name inherited object properties", () => {
+  const ports = [first, second].map((port) => ({
+    ...port,
+    presentation: {
+      ...port.presentation,
+      original_game: { ...port.presentation.original_game, id: "constructor" },
+    },
+  }));
+  const constructorGroup = groupCatalog(ports)[0]!;
+  const statuses = new Map([[first.id, installed(first.id)]]);
+  expect(resolveGameChoice(constructorGroup, statuses, {})).toEqual({
+    port: ports[0],
+    reason: "installed",
+  });
+  expect(resolveGameChoice(constructorGroup, statuses, { constructor: second.id })).toEqual({
+    port: ports[1],
+    reason: "explicit",
+    preferredPortId: second.id,
+  });
+});
+
 it("does not treat retained/staged bytes as normal installed targets or union filter matches", () => {
   const status = installed(first.id);
   status.previous = status.active;
