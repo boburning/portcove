@@ -768,14 +768,21 @@ mod tests {
             .unwrap();
         assert!(File::open(&new_path).is_err());
         let published = parent.join("published.ini");
+        let before_rename = stage.publication_observation_for_test();
         stage.move_to(&published).unwrap();
+        let after_rename = stage.publication_observation_for_test();
         assert!(
             before
                 .same_permissions(&SecuritySnapshot::capture(&stage.file).unwrap())
                 .unwrap()
         );
+        let metadata_before_close = std::fs::symlink_metadata(&published);
         drop(stage);
-        let published_handle = File::open(&published).unwrap();
+        let published_handle = File::open(&published).unwrap_or_else(|error| {
+            let entries = std::fs::read_dir(&parent).map(|entries| entries.take(16)
+                .map(|entry| entry.map(|entry| entry.file_name())).collect::<Vec<_>>());
+            panic!("published fixture reopen failed: code={:?}, error={error}; before_rename={before_rename:?}; after_rename={after_rename:?}; metadata_before_close={metadata_before_close:?}; metadata_after_close={:?}; directory={entries:?}", error.raw_os_error(), std::fs::symlink_metadata(&published));
+        });
         assert!(
             before
                 .same_permissions(&SecuritySnapshot::capture(&published_handle).unwrap())

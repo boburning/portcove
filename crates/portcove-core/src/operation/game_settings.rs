@@ -139,14 +139,10 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
     {
         return Err(invalid());
     }
-    if crate::output_root::validate_install_path(
-        library,
-        &operation.port_id,
-        &payload.install.path,
-    )? != payload.install.path
-    {
-        return Err(invalid());
-    }
+    // Ownership validation resolves physical placement. A canonical verbatim
+    // spelling need not equal the exact logical InstallRecord retained here;
+    // the actor separately binds that entire registered record before mutation.
+    crate::output_root::validate_install_path(library, &operation.port_id, &payload.install.path)?;
     let (new, old) = owned_names(&payload.canonical.path, &operation.id, "canonical")?;
     if operation.paths.final_path.as_ref() != Some(&payload.canonical.path)
         || operation.paths.staging.as_ref() != Some(&new)

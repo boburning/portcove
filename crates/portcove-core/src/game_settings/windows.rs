@@ -234,6 +234,50 @@ impl HeldFile {
     }
 
     #[cfg(test)]
+    pub(crate) fn publication_observation_for_test(&self) -> Result<String> {
+        use std::os::windows::ffi::OsStringExt;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_STANDARD_INFO, FileStandardInfo, GetFinalPathNameByHandleW,
+        };
+        let mut standard = FILE_STANDARD_INFO::default();
+        // SAFETY: exact initialized information class buffer and held handle.
+        if unsafe {
+            GetFileInformationByHandleEx(
+                self.file.as_raw_handle() as _,
+                FileStandardInfo,
+                std::ptr::from_mut(&mut standard).cast(),
+                size_of::<FILE_STANDARD_INFO>() as u32,
+            )
+        } == 0
+        {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        let mut path = vec![0u16; 2048];
+        // Diagnostics are bounded to an owned inert fixture; never grant path
+        // authority or use this observation as an alternative publication route.
+        let length = unsafe {
+            GetFinalPathNameByHandleW(
+                self.file.as_raw_handle() as _,
+                path.as_mut_ptr(),
+                path.len() as u32,
+                0,
+            )
+        };
+        if length == 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        if length as usize >= path.len() {
+            return Err(changed());
+        }
+        Ok(format!(
+            "id={} delete_pending={} final_path={:?}",
+            physical_identity(&self.file)?,
+            standard.DeletePending,
+            std::ffi::OsString::from_wide(&path[..length as usize])
+        ))
+    }
+
+    #[cfg(test)]
     fn stage(path: &Path, bytes: &[u8]) -> Result<Self> {
         let mut held = Self::create_stage(path)?;
         held.fill_stage(bytes, &|_| Ok(()))?;

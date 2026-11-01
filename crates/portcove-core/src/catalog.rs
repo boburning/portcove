@@ -3016,6 +3016,15 @@ mod tests {
         // Presentation and concise summaries are additive schema-2 client
         // contracts. Exclude them from the frozen schema-1 lifecycle comparison.
         for port in &mut migrated_legacy_ports {
+            // Frozen schema-1 rows predate optional settings authority. This
+            // comparison covers their original fields; separate retention and
+            // complete-projection tests cover modern settings and historical None.
+            let legacy = expected_ports
+                .iter()
+                .find(|expected| expected.id == port.id)
+                .unwrap();
+            assert!(legacy.game_settings.is_none());
+            port.game_settings = None;
             port.presentation = None;
             port.summary = expected_ports
                 .iter()
