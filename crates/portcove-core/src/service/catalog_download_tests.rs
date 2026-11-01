@@ -1985,8 +1985,9 @@ async fn eandis_sdoj_recomp_component_hold_before_network_1880() {
 #[tokio::test]
 async fn mercenaries_playground_of_destruction_kraftmacandchee_component_hold_before_network_1672()
 {
-    assert_embedded_player_download_holds(&[
-        "mercenaries-playground-of-destruction-kraftmacandchee",
-    ])
+    assert_embedded_listing_download_holds(
+        &["mercenaries-playground-of-destruction-kraftmacandchee"],
+        false,
+    )
     .await;
 }
