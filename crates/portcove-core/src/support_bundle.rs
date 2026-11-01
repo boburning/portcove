@@ -169,6 +169,7 @@ public_enum!(
 public_enum!(
     operation,
     ActivityOperation,
+    SettingsChange,
     DownloadPackage,
     Prepare,
     UpdateCatalog,

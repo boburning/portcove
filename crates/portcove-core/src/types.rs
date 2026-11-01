@@ -693,6 +693,10 @@ pub struct PortDefinition {
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
+    /// Optional, release-bound editable configuration. Retained installations
+    /// keep the exact declaration; today's catalog never grants edits to them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_settings: Option<crate::GameSettingsContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_shared_preferences: Option<PreparedSharedPreferencesContract>,
     /// Reviewed engine save identifier used only to bound managed GB save paths.
@@ -1094,6 +1098,7 @@ impl FromStr for ActivityTargetKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityOperation {
+    SettingsChange,
     DownloadPackage,
     Prepare,
     UpdateCatalog,
@@ -1126,6 +1131,7 @@ pub enum ActivityOperation {
 impl std::fmt::Display for ActivityOperation {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
+            Self::SettingsChange => "settings_change",
             Self::DownloadPackage => "download_package",
             Self::Prepare => "prepare",
             Self::UpdateCatalog => "update_catalog",
@@ -1162,6 +1168,7 @@ impl FromStr for ActivityOperation {
 
     fn from_str(value: &str) -> Result<Self> {
         match value {
+            "settings_change" => Ok(Self::SettingsChange),
             "download_package" => Ok(Self::DownloadPackage),
             "prepare" => Ok(Self::Prepare),
             "update_catalog" => Ok(Self::UpdateCatalog),
@@ -2032,6 +2039,10 @@ impl CapabilityDocument {
                 "backup".into(),
                 "backup.ghostship-legacy-plan".into(),
                 "backup.ghostship-legacy-recover".into(),
+                "game-settings".into(),
+                "game-settings.list".into(),
+                "game-settings.review".into(),
+                "game-settings.apply".into(),
                 "artwork".into(),
                 "artwork.handoff".into(),
                 "artwork.handoff-bytes".into(),

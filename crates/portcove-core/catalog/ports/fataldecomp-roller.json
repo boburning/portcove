@@ -3,13 +3,37 @@
   "listing": {
     "id": "fataldecomp-roller",
     "name": "Whiplash (ROLLER)",
-    "summary": "Upstream route: Upstream runtime package for ROLLER; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream aims to reproduce Whiplash/Fatal Racing. Daily dev builds and the matching DOS decompilation are separate; release existence is not completeness. Native modern-PC implementation; separate matching DOS decompilation is development source. Daily dev release assets Windows/Linux/macOS/Android exist, not stable certification. Upstream platforms: Modern Windows/Unix SDL source route, browser and multi-platform dev packages; CPU coverage follows selected docs. Original data: DOS Whiplash/Fatal Racing 1995 original game files. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Prepared experimental Windows ROLLER player using your own Whiplash/Fatal Racing retail assets. Native setup and data remain upstream/player owned; daily builds do not establish stable or full-game compatibility.",
     "original_game_title": "Whiplash",
     "project_url": "https://github.com/FatalDecomp/ROLLER",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/FatalDecomp/ROLLER",
-    "issue_number": 2792
+    "issue_number": 2792,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the complete native Windows copy",
+          "instruction": "Follow the upstream native release guide and keep the complete Windows x86-64 folder in a writable location. This guide is based on the dev release and selected source, not a stable certification. Keep its runtime dependencies, MIDI assets and notices with the player. Project GPLv3 and separate SDL, SDL_image, WildMIDI, libcdio and other component terms do not grant rights to original retail assets. Browser/demo packaging is a separate route."
+        },
+        {
+          "title": "Import your own retail game assets with upstream",
+          "instruction": "Deliberately run upstream preparation outside Portcove when ready to supply a legally owned Whiplash/Fatal Racing retail CD image: keep each CUE with its referenced BIN track files, or use a supported ISO. The native program prompts when FATDATA/fatdata is missing and extracts the assets into the selected writable root. Preserve the original image. README FATAL.EXE hashes describe decompilation inputs, not a proven native-runtime asset acceptance hash. Exact retail content hashes and per-edition compatibility remain Unknown."
+        },
+        {
+          "title": "Add the prepared native player",
+          "instruction": "After upstream preparation, choose roller.exe with its containing folder as working folder and no arguments for the ordinary portable layout. Its main function runs the native game loop in that process. The supported --whiplash-root <folder> override selects an existing alternate root and changes the game data/working directory; retain the exact override if you use it. --midi-root <folder> is a separate MIDI location. Do not substitute a DOS executable, matching-decomp build, browser bundle or setup tool. Saving launch details and Play are separate actions."
+        },
+        {
+          "title": "Preserve the whole active data root",
+          "instruction": "Upstream/player owns runtime replacement. The native source enters FATDATA/fatdata under the executable or --whiplash-root root; original extracted data and mutable FATAL.INI, ROLLER.INI, records and save slots live there. REPLAYS/ and TRACKS/ are created under the root. Preserve that whole root, custom MIDI location and any logs/crash data before changing a daily build. Portcove does not own original assets, external saves, update compatibility, backups, rollback or deletion."
+        }
+      ],
+      "warnings": [
+        "Public provider digests and pinned source were retained; package bytes/layout, dependency loading, native import, gameplay, original-versus-recompiled parity and real saves were not inspected or executed. Other platforms and browser freeware demo do not qualify this Windows route."
+      ],
+      "help_url": "https://github.com/FatalDecomp/ROLLER#readme"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

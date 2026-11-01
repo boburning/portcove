@@ -216,6 +216,35 @@ the supported timestamp range is labeled unknown. Review fingerprints,
 consequential file hashes and publisher keys remain complete. `--json` and
 `--jsonl` retain their original IDs, byte counts and timestamp fields.
 
+## Review and change game settings
+
+For an active managed Windows x86-64 installation, `game-settings list PORT_ID`
+reports settings admitted by that installation's exact retained release contract.
+Unsupported versions remain usable through their independently assessed basic
+setup and launch path; a current catalog setting cannot grant an older install
+new write access.
+
+```text
+portcove game-settings list PORT_ID
+portcove game-settings review PORT_ID FILE_ID SETTING_ID --value 70
+portcove game-settings apply PORT_ID FILE_ID SETTING_ID --value 70 --expected-review REVIEW_SHA256
+```
+
+Use the file and setting IDs returned by `list`. `--value` is one JSON boolean,
+number or quoted enum scalar. Use `--reset` instead of `--value` in both review
+and apply to set only that key to its retained declared default. Apply requires
+the exact review SHA-256; changed installation, configuration or physical file
+identity requires a fresh review. It does not silently regenerate consent.
+Unrelated keys and supported INI comments remain intact. Close the game before
+editing; conflicting writers or uncertain interrupted custody refuse edits and
+retain recovery evidence.
+
+Desktop exposes the same Core operation under a managed game's **Saves** section:
+choose **Read game settings**, change a value or review its default, then choose
+**Save setting** in the review. Read and review alone do not modify game files.
+Persisted bytes and fixtures do not establish actual game consumption; the owning
+qualification records that separately for each declared release.
+
 ## Path rules
 
 Portcove requires every path that crosses a durable SQLite/JSON boundary or child-process argument/environment boundary to be valid Unicode. On Unix, a non-UTF-8 library, source, install, backup, lifecycle, executable, or generated runtime path fails with `unsupported` instead of being stored or launched through a lossy alias.

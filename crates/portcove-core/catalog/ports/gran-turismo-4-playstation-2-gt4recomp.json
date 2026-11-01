@@ -3,7 +3,7 @@
   "listing": {
     "id": "gran-turismo-4-playstation-2-gt4recomp",
     "name": "Gran Turismo 4 (PlayStation 2) (GT4Recomp)",
-    "summary": "Upstream route: Windows x64 installer; stable v1.2.3. Separate v1.3.0-rc5 test channel has portable ZIP. Limits: Stable1.2.3 playable with known limits;1.3RC channel differs. No full-game completion claim; wheel/license demos limited. Upstream platforms: Windows10/11 x86-64 installer; stable/prerelease package channels distinct. No native Linux/macOS package established. Original data: User-owned USA v2.00 SCUS-97328 ISO; optional Spec II 1.10 owned image only on prerelease. Portcove setup/gameplay not verified.",
+    "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup. Branded artwork grants remain separate from the code licence; use an independently permitted complete copy.",
     "original_game_title": "Gran Turismo 4 (PlayStation 2)",
     "project_url": "https://github.com/moesuito/gt4-staticrecomp",
     "platforms": [],
@@ -17,7 +17,49 @@
       "game_slug": "gran-turismo-4",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2579
+    "issue_number": 2579,
+    "manual_setup": {
+      "help_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md",
+      "steps": [
+        {
+          "title": "Use a permitted installation and exact owned disc",
+          "instruction": "Use an independently permitted complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the5314478080-byte ISO SHA25667b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately; identity checks do not grant game-data rights. NOTICE defers the bundled cover and brand-art licence to its owner; the MIT code licence does not grant those components."
+        },
+        {
+          "title": "Finish official upstream setup",
+          "instruction": "Complete the official installer and launcher disc setup outside Portcove. The launcher copies the ISO, verifies preparation, installs the renderer and checks CPU/Vulkan requirements. Use supported Windowsx64, SSE4.1 CPU, Vulkan1.2 and WebView2; retain the complete matching installation and DLLs. This route uses the official launcher, not the internal gt4vulkan.exe with a guessed environment or another version's renderer."
+        },
+        {
+          "title": "Back up all current and legacy roots before first startup",
+          "instruction": "Close the game and launcher; keep a separate complete prior installation and current <install>/data, %APPDATA%/GT4Recomp, %LOCALAPPDATA%/GT4Recomp and Documents/Gran Turismo 4, including any moved-name sibling or recorded previous installation data. Include settings, controls, Saves, Replays, card backups, runtime/card.ps2, original/prepared disc data, custom textures and configured read/fallback roots. Keep the backups outside old installation cleanup targets. Startup can move user and large data, flatten textures and remove the old per-user program/game folder, fixed shortcuts and registry entries. The running installation and its data-folder layout are excluded from that legacy cleanup; do not rely on an old executable folder as your recovery copy."
+        },
+        {
+          "title": "Register the official outer launcher",
+          "instruction": "Select GT4Recomp.exe from its complete creating installation, use its installation directory as working directory and leave arguments empty. Start only when a separate GT4Recomp instance is not already running; a second launcher can merely bring the first forward and return. Portcove tracks the selected launcher session, not game-only play time. Save launch details and consent to Play separately; then use the upstream launcher's Play operation."
+        },
+        {
+          "title": "Let the upstream launcher own the game session",
+          "instruction": "The launcher stays alive, hides to the tray during Play and watches its child game; when the game exits it harvests the card and returns Home. The launcher supplies required renderer environment, config, per-session files and card locks. Quit/save through the game, wait for the upstream launcher to finish card handling, then close the launcher to end the selected session. Closing it while playing asks first and can end the game through its kill-on-close job. Do not register an internal payload, bypass the owner or assume closing Portcove provides a save checkpoint."
+        },
+        {
+          "title": "Preserve effective saves and recovery paths",
+          "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
+        },
+        {
+          "title": "Keep update and restart transitions upstream-owned",
+          "instruction": "Upstream owns setup, renderer downloads/updates, runtime replacement, data movement and recovery. A launcher update starts its installer and exits; WebView recovery can restart the launcher in safe mode. Complete these transitions outside the registered normal session and revalidate the resulting launcher. Portcove does not reproduce renderer environment, follow replacement processes, acquire originals or delete/restore external data."
+        },
+        {
+          "title": "Retain component terms and known limits",
+          "instruction": "Preserve MIT code notices and the separately GPL GSdx/PCSX2 renderer notices/source alongside all other components. NOTICE specifically leaves branded cover/artwork permission unresolved; fresh wholepackage acquisition needs the applicable grant or an independently permitted complete copy. Upstream licensedemos/menu backgrounds, wheel support, long sessions and hardware coverage retain their stated limits. The offered launcher route is not a new observation of game execution, save compatibility or protected delivery."
+        }
+      ],
+      "warnings": [
+        "Use an independently permitted complete installation; bundled brand/cover artwork permission is a separate acquisition condition.",
+        "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the selected branded GT4Recomp Windows package is held while the applicable permission or authorized-source basis for its bundled cover-front artwork and derived brand assets remains unresolved. NOTICE leaves the cover-art licence for owner confirmation; the MIT code grant does not resolve it. Resume on an attributable applicable basis or a reviewed supported de-branded package/preparation; independently permitted complete installations remain separate."
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -641,7 +641,7 @@ void test("selective retry retains independent successful earlier jobs but never
   value.jobs.total_count++;
   assert.throws(
     () => prepareMergeSnapshot(value, { ...expected, attempt: 2 }),
-    /identified run attempt/,
+    /job has no check observation/,
   );
 });
 
@@ -886,5 +886,82 @@ void test("snapshot CLI prepares and verifies offline without gh or a mutation p
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("complete replay snapshot retains both attempts and selects exact authoritative checks", () => {
+  const value = fixture();
+  value.run_before.run_attempt = value.run_after.run_attempt = 2;
+  const newer = {
+    ...value.jobs.jobs[0]!,
+    id: 300,
+    run_attempt: 2,
+    check_run_url: `https://api.github.com/repos/${repository}/check-runs/300`,
+  };
+  value.jobs.jobs.push(newer);
+  value.jobs.total_count++;
+  value.checks.check_runs.push({ ...value.checks.check_runs[0]!, id: 300 });
+  value.checks.total_count++;
+  const original = structuredClone(value);
+  const result = prepareMergeSnapshot(value, { ...expected, attempt: 2 });
+  assert.equal(result.attempt, 2);
+  assert.deepEqual(value, original, "complete raw snapshot must remain unchanged");
+  const cases: ((v: typeof value) => void)[] = [
+    (v) => {
+      v.checks.check_runs.at(-1)!.conclusion = v.jobs.jobs.at(-1)!.conclusion = "failure";
+    },
+    (v) => {
+      v.checks.check_runs.at(-1)!.conclusion = v.jobs.jobs.at(-1)!.conclusion = "cancelled";
+    },
+    (v) => {
+      v.checks.check_runs.at(-1)!.status = v.jobs.jobs.at(-1)!.status = "in_progress";
+      v.checks.check_runs.at(-1)!.conclusion = null;
+      v.jobs.jobs.at(-1)!.conclusion = "";
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_id++;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.head_sha = target;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_attempt = 3;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_attempt = 0;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.run_attempt = 1;
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.check_run_url = "https://api.github.com/repos/other/repo/check-runs/300";
+    },
+    (v) => {
+      v.jobs.jobs.at(-1)!.id = v.jobs.jobs[0]!.id;
+    },
+    (v) => {
+      v.checks.check_runs.at(-1)!.id = 999;
+    },
+    (v) => {
+      v.statuses.statuses.push({ id: 99, context: "catalog", state: "success" });
+      v.statuses.total_count++;
+    },
+    (v) => {
+      v.jobs.total_count++;
+    },
+    (v) => {
+      v.checks.total_count++;
+    },
+    (v) => {
+      v.checks.check_runs.splice(4, 1);
+      v.checks.total_count--;
+      v.jobs.jobs.splice(4, 1);
+      v.jobs.total_count--;
+    },
+  ];
+  for (const mutate of cases) {
+    const rejected = structuredClone(original);
+    mutate(rejected);
+    assert.throws(() => prepareMergeSnapshot(rejected, { ...expected, attempt: 2 }));
   }
 });

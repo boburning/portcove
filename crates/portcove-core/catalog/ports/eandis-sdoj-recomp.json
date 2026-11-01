@@ -3,7 +3,7 @@
   "listing": {
     "id": "eandis-sdoj-recomp",
     "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
-    "summary": "Explore DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Windows DoDonPachi SaiDaiOuJou guidance for an independently permitted completed native player with its verified own disc/GoD and TU1 data. Upstream owns first-run extraction, title-update preparation, runtime replacement and player data.",
     "project_url": "https://github.com/eandis/SDOJ-Recomp",
     "issue_number": 1880,
     "platforms": [],
@@ -16,6 +16,35 @@
       "image_sha256": "f368c7e6230a4ad5b865bfd6cc9107d0c8c5952678cc43e7566b1ae7a2002238",
       "game_slug": "dodonpachi-saidaioujou",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep an independently permitted complete Windows player",
+          "instruction": "Use a completed Windows player and components you are independently permitted to use. The official Windows ZIPs include a statically recompiled game player; the SDK licence or possession of original data does not itself establish permission for every translated game-code component. Fresh acquisition remains conditional on applicable permission or authorized source for that named component; an independently permitted existing copy can be retained. Keep its complete package, runtime DLLs, extractor and notices. Standard and Vulkan ZIP variants are separate packages, not mix-and-match files."
+        },
+        {
+          "title": "Complete exact own data preparation outside Portcove",
+          "instruction": "Use your own supported Xbox360 disc release or converted Games-on-Demand ISO and its matching Title Update1.01/TU1. Upstream’s first launch requires exactly one supported ISO beside the EXE and creates game_data/. Disc default.xex SHA-256 is709EB9FD2E4446E5754461616693B3BBB8B78FEF5AA613FFCDE6D643DA0133F5; GoD default.xex is41AB091576813248712A387B273398E5D700454505E83F6F1FEB7DE2C1027707. Disc TU1 is598,016bytes with SHA-256 0A893048C761BA6CF8ED14637F326726BC616B5183CA1EE52DE02FC12B46B215. The GoD route instead requires its verified CA022100.binp, CA022110.binp and default.xexp. Companion file digests are checked by upstream; do not mix editions. Complete extraction/TU installation through upstream, retain original ISO/TU and preserve any partial data until upstream recovery resolves it."
+        },
+        {
+          "title": "Select the completed normal player",
+          "instruction": "Select DoDonPachi SaiDaiOuJou.exe, use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
+        },
+        {
+          "title": "Preserve all effective data and settings roots",
+          "instruction": "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement. Preserve custom game_data_root, user_data_root, update_data_root, cache_path and log_file choices independently; an existing configured external game-data root takes precedence. The title defaults user data beside the EXE and cache under user_data/cache. Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
+        },
+        {
+          "title": "Leave notifications and runtime replacement with upstream",
+          "instruction": "The source update checker reads GitHub metadata and offers to open the release page; it does not establish managed automatic replacement. Upstream/user owns choosing a complete compatible package, preparation, updates and recovery. Close the actual player, extractor and any optional restart successors before backup, replacing files or removal, preserve old complete runtime/data independently, then review/relink changed selected bytes. Removing registration preserves external files; Portcove does not own automatic update, rollback, backups, save migration, external deletion or successor adoption."
+        }
+      ],
+      "warnings": [
+        "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide."
+      ],
+      "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md"
+    },
+    "download_block_reason": "Fresh acquisition of the selected Windows SDOJ-Recomp player is held while an attributable permission or authorized-source basis for its bundled statically translated DoDonPachi SaiDaiOuJou game-code modules remains unresolved. The ReXGlue/Xenia runtime licence does not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding the unresolved component; independently permitted existing copies remain distinct."
   }
 }

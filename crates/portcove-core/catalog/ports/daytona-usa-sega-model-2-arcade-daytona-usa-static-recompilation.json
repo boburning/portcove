@@ -3,13 +3,37 @@
   "listing": {
     "id": "daytona-usa-sega-model-2-arcade-daytona-usa-static-recompilation",
     "name": "Daytona USA (Sega Model 2 arcade) (Daytona USA static recompilation)",
-    "summary": "Upstream route: Source setup builds locally from own ROM set on Windows/macOS/Linux; no GitHub releases. Limits: Playable desktop routes; experimental hardware renderer/link play/wheels. Android/iOS/Vita documented, Dreamcast only tested in Flycast. Setup installs toolchains/dependencies (Windows VS C++/Clang, mac Homebrew, Linux packages); updates require pulling and rerunning generation. Main builds have CI compile coverage, not a proof of runtime playthrough. Distinguish original arcade title from Daytona Championship USA or other console ports.... Upstream platforms: Documented local source-build route for Windows/macOS/Linux; no GitHub release package. Windows compiler/Clang and macOS/Linux toolchain setup required; selected host CPU coverage not mapped in frozen evidence. Original data: User-owned daytona93 (Deluxe93) or daytona (Revision A1994) MAME-format zip/7z; other sets rejected. Both generated privately. Portcove setup/gameplay not verified.",
+    "summary": "Documented Windows Daytona USA arcade source-build route for your own daytona93 or daytona ROM set. Choose the completed matching native build; upstream/player owns rebuilding and separate per-set profiles.",
     "original_game_title": "Daytona USA (Sega Model 2 arcade)",
     "project_url": "https://github.com/alphanu1/daytona-arcade-recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/alphanu1/daytona-arcade-recomp",
-    "issue_number": 2651
+    "issue_number": 2651,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Complete the documented upstream build deliberately",
+          "instruction": "Use source and components you are independently permitted to use. This route has no observed public runtime release: finish the documented Windows setup/source build outside Portcove before registration. Upstream setup can install Visual Studio C++/Clang and other development tools and fetch pinned dependencies; review that activity yourself. A source checkout or generated C++ alone is not a completed player. Keep the complete working project, build outputs, supplied runtime companions and notices."
+        },
+        {
+          "title": "Supply the exact arcade ROM set for that build",
+          "instruction": "Use your own MAME-format daytona93.zip/.7z for Daytona USA Deluxe ’93, or daytona.zip/.7z for Revision A (1994), with the upstream-required members. These are separate compiled variants, not interchangeable input names. The source has per-file size and CRC checks for the selected set, including the different program/sound ROMs; a matching filename alone is insufficient and CRC is not cryptographic entitlement or whole-archive authentication. Keep all original archives unchanged. Console Daytona titles and other arcade revisions are outside this guide."
+        },
+        {
+          "title": "Add the actual completed Windows player",
+          "instruction": "Select the matching completed daytona.exe from the output location printed by upstream setup: normally build/Release/daytona.exe (or build/daytona.exe with Ninja) for daytona93, and the corresponding build-daytona/ output for Revision A. Use the project root containing roms/ and those build folders as working directory. Supply --rom and the absolute path to your own matching archive as two literal arguments. The native process owns both its launcher and game loop. If your established setup also uses --profile <name>, preserve that exact profile argument. Do not select a setup/recompile script, test/oracle executable or another variant. Saving launch details and Play are separate actions."
+        },
+        {
+          "title": "Preserve separate settings and runtime ownership",
+          "instruction": "Upstream/player owns toolchain setup, ROM generation, rebuilding and runtime replacement. Windows settings, EEPROM, backup RAM and logs use %APPDATA%/daytona-recomp/daytona93 or daytona, with a separate <set>-<profile> folder when --profile is used; preserve launcher.ini, ioboard_eeprom.bin, backup_ram.bin, daytona.log and every active profile. Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied. Removing registration preserves external files; Portcove does not own backups, rollback, save migration, compatibility or deletion."
+        }
+      ],
+      "warnings": [
+        "Pinned source and documented build contract only. No ROM archive, generated source/output, compiled player, package integrity, native game, real save, hardware renderer, link play or device qualification was executed. Source BSD3 and separate component terms do not grant Sega ROM rights; actual independently permitted source/components/originals remain required."
+      ],
+      "help_url": "https://github.com/alphanu1/daytona-arcade-recomp/blob/f32c48ff9b9bb41ecc7a25d9998c281b9bd0952c/docs/getting-started.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -3,7 +3,7 @@
   "listing": {
     "id": "elprogramadorloco-arch-jim2-recomp",
     "name": "Earthworm Jim 2 / Earthworm Jim 2 Recompiled (elprogramadorloco-arch)",
-    "summary": "Explore Earthworm Jim 2 / Earthworm Jim 2 Recompiled (elprogramadorloco-arch) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Documented Windows Earthworm Jim 2 source-build route from your own exact European PlayStation disc. Register the completed out/EarthwormJim2_Recompiled.exe; upstream owns rebuilding and updates, including replacement of packaged mods.",
     "project_url": "https://github.com/elprogramadorloco-arch/jim2-recomp",
     "issue_number": 1819,
     "platforms": [],
@@ -16,6 +16,30 @@
       "image_sha256": "dc7770125e1c258f5b1beb8a85f5cf79826708a4034212103ddb612743cf6568",
       "game_slug": "earthworm-jim-2--5",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the exact original privately with upstream",
+          "instruction": "Use your own lawfully obtained Earthworm Jim 2 Europe PlayStation SLES-00343 Redump CUE and all 15 BIN tracks. Track01 is 33,631,248 bytes with SHA-256 D251CF65BB60EE375778F4369CF74FB88371E07EAB51EC337C0AD34F8DEF932B. Put the complete set in data/ and keep originals unchanged. The upstream run.bat/build.ps1 route verifies the data track, obtains pinned source/toolchain archives and compiles locally outside Portcove; finish it completely. Respect the pinned psxrecomp noncommercial-use restriction and separate component/original rights. Never redistribute data/, out/ or tools/.build generated game code."
+        },
+        {
+          "title": "Select the documented completed native output",
+          "instruction": "Select out/EarthwormJim2_Recompiled.exe from the successful upstream build, use its complete out/ directory as working directory and leave arguments empty. Keep the matching bios/, assets/, mods/, game.toml and companion output files. This is the documented finished player, not run.bat, update.bat, the portable toolchain or setup intermediates. Select the same complete own CUE in the upstream player if requested. Saving launch details and Play are separate actions; setup, PGO/rebuild and updater actions remain outside this entry."
+        },
+        {
+          "title": "Back up active state before startup and every rebuild",
+          "instruction": "Preserve the entire creating out/ directory plus all active external roots. Defaults include executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ with card1.mcd/card2.mcd, options and save states, mods/, reports/logs/cache/captures and any custom card paths. Established --memcard-dir, explicit card files or PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots; keep exact existing choices. Startup may replace an old settings.toml.bad and rename malformed settings.toml there; save both outside the installation before starting. No save-format or cross-version mod compatibility is promised. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+        },
+        {
+          "title": "Keep build cleanup and runtime replacement with upstream",
+          "instruction": "Upstream/player owns run.bat, update.bat, generation, runtime replacement and recovery. The build installs into out/ and removes/replaces existing out/bios, out/assets and out/mods before copying its new versions; back up your custom mods and old complete output outside those destinations before each build/update. Close every actual game or optional rebuild/restart successor before maintenance and review/relink changed selected bytes afterward. Portcove does not follow optional setup/rebuild successors. Removing registration preserves external files; no Portcove-managed update, rollback, backup, migration or external deletion is offered."
+        }
+      ],
+      "warnings": [
+        "Release ZIPs are source-only updater packages, not complete runnable players. Upstream reports incomplete audio and unverified end-to-end level transitions; keep the old complete build and state when updating. The pinned framework is restricted to noncommercial use."
+      ],
+      "help_url": "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md"
     }
   }
 }

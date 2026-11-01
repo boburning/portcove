@@ -3,7 +3,7 @@
   "listing": {
     "id": "goliathret-edgeoftimerecomp",
     "name": "Spider-Man: Edge of Time / EdgeOfTimeRecompiled (goliathret)",
-    "summary": "Explore Spider-Man: Edge of Time / EdgeOfTimeRecompiled (goliathret) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted, fully installed EdgeOfTimeRecompiled Windows copy using your own US Xbox 360 game and required title update, preserving the actual installation and profiles.",
     "project_url": "https://github.com/goliathret/EdgeOfTimeRecomp",
     "issue_number": 1818,
     "platforms": [],
@@ -16,6 +16,43 @@
       "image_sha256": "83599a1179260e2e218ec7cb497f373b7f98f29b4bb11097df1b8c00d0138d77",
       "game_slug": "spider-man-edge-of-time",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/goliathret/EdgeOfTimeRecomp/blob/ebf7bb904d88062a3bd5b1d59ea642cdc2c1b780/README.md",
+      "steps": [
+        {
+          "title": "Finish the exact owned-input installation upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The inspected upstream route requires your own Spider-Man: Edge of Time Xbox 360 US game and its required title update; Identity Crisis DLC is optional and separately owned. Complete the supported first-run installer upstream using the accepted Xbox 360 containers/images. Folder input is explicitly unavailable in this release. Do not substitute PS3/Wii/other editions or modified inputs. Portcove does not dump originals, import containers, apply updates, generate code or run setup."
+        },
+        {
+          "title": "Attach the actual installed native player",
+          "instruction": "After upstream installation succeeds, select EdgeOfTimeRecomp.exe in the actual complete installed program directory, with that directory as working directory and no extra arguments for normal launch. Keep the matching ReXGlue runtime, GameLogic module, graphics compiler libraries, resources and notices together. The Windows build uses the normal native application/game path; no private helper or per-title wrapper is introduced. Do not attach the downloaded first-run copy if it still needs to copy itself into the chosen installation."
+        },
+        {
+          "title": "Finish setup and relaunch paths before attachment",
+          "instruction": "The first-run program can copy itself into the selected installation, spawn a replacement and exit; retry/self-relaunch are also upstream paths. Finish these outside the attached session, then attach the resulting installed player. Ordinary installed startup additionally owns the cleanup/copy behavior described below, so replacement is not confined to setup. Close every actual player/companion before maintenance, retain complete prior working copies and data outside disposable .old locations, then review/relink changed selected bytes. Registration does not adopt or terminate a successor and does not invoke an updater or uninstaller."
+        },
+        {
+          "title": "Review Play and preserve external ownership",
+          "instruction": "Review and consent to the exact selected native executable, established working directory and literal arguments, then request Play separately. Core owns only this selected intent and registration. Upstream and you retain preparation, runtime replacement/recovery, originals, settings and external files. Removing registration preserves external files; no external update, backup, rollback, migration, conversion or deletion is offered."
+        },
+        {
+          "title": "Preserve the actual installation and every profile",
+          "instruction": "Keep the complete actual EdgeOfTimeRecompiled installation, game/ with Default.xex and Data/GameLogic.dll, separate DLC packages and all profiles/. The source selects profiles/<name>/ for user data, cache/ and reeot.toml; preserve every effective profile and any established custom game_data_root/profile argument, not only default. Retain saves, settings, achievement data, mods, backups, caches, logs beside the program and all custom/external roots with the creating runtime. Upstream may adopt earlier user data from its legacy reeot location and publish DLC into a profile; preserve both locations before maintenance. Windows HKCU/Software/reeot/Install records the selected installation; Portcove neither rewrites nor removes it."
+        },
+        {
+          "title": "Retain source, dependency and original-data limits",
+          "instruction": "The project BSD3 grant covers its applicable code separately from original game/TU/DLC, bundled upscaled texture material and dependency notices. The documented SDK generation/version fields are not an immutable published-binary SDK certificate. Preserve all applicable terms and use only actual components you are permitted to use; no broader package grant follows from a framework label. Upstream renderer, performance, controller and platform claims are not Portcove observations."
+        },
+        {
+          "title": "Respect upstream startup maintenance",
+          "instruction": "Select the current registered creating installation, not a newer loose executable from another folder. With eot_update_apply enabled by default, ordinary Windows startup may delete program_files.txt-listed .old leftovers even when already running from the install root. Starting a newer copy from a different location can copy newer runtime files into the registered installation without relaunching. Upstream owns these behaviors; Portcove neither disables them nor manages that replacement. Keep prior complete runtimes and recovery backups outside disposable .old locations, close actual players before maintenance, and review/relink changed selected bytes. Registration does not promise automatic adoption of successors."
+        }
+      ],
+      "warnings": [
+        "Windows source documents AVX, Direct3D12/SM6 or Vulkan requirements and a complete owned-input installation. No package payload, PE/ABI, authentic game/source tuple or SDK-to-binary correspondence was inspected here.",
+        "No actual upstream program/helper/game, save, installed Desktop, controller, Supported or protected acceptance is established by this guide. Existing Planned placement remains; no direct Required-beta commitment is introduced."
+      ]
     }
   }
 }

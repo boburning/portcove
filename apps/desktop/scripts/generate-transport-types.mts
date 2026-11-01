@@ -87,13 +87,66 @@ export function combineTransportSchemas(schemas: unknown, contract = "output") {
   };
 }
 
+// An annotation-only JSON schema accepts every JSON value. The pinned compiler
+// otherwise infers an object from a description alone. Keep the wire schemas
+// untouched and make that existing meaning explicit only to the TS compiler.
+function preserveAnnotatedUnknowns(schema: SchemaNode): SchemaNode {
+  const keys = Object.keys(schema);
+  if (keys.length && keys.every((key) => ["title", "description", "$comment"].includes(key)))
+    return { ...schema, tsType: "unknown" };
+  const result = { ...schema };
+  for (const keyword of [
+    "properties",
+    "patternProperties",
+    "$defs",
+    "definitions",
+    "dependentSchemas",
+  ]) {
+    const values = schema[keyword];
+    if (isRecord(values))
+      result[keyword] = Object.fromEntries(
+        Object.entries(values).map(([name, value]) => [
+          name,
+          isRecord(value) ? preserveAnnotatedUnknowns(value) : value,
+        ]),
+      );
+  }
+  for (const keyword of [
+    "items",
+    "additionalProperties",
+    "unevaluatedProperties",
+    "propertyNames",
+    "contains",
+    "not",
+    "if",
+    "then",
+    "else",
+    "contentSchema",
+  ]) {
+    const value = schema[keyword];
+    if (isRecord(value)) result[keyword] = preserveAnnotatedUnknowns(value);
+  }
+  for (const keyword of ["allOf", "anyOf", "oneOf", "prefixItems"]) {
+    const values = schema[keyword];
+    if (Array.isArray(values))
+      result[keyword] = values.map((value: unknown) =>
+        isRecord(value) ? preserveAnnotatedUnknowns(value) : value,
+      );
+  }
+  return result;
+}
+
 export async function renderTransportTypes(schemas: unknown, contract = "output") {
-  return compile(combineTransportSchemas(schemas, contract), "TransportContracts", {
-    bannerComment: `// Generated from Rust ${contract} schemas. Do not edit.\n// Regenerate: node apps/desktop/scripts/generate-transport-types.mts --write`,
-    unknownAny: true,
-    // The complete schema inventory is local. References may never fetch input.
-    $refOptions: { resolve: { http: false, file: false } },
-  });
+  return compile(
+    preserveAnnotatedUnknowns(combineTransportSchemas(schemas, contract)),
+    "TransportContracts",
+    {
+      bannerComment: `// Generated from Rust ${contract} schemas. Do not edit.\n// Regenerate: node apps/desktop/scripts/generate-transport-types.mts --write`,
+      unknownAny: true,
+      // The complete schema inventory is local. References may never fetch input.
+      $refOptions: { resolve: { http: false, file: false } },
+    },
+  );
 }
 
 function withHostSchemas(core: unknown, host: unknown) {

@@ -78,6 +78,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | BackupCommand::Restore { .. }
             | BackupCommand::GhostshipLegacyRecover { .. } => Recovering,
         },
+        Commands::GameSettings { command } => match command {
+            GameSettingsCommand::List { .. } | GameSettingsCommand::Review(_) => ReadOnly,
+            GameSettingsCommand::Apply { .. } => Recovering,
+        },
         Commands::Catalog { command } => match command {
             CatalogCommand::Compare { .. }
             | CatalogCommand::List

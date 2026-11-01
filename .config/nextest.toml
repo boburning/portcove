@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI 41297982645/a1 retained a 30.186s Windows cutoff in this four-case
+# adoption-recovery fixture; the same case passed in 22.765s in 41294669476/a1.
+# Preserve every refusal/retention assertion, cleanup, workers and zero retries;
+# allow finite 60s harness completion, with no product-performance claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::external_adoption_recovery_retains_contradictory_destinations$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # PR #4157 local Linux run retained 30.938/30.527/30.151/30.035-second
 # cutoffs in these six-to-sixteen-case cancellation/recovery fixtures. Related
 # one/two-case fixtures took 8-15 seconds. Keep all ownership/cleanup assertions, two test
@@ -1248,5 +1258,27 @@ success-output = "immediate"
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::update_reuses_a_matching_rollback_version_without_downloading$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41293544462/a1 Windows5 job124810891192 retained a30.138s
+# cutoff in this complete publication/recovery fixture. The unchanged case
+# passed12.462s in41288741050/a1; same-job sequence siblings took35.940s
+# and38.990s. Add phase diagnostics and exact60s Windows harness room only.
+# Preserve every authority/reference/byte assertion, product deadline, cleanup,
+# worker slot and zero retries; completion is not a causal speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::tests::published_move_recovers_without_two_writable_libraries$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41295985500/a1 Windows7 job124818374351 reached the second
+# refused launch at29.946s before the30.040s harness cutoff, after initial
+# admission/install10.187s and status projection23.522s. Preserve every
+# no-child-start and retained-byte assertion; exact60s Windows room only.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_revocation_prevents_child_start_after_reopen$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"

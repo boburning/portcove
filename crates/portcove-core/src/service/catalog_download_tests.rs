@@ -1927,3 +1927,91 @@ async fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_component_hold_before_n
     assert_embedded_player_download_holds(&["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"])
         .await;
 }
+
+#[tokio::test]
+async fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_component_hold_before_network_2570()
+ {
+    assert_embedded_player_download_holds(&[
+        "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_component_hold_before_network_2577()
+ {
+    assert_embedded_player_download_holds(&[
+        "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn hard_corps_uprising_hard_corps_uprising_recompiled_component_hold_before_network_2581() {
+    assert_embedded_player_download_holds(&["hard-corps-uprising-hard-corps-uprising-recompiled"])
+        .await;
+}
+
+#[tokio::test]
+async fn crackdown_crackdown_recompiled_component_hold_before_network_2559() {
+    assert_embedded_player_download_holds(&["crackdown-crackdown-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn crazyriddler_finesthourremastered_component_hold_before_network_2785() {
+    assert_embedded_player_download_holds(&["crazyriddler-finesthourremastered"]).await;
+}
+
+#[tokio::test]
+async fn elmasas_lcs_recomp_component_hold_before_network_1836() {
+    assert_embedded_player_download_holds(&["elmasas-lcs-recomp"]).await;
+}
+
+#[tokio::test]
+async fn kirby1237_parappatherapperrecomp_component_hold_before_network_1864() {
+    assert_embedded_player_download_holds(&["kirby1237-parappatherapperrecomp"]).await;
+}
+
+#[tokio::test]
+async fn nevercookfirst_dimensionsrecomp_component_hold_before_network_1817() {
+    assert_embedded_player_download_holds(&["nevercookfirst-dimensionsrecomp"]).await;
+}
+
+#[tokio::test]
+async fn eandis_sdoj_recomp_component_hold_before_network_1880() {
+    assert_embedded_player_download_holds(&["eandis-sdoj-recomp"]).await;
+}
+
+#[tokio::test]
+async fn mercenaries_playground_of_destruction_kraftmacandchee_component_hold_before_network_1672()
+{
+    assert_embedded_listing_download_holds(
+        &["mercenaries-playground-of-destruction-kraftmacandchee"],
+        false,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn jhdev2006_super_mario_world_remastered_public_component_hold_before_network_1891() {
+    assert_embedded_player_download_holds(&["jhdev2006-super-mario-world-remastered-public"]).await;
+}
+
+#[tokio::test]
+async fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_component_hold_before_network_2561()
+ {
+    assert_embedded_player_download_holds(&[
+        "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn gran_turismo_4_playstation_2_gt4recomp_component_hold_before_network_2579() {
+    assert_embedded_player_download_holds(&["gran-turismo-4-playstation-2-gt4recomp"]).await;
+}
+
+#[tokio::test]
+async fn djultra64_clayfighter64_component_hold_before_network_2830() {
+    assert_embedded_player_download_holds(&["djultra64-clayfighter64"]).await;
+}

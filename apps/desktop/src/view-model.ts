@@ -147,6 +147,7 @@ function operationPresentation(value: string): OperationPresentation {
     "psx-toolchain-download": { label: "Downloading preparation tools" },
     "Checking installed ports": { label: "Checking installed ports" },
     "Applying update policies": { label: "Applying update settings" },
+    settings_change: { label: "Saving game setting" },
     install: { label: "Installing game" },
     update: { label: "Updating game" },
     prepare: { label: "Preparing game" },

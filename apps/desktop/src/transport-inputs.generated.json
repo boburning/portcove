@@ -193,6 +193,40 @@
     "title": "GameFileQueryRefreshRequest",
     "type": "object"
   },
+  "game_setting_change": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "set",
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "action",
+          "value"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "reset",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "GameSettingChange"
+  },
   "source_discovery_limits": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {

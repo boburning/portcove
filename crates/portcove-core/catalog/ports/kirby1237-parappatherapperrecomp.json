@@ -3,7 +3,7 @@
   "listing": {
     "id": "kirby1237-parappatherapperrecomp",
     "name": "PaRappa The Rapper / PaRappaTheRapper Recomp (kirby1237)",
-    "summary": "Explore PaRappa The Rapper / PaRappaTheRapper Recomp (kirby1237) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach an independently permitted completed PaRappaTheRapper Windows native copy for your own USA disc, retaining its noncommercial framework terms, player profiles and upstream preparation ownership. The named bundled-box-art acquisition condition remains unresolved; no Core-managed runtime creation or maintenance is offered.",
     "project_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp",
     "issue_number": 1864,
     "platforms": [],
@@ -16,6 +16,43 @@
       "image_sha256": "297803dc01107ec402a33435d520abc238f8dc3020c653005b067d6dc0e9c3cb",
       "game_slug": "parappa-the-rapper",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/kirby1237/PaRappaTheRapperRecomp/blob/cff6e6908e7f44032b6fa0edf6136cf360bfea8b/README.md",
+      "steps": [
+        {
+          "title": "Use only a completed independently permitted copy",
+          "instruction": "Use a complete Windows copy and components you are independently permitted to use, for noncommercial use under the actual framework terms. This guide does not authorize fresh acquisition of the selected package’s libretro-sourced PaRappa box art: its specific applicable permission/authorized-source condition remains unresolved. The title CMake embeds the named launcher TGA and its source notice supplies attribution, not an original-art grant. An independently permitted existing copy remains distinct; do not remove mandatory companions or use a private payload bypass."
+        },
+        {
+          "title": "Prepare the exact owned USA disc outside Portcove",
+          "instruction": "The selected title is PaRappa the Rapper USA, SCUS-94183/boot SCUS_941.83. Keep your own full matching CUE/BIN and any companion tracks. Its prepare_disc contract identifies raw dataTrack01 size727718208, MD5 007a1016d499e5fe6eb2702f41ca6c63 and SHA1 181e2efd2a29c028b28e52ac7827ef7a172ca8b4. The upstream preparation helper checks those configured digests for its supported raw-track representation; other formats can use different boot-executable checks. This is not a promise that each normal native launch rehashes the whole disc. Finish supported selection/preparation and any required overlay compilation upstream; do not bypass hash checks. No original, retail BIOS or compiler is acquired or run by this registration."
+        },
+        {
+          "title": "Choose the completed ordinary native program",
+          "instruction": "Select PaRappaTheRapper_Recompiled.exe in the complete creating player directory, set that directory as working directory and leave arguments empty for normal launcher/gameplay. Keep its matching game.toml, runtime companions, bundled OpenBIOS, input.ini, mods and overlay tools/data together. The selected framework’s launcher and game run within the same native program; do not choose Retro Launcher, a PowerShell timing experiment, codegen helper, setup-only placeholder, diagnostic or netplay mode. Review and consent to the exact selected intent, then request Play separately."
+        },
+        {
+          "title": "Preserve every effective player root before first startup",
+          "instruction": "The native program anchors runtime files beside its EXE rather than arbitrary CWD. Preserve game.toml, settings.toml, game_options.toml, input.ini, config.ini, disc.cfg/bios.cfg, the complete mods/cache/overlay/runtime folders and actual original paths. The title config sets saves/; retain all card1.mcd/card2.mcd images, per-game .options, save states and BIOS/disc-scoped subdirectories, temporary/backup variants and logs/diagnostics. Existing explicit card paths or --memcard-dir can select other actual roots; retain those separately and do not silently replace them with defaults."
+        },
+        {
+          "title": "Keep profile migration and save compatibility explicit",
+          "instruction": "Before startup or changing BIOS/settings, back up complete old and new save/profile trees separately. The pinned runtime can move legacy .pst save states into BIOS-scoped directories and names new state files by disc scope; preserve both original locations and destinations. That behavior does not promise cross-BIOS, cross-build, mod or imported PS1 save compatibility. Existing timing profiles/build-timing/timing-saves from optional experiments are separate; this guide neither imports them nor enables those scripts. Network/shared memory-card features are outside this single-player route."
+        },
+        {
+          "title": "Complete rebuild/relaunch and replacement outside attachment",
+          "instruction": "Upstream/user owns generation, overlay preparation, updates, runtime replacement and recovery. Optional Generate & rebuild can request a new program process; complete such preparation/restarts outside the tracked entry, close all actual players/helpers/successors, retain independent recovery copies outside disposable generated/staging/cache paths, then review/relink changed bytes. Ordinary return-to-launcher/session transitions within the same native program do not grant successor adoption or termination. Removing registration preserves every external file; no managed update, backup, rollback, save migration or deletion is offered."
+        },
+        {
+          "title": "Retain title-specific limits and notices",
+          "instruction": "Keep the applicable exact PolyForm Noncommercial framework, MIT recomp-ui and other component notices; these do not grant Sony/NanaOn-Sha original-game or art rights. This preview includes optional rhythm timing assist and experimental widescreen, and other stages/full-stage completion remain unsystematically validated upstream. Preserve existing controller mappings and preferences: the title requires digital-pad behavior, with D-pad directions as the new default rather than assuming stick bindings survive unchanged. No gameplay, timing/device calibration, native/save compatibility or network acceptance is promised by the guide."
+        }
+      ],
+      "warnings": [
+        "Use only an independently permitted completed copy while the named bundled-art acquisition condition is unresolved. Preserve separate profile backups before upstream legacy-state migration or rebuild/replacement."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the selected PaRappaTheRapper package is held while the applicable permission or authorized-source basis for its embedded libretro-sourced PaRappa box art remains unresolved. BOXART_SOURCE attribution and the framework/UI licences do not supply that artwork grant. Resume with an attributable applicable basis or a reviewed supported package/preparation excluding the unresolved artwork. Independently permitted existing-copy use remains separate."
   }
 }

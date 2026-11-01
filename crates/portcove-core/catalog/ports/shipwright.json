@@ -54,6 +54,43 @@
         }
       ],
       "saves_and_settings": "portcove-managed"
+    },
+    "game_settings": {
+      "format_version": 1,
+      "releases": [
+        {
+          "version": "9.3.1",
+          "platform": "windows-x86-64",
+          "archive_sha256": "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c",
+          "source_commit": "f0599f96f8d442f26d0fa1c5cedafddacd56633f",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Shipwright/blob/f0599f96f8d442f26d0fa1c5cedafddacd56633f/soh/soh/Enhancements/audio/AudioSettings.cpp",
+            "https://github.com/kenix3/libultraship/blob/da6daf1a50a5e46d6641408d52227e31e85e46df/src/ship/config/ConsoleVariable.cpp"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "id": "preferences",
+          "path": "shipofharkinian.json",
+          "format": "json",
+          "maximum_bytes": 1048576,
+          "settings": [
+            {
+              "id": "master-volume",
+              "label": "Master volume (%)",
+              "key": ["CVars", "gSettings", "Volume", "Master"],
+              "value": {
+                "kind": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "step": 1,
+                "default": 40
+              }
+            }
+          ]
+        }
+      ]
     }
   }
 }

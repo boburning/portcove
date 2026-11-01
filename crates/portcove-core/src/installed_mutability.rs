@@ -11,6 +11,21 @@ pub(crate) fn checked_port(
     platform: Platform,
 ) -> Result<PortDefinition> {
     let mut current = current.clone();
+    if operational_compatibility(retained) != operational_compatibility(&current) {
+        let mut without_settings_drift = current.clone();
+        without_settings_drift
+            .game_settings
+            .clone_from(&retained.game_settings);
+        if operational_compatibility(retained) != operational_compatibility(&without_settings_drift)
+        {
+            return Ok(retained.clone());
+        }
+        // Optional settings do not rebind an installed definition. Preserve
+        // its complete authority, then independently apply only the existing
+        // exact-artifact correction below, with all manifest/shape checks.
+        // In particular, current-only path additions are not borrowed here.
+        current = retained.clone();
+    }
     let shipwright = shipwright_windows_cwd_persistence(retained, install, platform);
     if shipwright {
         for path in ["Save", "SoHTimeSplitData.json"] {
@@ -31,9 +46,6 @@ pub(crate) fn checked_port(
                 .runtime_mutable_paths
                 .push("logs/Ship of Harkinian.log".into());
         }
-    }
-    if operational_compatibility(retained) != operational_compatibility(&current) {
-        return Ok(retained.clone());
     }
     if !retained
         .persistent_paths
@@ -125,6 +137,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         managed_initialization,
         runtime_data_policy,
         mod_package_policy,
+        game_settings,
         managed_shared_preferences,
         managed_shared_preferences_save_id,
         source_environment,
@@ -164,6 +177,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         "managed_initialization": managed_initialization,
         "runtime_data_policy": runtime_data_policy,
         "mod_package_policy": mod_package_policy,
+        "game_settings": game_settings,
         "managed_shared_preferences": managed_shared_preferences,
         "managed_shared_preferences_save_id": managed_shared_preferences_save_id,
         "source_environment": source_environment,
