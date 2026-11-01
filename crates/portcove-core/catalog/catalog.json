@@ -19040,7 +19040,9 @@
       "runtime_mutable_paths": [
         "mdkr64.log",
         "mdkr64.prev.log",
-        "mdkr64-online-failure.txt"
+        "mdkr64-online-failure.txt",
+        "mdkr64.ini.lock",
+        "mdkr64_app.ini.lock"
       ],
       "launch_environment": {
         "MDKR_APP_PREFS_DIR": "."

@@ -665,6 +665,12 @@ Golden's normal ROM picker; the shell validates and remembers that selection in
 [pinned argument dispatch](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/app/arg_triage.h)
 routes `--rom` directly to the engine without the shell or settings overlay;
 combining `--ui` and `--rom` does not establish supported ROM seeding.
+Both configuration writers create sibling OS-lock files. Declare the exact
+runtime-relative `mdkr64.ini.lock` and `mdkr64_app.ini.lock` leaves as runtime
+mutable paths, rather than treating the whole runtime directory as writable.
+The pinned [video configuration writer](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/video_config_runtime.c)
+and [shell preference writer](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/app/app_config.cpp)
+own these locks; they are runtime coordination files, not player preferences.
 Root `Audio.MasterVolume`
 is equivalent; duplicate dotted, sectioned or case aliases refuse edits.
 The earlier `mdkr64_app.ini` / `ui_scale` choice was shell-only and could not

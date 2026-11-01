@@ -6653,7 +6653,13 @@ mod tests {
         }
         assert_eq!(
             port.runtime_mutable_paths,
-            ["mdkr64.log", "mdkr64.prev.log", "mdkr64-online-failure.txt",]
+            [
+                "mdkr64.log",
+                "mdkr64.prev.log",
+                "mdkr64-online-failure.txt",
+                "mdkr64.ini.lock",
+                "mdkr64_app.ini.lock",
+            ]
         );
         assert_eq!(
             port.runtime_mutable_paths
@@ -6667,6 +6673,8 @@ mod tests {
                 "GoldenBalloon/mdkr64.log",
                 "GoldenBalloon/mdkr64.prev.log",
                 "GoldenBalloon/mdkr64-online-failure.txt",
+                "GoldenBalloon/mdkr64.ini.lock",
+                "GoldenBalloon/mdkr64_app.ini.lock",
             ]
         );
 
