@@ -908,6 +908,10 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // The retained 2026-11-01 A1 attempt exhausted 180s verifying immutable
+  // inputs before App launch. Allow finite room for custody, captures and restart;
+  // keep every inner wait, identity check and cleanup unchanged.
+  if (selection.selected_scenarios.includes("native-game-first-choice-and-restart")) return 600_000;
   // Three immutable upgrades, two owned live launches, reviews and positive exit joins.
   if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle")) return 720_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.

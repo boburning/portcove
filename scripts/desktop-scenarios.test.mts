@@ -2673,6 +2673,7 @@ void test("game-first choice is one explicit normal Windows journey without inst
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
   assert.deepEqual(selection.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
   assert.equal(
     required(DESKTOP_SCENARIOS.find((entry) => entry.id === id)).source,
     "desktop-game-first-test.mts",
