@@ -255,6 +255,23 @@ export async function registeredSourceReuseScenario(context: Context) {
       routes,
     };
     const { button, click } = reviewControls(browser);
+    const openSourceWorkspace = async () => {
+      await selectPrimaryNavigation(browser, "Library");
+      // Returning from setup can restore the existing Add games workspace.
+      // Use its ordinary entry action only when that action is displayed.
+      for (const entry of await browser.findElements(button("Add games"))) {
+        if (await entry.isDisplayed()) {
+          await clickVisible(browser, entry);
+          break;
+        }
+      }
+      const saved = await browser.wait(
+        until.elementLocated(By.css('[aria-label="Reuse saved game files"]')),
+        15000,
+      );
+      await browser.wait(until.elementIsVisible(saved), 5000);
+      return saved;
+    };
     const snapshot = async (name: string, target: Parameters<typeof captureKeyboardTarget>[2]) =>
       captureKeyboardTarget({ browser, output, artifacts }, name, target, scenarioId);
     const sources = () => transportValues("source", command(["source", "list"]));
@@ -311,12 +328,7 @@ export async function registeredSourceReuseScenario(context: Context) {
         "first",
       );
 
-      await selectPrimaryNavigation(browser, "Library");
-      await click(button("Add games"));
-      const saved = await browser.wait(
-        until.elementLocated(By.css('[aria-label="Reuse saved game files"]')),
-        15000,
-      );
+      const saved = await openSourceWorkspace();
       const select = await saved.findElement(By.css("select"));
       await (await select.findElement(By.css(`option[value="${profileId}"]`))).click();
       assert.equal(await select.getAttribute("value"), profileId);
@@ -385,12 +397,7 @@ export async function registeredSourceReuseScenario(context: Context) {
       };
       const moved = path.join(output, "d-majoras-mask-moved.zip");
       await rename(fixture.owned, moved);
-      await selectPrimaryNavigation(browser, "Library");
-      await click(button("Add games"));
-      const repairSection = await browser.wait(
-        until.elementLocated(By.css('[aria-label="Reuse saved game files"]')),
-        15000,
-      );
+      const repairSection = await openSourceWorkspace();
       await (await repairSection.findElement(By.css(`option[value="${profileId}"]`))).click();
       await clickVisible(
         browser,
