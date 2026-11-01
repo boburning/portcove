@@ -1,0 +1,1305 @@
+{
+  "format_version": 1,
+  "baseline": "e5500d2138cd7ef33157defe6ccc1c0ffc493f96",
+  "scope": "Three original-524 identities from R35 receive actual setup-package identity clarifications; historical1422 overlap nonadditive. No actual title completion, directRequired closure, Supported/native/build/installed/protected acceptance asserted.",
+  "retained_source_dossier": "https://github.com/boburning/portcove/blob/3bd3e9956dd344e9ef36af39f3c401e822ce2b09/docs/qualification/windows-prepared-players-eleven-2026-11-01.json",
+  "rows": [
+    {
+      "issue": 1805,
+      "id": "heromachine-breakdown-recompilation",
+      "authored_path": "crates/portcove-core/catalog/ports/heromachine-breakdown-recompilation.json",
+      "authored_preimage_sha256": "724cdaf4077094fa943bb2d2c6a6401f58603dc4dc24875b44ecd51d13737ab0",
+      "authored_postimage_sha256": "be90e91a31a7da99e25ce07230dfc8eb929133b6f4fda50604e15e4c29b30b18",
+      "canonical_specification_sha256": "d9cd60a0818c660580a336cbb07d324a9106be444e78e9d307c4e79e4b9e58b6",
+      "canonical_observed_at": "2026-11-01T18:25:49.409Z",
+      "official_asset": {
+        "id": 620298955,
+        "name": "Breakdown-Recompilation-v0.2.2-windows-x64.zip",
+        "size": 143580006,
+        "digest": "sha256:e4097c010a603e04fa9339b06fba6d873605ae0b3803aa10fac52a96a0af6ee8",
+        "updated_at": "2026-10-08T01:12:03Z",
+        "browser_download_url": "https://github.com/Heromachine/Breakdown-Recompilation/releases/download/v0.2.2/Breakdown-Recompilation-v0.2.2-windows-x64.zip"
+      },
+      "observed_archive_sha256": "e4097c010a603e04fa9339b06fba6d873605ae0b3803aa10fac52a96a0af6ee8",
+      "observed_at": "2026-11-01T18:32:22.979742+00:00",
+      "physical_index": {
+        "records": 20362,
+        "central_bytes": 3261878,
+        "declared_expanded_bytes": 451781095
+      },
+      "policy": {
+        "max_archive_bytes": 167772160,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 32768,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "parser_boundary_cases": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile",
+        "oversized physical record count refused before ZipFile"
+      ],
+      "complete_inventory_bytes": 4929841,
+      "complete_inventory_sha256": "2d2eb70246f34172eea8e5328d5c19f403032bd6f14ed4848970c9e816a7e9ed",
+      "inventory_visibility": "Complete raw observation retained locally; compact relevant member inventory below. Whole archive bytes independently bind expected publisher metadata. Local inventory hash is a retained-reference identity, not public proof by itself.",
+      "relevant_members": [
+        {
+          "path": "Breakdown-Recompilation-0.2.2/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/toolkit/tools/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/project/tools/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/Breakdown.exe",
+          "bytes": 1191936,
+          "compressed_bytes": 555951,
+          "crc32": "f3e606e3",
+          "directory": false
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/README.txt",
+          "bytes": 2728,
+          "compressed_bytes": 1347,
+          "crc32": "1a80026f",
+          "directory": false
+        }
+      ],
+      "selected_CRC_verified_full_member_observations": [
+        {
+          "path": "Breakdown-Recompilation-0.2.2/Breakdown.exe",
+          "bytes": 1191936,
+          "sha256": "67c6c19b0c07ac50ee4cf06eeb5640aab26d3658a849d27613b897e1f2d3f17b",
+          "zip_crc_verified": true,
+          "pe": {
+            "machine": "AMD64",
+            "optional_magic": "0x20b",
+            "subsystem": 2,
+            "sections": 8,
+            "imports": [
+              "d3d11.dll",
+              "D3DCOMPILER_47.dll",
+              "comdlg32.dll",
+              "GDI32.dll",
+              "dwmapi.dll",
+              "SHELL32.dll",
+              "ole32.dll",
+              "api-ms-win-crt-convert-l1-1-0.dll",
+              "api-ms-win-crt-environment-l1-1-0.dll",
+              "api-ms-win-crt-heap-l1-1-0.dll",
+              "api-ms-win-crt-math-l1-1-0.dll",
+              "api-ms-win-crt-private-l1-1-0.dll",
+              "api-ms-win-crt-runtime-l1-1-0.dll",
+              "api-ms-win-crt-stdio-l1-1-0.dll",
+              "api-ms-win-crt-string-l1-1-0.dll",
+              "api-ms-win-crt-utility-l1-1-0.dll",
+              "KERNEL32.dll",
+              "USER32.dll",
+              "api-ms-win-crt-locale-l1-1-0.dll"
+            ],
+            "scope": "static ordinary import table; no runtime dependency resolution, delay/dynamic imports or ABI qualification"
+          }
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/README.txt",
+          "bytes": 2728,
+          "sha256": "657e2fe11f45ae21d505e482be62547bfc1179a4b9adabcf07ffdd63a87683fa",
+          "zip_crc_verified": true
+        }
+      ],
+      "packaged_documentation_observations": [
+        {
+          "path": "Breakdown-Recompilation-0.2.2/README.txt",
+          "decoded_text_sha256": "657e2fe11f45ae21d505e482be62547bfc1179a4b9adabcf07ffdd63a87683fa",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        }
+      ],
+      "all_members_path_collision_link_encryption_checks": true,
+      "all_members_full_CRC_verification": false,
+      "selected_executable_prefixes": [
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/pythonw.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/vcruntime140_1.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/python314.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/vcruntime140.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/sqlite3.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/python.exe",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/Lib/site-packages/cmake/data/bin/cmake.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 328,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/Lib/site-packages/cmake/data/bin/cmake-gui.exe",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 328,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/Lib/site-packages/cmake/data/bin/ctest.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 320,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/Lib/site-packages/cmake/data/bin/cmcldeps.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 320,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/Lib/site-packages/cmake/data/bin/cpack.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 328,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/Lib/site-packages/capstone/lib/capstone.dll",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/ninja.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 272,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/libssl-3.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 280,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/libcrypto-3.dll",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 296,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/libffi-8.dll",
+          "machine": "0x8664",
+          "sections": 5,
+          "header_bytes_read": 288,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/libtommath.dll",
+          "machine": "0x8664",
+          "sections": 6,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/python/python3.dll",
+          "machine": "0x8664",
+          "sections": 2,
+          "header_bytes_read": 224,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/shims/zar.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/shims/zcc.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/shims/zrc.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/shims/zranlib.exe",
+          "machine": "0x8664",
+          "sections": 7,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/tools/zig/zig.exe",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Breakdown-Recompilation-0.2.2/Breakdown.exe",
+          "machine": "0x8664",
+          "sections": 8,
+          "header_bytes_read": 144,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "whole_archive_authentication": "Official GitHub API expected SHA256 matched downloaded bytes; no new signing or content permission inferred.",
+      "offered_operation": "conditional completed-copy registration only; setup/build remains upstream and outside Portcove",
+      "maintenance": "user-managed-update",
+      "whole_own_criteria_disposition": "OPEN pending independent review; no artifact-only completed-player or generated-game observation is inferred.",
+      "remaining_observation": "Applicable completed playable build or controlled owned-input preparation is unobserved; no private original/input grant is inferred. Upstream setup/first-build behavior remains outside tracked ordinary Play.",
+      "actual_native_or_build_execution": false
+    },
+    {
+      "issue": 1825,
+      "id": "goodshepherd23-hellnight-recompiled",
+      "authored_path": "crates/portcove-core/catalog/ports/goodshepherd23-hellnight-recompiled.json",
+      "authored_preimage_sha256": "f2b2a10a3f7c94963193f56d9725b3f3816eb17cfeab5996aeddb8bb4a441c4d",
+      "authored_postimage_sha256": "5bc392866f3446f7846b317389136fc9babacb13218b57c05741d265709a84d7",
+      "canonical_specification_sha256": "efcc99a502fc78f6dcbafca2ca6ed58efba7178b5ad3df8e2f6450ee74d6d734",
+      "canonical_observed_at": "2026-11-01T18:25:50.648Z",
+      "official_asset": {
+        "id": 679744078,
+        "name": "hellnight-0.1.7-windows-x64.zip",
+        "size": 26491168,
+        "digest": "sha256:efc1266e9a84ddc37da093ef9553605d36a2f8715f2487b7dbbc5e58683388e1",
+        "updated_at": "2026-10-26T22:55:46Z",
+        "browser_download_url": "https://github.com/goodshepherd23/Hellnight-Recompiled/releases/download/v0.1.7/hellnight-0.1.7-windows-x64.zip"
+      },
+      "observed_archive_sha256": "efc1266e9a84ddc37da093ef9553605d36a2f8715f2487b7dbbc5e58683388e1",
+      "observed_at": "2026-11-01T18:33:49.448344+00:00",
+      "physical_index": {
+        "records": 2156,
+        "central_bytes": 253088,
+        "declared_expanded_bytes": 68186515
+      },
+      "policy": {
+        "max_archive_bytes": 167772160,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 32768,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "parser_boundary_cases": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile",
+        "oversized physical record count refused before ZipFile"
+      ],
+      "complete_inventory_bytes": 721151,
+      "complete_inventory_sha256": "8ba73d7285044fc283a7cecaf7aad7bc4b7b6068c9ebe48b98815659ea045738",
+      "inventory_visibility": "Complete raw observation retained locally; compact relevant member inventory below. Whole archive bytes independently bind expected publisher metadata. Local inventory hash is a retained-reference identity, not public proof by itself.",
+      "relevant_members": [
+        {
+          "path": "assets/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "bios/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "catalog_identity.json",
+          "bytes": 1468,
+          "compressed_bytes": 800,
+          "crc32": "266e2164",
+          "directory": false
+        },
+        {
+          "path": "CMakeLists.txt",
+          "bytes": 4971,
+          "compressed_bytes": 1950,
+          "crc32": "a347a459",
+          "directory": false
+        },
+        {
+          "path": "codegen_setup.c",
+          "bytes": 1849,
+          "compressed_bytes": 727,
+          "crc32": "b7129c5e",
+          "directory": false
+        },
+        {
+          "path": "codegen_setup.h",
+          "bytes": 346,
+          "compressed_bytes": 210,
+          "crc32": "a098d5df",
+          "directory": false
+        },
+        {
+          "path": "disc_identity.json",
+          "bytes": 1203,
+          "compressed_bytes": 664,
+          "crc32": "8fd4c4aa",
+          "directory": false
+        },
+        {
+          "path": "framework_pins.txt",
+          "bytes": 252,
+          "compressed_bytes": 171,
+          "crc32": "21e97573",
+          "directory": false
+        },
+        {
+          "path": "game.toml",
+          "bytes": 2017,
+          "compressed_bytes": 1153,
+          "crc32": "1a0ee16c",
+          "directory": false
+        },
+        {
+          "path": "Hellnight_Recompiled.exe",
+          "bytes": 14983378,
+          "compressed_bytes": 5309411,
+          "crc32": "547c36f1",
+          "directory": false
+        },
+        {
+          "path": "mods/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "project-manifest.toml",
+          "bytes": 673,
+          "compressed_bytes": 423,
+          "crc32": "e0dabc2d",
+          "directory": false
+        },
+        {
+          "path": "psxrecomp/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-bios.exe",
+          "bytes": 3134464,
+          "compressed_bytes": 1012047,
+          "crc32": "009ddeaf",
+          "directory": false
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-game.exe",
+          "bytes": 3451904,
+          "compressed_bytes": 1104336,
+          "crc32": "af7277a1",
+          "directory": false
+        },
+        {
+          "path": "psx_game_version.txt",
+          "bytes": 7,
+          "compressed_bytes": 7,
+          "crc32": "a05a3317",
+          "directory": false
+        },
+        {
+          "path": "README-SETUP.txt",
+          "bytes": 894,
+          "compressed_bytes": 557,
+          "crc32": "5fb50dcb",
+          "directory": false
+        },
+        {
+          "path": "README.md",
+          "bytes": 9576,
+          "compressed_bytes": 4372,
+          "crc32": "80a07cde",
+          "directory": false
+        },
+        {
+          "path": "recomp-ui/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "seeds/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "src/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "VERSION",
+          "bytes": 6,
+          "compressed_bytes": 6,
+          "crc32": "c1df8a6f",
+          "directory": false
+        }
+      ],
+      "selected_CRC_verified_full_member_observations": [
+        {
+          "path": "catalog_identity.json",
+          "bytes": 1468,
+          "sha256": "c5fefeee9ff0e7c4a96a84e375ed9ed87344370f4d37568368aa2a825494298a",
+          "zip_crc_verified": true,
+          "json": {
+            "format_version": 1,
+            "game": {
+              "name": "Dark Messiah",
+              "id": "SLES-01562",
+              "boot_exe": "SLES_015.62"
+            },
+            "marketing": {
+              "description": "Hellnight (Dark Messiah in Japan): first-person survival horror set in the tunnels under Tokyo, developed by Dennou Eizou Seisakusho.",
+              "publisher": "Konami",
+              "year": "1999",
+              "region": "Europe",
+              "players": 1
+            },
+            "rom_identity": {
+              "cue_name": "Hellnight (Europe).cue",
+              "bin_name": "Hellnight (Europe).bin",
+              "track_counts": [1],
+              "require_cue": true,
+              "data_track": {
+                "size": 633786384,
+                "md5": "01ce6367485ab848973be612df58b5b9",
+                "sha1": "b0c791ebe50e5e678cb36aed531f2ac553b37999",
+                "crc32": "22de3f67"
+              },
+              "disc_fp": "91617156264765fc02200082e9c625eacff20bb178bae8c92a4ad45175526cf4"
+            },
+            "exe": {
+              "load_address": "0x80010000",
+              "entry_pc": "0x80036E74",
+              "text_size": "0x0006E000",
+              "stack_base": "0x801FFFF0"
+            },
+            "seeds": {
+              "count": 1125,
+              "source": "boot_exe_jal"
+            },
+            "warnings": [
+              "cue has only 1 TRACK — Track-01-only dumps fail multi-track netplay/catalog gates; prefer a full Redump cue."
+            ],
+            "notes": [
+              "entry_pc/load_address/text_size/stack_base taken from PS-X EXE header.",
+              "seeds are first-pass boot-EXE JAL targets (+ entry); expect to grow as overlays / runtime paths are discovered.",
+              "required_disc_fp is psxrecomp-toc-v1 (matches runtime DiscIdentity)."
+            ]
+          }
+        },
+        {
+          "path": "CMakeLists.txt",
+          "bytes": 4971,
+          "sha256": "cec05b14b3dda1afc2f52657a6c9c717068b11e112009372cd1b96bedb5f9742",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "codegen_setup.c",
+          "bytes": 1849,
+          "sha256": "3cacea008b3a85dc4d0c1fed14c06e1ec6f43ce1c9da17c85c2789c07f9cb9eb",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "disc_identity.json",
+          "bytes": 1203,
+          "sha256": "df710e668633b7ef9059d037f6ce9533d31e4a84a0b26fd3f3aa2d759bf7374a",
+          "zip_crc_verified": true,
+          "json": {
+            "cue_name": "Hellnight (Europe).cue",
+            "bin_name": "Hellnight (Europe).bin",
+            "track_count": 1,
+            "data_track_size": 633786384,
+            "data_track_md5": "01ce6367485ab848973be612df58b5b9",
+            "data_track_sha1": "b0c791ebe50e5e678cb36aed531f2ac553b37999",
+            "data_track_crc32": "22de3f67",
+            "boot_exe": "SLES_015.62",
+            "serial": "SLES-01562",
+            "serial_exe": "SLES_015.62",
+            "volume_id": "",
+            "display_name": "Dark Messiah",
+            "load_address": "0x80010000",
+            "entry_pc": "0x80036E74",
+            "text_size": "0x0006E000",
+            "stack_base": "0x801FFFF0",
+            "require_cue": true,
+            "required_disc_fp": "91617156264765fc02200082e9c625eacff20bb178bae8c92a4ad45175526cf4",
+            "boot_exe_sha256": "ef8066221021ca25a675bdc165accc23b6beea3ae8b7700696a96569c7c54a66",
+            "seed_count": 1125,
+            "warnings": [
+              "cue has only 1 TRACK — Track-01-only dumps fail multi-track netplay/catalog gates; prefer a full Redump cue."
+            ],
+            "notes": [
+              "entry_pc/load_address/text_size/stack_base taken from PS-X EXE header.",
+              "seeds are first-pass boot-EXE JAL targets (+ entry); expect to grow as overlays / runtime paths are discovered.",
+              "required_disc_fp is psxrecomp-toc-v1 (matches runtime DiscIdentity)."
+            ]
+          }
+        },
+        {
+          "path": "framework_pins.txt",
+          "bytes": 252,
+          "sha256": "da5ae16bef3a6f82fa14ec63040850ef2b254dad3253f8688a164d0fb6467160",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "game.toml",
+          "bytes": 2017,
+          "sha256": "75a95ebd0eeb3300cca9fe02e49d4481861cd36b0ea08ac110cac5f33e668e02",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "Hellnight_Recompiled.exe",
+          "bytes": 14983378,
+          "sha256": "b289a53fba815336e6c0d87112eb8a52fa7795bb7c88718a3429bd52bb89743b",
+          "zip_crc_verified": true,
+          "pe": {
+            "machine": "AMD64",
+            "optional_magic": "0x20b",
+            "subsystem": 2,
+            "sections": 11,
+            "imports": [
+              "ADVAPI32.dll",
+              "comdlg32.dll",
+              "dbghelp.dll",
+              "GDI32.dll",
+              "IMM32.dll",
+              "KERNEL32.dll",
+              "msvcrt.dll",
+              "ole32.dll",
+              "OLEAUT32.dll",
+              "OPENGL32.dll",
+              "SETUPAPI.dll",
+              "SHELL32.dll",
+              "USER32.dll",
+              "VERSION.dll",
+              "WINMM.dll",
+              "WS2_32.dll"
+            ],
+            "scope": "static ordinary import table; no runtime dependency resolution, delay/dynamic imports or ABI qualification"
+          }
+        },
+        {
+          "path": "project-manifest.toml",
+          "bytes": 673,
+          "sha256": "fc1c2e3e7d685a27971b4be25364bd53f9cd7adc004e6ef022fe06c174951920",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "README-SETUP.txt",
+          "bytes": 894,
+          "sha256": "72fbda0b5890cd7f223071e593eb81a209c346c9378b40dddea3e0a2ed93e3cf",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "README.md",
+          "bytes": 9576,
+          "sha256": "a5e785e054bad888a13211896889030b4ff646183a16582262738d71c262e692",
+          "zip_crc_verified": true
+        }
+      ],
+      "packaged_documentation_observations": [
+        {
+          "path": "game.toml",
+          "decoded_text_sha256": "75a95ebd0eeb3300cca9fe02e49d4481861cd36b0ea08ac110cac5f33e668e02",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "project-manifest.toml",
+          "decoded_text_sha256": "fc1c2e3e7d685a27971b4be25364bd53f9cd7adc004e6ef022fe06c174951920",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "README-SETUP.txt",
+          "decoded_text_sha256": "72fbda0b5890cd7f223071e593eb81a209c346c9378b40dddea3e0a2ed93e3cf",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "README.md",
+          "decoded_text_sha256": "a5e785e054bad888a13211896889030b4ff646183a16582262738d71c262e692",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        }
+      ],
+      "all_members_path_collision_link_encryption_checks": true,
+      "all_members_full_CRC_verification": false,
+      "selected_executable_prefixes": [
+        {
+          "path": "Hellnight_Recompiled.exe",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "whole_archive_authentication": "Official GitHub API expected SHA256 matched downloaded bytes; no new signing or content permission inferred.",
+      "offered_operation": "conditional completed-copy registration only; setup/build remains upstream and outside Portcove",
+      "maintenance": "user-managed-update",
+      "whole_own_criteria_disposition": "OPEN pending independent review; no artifact-only completed-player or generated-game observation is inferred.",
+      "remaining_observation": "Applicable completed playable build or controlled owned-input preparation is unobserved; no private original/input grant is inferred. Upstream setup/first-build behavior remains outside tracked ordinary Play.",
+      "actual_native_or_build_execution": false
+    },
+    {
+      "issue": 1908,
+      "id": "njh-1001-wipeout2k97xl",
+      "authored_path": "crates/portcove-core/catalog/ports/njh-1001-wipeout2k97xl.json",
+      "authored_preimage_sha256": "3d9e163259f7e2fd3f5430676172c55464942f45a44c4307013d40dddb5fbe32",
+      "authored_postimage_sha256": "a9f2371c992163b167b0af20ac7f7eea1b7c0d7adda255a06099fe901587aeb5",
+      "canonical_specification_sha256": "fb4cbaf24a019b135d5039b3eef64b33a24c5cace03c1ba3a9ed5eb446379489",
+      "canonical_observed_at": "2026-11-01T18:25:51.944Z",
+      "official_asset": {
+        "id": 667803085,
+        "name": "wipeoutxl-0.2.0-windows-x64.zip",
+        "size": 45448914,
+        "digest": "sha256:effe49cb0185b4984f1aa7a0cf4f4390aaf377a3e43fb6c1fd2aa6be93eb4b5a",
+        "updated_at": "2026-10-23T03:07:43Z",
+        "browser_download_url": "https://github.com/NJH-1001/Wipeout2K97XL/releases/download/v0.2.0/wipeoutxl-0.2.0-windows-x64.zip"
+      },
+      "observed_archive_sha256": "effe49cb0185b4984f1aa7a0cf4f4390aaf377a3e43fb6c1fd2aa6be93eb4b5a",
+      "observed_at": "2026-11-01T18:34:40.341256+00:00",
+      "physical_index": {
+        "records": 2154,
+        "central_bytes": 255309,
+        "declared_expanded_bytes": 136926257
+      },
+      "policy": {
+        "max_archive_bytes": 167772160,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 32768,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "parser_boundary_cases": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile",
+        "oversized physical record count refused before ZipFile"
+      ],
+      "complete_inventory_bytes": 870482,
+      "complete_inventory_sha256": "59a831f466ef744e11d18e28ad8c822fe79e2b6226b97535a65ac98d8613460b",
+      "inventory_visibility": "Complete raw observation retained locally; compact relevant member inventory below. Whole archive bytes independently bind expected publisher metadata. Local inventory hash is a retained-reference identity, not public proof by itself.",
+      "relevant_members": [
+        {
+          "path": "assets/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "catalog_identity.json",
+          "bytes": 1252,
+          "compressed_bytes": 647,
+          "crc32": "4b8063c7",
+          "directory": false
+        },
+        {
+          "path": "CMakeLists.txt",
+          "bytes": 3915,
+          "compressed_bytes": 1638,
+          "crc32": "878a8602",
+          "directory": false
+        },
+        {
+          "path": "codegen_setup.c",
+          "bytes": 1900,
+          "compressed_bytes": 723,
+          "crc32": "23bf52d7",
+          "directory": false
+        },
+        {
+          "path": "codegen_setup.h",
+          "bytes": 364,
+          "compressed_bytes": 212,
+          "crc32": "1a2f2913",
+          "directory": false
+        },
+        {
+          "path": "docs/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "framework_pins.txt",
+          "bytes": 104,
+          "compressed_bytes": 89,
+          "crc32": "28a4746d",
+          "directory": false
+        },
+        {
+          "path": "game.toml",
+          "bytes": 3123,
+          "compressed_bytes": 1324,
+          "crc32": "7927322f",
+          "directory": false
+        },
+        {
+          "path": "gamecontrollerdb.txt",
+          "bytes": 426,
+          "compressed_bytes": 270,
+          "crc32": "3d6b0e58",
+          "directory": false
+        },
+        {
+          "path": "game_options.toml",
+          "bytes": 385,
+          "compressed_bytes": 239,
+          "crc32": "8670e1db",
+          "directory": false
+        },
+        {
+          "path": "input.ini",
+          "bytes": 597,
+          "compressed_bytes": 300,
+          "crc32": "16dffd37",
+          "directory": false
+        },
+        {
+          "path": "keybinds.ini",
+          "bytes": 426,
+          "compressed_bytes": 270,
+          "crc32": "6b2c8fb5",
+          "directory": false
+        },
+        {
+          "path": "launcher_assets/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "libgcc_s_seh-1.dll",
+          "bytes": 149364,
+          "compressed_bytes": 66159,
+          "crc32": "2a7b2b52",
+          "directory": false
+        },
+        {
+          "path": "libiconv-2.dll",
+          "bytes": 1143148,
+          "compressed_bytes": 776323,
+          "crc32": "90c8d137",
+          "directory": false
+        },
+        {
+          "path": "libstdc++-6.dll",
+          "bytes": 2659216,
+          "compressed_bytes": 935446,
+          "crc32": "23df078b",
+          "directory": false
+        },
+        {
+          "path": "libwinpthread-1.dll",
+          "bytes": 68954,
+          "compressed_bytes": 30706,
+          "crc32": "fa1ab119",
+          "directory": false
+        },
+        {
+          "path": "mods/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "psxrecomp/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-bios.exe",
+          "bytes": 4961952,
+          "compressed_bytes": 1342995,
+          "crc32": "c5223a4b",
+          "directory": false
+        },
+        {
+          "path": "psxrecomp/recompiler/build/psxrecomp-game.exe",
+          "bytes": 5189421,
+          "compressed_bytes": 1416396,
+          "crc32": "746406d2",
+          "directory": false
+        },
+        {
+          "path": "psx_game_version.txt",
+          "bytes": 7,
+          "compressed_bytes": 7,
+          "crc32": "e2b55f42",
+          "directory": false
+        },
+        {
+          "path": "psx_symbols.h",
+          "bytes": 335,
+          "compressed_bytes": 246,
+          "crc32": "0eba8df4",
+          "directory": false
+        },
+        {
+          "path": "PUBLICATION.md",
+          "bytes": 1733,
+          "compressed_bytes": 950,
+          "crc32": "a2f4912a",
+          "directory": false
+        },
+        {
+          "path": "README-SETUP.txt",
+          "bytes": 927,
+          "compressed_bytes": 587,
+          "crc32": "77177dde",
+          "directory": false
+        },
+        {
+          "path": "README.md",
+          "bytes": 8073,
+          "compressed_bytes": 3644,
+          "crc32": "226fe983",
+          "directory": false
+        },
+        {
+          "path": "recomp-ui/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "RELEASE_NOTES.md",
+          "bytes": 2209,
+          "compressed_bytes": 1211,
+          "crc32": "bc0de4b8",
+          "directory": false
+        },
+        {
+          "path": "SDL3.dll",
+          "bytes": 4043622,
+          "compressed_bytes": 1677822,
+          "crc32": "d26b8d96",
+          "directory": false
+        },
+        {
+          "path": "seeds/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "src/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "THIRD_PARTY.md",
+          "bytes": 1855,
+          "compressed_bytes": 920,
+          "crc32": "9585dd05",
+          "directory": false
+        },
+        {
+          "path": "tools/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "VERIFICATION.md",
+          "bytes": 5231,
+          "compressed_bytes": 2490,
+          "crc32": "bc3118cd",
+          "directory": false
+        },
+        {
+          "path": "VERSION",
+          "bytes": 6,
+          "compressed_bytes": 6,
+          "crc32": "9c2bb346",
+          "directory": false
+        },
+        {
+          "path": "Wipeout2K97XL.exe",
+          "bytes": 67473827,
+          "compressed_bytes": 21257462,
+          "crc32": "8d1be43a",
+          "directory": false
+        },
+        {
+          "path": "zlib1.dll",
+          "bytes": 128488,
+          "compressed_bytes": 68851,
+          "crc32": "3b5e0ee1",
+          "directory": false
+        }
+      ],
+      "selected_CRC_verified_full_member_observations": [
+        {
+          "path": "catalog_identity.json",
+          "bytes": 1252,
+          "sha256": "2eb0a20933a783501caf3ea6dcc2caacfcb77a07a10e1dffa5fef3a9de37bb16",
+          "zip_crc_verified": true,
+          "json": {
+            "format_version": 1,
+            "game": {
+              "name": "Wipeout2K97XL",
+              "id": "SCUS-94351",
+              "boot_exe": "SCUS_943.51"
+            },
+            "marketing": {
+              "description": "",
+              "publisher": "",
+              "year": "",
+              "region": "USA",
+              "players": 1
+            },
+            "rom_identity": {
+              "cue_name": "Wipeout XL (USA).cue",
+              "bin_name": "Wipeout XL (USA) (Track 01).bin",
+              "track_counts": [12],
+              "require_cue": true,
+              "data_track": {
+                "size": 86045568,
+                "md5": "bee4ab5e4835235ccf6f16bc8caea5e6",
+                "sha1": "5694008c30fa9896d17afdd6281e4bebb9f63953",
+                "crc32": "18ebdeb3"
+              },
+              "disc_fp": "124781e058906aadee9f2cd90789fc017daf0e5e52b3e9dc05192a8ee1c1d516"
+            },
+            "exe": {
+              "load_address": "0x80010000",
+              "entry_pc": "0x80082D70",
+              "text_size": "0x00085000",
+              "stack_base": "0x801FFFF0"
+            },
+            "seeds": {
+              "count": 755,
+              "source": "boot_exe_jal"
+            },
+            "warnings": [],
+            "notes": [
+              "entry_pc/load_address/text_size/stack_base taken from PS-X EXE header.",
+              "seeds are first-pass boot-EXE JAL targets (+ entry); expect to grow as overlays / runtime paths are discovered.",
+              "required_disc_fp is psxrecomp-toc-v1 (matches runtime DiscIdentity)."
+            ]
+          }
+        },
+        {
+          "path": "CMakeLists.txt",
+          "bytes": 3915,
+          "sha256": "062420e56f6a406cf1cf68ab2efeaaa67a31719dd909cc57ee6b191a3c3c541e",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "codegen_setup.c",
+          "bytes": 1900,
+          "sha256": "c9eedbfcd8775c2eae1aa2582f1e86b42bb3480639d5495dd49d8e35f3b4aaa5",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "framework_pins.txt",
+          "bytes": 104,
+          "sha256": "b1d219af06d1ab8df3501c8fd1403d9a86a32f09ef0f53ba6d0449c325d1b9bf",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "game.toml",
+          "bytes": 3123,
+          "sha256": "32942efd88c44a4c9b7e50d21ae7a2dcc4ff0af0ac3e016b72f522fc1df8bace",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "README-SETUP.txt",
+          "bytes": 927,
+          "sha256": "52642033c66adc2168351f4f0a02f84e9435d04b2574b48ec5178b8843417d81",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "README.md",
+          "bytes": 8073,
+          "sha256": "ac186d9ca022bbb62b9f6c46dca52dd0317f357dd23b4e8fa53bc5a9543a9e47",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "Wipeout2K97XL.exe",
+          "bytes": 67473827,
+          "sha256": "b969a16cd230754297bc9f78e32dbba825db2f2bad5c95b19f126392c37d4409",
+          "zip_crc_verified": true,
+          "pe": {
+            "machine": "AMD64",
+            "optional_magic": "0x20b",
+            "subsystem": 3,
+            "sections": 19,
+            "imports": [
+              "comdlg32.dll",
+              "dbghelp.dll",
+              "libgcc_s_seh-1.dll",
+              "KERNEL32.dll",
+              "msvcrt.dll",
+              "ole32.dll",
+              "OPENGL32.dll",
+              "SHELL32.dll",
+              "libstdc++-6.dll",
+              "USER32.dll",
+              "libwinpthread-1.dll",
+              "WS2_32.dll",
+              "SDL3.dll",
+              "zlib1.dll"
+            ],
+            "scope": "static ordinary import table; no runtime dependency resolution, delay/dynamic imports or ABI qualification"
+          }
+        }
+      ],
+      "packaged_documentation_observations": [
+        {
+          "path": "game.toml",
+          "decoded_text_sha256": "32942efd88c44a4c9b7e50d21ae7a2dcc4ff0af0ac3e016b72f522fc1df8bace",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "game_options.toml",
+          "decoded_text_sha256": "34b7b39be9274140c5f7f9919a7c3be59bc15b57b31fffee0dbfd96966d9c791",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "input.ini",
+          "decoded_text_sha256": "d90003a906556312f5d358814bf2d97cef6b359721dbb2493afbbd97443cd598",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "keybinds.ini",
+          "decoded_text_sha256": "35f806082d1f5ae0da2d4bcd7bc29a1dcd956f2d8efa07c7491edd7ae4a9970e",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "README-SETUP.txt",
+          "decoded_text_sha256": "52642033c66adc2168351f4f0a02f84e9435d04b2574b48ec5178b8843417d81",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        },
+        {
+          "path": "README.md",
+          "decoded_text_sha256": "ac186d9ca022bbb62b9f6c46dca52dd0317f357dd23b4e8fa53bc5a9543a9e47",
+          "scope": "UTF8 decoded-text hash; exact raw member hashes are separately supplied for selected files"
+        }
+      ],
+      "all_members_path_collision_link_encryption_checks": true,
+      "all_members_full_CRC_verification": false,
+      "selected_executable_prefixes": [
+        {
+          "path": "libgcc_s_seh-1.dll",
+          "machine": "0x8664",
+          "sections": 9,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libiconv-2.dll",
+          "machine": "0x8664",
+          "sections": 11,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libstdc++-6.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "libwinpthread-1.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "SDL3.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "Wipeout2K97XL.exe",
+          "machine": "0x8664",
+          "sections": 19,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        },
+        {
+          "path": "zlib1.dll",
+          "machine": "0x8664",
+          "sections": 10,
+          "header_bytes_read": 152,
+          "scope": "bounded prefix only; no execution/complete dependency or ABI qualification"
+        }
+      ],
+      "whole_archive_authentication": "Official GitHub API expected SHA256 matched downloaded bytes; no new signing or content permission inferred.",
+      "offered_operation": "conditional completed-copy registration only; setup/build remains upstream and outside Portcove",
+      "maintenance": "user-managed-update",
+      "whole_own_criteria_disposition": "OPEN pending independent review; no artifact-only completed-player or generated-game observation is inferred.",
+      "remaining_observation": "Applicable completed playable build or controlled owned-input preparation is unobserved; no private original/input grant is inferred. Upstream setup/first-build behavior remains outside tracked ordinary Play.",
+      "actual_native_or_build_execution": false
+    }
+  ],
+  "selected_tags": {
+    "1805": {
+      "commit": "473b7d22c6c24b74f4bf424ecfff3cc1355c6a5a",
+      "tree": "089b447112d9d5427ef7af8883c5f86870d4f1c8"
+    },
+    "1825": {
+      "commit": "910251a71b14bd0df3b3474f22eecfe820641954",
+      "tree": "ad793fc9f635bc054a757281a7482d88f0da0ae0"
+    },
+    "1908": {
+      "commit": "9d3fd26e392e4b8d195f06bcdc10731f8ac4b704",
+      "tree": "79df808d76c651a495c77ded7914cb1d839f4770"
+    }
+  },
+  "wipeout_release_source_comparison": {
+    "commit": "9d3fd26e392e4b8d195f06bcdc10731f8ac4b704",
+    "root_tree": "79df808d76c651a495c77ded7914cb1d839f4770",
+    "serialized_tree_objects_verified": true,
+    "entries": 157,
+    "truncated": false,
+    "submodules": {
+      "psxrecomp": "8d56cf659fd84367c3f778e17851674ac7896371",
+      "recomp-ui": "773155ae7d3be80a21d40851b58f99c79e003de1"
+    },
+    "differences_from_R35_source_tree": [
+      {
+        "path": "docs/verification/release-0.2.0.json",
+        "r35": "4ff565f379ac8ea8c06cbde37278bcd911ffb668",
+        "selected_release": "16d8653657b7572c6d8c52aa6e6ffd5641b991d3"
+      },
+      {
+        "path": "docs/verification",
+        "r35": "69558194dd57f6c5f527af2b7c9f5c06315974e4",
+        "selected_release": "e4709f4902d7ac0ed6e21581b65901f9d2e763c6"
+      },
+      {
+        "path": "RELEASE_NOTES.md",
+        "r35": "9ce74bf4bb861007d0729f09a24cbf913a27177c",
+        "selected_release": "0a4412be1a424def61eb64ccf34983b948139ad6"
+      },
+      {
+        "path": "docs",
+        "r35": "28241644e7bbfb189ef3c38cf44ce0265f7c5d50",
+        "selected_release": "d4d7f4b56a610613381c38fdaa8e6591c2e97354"
+      }
+    ]
+  },
+  "inspection_calibrations": [
+    {
+      "boundary": "physical index records",
+      "old": 8192,
+      "new": 32768,
+      "reason": "Breakdown has20362records,3261878centralbytes within unchanged4MiB metadata bound; original failure retained, new tiny oversized-count refusal added before parser. Archive inputcap160MiB covers observed143580006bytes; physical member512MiB and aggregate1GiB limits unchanged."
+    },
+    {
+      "boundary": "selected-member in-memory read",
+      "old_bytes": 67108864,
+      "new_bytes": 83886080,
+      "reason": "Wipeout setup exe67473827bytes exceeded initial64MiB by364963bytes; finite80MiB read cap used only on resumed Wipeout inspection. Earlier two completed member observations reused; original failure retained. No product limits/assertions/executable policy changed."
+    }
+  ],
+  "resource_admission": "Every static archive/member payload acquired the existing single machine-wide slot. Initial Breakdown admission expired before payload while peer build held the slot; after source work and changed resource observation, a fresh bounded admitted command ran. No manual slot negotiation, native resume, extra model workers, or automatic retry of an unchanged CI run.",
+  "execution_limits": [
+    "No upstream executable, compiler, helper, game or native GUI ran.",
+    "No private original or save was acquired/read; no setup or generated-game output was created.",
+    "No source-binary reproducibility, minimum-host/ABI/dynamic dependency, actual gameplay/save or installed/protected acceptance.",
+    "Full external runtime/data ownership remains upstream/user; no managed lifecycle authority added.",
+    "No new permanent product deferral or reduced858 membership; unresolved mandatory requirements remain incomplete."
+  ],
+  "R35_canonical_correction": "https://github.com/boburning/portcove/issues/2926#issuecomment-6561299849"
+}
