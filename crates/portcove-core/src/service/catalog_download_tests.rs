@@ -1951,3 +1951,13 @@ async fn hard_corps_uprising_hard_corps_uprising_recompiled_component_hold_befor
     assert_embedded_player_download_holds(&["hard-corps-uprising-hard-corps-uprising-recompiled"])
         .await;
 }
+
+#[tokio::test]
+async fn crackdown_crackdown_recompiled_component_hold_before_network_2559() {
+    assert_embedded_player_download_holds(&["crackdown-crackdown-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn crazyriddler_finesthourremastered_component_hold_before_network_2785() {
+    assert_embedded_player_download_holds(&["crazyriddler-finesthourremastered"]).await;
+}

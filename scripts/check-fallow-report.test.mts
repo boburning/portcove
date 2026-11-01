@@ -5,10 +5,15 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import manifest from "../package.json" with { type: "json" };
 
-import { evaluateFallowReport } from "./check-fallow-report.mts";
+import { evaluateFallowReport, reviewedFallowVersion } from "./check-fallow-report.mts";
 
 import { report } from "./fallow-test-fixture.mts";
+
+void test("reviewed Fallow report version matches the committed exact dependency", () => {
+  assert.equal(manifest.devDependencies.fallow, reviewedFallowVersion);
+});
 
 function requiredFixture<T>(value: T | undefined): T {
   assert.ok(value !== undefined);

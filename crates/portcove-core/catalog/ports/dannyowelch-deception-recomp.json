@@ -3,7 +3,7 @@
   "listing": {
     "id": "dannyowelch-deception-recomp",
     "name": "Tecmo's Deception: Invitation to Darkness (Deception-recomp)",
-    "summary": "Upstream route: Upstream WindowsZIP/setup orLinuxAppImage asks for exact supported disc then builds game locally on first start. Laterstarts reuse prepared build; development .NET10SDK requirement is separate from packaged route. Limits: Upstream only: Upstream says playable and explicitly lacks a verified full playthrough. First-start local compilation and disc validation are separate from gameplay qualification. First launch compiles from own disc; .NET 10 SDK required for source build. Upstream says playable, full playthrough unverified. Fork of verdite2 is framework reuse, not same game. Upstream platforms: Windows x64 ZIP/setup and Linux x86-64 AppImage. .NET 10 SDK is documented for source builds. Original data: PS1 Tecmo Deception Invitation to Darkness NTSC-U SLUS-00340 CUE/BIN or CHD v5. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Prepared Windows Deception player for your own North American SLUS-00340 disc. Upstream owns first-run compilation, runtime updates and external profiles; full playthrough remains unverified.",
     "original_game_title": "Tecmo's Deception: Invitation to Darkness",
     "project_url": "https://github.com/dannyowelch/deception-recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "tecmos-deception-invitation-to-darkness",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2735
+    "issue_number": 2735,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the complete permitted Windows copy",
+          "instruction": "Use a complete independently permitted Deception Windows copy and its selected upstream guide. Keep Deception.exe with bin/, content/ and all runtime libraries and notices. The portable ZIP and Windows installer are different delivery forms; finish any installer separately. Project, RecompOne and Verdite Core MIT terms do not supply original-game or arbitrary component rights. Back up existing Deception and earlier named profile folders separately before the first upstream startup."
+        },
+        {
+          "title": "Complete upstream preparation from your own disc",
+          "instruction": "Deliberately finish first-run setup and compilation outside Portcove using your own North American Tecmo’s Deception: Invitation to Darkness SLUS-00340 CUE with its referenced BIN tracks, or supported CHD v5. The selected source checks the boot-file serial and required file presence/minimum lengths; this is not full-image cryptographic authentication. It refuses other named games rather than treating a shared framework as interchangeable. The packaged launcher builds its game assembly on first run and reuses its keyed build afterward. The .NET 10 SDK documented for source development is separate from the self-contained package. Keep the original image at its selected path."
+        },
+        {
+          "title": "Add the supported waiting player entry",
+          "instruction": "Choose the package-root Deception.exe with that complete package directory as working directory and no arguments for the established saved-disc layout. Its Windows stub waits for bin/DeceptionLauncher.exe; the launcher loads and calls the prepared Deception game assembly in that child process until play returns. Keep that supplied chain intact. If your established setup deliberately passes the supported disc path as its first argument, preserve that exact path as one argument. Saving launch details and requesting Play are separate actions; do not select a setup executable, generator, DLL or private build-cache path."
+        },
+        {
+          "title": "Preserve all effective profile and build locations",
+          "instruction": "The packaged launcher changes its own working directory to %LOCALAPPDATA%/Deception, or an already established DECEPTION_DATA override. Preserve settings.json, interface.ini, carda.sav/cardb.sav and their backups/metadata, builds/, mods/ with .cache, crashes, logs and every effective custom root. Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
+        },
+        {
+          "title": "Keep runtime replacement with upstream and the player",
+          "instruction": "Upstream/player owns setup, first-run rebuilds, runtime replacement, update choices and all external originals/player files. A changed version can require another keyed build and clean its temporary generated-source directory; keep recovery data outside disposable build work. Finish deliberate maintenance with actual players and companions closed, retain a working copy and profiles, then review/relink changed selected executable bytes. Removing registration preserves external files; Portcove does not promise external update, backup, rollback, save conversion or deletion."
+        }
+      ],
+      "warnings": [
+        "Pinned source and provider metadata only: no ZIP/installer/PE inspection, first-run generation, game/helper execution, real saves, installed-client or protected acceptance. Exact original content hashes, package/source correspondence and full-playthrough compatibility remain unqualified. Other games and Linux routes do not inherit this Windows evidence."
+      ],
+      "help_url": "https://github.com/dannyowelch/deception-recomp/blob/fd60be7758bb20ef6622c6055f00ada1b6b7ded4/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

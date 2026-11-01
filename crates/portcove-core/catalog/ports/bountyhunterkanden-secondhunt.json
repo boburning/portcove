@@ -3,7 +3,7 @@
   "listing": {
     "id": "bountyhunterkanden-secondhunt",
     "name": "Metroid Prime Hunters (Second Hunt)",
-    "summary": "Upstream route: Upstream runtime package for Second Hunt; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims campaign completion/crossplay. Optional imported Metroid content has separate inputs; no independent campaign/device test here. SecondHunt fork of NoneGiven/MphRead, game-native engine; compare parent existing ownership before standalone issue. Windows/Android beta; original campaign/multiplayer claims attributed. Upstream platforms: Windows x64/Android ARM64 beta runtimes from MphRead C# recreation. Exact OS minimums beyond reviewed docs Unknown. Original data: Own MetroidPrimeHunters NintendoDS USA v1.0 orv1.1, gamecodeAMHE; other regions unsupported. Optional additional content requires own MetroidPrime1/2/3/Trilogy discs or Prime4Beyond Switch files/keys, but these are not required for base Hunters. Exact baseROM hashes/BIOS requirements remain Unknown here. Portcove setup/gameplay not verified.",
+    "summary": "Attach your independently permitted prepared Second Hunt Windows copy for an owned USA Hunters ROM, preserving its actual data roots and upstream-only updater/replay boundaries.",
     "original_game_title": "Metroid Prime Hunters",
     "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
     "platforms": [],
@@ -17,7 +17,40 @@
       "game_slug": "metroid-prime-hunters",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2845
+    "issue_number": 2845,
+    "manual_setup": {
+      "help_url": "https://github.com/BountyHunterKanden/SecondHunt/blob/6a41f47fa6ed580c0b3ff8f90b2f841acd1d738c/src/SecondHunt.Desktop/dist/README.txt",
+      "steps": [
+        {
+          "title": "Prepare the exact supported Hunters copy upstream",
+          "instruction": "Use an independently permitted complete official Second Hunt Windows copy for personal, noncommercial use under its applicable terms. Supply your own Metroid Prime Hunters USA .nds, gamecodeAMHE, revision0/v1.0 orrevision1/v1.1. The selected setup checks the header gamecode and version byte, not a full-ROM cryptographic digest or entitlement; exact accepted ROM SHA remains Unknown. Complete the upstream picker/drop and extraction until its own game/.extracted marker is established, outside Portcove. No ROM, original assets, keys, importer or extraction is obtained or run by this registration."
+        },
+        {
+          "title": "Attach the normal Windows program",
+          "instruction": "Choose SecondHunt.exe in its complete creating release folder, with that folder as CWD and no arguments for ordinary menus/play after setup. Keep all supplied companions and notices; Windows10/11 x64 and OpenGL3.3+ remain upstream requirements. Public builds use the normal menu path and DesktopApp.Run owns the window/game loop in-process. Do not attach a server, match host, tool, test/replay-prep mode or updater. Review and consent to this exact selected intent, then request Play separately."
+        },
+        {
+          "title": "Preserve the whole effective data root",
+          "instruction": "The public default is %LOCALAPPDATA%/Second Hunt, distinct from development MPH Recomp. Preserve game/files and .extracted, recomp_settings.json, saves/, mods/, cache/, crash/, logs/, replays/imports and all other established state under that root. portable.txt beside the exe selects data/ beside it; the supported --data argument selects its exact full path instead. Preserve the chosen root and any original or imported external sources without inferring another MphRead fork’s saves, migration or compatibility. This guide does not import/export DS saves or promise cross-version/mod save compatibility."
+        },
+        {
+          "title": "Keep updates and recursive cleanup under upstream ownership",
+          "instruction": "The app checks GitHub at launch when its own update-alert setting permits; an accepted upstream update swaps files to .old/.oldN, starts the new program with --after-update and exits. Complete updates/restarts outside attachment and review/relink changed selected bytes; no successor adoption or termination is promised. Independently of an update argument, EVERY normal startup calls AfterUpdate and recursively deletes matching .old/.oldN files anywhere under the executable folder, including a portable data subtree. Before first prepared startup, keep complete recovery copies outside that whole executable tree and its disposable update/staging paths. Core does not disable or own this updater/cleanup."
+        },
+        {
+          "title": "Keep optional content and network operations separate",
+          "instruction": "The base Hunters route does not require Prime1/2/3/Trilogy discs, Prime4Beyond files/keys or optional imported characters/music/arenas. Each additional source has its own ownership/permission requirements. Online/LAN/voice/chat/profile sharing and replay-preparation workers are upstream features, not qualifications or operations offered through this guide. Replay preparation can use background helper invocations; close all actual players/helpers/successors before replacement or another attachment. No private diagnostic shortcut or new Core shell/watcher is introduced."
+        },
+        {
+          "title": "Retain license and replacement boundaries",
+          "instruction": "Second Hunt original post-October20 code/art/documents uses PolyForm Strict with additional personal/noncommercial private modification permission and a redistribution prohibition; MphRead-derived and earlier MIT parts and third-party components retain their own terms. Official licensor-published builds are distinguished in that license; do not mirror or redistribute a copy through this guide. These terms grant no Nintendo/game rights. Upstream/user owns runtime replacement/recovery and every external file. Removing registration preserves all external files; no external update, backup/rollback, save migration, deletion or protected delivery is offered."
+        }
+      ],
+      "warnings": [
+        "Published v0.4.2-beta package integrity is provider expected metadata only; no ZIP/PE bytes or source-to-binary inspection occurred. Header/marker checks are not whole-ROM authentication.",
+        "Upstream campaign/multiplayer/controller/replay/gameplay claims retain their scope. No actual native/game/helper/installer/private source/save, installed-client, Supported or protected acceptance was performed."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
