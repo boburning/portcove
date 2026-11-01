@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Keep the full prepared Windows copy",
-          "instruction": "Use an independently permitted, completed upstream Windows Launcher.exe and its complete companion files. The v1.0.0 Windows ZIP publisher SHA-256 is 19ef61618f3594ffbda4a4ac42c99d182e2777ea92397aba72acd9c3a41d87d0; this identifies the offered package and is not a Portcove inspection of its contents. Keep gamecontrollerdb.txt and applicable SDL/controller notices with a current source-built copy."
+          "instruction": "Use an independently permitted completed Windows copy. The inspected v1.0.0 ZIP (SHA-256 19ef61618f3594ffbda4a4ac42c99d182e2777ea92397aba72acd9c3a41d87d0) contains x64 Launcher.exe, gamecontrollerdb.txt, SDL-LICENSE.txt and the Rom/, Snapshots/ and Screenshots/ instructions. Keep the complete folder together. No original ROM is included. This static inspection does not establish startup, gameplay or snapshot compatibility."
         },
         {
           "title": "Supply the exact original image",
