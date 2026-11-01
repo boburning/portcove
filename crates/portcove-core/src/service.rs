@@ -580,7 +580,11 @@ impl PortcoveService {
         let store = OperationStore::new(self.library.clone());
         for candidate in store.all()? {
             if candidate.kind == LifecycleOperationKind::AcquireUpdate {
-                self.recover_game_update_acquisition(&store, &candidate)?;
+                let acquisition = crate::operation::acquisition::AcquisitionOperation::decode(
+                    &self.library,
+                    candidate,
+                )?;
+                self.recover_game_update_acquisition(&store, &acquisition)?;
                 continue;
             }
             #[cfg(test)]
@@ -3986,6 +3990,7 @@ impl PortcoveService {
         let timestamp = Library::now();
         let version = format!("adopted-{timestamp}");
         lifecycle.activate = true;
+        let mut lifecycle = crate::operation::publication::PublicationJournal::begin(lifecycle)?;
         let mut result = (|| {
             let port = self.catalog.port(&port_id)?;
             let platform = Platform::current()?;
@@ -4020,8 +4025,8 @@ impl PortcoveService {
             )?;
             operation_root = Some(prepared_root.operation_root);
             let operation_root = operation_root.as_ref().expect("operation root assigned");
-            lifecycle.paths.staging = Some(operation_root.clone());
-            store.put(&mut lifecycle)?;
+            lifecycle.set_staging(operation_root.clone())?;
+            lifecycle.persist(&store)?;
             let payload_root = operation_root.join("payload");
             let staged_user = operation_root.join("user");
             fs::create_dir_all(operation_root)?;
@@ -4058,8 +4063,8 @@ impl PortcoveService {
                     "an identical adopted artifact already exists",
                 ));
             }
-            lifecycle.paths.final_path = Some(destination.clone());
-            store.put(&mut lifecycle)?;
+            lifecycle.set_destination(destination.clone())?;
+            lifecycle.persist(&store)?;
             let (manifest_sha256, selected_executable, runtime) = installer.create_manifest(
                 &activity.id,
                 &port_id,
@@ -4101,9 +4106,7 @@ impl PortcoveService {
                     "adoption destination or saved data changed while copying; review the copy plan again",
                 ));
             }
-            lifecycle.install = Some(install.clone());
-            lifecycle.phase = LifecyclePhase::Prepared;
-            store.put(&mut lifecycle)?;
+            lifecycle.prepare(install.clone(), &store)?;
             self.faults.check(LifecycleFaultPoint::AdoptionPrepared)?;
             self.require_definition_adoption(&self.catalog, port)?;
             crate::runtime_data_policy::refuse_sensitive_tree(&payload_root)?;
@@ -4114,12 +4117,10 @@ impl PortcoveService {
                     .expect("version directory has a parent"),
             )?;
             crate::durability::rename_noreplace(&payload_root, &destination)?;
-            lifecycle.phase = LifecyclePhase::PayloadPublished;
-            store.put(&mut lifecycle)?;
+            lifecycle.advance(LifecyclePhase::PayloadPublished, &store)?;
             self.faults.check(LifecycleFaultPoint::AdoptionPublished)?;
             self.library.register_install(&install, true)?;
-            lifecycle.phase = LifecyclePhase::MetadataCommitted;
-            store.put(&mut lifecycle)?;
+            lifecycle.advance(LifecyclePhase::MetadataCommitted, &store)?;
             self.faults
                 .check(LifecycleFaultPoint::AdoptionMetadataCommitted)?;
             if staged_user.exists() {
@@ -4127,9 +4128,7 @@ impl PortcoveService {
             }
             crate::runtime_data_policy::refuse_sensitive_tree(operation_root)?;
             if let Err(error) = fs::remove_dir_all(operation_root) {
-                lifecycle.phase = LifecyclePhase::CleanupPending;
-                lifecycle.last_error = Some(error.to_string());
-                store.put(&mut lifecycle)?;
+                lifecycle.retain_cleanup(error.to_string(), &store)?;
                 return Ok(install);
             }
             store.remove(&lifecycle.id)?;
@@ -4152,10 +4151,10 @@ impl PortcoveService {
                     Ok(())
                 };
                 if let Err(cleanup) = cleanup {
-                    lifecycle.last_error = Some(format!(
+                    let retained_error = format!(
                         "{}; private adoption cleanup failed: {}",
                         error.message, cleanup.message
-                    ));
+                    );
                     error.failure.mutation_state = crate::MutationState::RecoveryRequired;
                     error
                         .details
@@ -4163,7 +4162,7 @@ impl PortcoveService {
                     error
                         .details
                         .insert("cleanup_error".into(), cleanup.message);
-                    if let Err(persist) = store.put(&mut lifecycle) {
+                    if let Err(persist) = lifecycle.record_error(retained_error, &store) {
                         error
                             .details
                             .insert("persistence_error".into(), persist.message);
@@ -4184,8 +4183,7 @@ impl PortcoveService {
                     .details
                     .entry("operation_id".into())
                     .or_insert_with(|| lifecycle.id.clone());
-                lifecycle.last_error = Some(error.message.clone());
-                let _ = store.put(&mut lifecycle);
+                let _ = lifecycle.record_error(error.message.clone(), &store);
             }
         }
         self.finish_activity(activity, result)
@@ -5098,7 +5096,8 @@ impl PortcoveService {
                 first_error = Some(error);
             }
             if owner_kind == crate::LaunchOwnerKind::Managed {
-                let collected = self.collect_user_data_from_install(port_id, &session.install_root);
+                let collected = self
+                    .collect_user_data_from_install_already_locked(port_id, &session.install_root);
                 if let Err(error) = collected
                     && first_error.is_none()
                 {
@@ -5325,7 +5324,10 @@ impl PortcoveService {
             )?;
         }
         if session.owner_kind == crate::LaunchOwnerKind::Managed {
-            self.collect_user_data_from_install(&session.port_id, &session.install_root)?;
+            self.collect_user_data_from_install_already_locked(
+                &session.port_id,
+                &session.install_root,
+            )?;
         }
         self.library.finish_launch_session(
             session_id,
@@ -5658,7 +5660,20 @@ impl PortcoveService {
         Ok(Some(active))
     }
 
+    /// Collect from the exact registered installation under exclusive port ownership.
+    /// A live supervised session also refuses this public operation.
     pub fn collect_user_data_from_install(
+        &self,
+        port_id: &str,
+        install_root: &Path,
+    ) -> Result<Vec<PathBuf>> {
+        let _operation = self.library.try_lock_port(port_id, "collect-user-data")?;
+        self.collect_user_data_from_install_already_locked(port_id, install_root)
+    }
+
+    /// The supervised launch/recovery owner holds the port lock across this call.
+    /// Keep this private so public callers cannot bypass operation exclusion.
+    fn collect_user_data_from_install_already_locked(
         &self,
         port_id: &str,
         install_root: &Path,
@@ -9534,8 +9549,24 @@ mod tests {
                 7 => invalid.install = Some(active.clone()),
                 _ => unreachable!(),
             }
-            store.put(&mut invalid).unwrap();
-            let mut persisted = store.get(&operation.id).unwrap().unwrap();
+            let mut persisted = if matches!(case, 0 | 1 | 7) {
+                assert_eq!(
+                    store.put(&mut invalid).unwrap_err().code,
+                    crate::ErrorCode::State
+                );
+                // Invalid released bytes arrive through the codec, never the
+                // checked writer. Preserve direct recovery and read-refusal proof.
+                store.put(&mut operation).unwrap();
+                library.connection().unwrap().execute(
+                    "UPDATE lifecycle_operations SET preparation_process_quiesced=?2,install_json=?3 WHERE id=?1",
+                    rusqlite::params![operation.id, invalid.preparation_process_quiesced.map(i64::from), invalid.install.as_ref().map(serde_json::to_string).transpose().unwrap()],
+                ).unwrap();
+                assert!(store.get(&operation.id).is_err());
+                invalid.clone()
+            } else {
+                store.put(&mut invalid).unwrap();
+                store.get(&operation.id).unwrap().unwrap()
+            };
             let error = service.recover_removal(&store, &mut persisted).unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::State);
             assert_eq!(
@@ -9549,14 +9580,41 @@ mod tests {
                     .active
                     .is_some()
             );
-            let retained = store.get(&operation.id).unwrap().unwrap();
-            assert_eq!(retained.phase, invalid.phase);
-            assert_eq!(
-                retained.preparation_process_quiesced,
-                invalid.preparation_process_quiesced
-            );
-            assert_eq!(retained.updated_at, invalid.updated_at);
-            assert_eq!(retained.paths.quarantine, invalid.paths.quarantine);
+            if matches!(case, 0 | 1 | 7) {
+                assert!(store.get(&operation.id).is_err());
+                let retained: (Option<i64>, Option<String>, String, Option<String>, i64) = library.connection().unwrap().query_row(
+                    "SELECT preparation_process_quiesced,install_json,phase,quarantine_path,updated_at FROM lifecycle_operations WHERE id=?1",
+                    [&operation.id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                ).unwrap();
+                assert_eq!(
+                    retained,
+                    (
+                        invalid.preparation_process_quiesced.map(i64::from),
+                        invalid
+                            .install
+                            .as_ref()
+                            .map(serde_json::to_string)
+                            .transpose()
+                            .unwrap(),
+                        operation.phase.to_string(),
+                        operation
+                            .paths
+                            .quarantine
+                            .as_ref()
+                            .map(|path| path.to_str().unwrap().to_owned()),
+                        operation.updated_at,
+                    )
+                );
+            } else {
+                let retained = store.get(&operation.id).unwrap().unwrap();
+                assert_eq!(retained.phase, invalid.phase);
+                assert_eq!(
+                    retained.preparation_process_quiesced,
+                    invalid.preparation_process_quiesced
+                );
+                assert_eq!(retained.updated_at, invalid.updated_at);
+                assert_eq!(retained.paths.quarantine, invalid.paths.quarantine);
+            }
             assert!(!library.recovery_dir().join(&operation.id).exists());
             for path in [&original, &unrelated, &saved] {
                 assert_eq!(fs::read(path).unwrap(), b"preserved bytes");
@@ -16821,6 +16879,106 @@ fn main() {
             activated.id
         );
         assert!(OperationStore::new(library).all().unwrap().is_empty());
+    }
+
+    #[test]
+    fn descriptive_catalog_changes_preserve_additive_backup_collection() {
+        const PORT: &str = "zelda64-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = register_zelda_install(&library, "v1", true);
+        let manifest = fs::read(active.join(".portcove-manifest.json")).unwrap();
+        let installed = library
+            .status(PORT, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        let executable = fs::read(active.join(&installed.selected_executable)).unwrap();
+        fs::write(
+            active.join("new-settings.ini"),
+            b"retained runtime preference",
+        )
+        .unwrap();
+        fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let retained = service.status(PORT).unwrap().active.unwrap();
+        let mut document = service
+            .installed_catalog(&retained)
+            .unwrap()
+            .authoritative_document();
+        let current = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == PORT)
+            .unwrap();
+        current.name = "Updated display name".into();
+        current.summary = "Updated descriptive summary".into();
+        current.project_url = "https://example.invalid/project".into();
+        current.automated_tested_platforms = vec![Platform::current().unwrap()];
+        current.manually_validated_platforms = current.automated_tested_platforms.clone();
+        current.upstream_status = crate::UpstreamStatus::Retired;
+        current.presentation = None;
+        current.persistent_paths.push("new-settings.ini".into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let backup = service.create_backup(PORT).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/new-settings.ini")).unwrap(),
+            b"retained runtime preference"
+        );
+        assert_eq!(
+            fs::read(active.join("new-settings.ini")).unwrap(),
+            b"retained runtime preference"
+        );
+        assert_eq!(
+            fs::read(active.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(
+            fs::read(active.join(&installed.selected_executable)).unwrap(),
+            executable
+        );
+        assert!(
+            !service
+                .installed_port(&retained)
+                .unwrap()
+                .persistent_paths
+                .contains(&"new-settings.ini".into())
+        );
+    }
+
+    #[test]
+    fn public_collection_refuses_a_lock_held_by_another_library_handle() {
+        const PORT: &str = "zelda64-recomp";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let active = register_zelda_install(&library, "v1", true);
+        fs::write(active.join("general.json"), b"runtime preference").unwrap();
+        let canonical = library.user_dir(PORT).join("general.json");
+        fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+        fs::write(&canonical, b"canonical witness").unwrap();
+        let other = Library::open(library.root()).unwrap();
+        let service = PortcoveService::new(other).unwrap();
+        let held = library
+            .try_lock_port(PORT, "test-collection-owner")
+            .unwrap();
+        for result in [
+            service.collect_user_data(PORT),
+            service.collect_user_data_from_install(PORT, &active),
+        ] {
+            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Conflict);
+            assert_eq!(fs::read(&canonical).unwrap(), b"canonical witness");
+            assert_eq!(
+                fs::read(active.join("general.json")).unwrap(),
+                b"runtime preference"
+            );
+        }
+        drop(held);
+        service
+            .collect_user_data_from_install(PORT, &active)
+            .unwrap();
+        assert_eq!(fs::read(canonical).unwrap(), b"runtime preference");
     }
 
     #[test]

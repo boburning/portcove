@@ -466,7 +466,7 @@ struct InstallLifecycle {
     destination: std::path::PathBuf,
     operation_root: std::path::PathBuf,
     store: OperationStore,
-    record: LifecycleOperation,
+    record: crate::operation::publication::PublicationJournal,
 }
 
 struct ExternalReplacement<'a> {
@@ -482,18 +482,18 @@ async fn run_managed_install_worker(
     operation: &OperationCoordinator,
     worker: impl FnOnce(OperationCoordinator) -> (Result<()>, bool) + Send + 'static,
 ) -> Result<()> {
-    lifecycle.record.preparation_process_quiesced = Some(false);
-    lifecycle.store.put(&mut lifecycle.record)?;
+    lifecycle
+        .record
+        .record_process_quiescence(false, &lifecycle.store)?;
     let checkpoint = operation.clone();
     // A mutation worker must be joined, including cancellation. A join failure
     // or unwind leaves both the in-memory and durable proof false.
     let (result, quiesced) = tokio::task::spawn_blocking(move || worker(checkpoint))
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))?;
-    let mut completed = lifecycle.record.clone();
-    completed.preparation_process_quiesced = Some(quiesced);
-    lifecycle.store.put(&mut completed)?;
-    lifecycle.record = completed;
+    lifecycle
+        .record
+        .record_process_quiescence(quiesced, &lifecycle.store)?;
     result
 }
 
@@ -724,7 +724,8 @@ impl Installer {
             .as_ref()
             .map(|replacement| replacement.expected_row_sha256.to_owned());
         let store = OperationStore::new(self.library.clone());
-        store.put(&mut record)?;
+        let mut record = crate::operation::publication::PublicationJournal::begin(record)?;
+        record.persist(&store)?;
         let mut lifecycle = InstallLifecycle {
             destination,
             operation_root,
@@ -761,7 +762,7 @@ impl Installer {
                     ) {
                         let mut refusal = PortcoveError::new(crate::ErrorCode::Cancelled,
                             "Publication was cancelled; private preparation cleanup requires review")
-                            .detail("operation_id", lifecycle.record.id).detail("cleanup_error", cleanup.message);
+                            .detail("operation_id", &lifecycle.record.id).detail("cleanup_error", cleanup.message);
                         // Retain bounded native proof diagnostics without changing cleanup authority.
                         refusal
                             .details
@@ -775,13 +776,14 @@ impl Installer {
                     &lifecycle.record,
                     self.faults.as_ref(),
                 ) {
-                    lifecycle.record.phase = LifecyclePhase::CleanupPending;
-                    lifecycle.record.install = None;
-                    lifecycle.record.last_error = Some(format!(
+                    let retained_error = format!(
                         "{}; private preparation cleanup failed: {}",
                         error.message, cleanup.message
-                    ));
-                    if let Err(persist) = lifecycle.store.put(&mut lifecycle.record) {
+                    );
+                    if let Err(persist) = lifecycle
+                        .record
+                        .retain_cleanup(retained_error, &lifecycle.store)
+                    {
                         let mut refusal = PortcoveError::state(
                             "install failed and private cleanup state could not be retained",
                         )
@@ -805,8 +807,9 @@ impl Installer {
                         .insert("cleanup_error".into(), cleanup.message);
                 }
             } else {
-                lifecycle.record.last_error = Some(error.message.clone());
-                let _ = lifecycle.store.put(&mut lifecycle.record);
+                let _ = lifecycle
+                    .record
+                    .record_error(error.message.clone(), &lifecycle.store);
             }
         }
         result
@@ -1261,12 +1264,12 @@ impl Installer {
             },
             &install.path,
         )?;
-        lifecycle.record.install = Some(install.clone());
         self.faults
             .check(LifecycleFaultPoint::InstallReadyToPublish)?;
         operation.begin_publication()?;
-        lifecycle.record.phase = LifecyclePhase::Prepared;
-        lifecycle.store.put(&mut lifecycle.record)?;
+        lifecycle
+            .record
+            .prepare(install.clone(), &lifecycle.store)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
         self.require_acquisition(&request)?;
         if let Some(contract) = &request.qualification.retained_contract {
@@ -1298,8 +1301,9 @@ impl Installer {
         } else {
             crate::durability::rename_noreplace(&payload_root, &lifecycle.destination)?;
         }
-        lifecycle.record.phase = LifecyclePhase::PayloadPublished;
-        lifecycle.store.put(&mut lifecycle.record)?;
+        lifecycle
+            .record
+            .advance(LifecyclePhase::PayloadPublished, &lifecycle.store)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
         self.require_acquisition(&request)?;
         if let Some(contract) = &request.qualification.retained_contract {
@@ -1322,8 +1326,9 @@ impl Installer {
         } else {
             self.library.register_install(&install, request.activate)?;
         }
-        lifecycle.record.phase = LifecyclePhase::MetadataCommitted;
-        lifecycle.store.put(&mut lifecycle.record)?;
+        lifecycle
+            .record
+            .advance(LifecyclePhase::MetadataCommitted, &lifecycle.store)?;
         self.faults
             .check(LifecycleFaultPoint::InstallMetadataCommitted)?;
         let cleanup = (|| -> Result<()> {
@@ -1341,9 +1346,9 @@ impl Installer {
             Ok(())
         })();
         if let Err(error) = cleanup {
-            lifecycle.record.phase = LifecyclePhase::CleanupPending;
-            lifecycle.record.last_error = Some(error.to_string());
-            lifecycle.store.put(&mut lifecycle.record)?;
+            lifecycle
+                .record
+                .retain_cleanup(error.to_string(), &lifecycle.store)?;
             return Ok(install);
         }
         lifecycle.store.remove(&lifecycle.record.id)?;
@@ -4209,7 +4214,7 @@ mod tests {
             destination: staging.join("unused"),
             operation_root: staging.clone(),
             store: store.clone(),
-            record,
+            record: crate::operation::publication::PublicationJournal::begin(record).unwrap(),
         };
         let error = run_managed_install_worker(&mut lifecycle, &operation, |_| (Ok(()), true))
             .await
@@ -4254,7 +4259,7 @@ mod tests {
                 destination: staging.join("unused"),
                 operation_root: staging.clone(),
                 store: store.clone(),
-                record,
+                record: crate::operation::publication::PublicationJournal::begin(record).unwrap(),
             };
             let worker_store = store.clone();
             let worker_staging = staging.clone();
@@ -4331,7 +4336,7 @@ mod tests {
                 destination: staging.join("unused"),
                 operation_root: staging.clone(),
                 store: store.clone(),
-                record,
+                record: crate::operation::publication::PublicationJournal::begin(record).unwrap(),
             };
             let latch = Arc::new((Mutex::new((false, false)), std::sync::Condvar::new()));
             let worker_latch = latch.clone();

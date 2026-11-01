@@ -3480,7 +3480,16 @@ environment remains authoritative. A runtime-only `Save` interpretation uses the
 existing checked additive-mutability rules. Frozen current/retained catalog
 contracts and manifests remain unchanged, including during checked import.
 `installed_mutability` owns this checked interpretation for both service actions
-and transfer destination verification. Transfer supplies the retained definition
+and transfer destination verification. Its exhaustive operational projection excludes
+display name, summary, project URL, presentation, qualification observations and
+upstream maintenance status, plus the two
+path lists whose additive changes are proved separately. Release locations,
+executable selection, source/preparation settings, support/platform/channel policy
+and all other operational inputs must still match. The selected interpretation is
+built from the retained definition; descriptive edits never rewrite retained authority.
+Public ordinary and exact-install collection acquire the port lock before selection
+or mutation. Supervised launch and stale-session recovery use a private already-locked
+exact-install helper under their existing session-wide ownership. Transfer supplies the retained definition
 as both baselines, so current catalog changes cannot expand imported authority;
 immutable overlap and unexpected files still refuse verification.
 The same exact artifact has a persistent `SoHTimeSplitData.json` leaf for
@@ -3517,6 +3526,22 @@ interpret generic flags. Decoding does not write files or journals and is not au
 Catalog identity, port locks, one-use consent, original/source preservation and filesystem
 revalidation remain required. Typed path snapshots cannot replace symlink/ownership
 checks at mutation boundaries. SQLite, public schemas and journal encodings are unchanged.
+
+### Checked lifecycle journal boundary
+
+The released lifecycle row remains the storage codec. Family payload consistency
+is checked on reads and writes; unknown or malformed records stay retained and
+refuse consequential use. `operation::acquisition` owns immutable acquisition
+payload decoding, identity/path validation, legal phase transitions and the
+store's transactional capacity limits. The service owns downloading, resource
+admission and recovery side effects through a checked acquisition value.
+`operation::publication` checks the install/adopt/prepare publication envelope.
+Normal writers use an owned journal with narrow preparation, publication, process
+proof and cleanup methods; recovery uses a checked borrowed view. Both retain
+phase-advance ownership below orchestration. Private cancellation
+cleanup retains its separate interpreter. Existing checked restore, activation,
+removal, backup deletion, source import and relocation representations retain
+their family contracts. No database migration or new durable store is introduced.
 
 ### Route-bound game-file query construction
 

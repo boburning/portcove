@@ -56,6 +56,20 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+// Cross a browser task boundary so rejected promises reach the browser's
+// unhandled-rejection reporting checkpoint, independently of the fake clock.
+function nextBrowserTask() {
+  return new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      channel.port2.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+}
+
 let root: RenderResult;
 let host: HTMLDivElement;
 let data: ReturnType<typeof usePortcoveData>;
@@ -560,6 +574,101 @@ describe("workspace refresh recovery", () => {
     expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledWith(7);
     expect(data.diagnosticsStale).toBe(true);
   });
+
+  it("owns a failed library-event refresh and recovers on a later event", async () => {
+    await render();
+    const previousCatalog = data.catalog;
+    const error = failureReport();
+    const failed = deferred<WorkspaceSnapshot>();
+    vi.mocked(desktopApi.workspaceSnapshot).mockReturnValueOnce(failed.promise);
+    const unhandled: unknown[] = [];
+    const onUnhandled = (event: PromiseRejectionEvent) => unhandled.push(event.reason);
+    window.addEventListener("unhandledrejection", onUnhandled);
+    try {
+      await act(async () => {
+        eventHandlers.get("portcove://library-changed")!({ payload: "external mutation" });
+        await nextBrowserTask();
+      });
+      expect(data.refreshing).toBe(true);
+      await act(async () => {
+        failed.reject(error);
+        await nextBrowserTask();
+      });
+      expect(data.refreshFailure?.error).toBe(error);
+      expect(data.refreshing).toBe(false);
+      expect(data.catalog).toBe(previousCatalog);
+      expect(data.recoveryFailure).toBeUndefined();
+      expect(data.subscriptionFailure).toBeUndefined();
+      expect(data.diagnosticsStale).toBe(true);
+      expect(host.textContent).toContain("Library information could not be refreshed");
+      expect(host.querySelectorAll('[role="alert"]')).toHaveLength(1);
+      expect(unhandled).toEqual([]);
+
+      const recovered = { ...snapshot, statuses: [] };
+      vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(recovered);
+      await act(async () => {
+        eventHandlers.get("portcove://library-changed")!({ payload: "later mutation" });
+        await nextBrowserTask();
+      });
+      expect(data.statuses).toEqual([]);
+      expect(data.refreshFailure).toBeUndefined();
+      expect(host.textContent).not.toContain("Library information could not be refreshed");
+      expect(unhandled).toEqual([]);
+    } finally {
+      window.removeEventListener("unhandledrejection", onUnhandled);
+    }
+  });
+
+  it("ignores a retained library-event callback after subscription disposal", async () => {
+    await render();
+    const onEvent = eventHandlers.get("portcove://library-changed")!;
+    await root.rerender(null);
+    vi.mocked(desktopApi.workspaceChanged).mockClear();
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+
+    await act(async () => {
+      onEvent({ payload: "late mutation" });
+      await nextBrowserTask();
+    });
+
+    expect(desktopApi.workspaceChanged).not.toHaveBeenCalled();
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+    expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it.each(["success", "failure"] as const)(
+    "discards a library-event refresh %s from an obsolete library generation",
+    async (outcome) => {
+      await render();
+      const onPreviousEvent = eventHandlers.get("portcove://library-changed")!;
+      const previous = deferred<WorkspaceSnapshot>();
+      vi.mocked(desktopApi.workspaceSnapshot).mockReturnValueOnce(previous.promise);
+      await act(async () => {
+        onPreviousEvent({ payload: "previous library mutation" });
+        await nextBrowserTask();
+      });
+      expect(data.refreshing).toBe(true);
+      const current = { ...snapshot, statuses: [] };
+      vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValueOnce(current);
+      await root.rerender(<Fixture generation={8} />);
+      await act(nextBrowserTask);
+      expect(desktopApi.workspaceSnapshot).toHaveBeenLastCalledWith(8);
+      const currentStatuses = data.statuses;
+      vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+      await act(async () => {
+        onPreviousEvent({ payload: "disposed previous callback" });
+        if (outcome === "success") previous.resolve(snapshot);
+        else previous.reject(failureReport());
+        await nextBrowserTask();
+      });
+      expect(desktopApi.workspaceSnapshot).not.toHaveBeenCalled();
+      expect(data.statuses).toBe(currentStatuses);
+      expect(data.statuses).toEqual([]);
+      expect(data.refreshFailure).toBeUndefined();
+      expect(data.refreshing).toBe(false);
+    },
+  );
 
   it("observes an external durable change while idle without a desktop event", async () => {
     await render();
