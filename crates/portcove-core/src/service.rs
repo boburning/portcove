@@ -432,20 +432,13 @@ impl PortcoveService {
     ) -> Result<DoctorReport> {
         // Doctor needs durable active pointers, not hydrated readiness/acquisition
         // assessments: malformed journals must not block their own diagnosis.
-        let installed_port_count = {
-            let connection = self.library.connection()?;
-            let mut query = connection.prepare(
-                "SELECT settings.port_id FROM port_settings AS settings
-                 JOIN installs ON installs.id=settings.active_install_id
-                 AND installs.port_id=settings.port_id",
-            )?;
-            let ids = query
-                .query_map([], |row| row.get::<_, String>(0))?
-                .collect::<rusqlite::Result<Vec<_>>>()?;
-            ids.iter()
-                .filter(|id| self.catalog.port(id).is_ok())
-                .count()
-        };
+        let installed_port_count = self.library.connection()?.query_row(
+            "SELECT count(*) FROM port_settings AS settings
+             JOIN installs ON installs.id=settings.active_install_id
+             AND installs.port_id=settings.port_id",
+            [],
+            |row| row.get(0),
+        )?;
         Ok(DoctorReport {
             platform: Platform::current()?,
             library: self.library.storage_summary()?,
@@ -18743,6 +18736,58 @@ mod journal_diagnostic_tests {
                 (table, values)
             })
             .collect()
+    }
+
+    #[test]
+    fn doctor_counts_retained_active_metadata_without_hydrating_journal_status() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        super::tests::register_zelda_install(&library, "previous", true);
+        super::tests::register_zelda_install(&library, "active", true);
+        super::tests::register_zelda_install(&library, "staged", false);
+        let mut service = PortcoveService::new_read_only(library.clone()).unwrap();
+        let mut document = service.catalog.authoritative_document();
+        document.ports.retain(|port| port.id != "zelda64-recomp");
+        let sources = document.source_catalog.as_mut().unwrap();
+        sources
+            .contracts
+            .retain(|contract| contract.port_id != "zelda64-recomp");
+        sources
+            .qualification
+            .retain(|record| record.scope.port_id != "zelda64-recomp");
+        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert_eq!(library.all_installs().unwrap().len(), 3);
+        let preferences =
+            HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        assert_eq!(
+            service
+                .doctor_with_preferences(&preferences)
+                .unwrap()
+                .installed_port_count,
+            1
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute_batch(
+                "INSERT INTO lifecycle_operations(id,kind,port_id,phase,created_at,updated_at)
+             VALUES ('retained-corrupt','install','zelda64-recomp','prepared',1,2)",
+            )
+            .unwrap();
+        let before = database_state(&library);
+        let files = crate::test_fixture::library_file_snapshot(&library);
+        let report = service.doctor_with_preferences(&preferences).unwrap();
+        assert_eq!(report.installed_port_count, 1);
+        assert!(
+            !report
+                .repair
+                .journal_diagnostics
+                .unwrap()
+                .problems
+                .is_empty()
+        );
+        assert_eq!(database_state(&library), before);
+        assert_eq!(crate::test_fixture::library_file_snapshot(&library), files);
     }
 
     #[test]

@@ -3570,7 +3570,8 @@ row decoder and validators, retaining recognized row failures as static typed
 observations. It has no mutation adapter. SQLite access/enumeration errors and
 unexpected validation failures propagate; they never become empty inventory.
 
-Doctor counts durable active installation pointers without hydrated acquisition
+Doctor counts all durable same-port active installation pointers as metadata,
+including retained installations absent from the current catalog, without hydrated acquisition
 status reads, so malformed acquisition state cannot prevent its own diagnosis.
 Repair reporting shows decoded pending work without recovering it. Invalid rows
 produce review-only items with synthetic SQLite locators, no owned path and no
