@@ -204,6 +204,16 @@ further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
+The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
+complete inert recovery snapshot, in addition to the existing four-MiB summary
+reserve. Source handoffs use the remaining eight MiB across all batches. The
+snapshot contains the catalog scheduler and its referenced per-source checkpoints;
+it excludes reports, locks, temporary files and executables. If the entire snapshot
+cannot fit its reserve, publication fails visibly and the original checkpoints and
+cache remain retained. This is no increase to the request, runtime, response or
+aggregate output allowances, and does not guarantee capacity for every future
+catalog workset.
+
 A handoff that cannot fit the remaining batch stays checkpointed for a later
 automatic batch. An individual handoff exceeding the physical response envelope
 is explicitly held for a reviewed framed-handoff capability; it is not reported
@@ -237,6 +247,30 @@ seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
 Workflow concurrency permits one active run per ref. The scheduled upper bound
 is four jobs/forty runner-minutes daily, plus explicitly requested manual runs;
 actual usage is lower with a warm build cache. There are no agent/model calls.
+
+The main observer job has `contents: read` and `actions: read`; the latter permits
+retrieval of the preceding scheduled observer's checkpoint artifact. No write,
+signing or publication permission follows. The existing cache remains the fast
+path with its original thirty-two-MiB per-file reader limits. On complete cache
+loss, recovery admits only the same repository, workflow and default branch's
+completed scheduled producer, including a failed run carrying a complete snapshot.
+Provider run/artifact identity, main ancestry, the exact configuration digest,
+artifact digest, archive structure and the complete checkpoint graph are checked
+before an absent checkpoint tree is published atomically. A partial or foreign
+cache is preserved and refused. Existing current catalog/Core scope and freshness
+checks still apply; restoration never refreshes an observation clock.
+
+Recovery has one at-most-sixty-second collection opportunity inside the existing
+nine-minute job opportunity, with finite metadata, compressed and expanded bytes
+and no automatic retry. Snapshots have one-day retention and a twenty-four-hour
+recovery-age bound. The deployment cutover explicitly records a new baseline only
+when trusted predecessor source shows no matching snapshot publisher; an older
+publisher is inspected even after artifact expiry. Missing post-cutover history,
+invalid or unavailable advertised artifacts and incomplete inventories require
+explicit recovery rather than a silent new baseline. Interrupted snapshot export
+does not erase the earlier cache or original failures. A later real scheduled
+run must demonstrate continued source/page/Core progress separately from fixture
+tests and an individual batch's `made_progress` field.
 
 Only checkpoint/report files enter the observation cache, scoped by config and
 ref; interrupted locks and temporary files do not. Reports have seven-day

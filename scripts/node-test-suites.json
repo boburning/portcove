@@ -369,6 +369,13 @@
       ]
     },
     {
+      "file": "scripts/observer-checkpoint-artifact.test.mts",
+      "memberships": [
+        ["catalog-full", 1203],
+        ["repository-tools", 404]
+      ]
+    },
+    {
       "file": "scripts/provider-release-observation.test.mts",
       "memberships": [
         ["catalog-full", 1202],

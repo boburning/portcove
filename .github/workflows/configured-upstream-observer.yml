@@ -14,6 +14,10 @@ concurrency:
 
 jobs:
   observe:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -46,6 +50,10 @@ jobs:
           path: work/upstream-health/checkpoint.json
           key: upstream-health-history-v1-main-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: upstream-health-history-v1-main-
+      - name: Recover exact observer checkpoints after cache loss
+        run: node scripts/observer-checkpoint-artifact.mts restore
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Build shared policy inspector
         run: cargo build --locked -p portcove-cli
       - name: Observe catalog sources through shared Core policy
@@ -53,6 +61,18 @@ jobs:
         run: node scripts/observe-catalog-upstreams.mts --cli target/debug/portcove
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Export bounded checkpoint recovery snapshot
+        id: checkpoint
+        if: ${{ !cancelled() && hashFiles('work/upstream-observer/catalog/checkpoint.json') != '' }}
+        run: node scripts/observer-checkpoint-artifact.mts export
+      - name: Retain checkpoint recovery snapshot
+        if: ${{ !cancelled() && hashFiles('work/upstream-observer-snapshot/checkpoint.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.checkpoint.outputs.artifact_name }}
+          path: work/upstream-observer-snapshot/checkpoint.json
+          if-no-files-found: error
+          retention-days: 1
       - name: Preserve complete checkpoint and deduplicated exception
         if: ${{ !cancelled() && hashFiles('work/upstream-observer/*/checkpoint.json') != '' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
