@@ -26,6 +26,7 @@ mod cancellation;
 mod catalog;
 mod startup;
 use catalog::CatalogCommand;
+mod game_settings;
 mod human;
 mod human_adapters;
 mod progress;
@@ -853,6 +854,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     )?;
                 }
             }
+        }
+        Commands::GameSettings { command } => {
+            game_settings::execute(command, &service, mode)?;
         }
         Commands::Catalog { command } => {
             catalog::execute(command, &service, mode, cli.non_interactive).await?;
@@ -3108,6 +3112,7 @@ fn command_name(command: &Commands) -> &'static str {
             BackupCommand::Delete { .. } => "backup.delete",
             BackupCommand::Restore { .. } => "backup.restore",
         },
+        Commands::GameSettings { command } => game_settings::name(command),
         Commands::Catalog { command } => command.name(),
         Commands::Source { command } => match command {
             SourceCommand::Add { .. } => "source.add",

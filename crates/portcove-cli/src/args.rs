@@ -18,7 +18,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Game files and library",
         &[
-            "source", "backup", "library", "storage", "artwork", "output",
+            "source", "backup", "game-settings", "library", "storage", "artwork", "output",
         ],
     ),
     (
@@ -171,6 +171,11 @@ pub(crate) enum Commands {
     Backup {
         #[command(subcommand)]
         command: BackupCommand,
+    },
+    /// Read, review, or apply one retained installation's declared game setting.
+    GameSettings {
+        #[command(subcommand)]
+        command: GameSettingsCommand,
     },
     /// Browse ports and inspect or update the trusted catalog.
     Catalog {
@@ -1668,4 +1673,33 @@ mod tests {
         );
         assert!(Cli::try_parse_from(["portcove", "--json", "--jsonl", "status"]).is_err());
     }
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum GameSettingsCommand {
+    /// Read available settings without changing game configuration.
+    List { port_id: String },
+    /// Review a single typed value or the declared default before applying it.
+    Review(GameSettingIntentArgs),
+    /// Apply the exact preceding review; stale inputs refuse the change.
+    Apply {
+        #[command(flatten)]
+        intent: GameSettingIntentArgs,
+        /// Exact review SHA-256 returned by game-settings review.
+        #[arg(long)]
+        expected_review: String,
+    },
+}
+
+#[derive(Debug, Args)]
+pub(crate) struct GameSettingIntentArgs {
+    pub(crate) port_id: String,
+    pub(crate) file_id: String,
+    pub(crate) setting_id: String,
+    /// One JSON scalar, such as 70, true, or a quoted enum choice.
+    #[arg(long, conflicts_with = "reset", required_unless_present = "reset")]
+    pub(crate) value: Option<String>,
+    /// Replace only this key with its retained declared default.
+    #[arg(long)]
+    pub(crate) reset: bool,
 }

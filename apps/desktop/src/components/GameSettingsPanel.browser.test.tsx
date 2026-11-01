@@ -4,6 +4,8 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
 import type { GameSettingChange, GameSettingReview, GameSettingsView } from "../types";
 import { GameSettingsPanel, type GameSettingsActions } from "./GameSettingsPanel";
+import { GameSettingsControl } from "./GameSettingsControl";
+import { desktopApi } from "../api";
 import "../styles/index.css";
 
 const mounted: { root: Root; host: HTMLElement }[] = [];
@@ -13,6 +15,7 @@ afterEach(async () => {
     host.remove();
   }
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function settings(): GameSettingsView {
@@ -229,7 +232,7 @@ it("keyboard cancellation returns focus without applying", async () => {
   expect(actions.apply).not.toHaveBeenCalled();
 });
 
-it.each(["shipwright", "diddy-kong-racing-golden-balloon"])(
+it.each(["shipwright", "diddy-kong-racing-golden-balloon", "decimal-fixture"])(
   "submits typed numeric intent through the same controls for %s",
   async (portId) => {
     const view = settings();
@@ -237,11 +240,15 @@ it.each(["shipwright", "diddy-kong-racing-golden-balloon"])(
     const file = view.files[0];
     if (!file || !file.settings[0]) throw new Error("Missing controlled setting");
     const setting = file.settings[0];
-    const value = portId === "shipwright" ? 85 : 1.35;
-    if (portId !== "shipwright") {
-      file.path = "GoldenBalloon/mdkr64_app.ini";
-      setting.id = "interface-scale";
-      setting.label = "Interface scale";
+    const value = portId === "decimal-fixture" ? 1.35 : 85;
+    if (portId === "diddy-kong-racing-golden-balloon") {
+      file.path = "GoldenBalloon/mdkr64.ini";
+      setting.value_type = { kind: "integer", minimum: 0, maximum: 100, step: 1, default: 100 };
+    }
+    if (portId === "decimal-fixture") {
+      file.path = "preferences.ini";
+      setting.id = "scale";
+      setting.label = "Scale";
       setting.value = 1;
       setting.value_type = { kind: "number", minimum: 0.75, maximum: 2, step: 0.05, default: 1 };
     }
@@ -339,4 +346,86 @@ it("refuses empty numeric input before review and isolates an unavailable file",
   expect(host.querySelector("[role=alert]")?.textContent).toContain("finite value");
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
+});
+
+it("binds explicit settings reads to the current library and installation", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  let resolveOld: ((value: GameSettingsView) => void) | undefined;
+  const read = vi
+    .spyOn(desktopApi, "gameSettings")
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+    )
+    .mockResolvedValue(settings());
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ root, host });
+  await act(async () =>
+    root.render(
+      <GameSettingsControl
+        portId="shipwright"
+        installId="retained-install"
+        generation={1}
+        busy={false}
+      />,
+    ),
+  );
+  expect(read).not.toHaveBeenCalled();
+  await click("Read game settings");
+  expect(read).toHaveBeenCalledWith("shipwright", 1);
+  await act(async () =>
+    root.render(
+      <GameSettingsControl
+        portId="shipwright"
+        installId="new-install"
+        generation={2}
+        busy={false}
+      />,
+    ),
+  );
+  await act(async () => resolveOld?.(settings()));
+  expect(host.querySelector("input")).toBeNull();
+  expect(host.textContent).toContain("Read game settings");
+  await click("Read game settings");
+  expect(read).toHaveBeenLastCalledWith("shipwright", 2);
+  expect(host.querySelector("[role=alert]")?.textContent).toContain("installation changed");
+  expect(host.querySelector("input")).toBeNull();
+});
+
+it("retries a failed settings read and preserves a local unavailable reason", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const read = vi
+    .spyOn(desktopApi, "gameSettings")
+    .mockRejectedValueOnce(new Error("controlled read failure"))
+    .mockResolvedValue({
+      ...settings(),
+      available: false,
+      install_id: null,
+      reason: "Retained release does not offer settings",
+      files: [],
+    });
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ root, host });
+  await act(async () =>
+    root.render(
+      <GameSettingsControl
+        portId="shipwright"
+        installId="retained-install"
+        generation={1}
+        busy={false}
+      />,
+    ),
+  );
+  await click("Read game settings");
+  expect(host.querySelector("[role=alert]")?.textContent).toContain("controlled read failure");
+  await click("Read settings again");
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain("Retained release does not offer settings");
+  expect(host.querySelector("input")).toBeNull();
 });
