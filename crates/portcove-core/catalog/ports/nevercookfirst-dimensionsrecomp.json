@@ -3,7 +3,7 @@
   "listing": {
     "id": "nevercookfirst-dimensionsrecomp",
     "name": "LEGO Dimensions / DimensionsRecomp (NeverCookFirst)",
-    "summary": "Explore LEGO Dimensions / DimensionsRecomp (NeverCookFirst) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Windows LEGO Dimensions guidance for an independently permitted completed legodimensions.exe installation using your own exact Xbox 360 disc and TU23. Upstream installer/updater owns replacement, content, mods and data.",
     "project_url": "https://github.com/NeverCookFirst/DimensionsRecomp",
     "issue_number": 1817,
     "platforms": [],
@@ -16,6 +16,35 @@
       "image_sha256": "926c7b6a37f16a6fdc45dc4d305b21e32bb3fee603ed842892f233ff24a1e80c",
       "game_slug": "lego-dimensions",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep an independently permitted complete installation",
+          "instruction": "Use the completed Windows installation and components you are independently permitted to use. The released setup installs a statically recompiled player; code/component licences and ownership of a disc do not themselves establish permission for every translated game-code package component. Fresh acquisition of that specific component remains conditional on applicable permission or an authorized source; this existing-copy guide grants neither. Keep the full installation and supplied tools/resources/notices."
+        },
+        {
+          "title": "Supply the exact own disc and title update through upstream",
+          "instruction": "Finish upstream setup outside Portcove with your own extracted Xbox360 original disc folder, not an ISO: Default.xex, GAME.DAT/GAME.HDR and all required archives. The source checks title5752084B and media72B1DD2A plus required archive sizes. Use TU23, not TU22/TU24: Default.xexp must be11,114,496bytes with SHA-256 a5169f508036d024312537d3ce64c07bf0680a87d9e0a282ff80461cf4a646a9. Supply the supported raw tu00000003_00000000 package or extracted Default.xexp/PATCH.DAT/PATCH.HDR. DLC is optional and must also be your own permitted input. Keep all original sources unchanged."
+        },
+        {
+          "title": "Select the actual installed native entry",
+          "instruction": "Select legodimensions.exe, use its complete containing installation directory as working directory and leave arguments empty. Keep matching game/, update/, content/, mods/, tools and any update-mods/ companions produced by the installer. Do not select DimensionsRecompiled-Setup.exe, rexupdate.exe, modcli.exe or a tool script. The native window/game stays in the selected process. Saving launch details and Play are separate actions; driver changes and external Toy Pad setup remain upstream/user tasks."
+        },
+        {
+          "title": "Preserve state and paths before startup or relocation",
+          "instruction": "Back up the complete installation, legodimensions.toml, content/ (the configured user-data/save/profile/DLC root), game.log/logs, mods/ and update-mods/, plus custom user_data_root, metadata_root, cache_root, game_data_root, update_data_root and log paths recorded by your setup. Preserve external Toy Pad app settings and original sources separately. The startup relocation helper rewrites paths under an old missing install root to the new executable folder when its game/ exists; it changes configured path references rather than proving save migration. Preserve both locations before moving/starting. Before startup, separately back up both actual vanilla update_data_root and mods_update_root, including PATCH3.DAT/PATCH3.HDR and their .off variants, plus the old/new configuration and recovery copies outside both roots. Upstream applies the fern setting to both roots at startup, renames those files to/from .off and can remove an older .off when a live file exists. Its startup also forces present_effect fsr2/fsr3 to fsr and readback_memexport_batched to false; preserve prior settings without treating those compatibility changes as Portcove migration or feature control."
+        },
+        {
+          "title": "Keep updates, companions and replacement with upstream",
+          "instruction": "Upstream owns installer updates, DLC import, mod application, config merging and recovery. Installer/updater can enforce compatibility settings and replace runtime/mod files; preserve old complete output and custom data outside all replacement paths first. The game may check for updates and, on your choice, start an external updater and exit; that updater/relaunched game is outside this entry’s tracked session. Optional Toy Pad autostart is upstream-owned; externally started companions remain your responsibility. Close every actual game, updater, restart successor and companion before backup/relink/removal. Review/relink changed selected bytes afterward. Removing registration preserves external files; no Portcove-managed update/rollback/backup/migration/deletion or successor adoption is offered."
+        }
+      ],
+      "warnings": [
+        "Only the exact supported Xbox360 disc and TU23 fit; a title-update filename alone is insufficient. Physical USB-pad driver changes and optional companions require upstream setup. Complete campaign, save/mod compatibility and successor continuation are not guaranteed by this guide."
+      ],
+      "help_url": "https://github.com/NeverCookFirst/DimensionsRecomp/blob/a56de4245dbe2ea7f0d7aa6fb7637ebc29a3bed7/README.md"
+    },
+    "download_block_reason": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate."
   }
 }

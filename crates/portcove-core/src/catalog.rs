@@ -6634,7 +6634,9 @@ mod tests {
             port.launch_environment.get("MDKR_APP_PREFS_DIR"),
             Some(&".".into())
         );
-        assert_eq!(port.launch_arguments, ["--rom", "dkr-v80.z64"]);
+        // Golden's --rom route bypasses the interactive shell and its settings
+        // overlay. The shell remembers a player-reviewed ROM choice instead.
+        assert_eq!(port.launch_arguments, ["--ui"]);
         assert_eq!(port.runtime_subdirectory.as_deref(), Some("GoldenBalloon"));
         for path in [
             "GoldenBalloon/dkr-v80.z64",

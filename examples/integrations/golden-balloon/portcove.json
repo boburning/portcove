@@ -38,7 +38,7 @@
     "runtime_subdirectory": "GoldenBalloon",
     "runtime_source_filename": "dkr-v80.z64",
     "runtime_source_materialization": "n64-big-endian",
-    "launch_arguments": ["--rom", "dkr-v80.z64"],
+    "launch_arguments": ["--ui"],
     "presentation": {
       "installation_method": "portable-recompilation",
       "source_requirements": [

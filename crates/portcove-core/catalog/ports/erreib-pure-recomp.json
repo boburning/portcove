@@ -3,7 +3,7 @@
   "listing": {
     "id": "erreib-pure-recomp",
     "name": "Wipeout Pure (pure-recomp)",
-    "summary": "Upstream route: Upstream local setup/runtime package for pure-recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream describes the PSP static port and graphics enhancements. Exact US Greatest Hits v2.00 gate remains mandatory; full playthrough unverified here. Rejects other editions. macOS ARM64/Windows x64 packages; preserve version gate and Metal/Vulkan requirements, not generic Wipeout Pure ROM support. Upstream platforms: macOS Apple Silicon/Metal and Windows x64/Vulkan. Native Linux and Intel Mac routes not established. Original data: Own WipeoutPure PSP US GreatestHits UCUS98612v2.00 disc image. Setup refuses other editions. Original US DLC packs are optional player files. Exact executable hashes and any firmware requirements beyond these remain Unknown here. Portcove setup/gameplay not verified.",
+    "summary": "Register an independently permitted prepared Wipeout Pure Windows copy for your own US Greatest Hits v2.00 disc, keeping external saves, optional DLC and upstream maintenance separate.",
     "original_game_title": "Wipeout Pure",
     "project_url": "https://github.com/erreib/pure-recomp",
     "platforms": [],
@@ -17,7 +17,36 @@
       "game_slug": "wipeout-pure",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2749
+    "issue_number": 2749,
+    "manual_setup": {
+      "help_url": "https://github.com/erreib/pure-recomp/blob/13ac3986efccc87bc6ebe0218ca005ec838e0652/packaging/windows/README.txt",
+      "steps": [
+        {
+          "title": "Complete the exact owned-disc setup upstream",
+          "instruction": "Use an independently permitted complete pure-recomp Windows copy and your own Wipeout Pure US Greatest Hits UCUS-98612 version2.00 ISO. This guide covers only the known plain on-disc BOOT.BIN SHA-256 9033e4dd3433116eee2fd309f9c775e332e54da292d7a85075d3b4ccdb9b5750. The profile records encrypted EBOOT.BIN SHA-256 0228768504ea79edf5c2c5301e0c3fd3c4f1bfc32b6e59e2dd0de5fef8028453 as reference metadata; no separate EBOOT read/hash check is demonstrated by the selected BOOT path. It prepares the plain BOOT.BIN without a separate PSP decryption key. Different-region disc IDs are rejected. Upstream run_unknown_executables permits an unknown plain executable with the same accepted disc ID after a warning/interpreter route; that broader route is outside this guide. Complete the supported known-input first-run check/copy-or-in-place setup upstream; Portcove does not acquire, import, extract or compile the original."
+        },
+        {
+          "title": "Attach the documented Windows player",
+          "instruction": "Select Wipeout Pure.exe with the complete creating Wipeout Pure package directory as working directory and no arguments for normal play after setup. The exact v0.2.0 package README documents that entry; the bundle recipe copies the native PureNative build to that name. Keep all supplied DLLs, fonts/resources and notices together. The source entry delegates to the normal PortableKit game path in the same program; source patches and an uninspected package are not a binary/source certificate. Do not attach a build script, Mac bundle, replay tool or setup command."
+        },
+        {
+          "title": "Keep setup and restart paths separate",
+          "instruction": "--install is an upstream setup operation, including a command form that exits after preparing an image; complete it outside this attachment. The System menu also owns save import/export, backup, DLC installation and setup-again/restart choices. Close every actual player and any successor before maintenance or another attachment; registration status does not prove successor adoption or termination. No new Core environment/shell/compiler infrastructure or private-runner bypass is introduced."
+        },
+        {
+          "title": "Review Play and preserve the whole data folder",
+          "instruction": "Review and consent to this exact executable, working directory and literal arguments, then request Play separately. The documented Windows profile is %APPDATA%/pure-recomp/PureNative; preserve the actual effective root and existing PURE_DATA_DIR/custom locations too. Keep EBOOT.ELF, copied disc.iso or its in-place original path, settings.ini, ms0/PSP/SAVEDATA/, DLC, texture packs, pipeline_cache.bin, logs/screenshots, backups and temporary files with the creating runtime. Do not assume deleting the player folder removes all state, or infer Portcove PSP/PPSSPP or cross-version save compatibility from upstream claims."
+        },
+        {
+          "title": "Retain optional-content and runtime ownership",
+          "instruction": "Original US DLC packs and optional external HD texture packs are separate player-supplied material, not a prerequisite or a grant supplied by this registration. Preserve their actual original/mod/profile roots; do not convert European/Japanese packs or fetch the third-party HD pack through this guide. Project GPL2-or-later, PortableKit MIT, FFmpeg LGPL and other component notices apply separately from Sony/game/art rights. Upstream/user owns all preparation, runtime replacement and recovery. Close actual sessions, keep the old working copy and data, then review/relink changed selected bytes. Removing registration preserves all external files; no external update, backup, rollback, migration or deletion is offered."
+        }
+      ],
+      "warnings": [
+        "Selected release v0.2.0 source is distinct from later current HEAD; pinned-base and patch-source facts do not authenticate the uninspected published binary. No package/PE/native/game/real-save/installed-client/Supported/protected qualification was performed.",
+        "Windows Vulkan first-track shader stutter, aspect/movie/HUD limitations and unavailable ad hoc/browser functions remain upstream limitations. Actual independently permitted copy, original and component use is required; no title/family grant or performance claim is inherited."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

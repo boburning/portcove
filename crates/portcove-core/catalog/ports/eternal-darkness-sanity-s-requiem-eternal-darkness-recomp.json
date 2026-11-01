@@ -3,7 +3,7 @@
   "listing": {
     "id": "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
     "name": "Eternal Darkness: Sanity's Requiem (Eternal Darkness Recomp)",
-    "summary": "Upstream route: Regional source identity and different Windows versus macOS/Linux preparation paths matter. Limits: Packaged0.9.5 upstream native route; regional source and platform preparation differ. No Portcove runtime test. Upstream platforms: Windows x86-64 ZIP, Linux x86-64 tar.gz, macOS Apple-Silicon ARM64 ZIP (macOS13+). Initial preparation differs between platforms. Original data: Own European GameCube GEDP01 ISO/GCM only; USA GEDE01 explicitly unsupported. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted prepared Eternal Darkness Windows copy for your own European GEDP01 disc, with explicit native arguments and preservation of its external saves and settings.",
     "original_game_title": "Eternal Darkness: Sanity's Requiem",
     "project_url": "https://github.com/griches/EternalDarknessRecomp",
     "issue_number": 2570,
@@ -17,7 +17,37 @@
       "image_sha256": "7939ae97ccbf88c1e728ac8c6b2d1dfdd29847e757edd47764b825e24c4c56de",
       "game_slug": "eternal-darkness-sanity-s-requiem",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/griches/EternalDarknessRecomp/blob/1cb3fe676bacbff321f195079398fb8f4c017982/tools/win/README.txt",
+      "steps": [
+        {
+          "title": "Prepare a permitted Windows copy upstream",
+          "instruction": "Use an independently permitted complete Eternal Darkness Recomp Windows installation and your own European GameCube GEDP01 .iso/.gcm. USA GEDE01 is unsupported. Complete upstream preparation outside Portcove in a writable folder. Windows ships ready-made translated game code, unlike the Mac/Linux generation paths: the host GPL grant is not an identified grant for distribution of translated original game code. This conditional existing-copy route does not recommend fresh acquisition of that Windows package or resolve that grant. No disc, compiler, installer or script is run by Portcove."
+        },
+        {
+          "title": "Select the direct native entry",
+          "instruction": "Select EternalDarkness.exe in its complete creating package directory. Use literal arguments generated/main.dol --iso followed by the exact path to your own supported disc image, then --max-blocks 1000000000000000. Each path or value is its own argument; enter no shell redirection. This mirrors the bound Windows play.bat native invocation; the batch file additionally scans for a disc and rotates logs, which this direct route does not promise. Preserve DLLs, res, generated and notices beside the player. Do not select play.bat, a setup helper or a diagnostic runner."
+        },
+        {
+          "title": "Keep ordinary play separate from restarting",
+          "instruction": "Review and consent to the exact native executable, working directory and literal arguments, then request Play separately. The game and launcher execute in this program. Changing disc or restarting from particular launcher/game-menu choices can call _execv and replace the Windows process; those restart paths are outside this attached-session promise. Finish them outside attachment, close all actual players/successors, and review/relink the completed copy before another session."
+        },
+        {
+          "title": "Preserve every effective data location",
+          "instruction": "Keep the creating directory, original disc, generated/main.dol, settings.ini, saves/slot*.state, saves/reports/, ed-GEDP01-slot-a.dolcard, any slot-B card, corresponding SRAM files, textures, caches and logs. Preserve actual --card/--card-b overrides, ED_CARD/ED_CARD_B/ED_QUICKSTATE/custom paths and build/runs/quick.state where used; registration does not create those environment settings. Quickstates and memory cards are distinct, and no cross-version/game-save compatibility is asserted. This direct route does not create the batch wrapper play.log/previous-log rotation."
+        },
+        {
+          "title": "Retain content and replacement ownership",
+          "instruction": "HD texture packs and PAL supplements are optional separate player material with their own permissions; this guide does not acquire them. GPL3-or-later host/runtime terms, named third-party and OFL/CC0 notices do not grant the original game or texture-pack rights. Upstream/user owns runtime replacement and recovery: close actual sessions, retain old working files and data, replace upstream, then review/relink changed bytes. Removing registration preserves external files; Portcove offers no external update, backup, rollback, import, migration or deletion."
+        }
+      ],
+      "warnings": [
+        "Windows asset v0.9.6 still names source1cb3fe6; current HEAD58393a9 is different. Filename/source-consumer evidence and provider expected digest do not authenticate uninspected archive or executable bytes. No native/game/real-save/installed-client/Supported/protected acceptance was performed.",
+        "Fresh acquisition/distribution of translated game-code content remains unresolved; independently permitted existing-copy use is conditional. No SmartScreen bypass, optional texture download or original acquisition operation is offered."
+      ]
+    },
+    "download_block_reason": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material."
   },
   "upstream_lineage": {
     "format_version": 1,

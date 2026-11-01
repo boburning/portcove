@@ -3,7 +3,7 @@
   "listing": {
     "id": "dudux42-freedomunbound",
     "name": "Monster Hunter Freedom Unite (Freedom Unbound)",
-    "summary": "Upstream route: Upstream runtime package for Freedom Unbound; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Playable alpha0.1.5. Upstream quests tested through Village Elder three-star; complete playthrough unverified. Windowsx64 AVX/Vulkan alpha; Village Elder through3-star upstream-tested, complete playthrough unverified. Not generic Monster Hunter support. Upstream platforms: Windows x64, AVX CPU, Vulkan GPU and VC x64 runtime. Other OS/CPU routes not established. Original data: PSP MonsterHunterFreedomUnite USA ULUS10391 ISO. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Register an independently permitted prepared Freedom Unbound Windows copy through its supported waiting launcher, using your own USA Freedom Unite ISO and retained save/profile roots.",
     "original_game_title": "Monster Hunter Freedom Unite",
     "project_url": "https://github.com/Dudux42/FreedomUnbound",
     "platforms": [],
@@ -17,7 +17,41 @@
       "game_slug": "monster-hunter-freedom-unite",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2808
+    "issue_number": 2808,
+    "manual_setup": {
+      "help_url": "https://github.com/Dudux42/FreedomUnbound/blob/d07c6d61a4517af5dc60db5b9aa2d9abb276f0a4/README.md",
+      "steps": [
+        {
+          "title": "Complete the exact owned-original setup upstream",
+          "instruction": "Use an independently permitted complete Freedom Unbound Windows package and your own Monster Hunter Freedom Unite USA ULUS10391 PSP ISO. The selected production profile checks disc identity and selects the plain on-disc BOOT.BIN, whose known SHA-256 is 3070954e2dc88fd0b0836c0c1dc526531aca4a213b0f18806e324963efb514f4. The profile also records encrypted EBOOT.BIN SHA-256 3354adb3ee40821f230c4055b9bf7cc5d4c864e42abb74ce8ac022933f9697a7 as reference metadata; this route does not demonstrate a separate EBOOT read or hash check. No separate PSP decryption key is needed for the documented BOOT path. Complete first-run setup upstream; do not substitute another region, test-data profile or another Monster Hunter title."
+        },
+        {
+          "title": "Attach the supported waiting native launcher",
+          "instruction": "Select FreedomUnbound.exe with its complete creating package directory as working directory and no arguments for normal play. Keep Start-Freedom-Unbound.ps1, FreedomUniteNative.exe, overlay/runtime DLLs, fonts and resources together. The native launcher starts the supplied script through Windows PowerShell and waits; that script starts the native game, waits for its exit and records session logs. The script uses Add-Type for foreground activation. Do not attach the PowerShell executable, CMD fallback, save editor or private runtime directly, or invent a wrapper to bypass the supported environment."
+        },
+        {
+          "title": "Retain the launcher\u2019s actual argument and environment boundary",
+          "instruction": "For an established custom data or log root, retain its supported literal -DataDirectory or -LogDirectory option and value. The script clears MHFU_/PSPRECOMP_ variables only in its own child environment and sets the supported home-screen/no-interpreter choices; an ambient MHFU_DATA_DIR is not a substitute for the supported launcher argument. Portcove adds no environment, compiler or shell orchestration. The full upstream chain is part of the independently permitted complete copy and remains user/upstream owned."
+        },
+        {
+          "title": "Keep restarts and optional management outside this session",
+          "instruction": "The normal game runs within the native runtime process. Set up game data again, Restart now after save import, updates or other deliberate restart paths may create a successor; treat that activity as upstream maintenance outside this attachment. Close all actual players, launchers and companions before replacement or another attachment, retain the old working runtime/data, then review/relink changed selected bytes. No successor adoption, mod download, save import/export, LAN/VPN/account or bug-report upload operation is offered by Portcove."
+        },
+        {
+          "title": "Review Play and preserve every effective data root",
+          "instruction": "Review and consent to the exact selected executable, working directory and literal arguments, then request Play separately. The production profile normally uses the Windows SDL preference root %APPDATA%/FreedomUnite/FreedomUnite; preserve the actual -DataDirectory override if used. Keep EBOOT.ELF, copied disc.iso or the in-place original path, settings.ini and launcher.ini, prepared data, all actual memory-stick roots, PSP/SAVEDATA/ULUS10391 and ULUS10391DAT, save previews/keys/backups, mods and their saved progress, textures/cache, screenshots and custom roots with the creating runtime. Legacy source-build memory sticks can remain in another directory; preserve them too. Mod changes may be written into saves and are not undone merely by disabling a mod."
+        },
+        {
+          "title": "Retain upstream ownership and log behavior",
+          "instruction": "The launcher separately stores logs under %LOCALAPPDATA%/FreedomUnbound/logs or its actual -LogDirectory root, including launcher-startup.log and session stdout/stderr/session.json. Its script prunes old timestamped session directories beyond the newest ten; preserve any needed diagnostics before upstream maintenance. Upstream and you own preparation, runtime replacement/recovery and all external files. Removing registration preserves them; no external update, backup, rollback, migration or deletion is offered. Preserve PortableKit and all separate library/font/mod terms; those grants do not supply Capcom/Sony original rights."
+        }
+      ],
+      "warnings": [
+        "Native Windows alpha; the selected latest tag is v0.1.6-alpha while its README still describes0.1.5. Keep source/tag/provider identities separate from the displayed version and uninspected package contents.",
+        "AVX/Vulkan/VC-runtime and upstream interpolation/loading/LAN limits remain. No package, PE/ABI, game/helper/script, real-save, installed-client, Supported or protected acceptance was executed here. The supported script/runtime chain is source-reviewed only.",
+        "Actual independently permitted originals, components and copy remain required. Optional mods are separately downloaded and not part of this registration; no family grant, cross-version state or PSP save compatibility is independently qualified."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -657,8 +657,15 @@ The inspected examples deliberately distinguish consumer representations:
 Shipwright 9.3.1's `CVars.gSettings.Volume.Master` is an integer percentage from
 0 to 100, default 40. Its pinned Libultraship loader distinguishes integers from
 floats. Golden Balloon 1.8.0's `mdkr64.ini` `[Audio]` / `MasterVolume`
-is an integer percentage from 0 to 100, default 100. Its normal `--rom` engine
-route publishes this setting to the audio consumer. Root `Audio.MasterVolume`
+is an integer percentage from 0 to 100, default 100. Its interactive `--ui`
+shell exposes the settings overlay and publishes this setting to the audio
+consumer. On first use, select the already materialized `dkr-v80.z64` through
+Golden's normal ROM picker; the shell validates and remembers that selection in
+`mdkr64_app.ini`. It does not search the working directory. The
+[pinned argument dispatch](https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/app/arg_triage.h)
+routes `--rom` directly to the engine without the shell or settings overlay;
+combining `--ui` and `--rom` does not establish supported ROM seeding.
+Root `Audio.MasterVolume`
 is equivalent; duplicate dotted, sectioned or case aliases refuse edits.
 The earlier `mdkr64_app.ini` / `ui_scale` choice was shell-only and could not
 qualify this launch route. Native evidence must verify the package's executable

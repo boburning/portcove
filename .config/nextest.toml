@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI 41297982645/a1 retained a 30.186s Windows cutoff in this four-case
+# adoption-recovery fixture; the same case passed in 22.765s in 41294669476/a1.
+# Preserve every refusal/retention assertion, cleanup, workers and zero retries;
+# allow finite 60s harness completion, with no product-performance claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::external_adoption_recovery_retains_contradictory_destinations$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # PR #4157 local Linux run retained 30.938/30.527/30.151/30.035-second
 # cutoffs in these six-to-sixteen-case cancellation/recovery fixtures. Related
 # one/two-case fixtures took 8-15 seconds. Keep all ownership/cleanup assertions, two test
