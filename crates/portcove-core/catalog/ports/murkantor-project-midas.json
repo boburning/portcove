@@ -3,13 +3,41 @@
   "listing": {
     "id": "murkantor-project-midas",
     "name": "GoldenEye 007 — Nintendo 64 (Project Midas)",
-    "summary": "Upstream route: Upstream runtime package for Project Midas; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream calls Project Midas a work-in-progress GoldenEye decompilation port. Full campaign scope and hardware qualification Unknown here. Project Midas decompilation-based WIP, distinct XBLA edition and independent N64 recompilation. Windows/Linux/Deck packages; preserve upstream limitations. Upstream platforms: Windows/Linux packages and Steam Deck archive. Exact CPU/OS minimums beyond package documentation Unknown. Original data: N64 GoldenEye USA own cartridge ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Project Midas Windows installation for your own GoldenEye007 USA N64 cartridge image. This decompilation-based port keeps saves, profiles and settings beside the player and remains distinct from XBLA and other recompilations.",
     "original_game_title": "GoldenEye 007",
     "project_url": "https://github.com/murkantor/Project-Midas",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/murkantor/Project-Midas",
-    "issue_number": 2789
+    "issue_number": 2789,
+    "manual_setup": {
+      "help_url": "https://github.com/murkantor/Project-Midas/blob/9062f9f120b7f64d39e5db59500ed50e8e7a6686/readme.md",
+      "steps": [
+        {
+          "title": "Prepare the stock USA N64 data upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own stock GoldenEye007 USA N64 cartridge image. The reviewed 1.0.2b instructions accept .z64 big-endian, .v64 byte-swapped and .n64 word-swapped inputs; names/extensions are not identity checks. The expected stock size is12,582,912bytes; source normalizes byte order and checks header CRCs DCBC50D1/09FD1AA3 and full normalized CRC32 B6330846. These checks are not cryptographic authenticity or entitlement proof. Follow upstream preparation outside Portcove, retaining the original image. This is not the Xbox360 XBLA edition or another GoldenEye port."
+        },
+        {
+          "title": "Keep the actual Windows package together",
+          "instruction": "The inspected ProjectMidas-v1.0.2b-windows.zip contains ProjectMidas.exe as an x86 (32-bit, PE machine014c) native player, SDL2.dll, Data, Mods, controller mappings and notices. Keep the complete extracted folder in a writable location. Do not infer AMD64 from the Windows asset label or transfer Linux/Deck results to it. This attachment obtains or executes no original, extractor, compiler, helper, launcher script or game."
+        },
+        {
+          "title": "Select the normal prepared player",
+          "instruction": "After upstream setup has the intended ROM in Data or its already configured location, select ProjectMidas.exe, use its complete extracted package directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The source locates ordinary data/settings relative to its executable and runs the game in that process. An existing GE_ROM, midas.ini [data] rom value or explicit upstream source selection may choose another original; confirm the intended copy rather than creating an override here."
+        },
+        {
+          "title": "Preserve the complete local data and settings",
+          "instruction": "Keep midas.ini, gamecontrolleruser.txt and the entire Data tree: Saves/eeprom.bin, Profiles, WeaponSets, MatchSettings, Devices, Logs and shader lists, plus Mods and all original/custom ROM locations. Older ge.ini can be renamed to midas.ini once by upstream, so preserve its existing predecessor and recovery copy too. Player profiles, controller layouts and multiplayer settings are part of the retained external data. This guide performs no migration, import, backup or deletion and promises no cross-port/save compatibility."
+        },
+        {
+          "title": "Retain maintenance, permission and acceptance boundaries",
+          "instruction": "Quit the actual game normally before upstream repair or replacement; retain independent copies and review/relink changed executable bytes. Keep LICENSE.txt and THIRD_PARTY_NOTICES.txt. MIT covers Project Midas port code, not the decompiled game, GoldenEye or its assets; build-tool notices do not grant original-game rights. Linux blank-triangle limitations and upstream co-op/netplay/mod work remain at their own scope. No Portcove gameplay, multiplayer, save/reload, native-installed or Supported acceptance is claimed. Removing registration preserves all external files; managed install/update/rollback/backup/removal are unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the exact stock USA N64 image and the complete package-local Data/settings tree; this Windows player is x86, not an assumed x64 build."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
