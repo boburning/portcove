@@ -3,11 +3,11 @@
   "listing": {
     "id": "fable-ii-recomp",
     "name": "Fable II Recomp",
-    "summary": "Explore Fable II Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register the completed Fable II native Windows player after upstream preparation of your own supported GOTY game. Upstream owns extraction and runtime replacement.",
     "project_url": "https://github.com/himdo/Fable-2-Recomp",
     "issue_number": 1124,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/himdo/Fable-2-Recomp",
     "artwork": {
       "game_id": 522,
@@ -16,6 +16,34 @@
       "image_sha256": "14efd3dfd2ba8beb181f666abbaf175dfcfba79b3253aa38d505528011489735",
       "game_slug": "fable-ii",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+    "download_asset_hints": {
+      "windows-x86-64": ["Fable_2_recomp", "windows"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+      "steps": [
+        {
+          "title": "Prepare a complete matching original upstream",
+          "instruction": "For this guide use your own Fable II Xbox 360 GOTY USA/Europe copy, title 4D5307F1. The selected source’s supported-version table binds default.xex SHA-256 88c4ef2e18e65409444d1b068eff921d1f7e180a5ae64edc64ba6b0872372662 and requires matching GOTY content. Complete upstream’s supported preparation and normal hash/content validation. Keep the complete original data and any $SystemUpdate folder together; do not mix an executable from another edition. Portcove imports no ISO, runs no extractor/compiler and provides no hash-check bypass."
+        },
+        {
+          "title": "Select the actual completed native entry",
+          "instruction": "Select the completed fable_2.exe, its parent directory as working directory and no arguments when default.xex and data/ are already beside it. For an already working external original folder, retain its explicit supported --game_data_root=<path> literal argument instead. Keep matching rexruntime/rexgpu DLLs and resources. Fable2Launcher.exe starts the native player and closes; select the native player for the attached session."
+        },
+        {
+          "title": "Review the native attachment and choose Play separately",
+          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Preserve the portable player, original and custom roots",
+          "instruction": "The inspected title source forces saves/ and cache/ beside the executable even when a platform user-data default or argument differs. Preserve the complete creating copy, fable_2.toml, fable2_config.toml, launcher-settings.toml, one-time backups, logs, data/scripts, original game tree, mods and every custom path. Upstream may repair the original-data file manifest; retain the old complete data before preparation or replacement. Save and mod compatibility across runtime versions remains upstream-owned."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+      ]
     }
   }
 }

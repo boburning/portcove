@@ -14141,11 +14141,13 @@
     {
       "id": "dead-rising-2-case-west-recomp",
       "name": "Dead Rising 2 Case West Xenon Recomp",
-      "summary": "Explore Dead Rising 2 Case West Xenon Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, prepared Case West native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
       "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
       "issue_number": 1122,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
       "artwork": {
         "game_id": 21764,
@@ -14154,12 +14156,48 @@
         "image_sha256": "dfd2adc8add2ceb52ba7e9bce03d4af6565d248abf247b58f1a383dd576b919d",
         "game_slug": "dead-rising-2-case-west",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp/releases/tag/v1.1.2",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CaseWestRecomp",
+          "windows-x86_64"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp/releases/tag/v1.1.2",
+        "steps": [
+          {
+            "title": "Keep an independently permitted completed copy",
+            "instruction": "Continue only with an actual player and components you are independently permitted to use. The package defers compiled-in libxlive’s licence to XenonLive, and that specific component grant is not established in the retained evidence. The title’s own noncommercial grant does not settle this separately named scope; offline use does not remove the linked bytes. Fresh acquisition remains held."
+          },
+          {
+            "title": "Complete Case West preparation through its own player",
+            "instruction": "Keep the complete CaseWestRecomp folder, matching DLLs, assets, tools, defaults and shader resources. Use your own Dead Rising 2 Case West XBLA package, title 58410B00. The native player’s own first-run picker/import and GPU shader preparation run in-process; no separate CPU recompilation is required by this guide. This is not Case Zero and its input/profile is not interchangeable. Complete upstream preparation outside Portcove; no original or helper is acquired or executed here."
+          },
+          {
+            "title": "Select the direct offline player",
+            "instruction": "Select the completed cw_runtime.exe, its CaseWestRecomp directory as working directory and no arguments for the normal native launcher. The direct player has an offline default profile and requires no account. XenonLiveLauncher and online sign-in are optional separate upstream features, not a prerequisite for this offline attachment. Keep existing explicit path choices; do not point CW_ROOT at a data-only subfolder because it selects the whole resource root."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Keep the complete working root and external profiles",
+            "instruction": "Preserve the entire creating runtime/resource root, including assets/package, assets/game, assets/save, assets/shader_spv, config, tools, defaults, recipes, logs, key maps and all custom locations. The inspected Windows source also resolves the redirected Saved Games known folder under Dead Rising 2 Case West, falling back through USERPROFILE/Saved Games and finally the executable directory. Keep offline and per-gamertag profiles, all saves, original packages, backups and temporary files. These are separate unowned roots; this guide does not claim a complete managed backup or cross-profile migration."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+        ]
+      },
+      "download_block_reason": "The selected Case West Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove a compiled-in component. This condition grants no permission to use an existing copy."
     },
     {
       "id": "dead-rising-2-case-zero-recomp",
       "name": "Dead Rising 2 Case Zero Xenon Recomp",
-      "summary": "Explore Dead Rising 2 Case Zero Xenon Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, prepared Case Zero native Windows player for your own XBLA game. Fresh acquisition remains held on the linked libxlive permission condition.",
       "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
       "issue_number": 1121,
       "platforms": [],
@@ -14176,6 +14214,10 @@
       "manual_setup": {
         "help_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/tree/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82",
         "steps": [
+          {
+            "title": "Keep an independently permitted completed copy",
+            "instruction": "Continue only with an actual player and components you are independently permitted to use. The reviewed v1.1.3 package defers compiled-in libxlive’s licence to XenonLive, and that specific grant is not established by the retained evidence. The title’s own noncommercial grant does not settle this expressly separate scope; offline use does not remove the linked bytes. Fresh acquisition stays held. The previously delivered non-owning preparation and data-preservation guidance below remains applicable to an independently permitted copy."
+          },
           {
             "title": "Prepare the own-game offline Windows copy upstream",
             "instruction": "Use your legally obtained Xbox Live Arcade Dead Rising 2: Case Zero package, Title ID 58410A8D: the approximately 825 MB extensionless package under Content/0000000000000000/58410A8D/000D0000, not the full Dead Rising 2 game. Follow the standalone package’s first-run instructions outside Portcove. Its native runtime performs STFS extraction, shader preparation and game-data overlays; no external compiler or setup helper is run by this guide. The project’s PolyForm Noncommercial grant covers its own work, not the original game or separately licensed components."
@@ -14196,7 +14238,8 @@
         "warnings": [
           "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
         ]
-      }
+      },
+      "download_block_reason": "The inspected Case Zero v1.1.3 Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove the linked component. This condition grants no permission to use an existing copy."
     },
     {
       "id": "dead-space-2-recomp-bifftannen1-dead-space-2-xbox-360",
@@ -17410,11 +17453,13 @@
     {
       "id": "eternal-sonata-reprise",
       "name": "Eternal Sonata Reprise",
-      "summary": "Explore Eternal Sonata Reprise and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an Eternal Sonata: Reprise native Windows player for your own supported original. Keep game-library preparation, updater and runtime replacement upstream.",
       "project_url": "https://github.com/birabittoh/EternalSonataReprise",
       "issue_number": 1126,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/birabittoh/EternalSonataReprise",
       "artwork": {
         "game_id": 6990,
@@ -17423,16 +17468,53 @@
         "image_sha256": "50a21a572f5b3741fd3cbf74e6c13cffbccee71f7dd22ac98557a83a6683baf6",
         "game_slug": "eternal-sonata",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/birabittoh/EternalSonataReprise/releases/tag/v1.3.7",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "eternalsonata",
+          "win-amd64"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/birabittoh/EternalSonataReprise/releases/tag/v1.3.7",
+        "steps": [
+          {
+            "title": "Keep the complete Windows player and your own supported original",
+            "instruction": "The inspected Windows package contains eternalsonata.exe and its matching rexruntime.dll. Use your own original supported by upstream’s game-library picker and validation: the selected source lists Xbox 360 and PS3 PAL, USA and Japanese variants independently. The PAL-only Xbox 360 source-build prerequisite does not narrow every runtime input. Complete upstream’s normal preparation, keep the selected original/version directory and do not substitute another variant’s executable or files. Portcove imports no disc or generated game code."
+          },
+          {
+            "title": "Attach the completed native player",
+            "instruction": "Select eternalsonata.exe, its existing package directory as working directory and no arguments for the normal in-process start screen/library selection. Retain existing literal arguments only when your working setup requires them. Keep matching resources, configuration and the established library/version selection; a selected game folder can live outside the library root."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream updates and restarts outside the attached session",
+            "instruction": "The inspected title and pinned Windows SDK offer game updates and restarts. Applying an update starts a helper that outlives the old process and can replace files and launch a successor. Treat deliberate update/restart as upstream maintenance outside the active attached session: close the actual player and companions, retain the old runtime and all data, then review and relink changed selected bytes. Turning off an update check alone does not give Portcove exclusive replacement ownership; this guide disables no upstream feature and adopts no successor automatically."
+          },
+          {
+            "title": "Preserve every effective library, profile and configuration root",
+            "instruction": "Keep the complete creating runtime and every actual game, user, cache, mod, mod-dump, update, metadata and custom root, including external game-version links. Relative path settings resolve against the configuration’s parent directory in the inspected SDK. A portable.txt beside the executable makes the default user directory user/ beside it; other configurations use platform folders. Preserve settings.toml, runtime configuration, selected-version metadata, install/migration staging, saves, mods, caches, backups and temporary files. Keep established paths and creating-runtime compatibility; the working directory alone does not identify all player data."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+        ]
       }
     },
     {
       "id": "exit-2-rexglue-exit-exit2",
       "name": "EXIT 2 / ReXGlue-EXIT / EXIT2",
-      "summary": "Explore EXIT 2 / ReXGlue-EXIT / EXIT2 and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an upstream-prepared EXIT 2 Windows player for your own Xbox 360 game. Keep its original data and player folder separate from EXIT; upstream owns preparation and replacement.",
       "project_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",
       "issue_number": 363,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",
       "artwork": {
         "game_id": 28961,
@@ -17441,16 +17523,52 @@
         "image_sha256": "ab2c0b0c12c40222774b26ddde82efa94bb55a7ee6f2e81d0d21af8b3d706afd",
         "game_slug": "exit-2",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/FluffyQuack/ReXGlue-EXIT/releases/tag/v0.9.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "EXIT2-Recomp.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/FluffyQuack/ReXGlue-EXIT/releases/tag/v0.9.1",
+        "steps": [
+          {
+            "title": "Choose this title’s player package",
+            "instruction": "The shared ReXGlue-EXIT release contains two different players and SDK downloads. Choose the actual EXIT2-Recomp.zip for EXIT 2; do not substitute the other title or an SDK. Package recommendations help selection and are not an automatic admission guarantee. Keep exit2.exe, its matching rexruntime.dll and notices together in a separate writable prepared folder."
+          },
+          {
+            "title": "Complete this title’s owned-input preparation upstream",
+            "instruction": "Use your own legitimate full Xbox 360 EXIT 2 XBLA package. Complete the supported extraction upstream and keep its own default.xex and dat tree beside exit2.exe. EXIT 1’s title update is not an EXIT 2 prerequisite. Optional owned DLC is separate and is not required for the base player. Portcove does not obtain or run extraction tools, import an original or change licence/trial settings."
+          },
+          {
+            "title": "Attach the completed native player",
+            "instruction": "Select exit2.exe, its completed prepared folder as working directory and no arguments. The inspected source defaults game and update data to that working directory; retain a working explicit custom data argument only if your setup already needs it. Do not attach a preparation tool or reuse EXIT’s original or profile."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Retain this title’s complete copy and effective data",
+            "instruction": "Keep the entire separate EXIT 2 folder and every effective external root. Its exit2.ini always lives in the working directory. Portable=True is the default: the inspected source puts user data in that working directory, cache in cache/ and runtime configuration in exit2.toml, overriding the normal platform user root. Portable=False and custom original/update paths can use external locations. Preserve all profiles, saves, owned DLC, settings, logs, screenshots, caches, backups and temporary files with the creating runtime; no cross-title or cross-version save compatibility is assumed."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+        ]
       }
     },
     {
       "id": "exit-rexglue-exit-exit1",
       "name": "EXIT / ReXGlue-EXIT / EXIT1",
-      "summary": "Explore EXIT / ReXGlue-EXIT / EXIT1 and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an upstream-prepared EXIT Windows player for your own Xbox 360 game. Keep its original data and player folder separate from EXIT 2; upstream owns preparation and replacement.",
       "project_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",
       "issue_number": 362,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/FluffyQuack/ReXGlue-EXIT",
       "artwork": {
         "game_id": 85653,
@@ -17459,6 +17577,40 @@
         "image_sha256": "a1a3547019ddee9d31707a595d3266caa792e9906cd89f8745b3d908c21709fe",
         "game_slug": "exit--2",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/FluffyQuack/ReXGlue-EXIT/releases/tag/v0.9.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "EXIT1-Recomp.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/FluffyQuack/ReXGlue-EXIT/releases/tag/v0.9.1",
+        "steps": [
+          {
+            "title": "Choose this title’s player package",
+            "instruction": "The shared ReXGlue-EXIT release contains two different players and SDK downloads. Choose the actual EXIT1-Recomp.zip for EXIT; do not substitute the other title or an SDK. Package recommendations help selection and are not an automatic admission guarantee. Keep exit1.exe, its matching rexruntime.dll and notices together in a separate writable prepared folder."
+          },
+          {
+            "title": "Complete this title’s owned-input preparation upstream",
+            "instruction": "Use your own legitimate full Xbox 360 EXIT XBLA package and your own required title-update package. Complete the supported extraction and title-update patching upstream before attachment, keeping the matching patched default.xex and dat tree beside exit1.exe. Portcove does not obtain or run the extraction/patching tools, import an original or change licence/trial settings."
+          },
+          {
+            "title": "Attach the completed native player",
+            "instruction": "Select exit1.exe, its completed prepared folder as working directory and no arguments. The inspected source defaults game and update data to that working directory; retain a working explicit custom data argument only if your setup already needs it. Do not attach a preparation tool or reuse EXIT 2’s original or profile."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Retain this title’s complete copy and effective data",
+            "instruction": "Keep the entire separate EXIT folder and every effective external root. Its exit1.ini always lives in the working directory. Portable=True is the default: the inspected source puts user data in that working directory, cache in cache/ and runtime configuration in exit1.toml, overriding the normal platform user root. Portable=False and custom original/update paths can use external locations. Preserve all profiles, saves, owned DLC, settings, logs, screenshots, caches, backups and temporary files with the creating runtime; no cross-title or cross-version save compatibility is assumed."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+        ]
       }
     },
     {
@@ -17540,11 +17692,13 @@
     {
       "id": "fable-ii-recomp",
       "name": "Fable II Recomp",
-      "summary": "Explore Fable II Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register the completed Fable II native Windows player after upstream preparation of your own supported GOTY game. Upstream owns extraction and runtime replacement.",
       "project_url": "https://github.com/himdo/Fable-2-Recomp",
       "issue_number": 1124,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/himdo/Fable-2-Recomp",
       "artwork": {
         "game_id": 522,
@@ -17553,6 +17707,37 @@
         "image_sha256": "14efd3dfd2ba8beb181f666abbaf175dfcfba79b3253aa38d505528011489735",
         "game_slug": "fable-ii",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Fable_2_recomp",
+          "windows"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+        "steps": [
+          {
+            "title": "Prepare a complete matching original upstream",
+            "instruction": "For this guide use your own Fable II Xbox 360 GOTY USA/Europe copy, title 4D5307F1. The selected source’s supported-version table binds default.xex SHA-256 88c4ef2e18e65409444d1b068eff921d1f7e180a5ae64edc64ba6b0872372662 and requires matching GOTY content. Complete upstream’s supported preparation and normal hash/content validation. Keep the complete original data and any $SystemUpdate folder together; do not mix an executable from another edition. Portcove imports no ISO, runs no extractor/compiler and provides no hash-check bypass."
+          },
+          {
+            "title": "Select the actual completed native entry",
+            "instruction": "Select the completed fable_2.exe, its parent directory as working directory and no arguments when default.xex and data/ are already beside it. For an already working external original folder, retain its explicit supported --game_data_root=<path> literal argument instead. Keep matching rexruntime/rexgpu DLLs and resources. Fable2Launcher.exe starts the native player and closes; select the native player for the attached session."
+          },
+          {
+            "title": "Review the native attachment and choose Play separately",
+            "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the portable player, original and custom roots",
+            "instruction": "The inspected title source forces saves/ and cache/ beside the executable even when a platform user-data default or argument differs. Preserve the complete creating copy, fable_2.toml, fable2_config.toml, launcher-settings.toml, one-time backups, logs, data/scripts, original game tree, mods and every custom path. Upstream may repair the original-data file manifest; retain the old complete data before preparation or replacement. Save and mod compatibility across runtime versions remains upstream-owned."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+        ]
       }
     },
     {

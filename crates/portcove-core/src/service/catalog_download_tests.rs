@@ -1819,3 +1819,65 @@ async fn silent_hill_silent_hill_decomp_pc_branch_component_hold_before_network_
 async fn tenchu_stealth_assassins_tenchu_sa_recomp_component_hold_before_network_353() {
     assert_embedded_player_download_holds(&["tenchu-stealth-assassins-tenchu-sa-recomp"]).await;
 }
+
+#[tokio::test]
+async fn dead_rising_2_case_west_recomp_libxlive_hold_before_network_1122() {
+    assert_embedded_player_download_holds(&["dead-rising-2-case-west-recomp"]).await;
+}
+
+#[tokio::test]
+async fn exit_shared_release_keeps_title_recommendations_distinct_362_363() {
+    for (id, expected_id) in [
+        ("exit-rexglue-exit-exit1", 11),
+        ("exit-2-rexglue-exit-exit2", 12),
+    ] {
+        let (_temporary, mut service, _request) = fixture();
+        service.catalog = Catalog::embedded().unwrap();
+        let repository = "FluffyQuack/ReXGlue-EXIT";
+        let bytes = archive();
+        let expected = crate::signed_catalog::digest(&bytes);
+        let github = GithubFixture::for_repository(
+            repository,
+            bytes,
+            Some(format!("sha256:{expected}")),
+            None,
+        );
+        let template = github.assets.lock().unwrap()[0].clone();
+        let names = [
+            "EXIT1-Recomp.zip",
+            "EXIT2-Recomp.zip",
+            "rexglue-sdk-0.9.1-linux-amd64.zip",
+            "rexglue-sdk-0.9.1-win-amd64.zip",
+        ];
+        *github.assets.lock().unwrap() = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                let mut asset = template.clone();
+                asset["id"] = json!(11 + index);
+                asset["name"] = json!(name);
+                asset
+            })
+            .collect();
+        github.releases.lock().unwrap()[0]["tag_name"] = json!("v0.9.1");
+        let options = service
+            .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+            .await
+            .unwrap();
+        assert!(options.allowed);
+        assert_eq!(options.candidates.len(), 4);
+        if Platform::current().unwrap() == Platform::WindowsX86_64 {
+            assert_eq!(options.recommended_asset_id, Some(expected_id));
+        }
+        // Recommendations do not filter the explicit generic-download choices.
+        for name in names {
+            assert!(options.candidates.iter().any(|asset| asset.name == name));
+        }
+        assert!(service.pending_setups().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn dead_rising_2_case_zero_recomp_libxlive_hold_before_network_1121() {
+    assert_embedded_player_download_holds(&["dead-rising-2-case-zero-recomp"]).await;
+}
