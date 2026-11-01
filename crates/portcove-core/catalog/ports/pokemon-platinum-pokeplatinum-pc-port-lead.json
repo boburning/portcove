@@ -3,11 +3,11 @@
   "listing": {
     "id": "pokemon-platinum-pokeplatinum-pc-port-lead",
     "name": "Pokémon Platinum / pokeplatinum PC-port lead",
-    "summary": "Explore Pokémon Platinum / pokeplatinum PC-port lead and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an independently permitted Pokémon Platinum native Windows copy after upstream preparation of your own USA CPUE01 original. Preserve the creating runtime, extracted files and actual player data.",
     "project_url": "https://github.com/cybervisi0n/pokeplatinum",
     "issue_number": 373,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/cybervisi0n/pokeplatinum",
     "artwork": {
       "game_id": 1519,
@@ -16,6 +16,39 @@
       "image_sha256": "7ee85df3ddb35c9ae815b4f3eae636d2e9a5100c3c53f72ae48ecd69e533dc57",
       "game_slug": "pokemon-platinum-version",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/cybervisi0n/pokeplatinum/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["release_win64.zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/cybervisi0n/pokeplatinum",
+      "steps": [
+        {
+          "title": "Complete your own supported original’s setup upstream",
+          "instruction": "Use your own Pokémon Platinum USA CPUE01 .nds original and complete the selected player’s first-launch extraction outside Portcove. The selected release is an experimental 64-bit native PC port using libntr, not merely a matching DS decompilation. Keep all resulting files together and do not substitute another region or a DS ROM build. No helper/compiler/original is acquired or run by this guide."
+        },
+        {
+          "title": "Attach the actual completed native player",
+          "instruction": "Select main.exe and its complete creating package directory as working directory, with no extra arguments for the documented normal start. Retain its matching libraries, header.bin, firmware.bin and resources and the established original/extracted-data arrangement. Keep the working renderer and input settings; no additional backend or control-mode qualification is inferred. Do not select the MSys2 installers, source build scripts or a console-target output."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
+        },
+        {
+          "title": "Keep firmware and user data with the creating runtime",
+          "instruction": "The upstream README says firmware.bin contains only an offset and space for WiFi configuration, not a Nintendo DS firmware dump. Preserve that mutable configuration, the complete working folder and extracted game files, actual saves/settings/logs/mods/backups/temporary files and every external location used by this copy. Do not assume the package folder contains every save. The title’s libntr dependency tracks main without an immutable SDK pin; exact released SDK defaults and complete save-coordinate mapping are not established here. No backup, deletion, migration or save/firmware compatibility is offered."
+        },
+        {
+          "title": "Keep upstream maintenance and network choices separate",
+          "instruction": "Upstream and you own preparation and runtime replacement. Close the actual game and companions, keep the entire old creating runtime and data, then review/relink changed selected bytes. WiFi/multiplayer, renderer quality and first-to-last gameplay are upstream goals/claims, not Portcove acceptance or authorization for accounts, uploads or network configuration."
+        }
+      ],
+      "warnings": [
+        "Use only an independently permitted copy, original and components. The README identifies separate MIT libntr obligations for redistributors; it is not a whole-game IP certificate or source-to-binary receipt.",
+        "Experimental upstream preview may crash or show graphical defects. Package/source/SDK correspondence, full persistent-data mapping, actual native gameplay and real-save behavior remain Unknown; no installed Desktop or protected publication is qualified."
+      ]
     }
   }
 }

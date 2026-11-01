@@ -3,11 +3,11 @@
   "listing": {
     "id": "james2doyle-ffta-recomp",
     "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
-    "summary": "Upstream route: Upstream runtime package for FFTA Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Experimental preview; upstream claims strict static zero fallback and validated widescreen. Framework checks do not establish complete gameplay qualification. Experimental gbaretcompx preview, strict static execution claimed; Windows/Linux/Android assets, not full-mechanics qualification from framework tests. Upstream platforms: Windows10+ x86-64, Linux x86-64 OpenGL/X11, SteamOS3.x glibc2.35+/FUSE, Android9+ ARM64. Clean-room emibios bundled. Original data: Own FinalFantasyTacticsAdvance GBA USA ROM; release launch gate validates ROM hash, but exact revision/hash is not extracted in this review. Clean-room emibios is bundled; no Nintendo BIOS dump needed. Distinct from C017 Jorge262007/JRickey implementation and its Europe support claim. Portcove setup/gameplay not verified.",
+    "summary": "Register an independently permitted prepared FFTA Recomp Windows copy for your own supported USA GBA ROM. Fresh package acquisition remains held for its disclosed box-art component.",
     "original_game_title": "Final Fantasy Tactics Advance",
     "project_url": "https://github.com/james2doyle/ffta-recomp",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/james2doyle/ffta-recomp",
     "artwork": {
       "game_id": 414,
@@ -17,7 +17,41 @@
       "game_slug": "final-fantasy-tactics-advance",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2824
+    "issue_number": 2824,
+    "release_url": "https://github.com/james2doyle/ffta-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["FFTARecomp-", "windows-x64.zip"]
+    },
+    "download_block_reason": "Fresh acquisition of the selected FFTA Recomp bundled player remains held for its launch-screen box art: packaged THIRD_PARTY_ATTRIBUTION.md explicitly says the image has unknown provenance and no assertable license. Resume with applicable permission for that exact image or a reviewed compatible upstream package/route resolving its inclusion. Independently permitted completed-copy registration does not clear this acquisition hold.",
+    "manual_setup": {
+      "help_url": "https://github.com/james2doyle/ffta-recomp",
+      "steps": [
+        {
+          "title": "Start with an independently permitted completed copy",
+          "instruction": "Attach only a complete existing Windows player and components you are independently permitted to use. The selected package discloses unlicensed-provenance retail box art; the project’s PolyForm Noncommercial grant does not grant that image’s rights. Fresh acquisition remains held for that named component. Observe the project’s applicable noncommercial terms."
+        },
+        {
+          "title": "Use your own supported USA original",
+          "instruction": "Keep your own Final Fantasy Tactics Advance USA GBA ROM (AFXE), expected SHA-1 4ac05441f4de70a4ec3dd932116346c61b8783d9. The inspected source performs a final runtime hash rejection after the permissive file picker. The package includes the separately licensed clean-room emibios replacement; no Nintendo BIOS dump is required. Complete the normal upstream first selection/setup outside Portcove and keep game.toml, bios/, resources and existing original paths together."
+        },
+        {
+          "title": "Attach the actual native player",
+          "instruction": "Select FFTARecomp.exe with its complete creating package directory as working directory and no extra arguments for the normal in-process launch screen. The inspected title runs that screen and game in the same process; it does not hand the game to a detached launcher. Retain only the supported literal arguments your working setup actually requires, including existing --save/--save-path and --state-dir choices. Do not select a tool or start a separate compiler/helper."
+        },
+        {
+          "title": "Review the attachment and choose Play separately",
+          "instruction": "Review and consent to this exact native executable, working directory and literal arguments, then choose Play separately. Upstream and you own preparation, replacement and recovery of external files. Removing registration preserves every external file. Close the actual player before upstream maintenance; retain old runtime/data and review/relink changed selected bytes."
+        },
+        {
+          "title": "Preserve saves and all effective external roots",
+          "instruction": "The inspected game.toml uses saves/ffta_us.sav relative to its own directory for the 64KiB battery save. Existing --save or --save-path overrides can point elsewhere. Save-state slots normally live beside the actual selected ROM with .stateN names; --state-dir moves those basenames to the chosen directory. Do not assume all states live beside the player or in states/. Preserve your ROM directory and its state/sidecar files, actual custom save/state directories, the complete creating runtime, saves/, rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini, game.toml, config overlays, mods, screenshots, logs, backups and temporary files. No cross-version state/save compatibility or managed backup is claimed."
+        }
+      ],
+      "warnings": [
+        "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Experimental upstream preview. Exact title/framework source and package metadata/static inspection are not proof of package-to-source correspondence, native gameplay, clean shutdown, real saves, installed Desktop, protected delivery or other-platform qualification."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
