@@ -4354,6 +4354,36 @@ mod tests {
                 vec!["portcove", "backup", "list", "lighthouse"],
                 "backup.list",
             ),
+            (
+                vec!["portcove", "game-settings", "list", "lighthouse"],
+                "game-settings.list",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "game-settings",
+                    "review",
+                    "lighthouse",
+                    "prefs",
+                    "volume",
+                    "--reset",
+                ],
+                "game-settings.review",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "game-settings",
+                    "apply",
+                    "lighthouse",
+                    "prefs",
+                    "volume",
+                    "--reset",
+                    "--expected-review",
+                    "review",
+                ],
+                "game-settings.apply",
+            ),
             (vec!["portcove", "catalog", "list"], "catalog.list"),
             (vec!["portcove", "source", "list"], "source.list"),
             (vec!["portcove", "tool", "list"], "tool.list"),
@@ -4407,6 +4437,14 @@ mod tests {
         assert!(capabilities.commands.contains(&"storage".to_owned()));
         assert!(capabilities.commands.contains(&"doctor".to_owned()));
         assert!(capabilities.commands.contains(&"backup".to_owned()));
+        for name in [
+            "game-settings",
+            "game-settings.list",
+            "game-settings.review",
+            "game-settings.apply",
+        ] {
+            assert!(capabilities.commands.iter().any(|command| command == name));
+        }
         assert!(capabilities.commands.contains(&"artwork".to_owned()));
         assert!(capabilities.commands.contains(&"tool".to_owned()));
         assert!(capabilities.commands.contains(&"plan".to_owned()));

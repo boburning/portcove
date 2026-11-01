@@ -4375,7 +4375,7 @@
             "type": "string"
           },
           "key": {
-            "description": "JSON object member components; flat INI uses exactly one literal key.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
             "items": {
               "type": "string"
             },
@@ -4591,7 +4591,7 @@
           },
           {
             "const": "ini",
-            "description": "Version one is the case-sensitive, flat key=value preference grammar.\nSections, escapes and broader INI dialects are not inferred.",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
             "type": "string"
           }
         ]
@@ -14068,7 +14068,7 @@
             "type": "string"
           },
           "key": {
-            "description": "JSON object member components; flat INI uses exactly one literal key.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
             "items": {
               "type": "string"
             },
@@ -14256,7 +14256,7 @@
           },
           {
             "const": "ini",
-            "description": "Version one is the case-sensitive, flat key=value preference grammar.\nSections, escapes and broader INI dialects are not inferred.",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
             "type": "string"
           }
         ]
@@ -25245,7 +25245,7 @@
             "type": "string"
           },
           "key": {
-            "description": "JSON object member components; flat INI uses exactly one literal key.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
             "items": {
               "type": "string"
             },
@@ -25461,7 +25461,7 @@
           },
           {
             "const": "ini",
-            "description": "Version one is the case-sensitive, flat key=value preference grammar.\nSections, escapes and broader INI dialects are not inferred.",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
             "type": "string"
           }
         ]
@@ -32836,7 +32836,7 @@
             "type": "string"
           },
           "key": {
-            "description": "JSON object member components; flat INI uses exactly one literal key.\nNo array indexing, wildcards, substitutions or executable expressions.",
+            "description": "JSON object members; INI uses one flat key or two section/key components.\nNo array indexing, wildcards, substitutions or executable expressions.",
             "items": {
               "type": "string"
             },
@@ -33052,7 +33052,7 @@
           },
           {
             "const": "ini",
-            "description": "Version one is the case-sensitive, flat key=value preference grammar.\nSections, escapes and broader INI dialects are not inferred.",
+            "description": "One key component selects case-sensitive flat preferences; two select\nthe bounded section/key grammar. Neither infers general INI dialects.",
             "type": "string"
           }
         ]

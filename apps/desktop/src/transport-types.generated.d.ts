@@ -1816,7 +1816,7 @@ export interface GameSettingsFile {
 export interface GameSetting {
   id: string;
   /**
-   * JSON object member components; flat INI uses exactly one literal key.
+   * JSON object members; INI uses one flat key or two section/key components.
    * No array indexing, wildcards, substitutions or executable expressions.
    */
   key: string[];

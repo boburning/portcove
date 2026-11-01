@@ -18,7 +18,13 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Game files and library",
         &[
-            "source", "backup", "game-settings", "library", "storage", "artwork", "output",
+            "source",
+            "backup",
+            "game-settings",
+            "library",
+            "storage",
+            "artwork",
+            "output",
         ],
     ),
     (
@@ -1678,7 +1684,10 @@ mod tests {
 #[derive(Debug, Subcommand)]
 pub(crate) enum GameSettingsCommand {
     /// Read available settings without changing game configuration.
-    List { port_id: String },
+    List {
+        /// Port ID from catalog list for the active managed installation.
+        port_id: String,
+    },
     /// Review a single typed value or the declared default before applying it.
     Review(GameSettingIntentArgs),
     /// Apply the exact preceding review; stale inputs refuse the change.
@@ -1693,8 +1702,11 @@ pub(crate) enum GameSettingsCommand {
 
 #[derive(Debug, Args)]
 pub(crate) struct GameSettingIntentArgs {
+    /// Port ID for the installation whose settings were read.
     pub(crate) port_id: String,
+    /// Configuration file ID returned by game-settings list.
     pub(crate) file_id: String,
+    /// Declared setting ID returned by game-settings list.
     pub(crate) setting_id: String,
     /// One JSON scalar, such as 70, true, or a quoted enum choice.
     #[arg(long, conflicts_with = "reset", required_unless_present = "reset")]
