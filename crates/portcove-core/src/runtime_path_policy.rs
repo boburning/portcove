@@ -23,8 +23,11 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         };
     }
     if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::RelativeFileMaxPath) {
-        return if port.adapter == AdapterKind::NativePortable
-            && port.platforms == [Platform::WindowsX86_64]
+        let supported_route = (port.adapter == AdapterKind::NativePortable
+            && port.platforms == [Platform::WindowsX86_64])
+            || (port.adapter == AdapterKind::LibultrashipPortable
+                && port.platforms.contains(&Platform::WindowsX86_64));
+        return if supported_route
             && port.setup_executable_hints.is_empty()
             && port.release.user_prepared.is_empty()
             && port.release.managed_build.is_empty()
@@ -32,7 +35,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             Ok(())
         } else {
             Err(PortcoveError::usage(
-                "relative Windows file access requires a Windows-only native archive without preparation helpers",
+                "relative Windows file access requires a native archive or a Windows-capable Libultraship archive without preparation helpers",
             ))
         };
     }
@@ -77,7 +80,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
 }
 
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
-    if port.adapter == AdapterKind::NativePortable {
+    if port.adapter == AdapterKind::LibultrashipPortable {
+        2
+    } else if port.adapter == AdapterKind::NativePortable {
         if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
         {
             7
@@ -88,6 +93,14 @@ pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
         11
     } else {
         17
+    }
+}
+
+pub(crate) fn capability_template(port: &PortDefinition) -> &'static str {
+    match port.adapter {
+        AdapterKind::NativePortable => "native-portable",
+        AdapterKind::LibultrashipPortable => "libultraship-portable",
+        _ => "staged-source-portable",
     }
 }
 

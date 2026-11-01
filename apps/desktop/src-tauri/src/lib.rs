@@ -705,6 +705,19 @@ async fn inspect_source(
 }
 
 #[tauri::command]
+async fn review_source_reuse(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    generation: u64,
+) -> DesktopResult<portcove_core::SourceReuseReview> {
+    let state = state.inner().clone();
+    blocking_service_at_generation(state, generation, move |service| {
+        service.review_source_reuse(&profile_id).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn inspect_source_intake(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
@@ -741,9 +754,14 @@ async fn plan_source_relink(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
     path: PathBuf,
+    generation: Option<u64>,
 ) -> DesktopResult<SourceRelinkPlan> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_worker(move || {
+        let service = match generation {
+            Some(generation) => service_at_generation(&state, generation)?,
+            None => service(&state)?,
+        };
         service
             .plan_source_relink(&profile_id, &path)
             .map_err(Into::into)
@@ -757,9 +775,14 @@ async fn relink_source(
     profile_id: String,
     path: PathBuf,
     preview_sha256: String,
+    generation: Option<u64>,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_worker(move || {
+        let service = match generation {
+            Some(generation) => service_at_generation(&state, generation)?,
+            None => service(&state)?,
+        };
         service
             .relink_source(&profile_id, &path, &preview_sha256)
             .map_err(Into::into)
@@ -1249,6 +1272,9 @@ async fn install_port(
         on_event.map(|id| id.channel_on(webview));
     let state = state.inner().clone();
     blocking_async_service_at_generation(state, generation, move |service| async move {
+        let _source_reuse = input.source_reference.as_ref().map(|reference| {
+            service.lock_source_reuse(&input.port_id, reference, input.source.as_deref())
+        }).transpose()?;
         if service.catalog().port(&input.port_id)?.managed_shared_preferences.is_some() {
             if input.stage {
                 return Err(PortcoveError::unsupported("Install ReGaiden normally to review its Windows shared preferences. First-install staging is unavailable for this consent-bearing route.").into());
@@ -1271,7 +1297,7 @@ async fn install_port(
             .install(
                 &input.port_id,
                 input.channel,
-                input.source.as_deref(),
+                if _source_reuse.is_some() { None } else { input.source.as_deref() },
                 input.bios.as_deref(),
                 !input.stage,
                 |event: OperationEvent| {
@@ -2680,6 +2706,7 @@ pub fn run() -> std::process::ExitCode {
             backup_review::restore_backup,
             backup_review::delete_backup,
             inspect_source,
+            review_source_reuse,
             inspect_source_intake,
             plan_source_relink,
             relink_source,

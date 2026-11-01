@@ -27,6 +27,10 @@ impl EngineTemplateCapability {
             })
             .collect();
         supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: 2,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 2,
         });
@@ -416,6 +420,33 @@ mod tests {
                 maximum_version,
             }],
         }
+    }
+
+    #[test]
+    fn libultraship_path_v2_refuses_v1_clients_without_retiring_v1() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::LibultrashipPortable || entry.contract_version == 1
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("libultraship-portable", 2, 2), &previous)
+                .unwrap()
+                .compatible
+        );
+        for version in [1, 2] {
+            assert!(
+                check_definition_capabilities(&request("libultraship-portable", version, version))
+                    .unwrap()
+                    .compatible
+            );
+        }
+        assert!(
+            check_with_inventory(&request("libultraship-portable", 1, 1), &previous)
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

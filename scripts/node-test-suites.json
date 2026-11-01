@@ -785,6 +785,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-source-reuse.test.mts",
+      "memberships": [
+        ["windows-storage-4", 510],
+        ["frontend-full-4", 510],
+        ["development-tools", 2310]
+      ]
+    },
+    {
       "file": "scripts/desktop-real-runtime.test.mts",
       "memberships": [
         ["windows-storage-4", 500],

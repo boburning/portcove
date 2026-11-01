@@ -1947,6 +1947,34 @@ Core import Published observer runs only in the fifth case. These are
 instrumented fixture process-loss observations, not OS shutdown, installed-release
 or Linux qualification; preserve failed or incomplete captures separately.
 
+`--scenario native-registered-source-reuse` is an opt-in standalone Windows
+journey using the normal catalog and ordinary managed releases for
+`2ship2harkinian` and `zelda64-recomp`. Set `PORTCOVE_SOURCE_REUSE_ORIGINAL` to an
+absolute Majora's Mask USA 1.0 ZIP. The existing Core preview checks identity
+before Desktop registers the owned copy once, reviews the alternative without
+another original picker, and exercises same-content moved-file repair and
+substituted-input refusal. Existing owned-session observations bind each actual
+managed launch and positive exit. These process observations do not establish
+runtime rendering, gameplay, unsupported-edition native acceptance or assistive
+technology behavior; retain those observations separately on the owning issue.
+Raw original and runtime files are private inputs, excluded from public artifacts.
+For actual runtime observation, optionally set
+`PORTCOVE_SOURCE_REUSE_RUNTIME_OBSERVATION=operator`. The same owned harness
+then waits at most 300 seconds for each exact game to exit while the operator
+observes and closes its window. It records identity-bound exit observations;
+operator close intent and usable rendering require separately retained UI
+observations. It does not fabricate an automatic close request or turn a failed
+Core outcome into success. Without this option, ordinary automatic close remains.
+Later independent observations can continue after a known nonzero game exit only
+after positive game/supervisor quiescence and unchanged registration/storage
+bytes. Such a Play failure still forces the final aggregate case to fail; source,
+security, cancellation and collection errors abort immediately.
+The real-input CLI preview and reinspection calls have a finite 60-second harness
+budget; ordinary metadata reads retain their 15-second default. A preparation
+failure before any driver/App launch records a separate prelaunch diagnostic,
+without claiming process-exit proof. Every attempted launch still requires the
+existing identity-bound positive cleanup before resource release.
+
 `--scenario native-real-prepared-runtime` is an opt-in standalone Windows journey
 for the two selected real user-prepared definitions, `dkc3-recomp` and
 `wave-race-64-racewave46`. Set `PORTCOVE_REAL_RUNTIME_INPUTS` to an absolute JSON

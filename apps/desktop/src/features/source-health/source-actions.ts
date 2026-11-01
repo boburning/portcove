@@ -35,8 +35,8 @@ export async function replaceRegisteredSource(
       await perform(
         "update game-file location",
         async () => {
-          const plan = await desktopApi.planSourceRelink(profile.id, path);
-          return desktopApi.relinkSource(profile.id, path, plan.preview_sha256);
+          const plan = await desktopApi.planSourceRelink(profile.id, path, libraryGeneration);
+          return desktopApi.relinkSource(profile.id, path, plan.preview_sha256, libraryGeneration);
         },
         {
           context,

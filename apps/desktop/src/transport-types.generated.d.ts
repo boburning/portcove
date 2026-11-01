@@ -808,6 +808,7 @@ export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
+export type SourceReuseCompatibility = "listed_identity" | "potential" | "incompatible" | "unavailable";
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateCheckResultKind =
@@ -987,6 +988,7 @@ export interface TransportOutputs {
   source_intake_inspection: OutputSourceIntakeInspection;
   source_relink_plan: OutputSourceRelinkPlan;
   source_removal_preview: OutputSourceRemovalPreview;
+  source_reuse_review: OutputSourceReuseReview;
   source_verification: SourceVerification;
   status: PortStatus;
   storage: StorageSummary;
@@ -1025,6 +1027,7 @@ export interface TransportOutputs {
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
+  desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
@@ -4006,6 +4009,28 @@ export interface OutputSourceRemovalPreview {
   preview_sha256: string;
   source: SourceRecord;
   [k: string]: unknown;
+}
+export interface OutputSourceReuseReview {
+  applications: SourceReuseApplication[];
+  inspection: SourceInspectionReport;
+  reference: SourceRegistrationReference;
+  registration: SourceRecord;
+  [k: string]: unknown;
+}
+export interface SourceReuseApplication {
+  additional_checks: string[];
+  can_review_setup: boolean;
+  compatibility: SourceReuseCompatibility;
+  contract_id: string;
+  port_id: string;
+  port_name: string;
+  role: PortSourceRole;
+  summary: string;
+  [k: string]: unknown;
+}
+export interface SourceRegistrationReference {
+  profile_id: string;
+  reference_sha256: string;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

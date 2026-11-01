@@ -133,6 +133,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         assert!(expected.insert((adapter.as_str().unwrap(), 1)));
     }
     for capability in [
+        ("libultraship-portable", 2),
         ("n64-recomp-portable", 2),
         ("n64-recomp-portable", 3),
         ("n64-recomp-portable", 4),

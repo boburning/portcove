@@ -2944,6 +2944,11 @@ mod tests {
             .unwrap();
         two_ship.project_url = "https://github.com/2ship2harkinian/2ship2harkinian".into();
         two_ship.release.repository = "2ship2harkinian/2ship2harkinian".into();
+        // Preserve the historical input while expecting the reviewed Windows
+        // package path policy in the current Libultraship v2 definition.
+        assert!(two_ship.windows_runtime_path_policy.is_none());
+        two_ship.windows_runtime_path_policy =
+            Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath);
         // Same repository and retained release; see the 2026-10-21 ReCut relocation record.
         let paper_mario = expected_ports
             .iter_mut()

@@ -2579,6 +2579,11 @@ void test("native resource release requires current positive exit after any laun
         snapshot: "current.json",
       };
     if (state === "replacement") session.beginLaunch();
+    if (state === "pristine")
+      assert.deepEqual(session.cleanupDisposition(), { kind: "not-started" });
+    else if (state === "positive")
+      assert.deepEqual(session.cleanupDisposition(), { kind: "quiescent", proof: session.cleanup });
+    else assert.throws(() => session.cleanupDisposition(), /Current owned|Positive current owned/);
     const release = session.releaseResources({
       closeFixtures: async () => {
         calls.push("close");
@@ -2595,6 +2600,47 @@ void test("native resource release requires current positive exit after any laun
       assert.deepEqual(calls, [], state);
     }
   }
+});
+
+void test("prelaunch admission refusal stays pristine but a synchronous failed spawn requires exit proof", async () => {
+  const session = new OwnedNativeSession();
+  const refusal = new Error("admission refused");
+  assert.throws(
+    () =>
+      session.startLaunch({
+        admit: () => {
+          throw refusal;
+        },
+        create: () => assert.fail("Refused admission must not attempt a launch"),
+      }),
+    (error) => error === refusal,
+  );
+  assert.deepEqual(session.cleanupDisposition(), { kind: "not-started" });
+  const failedSpawn = new Error("spawn failed synchronously");
+  assert.throws(
+    () =>
+      session.startLaunch({
+        admit: () => {},
+        create: () => {
+          throw failedSpawn;
+        },
+      }),
+    (error) => error === failedSpawn,
+  );
+  assert.throws(() => session.cleanupDisposition(), /Current owned launch identity/);
+  const calls: string[] = [];
+  await assert.rejects(
+    session.releaseResources({
+      closeFixtures: async () => {
+        calls.push("close");
+      },
+      releaseLock: async () => {
+        calls.push("release");
+      },
+    }),
+    /Current owned launch identity/,
+  );
+  assert.deepEqual(calls, []);
 });
 
 void test("native resource release waits for fixture teardown and preserves teardown failures", async () => {

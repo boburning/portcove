@@ -3,6 +3,8 @@ import type { PortDefinition, PortStatus, SourceProfile, SourceRecord } from "..
 import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
 import { useSetupReviewSelection } from "../features/game-file-discovery/setup-review-selection";
 import { GameFileLibraries } from "./GameFileLibraries";
+import { RegisteredSourceSetup } from "./RegisteredSourceSetup";
+import type { Perform } from "../features/operations/use-operation-state";
 import { Button } from "./ui/button";
 import { SearchChoice } from "./ui/combobox";
 import { ArrowLeft, ArrowRight, FolderInput, FolderSearch, Gamepad2 } from "lucide-react";
@@ -17,6 +19,7 @@ export function AddGames({
   statuses,
   sources,
   refreshFailed,
+  perform,
   onAdded,
   onOpenPort,
   onCheckFiles,
@@ -33,6 +36,7 @@ export function AddGames({
   statuses: ReadonlyMap<string, PortStatus>;
   sources: SourceRecord[];
   refreshFailed: boolean;
+  perform: Perform;
   onAdded: () => Promise<unknown>;
   onOpenPort: (id: string, origin: string) => void;
   onCheckFiles: (id: string, profileId: string) => void;
@@ -67,6 +71,16 @@ export function AddGames({
         Start with a game, a folder of original files, or an installation you already have. Portcove
         checks what is supported before you confirm any changes.
       </p>
+      <RegisteredSourceSetup
+        sources={sources}
+        profiles={profiles}
+        statuses={statuses}
+        generation={generation}
+        current={active && !refreshFailed}
+        perform={perform}
+        onChanged={onAdded}
+        onOpenPort={onOpenPort}
+      />
       <div
         className="add-route-choices"
         data-route-selected={mode !== "choose"}

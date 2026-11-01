@@ -446,6 +446,7 @@ export class OwnedNativeSession {
         (check) =>
           [
             "native-real-prepared-runtime",
+            "native-registered-source-reuse",
             "native-reviewed-backup-restore-and-delete",
             "native-reviewed-source-reference-removal",
             "native-reviewed-steam-batch-add",
@@ -501,6 +502,13 @@ export class OwnedNativeSession {
         "Successful native qualification requires the exact selected native driver identity",
       );
     }
+  }
+
+  cleanupDisposition():
+    | { kind: "not-started" }
+    | { kind: "quiescent"; proof: NativeSessionCleanup } {
+    if (!this.launchAttempted) return { kind: "not-started" };
+    return { kind: "quiescent", proof: this.requireQuiescence() };
   }
 
   requireQuiescence() {

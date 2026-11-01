@@ -4,6 +4,45 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 
 const context = { cli: "owned-cli", library: "isolated-library", output: "isolated-output" };
 
+void test("a real-input command can select finite headroom without changing later read defaults", () => {
+  const budgets: Array<number | undefined> = [];
+  const command = ownedFixtureCommand(context, (_cli, _args, options) => {
+    budgets.push(options.timeout);
+    return { status: 0, stdout: JSON.stringify({ ok: true, data: {} }) };
+  });
+  command(["source", "inbox", "import", "profile", "owned.zip"], undefined, { timeoutMs: 60_000 });
+  command(["source", "list"]);
+  command(["status", "exact-port"]);
+  assert.deepEqual(budgets, [60_000, 15_000, 15_000]);
+});
+
+void test("invalid per-command budgets refuse before spawning and overridden failures report the effective limit", () => {
+  const failure = new Error("controlled real-input timeout");
+  let calls = 0;
+  const command = ownedFixtureCommand(context, (_cli, _args, options) => {
+    calls++;
+    assert.equal(options.timeout, 60_000);
+    throw failure;
+  });
+  for (const timeoutMs of [0, -1, 1.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1])
+    assert.throws(
+      () => command(["source", "list"], undefined, { timeoutMs }),
+      /finite positive integer/,
+    );
+  assert.equal(calls, 0);
+  assert.throws(
+    () => command(["source", "reuse", "profile"], undefined, { timeoutMs: 60_000 }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.cause, failure);
+      assert.match(error.message, /"timeout_ms":60000/);
+      assert.match(error.message, /"process_result_available":false/);
+      return true;
+    },
+  );
+  assert.equal(calls, 1);
+});
+
 void test("owned setup mutations get bounded time without changing later observation budgets", () => {
   const budgets: Array<number | undefined> = [];
   const command = ownedFixtureCommand(context, (_cli, _args, options) => {

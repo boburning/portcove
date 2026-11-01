@@ -1818,6 +1818,73 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
 }
 
 #[test]
+fn source_reuse_compiled_reader_retains_baseline_and_informational_edition_limits() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let source = temporary.path().join("controlled.z64");
+    let bytes = b"\x80\x37\x12\x40synthetic registered-source reuse fixture";
+    std::fs::write(&source, bytes).unwrap();
+    let added = portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "add",
+            "majoras-mask",
+            source.to_str().unwrap(),
+        ],
+    );
+    assert!(added.status.success(), "{added:?}");
+    let before = json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"].clone();
+    let result = portcove(&library, &["--json", "source", "reuse", "majoras-mask"]);
+    assert!(result.status.success(), "{result:?}");
+    let result = json_stdout(&result);
+    assert_eq!(result["schema_version"], 85);
+    assert_eq!(result["command"], "source.reuse");
+    assert_eq!(result["data"]["reference"]["profile_id"], "majoras-mask");
+    assert_eq!(
+        result["data"]["reference"]["reference_sha256"]
+            .as_str()
+            .unwrap()
+            .len(),
+        64
+    );
+    for port in ["2ship2harkinian", "zelda64-recomp"] {
+        let app = result["data"]["applications"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|app| app["port_id"] == port)
+            .unwrap();
+        assert_eq!(
+            app["compatibility"], "potential",
+            "inert synthetic bytes are not a known original"
+        );
+        let inspected = result["data"]["inspection"]["applications"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|app| app["port_id"] == port)
+            .unwrap();
+        assert_eq!(inspected["contract"]["admission_mode"], "informational");
+        assert!(inspected["contract"]["evidence_gap"].is_string());
+    }
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        before
+    );
+    assert_eq!(std::fs::read(&source).unwrap(), bytes);
+    let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    assert!(
+        capabilities["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|command| command == "source.reuse")
+    );
+}
+
+#[test]
 fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");

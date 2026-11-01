@@ -2068,6 +2068,7 @@ impl CapabilityDocument {
                 "setup.pending".into(),
                 "setup.forget".into(),
                 "source".into(),
+                "source.reuse".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),
                 "source.query".into(),

@@ -31,6 +31,38 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn libultraship_windows_paths_require_the_owning_v2_template() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("2ship2harkinian").unwrap().clone();
+    port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath);
+    let mut entry = entry_for_port(&port);
+    for (template, minimum, maximum) in [
+        ("libultraship-portable", 1, 1),
+        ("libultraship-portable", 1, 2),
+        ("staged-source-portable", 2, 2),
+    ] {
+        entry["required_capabilities"] =
+            json!([{"template":template,"minimum_version":minimum,"maximum_version":maximum}]);
+        assert!(
+            inspect(&entry)
+                .unwrap_err()
+                .message
+                .contains("libultraship-portable capability version 2")
+        );
+    }
+    entry["required_capabilities"] =
+        json!([{"template":"libultraship-portable","minimum_version":2,"maximum_version":2}]);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    port.windows_runtime_path_policy = None;
+    assert!(
+        inspect(&entry_for_port(&port))
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
+#[test]
 fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("opentyrian-opentyrian").unwrap().clone();
@@ -668,8 +700,8 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
 fn unsupported_capabilities_remain_reportable_and_the_adapter_is_required() {
     let baseline = fixture();
     let mut value = baseline.clone();
-    value["required_capabilities"][0]["minimum_version"] = json!(2);
-    value["required_capabilities"][0]["maximum_version"] = json!(2);
+    value["required_capabilities"][0]["minimum_version"] = json!(3);
+    value["required_capabilities"][0]["maximum_version"] = json!(3);
     assert!(!inspect(&value).unwrap().capabilities().compatible);
     value["required_capabilities"]
         .as_array_mut()

@@ -366,6 +366,7 @@ for (const [file, tests] of [
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/native-compatibility.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
@@ -1696,19 +1697,33 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-owned-native-session.mts",
     [
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
       "apps/desktop/scripts/desktop-native-observations.native.test.mts",
     ],
   ],
   [
+    "apps/desktop/scripts/desktop-source-reuse-test.mts",
+    ["scripts/desktop-source-reuse.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
+    ["scripts/desktop-source-reuse.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
     "apps/desktop/scripts/desktop-real-runtime-test.mts",
-    ["scripts/desktop-real-runtime.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    [
+      "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
   ],
   [
     "apps/desktop/scripts/desktop-test.mts",
     [
       "apps/desktop/scripts/desktop-harness.native.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-input-observation.test.mts",
@@ -2815,6 +2830,7 @@ function classifyOnePath(
     addNodeTest(selection, "scripts/check-transport-contract.test.mts");
     addNodeTest(selection, "scripts/check-transport-contract.integration.test.mts");
     addNodeTest(selection, "scripts/transport-types.test.mts");
+    addNodeTest(selection, "scripts/transport-values.test.mts");
     recognized = true;
   }
 
