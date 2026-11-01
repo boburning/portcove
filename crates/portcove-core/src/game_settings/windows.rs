@@ -76,26 +76,48 @@ fn ordinary(file: &File, directory: bool) -> Result<()> {
     Ok(())
 }
 
-/// Pin each ancestor against pathname replacement, including ancestors above
-/// the library/output root. Only local drive paths are supported by this v1.
-fn pin_parents(parent: &Path) -> Result<Vec<File>> {
-    crate::path::refuse_symlink_ancestors(parent)?;
-    let canonical = std::fs::canonicalize(parent)?;
-    if canonical != parent {
-        return Err(changed());
-    }
-    let Some(std::path::Component::Prefix(prefix)) = canonical.components().next() else {
-        return Err(changed());
+/// Logical DOS and equivalent verbatim spellings can identify the same object.
+/// Syntax rejects aliases; held directory/file identities establish custody.
+fn validate_local_path(path: &Path) -> Result<()> {
+    use std::path::{Component, Prefix};
+    let unsupported = || {
+        PortcoveError::unsupported("settings require an unambiguous absolute local Windows path")
     };
-    if !matches!(
-        prefix.kind(),
-        std::path::Prefix::Disk(_) | std::path::Prefix::VerbatimDisk(_)
-    ) {
-        return Err(PortcoveError::unsupported(
-            "settings changes require a supported local Windows drive",
-        ));
+    let text = path.to_str().ok_or_else(unsupported)?;
+    if !path.is_absolute()
+        || text
+            .split(['/', '\\'])
+            .any(|part| matches!(part, "." | ".."))
+    {
+        return Err(unsupported());
     }
-    let mut ancestors: Vec<_> = canonical.ancestors().collect();
+    let Some(Component::Prefix(prefix)) = path.components().next() else {
+        return Err(unsupported());
+    };
+    if !matches!(prefix.kind(), Prefix::Disk(_) | Prefix::VerbatimDisk(_)) {
+        return Err(unsupported());
+    }
+    for component in path.components() {
+        match component {
+            Component::Normal(name) => {
+                let name = name.to_str().ok_or_else(unsupported)?;
+                if name.ends_with(['.', ' ']) || name.contains(':') {
+                    return Err(unsupported());
+                }
+            }
+            Component::CurDir | Component::ParentDir => return Err(unsupported()),
+            Component::Prefix(_) | Component::RootDir => {}
+        }
+    }
+    Ok(())
+}
+
+/// Pin the supplied logical ancestors root-first against replacement. Do not
+/// canonicalize away a reparse point before checking the object at each name.
+fn pin_parents(parent: &Path) -> Result<Vec<File>> {
+    validate_local_path(parent)?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    let mut ancestors: Vec<_> = parent.ancestors().collect();
     ancestors.reverse();
     let mut held = Vec::new();
     for path in ancestors {
@@ -140,6 +162,7 @@ impl HeldFile {
     }
 
     fn open_existing(path: &Path, writable: bool) -> Result<Self> {
+        validate_local_path(path)?;
         let parent = path.parent().ok_or_else(changed)?;
         let parents = pin_parents(parent)?;
         if !writable && std::fs::symlink_metadata(path)?.permissions().readonly() {
@@ -166,6 +189,7 @@ impl HeldFile {
     }
 
     pub(crate) fn create_stage(path: &Path) -> Result<Self> {
+        validate_local_path(path)?;
         let parents = pin_parents(path.parent().ok_or_else(changed)?)?;
         let file = OpenOptions::new()
             .read(true)
@@ -261,6 +285,7 @@ impl HeldFile {
     /// Rename the held object into a vacant sibling name. This never replaces
     /// another pathname and never reopens the original for mutation.
     pub(crate) fn move_to(&mut self, destination: &Path) -> Result<()> {
+        validate_local_path(destination)?;
         ordinary(&self.file, false)?;
         if self.path.parent() != destination.parent() {
             return Err(changed());
@@ -343,6 +368,48 @@ impl HeldFile {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn ordinary_dos_and_verbatim_names_share_held_physical_custody() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("prefs.ini");
+        assert!(
+            matches!(path.components().next(), Some(std::path::Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::Disk(_)))
+        );
+        fs::write(&path, b"ui_scale=1.0\n").unwrap();
+        let canonical = fs::canonicalize(&path).unwrap();
+        let mut logical = HeldFile::open(&path).unwrap();
+        let identity = logical.identity.clone();
+        let parent_identity = logical.parent_identity.clone();
+        let bytes = logical.bytes(1024).unwrap();
+        assert_eq!(logical.path, path);
+        assert!(OpenOptions::new().write(true).open(&path).is_err());
+        drop(logical); // Mutation handles intentionally exclude another DELETE opener.
+        let mut verbatim = HeldFile::open(&canonical).unwrap();
+        assert_eq!(identity, verbatim.identity);
+        assert_eq!(parent_identity, verbatim.parent_identity);
+        assert_eq!(bytes, verbatim.bytes(1024).unwrap());
+        assert_eq!(verbatim.path, canonical);
+    }
+
+    #[test]
+    fn local_path_validation_refuses_alias_and_unsupported_namespaces() {
+        for path in [
+            r"C:relative\file.ini",
+            r"\\server\share\file.ini",
+            r"\\?\UNC\server\share\file.ini",
+            r"\\.\C:\file.ini",
+            r"C:\parent\.\file.ini",
+            r"C:\parent\..\file.ini",
+            r"C:\parent.\file.ini",
+            r"C:\parent \file.ini",
+            r"C:\parent\file.ini:stream",
+        ] {
+            assert!(validate_local_path(Path::new(path)).is_err(), "{path}");
+        }
+        assert!(validate_local_path(Path::new(r"C:\parent\file.ini")).is_ok());
+        assert!(validate_local_path(Path::new(r"\\?\C:\parent\file.ini")).is_ok());
+    }
 
     #[test]
     fn held_config_refuses_writer_leaf_replacement_and_parent_replacement() {

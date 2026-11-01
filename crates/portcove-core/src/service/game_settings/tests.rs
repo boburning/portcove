@@ -24,8 +24,16 @@ struct Fixture {
 fn fixture(port_id: &str) -> Fixture {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
+    // The real service must support ordinary library DOS paths, not only the
+    // verbatim spelling used by the lower-level handle fixtures.
+    assert!(
+        matches!(library.root().components().next(), Some(std::path::Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::Disk(_)))
+    );
     let mut port = Catalog::embedded().unwrap().port(port_id).unwrap().clone();
+    // This source-free, inert filesystem fixture removes the dependent source
+    // declaration as well. Production authored source contracts stay intact.
     port.source_profile = None;
+    port.runtime_source_materialization = None;
     port.presentation = None;
     let descriptor = port.game_settings.as_ref().unwrap();
     let file = descriptor.files[0].clone();
@@ -687,6 +695,57 @@ impl LifecycleFaultInjector for FailAt {
             )));
         }
         Ok(())
+    }
+}
+
+#[test]
+fn pending_journal_refuses_alternate_library_spelling_without_mutating_custody() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
+    for port_id in [SHIP, GOLDEN] {
+        let mut fixture = fixture(port_id);
+        let fault = Arc::new(FailAt {
+            point: SettingsFaultPoint::CanonicalStageBeforeCreate,
+            fired: AtomicBool::new(false),
+        });
+        fixture.service.faults = fault.clone();
+        assert!(
+            apply(
+                &fixture,
+                GameSettingChange::Set {
+                    value: fixture.proposed.clone()
+                }
+            )
+            .is_err()
+        );
+        assert!(fault.fired.load(Ordering::SeqCst));
+        let store = OperationStore::new(fixture.service.library.clone());
+        let before = store.all().unwrap();
+        assert_eq!(before.len(), 1);
+        let encoded = serde_json::to_value(&before[0].game_settings).unwrap();
+        let canonical_root = fs::canonicalize(fixture.service.library.root()).unwrap();
+        assert_ne!(canonical_root, fixture.service.library.root());
+        let alternate = Library::open(canonical_root).unwrap();
+        assert!(
+            OperationStore::new(alternate.clone())
+                .get(&before[0].id)
+                .is_err()
+        );
+        assert!(alternate.try_lock_port(port_id, "launch").is_err());
+        let unchanged = store.get(&before[0].id).unwrap().unwrap();
+        assert_eq!(
+            serde_json::to_value(&unchanged.game_settings).unwrap(),
+            encoded
+        );
+        assert_eq!(unchanged.phase, before[0].phase);
+        assert_eq!(unchanged.last_error, before[0].last_error);
+        assert_eq!(unchanged.updated_at, before[0].updated_at);
+        assert_eq!(fs::read(&fixture.canonical).unwrap(), fixture.original);
+        assert_eq!(fs::read(&fixture.runtime).unwrap(), fixture.original);
+        drop(alternate);
+        fixture.service.faults = Arc::new(NoLifecycleFaults);
+        fixture.service.recover_pending_operations().unwrap();
+        assert!(store.all().unwrap().is_empty());
+        assert_eq!(observed(&fixture), fixture.proposed);
     }
 }
 
