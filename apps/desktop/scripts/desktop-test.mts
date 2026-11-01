@@ -123,6 +123,7 @@ import {
   externalRuntimeReviewScenario,
 } from "./desktop-external-runtime-test.mts";
 import { prepareRealRuntimeInputs, realRuntimeScenario } from "./desktop-real-runtime-test.mts";
+import { parseGameFirstInstalledInputPaths } from "../../../scripts/desktop-game-first-installed-inputs.mts";
 import {
   nativePickerObservation,
   nativePreparedRuntimePicker,
@@ -2765,6 +2766,38 @@ try {
       application,
     });
   });
+  if (selection.selected_scenarios.includes("native-game-first-installed-picori")) {
+    const { gameFirstInstalledScenario } = await import("./desktop-game-first-installed-test.mts");
+    const pickerContext = {
+      application,
+      getDriverPid: () => required(required(driver).pid),
+      getDriverIdentity: () => ownedSession.driver,
+      output,
+      artifacts,
+    };
+    await gameFirstInstalledScenario({
+      browser: driverBrowser(),
+      invoke,
+      scenario,
+      output,
+      artifacts,
+      library,
+      cli: required(values["preparation-cli"]),
+      application,
+      inputPaths: parseGameFirstInstalledInputPaths(values),
+      confirmNative: nativeConfirmation(pickerContext),
+      chooseGameFileFolder: nativeGameFileFolderPicker(pickerContext),
+      restartApplication,
+      onManagedGame: (game) => {
+        assert.equal(game.installation.port_id, "project-picori");
+        ownedSession.game = game;
+        if (
+          !ownedSession.games.some((previous) => previous.installation.id === game.installation.id)
+        )
+          ownedSession.games.push(game);
+      },
+    });
+  }
   await scenario("native-external-runtime-review", async () => {
     const browser = driverBrowser();
     const pickerContext = {

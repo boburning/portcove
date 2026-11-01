@@ -477,6 +477,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-game-first-installed-picori",
+    "Normal-app source connection, reviewed managed Picori copy, Library launch and restart with explicitly supplied private inputs.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop"],
+      source: "desktop-game-first-installed-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-release-channel-selection-and-restart",
     "Release-channel selection survives renderer restart.",
     {
@@ -796,6 +806,12 @@ export function resolveDesktopSelection({
     throw new Error("native-linux-webview-origin-boundary requires Linux");
   if (uniqueRequested.includes("native-library-organization-restart") && platform !== "win32")
     throw new Error("native-library-organization-restart requires Windows");
+  if (uniqueRequested.includes("native-game-first-installed-picori")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-game-first-installed-picori requires one exact standalone scenario");
+    if (platform !== "win32")
+      throw new Error("native-game-first-installed-picori requires Windows");
+  }
   if (uniqueRequested.includes("native-game-first-choice-and-restart")) {
     if (uniqueRequested.length !== 1)
       throw new Error(
@@ -908,6 +924,9 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Private-input custody, real copy review, managed game close and owned restart.
+  // This outer harness budget does not change any product deadline or retry policy.
+  if (selection.selected_scenarios.includes("native-game-first-installed-picori")) return 1_200_000;
   // The retained 2026-11-01 A1 attempt exhausted 180s verifying immutable
   // inputs before App launch. Allow finite room for custody, captures and restart;
   // keep every inner wait, identity check and cleanup unchanged.

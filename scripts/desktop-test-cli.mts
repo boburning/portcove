@@ -140,6 +140,9 @@ async function executeDesktopTest() {
     console.log("File-only recovery: --finalize-retained-package --output ABS_COMPLETED_DIRECTORY");
     console.log("Select with --profile PROFILE or repeat --scenario ID for an exact series.");
     console.log(
+      "Picori only: --scenario native-game-first-installed-picori --preparation-cli ABS --game-first-inputs ABS --game-first-source ABS --game-first-runtime ABS --game-first-shapes ABS --game-first-logic ABS --game-first-archive ABS",
+    );
+    console.log(
       "Current-installed NSIS: --current-installed --installer ABS --package-evidence ABS --expected-app ABS --expected-version VERSION --test-base ABS --evidence ABS",
     );
     console.log(

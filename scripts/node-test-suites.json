@@ -687,6 +687,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-game-first-installed-inputs.test.mts",
+      "memberships": [
+        ["windows-storage-4", 299],
+        ["frontend-full-4", 299],
+        ["development-tools", 2099]
+      ]
+    },
+    {
       "file": "scripts/desktop-execution-plan.test.mts",
       "memberships": [
         ["windows-storage-4", 300],

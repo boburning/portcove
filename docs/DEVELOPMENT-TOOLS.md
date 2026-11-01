@@ -1968,6 +1968,23 @@ can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
 
+`--scenario native-game-first-installed-picori` is an explicit standalone Windows
+journey using normal products and catalog authority. Supply the normal CLI with
+`--preparation-cli` and six captured argument files: `--game-first-inputs`
+(version-1 metadata), `--game-first-source`, `--game-first-runtime`,
+`--game-first-shapes`, `--game-first-logic` and `--game-first-archive`.
+It requires no fixture tool or qualification catalog. Bounded regular-file
+verification prepares fresh owned copies, then ordinary source review and native
+copy confirmation create a managed installation. Upstream release identity stays
+separate from Core's adopted version. Library identity, favorite, Play routing,
+strict child/supervisor identity, ordinary close and restart retention are checked.
+Its finite 1200-second outer harness budget includes input custody and real copy
+review; product deadlines remain unchanged. Actual runtime pixels require a
+separately bound game-window observation. Desktop screenshots, process liveness
+and accessibility reports do not establish rendering, gameplay, real saves,
+screen-reader use, total network offline or installed multi-implementation behavior.
+Missing observations remain explicit in the result; this case does not close #4154.
+
 `--scenario native-direct-preparation-recovery` is an opt-in Windows journey
 through a real failed owned setup child. Its original source/runtime inputs and
 active installation remain unchanged; the actual Core failure supplies the

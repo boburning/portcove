@@ -3188,3 +3188,21 @@ import "../apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts";
 import "../apps/desktop/scripts/desktop-install.native.test.mts";
 import "../apps/desktop/scripts/desktop-staged-layout.native.test.mts";
 import "../apps/desktop/scripts/desktop-reload.native.test.mts";
+
+void test("installed Picori is explicit, standalone and excludes inert fixture authority", () => {
+  const id = "native-game-first-installed-picori";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});

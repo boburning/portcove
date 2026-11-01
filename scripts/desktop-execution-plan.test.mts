@@ -390,6 +390,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
+            "native-game-first-installed-picori",
           ].includes(id),
       ),
     });
@@ -1579,4 +1580,78 @@ void test("local artwork owns its exact private catalog fixture without enabling
     assert.equal(plan.fixtures.install, false);
     assert.deepEqual(plan.build.qualificationFeatures, []);
   }
+});
+
+void test("Picori private-input selection captures the normal CLI and every supplied byte without fixture authority", () => {
+  const id = "native-game-first-installed-picori";
+  const flags = [
+    "game-first-inputs",
+    "game-first-source",
+    "game-first-runtime",
+    "game-first-shapes",
+    "game-first-logic",
+    "game-first-archive",
+  ];
+  const args = [
+    "--scenario",
+    id,
+    "--preparation-cli",
+    "/cli.exe",
+    ...flags.flatMap((flag) => [`--${flag}`, `/${flag}`]),
+  ];
+  const { values } = parseDesktopHarnessOptions(args);
+  if (process.platform === "win32") {
+    const resolved = resolveDesktopHarnessSelection(values);
+    assert.deepEqual(resolved.selected_scenarios, [id]);
+  }
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(plan.fixtures.owned, false);
+  assert.equal(plan.fixtures.install, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "game-first-installed-picori");
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.ok(
+    plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-cli",
+    ),
+  );
+  assert.ok(
+    !plan.receiptInputs.some(
+      (input) => input.kind === "executable" && input.name === "preparation-tool",
+    ),
+  );
+  for (const flag of flags)
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.kind === "argument-file" && input.name === flag)
+        .length,
+      1,
+    );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions(args.filter((_, index) => index < args.length - 2)).values,
+      ),
+    /requires --game-first-archive/u,
+  );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions([...args, "--preparation-tool", "/probe.exe"]).values,
+      ),
+    /without a fixture tool/u,
+  );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions([
+          "--scenario",
+          "empty-library",
+          "--game-first-inputs",
+          "/metadata",
+        ]).values,
+      ),
+    /exact standalone/u,
+  );
 });
