@@ -123,11 +123,14 @@ export async function registeredSourceReuseScenario(context: Context) {
       assert.deepEqual(sources(), []);
       await selectPrimaryNavigation(browser, "Library");
       await click(button("Add games"));
-      await click(button("Choose a game or port"));
+      await click(By.css('button[aria-label="Choose a game or port"]'));
       const search = await browser.wait(until.elementLocated(By.id("port-search")), 15000);
       await search.sendKeys(fixture.ports[0]!.name);
+      const projectDescription = `Port project: ${fixture.ports[0]!.name} · ${portIds[0]}`;
       const option = await browser.wait(
-        until.elementLocated(By.xpath(`//*[@role="option"][contains(.,"${portIds[0]}")]`)),
+        until.elementLocated(
+          By.xpath(`//*[@role="option"][.//*[normalize-space(.)="${projectDescription}"]]`),
+        ),
         15000,
       );
       await clickVisible(browser, option);
@@ -154,7 +157,10 @@ export async function registeredSourceReuseScenario(context: Context) {
       await click(button("Return to game"));
       const initial = sources()[0]!;
       assert.equal(initial.sha256, fixture.preview.source.sha256);
-      assert.equal(initial.path.toLowerCase(), fixture.owned.toLowerCase());
+      assert.equal(
+        path.win32.toNamespacedPath(initial.path).toLowerCase(),
+        path.win32.toNamespacedPath(fixture.owned).toLowerCase(),
+      );
       report.registration = initial;
       // The first and alternative actual installation/Play decisions remain
       // required; no Core or IPC mutation may replace these Desktop operations.
@@ -260,7 +266,14 @@ export async function registeredSourceReuseScenario(context: Context) {
         "d-moved-original-picker",
         moved,
       );
-      await browser.wait(() => sources()[0]?.path.toLowerCase() === moved.toLowerCase(), 30000);
+      await browser.wait(() => {
+        const savedPath = sources()[0]?.path;
+        return (
+          savedPath !== undefined &&
+          path.win32.toNamespacedPath(savedPath).toLowerCase() ===
+            path.win32.toNamespacedPath(moved).toLowerCase()
+        );
+      }, 30000);
       const repaired = sources()[0]!;
       for (const key of ["profile_id", "sha256", "size", "storage_sha256", "storage_size"] as const)
         assert.equal(repaired[key], initial[key]);
