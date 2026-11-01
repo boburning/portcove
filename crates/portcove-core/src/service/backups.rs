@@ -655,6 +655,7 @@ impl PortcoveService {
         let history = self.backup_history_with_operations(port_id, operations)?;
         Ok(BackupInventory {
             port_id: port_id.into(),
+            protection: Some(self.player_data_protection(port, &status, &history.backups)?),
             restore_assessment: self.backup_restore_assessment(port_id, operations, &history),
             create_assessment: self.backup_create_assessment(
                 port_id,
