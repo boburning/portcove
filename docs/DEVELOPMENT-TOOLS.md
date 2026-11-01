@@ -1960,7 +1960,7 @@ technology behavior; retain those observations separately on the owning issue.
 Raw original and runtime files are private inputs, excluded from public artifacts.
 For actual runtime observation, optionally set
 `PORTCOVE_SOURCE_REUSE_RUNTIME_OBSERVATION=operator`. The same owned harness
-then waits at most 120 seconds for each exact game to exit while the operator
+then waits at most 300 seconds for each exact game to exit while the operator
 observes and closes its window. It records identity-bound exit observations;
 operator close intent and usable rendering require separately retained UI
 observations. It does not fabricate an automatic close request or turn a failed

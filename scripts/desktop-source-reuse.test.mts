@@ -150,7 +150,7 @@ void test("operator runtime observation keeps identity and exit proof separate f
       if(mode==='Observe')return {processes:[{pid:11,started_filetime:'123',state:++reads===1?'running':'exited'}]};
       assert.equal(mode,'Wait');return {observed_processes:2,exited_at:'fixture'};
     };
-    await observeRegisteredRuntimeExit({session,snapshot:'bound-game.json',native,route,wait:async(observe,timeout)=>{assert.equal(timeout,120000);assert.equal(observe(),false);const exited=observe();assert.equal(exited,true);return exited}});
+    await observeRegisteredRuntimeExit({session,snapshot:'bound-game.json',native,route,wait:async(observe,timeout)=>{assert.equal(timeout,300000);assert.equal(observe(),false);const exited=observe();assert.equal(exited,true);return exited}});
     assert.deepEqual(calls,['Observe','Observe','Wait']);
     assert.equal(route.observed_game_exit.observed_processes,2);
     assert.equal('ordinary_game_close' in route,false);assert.equal('rendering' in route,false);

@@ -110,7 +110,7 @@ export async function observeRegisteredRuntimeExit({
     assert.ok(game);
     assert.equal(`windows-filetime:${game.started_filetime}`, session.child_identity);
     return game.state === "exited";
-  }, 120_000);
+  }, 300_000);
   assert.equal(exited, true);
   route.observed_game_exit = native("Wait", snapshot);
 }
