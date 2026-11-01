@@ -3,13 +3,45 @@
   "listing": {
     "id": "mdomangue26-thebigs2",
     "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
-    "summary": "Upstream route: Upstream runtime package for The Bigs 2 ReXGlue; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream bounded runtime work; real Windows run not performed. Complete-game and platform qualification not established by archives. Windows x64 package only Wine-tested, Linux/Deck AppImages exist; Clang20 SDK development source build and full-game limits remain explicit. Upstream platforms: Windows/Linux ReXGlue build, Clang20/CMake/Ninja. Windows package tested only through Wine10; Linux/Deck AppImages observed. Original data: Xbox 360 The Bigs2 own supported disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
     "original_game_title": "The Bigs 2",
     "project_url": "https://github.com/mdomangue26/thebigs2",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mdomangue26/thebigs2",
-    "issue_number": 2802
+    "issue_number": 2802,
+    "manual_setup": {
+      "help_url": "https://github.com/mdomangue26/thebigs2/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own Xbox 360 game upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own supported The Bigs 2 Xbox 360 disc image. Complete the upstream first-launch extraction and settings outside Portcove, keep independent original media, and retain the exact accepted edition/revision. This reviewed route does not establish every region or patched image as compatible. No disc, helper, compiler or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Keep the complete official player",
+          "instruction": "The inspected v1.1 Windows ZIP contains TheBigs2-windows-x64/thebigs2.exe as an AMD64 native player with matching runtime libraries. It already contains the native game program; the first-launch UI extracts the original game data rather than compiling a new native player. Keep the complete package and notices. A development source build requiring Clang 20/ReXGlue is a separate route, not a prerequisite inferred for this existing player."
+        },
+        {
+          "title": "Attach the prepared player",
+          "instruction": "Select thebigs2.exe, use the complete extracted TheBigs2-windows-x64 directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The selected source configures paths, handles setup and resumes the linked game in process. If setup or disc extraction is still required, finish it outside the attached attempt. Quit the game normally; forced termination does not guarantee save flushing."
+        },
+        {
+          "title": "Preserve the actual portable and external roots",
+          "instruction": "On Windows a writable executable folder enables upstream portable mode: preserve game/, config/thebigs2.toml, saves/ with profiles and achievements, cache/ and logs/. A non-writable folder instead uses the existing platform configuration path, normally %APPDATA%/thebigs2, and the runtime’s actual user-data/cache roots; preserve those independently rather than assuming all saves are in APPDATA. Existing command-line data/cache overrides and configuration take precedence. Upstream can copy old profiles into a new portable saves/ folder when it is absent; retain both originals and destinations. This guide performs no migration or deletion."
+        },
+        {
+          "title": "Keep original and component permissions separate",
+          "instruction": "Retain the selected project’s Unlicense notice and its explicit exclusion of original/recompiled game code, the ReXGlue BSD-3-Clause notice and all other dependencies. Roboto and Barlow have separate Apache/OFL terms. No component grant licenses the original game or third-party mods; use only a complete copy you are independently permitted to use."
+        },
+        {
+          "title": "Maintain the external copy and its limits",
+          "instruction": "Quit the actual game before upstream replacement, changing extraction/settings or restoring profiles. Keep independent recovery copies and review/relink changed executable bytes. Upstream explicitly reports the Windows package was cross-compiled and tested only through Wine; that does not establish physical Windows, full-game, save/reload or installed-app acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal and Supported status are not offered."
+        }
+      ],
+      "warnings": [
+        "Preserve the active portable saves/configuration or external runtime paths. Wine-only upstream package testing is not Windows or complete-game qualification."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
