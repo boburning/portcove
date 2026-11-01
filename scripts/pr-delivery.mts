@@ -56,6 +56,7 @@ export interface DeliveryPull extends Omit<RenovatePull, "head" | "base" | "body
 }
 export interface DeliveryCheckRun {
   id: number;
+  head_sha?: string;
   name: string;
   status: string;
   conclusion?: string | null;
@@ -323,11 +324,17 @@ export interface WatchState {
   contexts: WatchContext[];
   pull?: unknown;
   head?: string;
+  jobs?: DeliveryJob[];
 }
 export interface WatchClient {
   beginObservation?: () => void;
   workflowRun(run: number): DeliveryWorkflow;
-  requiredCheckState(number: number, head: string, contexts: string[]): WatchState;
+  requiredCheckState(
+    number: number,
+    head: string,
+    contexts: string[],
+    binding?: { run: number; attempt: number },
+  ): WatchState;
   workflowJobs?(run: number, attempt: number): DeliveryJob[];
 }
 export interface WatchObservation {
@@ -526,7 +533,7 @@ export class PullRequestDeliveryClient {
 
   checkRuns(sha: string) {
     return this.paginatedConnection(
-      `repos/${repository}/commits/${sha}/check-runs?filter=latest&per_page=100`,
+      `repos/${repository}/commits/${sha}/check-runs?filter=all&per_page=100`,
       "check_runs",
       (run) => (isRecord(run) && Number.isSafeInteger(run.id) ? String(run.id) : null),
     ).map(checkMetadata);
@@ -651,16 +658,23 @@ export class PullRequestDeliveryClient {
     });
   }
 
-  requiredCheckState(number: number, head: string, requiredContexts: string[]) {
+  requiredCheckState(
+    number: number,
+    head: string,
+    requiredContexts: string[],
+    binding?: { run: number; attempt: number },
+  ) {
     const pull = this.pull(number);
     if (pull.head.sha !== head)
       throw new Error(`pull request #${number} head changed: ${pull.head.sha} != ${head}`);
+    const jobs = binding ? this.workflowJobs(binding.run, binding.attempt) : undefined;
     const contexts = requiredCheckContexts(
       this.checkRuns(head),
       this.commitStatuses(head),
       requiredContexts,
+      binding && jobs ? { head, ...binding, jobs } : undefined,
     );
-    return { pull, head, contexts };
+    return { pull, head, contexts, ...(jobs ? { jobs } : {}) };
   }
 
   renovateSnapshot(number: number, head: string, requiredContexts: string[]) {
@@ -979,9 +993,14 @@ export async function watchRequiredChecks(
     try {
       client.beginObservation?.();
       observed = client.workflowRun(run);
-      state = client.requiredCheckState(number, head, requiredContexts);
+      state = client.requiredCheckState(number, head, requiredContexts, { run, attempt });
       try {
-        observe({ format: 1, kind: "delivery-observation", ...evidence() });
+        observe({
+          format: 1,
+          kind: "delivery-observation",
+          ...evidence(),
+          ...(state.jobs ? { jobs: state.jobs } : {}),
+        });
       } catch {
         /* Diagnostics cannot change monitoring. */
       }
