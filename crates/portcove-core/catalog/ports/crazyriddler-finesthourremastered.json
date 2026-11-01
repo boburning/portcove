@@ -3,7 +3,7 @@
   "listing": {
     "id": "crazyriddler-finesthourremastered",
     "name": "Call of Duty: Finest Hour (Finest Hour Remastered)",
-    "summary": "Upstream route: Initial route is multipartv1.0installer: Setup.exe+index+all data.NNNparts import own ISO and install runtime, then first start prepares shaders. Latestupdate tag contains updater-only. Upstream installer/updater owns replacement; Wine/Proton route reuses it. Limits: Upstream only: Initial v1.0 multipart setup differs from updater-only latest asset. Upstream renderer/shader claims are not independent performance or campaign proof. Latest update release contains updater executable, not necessarily clean full installer. Resolve full initial-install release independently; preserve upstream installer ownership. Upstream platforms: Windows installer/runtime; Linux/Deck via Proton/Wine. Native Linux player not established; exact CPU follows selected package docs. Original data: Original Xbox Call of Duty Finest Hour own supported disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Windows Finest Hour Remastered guidance for an independently permitted, already completed CODFH.exe installation using your exact PAL Xbox copy. Upstream owns setup and updates; continuation across quick-reboot, updater or restart successors is outside this entry’s scope.",
     "original_game_title": "Call of Duty: Finest Hour",
     "project_url": "https://github.com/crazyriddler/FinestHourRemastered",
     "platforms": [],
@@ -17,7 +17,40 @@
       "game_slug": "call-of-duty-finest-hour",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2785
+    "issue_number": 2785,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use an independently permitted completed installation",
+          "instruction": "Use a complete Windows installation and components you are independently permitted to use. Upstream’s full initial v1.0 route needs FinestHourRemasteredSetup.exe, FinestHourRemastered.index and every FinestHourRemastered.data.NNN part together; the latest update tag contains an updater, not a clean initial installer. This guide does not authorize fresh acquisition of the required original-derived remaster pack: its specific permission/authorized-source condition remains unresolved. An existing permitted copy can be retained independently; no hidden pack bypass is offered."
+        },
+        {
+          "title": "Keep the exact supported original and preparation with upstream",
+          "instruction": "The supported original is your own PAL Europe Xbox Call of Duty: Finest Hour, title 4156002A version 3, with default.xbe SHA-1 938a7b1e17928de49cb3c5834d61abcd3d9081c8 and its complete game files. Upstream accepts a supported extracted folder (default.xbe, COD.PAK, AUDIO, SHELL and companions) or supported full-disc/XISO image. Keep originals unchanged; other regions, revisions or console versions are outside this guide. Complete upstream installation and first-start GPU shader preparation outside Portcove. The source-build route also requires the release’s remaster pack, shader recipes and settings; a compiled EXE alone is not a complete player."
+        },
+        {
+          "title": "Select the ordinary initial native entry",
+          "instruction": "Select the completed installation’s CODFH.exe, use its complete creating installation directory as working directory, and leave arguments empty. Keep the matching assets, shader recipes/default settings and other installed companions. Do not select Setup.exe, Update.exe, release-unpack scripts, generated intermediates or another title. Saving launch details and Play are separate actions. This entry covers the selected initial native process; no full-campaign or all-transition session claim is made."
+        },
+        {
+          "title": "Keep successor and updater operations outside this entry",
+          "instruction": "The SDK has a conditional quick-reboot path that starts a successor and exits the original process after readiness or a short wait. Retained evidence does not establish that a normal Finest Hour transition requires it; actual title use is Unknown. Portcove does not follow, adopt or terminate that successor, an updater’s relaunched game, or a settings-restart successor. Those operations and continuation through them are not offered by this entry. Close every actual game/successor and updater yourself before another attachment, relinking, backup, replacement or removal; a stopped original PID does not prove successors closed."
+        },
+        {
+          "title": "Preserve every active data and recovery location",
+          "instruction": "Back up the complete installation and each active profile before upstream startup or maintenance. Settings live in codfh.toml beside the EXE, saves in hdd/, prepared shaders in shadercache/, and logs beside the game. Preserve any existing crash dumps and the original inputs separately. If an established external setup uses --instance N, preserve its hddN and instance logs separately rather than merging them with the default hdd. Do not keep recovery files in %TEMP%/FinestHourRemastered: upstream startup attempts cleanup of that updater scratch directory and retries locked leftovers. No migration, backup or save compatibility promise is supplied by this registration."
+        },
+        {
+          "title": "Leave replacement and recovery with upstream",
+          "instruction": "Upstream installer/player owns preparation, first-start shader writes and runtime replacement. Its optional in-game Update action checks updater size/SHA-256, closes the game and starts an external updater that can relaunch it; do that outside this entry’s tracked-session scope and review the resulting completed installation before relinking changed bytes. Preserve independent backups and original files before updating or uninstalling. Removing Portcove registration preserves external files; Portcove does not own updates, rollback, data deletion, successor continuation or external-file recovery."
+        }
+      ],
+      "warnings": [
+        "Source inspection and release metadata only: no installer, multipart payload, compiled output, native game, real save, installed-client or protected qualification was performed. Expected provider hashes are not newly observed package integrity or source/binary certification. Windows requirements include SSE4.2/x86-64-v2 and upstream-documented GPU requirements; no host hardware acceptance is claimed. Applicable code/component terms do not grant original-game/remaster-pack rights; the named fresh-acquisition condition remains separate."
+      ],
+      "help_url": "https://github.com/crazyriddler/FinestHourRemastered/blob/d908d2f994ecb64379986aaced826de3adf0d06a/README.md"
+    },
+    "download_block_reason": "Fresh Core acquisition of the selected Finest Hour Windows installer/required remaster-pack asset set is held: upstream identifies original COD.PAK textures and remastered game models in that pack, but an applicable grant for those selected components has not been established by the code/tool licenses. Resume with attributable permission/authorized source for the selected asset set or a separately reviewed supported preparation route excluding the unresolved components. An independently permitted completed copy remains distinct; successor-process continuation is not offered by its conditional ordinary-entry guide."
   },
   "upstream_lineage": {
     "format_version": 1,

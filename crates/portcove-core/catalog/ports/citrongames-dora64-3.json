@@ -3,7 +3,7 @@
   "listing": {
     "id": "citrongames-dora64-3",
     "name": "Doraemon 3: Nobita no Machi SOS! (Dora3-64)",
-    "summary": "Upstream route: Upstream runtime package for Dora3-64; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream advertises gameplay, translations and autosave. Complete playthrough evidence Unknown; inspect Android ZIP layout before describing its install route. Linux glibc 2.43 minimum; Android README calls an APK but actual release supplies Android ZIP. Select verified asset and inspect its layout before configuring route. Upstream platforms: Windows x64, Linux x86-64 (glibc 2.43+, Vulkan), Android ARM64. Android release ZIP differs from README APK name. Original data: N64 Doraemon 3 Japan N3DJ revision 0, 16 MiB big-endian ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted prepared Dora64-3 Windows player for your own Japanese revision0 ROM, keeping local saves, settings and upstream maintenance together.",
     "original_game_title": "Doraemon 3: Nobita no Machi SOS!",
     "project_url": "https://github.com/citrongames/Dora64-3",
     "platforms": [],
@@ -17,7 +17,36 @@
       "game_slug": "doraemon-3-nobita-no-machi-sos",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2724
+    "issue_number": 2724,
+    "manual_setup": {
+      "help_url": "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/docs/user-guide.md",
+      "steps": [
+        {
+          "title": "Complete the exact owned-ROM setup upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. Supply your own Japanese Doraemon3 N3DJ revision0,16MiB big-endian .z64 ROM. The selected README identifies SHA-256 410f99bdd58795639da272c9be9d1ab8c35b61f24f7c1fb92f7e83e1069a2602. The actual native loader checks file size0x1000000 and XXH3-64 F3BFFF0C58827510; that is a compatibility check, not a demonstrated SHA-256/entitlement check of supplied data. The ROM is not included. Convert other representations and complete any upstream generation/build outside Portcove; no ROM, BIOS, compiler or helper is acquired or run by this registration."
+        },
+        {
+          "title": "Select the documented direct Windows player",
+          "instruction": "Keep the entire creating writable Windows folder with matching DLLs, assets and notices. Place the supported .z64 beside Dora64-3.exe, choose that native executable and its containing directory, and use no arguments. Windows wmain rejects extra arguments and discovers the matching adjacent ROM; do not use the private ROM/run-directory diagnostic interface, research probes, Android package or Linux setup script. Review and consent to the exact executable/CWD/arguments, then request Play separately."
+        },
+        {
+          "title": "Preserve local saves and every settings file",
+          "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+        },
+        {
+          "title": "Keep lifetime and maintenance ownership explicit",
+          "instruction": "The native entry calls the pinned runtime in-process and waits for its game/event/saving threads before returning. The documented reset restarts the game in the same window; it is not a new Core orchestration path. Upstream/user owns preparation, replacement and recovery. Close the actual player normally, keep a separate working runtime/data backup, perform upstream maintenance, then review/relink changed selected bytes. Removing registration preserves external files; Portcove offers no external update, backup, rollback, migration, deletion or cross-version save guarantee."
+        },
+        {
+          "title": "Retain platform, content and evidence limits",
+          "instruction": "This guide concerns Windows10/11 x64 and the selected direct entry only. Linux glibc2.43 and the Android README APK versus published ZIP discrepancy remain separate. GPL3-or-later project and runtime/component terms do not grant ROM or original/extracted assets; localized wordmarks/artwork retain their own provenance and permissions. Use only actual material you are permitted to use. Upstream gameplay/autosave/translation claims are not Portcove observations."
+        }
+      ],
+      "warnings": [
+        "Selected live startup source explicitly calls itself a research frontend with no validated gameplay loop and retains a not-playable log label. The documented Windows build enables LIVE_RT64 and disables diagnostic logging by default, so that log label is compiled out; this does not establish that the underlying comment is stale or that the game is usable. dora3_pending still stops with code77 if reached; no actual reachability/failure or normal playable session was observed. Keep this source/README1.0 conflict open for exact per-port review; do not count the guide as stable/playable runtime qualification or bypass stop paths.",
+        "Source/tag and provider expected package digest only; no ZIP/PE bytes, package/source correspondence, native/game/real-save/installed-client/Supported/protected acceptance was inspected or executed."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
