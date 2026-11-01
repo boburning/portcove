@@ -91,9 +91,9 @@ pub(crate) fn shipwright_windows_cwd_persistence(
 }
 
 /// Compare the retained execution/authority contract, excluding only display
-/// metadata (including qualification and maintenance observations) and the two
+/// metadata (including the legacy support tier, qualification and maintenance observations) and the two
 /// additive path lists proved separately above. Release
-/// locations, support/channel/platform policy, source/preparation and launch
+/// locations, channel/platform policy, source/preparation and launch
 /// inputs remain operational. Exhaustive field handling makes schema additions
 /// require a classification here rather than silently expanding an allowlist.
 fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
@@ -102,7 +102,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         name: _,
         summary: _,
         project_url: _,
-        support_tier,
+        support_tier: _,
         channels,
         platforms,
         automated_tested_platforms: _,
@@ -146,7 +146,6 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     } = port;
     serde_json::json!({
         "id": id,
-        "support_tier": support_tier,
         "channels": channels,
         "platforms": platforms,
         "adapter": adapter,

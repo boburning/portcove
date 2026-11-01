@@ -173,7 +173,11 @@ impl LifecycleOperation {
     /// the checked family, never inferred by a caller from an optional payload.
     pub(crate) fn validate_family(&self) -> Result<()> {
         use LifecycleOperationKind::*;
-        if (self.install.is_some() && !matches!(self.kind, Install | Adopt | Prepare | Activate))
+        if (self.install.is_some()
+            && !matches!(
+                self.kind,
+                Install | Adopt | Prepare | Activate | GhostshipRecovery
+            ))
             || (self.relocation.is_some() != (self.kind == Relocate))
             || (self.source_import.is_some() != (self.kind == ImportSource))
             || (self.preparation.is_some() && self.kind != Prepare)

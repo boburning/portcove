@@ -1195,6 +1195,33 @@ mod tests {
     }
 
     #[test]
+    fn ghostship_derivative_install_payload_roundtrips_without_relaxing_family_ownership() {
+        let (_temporary, library, operation, intent) = fixture();
+        let store = OperationStore::new(library.clone());
+        let retained = store.get(&operation.id).unwrap().unwrap();
+        assert_eq!(
+            serde_json::to_value(&retained.install).unwrap(),
+            serde_json::to_value(&operation.install).unwrap()
+        );
+        assert_eq!(retained.phase, LifecyclePhase::PayloadPublished);
+        assert_eq!(
+            serde_json::to_value(retained.ghostship_recovery.as_ref().unwrap()).unwrap(),
+            serde_json::to_value(&intent).unwrap()
+        );
+        for missing_or_foreign in [false, true] {
+            let mut malformed = operation.clone();
+            if missing_or_foreign {
+                malformed.kind = LifecycleOperationKind::Restore;
+            } else {
+                malformed.ghostship_recovery = None;
+            }
+            assert!(store.put(&mut malformed).is_err());
+            let unchanged = store.get(&operation.id).unwrap().unwrap();
+            assert_eq!(format!("{unchanged:?}"), format!("{retained:?}"));
+        }
+    }
+
+    #[test]
     fn ghostship_recovery_commit_preserves_retained_and_staged_records_atomically() {
         let (_temporary, library, operation, intent) = fixture();
         library

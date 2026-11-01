@@ -18,6 +18,16 @@ filter = 'package(portcove-core) & (test(/^cancellation::managed_builder_tests::
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# CI 41262750948/a1 retained a30.193s cutoff in this Windows prepared-
+# receipt preservation fixture. Allow finite60s for complete setup and cleanup;
+# retain every receipt/launch refusal assertion, four hosted/two local slots
+# and zero retries. This is harness headroom, not a causal product-speed fix.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^preparation::tests::execution_tests::retained_definition_survives_catalog_changes_but_missing_receipt_blocks_play$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Genuine scheduled qualification 40866403279/a1 Intel2 retained eight
 # additional 30-second cutoffs during complete cached-catalog, publisher-policy
 # and move-sequence fixtures. Exact identities passed in both prior full runs;

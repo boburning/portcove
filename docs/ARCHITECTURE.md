@@ -3481,10 +3481,10 @@ existing checked additive-mutability rules. Frozen current/retained catalog
 contracts and manifests remain unchanged, including during checked import.
 `installed_mutability` owns this checked interpretation for both service actions
 and transfer destination verification. Its exhaustive operational projection excludes
-display name, summary, project URL, presentation, qualification observations and
+display name, summary, project URL, presentation, legacy support tier, qualification observations and
 upstream maintenance status, plus the two
 path lists whose additive changes are proved separately. Release locations,
-executable selection, source/preparation settings, support/platform/channel policy
+executable selection, source/preparation settings, platform/channel policy
 and all other operational inputs must still match. The selected interpretation is
 built from the retained definition; descriptive edits never rewrite retained authority.
 Public ordinary and exact-install collection acquire the port lock before selection

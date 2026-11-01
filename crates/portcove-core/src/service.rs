@@ -8216,7 +8216,42 @@ mod tests {
                 journal.paths.quarantine = Some(quarantine.clone());
             }
         }
-        store.put(&mut journal).unwrap();
+        let codec_refuses = matches!(
+            conflict,
+            ConflictingPublicationIntent::Relocation | ConflictingPublicationIntent::SourceImport
+        );
+        if codec_refuses {
+            assert_eq!(
+                store.put(&mut journal).unwrap_err().code,
+                crate::ErrorCode::State
+            );
+            let mut baseline = journal.clone();
+            baseline.relocation = None;
+            baseline.source_import = None;
+            store.put(&mut baseline).unwrap();
+            library.connection().unwrap().execute(
+                "UPDATE lifecycle_operations SET relocation_json=?2,source_import_json=?3 WHERE id=?1",
+                rusqlite::params![journal.id, journal.relocation.as_ref().map(serde_json::to_string).transpose().unwrap(), journal.source_import.as_ref().map(serde_json::to_string).transpose().unwrap()],
+            ).unwrap();
+        } else {
+            store.put(&mut journal).unwrap();
+        }
+        let row_snapshot = || {
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT * FROM lifecycle_operations WHERE id=?1",
+                    [&journal.id],
+                    |row| {
+                        (0..row.as_ref().column_count())
+                            .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                            .collect::<rusqlite::Result<Vec<_>>>()
+                    },
+                )
+                .unwrap()
+        };
+        let malformed_before = codec_refuses.then(row_snapshot);
         let installs = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
         let sources = serde_json::to_vec(&library.sources().unwrap()).unwrap();
         let private_tree = serde_json::to_vec(&adoption_copy_plan(&staging).unwrap()).unwrap();
@@ -8228,23 +8263,46 @@ mod tests {
         let original_install_tree = tree_snapshot(&installed);
         let adoption_source_tree = tree_snapshot(&adoption_source);
 
-        PortcoveService::new(library.clone()).unwrap();
+        if codec_refuses {
+            assert_eq!(
+                PortcoveService::new(library.clone()).err().unwrap().code,
+                crate::ErrorCode::State
+            );
+            assert!(store.get(&journal.id).is_err());
+            let mut decoded = journal.clone();
+            let error = crate::recovery::recover_published_install(&service, &store, &mut decoded)
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::State);
+            assert!(error.message.contains("missing or foreign family payload"));
+            assert_eq!(format!("{decoded:?}"), format!("{journal:?}"));
+            assert_eq!(row_snapshot(), *malformed_before.as_ref().unwrap());
+        } else {
+            PortcoveService::new(library.clone()).unwrap();
+        }
 
         assert!(
             staging.is_dir(),
             "conflicting intent must retain private staging"
         );
-        let mut retained = store.get(&journal.id).unwrap().unwrap();
+        let mut retained = if codec_refuses {
+            journal.clone()
+        } else {
+            store.get(&journal.id).unwrap().unwrap()
+        };
         assert_eq!(retained.kind, kind);
         assert_eq!(retained.phase, phase);
         assert_eq!(retained.created_at, journal.created_at);
-        assert!(
-            retained
-                .last_error
-                .as_deref()
-                .unwrap()
-                .contains("family's intent")
-        );
+        if codec_refuses {
+            assert_eq!(row_snapshot(), *malformed_before.as_ref().unwrap());
+        } else {
+            assert!(
+                retained
+                    .last_error
+                    .as_deref()
+                    .unwrap()
+                    .contains("family's intent")
+            );
+        }
         let diagnostic = retained.last_error.take();
         retained.updated_at = journal.updated_at;
         assert_eq!(
@@ -9797,15 +9855,52 @@ mod tests {
             )
             .unwrap();
             let store = OperationStore::new(library.clone());
-            store.put(&mut operation).unwrap();
-            let _recovered = service_with_release(library.clone(), "v2");
+            assert_eq!(
+                store.put(&mut operation).unwrap_err().code,
+                crate::ErrorCode::State
+            );
+            let mut baseline = operation.clone();
+            baseline.preparation_process_quiesced = None;
+            store.put(&mut baseline).unwrap();
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE lifecycle_operations SET preparation_process_quiesced=1 WHERE id=?1",
+                    [&operation.id],
+                )
+                .unwrap();
+            let row_snapshot = || {
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row(
+                        "SELECT * FROM lifecycle_operations WHERE id=?1",
+                        [&operation.id],
+                        |row| {
+                            (0..row.as_ref().column_count())
+                                .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                                .collect::<rusqlite::Result<Vec<_>>>()
+                        },
+                    )
+                    .unwrap()
+            };
+            let before = row_snapshot();
+            assert_eq!(
+                PortcoveService::new(library.clone()).err().unwrap().code,
+                crate::ErrorCode::State
+            );
+            let service = PortcoveService::new_read_only(library.clone()).unwrap();
+            let mut rejected = operation.clone();
+            assert!(crate::recovery::recover_activation(&service, &store, &mut rejected).is_err());
+            assert_eq!(row_snapshot(), before);
             let after = library
                 .status("zelda64-recomp", ReleaseChannel::Stable)
                 .unwrap()
                 .active
                 .unwrap();
             assert!(
-                store.get(&operation.id).unwrap().is_some(),
+                store.get(&operation.id).is_err(),
                 "{phase}: recovery retired incompatible journal; active version={}",
                 after.version
             );
@@ -9921,11 +10016,52 @@ mod tests {
                     "quiescence" => operation.preparation_process_quiesced = Some(false),
                     _ => unreachable!(),
                 }
-                store.put(&mut operation).unwrap();
-                let _recovered = service_with_release(library.clone(), "v2");
-                let retained = store.get(&operation.id).unwrap().unwrap();
-                assert_eq!(retained.phase, phase, "{variation}");
-                assert!(retained.last_error.is_some(), "{variation}");
+                if variation == "quiescence" {
+                    assert_eq!(
+                        store.put(&mut operation).unwrap_err().code,
+                        crate::ErrorCode::State
+                    );
+                    let mut baseline = operation.clone();
+                    baseline.preparation_process_quiesced = None;
+                    store.put(&mut baseline).unwrap();
+                    library.connection().unwrap().execute(
+                        "UPDATE lifecycle_operations SET preparation_process_quiesced=0 WHERE id=?1", [&operation.id],
+                    ).unwrap();
+                    let row_snapshot = || {
+                        library
+                            .connection()
+                            .unwrap()
+                            .query_row(
+                                "SELECT * FROM lifecycle_operations WHERE id=?1",
+                                [&operation.id],
+                                |row| {
+                                    (0..row.as_ref().column_count())
+                                        .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                                        .collect::<rusqlite::Result<Vec<_>>>()
+                                },
+                            )
+                            .unwrap()
+                    };
+                    let before = row_snapshot();
+                    assert_eq!(
+                        PortcoveService::new(library.clone()).err().unwrap().code,
+                        crate::ErrorCode::State
+                    );
+                    assert!(store.get(&operation.id).is_err());
+                    let service = PortcoveService::new_read_only(library.clone()).unwrap();
+                    let mut rejected = operation.clone();
+                    assert!(
+                        crate::recovery::recover_activation(&service, &store, &mut rejected)
+                            .is_err()
+                    );
+                    assert_eq!(row_snapshot(), before);
+                } else {
+                    store.put(&mut operation).unwrap();
+                    let _recovered = service_with_release(library.clone(), "v2");
+                    let retained = store.get(&operation.id).unwrap().unwrap();
+                    assert_eq!(retained.phase, phase, "{variation}");
+                    assert!(retained.last_error.is_some(), "{variation}");
+                }
                 assert_eq!(
                     library
                         .status("zelda64-recomp", ReleaseChannel::Stable)
@@ -9955,11 +10091,46 @@ mod tests {
             );
             operation.install = Some(staged.clone());
             operation.phase = phase;
-            store.put(&mut operation).unwrap();
-            let _recovered = service_with_release(library.clone(), "v2");
-            let retained = store.get(&operation.id).unwrap().unwrap();
-            assert_eq!(retained.phase, phase);
-            assert!(retained.last_error.is_some());
+            assert_eq!(
+                store.put(&mut operation).unwrap_err().code,
+                crate::ErrorCode::State
+            );
+            let mut baseline = operation.clone();
+            baseline.phase = LifecyclePhase::Preparing;
+            store.put(&mut baseline).unwrap();
+            library
+                .connection()
+                .unwrap()
+                .execute(
+                    "UPDATE lifecycle_operations SET phase=?2 WHERE id=?1",
+                    rusqlite::params![operation.id, phase.to_string()],
+                )
+                .unwrap();
+            let row_snapshot = || {
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row(
+                        "SELECT * FROM lifecycle_operations WHERE id=?1",
+                        [&operation.id],
+                        |row| {
+                            (0..row.as_ref().column_count())
+                                .map(|index| row.get::<_, rusqlite::types::Value>(index))
+                                .collect::<rusqlite::Result<Vec<_>>>()
+                        },
+                    )
+                    .unwrap()
+            };
+            let before = row_snapshot();
+            assert_eq!(
+                PortcoveService::new(library.clone()).err().unwrap().code,
+                crate::ErrorCode::State
+            );
+            assert!(store.get(&operation.id).is_err());
+            let service = PortcoveService::new_read_only(library.clone()).unwrap();
+            let mut rejected = operation.clone();
+            assert!(crate::recovery::recover_activation(&service, &store, &mut rejected).is_err());
+            assert_eq!(row_snapshot(), before);
             assert_eq!(
                 library
                     .status("zelda64-recomp", ReleaseChannel::Stable)
@@ -16911,6 +17082,11 @@ fn main() {
             .iter_mut()
             .find(|port| port.id == PORT)
             .unwrap();
+        current.support_tier = if current.support_tier == crate::SupportTier::Stable {
+            crate::SupportTier::Rolling
+        } else {
+            crate::SupportTier::Stable
+        };
         current.name = "Updated display name".into();
         current.summary = "Updated descriptive summary".into();
         current.project_url = "https://example.invalid/project".into();
@@ -16921,6 +17097,10 @@ fn main() {
         current.persistent_paths.push("new-settings.ini".into());
         service.replace_catalog_for_test(
             Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert_ne!(
+            service.catalog.port(PORT).unwrap().support_tier,
+            service.installed_port(&retained).unwrap().support_tier,
         );
         let backup = service.create_backup(PORT).unwrap();
         assert_eq!(

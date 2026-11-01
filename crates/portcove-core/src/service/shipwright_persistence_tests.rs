@@ -827,6 +827,11 @@ fn shipwright_descriptive_catalog_changes_keep_retained_save_correction_for_back
         .iter_mut()
         .find(|port| port.id == PORT)
         .unwrap();
+    port.support_tier = if port.support_tier == crate::SupportTier::Stable {
+        crate::SupportTier::Rolling
+    } else {
+        crate::SupportTier::Stable
+    };
     port.name = "New descriptive name".into();
     port.summary = "Corrected summary".into();
     port.project_url = "https://example.invalid/shipwright".into();
@@ -835,6 +840,10 @@ fn shipwright_descriptive_catalog_changes_keep_retained_save_correction_for_back
     port.upstream_status = crate::UpstreamStatus::Retired;
     service.replace_catalog_for_test(
         Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+    );
+    assert_ne!(
+        service.catalog.port(PORT).unwrap().support_tier,
+        service.installed_port(&active).unwrap().support_tier,
     );
     game_write(&active, b"runtime save after catalog description changed");
     fs::write(active.path.join("SoHTimeSplitData.json"), SPLITS_A).unwrap();

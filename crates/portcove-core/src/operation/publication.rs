@@ -24,7 +24,9 @@ pub(crate) fn validate_envelope(record: &LifecycleOperation) -> Result<()> {
 /// publication. The raw record is exposed only as a read-only codec envelope.
 #[derive(Clone)]
 pub(crate) struct PublicationJournal {
-    record: LifecycleOperation,
+    // Preparation plans make the codec envelope large. Keep the checked owner
+    // off the installer future's stack, including transactional clone candidates.
+    record: Box<LifecycleOperation>,
 }
 
 impl PublicationJournal {
@@ -35,7 +37,9 @@ impl PublicationJournal {
                 "publication must start with private preparation",
             ));
         }
-        Ok(Self { record })
+        Ok(Self {
+            record: Box::new(record),
+        })
     }
 
     fn require_private(&self) -> Result<()> {
@@ -142,7 +146,7 @@ impl PublicationJournal {
     /// Recovery consumes the released codec envelope and immediately checks the
     /// relevant interrupted-operation representation again under recovery locks.
     pub(crate) fn into_record(self) -> LifecycleOperation {
-        self.record
+        *self.record
     }
 }
 
@@ -162,31 +166,34 @@ pub(crate) struct PublicationOperation<'a> {
 impl<'a> PublicationOperation<'a> {
     pub(crate) fn decode(library: &Library, record: &'a mut LifecycleOperation) -> Result<Self> {
         validate_envelope(record)?;
-        if record.phase == LifecyclePhase::Preparing {
-            return Err(PortcoveError::state(
-                "private preparation was interrupted before validation",
-            ));
-        }
-        let install = record.install.as_ref().ok_or_else(|| {
-            PortcoveError::state("recoverable publication is missing its install record")
-        })?;
-        if install.port_id != record.port_id {
+        // Preserve identity preflight even for interrupted private preparation:
+        // a foreign embedded install must not be reported as ordinary unfinished work.
+        if record
+            .install
+            .as_ref()
+            .is_some_and(|install| install.port_id != record.port_id)
+        {
             return Err(PortcoveError::state(
                 "publication install owner differs from its journal owner",
             ));
         }
         // Released journals may omit this redundant slot. An explicit slot
         // still binds exactly to the retained installation destination.
-        if record
-            .paths
-            .final_path
-            .as_ref()
-            .is_some_and(|path| path != &install.path)
+        if let (Some(install), Some(destination)) = (&record.install, &record.paths.final_path)
+            && destination != &install.path
         {
             return Err(PortcoveError::state(
                 "publication install destination differs from its journal destination",
             ));
         }
+        if record.phase == LifecyclePhase::Preparing {
+            return Err(PortcoveError::state(
+                "private preparation was interrupted before validation",
+            ));
+        }
+        record.install.as_ref().ok_or_else(|| {
+            PortcoveError::state("recoverable publication is missing its install record")
+        })?;
         let staging = record.paths.staging.as_ref().ok_or_else(|| {
             PortcoveError::state("recoverable publication is missing its staging path")
         })?;
@@ -248,6 +255,11 @@ mod tests {
 
     #[test]
     fn publication_checks_identity_paths_family_and_transition_before_mutation() {
+        eprintln!(
+            "publication layout: codec={} bytes, checked owner={} bytes",
+            std::mem::size_of::<LifecycleOperation>(),
+            std::mem::size_of::<PublicationJournal>()
+        );
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let original = prepared(&library);
