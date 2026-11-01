@@ -25,6 +25,8 @@ use windows_sys::Win32::Storage::FileSystem::{
 use crate::{PortcoveError, Result};
 
 mod security;
+#[cfg(test)]
+pub(crate) use security::MediumIntegrityTest;
 
 fn changed() -> PortcoveError {
     PortcoveError::conflict(

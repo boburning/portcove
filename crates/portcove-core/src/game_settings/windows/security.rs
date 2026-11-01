@@ -4,7 +4,7 @@
 use super::*;
 use std::os::windows::io::{FromRawHandle, OwnedHandle};
 use windows_sys::Win32::{
-    Foundation::LocalFree,
+    Foundation::{ERROR_NO_TOKEN, LocalFree},
     Security::{
         ACL,
         Authorization::{GetSecurityInfo, SE_FILE_OBJECT, SetSecurityInfo},
@@ -15,13 +15,80 @@ use windows_sys::Win32::{
         SYSTEM_MANDATORY_LABEL_ACE, TOKEN_MANDATORY_LABEL, TOKEN_OWNER, TOKEN_QUERY,
         TokenIntegrityLevel, TokenOwner, UNPROTECTED_DACL_SECURITY_INFORMATION, WinMediumLabelSid,
     },
-    System::Threading::{GetCurrentProcess, OpenProcessToken},
+    System::Threading::{GetCurrentProcess, GetCurrentThread, OpenProcessToken, OpenThreadToken},
 };
 
 // Windows SDK SYSTEM_MANDATORY_LABEL_ACE_TYPE and NO_WRITE_UP values. The v1
 // editor does not change labels or enable relabel/security privileges.
 const MANDATORY_LABEL_ACE_TYPE: u8 = 0x11;
 const DEFAULT_INTEGRITY_POLICY: u32 = 1;
+
+// File creation/access honors thread impersonation. Query that exact effective
+// context; an unreadable or anonymous thread token must never fall back to the
+// more privileged process token.
+fn effective_token() -> Result<OwnedHandle> {
+    let mut raw = std::ptr::null_mut();
+    // SAFETY: thread pseudo-handle and initialized output. OpenAsSelf changes
+    // the access check only; Windows still returns the thread token.
+    if unsafe { OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, 1, &mut raw) } == 0 {
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() != Some(ERROR_NO_TOKEN as i32) {
+            return Err(error.into());
+        }
+        // SAFETY: only an absent impersonation token selects this process token.
+        if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw) } == 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+    }
+    // SAFETY: exactly one successful token open transferred this real handle.
+    Ok(unsafe { OwnedHandle::from_raw_handle(raw) })
+}
+
+fn token_integrity_level(token: &OwnedHandle) -> Result<u32> {
+    let mut integrity_size = 0;
+    // SAFETY: size-only query on this owned TOKEN_QUERY handle.
+    unsafe {
+        GetTokenInformation(
+            token.as_raw_handle() as _,
+            TokenIntegrityLevel,
+            std::ptr::null_mut(),
+            0,
+            &mut integrity_size,
+        );
+    }
+    if integrity_size < size_of::<TOKEN_MANDATORY_LABEL>() as u32 || integrity_size > 4096 {
+        return Err(changed());
+    }
+    let mut integrity = vec![0usize; (integrity_size as usize).div_ceil(size_of::<usize>())];
+    // SAFETY: aligned output covers the bounded token information size.
+    if unsafe {
+        GetTokenInformation(
+            token.as_raw_handle() as _,
+            TokenIntegrityLevel,
+            integrity.as_mut_ptr().cast(),
+            integrity_size,
+            &mut integrity_size,
+        )
+    } == 0
+    {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    let sid = unsafe {
+        (*integrity.as_ptr().cast::<TOKEN_MANDATORY_LABEL>())
+            .Label
+            .Sid
+    };
+    // The query returns a Windows-owned SID inside this live output buffer.
+    if sid.is_null() || unsafe { IsValidSid(sid) } == 0 {
+        return Err(changed());
+    }
+    // Windows-returned SID is valid and remains within the live query buffer.
+    let count = unsafe { windows_sys::Win32::Security::GetSidSubAuthorityCount(sid) };
+    if count.is_null() || unsafe { *count } != 1 {
+        return Err(changed());
+    }
+    Ok(unsafe { *windows_sys::Win32::Security::GetSidSubAuthority(sid, 0) })
+}
 
 struct IntegrityLabel {
     sid: PSID,
@@ -228,55 +295,11 @@ impl SecuritySnapshot {
             && self.acl()? == other.acl()?)
     }
 
-    fn is_process_default_owner(&self) -> Result<bool> {
-        let mut raw = std::ptr::null_mut();
-        // SAFETY: GetCurrentProcess is a process pseudo-handle; the initialized
-        // output receives a real TOKEN_QUERY handle with no privilege changes.
-        if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw) } == 0 {
-            return Err(std::io::Error::last_os_error().into());
-        }
-        // SAFETY: OpenProcessToken succeeded and transferred this real handle.
-        let token = unsafe { OwnedHandle::from_raw_handle(raw) };
-        let mut integrity_size = 0;
-        // SAFETY: size-only query on this owned TOKEN_QUERY handle.
-        unsafe {
-            GetTokenInformation(
-                token.as_raw_handle() as _,
-                TokenIntegrityLevel,
-                std::ptr::null_mut(),
-                0,
-                &mut integrity_size,
-            );
-        }
-        if integrity_size < size_of::<TOKEN_MANDATORY_LABEL>() as u32 || integrity_size > 4096 {
-            return Err(changed());
-        }
-        let mut integrity = vec![0usize; (integrity_size as usize).div_ceil(size_of::<usize>())];
-        // SAFETY: aligned output covers the bounded token information size.
-        if unsafe {
-            GetTokenInformation(
-                token.as_raw_handle() as _,
-                TokenIntegrityLevel,
-                integrity.as_mut_ptr().cast(),
-                integrity_size,
-                &mut integrity_size,
-            )
-        } == 0
-        {
-            return Err(std::io::Error::last_os_error().into());
-        }
-        let sid = unsafe {
-            (*integrity.as_ptr().cast::<TOKEN_MANDATORY_LABEL>())
-                .Label
-                .Sid
-        };
-        // The query returns a Windows-owned SID inside this live output buffer.
-        if sid.is_null()
-            || unsafe { IsValidSid(sid) } == 0
-            || unsafe { IsWellKnownSid(sid, WinMediumLabelSid) } == 0
-        {
+    fn is_effective_default_owner(&self) -> Result<bool> {
+        let token = effective_token()?;
+        if token_integrity_level(&token)? != 0x2000 {
             return Err(PortcoveError::unsupported(
-                "settings editing requires the ordinary medium-integrity process",
+                "settings editing requires an effective medium-integrity token",
             ));
         }
         let mut needed = 0;
@@ -327,7 +350,7 @@ impl HeldFile {
         let security = SecuritySnapshot::capture(&self.file)?;
         // v1 never relabels replacements. Restrict both the original and the
         // stage's immediate parent to ordinary medium/default policy before
-        // review succeeds or durable intent is inserted. The process query
+        // review succeeds or durable intent is inserted. The effective-token query
         // below likewise refuses elevated/low-integrity staging semantics.
         let parent = SecuritySnapshot::capture(self._parents.last().ok_or_else(changed)?)?;
         if !security.has_default_medium_integrity() || !parent.has_default_medium_integrity() {
@@ -335,7 +358,7 @@ impl HeldFile {
                 "configuration or parent has unsupported integrity security; editing requires medium/default policy",
             ));
         }
-        if !security.present || !security.is_process_default_owner()? {
+        if !security.present || !security.is_effective_default_owner()? {
             return Err(PortcoveError::unsupported(
                 "configuration security or ownership is not supported for editing",
             ));
@@ -413,6 +436,106 @@ fn validate_attributes(attributes: u32) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+// Thread-local medium-integrity fixture context. This lowers only an owned
+// impersonation token; it retains the account's other capabilities and is NOT
+// evidence of a nonadministrator account or a native game observation.
+#[cfg(test)]
+pub(crate) struct MediumIntegrityTest {
+    _same_thread: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+#[cfg(test)]
+impl MediumIntegrityTest {
+    pub(crate) fn enter() -> Self {
+        use windows_sys::Win32::Security::{
+            Authorization::ConvertStringSidToSidW, ImpersonateSelf, SE_GROUP_INTEGRITY,
+            SID_AND_ATTRIBUTES, SecurityImpersonation, SetTokenInformation, TOKEN_ADJUST_DEFAULT,
+        };
+        let mut existing = std::ptr::null_mut();
+        // No borrowed impersonation state may be overwritten or reverted.
+        let opened = unsafe { OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, 1, &mut existing) };
+        if opened != 0 {
+            drop(unsafe { OwnedHandle::from_raw_handle(existing) });
+            panic!("settings fixture refuses pre-existing thread impersonation");
+        }
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(ERROR_NO_TOKEN as i32)
+        );
+        let before = token_integrity_level(&effective_token().unwrap()).unwrap();
+        assert!(before >= 0x2000, "fixture must never raise integrity");
+        // SAFETY: duplicates only our own process context onto this thread;
+        // no privilege is enabled and no account or process token is changed.
+        assert_ne!(unsafe { ImpersonateSelf(SecurityImpersonation) }, 0);
+        // Establish rollback before any later fallible work.
+        let scope = Self {
+            _same_thread: std::marker::PhantomData,
+        };
+        let mut raw = std::ptr::null_mut();
+        assert_ne!(
+            unsafe {
+                OpenThreadToken(
+                    GetCurrentThread(),
+                    TOKEN_QUERY | TOKEN_ADJUST_DEFAULT,
+                    1,
+                    &mut raw,
+                )
+            },
+            0
+        );
+        let token = unsafe { OwnedHandle::from_raw_handle(raw) };
+        let text: Vec<u16> = "S-1-16-8192".encode_utf16().chain(Some(0)).collect();
+        let mut sid = std::ptr::null_mut();
+        assert_ne!(
+            unsafe { ConvertStringSidToSidW(text.as_ptr(), &mut sid) },
+            0
+        );
+        struct Sid(PSID);
+        impl Drop for Sid {
+            fn drop(&mut self) {
+                unsafe {
+                    LocalFree(self.0);
+                }
+            }
+        }
+        let sid = Sid(sid);
+        let label = TOKEN_MANDATORY_LABEL {
+            Label: SID_AND_ATTRIBUTES {
+                Sid: sid.0,
+                Attributes: SE_GROUP_INTEGRITY,
+            },
+        };
+        let length = size_of::<TOKEN_MANDATORY_LABEL>() as u32
+            + unsafe { windows_sys::Win32::Security::GetLengthSid(sid.0) };
+        assert_ne!(
+            unsafe {
+                SetTokenInformation(
+                    token.as_raw_handle() as _,
+                    TokenIntegrityLevel,
+                    std::ptr::from_ref(&label).cast(),
+                    length,
+                )
+            },
+            0
+        );
+        assert_eq!(
+            token_integrity_level(&effective_token().unwrap()).unwrap(),
+            0x2000
+        );
+        scope
+    }
+}
+
+#[cfg(test)]
+impl Drop for MediumIntegrityTest {
+    fn drop(&mut self) {
+        // Never let leaked impersonation reach another case on this thread.
+        if unsafe { windows_sys::Win32::Security::RevertToSelf() } == 0 {
+            std::process::abort();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -558,7 +681,46 @@ mod tests {
     }
 
     #[test]
+    fn medium_fixture_is_thread_local_refuses_borrowed_context_and_reverts() {
+        let before = token_integrity_level(&effective_token().unwrap()).unwrap();
+        {
+            let _integrity = MediumIntegrityTest::enter();
+            assert_eq!(
+                token_integrity_level(&effective_token().unwrap()).unwrap(),
+                0x2000
+            );
+            assert!(std::panic::catch_unwind(MediumIntegrityTest::enter).is_err());
+            assert_eq!(
+                token_integrity_level(&effective_token().unwrap()).unwrap(),
+                0x2000
+            );
+            // Another thread retains the process context; the fixture does not
+            // alter primary-token state or lower a shared test process.
+            assert_eq!(
+                std::thread::spawn(|| token_integrity_level(&effective_token().unwrap()).unwrap())
+                    .join()
+                    .unwrap(),
+                before
+            );
+        }
+        assert_eq!(
+            token_integrity_level(&effective_token().unwrap()).unwrap(),
+            before
+        );
+        let mut raw = std::ptr::null_mut();
+        assert_eq!(
+            unsafe { OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, 1, &mut raw) },
+            0
+        );
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(ERROR_NO_TOKEN as i32)
+        );
+    }
+
+    #[test]
     fn permissive_parent_cannot_expose_staged_bytes_before_restricted_dacl_is_preserved() {
+        let _integrity = MediumIntegrityTest::enter();
         let temporary = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(temporary.path()).unwrap();
         let parent = root.join("permissive");
@@ -621,6 +783,7 @@ mod tests {
 
     #[test]
     fn foreign_nonempty_staging_security_is_not_rewritten_to_match_original() {
+        let _integrity = MediumIntegrityTest::enter();
         let temporary = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(temporary.path()).unwrap();
         let original_path = root.join("prefs.ini");
@@ -648,6 +811,7 @@ mod tests {
 
     #[test]
     fn captured_null_and_empty_dacls_remain_distinct() {
+        let _integrity = MediumIntegrityTest::enter();
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("acl.ini");
         std::fs::write(&path, b"inert").unwrap();

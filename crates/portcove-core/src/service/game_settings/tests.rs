@@ -191,6 +191,7 @@ fn replace_retention(fixture: &mut Fixture, catalog: Option<&Catalog>) {
 
 #[test]
 fn current_settings_cannot_enroll_unretained_or_retained_without_settings_installs() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     use std::os::windows::fs::OpenOptionsExt;
     for port_id in [SHIP, GOLDEN] {
         for unretained in [true, false] {
@@ -247,6 +248,7 @@ fn current_settings_cannot_enroll_unretained_or_retained_without_settings_instal
 
 #[test]
 fn retained_settings_and_defaults_do_not_follow_current_absence_or_replacement() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         for absent in [true, false] {
             let mut fixture = fixture(port_id);
@@ -291,6 +293,7 @@ fn retained_settings_and_defaults_do_not_follow_current_absence_or_replacement()
 
 #[test]
 fn retained_settings_keep_current_publisher_restrictions_effective() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         let mut fixture = fixture(port_id);
         let admitted =
@@ -330,6 +333,7 @@ fn retained_settings_keep_current_publisher_restrictions_effective() {
 
 #[test]
 fn both_formats_read_apply_reset_and_restart_through_the_same_core_service() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         let mut fixture = fixture(port_id);
         let manifest = fs::read(fixture.install.path.join(".portcove-manifest.json")).unwrap();
@@ -395,6 +399,7 @@ fn both_formats_read_apply_reset_and_restart_through_the_same_core_service() {
 
 #[test]
 fn stale_bytes_and_replaced_same_bytes_objects_refuse_without_changing_config() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         for replace_identity in [false, true] {
             let fixture = fixture(port_id);
@@ -451,6 +456,7 @@ fn stale_bytes_and_replaced_same_bytes_objects_refuse_without_changing_config() 
 
 #[test]
 fn canonical_runtime_disagreement_and_invalid_value_preserve_both_copies() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         let fixture = fixture(port_id);
         let change = GameSettingChange::Set { value: json!(999) };
@@ -494,6 +500,7 @@ fn canonical_runtime_disagreement_and_invalid_value_preserve_both_copies() {
 
 #[test]
 fn read_only_configuration_refuses_review_without_journal_or_staging() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         let fixture = fixture(port_id);
         let mut permissions = fs::metadata(&fixture.canonical).unwrap().permissions();
@@ -534,6 +541,7 @@ fn read_only_configuration_refuses_review_without_journal_or_staging() {
 
 #[test]
 fn actual_nondefault_integrity_policy_refuses_before_journaling_or_staging() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         let fixture = fixture(port_id);
         crate::game_settings::windows::HeldFile::set_no_read_up_for_test(&fixture.canonical)
@@ -571,6 +579,7 @@ fn actual_nondefault_integrity_policy_refuses_before_journaling_or_staging() {
 
 #[test]
 fn actual_default_policy_low_integrity_refuses_before_journaling_or_staging() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for (port_id, label_parent) in [(SHIP, false), (GOLDEN, false), (SHIP, true), (GOLDEN, true)] {
         let fixture = fixture(port_id);
         let label_path = if label_parent {
@@ -612,6 +621,7 @@ fn actual_default_policy_low_integrity_refuses_before_journaling_or_staging() {
 
 #[test]
 fn foreign_staging_suffix_and_occupied_publication_name_are_retained_for_review() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for point in [
         SettingsFaultPoint::CanonicalStageBound,
         SettingsFaultPoint::CanonicalMoved,
@@ -742,7 +752,7 @@ fn interrupted(port_id: &str, point: SettingsFaultPoint) {
 }
 
 macro_rules! interruption_cases {
-    ($($name:ident: $point:ident),+ $(,)?) => { $(#[test] fn $name() { for port in [SHIP, GOLDEN] { interrupted(port, SettingsFaultPoint::$point); } })+ };
+    ($($name:ident: $point:ident),+ $(,)?) => { $(#[test] fn $name() { let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter(); for port in [SHIP, GOLDEN] { interrupted(port, SettingsFaultPoint::$point); } })+ };
 }
 
 interruption_cases! {
