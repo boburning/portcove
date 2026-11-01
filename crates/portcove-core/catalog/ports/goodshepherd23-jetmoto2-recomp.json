@@ -3,13 +3,50 @@
   "listing": {
     "id": "goodshepherd23-jetmoto2-recomp",
     "name": "Jet Moto 2: Championship Edition (Jet Moto 2 Recompiled)",
-    "summary": "Upstream route: Upstream Windows ZIP first launchJetMoto2.exe recompiles supporteddisc toC#and builds with.NET10SDK. Updates trigger one rebuild whilekeeping saves/settings. Upstream owns codegeneration; not zero-toolchain runtime. Limits: Upstream only: Early release; bounded boot/menu/racing claims. Sound/CD music and wider gameplay remain untested per status. Early release Windows11x64 only; sound/CDmusic and wider gameplay remain untested per status; .NET10 SDK setup distinct from runtime. Upstream platforms: Windows x64 and .NET10 SDK first-build route. Tested only Windows11x64; other hosts not established. Original data: PS1 JetMoto2 ChampionshipEdition SCUS94167 own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Windows x64 upstream-prepared native player for Jet Moto 2: Championship Edition USA (SCUS-94167). Complete upstream .NET 10 generation/build first, then register build/JetMoto2Recomp.exe; the root JetMoto2.exe setup launcher starts a separate player and exits. Preserve the creating build directory, disc, settings and memory cards. Upstream reports bounded racing progress; sound/CD music, saving and wider gameplay remain untested.",
     "original_game_title": "Jet Moto 2: Championship Edition",
     "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
-    "issue_number": 2825
+    "issue_number": 2825,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the exact edition",
+          "instruction": "Use your independently permitted copy and own Jet Moto 2: Championship Edition USA disc (SCUS-94167), with its CUE and all 17 BIN tracks. The original 1997 Jet Moto 2 shares the serial but is a different build. Keep the complete named disc set in the upstream disc directory; this guide does not establish a full-disc checksum or rights to original data."
+        },
+        {
+          "title": "Complete upstream preparation",
+          "instruction": "Use the upstream v0.1.5 Windows kit and .NET 10 SDK, following its README generation and build instructions outside Portcove. The kit launcher compiles locally and version changes can trigger another build. Finish preparation before registering the generated player; keep the complete creating kit, runtime dependencies and output together."
+        },
+        {
+          "title": "Select the completed player",
+          "instruction": "Select build/JetMoto2Recomp.exe with its complete build directory as the working directory and no additional arguments. Do not select the root JetMoto2.exe launcher: it starts the player separately and exits. The direct player keeps the game and presentation loop in its own process."
+        },
+        {
+          "title": "Keep the selected disc and card paths",
+          "instruction": "The player reuses an existing valid saved disc path; otherwise it tries ../disc/Jet Moto 2 - Championship Edition (USA).cue beside the creating build. Settings can select another disc or card path and require a restart. A custom path does not establish that another edition is compatible."
+        },
+        {
+          "title": "Back up before starting or rebuilding",
+          "instruction": "With the game closed, keep a separate complete prior kit/build backup and copies of settings.json, interface.ini, carda.sav, cardb.sav and cheats.json in build, plus every configured external card/disc path. Settings and cards are working-directory relative unless customized; cheats.json is beside the player. Missing cards are formatted in memory and later written; unreadable or short existing cards and malformed settings need your recovery copy. Do not assume save compatibility across builds or replace current player data with an older runtime backup."
+        },
+        {
+          "title": "Keep one replacement owner",
+          "instruction": "Upstream and the player own preparation, rebuilds, runtime replacement, settings and saves. Portcove registers the explicitly selected native player without acquiring originals, building, updating or managing its external data. Finish upstream updates outside a tracked game session, retain a complete recovery copy, then revalidate the selected player."
+        },
+        {
+          "title": "Respect the early-release limits",
+          "instruction": "Upstream reports a completed Slickrock Gorge race, with sound/CD music, memory-card saving, other tracks, season, gamepad and two-player play untested. Menu art can extend beyond the right edge. Optional JM2 diagnostic/input/cheat environment features are outside this route. Keep the project and RecompOne notices; their MIT grants do not grant original game content. Upstream states that this early release was tested only on Windows 11 x64; this is its reported test scope, not Portcove qualification for Windows 10 or another host."
+        }
+      ],
+      "help_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md",
+      "warnings": [
+        "Only an independently permitted completed native copy is offered; upstream setup and replacement remain external.",
+        "The launcher that compiles and starts a child player is not the registered player."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

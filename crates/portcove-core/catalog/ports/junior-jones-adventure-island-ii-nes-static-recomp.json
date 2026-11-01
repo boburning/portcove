@@ -3,7 +3,7 @@
   "listing": {
     "id": "junior-jones-adventure-island-ii-nes-static-recomp",
     "name": "Adventure Island II / Adventure Island II (NES) Static Recomp (Junior-Jones)",
-    "summary": "Explore Adventure Island II / Adventure Island II (NES) Static Recomp (Junior-Jones) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Link a permitted Adventure Island II Windows Launcher with its exact owned iNES image; preserve its portable snapshots, settings and supervised game process.",
     "project_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
     "issue_number": 1792,
     "platforms": [],
@@ -16,6 +16,40 @@
       "image_sha256": "422d170a9fc52432deb31dbe053ee86869e991f1220dfa52975b6651aab413ca",
       "game_slug": "adventure-island-ii",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the full prepared Windows copy",
+          "instruction": "Use an independently permitted, completed upstream Windows Launcher.exe and its complete companion files. The v1.0.0 Windows ZIP publisher SHA-256 is 19ef61618f3594ffbda4a4ac42c99d182e2777ea92397aba72acd9c3a41d87d0; this identifies the offered package and is not a Portcove inspection of its contents. Keep gamecontrollerdb.txt and applicable SDL/controller notices with a current source-built copy."
+        },
+        {
+          "title": "Supply the exact original image",
+          "instruction": "Provide your legally obtained Adventure Island II (USA).nes in the Rom folder beside Launcher.exe, or choose it through Browse ROM. The selected frontend requires a 262160-byte iNES file with SHA-256 10dd53fd62c95e77856b09c693b3bdd14b62a89988902eea111257cafe9b8acc and its exact header; a different revision, payload-only dump or modified header is not accepted. The ROM is opened read-only."
+        },
+        {
+          "title": "Preserve the portable player files first",
+          "instruction": "With the game and launcher closed, separately back up the complete old and new game folders, settings.ini, Snapshots/ including Quick Save.ai2state, Screenshots/, the original ROM location and any custom copies. Startup creates or updates settings.ini beside the executable, including its welcome flag. Snapshot save overwrites its selected slot; capture failure can delete an incomplete screenshot. No cross-build snapshot compatibility is established."
+        },
+        {
+          "title": "Complete the upstream first-run screen",
+          "instruction": "Open the ordinary Launcher.exe, dismiss its first-run Welcome window, select the verified ROM, and use Run. The launcher starts its own --game child internally and retains its process handle; do not select that internal child mode or copy its private control arguments into Portcove."
+        },
+        {
+          "title": "Link the outer launcher",
+          "instruction": "Add Launcher.exe through the existing-copy route, use the folder containing it as the working directory, and leave arguments empty. Keep the launcher open while the actual game is running; its message loop observes the child and retains its own window when play stops."
+        },
+        {
+          "title": "Exit the actual game before the launcher",
+          "instruction": "Quit the game window normally, then exit Launcher before maintenance, replacement, relinking or removal. Closing the launcher with a running game offers to exit both: upstream posts close to the game, waits two seconds, then may force termination. Avoid relying on that path for a final save or assuming that forced shutdown preserves progress."
+        },
+        {
+          "title": "Keep runtime and data ownership upstream",
+          "instruction": "The user and upstream own package preparation, runtime replacement, updates and all player files. Portcove only links this completed external copy; it does not install, update, roll back, back up or delete it. The project and third-party component notices do not grant rights to acquire or redistribute the original ROM."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md"
     }
   }
 }

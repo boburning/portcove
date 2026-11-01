@@ -2938,4 +2938,61 @@ mod tests {
     fn kumapauz_project_reignition_prepared_player_route_1870() {
         assert_listing_only_player_route("kumapauz-project-reignition", Some(false));
     }
+    #[test]
+    fn junior_jones_adventure_island_ii_nes_static_recomp_prepared_player_route_1792() {
+        assert_listing_only_player_route(
+            "junior-jones-adventure-island-ii-nes-static-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn gabrielnnk_bigodao_prepared_player_route_1799() {
+        assert_listing_only_player_route("gabrielnnk-bigodao", Some(false));
+    }
+
+    #[test]
+    fn jhdev2006_super_mario_world_remastered_public_prepared_player_route_1891() {
+        assert_listing_only_player_route(
+            "jhdev2006-super-mario-world-remastered-public",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_prepared_player_route_2561() {
+        assert_listing_only_player_route(
+            "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn gran_turismo_4_playstation_2_gt4recomp_prepared_player_route_2579() {
+        assert_listing_only_player_route("gran-turismo-4-playstation-2-gt4recomp", Some(true));
+    }
+
+    #[test]
+    fn hogs_of_war_frontschweine_playstation_german_pal_frontschweine_recompiled_prepared_player_route_2680()
+     {
+        assert_listing_only_player_route(
+            "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn goodshepherd23_galerians_recompiled_prepared_player_route_2734() {
+        assert_listing_only_player_route("goodshepherd23-galerians-recompiled", Some(false));
+    }
+
+    #[test]
+    fn goodshepherd23_jetmoto2_recomp_prepared_player_route_2825() {
+        assert_listing_only_player_route("goodshepherd23-jetmoto2-recomp", Some(false));
+    }
+
+    #[test]
+    fn djultra64_clayfighter64_prepared_player_route_2830() {
+        assert_listing_only_player_route("djultra64-clayfighter64", Some(true));
+    }
 }
