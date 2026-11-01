@@ -1881,3 +1881,29 @@ async fn exit_shared_release_keeps_title_recommendations_distinct_362_363() {
 async fn dead_rising_2_case_zero_recomp_libxlive_hold_before_network_1121() {
     assert_embedded_player_download_holds(&["dead-rising-2-case-zero-recomp"]).await;
 }
+
+#[tokio::test]
+async fn condemned_2_bloodshot_condemned2recomp_component_hold_before_network_361() {
+    assert_embedded_player_download_holds(&["condemned-2-bloodshot-condemned2recomp"]).await;
+}
+
+#[tokio::test]
+async fn silent_hill_downpour_downpourrecomp_component_hold_before_network_358() {
+    assert_embedded_player_download_holds(&["silent-hill-downpour-downpourrecomp"]).await;
+}
+
+#[tokio::test]
+async fn tony_hawks_project_8_recomp_component_hold_before_network_1125() {
+    assert_embedded_player_download_holds(&["tony-hawks-project-8-recomp"]).await;
+}
+
+#[tokio::test]
+async fn sonic_free_riders_recompiled_component_hold_before_network_1450() {
+    assert_embedded_player_download_holds(&["sonic-free-riders-recompiled"]).await;
+}
+
+#[tokio::test]
+async fn unchiga_yu_gi_oh_forbidden_memories_recompiled_component_hold_before_network_1910() {
+    assert_embedded_player_download_holds(&["unchiga-yu-gi-oh-forbidden-memories-recompiled"])
+        .await;
+}

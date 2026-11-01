@@ -12432,11 +12432,13 @@
     {
       "id": "condemned-2-bloodshot-condemned2recomp",
       "name": "Condemned 2: Bloodshot / Condemned2Recomp",
-      "summary": "Explore Condemned 2: Bloodshot / Condemned2Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared Condemned 2: Bloodshot / Condemned2Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/psxrestore/Condemned2Recomp",
       "issue_number": 361,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/psxrestore/Condemned2Recomp",
       "artwork": {
         "game_id": 6943,
@@ -12445,7 +12447,49 @@
         "image_sha256": "befb6920b7ae80cb0e18600c26e5940334cffba3351873e04d093a49c73cdf33",
         "game_slug": "condemned-2-bloodshot",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/psxrestore/Condemned2Recomp/releases/tag/0.5.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "condemned2recomp",
+          "windows"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/psxrestore/Condemned2Recomp/releases",
+        "steps": [
+          {
+            "title": "Use an independently permitted completed copy",
+            "instruction": "Attach only a complete existing copy and components you are independently permitted to use. Fresh acquisition of the selected package remains held for the named ZT Nature font components; the BSD project grant does not resolve their separate application-bundling permission."
+          },
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own legitimate Xbox 360 Condemned 2: Bloodshot. Complete upstream’s ISO and required title-update preparation outside the attached session; the inspected player requires its own default.xex and default.xexp. Preserve the full original layout. Optional QuickBMS full-asset extraction remains upstream preparation, not a Portcove operation."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select condemned2recomp.exe and its complete prepared package folder as working directory. Keep the established configuration and supported literal custom-root arguments; use no extra arguments for the normal already-prepared in-process player. Do not attach condemned2recomp_updater.exe or an extraction utility."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "The in-process start screen offers updates. Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "The inspected title defaults game data to Assets, user data to UserData and cache to Cache beside its configuration; explicit configured roots override defaults. Preserve the full creating folder, runtime configuration, originals, title update, profiles, saves, mods, logs, caches, backups, temporary files and all effective custom roots. An update can rewrite configuration; retain it with the creating runtime."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
+          "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected Condemned 2 package remains held for its bundled ZT Nature Black/Medium fonts: the captured project/dependency notices do not establish an applicable bundled-application redistribution grant for those exact font bytes. Resume with attributable permission for that operation or a reviewed compatible package resolving the component. Later source replacement fonts do not qualify this older package. Independently permitted existing-copy registration does not clear this acquisition hold."
     },
     {
       "id": "conker64-recompiled",
@@ -20703,11 +20747,13 @@
     {
       "id": "guitar-hero-warriors-of-rock-re-wor",
       "name": "Guitar Hero: Warriors of Rock / re-wor",
-      "summary": "Explore Guitar Hero: Warriors of Rock / re-wor and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared Guitar Hero: Warriors of Rock / re-wor native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/ronniecloud/re-wor",
       "issue_number": 359,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/ronniecloud/re-wor",
       "artwork": {
         "game_id": 2629,
@@ -20716,6 +20762,43 @@
         "image_sha256": "6753e2bf3ab41327904aca38ef07a5d2a176cb370cc4e2f80c05a0e928419fb9",
         "game_slug": "guitar-hero-warriors-of-rock",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/ronniecloud/re-wor/releases/tag/v1.1.0",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "re-wor",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/ronniecloud/re-wor/releases",
+        "steps": [
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own legitimate Xbox 360 Guitar Hero: Warriors of Rock original, retaining assets/default.xex and assets/data, including streams and scripts. Do not substitute another Guitar Hero game. Complete supported extraction upstream; this guide imports no original and runs no helper. Connect the supported XINPUT-compatible guitar or gamepad before launching, as required by this upstream player; no physical-controller qualification is claimed here."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select Guitar Hero Warriors of Rock.exe, the complete prepared package folder as working directory and no extra arguments for the normal direct native player. Keep only supported literal arguments already needed by your working setup. Do not select re-wor-launcher.exe or a script."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "Upstream and the user retain preparation and runtime replacement. Close the actual game and companions before deliberate replacement; preserve the creating copy and all data and review changed selected bytes before Play."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "Keep the complete creating folder, assets tree and every actual SDK user, save, profile, configuration, mod, cache, log, backup and custom root. The inspected title does not override every SDK persistence default; the working directory alone does not establish complete save coverage. Keep existing effective paths and do not migrate another title or version’s saves."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "Public attributable upstream release/source; no root project LICENSE found in complete small tree. This absence alone does not establish a prohibition or permit inheriting another engine’s grant. Use only independently permitted components and original data.",
+          "Upstream documents occasional song-transition/audio issues. XINPUT instrument behavior is upstream scope, not our hardware/peripheral qualification."
+        ]
       }
     },
     {
@@ -23778,11 +23861,13 @@
     {
       "id": "kirbys-return-to-dream-land-kirby-wii-recomp",
       "name": "Kirbys Return to Dream Land Kirby Wii Recomp",
-      "summary": "Explore Kirbys Return to Dream Land Kirby Wii Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register the supported Kirby Wii Recomp Windows launcher for your own SUKE01 disc and preserve its separate user profile.",
       "project_url": "https://github.com/ExpansionPak/ModernGekko",
       "issue_number": 1131,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/ExpansionPak/ModernGekko",
       "artwork": {
         "game_id": 3725,
@@ -23791,6 +23876,34 @@
         "image_sha256": "6805796903f3b055e722d349c7eba789a8eb841e85f896eeea57f28101868f53",
         "game_slug": "kirbys-return-to-dream-land",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/ExpansionPak/ModernGekko",
+        "steps": [
+          {
+            "title": "Complete the title’s supported preparation upstream",
+            "instruction": "Use the Kirby-specific Windows package, keep every file in the same writable folder and complete its supported launcher setup from your own North American SUKE01 WBFS or ISO. Windows 10 or newer is documented. This game package accepts that title identity; other ModernGekko games do not establish Kirby source acceptance. The original image remains unchanged and the package supplies no Nintendo game data."
+          },
+          {
+            "title": "Keep the exact original and preparation boundary",
+            "instruction": "The Kirby-specific launcher extracts the selected original, configures a Sideways Wii Remote profile, detects a controller and selects an audio backend. Complete that preparation upstream before attachment. Portcove does not obtain original data or firmware, run the extractor or certify gameplay/save behavior."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select KirbyWiiRecomp.exe with its package directory as working directory and no arguments. Use the supported launcher rather than a private game runner: the inspected launcher starts its matching runner and waits for that process to exit. Keep the complete runner, DLLs, Sys files and game-specific package together."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "The game-specific default profile is %LOCALAPPDATA%/kirby-wii-recomp, containing extracted game data, saves and configuration. Preserve it and every effective custom user directory with the original disc image, controller profiles, NAND/system settings, mods, caches, backups and creating runtime. Retain the game package’s GPL-3.0-or-later and separate notices; framework licensing does not grant Nintendo content or establish cross-game save compatibility."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        ]
       }
     },
     {
@@ -32544,11 +32657,13 @@
     {
       "id": "project-gotham-racing-4-pgr4-recomp",
       "name": "Project Gotham Racing 4 / PGR4-Recomp",
-      "summary": "Explore Project Gotham Racing 4 / PGR4-Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared Project Gotham Racing 4 / PGR4-Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/beatrixzy/PGR4-Recomp",
       "issue_number": 360,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/beatrixzy/PGR4-Recomp",
       "artwork": {
         "game_id": 2540,
@@ -32557,6 +32672,43 @@
         "image_sha256": "298c851b4b05844dc20d54b12ef826012aec8e15d5d32936a288b77a5c137ce8",
         "game_slug": "project-gotham-racing-4",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/beatrixzy/PGR4-Recomp/releases/tag/v1.2.2",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "PGR4-Recomp",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/beatrixzy/PGR4-Recomp/releases",
+        "steps": [
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own legitimate Xbox 360 Project Gotham Racing 4 original. Complete upstream’s supported GOD/ISO/extracted-data preparation outside Portcove and retain the original file tree. No extraction tool, original or title data is obtained or executed by this guide."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select pgr4_recompiled.exe in the complete win-amd64-release-xenos player directory. Match the shipped run.bat as literal executable arguments: --game_data_root followed by your actual prepared data directory, --execute_unclipped_draw_vs_on_cpu, --gpu_plugin=xenos and --fullscreen=false. Enter arguments individually, keeping a path with spaces one argument. Preserve established supported settings. Select the native executable, not run.bat. Explicitly set win-amd64-release-xenos as working directory and supply an absolute path to your own prepared data for --game_data_root; retain your actual established configuration."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "Preparation and runtime replacement remain with upstream and the user. Retain the old working copy and all data; close the actual player and companions before replacement and review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "Keep the complete creating player and prepared original, plus every effective SDK user/profile/save/configuration/mod/cache/log/backup and custom root. No complete per-user save location is established by this bounded title-source read. Preserve existing paths and compatibility; the package working directory alone is insufficient to identify all player data."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "MIT project code; original game remains independently supplied. Shared SDK/project labels do not certify rights to another title or generated original-derived content.",
+          "Upstream documents Geometry Wars minigame crash and Lotus Esprit Essex Turbo freeze. These are disclosed upstream limitations, not repaired or tested here."
+        ]
       }
     },
     {
@@ -35565,11 +35717,13 @@
     {
       "id": "sega-superstars-tennis-rematch",
       "name": "Sega Superstars Tennis / ReMatch",
-      "summary": "Explore Sega Superstars Tennis / ReMatch and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared Sega Superstars Tennis / ReMatch native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch",
       "issue_number": 378,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch",
       "artwork": {
         "game_id": 47367,
@@ -35578,6 +35732,43 @@
         "image_sha256": "1fa388b2283407d793a7838bbc18a3815b5d3ba7d0e0870f801a00e1e927c55e",
         "game_slug": "sega-superstars-tennis",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch/releases/tag/v0.6.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "sst_rematch",
+          "windows"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/m1ndcrap/Sega-Superstars-Tennis-ReMatch/releases",
+        "steps": [
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own legitimate Xbox 360 Sega Superstars Tennis original and complete upstream preparation outside Portcove. The packaged instructions require the original files in assets/ beside sst_rematch.exe, including its own default.xex. Do not substitute another platform/title. No additional title-update prerequisite was established by this inspected source."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select sst_rematch.exe in the complete prepared Windows package with its matching rexgpu-sst.dll and runtime dependencies. Use that folder as working directory and no extra arguments for the normal player. The inspected title defaults original data to its adjacent assets/ and native GPU plugin to sst; retain supported literal custom-root arguments only when the working setup already needs them."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "Upstream owns preparation and replacement. In-game VIDEO restart can create a successor; perform deliberate restart/replacement outside the attached session, close actual game/companions and review changed selected bytes before new Play. Do not automatically adopt a successor."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "Packaged instructions say settings, saves, logs/ and cache/ stay in the creating folder; preserve sst_settings.ini, sst_keys.ini, sst_crash.txt, shader/cache resources, originals, profiles, achievements, mods, backups and every effective custom root. An explicit data argument can override adjacent assets/. Keep the creating runtime and do not assume cross-version save compatibility."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "Public attributable release/source; complete tree has separate thirdparty/xenosrecomp/LICENSE.md and no root project LICENSE. Neither absence nor another component license grants whole-title rights. Use only an independently permitted complete player/original copy.",
+          "Windows10/11x64,D3D12; package README confirms direct double-click native player. ONLINE PLAY remains disabled upstream. No native execution, instrument/device/network, real save or full dependency qualification."
+        ]
       }
     },
     {
@@ -35853,11 +36044,13 @@
     {
       "id": "silent-hill-downpour-downpourrecomp",
       "name": "Silent Hill: Downpour / DownpourRecomp",
-      "summary": "Explore Silent Hill: Downpour / DownpourRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared Silent Hill: Downpour / DownpourRecomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/LittleBitUA/DownpourRecomp",
       "issue_number": 358,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/LittleBitUA/DownpourRecomp",
       "artwork": {
         "game_id": 487,
@@ -35866,7 +36059,49 @@
         "image_sha256": "1f714a030c9f73f59566bae7c0456929029b328374e142108f078e0ef8eaa38e",
         "game_slug": "silent-hill-downpour",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/LittleBitUA/DownpourRecomp/releases/tag/v1.1.8",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "DownpourRecomp",
+          ".zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/LittleBitUA/DownpourRecomp/releases",
+        "steps": [
+          {
+            "title": "Use an independently permitted completed copy",
+            "instruction": "Fresh bundled-player acquisition remains held for the exact generated-code component described in the download restriction. This guide only attaches an existing complete copy you are independently permitted to use; the project grant does not supply the excluded permission."
+          },
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own legitimate Xbox 360 Silent Hill: Downpour original accepted by upstream, keeping its complete assets and required Title Update 1/default.xexp. Complete upstream’s ISO/extracted-tree and title-update preparation outside the attached session. Portcove obtains no original, title update or extraction tool and does not run the installer environment switches."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select the completed native downpour.exe in its full prepared directory with the established downpour.toml and matching runtime DLLs, including amd_fidelityfx_dx12drel.dll. Keep its established supported literal arguments and effective assets path. Do not select PlayDownpour.exe as a substitute lifetime root, or attach an installer/helper. Normal packaged configuration sets game_data_root=./assets; retain actual working settings."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "PlayDownpour.exe offers user-requested upstream updates and temporary backup behavior. Keep updates and replacement outside the attached session; retain the full old working copy and all data and review/relink changed selected bytes. No Portcove backup or recovery guarantee is inferred."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "The inspected title puts default user data in user/ and default cache in cache/ beside the executable; explicit user/cache overrides remain effective. Keep downpour.toml, original assets/default.xex, title update, profiles, saves, achievements, shader caches, logs, mods, backups, temporary files and every external custom root with the creating runtime."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "BSD-3-Clause host source explicitly excludes generated original-derived code. README also says do not distribute game executable/data or any binary linking game data. This guide is conditional on an independently permitted prepared copy; that source grant does not authorize fresh acquisition/distribution of excluded generated content. Permission scope for that exact operation remains with upstream/rightsholder.",
+          "v1.1.8 publisher hotfix removes the missing Agility dependency of1.1.7; matching bytes and source were inspected, not run. Native device/gameplay/save acceptance remains unexecuted."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
     },
     {
       "id": "silent-hill-origins-recomp-sirbraga-silent-hill-origins-ps2",
@@ -36540,11 +36775,13 @@
     {
       "id": "sonic-free-riders-recompiled",
       "name": "Sonic Free Riders: Recompiled",
-      "summary": "Explore Sonic Free Riders: Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared Sonic Free Riders: Recompiled native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
       "issue_number": 1450,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
       "artwork": {
         "game_id": 20118,
@@ -36553,7 +36790,49 @@
         "image_sha256": "5a22c2b30c5f1e68a3f3c0fb6e87023772fb7c876ce3fcee5415ddc9bbf36ca1",
         "game_slug": "sonic-free-riders",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled/releases/tag/v0.10.40",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "FreeRidersRecompiled",
+          "windows-x64"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/YuutaTsubasa/Free-Riders-Recompiled/releases",
+        "steps": [
+          {
+            "title": "Use an independently permitted completed copy",
+            "instruction": "Fresh bundled-player acquisition remains held for the exact generated-code component described in the download restriction. This guide only attaches an existing complete copy you are independently permitted to use; the project grant does not supply the excluded permission."
+          },
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own supported USA/Europe Xbox 360 Sonic Free Riders original. The inspected source documents title5345084D, default.xex14,241,792bytes and documentary SHA2563d58636bec9b92948f7dbe423c0aa96753349ba014194c4e62d2f809c14643a7; upstream installer enforces its supported-XEX size/digest contract separately from the documentary whole-ISO hash. Complete normal ISO/folder import upstream. Keep the complete prepared game/assets and game/image output and shader/runtime companions; Portcove neither imports nor regenerates them."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select FreeRidersRecompiled.exe and its complete prepared Windows package directory, with no extra arguments for the supported normal launcher. Its Windows launcher retains the child handle and waits while the game runs. Do not substitute sfr_cpu_diagnostic.exe or shader-tools executables: the launcher establishes the profile, save directory, input and renderer environment. Keep existing supported literal arguments only if the working setup needs them."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "The public launcher owns game environment, child lifetime and return/error behavior. Upstream and the user own preparation and runtime replacement. Preserve the full old copy, matching runtime/shader tools and all data; close actual player and companions before replacement and review changed selected bytes."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "Keep settings.ini, save/, game.log, game/, pipeline-cache, mods and every custom root. The configured save directory may be external or relative to the launcher; retain the effective path and profile name because changing that name changes offline XUID/save identity. Saves include SfrAllData.sav and sidecars; achievements.txt lives with the player saves. Preserve optional local model references/imports and all shader caches, backups and temporary files with the creating runtime."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "GPL-3.0-or-later project code excludes SEGA game code/data. Package THIRD_PARTY names ONNX MIT and MediaPipe model Apache2 components and associated licenses. No Kinect patch code/files are included according to upstream. Conditional independently permitted copy; no inherited whole-game grant.",
+          "Windows x64 AVX withD3D12 orVulkan1.2. Keyboard/controller is useful without Kinect; camera/Kinect/VRM/network modes and actual native gameplay/real saves were not qualified here."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
     },
     {
       "id": "sonic-generations-recompiled-xbox-360-player124413-sonic-generations-xbox-360",
@@ -37094,11 +37373,13 @@
     {
       "id": "space-channel-5-native",
       "name": "Space Channel 5 Native",
-      "summary": "Explore Space Channel 5 Native and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an upstream-prepared Space Channel 5 Windows player for your own USA Dreamcast GDI and retained user data.",
       "project_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
       "issue_number": 1540,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
       "artwork": {
         "game_id": 6602,
@@ -37107,6 +37388,34 @@
         "image_sha256": "a66106a23b73e455cdea0d3f4c69123cef5c79b8d8e51ec5f015c0c3837881c5",
         "game_slug": "space-channel-5",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
+        "steps": [
+          {
+            "title": "Complete the title’s supported preparation upstream",
+            "instruction": "Keep the complete upstream Windows package and use its supported import/preparation with your own original USA GDI and every adjacent track. Keep the originals together and read-only. The release needs no separately installed Python, Git or compiler for normal import. Portcove does not import the disc or build a Dreamcast runtime."
+          },
+          {
+            "title": "Keep the exact original and preparation boundary",
+            "instruction": "Use the exact upstream importer’s supported USA layout: a data track at LBA 45000 in Mode1/2352 and its conjunctive extracted-executable identity checks. Those checks concern the imported executable and do not establish a whole-track-set cryptographic certificate. Keep matched extracted assets and native modules; do not substitute another region or partially copied track set."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "After upstream preparation completes, select build/sc5-native-dev.exe with the package root as working directory and the supported literal arguments --gdi followed by your absolute original GDI path. This documented native entry keeps the game harness in-process. Keep the matching build/native-diff modules and support files; do not attach an importer or an arbitrary helper."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the entire creating player, build modules, extracted files, userdata, settings, mods and original GDI/tracks. SC5_USER_ROOT can change the root used for imported files/settings, and SC5_RUNTIME_DATA can change runtime data; preserve every effective override and any custom --image, --dll or --data location. Retain GPL and per-file third-party notices. Published translated modules and their separately supplied corresponding native-aot source do not license your original game assets."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        ]
       }
     },
     {
@@ -38033,11 +38342,13 @@
     {
       "id": "street-fighter-ex-plus-alpha-recomp",
       "name": "Street Fighter EX Plus Alpha Recomp",
-      "summary": "Explore Street Fighter EX Plus Alpha Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a completed upstream-prepared Street Fighter EX Plus Alpha Windows player for your own USA disc and SCPH1001 BIOS.",
       "project_url": "https://github.com/guimaraf/plusalpha-recomp",
       "issue_number": 1116,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/guimaraf/plusalpha-recomp",
       "artwork": {
         "game_id": 38297,
@@ -38046,16 +38357,46 @@
         "image_sha256": "3670f6c116ef18a1a52ac64fbb9f552664eaf9819cbca40a121ae6b201f2c16e",
         "game_slug": "street-fighter-ex-plus-alpha",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/guimaraf/plusalpha-recomp",
+        "steps": [
+          {
+            "title": "Complete the title’s supported preparation upstream",
+            "instruction": "Use the upstream PlusAlphaProject preparation for your own USA SLUS-00548 CUE/BIN, keeping its raw MODE2/2352 single data track unchanged. The documented BIN is 528049872 bytes with SHA-256 e1050b3b8a3d26e04d4bbe196a7ded17cd0ff1e7de944d0fd7e161c48d60f9ca. Finish generation/build upstream before attachment; do not reuse older generated output with a different ABI. Portcove does not run generators or acquire originals."
+          },
+          {
+            "title": "Keep the exact original and preparation boundary",
+            "instruction": "This port requires your own SCPH1001.BIN, 524288 bytes, SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3. Its configuration disables OpenBIOS fallback. Select the BIOS through the upstream chooser, or retain a supported literal --bios argument for your actual path. Neither the disc nor BIOS is licensed by framework terms."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select the completed build-online-static/exPlusAlpha.exe, its executable directory as working directory and --launcher as the literal argument. Do not attach the root setup host, compiler or generator. The completed game-dispatch product bypasses setup forwarding and keeps launcher/game execution in the native process."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the complete creating project, prepared player, original CUE/BIN, BIOS and generated-online outputs together with all effective external paths. Default settings.toml, input.ini and memory cards card1.mcd/card2.mcd are executable-relative; configuration can select other card/data paths. Preserve states, controller mappings, mods, assets, caches, backups and every custom root. The framework fork retains PolyForm Noncommercial 1.0.0 and separate third-party notices; comply with those terms and any separately applicable component rights."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        ]
       }
     },
     {
       "id": "street-fighter-ex2-plus-recompiled",
       "name": "Street Fighter EX2 Plus Recompiled",
-      "summary": "Explore Street Fighter EX2 Plus Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a completed upstream-prepared Street Fighter EX2 Plus Windows player using your own USA disc and required retail BIOS.",
       "project_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
       "issue_number": 1117,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
       "artwork": {
         "game_id": 44965,
@@ -38064,6 +38405,34 @@
         "image_sha256": "1a0bf6dab6ae344497a77abaaa58f0111ac941a82e779efc2df27c5770f594cd",
         "game_slug": "street-fighter-ex2-plus",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled",
+        "steps": [
+          {
+            "title": "Complete the title’s supported preparation upstream",
+            "instruction": "Complete the supported upstream setup from your own USA SLUS-01105 CUE and every associated BIN before attachment. The release-root Street_Fighter_EX2_Plus.exe is a setup host; it generates and builds the completed game in build-release. Keep the whole creating project and output together. Portcove does not run that preparation or distribute its private generated game code."
+          },
+          {
+            "title": "Keep the exact original and preparation boundary",
+            "instruction": "Provide your own USA SCPH1001 retail BIOS: this title requires the 512 KiB image identified upstream by CRC32 37157331 and sets openbios=false. The generic packaged README-SETUP description of optional BIOS/OpenBIOS does not override this title requirement. Complete the title-specific BIOS setup upstream."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select the completed build-release/Street_Fighter_EX2_Plus.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the complete creating project/build-release, original CUE/BIN, own BIOS and generated game code. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and all effective custom roots. Do not assume compatibility with Street Fighter EX Plus Alpha or another PSXrecomp fork. Retain the framework PolyForm and separate third-party notices and comply with applicable component terms."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        ]
       }
     },
     {
@@ -38180,11 +38549,13 @@
     {
       "id": "strider-2-recompiled",
       "name": "Strider 2 Recompiled",
-      "summary": "Explore Strider 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a completed upstream-prepared Strider 2 Windows player for your own USA disc; upstream owns preparation and replacement.",
       "project_url": "https://github.com/strider973/STRIDER-2-Recompiled",
       "issue_number": 1118,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/strider973/STRIDER-2-Recompiled",
       "artwork": {
         "game_id": 5923,
@@ -38193,6 +38564,34 @@
         "image_sha256": "5da0305f60f569bfe5fd0c1530d4a694f6863226b79046e41e72fab198bc4003",
         "game_slug": "strider-2",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/strider973/STRIDER-2-Recompiled",
+        "steps": [
+          {
+            "title": "Complete the title’s supported preparation upstream",
+            "instruction": "Complete the supported upstream setup from your own USA SLUS-01163 CUE and every associated BIN before attachment. The release-root Strider_Recompiled.exe is a setup host; it generates and builds the completed game in build-release. Keep the whole creating project and output together. Portcove does not perform generation or redistribute private generated game code."
+          },
+          {
+            "title": "Keep the exact original and preparation boundary",
+            "instruction": "This title uses generated OpenBIOS by default. A separately owned retail BIOS is optional under its upstream setup; do not copy Street Fighter EX2 Plus’s mandatory retail-BIOS requirement into this title. Preserve your actual selected BIOS and configuration if you use one."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select the completed build-release/Strider_Recompiled.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the complete creating project/build-release, own original CUE/BIN, generated game code and any selected BIOS. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and every effective custom root. Retain the framework PolyForm and separate third-party notices; no cross-title or cross-fork save/runtime compatibility is assumed."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        ]
       }
     },
     {
@@ -41549,11 +41948,13 @@
     {
       "id": "tony-hawks-project-8-recomp",
       "name": "Tony Hawks Project 8 Recomp",
-      "summary": "Explore Tony Hawks Project 8 Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared Tony Hawks Project 8 Recomp native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/theokyr/Project8Recomp",
       "issue_number": 1125,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/theokyr/Project8Recomp",
       "artwork": {
         "game_id": 344862,
@@ -41562,7 +41963,49 @@
         "image_sha256": "37de86645dd516ce7cc08a12f372495ce3583df99e251b76e8611b00ce9674f9",
         "game_slug": "tony-hawks-project-8--1",
         "match_kind": "underlying-game"
-      }
+      },
+      "release_url": "https://github.com/theokyr/Project8Recomp/releases/tag/v0.3.0",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Project8Recomp",
+          "windows"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/theokyr/Project8Recomp/releases",
+        "steps": [
+          {
+            "title": "Use an independently permitted completed copy",
+            "instruction": "Fresh bundled-player acquisition remains held for the exact generated-code component described in the download restriction. This guide only attaches an existing complete copy you are independently permitted to use; the project grant does not supply the excluded permission."
+          },
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own supported Xbox 360 Tony Hawk’s Project 8 World v1.0 USA/Europe original. Upstream expects title415607DD/media2CB96AE4 and default.xex 8,237,056 bytes with SHA256 cfc732340e55defda400e25f03231aa9bb65fd9545b618212f69a4952384a5dd. Complete normal upstream ISO/extracted-tree verification outside Portcove; Japan, demo and Korean inputs are not interchangeable. For0.3 prepare a fresh full player folder rather than mixing0.1/0.2 binaries."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select upstream’s documented public native supervisor thps_p8_launch.exe in the complete prepared package folder, not Project8Recomp.exe or thps_p8_gui.exe: those Windows entrypoints spawn and exit. The public supervisor waits for its child. Use the established supported literal game arguments from the working GUI setup, including --game_data_root=<actual prepared game directory>, --mnk_mode=true and --gpu_plugin=xenos where these are the established settings. Preserve other existing supported GUI settings/performance flags and optional breadcrumb path. Keep the default single-instance guards; do not add force, sweep-only, check-only or custom-child switches."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "Upstream preparation and the public supervisor retain child and cleanup ownership. Its normal launch waits for the game, preserves active-instance guards and performs upstream cleanup; Portcove does not create a wrapper or select an internal child. Close supervisor/game/companions before upstream replacement; retain old data and review changed selected bytes."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "Preserve the complete creating player, original game/ tree, saves/, config/settings.toml, config/install.toml, logs/ and every effective external save, data, cache, profile, mod, backup or custom root. Retain all companion native files. Keep the supported frame cap and existing configuration; never infer save migration from the engine family."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "BSD-3-Clause project code with NOTICE for dependencies; original-derived generated game units and original data are outside that grant. Only an independently permitted prepared copy is covered by this attachment guide.",
+          "Windows is explicitly experimental upstream; publisher Proton observations are not native Windows qualification. Upstream warns uncapped cutscenes can run3–5x speed; retain default cap. No execution performed."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the compiled Project 8 recompilation remains held: the selected release contains generated game code that the upstream BSD project grant explicitly excludes. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
     },
     {
       "id": "top-gear-snes-top-gear-for-windows",
@@ -43056,11 +43499,11 @@
     {
       "id": "unchiga-yu-gi-oh-forbidden-memories-recompiled",
       "name": "Yu-Gi-Oh! Forbidden Memories / Yu-Gi-Oh! Forbidden Memories Recompiled (Unchiga)",
-      "summary": "Explore Yu-Gi-Oh! Forbidden Memories / Yu-Gi-Oh! Forbidden Memories Recompiled (Unchiga) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted existing YFM Re-Decomp Windows copy with your own USA original and external save profile.",
       "project_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
       "issue_number": 1910,
       "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
       "artwork": {
         "game_id": 4108,
@@ -43069,7 +43512,36 @@
         "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
         "game_slug": "yu-gi-oh-forbidden-memories",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
+        "steps": [
+          {
+            "title": "Complete the title’s supported preparation upstream",
+            "instruction": "Use only an already completed native copy and components you are independently permitted to use. This route does not recommend fresh bundled-package acquisition: its MIT grant covers the PC layer, explicitly excludes the upstream decompilation and Konami game/data, and the package explicitly bundles European translation texts. Those named component permissions cannot be inherited from MIT. Keep applicable notices and original-game rights separate."
+          },
+          {
+            "title": "Keep the exact original and preparation boundary",
+            "instruction": "Provide your own Forbidden Memories USA SLUS-01411 raw MODE2/2352 BIN from a CUE/BIN pair. Select the BIN in the upstream Choose ROM screen, not the CUE. ISO, CHD and other regions are unsupported. No BIOS is needed; the ROM stays at its chosen location. Portcove does not acquire, copy or authenticate it through registration."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select the existing package’s memories-pc.exe, its package root as working directory and no arguments. The inspected Windows player is a 32-bit I386 executable; the AMD64 SDK emitter is not the player. Keep the whole matching runtime and do not select FM Editor, a mod builder or another repository’s Forbidden Memories player."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Preserve Documents/My Games/YFM Re-Decomp and all actual custom roots: settings, controls, memory cards, save states and mods live outside the package. Upstream memory-card import copies into an empty slot and renames the source card .imported; do not use originals as disposable migration input. Emulator save states cannot be imported; native states have build/platform compatibility limits. Keep the creating runtime, original BIN, old saves, native/code mods, caches and backups before upstream updates. Upstream’s update notification is separate from Portcove management."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        ]
+      },
+      "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold."
     },
     {
       "id": "unicorn-overlord-pc-hachi23-hachi23-unicorn-overlord",
@@ -46100,11 +46572,13 @@
     {
       "id": "wwf-smackdown-2-know-your-role-recomp",
       "name": "WWF SmackDown! 2: Know Your Role Recomp",
-      "summary": "Explore WWF SmackDown! 2: Know Your Role Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a completed Know Your Role Windows player for your own SLUS-01234 disc, retaining its waiting Play entry and external saves.",
       "project_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
       "issue_number": 1396,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
       "artwork": {
         "game_id": 6444,
@@ -46113,6 +46587,34 @@
         "image_sha256": "4b987f67896fab09be7e7b210f8333e89ae1a511f2a483d102896fd7f452e276",
         "game_slug": "wwf-smackdown-2-know-your-role",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Comfubar/KnowYourRoleRecomp",
+        "steps": [
+          {
+            "title": "Complete the title’s supported preparation upstream",
+            "instruction": "Extract the upstream Windows package to a writable non-synced folder, keep every file, and complete KnowYourRole.exe setup using your own NTSC-U SLUS-01234 CUE/BIN. No BIOS is needed. Keep the disc where it is: the game still reads it. The upstream x64 Visual C++ runtime dependency is separate; Portcove does not install it or run disc preparation."
+          },
+          {
+            "title": "Keep the exact original and preparation boundary",
+            "instruction": "Upstream verifies internal original files: SLUS_012.34 SHA-256 e23acb3165ed001b6d23558ef81624cea70b97d98e68a2a93546e6466a3c2a7f and EXE.PAC SHA-256 83cbdc663f1230b6c6b191e5572db1a9ef22520f65d2c7641c52d6632bae73a6. These member checks and the whole-track size warning are not a Portcove cryptographic certificate for every original input or generated output. Keep private Recompiled.* libraries private."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "After upstream setup reports Ready, select the package-root KnowYourRole.exe with that root as working directory and --play as the literal argument. This supported entry checks readiness, sets the runtime working directory and data/log environment, waits for the actual game process and returns its exit code. Do not substitute a generator, diagnostics helper or a private runner merely because it is executable."
+          },
+          {
+            "title": "Review Play and retain one replacement owner",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          },
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the entire package and KnowYourRole-files/runtime, including generated Recompiled.* libraries, build stamp and matching runtime. Back up KnowYourRole-files/user, including carda.sav, cardb.sav, settings.json, interface.ini, launcher.json, user controller mappings and logs. Existing RECOMPONE_DATA_DIR and RECOMPONE_LOG_DIR overrides take precedence: preserve their actual locations as well as mods, caches, backups and original disc. Retain MIT and THIRD-PARTY-NOTICES; framework notices do not grant original-game rights."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        ]
       }
     },
     {
@@ -46189,11 +46691,13 @@
     {
       "id": "x-men-destiny-xmd-recompiled",
       "name": "X-Men: Destiny / xmd-recompiled",
-      "summary": "Explore X-Men: Destiny / xmd-recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted, upstream-prepared X-Men: Destiny / xmd-recompiled native Windows player. Keep original data, preparation and runtime replacement upstream.",
       "project_url": "https://github.com/florinp93/xmd-recompiled",
       "issue_number": 365,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/florinp93/xmd-recompiled",
       "artwork": {
         "game_id": 5302,
@@ -46202,6 +46706,42 @@
         "image_sha256": "147c2825e0dcd6c88d08a03a0ffd1a604467746bc1627a5b873ac18b169d0482",
         "game_slug": "x-men-destiny",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/florinp93/xmd-recompiled/releases/tag/v0.1.0-alpha.3",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "xmd_installer.exe"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/florinp93/xmd-recompiled/releases",
+        "steps": [
+          {
+            "title": "Prepare your own supported original upstream",
+            "instruction": "Use your own legally obtained Xbox 360 X-Men: Destiny original. Complete upstream’s supported installation/preparation outside Portcove and retain game/default.xex plus all original textures, audio, modules and other files in their relative layout. The published installer extracts the user-selected ISO; Portcove neither runs it nor an extraction helper. No additional title-update requirement was established by this inspected source."
+          },
+          {
+            "title": "Attach the completed native Windows player",
+            "instruction": "Select the already-installed native xmd.exe, not xmd_installer.exe or xmd_launcher.exe. Use the actual installed directory as working directory and preserve the supported literal arguments established by the launcher: --gpu_plugin xenos, --game_data_root <actual installed game directory> and --user_data_root <actual user_data directory>, plus existing log/debug choices if needed. Enter each path as one literal argument. The inspected launcher spawns xmd.exe and exits, so it is not a substitute lifetime root."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep upstream maintenance outside the attached session",
+            "instruction": "Upstream launcher/installer retain installation and updater ownership; Portcove attaches only an independently permitted completed native output. Close actual native player and companions before upstream replacement, retain old runtime/data and review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the creating copy and every effective data root",
+            "instruction": "Keep the full creating installed directory, game/, user_data/, xmd.toml, effective logs, saves, profiles, mods, caches, backups and every custom root. Source installer uninstall explicitly deletes user_data; this guide offers no uninstall or deletion. Retain the installed copy and data before upstream maintenance and do not invoke that destructive uninstall as registration removal."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "Public attributable upstream release; README assigns BSD-3-Clause to ReXGlue SDK, not a blanket grant for all scaffolding/original-derived output. Original game assets are excluded. Root license absence alone establishes no new prohibition; use an independently permitted installed copy.",
+          "Source/official metadata boundary only forinstalledoutput: published installer and resulting installed xmd.exe bytes/dependencies not downloaded/inspected/executed here. Windows x64D3D12 is upstream/source contract, not native acceptance."
+        ]
       }
     },
     {

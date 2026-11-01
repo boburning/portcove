@@ -2582,4 +2582,85 @@ mod tests {
     fn dead_rising_2_case_west_recomp_prepared_player_route_1122() {
         assert_listing_only_player_route("dead-rising-2-case-west-recomp", Some(true));
     }
+
+    #[test]
+    fn condemned_2_bloodshot_condemned2recomp_prepared_player_route_361() {
+        assert_listing_only_player_route("condemned-2-bloodshot-condemned2recomp", Some(true));
+    }
+
+    #[test]
+    fn guitar_hero_warriors_of_rock_re_wor_prepared_player_route_359() {
+        assert_listing_only_player_route("guitar-hero-warriors-of-rock-re-wor", Some(false));
+    }
+
+    #[test]
+    fn project_gotham_racing_4_pgr4_recomp_prepared_player_route_360() {
+        assert_listing_only_player_route("project-gotham-racing-4-pgr4-recomp", Some(false));
+    }
+
+    #[test]
+    fn silent_hill_downpour_downpourrecomp_prepared_player_route_358() {
+        assert_listing_only_player_route("silent-hill-downpour-downpourrecomp", Some(true));
+    }
+
+    #[test]
+    fn tony_hawks_project_8_recomp_prepared_player_route_1125() {
+        assert_listing_only_player_route("tony-hawks-project-8-recomp", Some(true));
+    }
+
+    #[test]
+    fn sonic_free_riders_recompiled_prepared_player_route_1450() {
+        assert_listing_only_player_route("sonic-free-riders-recompiled", Some(true));
+    }
+
+    #[test]
+    fn x_men_destiny_xmd_recompiled_prepared_player_route_365() {
+        assert_listing_only_player_route("x-men-destiny-xmd-recompiled", Some(false));
+    }
+
+    #[test]
+    fn sega_superstars_tennis_rematch_prepared_player_route_378() {
+        assert_listing_only_player_route("sega-superstars-tennis-rematch", Some(false));
+    }
+
+    #[test]
+    fn street_fighter_ex_plus_alpha_recomp_prepared_player_route_1116() {
+        assert_listing_only_player_route("street-fighter-ex-plus-alpha-recomp", Some(false));
+    }
+
+    #[test]
+    fn street_fighter_ex2_plus_recompiled_prepared_player_route_1117() {
+        assert_listing_only_player_route("street-fighter-ex2-plus-recompiled", Some(false));
+    }
+
+    #[test]
+    fn strider_2_recompiled_prepared_player_route_1118() {
+        assert_listing_only_player_route("strider-2-recompiled", Some(false));
+    }
+
+    #[test]
+    fn wwf_smackdown_2_know_your_role_recomp_prepared_player_route_1396() {
+        assert_listing_only_player_route("wwf-smackdown-2-know-your-role-recomp", Some(false));
+    }
+
+    #[test]
+    fn space_channel_5_native_prepared_player_route_1540() {
+        assert_listing_only_player_route("space-channel-5-native", Some(false));
+    }
+
+    #[test]
+    fn kirbys_return_to_dream_land_kirby_wii_recomp_prepared_player_route_1131() {
+        assert_listing_only_player_route(
+            "kirbys-return-to-dream-land-kirby-wii-recomp",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn unchiga_yu_gi_oh_forbidden_memories_recompiled_prepared_player_route_1910() {
+        assert_listing_only_player_route(
+            "unchiga-yu-gi-oh-forbidden-memories-recompiled",
+            Some(true),
+        );
+    }
 }

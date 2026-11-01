@@ -3,11 +3,11 @@
   "listing": {
     "id": "space-channel-5-native",
     "name": "Space Channel 5 Native",
-    "summary": "Explore Space Channel 5 Native and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an upstream-prepared Space Channel 5 Windows player for your own USA Dreamcast GDI and retained user data.",
     "project_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
     "issue_number": 1540,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
     "artwork": {
       "game_id": 6602,
@@ -16,6 +16,34 @@
       "image_sha256": "a66106a23b73e455cdea0d3f4c69123cef5c79b8d8e51ec5f015c0c3837881c5",
       "game_slug": "space-channel-5",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/ZoomiesZaggy/Space-Channel-5",
+      "steps": [
+        {
+          "title": "Complete the title’s supported preparation upstream",
+          "instruction": "Keep the complete upstream Windows package and use its supported import/preparation with your own original USA GDI and every adjacent track. Keep the originals together and read-only. The release needs no separately installed Python, Git or compiler for normal import. Portcove does not import the disc or build a Dreamcast runtime."
+        },
+        {
+          "title": "Keep the exact original and preparation boundary",
+          "instruction": "Use the exact upstream importer’s supported USA layout: a data track at LBA 45000 in Mode1/2352 and its conjunctive extracted-executable identity checks. Those checks concern the imported executable and do not establish a whole-track-set cryptographic certificate. Keep matched extracted assets and native modules; do not substitute another region or partially copied track set."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "After upstream preparation completes, select build/sc5-native-dev.exe with the package root as working directory and the supported literal arguments --gdi followed by your absolute original GDI path. This documented native entry keeps the game harness in-process. Keep the matching build/native-diff modules and support files; do not attach an importer or an arbitrary helper."
+        },
+        {
+          "title": "Review Play and retain one replacement owner",
+          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+        },
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Keep the entire creating player, build modules, extracted files, userdata, settings, mods and original GDI/tracks. SC5_USER_ROOT can change the root used for imported files/settings, and SC5_RUNTIME_DATA can change runtime data; preserve every effective override and any custom --image, --dll or --data location. Retain GPL and per-file third-party notices. Published translated modules and their separately supplied corresponding native-aot source do not license your original game assets."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+      ]
     }
   }
 }
