@@ -539,9 +539,7 @@
             "rom_identity": {
               "cue_name": "Hellnight (Europe).cue",
               "bin_name": "Hellnight (Europe).bin",
-              "track_counts": [
-                1
-              ],
+              "track_counts": [1],
               "require_cue": true,
               "data_track": {
                 "size": 633786384,
@@ -1047,9 +1045,7 @@
             "rom_identity": {
               "cue_name": "Wipeout XL (USA).cue",
               "bin_name": "Wipeout XL (USA) (Track 01).bin",
-              "track_counts": [
-                12
-              ],
+              "track_counts": [12],
               "require_cue": true,
               "data_track": {
                 "size": 86045568,
@@ -1304,5 +1300,6 @@
     "No source-binary reproducibility, minimum-host/ABI/dynamic dependency, actual gameplay/save or installed/protected acceptance.",
     "Full external runtime/data ownership remains upstream/user; no managed lifecycle authority added.",
     "No new permanent product deferral or reduced858 membership; unresolved mandatory requirements remain incomplete."
-  ]
+  ],
+  "R35_canonical_correction": "https://github.com/boburning/portcove/issues/2926#issuecomment-6561299849"
 }
