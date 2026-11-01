@@ -2184,6 +2184,21 @@ void test("non-ignored untracked files use the same deterministic mapping", () =
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mts"));
 });
 
+void test("native author descriptor examples retain their projection and authoring consumers", () => {
+  for (const file of [
+    "examples/integrations/shipwright/portcove.json",
+    "examples/integrations/shipwright/basic.portcove.json",
+    "examples/integrations/golden-balloon/portcove.json",
+  ]) {
+    for (const status of ["A", "M", "D"]) {
+      const selection = classifyChanges([{ status, path: file }], { fileExists: allFilesExist });
+      assert.deepEqual([...selection.unknown], []);
+      assert.ok(selection.nodeTests.has("scripts/port-descriptor.test.mts"));
+      assert.ok(selection.nodeTests.has("scripts/generate-catalog.test.mts"));
+    }
+  }
+});
+
 void test("every tracked repository path has an explicit local selection owner", () => {
   const files = execFileSync("git", ["ls-files", "-z"], {
     cwd: new URL("../", import.meta.url),

@@ -546,15 +546,11 @@ impl PortcoveService {
             .iter()
             .find(|file| file.id == initial.file_id)
             .ok_or_else(conflict)?;
+        let expected_runtime = (!context.direct).then(|| context.runtime_root.join(&file.path));
         if file.path != initial.relative_path
             || file.maximum_bytes != initial.maximum_bytes
             || initial.canonical.path != self.library.user_dir(&operation.port_id).join(&file.path)
-            || initial.runtime.as_ref().map(|leg| &leg.path)
-                != if context.direct {
-                    None
-                } else {
-                    Some(&context.runtime_root.join(&file.path))
-                }
+            || initial.runtime.as_ref().map(|leg| &leg.path) != expected_runtime.as_ref()
         {
             return Err(conflict());
         }
