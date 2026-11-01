@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# CI 41297982645/a1 retained a 30.186s Windows cutoff in this four-case
+# adoption-recovery fixture; the same case passed in 22.765s in 41294669476/a1.
+# Preserve every refusal/retention assertion, cleanup, workers and zero retries;
+# allow finite 60s harness completion, with no product-performance claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::external_adoption_recovery_retains_contradictory_destinations$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI 41276030610/a1 retained a 30.157s Windows cutoff in this complete
 # retention fixture; the same case passed in 18.953s in 41273346176/a1.
 # Allow finite 60s harness room, preserving assertions, cleanup and zero retries.
