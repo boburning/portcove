@@ -1991,3 +1991,27 @@ async fn mercenaries_playground_of_destruction_kraftmacandchee_component_hold_be
     )
     .await;
 }
+
+#[tokio::test]
+async fn jhdev2006_super_mario_world_remastered_public_component_hold_before_network_1891() {
+    assert_embedded_player_download_holds(&["jhdev2006-super-mario-world-remastered-public"]).await;
+}
+
+#[tokio::test]
+async fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_component_hold_before_network_2561()
+ {
+    assert_embedded_player_download_holds(&[
+        "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn gran_turismo_4_playstation_2_gt4recomp_component_hold_before_network_2579() {
+    assert_embedded_player_download_holds(&["gran-turismo-4-playstation-2-gt4recomp"]).await;
+}
+
+#[tokio::test]
+async fn djultra64_clayfighter64_component_hold_before_network_2830() {
+    assert_embedded_player_download_holds(&["djultra64-clayfighter64"]).await;
+}

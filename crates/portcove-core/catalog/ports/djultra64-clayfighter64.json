@@ -3,13 +3,51 @@
   "listing": {
     "id": "djultra64-clayfighter64",
     "name": "ClayFighter63andOneThird: ClayFighter64 fusion edition (djultra64 ClayFighter64)",
-    "summary": "Upstream route: Upstream runtime package for ClayFighter 64; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream fusion has16fighters/training and requires both ROMs. Uses63andOneThird rules with donor characters, not complete SculptorsCut behavior. Validation is bounded. Fusion of two editions; determine whether independently catalogable edition records or fused product; do not map generic ClayFighter64 title to only one game without requirements check. Upstream platforms: Windows10/11 x64 SSSE3/SSE4.1/Vulkan; Linux x86-64 glibc2.38+, GLIBCXX3.4.31, X11/XWayland/Python3.10+. Windows Python bundled. Original data: Both own USA ROMs required, normalized z64 SHA256: ClayFighter63andOneThird357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07; SculptorsCut9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f. z64/v64/n64 or single-ROMZIP accepted. One fusion edition uses63andOneThird gameplay plus donor characters; not a full alternate SculptorsCut recreation. No original BIOS requested. Portcove setup/gameplay not verified.",
+    "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. Packaged branding and title audio have separate rights; use only a complete copy and components you are independently permitted to use.",
     "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
     "project_url": "https://github.com/djultra64/ClayFighter64",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/djultra64/ClayFighter64",
-    "issue_number": 2830
+    "issue_number": 2830,
+    "manual_setup": {
+      "help_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md",
+      "steps": [
+        {
+          "title": "Supply both exact owned games",
+          "instruction": "This is one fused product, not a complete alternate Sculptor's Cut recreation. Supply your own ClayFighter63⅓ USA and ClayFighter:Sculptor's Cut USA ROMs. After normalization to big-endian z64 their SHA256 values are357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07 and9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f respectively. Keep both originals separately. Other regions/revisions and modified ROMs are unsupported; supported byte orders or a single-ROM ZIP are handled by upstream preparation."
+        },
+        {
+          "title": "Complete permitted upstream asset installation",
+          "instruction": "Use a complete v2.1.1 Windows x86-64 copy and components you are independently permitted to use. The GPL licence for authored port code does not grant packaged branding, depicted original characters or the separately supplied title announcement. With Windows10/11x64, SSSE3/SSE4.1 CPU and current Vulkan drivers, finish Install Assets.vbs outside Portcove. The upstream Python runtime is included; the installer verifies both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
+        },
+        {
+          "title": "Select the prepared native player",
+          "instruction": "After successful installation, select clayfighter64.exe in the complete portable package root, set that root as working directory and use literal arguments --rom probe-output/base.z64 --sc-assets local/sc_roster/asset-image-roster.z64. These are the same native arguments used by the upstream Play wrapper. Do not select VBS/CMD/Python installers or unfinished data. The native player owns the game window and normal game loop. Saving launch details and requesting Play require separate consent."
+        },
+        {
+          "title": "Preserve imported files and settings",
+          "instruction": "Before first prepared startup, moves or updates, close the game and keep a separate complete recovery copy of local/, probe-output/, config and all original ROMs. Imported files include probe-output/base.z64, local/sc_roster/asset-image-roster.z64, local/sc_bios/bios.bin and local/import-manifest.json. Upstream installation replaces its generated outputs; reinstallation requires both originals. Keep current player settings separate from an older runtime backup."
+        },
+        {
+          "title": "Keep portable custom profiles inside the game",
+          "instruction": "Display, native game options, P1/P2 controls and training settings live in local/settings/ by default; graphics caches live under local/cache/. The executable locates its installation from its own directory/config and changes CWD to it. Optional --data-dir or --user-data selects a profile only inside that installation; outside paths and escaping symlinks are rejected. --controls imports a profile but subsequent edits save inside the installation. Preserve every selected in-root profile, temporary/recovery copies and any custom source controls before maintenance."
+        },
+        {
+          "title": "Keep maintenance upstream-owned",
+          "instruction": "The player and upstream own asset extraction, runtime replacement, settings and recovery. Portcove registers the explicitly selected prepared native copy; it does not acquire the originals, run extraction, update or delete external data. Finish upstream maintenance outside a tracked session, retain a complete previous runtime and current player data, then revalidate the selected executable. Do not infer compatibility between fused data, other editions or different builds."
+        },
+        {
+          "title": "Respect component and edition boundaries",
+          "instruction": "Retain the GPL authored-code licence and individual SDK/RT64/SDL/Python/Microsoft notices. NOTICE explicitly excludes the branding and supplied replacement announcement from the code licence; obtaining another full package needs an applicable independent grant for those components. The optional title announcement falls back to the original ROM audio when absent, but this guide does not prescribe modifying a package or bypassing its grants. Both-ROM fusion identity and upstream claims do not establish full gameplay or save compatibility."
+        }
+      ],
+      "warnings": [
+        "Fresh acquisition of packaged branding/title media remains conditional on its own applicable permission; original-game rights are separate.",
+        "Only an already prepared independently permitted complete copy is offered; extraction, updates and recovery remain upstream-owned."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the selected ClayFighter64 package is held while the applicable permission or authorized-source basis for its named bundled character-branding images and replacement title-announcement media remains unresolved. NOTICE places those media outside the port-code licence; publisher attribution is not a grant of all underlying depicted-character or media rights. Resume on an attributable applicable inclusion/use basis or a reviewed supported replacement/exclusion package; independently permitted completed copies remain separate."
   },
   "upstream_lineage": {
     "format_version": 1,

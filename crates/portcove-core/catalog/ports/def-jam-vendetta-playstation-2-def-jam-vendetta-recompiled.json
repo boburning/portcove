@@ -3,13 +3,51 @@
   "listing": {
     "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
     "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
-    "summary": "Upstream route: Windows ZIP contains settings/bootstrap program, portable Python and source; local game compilation on first run (20–30 minutes upstream estimate). Limits: Playable upstream release with full-game completion unestablished; first-run local compilation and prerequisite installation remain explicit. Upstream platforms: Windows10/11 x86-64 setup/source ZIP; local compilation, Vulkan1.3 GPU. This is a builder/bootstrap package. Original data: User-owned USA SLUS-20639 ISO or CHD. Portcove setup/gameplay not verified.",
+    "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders. Packaged game-derived branding has separate rights; use an independently permitted complete copy.",
     "original_game_title": "Def Jam Vendetta (PlayStation 2)",
     "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
     "issue_number": 2561,
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/jcsix694/def-jam-vendetta-recomp"
+    "setup_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
+    "manual_setup": {
+      "help_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/README.md",
+      "steps": [
+        {
+          "title": "Use the exact owned USA disc and permitted kit",
+          "instruction": "Use a complete upstream v0.4.4 Windows copy and components you are independently permitted to use, with your own Def Jam Vendetta USA SLUS-20639 ISO or supported CHD. The preparation tool checks for SLUS_206.39 and prepares a plain sector ISO and extracted files; that serial/member check is not a whole-disc cryptographic or entitlement certificate. Project GPL and dependency terms do not grant the named settings-app artwork/logo excluded by THIRD-PARTY-NOTICES.txt."
+        },
+        {
+          "title": "Finish upstream preparation first",
+          "instruction": "Complete Def Jam Vendetta Recompiled Settings.exe setup outside Portcove. Upstream extracts your own disc, generates C++ and builds locally, including supported compiler/tool installation and prompts. Use Windows10/11x64, Vulkan1.3 and upstream hardware requirements. Wait until the game and its complete matching files are built. The release build kit applies this title's pinned PS2Recomp patch; do not mix an unpatched framework or another game's output."
+        },
+        {
+          "title": "Select the completed player",
+          "instruction": "Select files/Def Jam Vendetta Recompiled.exe in the complete creating installation, use files as working directory and pass the one literal argument game/SLUS_206.39. Keep the complete game/, disc/, DLLs, settings and companion runtime files. The official settings Play consumer passes that same extracted ELF with the files working directory; the generated player owns its normal runtime.run loop. Do not select the settings bootstrapper, run.bat or incomplete output."
+        },
+        {
+          "title": "Back up effective data before startup or maintenance",
+          "instruction": "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated. Do not assume save compatibility or restore older player data with an old runtime."
+        },
+        {
+          "title": "Keep Update and Rebuild outside the tracked game session",
+          "instruction": "The normal startup check can offer Play or hand off to the upstream settings program for Update/Rebuild and end the game process. Finish pending preparation and replacements before registration. If you choose maintenance, let the selected game session end, complete upstream work, then revalidate the resulting native player before another Play. Portcove does not follow that successor, suppress the feature or own upstream repair."
+        },
+        {
+          "title": "Keep one runtime replacement and recovery owner",
+          "instruction": "The upstream settings program owns journaled file updates and rebuilds; its setup publishes the generated game and DLLs through staged .new replacements. Keep recovery copies outside upstream update/build scratch locations. Portcove only registers the explicitly selected completed native copy; it does not acquire originals, build, update, roll back or delete external saves/runtime files. Requesting Play remains a separate consent action."
+        },
+        {
+          "title": "Preserve terms and qualification limits",
+          "instruction": "Retain GPL PS2Recomp/title notices, paraLLEl-GS LGPL and all other individual component notices. The title's name/logo and settings-app artwork are explicitly outside its project licence; fresh acquisition of a whole package needs applicable permission for those components. An independently permitted prepared copy does not establish broader distribution rights, source/output byte correspondence or save compatibility."
+        }
+      ],
+      "warnings": [
+        "Only an independently permitted completed copy is offered; fresh package acquisition has a separate named-branding permission condition.",
+        "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the selected Def Jam Vendetta Recompiled Windows kit is held while the applicable permission or authorized-source basis for its settings-app game-logo and artwork assets remains unresolved. THIRD-PARTY-NOTICES explicitly excludes those components from the project GPL grant. Resume with an attributable applicable basis or a reviewed supported kit excluding/replacing those assets; independently permitted completed copies remain separate."
   },
   "upstream_lineage": {
     "format_version": 1,

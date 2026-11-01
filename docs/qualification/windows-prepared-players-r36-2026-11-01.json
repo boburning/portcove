@@ -1,0 +1,2128 @@
+{
+  "format_version": 1,
+  "date": "2026-11-01",
+  "baseline": "3bd3e9956dd344e9ef36af39f3c401e822ce2b09",
+  "scope": "Nine conditional Windows completed-copy routes; four named fresh acquisition guards. Source and inert checks are not actual package/native/game/installed/real-save/protected acceptance.",
+  "accounting": {
+    "changed": 9,
+    "guides": 9,
+    "original524_changed": 3,
+    "affected312_changed": 6,
+    "historical1422_additions": 0,
+    "actual_complete_at_authoring": 0,
+    "directRequired_completed": 0,
+    "partial_must_remain_open": [1792, 1799, 1891, 2734]
+  },
+  "ports": [
+    {
+      "issue": 1792,
+      "id": "junior-jones-adventure-island-ii-nes-static-recomp",
+      "cohort": "original-524",
+      "authored_path": "crates/portcove-core/catalog/ports/junior-jones-adventure-island-ii-nes-static-recomp.json",
+      "candidate_sha256": "8d2923583ef13a1b92770504c2d148b26b3e043ea89e9a48b0a316e58b408d56",
+      "own_specification_sha256": "b10661d1ff4901fa45e3eff7c99bc0c22f9411dbb233d9816ccbdc147a7ef636",
+      "current_criteria": "\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {},
+      "acquisition_condition": null,
+      "source_bindings": [
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "README.md",
+          "blob": "40bc19eb70cdc41e47278e97c4d027a334dd1b8d",
+          "bytes": 3295,
+          "sha256": "035191aea3b2a4a416b5767b1b4efe37464cf72ca58c62cd2eeefb8c5eff4435",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "CMakeLists.txt",
+          "blob": "60c7ebc6a5c1a7725b40be333dd2e366c9126222",
+          "bytes": 6504,
+          "sha256": "3201d3a8113547a267223c68cabae494cf9c5cc26f0de32c3b881a62ae8c4964",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/CMakeLists.txt"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "frontend/windows/ai2_windows_launcher.cpp",
+          "blob": "f87428a20aa3ace13c8f5186d389ab7f467d93ff",
+          "bytes": 36732,
+          "sha256": "e2a9715ed982c8a526c7027903dd7a8eed8710a1fa5990dbfe3469b8db8c290b",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/frontend/windows/ai2_windows_launcher.cpp"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "THIRD-PARTY-NOTICES.txt",
+          "blob": "0ad614f95800d9c8aeb54ac708f4f42b8a3bf96e",
+          "bytes": 710,
+          "sha256": "58aa7f15217cd91b15fd2ff404668e90065c5116e7c120de9a616ca21ae8b280",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/THIRD-PARTY-NOTICES.txt"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "config/expected-rom.json",
+          "blob": "a66655f1815610e8483bac72a9f05b28851feffd",
+          "bytes": 565,
+          "sha256": "24723fbfae7331c440b0b8b2fbdd63b6c2abf79a8f8a859293b83204798a8069",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/config/expected-rom.json"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "config/source-pins.json",
+          "blob": "da7d5e5d7ee6066cb6c9147b3425df6e9ddd9c0c",
+          "bytes": 9278,
+          "sha256": "5d098554aa79dbc337fb2a7e8162dc274bbfdc4ffb6c3893dadd134a695543bb",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/config/source-pins.json"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "frontend/windows/ai2_windows_entry.cpp",
+          "blob": "107662585d11ffa4b7f4a0c9c6865b7791d9d2fa",
+          "bytes": 793,
+          "sha256": "e192b80dfe37016699f269169af6db4270834e89e333fc6fd7ac09210199adf7",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/frontend/windows/ai2_windows_entry.cpp"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "frontend/windows/ai2_windows_live.cpp",
+          "blob": "899a4fdc153bb197091796a6143ba2bcd0bdf77a",
+          "bytes": 11811,
+          "sha256": "ca3223da01331ce68acaecd4c98669abb3c56187c5d02f2d474166dafb3556f7",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/frontend/windows/ai2_windows_live.cpp"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "frontend/windows/ai2_frontend_sdl3.cpp",
+          "blob": "14b50c3f22202ec8cdc52b51b41e00bd01cacff9",
+          "bytes": 18879,
+          "sha256": "ad8adf8757eef80b957a9f9c721c8b6f978baf0a70c04d3b39cc417b5a0b277c",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/frontend/windows/ai2_frontend_sdl3.cpp"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "frontend/windows/ai2_rom.cpp",
+          "blob": "959fed62c6f18fac65a904669a4097aee5fecc65",
+          "bytes": 3401,
+          "sha256": "5771bbdbb0ebe5a06768740b6dcbd35909deccbae791702e6ecb1e9f85e40e25",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/frontend/windows/ai2_rom.cpp"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "third_party/SDL-LICENSE.txt",
+          "blob": "e9adee4484511b4b1730461679fed21d9b13d88e",
+          "bytes": 884,
+          "sha256": "1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/third_party/SDL-LICENSE.txt"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "third_party/SDL_GameControllerDB-LICENSE.txt",
+          "blob": "b438d9c714702bc80d774744355d409bf5e59094",
+          "bytes": 877,
+          "sha256": "737fece95d2c7e0146fe81caa96788e3921605e874b426c95c51aae80f4f1187",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/third_party/SDL_GameControllerDB-LICENSE.txt"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "src/api/ai2_v09_core.c",
+          "blob": "dc1c78e61d18eadeb7d3ee419914f1d80b345a85",
+          "bytes": 45050,
+          "sha256": "e5d0bce08d8d23c853fc9a07f4c04abcba7bab76f75cd2a6491cf298727bb87c",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/src/api/ai2_v09_core.c"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "generated/v05/generated_sources.cmake",
+          "blob": "eaa8d06b28bba8e8d5e346bf044c6f365013bf42",
+          "bytes": 865,
+          "sha256": "9855a9aac72314ca6bdad52c594b0d831a5508af8c28b22b3fc560a23ca5085c",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/generated/v05/generated_sources.cmake"
+        },
+        {
+          "repository": "Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
+          "commit": "8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd",
+          "path": "frontend/windows/ai2_game_entry.h",
+          "blob": "1a3dc4704954e4e3fd29639742fd96d070ca9980",
+          "bytes": 124,
+          "sha256": "fc23fdfd682fed4e0b2489f0e1ef0a007aa14748a6c1b51329e3db57b401b480",
+          "url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/frontend/windows/ai2_game_entry.h"
+        }
+      ],
+      "canonical_completion": "PARTIAL OPEN: own exact native-artifact or controlled-build criterion remains unproved; source target/recipe and inert selected-copy controls do not establish it.",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 1799,
+      "id": "gabrielnnk-bigodao",
+      "cohort": "original-524",
+      "authored_path": "crates/portcove-core/catalog/ports/gabrielnnk-bigodao.json",
+      "candidate_sha256": "7e9fd09092a9c5f41a8c97f8d213847bd62af1937bb130b0bfb0793086e4a5ab",
+      "own_specification_sha256": "a6c2b6787fe70f0bab0cba5590a7286c2a2e2205755ea08bb71ba42ffc5e4563",
+      "current_criteria": "\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {},
+      "acquisition_condition": null,
+      "source_bindings": [
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "README.md",
+          "blob": "b7dc2bb75e5af515caf0d701e02a1de256f852d5",
+          "bytes": 11678,
+          "sha256": "3fb25a20530a0435aa06e175ee9db895182409966392e1c8afef8da7ad26c39d",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/README.md"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "LICENSE",
+          "blob": "da0a6d0240f9c04d3d46789ecd66017be9bb209e",
+          "bytes": 1060,
+          "sha256": "80643e4b80ddac796d3ca911a0c9c8c7953f47bba474535efedfc96ab7a0e7cb",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/LICENSE"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": ".gitmodules",
+          "blob": "ca6c88a8ae5c9667b66ad77ea667a8f9c2661396",
+          "bytes": 194,
+          "sha256": "e3380046b4088df9e057a87f7bc00b243b08f39e55722db5a94fb699ff775ebe",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/.gitmodules"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "CMakeLists.txt",
+          "blob": "5ebbae1e21f4869ed070cbe7cf906138a8a214a7",
+          "bytes": 6139,
+          "sha256": "222168b60a97d068d99b752374db0f71410cfdbe639ee4e06e08fe87335f2d20",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/CMakeLists.txt"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "main.cpp",
+          "blob": "d51b122a0e37ab4cac105b7f48ef461c90dde0e1",
+          "bytes": 58652,
+          "sha256": "316f8b6e5ac2edcdc28ad6f39885ae81042cf0be168f3bfc3601b1ce53d2c211",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/main.cpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "launcher_block.cpp",
+          "blob": "6a1dbd2e95c0d7b532b76b9811782d0a234c3f75",
+          "bytes": 36145,
+          "sha256": "6449b50c0758f75d3e3b98d8b99ea87c6bca8476e7f04d26a2a789839a07cb4d",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/launcher_block.cpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "asset_extractor.hpp",
+          "blob": "727f160848ece50869be41b5c73873ac5004f681",
+          "bytes": 16128,
+          "sha256": "b5b22e8ba43cdecf09ddf64971f0065ec41623414eb357a942872439472b8afb",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/asset_extractor.hpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/src/platform_sdl.cpp",
+          "blob": "2d5c041182bb480083d1dd7429f66eb4cb355735",
+          "bytes": 406313,
+          "sha256": "b0980d8ed23819da7a055ad5e614133f5e5f65469d360be44c3014e7575f0faa",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/src/platform_sdl.cpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/src/gbrt_port.c",
+          "blob": "53f73f4b4839e9f5b782a0c26bd367990008b657",
+          "bytes": 20397,
+          "sha256": "afee67e8633851710e60349aa529eff881645ddbf01b76f6bac39426d8262ba2",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/src/gbrt_port.c"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "bash_release.sh",
+          "blob": "d71c19f2ddb8a137cf96befb3a0d13bfcc78fc7b",
+          "bytes": 413,
+          "sha256": "1c6793e1fa750f28834af23de18be31ddfb827985e4e7770d5404e254c6ccc50",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/bash_release.sh"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/include/third_party/STB_LICENSE.txt",
+          "blob": "a77ae91f3ec0abb0028c9d9bd8d34d880b454d38",
+          "bytes": 2510,
+          "sha256": "bebfe904b14301657e4e5d655c811d51fd31b97c455b9cc2d8600d6bac6cff63",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/include/third_party/STB_LICENSE.txt"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/vendor/imgui/LICENSE.txt",
+          "blob": "3282f5b5b105440af25c030c29bea5a24fddf496",
+          "bytes": 1083,
+          "sha256": "0ebf8feb061536bdebd7c6a365b64808ae3479048b1c44113e19037680c5f2be",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/vendor/imgui/LICENSE.txt"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/src/gbrt.c",
+          "blob": "29ca2c0ce946e00c9ad915f8d9feef088d422647",
+          "bytes": 224896,
+          "sha256": "b6003e993abfa96fbaea7f0395d260909f811286b8a5f44a3dafbeeefe559b6c",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/src/gbrt.c"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/src/hd_pack_io.cpp",
+          "blob": "38ad3c2e632a64348ea552f645d9246d2dbb5ca8",
+          "bytes": 55618,
+          "sha256": "486c22b9643fac4f3f9e822e84c2e3cdb07580debdd3f890f269069ccdb4659d",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/src/hd_pack_io.cpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/src/music_replace.cpp",
+          "blob": "8ccc6507a319128eb6512206d930a3ef86e39db6",
+          "bytes": 17435,
+          "sha256": "78d23f3cc2d33440a01869b8b273f352f8208ab5092379baef266c6fed65e7b7",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/src/music_replace.cpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "tools/wl_sm3_dx_v12_patch.json",
+          "blob": "577a9b962cbba4c6fba485788a4b7b1285530c28",
+          "bytes": 984,
+          "sha256": "8cfceb4e270e462a6f942fc71c4cd88fe24a16f145b06be8e5ec0922400bb725",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/tools/wl_sm3_dx_v12_patch.json"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "COMPILAR.md",
+          "blob": "989c0e1c1ab26759b39f7454894cb74e47719c04",
+          "bytes": 2509,
+          "sha256": "224fffbe4188d1a14363fb8ed3ab841427e2047a957b5c50ffb427e1aaf227ed",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/COMPILAR.md"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/src/android_bridge.cpp",
+          "blob": "5333d820c16c8d8ea7ed21241a2c1ffeb833cbcf",
+          "bytes": 14331,
+          "sha256": "da93377d13a2eb9040eb1d0c95e663f97769fe953271be1d86bba34a50df03ed",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/src/android_bridge.cpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "runtime/include/android_bridge.h",
+          "blob": "ecd2dee705b93f43ec194ac9481b807fc62a3aa9",
+          "bytes": 1313,
+          "sha256": "e60d597da9ea186ef4c0679e70182e43d4be8c97239b105f406dc12d68f7ac0a",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/runtime/include/android_bridge.h"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "wl_sm3_patch.hpp",
+          "blob": "17354bdaf71f2835301b75e80a8af05fefac381b",
+          "bytes": 7181,
+          "sha256": "6280fe0c29a4fd7fd61d7b64c804cd00076d33464a2f95a0f98b32f4188a2adb",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/wl_sm3_patch.hpp"
+        },
+        {
+          "repository": "GABRIELNNK/Bigodao",
+          "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+          "path": "mingw-toolchain.cmake",
+          "blob": "c41a240a7c67f4bbe1f54281a58ff78fa2f01f72",
+          "bytes": 1099,
+          "sha256": "47d3a6597f3496590da47cac8d5ca2bb3749894cbfb953325d37c6fcbf8d4bfe",
+          "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/mingw-toolchain.cmake"
+        }
+      ],
+      "canonical_completion": "PARTIAL OPEN: own exact native-artifact or controlled-build criterion remains unproved; source target/recipe and inert selected-copy controls do not establish it.",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 1891,
+      "id": "jhdev2006-super-mario-world-remastered-public",
+      "cohort": "original-524",
+      "authored_path": "crates/portcove-core/catalog/ports/jhdev2006-super-mario-world-remastered-public.json",
+      "candidate_sha256": "239cd879739e960ec1ace8eb039dca91300b4fb3745442a2f795e08633551bbb",
+      "own_specification_sha256": "5c65d0afaca49a704b3be35f896856e1ecc805d677cdc5c3e9c6de5ef60f75fe",
+      "current_criteria": "\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {},
+      "acquisition_condition": "Fresh acquisition of the selected parent Super Mario World Remastered Windows export is held while an attributable permission or authorized-source basis for its bundled original-game sprite and music assets remains unresolved. The project ISC code grant and an owner-supplied ROM do not establish that separate media basis. Resume with an applicable reviewed basis or a supported clean package/preparation excluding or independently sourcing those assets; independently permitted existing completed copies remain distinct.",
+      "source_bindings": [
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "README.md",
+          "blob": "ee17add5c659199e1280bd0da2cb68cf8681d747",
+          "bytes": 409,
+          "sha256": "1fd877cc51bf4c7aa95f6b857c92cbaab3105fa6d194d28191fda47a742266d3",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/README.md"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "LICENSE",
+          "blob": "1d3fbd328d22021d807c12060bd9e652fe5c057b",
+          "bytes": 743,
+          "sha256": "236b6f98b5207ed0538361225e5afe6108f03afc2fc536805c62804e1292320d",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/LICENSE"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "project.godot",
+          "blob": "dd6de2808255b0e4d176c5c17c1305140370642d",
+          "bytes": 33528,
+          "sha256": "8dc8fe55af2f72910aeb0d0bf9e4a240b0adc7e9e6e51bb3aa1e612437e85b93",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/project.godot"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/Autoload/SaveManager.gd",
+          "blob": "2534a25546eecb8737ea7ee11e13994f22848458",
+          "bytes": 2501,
+          "sha256": "f575270da8ffda09eb51ea8a24283305aff40801bc0246421374bf0bc315a4b7",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/Autoload/SaveManager.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/Autoload/SettingsManager.gd",
+          "blob": "04fbb8633de8e6860fffb6027e2e9b40917c002a",
+          "bytes": 4394,
+          "sha256": "a0b85fbdb8895848b08ed8faa5936f1e0441f3ca2a7ad5586871546de7a75f51",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/Autoload/SettingsManager.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/Autoload/game_manager.gd",
+          "blob": "2baa714659ab1e3c32e98c0ada0e85738073cd5c",
+          "bytes": 12717,
+          "sha256": "d6b481724a1f1512f3787423d8d949336ee594b54fbdd7e56e9ba5d593cc70cc",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/Autoload/game_manager.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/Autoload/OnlineManager.gd",
+          "blob": "fd1af847104d4e552b866b9e9f8c26e9a375c892",
+          "bytes": 7587,
+          "sha256": "bb245d971cad499160bef7132ff42715e602475d869f7424cf5301f03c8356ee",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/Autoload/OnlineManager.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/UI/rom_checker.gd",
+          "blob": "7ea213eac1d06edffb30b5ca40604f76a6a879eb",
+          "bytes": 1515,
+          "sha256": "2194e4b9e12c68b83b1ce114a84090bc84cd740f0726f54c1d6b22c196fbe93f",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/UI/rom_checker.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/UI/save_select.gd",
+          "blob": "5670990e43f1fae9cc2497e10a884f0a3a2a6c8c",
+          "bytes": 3355,
+          "sha256": "553011096081257779bb5dd71fb878e08ac08f3fb32c16d46ee1f1cb4714e429",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/UI/save_select.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/UI/main_menu_options.gd",
+          "blob": "142fde889c5f90dd565e154d0b321ba94706e68b",
+          "bytes": 2427,
+          "sha256": "14015a6abe61a056b840d49a7b2ca7b6b9e33be652a4d17468c139011e9cd17f",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/UI/main_menu_options.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/UI/main_menu.gd",
+          "blob": "cb4307b26e276f18f4f4583b6811c7bd058091cd",
+          "bytes": 1337,
+          "sha256": "13bc7d1c3e6baf3b55ed17ba2f28000e6fc020775afed5255376e4e8b0cf10ba",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/UI/main_menu.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/UI/main_menu2.gd",
+          "blob": "1b32c9b953ef1f599aa838c70193ec2283a2c64b",
+          "bytes": 2507,
+          "sha256": "53c8dfbcb249bce8f59e34b6e13b2e825d0b5b92cc65f39f1bc467956d24b72d",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/UI/main_menu2.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/UI/title_screen.gd",
+          "blob": "2433a29ffe922335c01a717245bfdd392384405e",
+          "bytes": 629,
+          "sha256": "ae24e4c5ac7655a2428fe358a64229ecf0ef001c5d4def9f63e3f6fd4dcd3b00",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/UI/title_screen.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "rom_checker.tscn",
+          "blob": "37642e0343fa54ed8afbc9cfcc515ce4ed0ee2fe",
+          "bytes": 3142,
+          "sha256": "c313a7cb4e2ef50314c01c9a937df126a435245cf674f28640e8b2c585b45c4e",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/rom_checker.tscn"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/Autoload/transition_manager.gd",
+          "blob": "0dcdcce88f43bb57e73cbe81fbaaa491856b99f2",
+          "bytes": 9107,
+          "sha256": "40348abbbcd957138fa32f21d5effa09f9f35c02d8f2f1574c036336fc63897a",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/Autoload/transition_manager.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "4c520cf0bf5ad919991b0a84d1e30643508f0086",
+          "path": "Scripts/Autoload/achievement_manager.gd",
+          "blob": "7bdf455c424cf0a952a3a09a10d9c51c70b3c103",
+          "bytes": 1371,
+          "sha256": "63b82607ee02e693714c561d2e6a64dd56803a617ea81ca318a957869341d20b",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/Scripts/Autoload/achievement_manager.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "fb96c9df3925288506818b8ea9c6ce7a85251297",
+          "path": "project.godot",
+          "blob": "dd6de2808255b0e4d176c5c17c1305140370642d",
+          "bytes": 33528,
+          "sha256": "8dc8fe55af2f72910aeb0d0bf9e4a240b0adc7e9e6e51bb3aa1e612437e85b93",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/fb96c9df3925288506818b8ea9c6ce7a85251297/project.godot"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "fb96c9df3925288506818b8ea9c6ce7a85251297",
+          "path": "Scripts/UI/rom_checker.gd",
+          "blob": "7ea213eac1d06edffb30b5ca40604f76a6a879eb",
+          "bytes": 1515,
+          "sha256": "2194e4b9e12c68b83b1ce114a84090bc84cd740f0726f54c1d6b22c196fbe93f",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/fb96c9df3925288506818b8ea9c6ce7a85251297/Scripts/UI/rom_checker.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "fb96c9df3925288506818b8ea9c6ce7a85251297",
+          "path": "Scripts/Autoload/SaveManager.gd",
+          "blob": "2534a25546eecb8737ea7ee11e13994f22848458",
+          "bytes": 2501,
+          "sha256": "f575270da8ffda09eb51ea8a24283305aff40801bc0246421374bf0bc315a4b7",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/fb96c9df3925288506818b8ea9c6ce7a85251297/Scripts/Autoload/SaveManager.gd"
+        },
+        {
+          "repository": "JHDev2006/Super-Mario-World-Remastered-Public",
+          "commit": "fb96c9df3925288506818b8ea9c6ce7a85251297",
+          "path": "Scripts/Autoload/SettingsManager.gd",
+          "blob": "04fbb8633de8e6860fffb6027e2e9b40917c002a",
+          "bytes": 4394,
+          "sha256": "a0b85fbdb8895848b08ed8faa5936f1e0441f3ca2a7ad5586871546de7a75f51",
+          "url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/fb96c9df3925288506818b8ea9c6ce7a85251297/Scripts/Autoload/SettingsManager.gd"
+        },
+        {
+          "path": "Instances/Autoloads/game_manager.tscn",
+          "commit": "fb96c9df3925288506818b8ea9c6ce7a85251297",
+          "actual_tree": "548ec44063143f535f80f2374036a723d9faf85e",
+          "blob": "bbf2d7462e77f28dbd887cab2487baaa65e36f63",
+          "bytes": 10386,
+          "sha256": "d8e92164bf1d443fa15a2b78174a3e16619c99abc7edd808ae8f25d8892fce16",
+          "primary_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/fb96c9df3925288506818b8ea9c6ce7a85251297/Instances/Autoloads/game_manager.tscn",
+          "script_attachment_lines": [
+            "[ext_resource type=\"Script\" uid=\"uid://d03245vtt2nj8\" path=\"res://Scripts/Autoload/game_manager.gd\" id=\"1_menhw\"]",
+            "script = ExtResource(\"1_menhw\")"
+          ]
+        },
+        {
+          "path": "Instances/Autoloads/transition_manager.tscn",
+          "commit": "fb96c9df3925288506818b8ea9c6ce7a85251297",
+          "actual_tree": "548ec44063143f535f80f2374036a723d9faf85e",
+          "blob": "0b879f8047ee906ec1b466966c53f36e698f3847",
+          "bytes": 12500,
+          "sha256": "d8aacf242c7ec8f3b3c1c1e65af55ce5951b33de9142378faf692bd59c2ff5cb",
+          "primary_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/fb96c9df3925288506818b8ea9c6ce7a85251297/Instances/Autoloads/transition_manager.tscn",
+          "script_attachment_lines": [
+            "[ext_resource type=\"Shader\" uid=\"uid://bctbpwip7ks6o\" path=\"res://Scripts/Shaders/circle_transition_tres.gdshader\" id=\"1_6iv2y\"]",
+            "[ext_resource type=\"Script\" uid=\"uid://28svxe475qty\" path=\"res://Scripts/Autoload/transition_manager.gd\" id=\"1_c67nn\"]",
+            "script = ExtResource(\"1_c67nn\")"
+          ]
+        }
+      ],
+      "canonical_completion": "PARTIAL OPEN: own exact native-artifact or controlled-build criterion remains unproved; source target/recipe and inert selected-copy controls do not establish it.",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 2561,
+      "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled.json",
+      "candidate_sha256": "3b7e83a0cafd4adaa3d1d42f4c9db601707379e51a5f8c60138c2c517ec853f3",
+      "own_specification_sha256": "551d6be52603e4847512c2abb4259ecba434e1bf293b531c9ea617a45ce13c26",
+      "current_criteria": "\n\n- [ ] Next action: Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution.\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {
+        "originals": "USA SLUS20639 ISO/CHD; own prepare_disc.py serial member check, not fullSHA/size certificate. Own rawISO and extractedELF separate.",
+        "normal_lifetime": "Own setup stages named player; GameFolder.Play names nativeexe/ELFarg/filesCWD. Own publishedpatch exact-hunk-derived main+ps2_runtime hold runtime.run. ps2_host_update optional Update/Rebuild starts settings successor and returnsfalse→_Exit; not mandatory handoff and not offered continuation.",
+        "replacement_owner": "Upstream settings updater/player; Core nonowning selection only",
+        "persistence": "Own GameFolder + exactpatched configureIoPathsFromElf sets mcRoot ELFparent/mc0; memorycard consumer guest create/truncate/delete/format. Native settings chosenVENDETTA_SETTINGS orprogram/settings.toml default withstartupfullscreen→borderless rewrite. Logs recreated. Exactupdater journal/rebuild replacements bound.",
+        "held_operations": [
+          "Fresh wholepackage acquisition without applicable excluded-branding grant; owner componentrightsholder/upstream; resume exactgrant or independentlypermittedcopy",
+          "Coremanaged build/update/backup/migration/delete unoffered",
+          "Optional upstream Update/Rebuild successor unoffered; revalidateaftermaintenance",
+          "No native/sourceoutput acceptance performed"
+        ],
+        "limits": [
+          "Published asset metadata only; no archive/PE/output-byte inspection or sourcebinary certificate",
+          "No compiler/helper/game/native/private-original/real-save/installed/protected execution",
+          "No repository/shared/Core/schema/generated/Roadmap/remote mutations"
+        ]
+      },
+      "acquisition_condition": "Fresh acquisition of the selected Def Jam Vendetta Recompiled Windows kit is held while the applicable permission or authorized-source basis for its settings-app game-logo and artwork assets remains unresolved. THIRD-PARTY-NOTICES explicitly excludes those components from the project GPL grant. Resume with an attributable applicable basis or a reviewed supported kit excluding/replacing those assets; independently permitted completed copies remain separate.",
+      "source_bindings": [
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": ".gitmodules",
+          "blob": "c4e070a36eb543843644fc8dd4d67a7b052e4806",
+          "sha256": "a10914985b20eff9e22e27a5761b10862f44814da48aabbeaef7a6c57490c3b0",
+          "bytes": 241,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/.gitmodules"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "bytes": 35149,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/LICENSE"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "README.md",
+          "blob": "e432f898a164e720286dafeff156e5e7d661d12f",
+          "sha256": "7e1bd19f60afc048c03f4b2b23cb528b40bbfbc2ade3b2e47fa7e7f46418d113",
+          "bytes": 14554,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/README.md"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "settings-app/Services/GameFolder.cs",
+          "blob": "5cff40c8ab6ecf62da9a70bc0c68e397430d1096",
+          "sha256": "ee9c5da82e7ea9b8a21c43788d87440cb7fae53d856148d03355404e95f0d32e",
+          "bytes": 11540,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/settings-app/Services/GameFolder.cs"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "settings-app/Services/GameSettings.cs",
+          "blob": "11ca5ce0f18421767ad55ff7f406d19a96531d39",
+          "sha256": "38f24fdd6c3fd9a1f4707490feaaf005336f922e411a48086b5b97c9be5446dd",
+          "bytes": 19946,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/settings-app/Services/GameSettings.cs"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "settings-app/Services/Updater.cs",
+          "blob": "9c3cb1e94cfbf767ebd2b7f75d2351b832321f6d",
+          "sha256": "59c03489e3e2f4c5fd75236d876acf560bf2f61cedcf59f1f0a7e8b75c3676e8",
+          "bytes": 23321,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/settings-app/Services/Updater.cs"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "settings-app/Program.cs",
+          "blob": "624912d69f7f70e6892c5bedf0107e0ca6240e33",
+          "sha256": "ac50e7b7c8eeb63ab6a244dd18781901d1466cbf8ef0a442012e12b008babac4",
+          "bytes": 2578,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/settings-app/Program.cs"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "run.bat",
+          "blob": "38afd97e43c143cf7629dc3cee9e7ccd47746b1d",
+          "sha256": "99d657e88b3551b4b5ad5405d4b57238e1af59edb9979e2d3830e1dd9c7fe1ea",
+          "bytes": 210,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/run.bat"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "THIRD-PARTY-NOTICES.txt",
+          "blob": "5b826b0afd4d241993338f28a7c75dba682390f8",
+          "sha256": "135bd0ab082fe84a0128e03c4a3b40f4ab0453a3d2d6e2419992bcc7bef50e41",
+          "bytes": 4069,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/THIRD-PARTY-NOTICES.txt"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "tools/prepare_disc.py",
+          "blob": "32b8793c77fbf5098f88cf1ec995ec0a12785fa3",
+          "sha256": "aef91ba1b03220c2d1b4f61d49e5fd017d611cdfa3a9837ce83ca7583db9031f",
+          "bytes": 5456,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/tools/prepare_disc.py"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "tools/setup_game.py",
+          "blob": "2b2c94b8a35d4b208ee857a797b351a1b156df3c",
+          "sha256": "e97f29e7d0323fbe4ca0e3111f406311d0d1164f420d4de464b5d5b16e7049bc",
+          "bytes": 21780,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/tools/setup_game.py"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "patches/ps2recomp-local.diff",
+          "blob": "e3fa94fc52106d3ff6c7432ef234308e0844500c",
+          "sha256": "a023cae30ad6368ab3b497e4a50c80903841bd058a7f0029e373f99851f47af8",
+          "bytes": 1011097,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/patches/ps2recomp-local.diff"
+        },
+        {
+          "repository": "ran-j/PS2Recomp",
+          "commit": "2c5fbb9389e11dd95693385969490c9e8e6f57b4",
+          "actual_tree": "de4870c58c1be47b8f4725d49e1a148eda1c2987",
+          "path": "LICENSE",
+          "blob": "d2b23397c559f3bc9b86f916a365706a85f85a9b",
+          "sha256": "831e92808eb553250066261a1387a9323cbf300d4559a41f2c71fd3712bdb44a",
+          "bytes": 34903,
+          "primary_url": "https://github.com/ran-j/PS2Recomp/blob/2c5fbb9389e11dd95693385969490c9e8e6f57b4/LICENSE"
+        },
+        {
+          "repository": "ran-j/PS2Recomp",
+          "commit": "2c5fbb9389e11dd95693385969490c9e8e6f57b4",
+          "actual_tree": "de4870c58c1be47b8f4725d49e1a148eda1c2987",
+          "path": "ps2xRuntime/src/main.cpp",
+          "blob": "563bcbd74c285feb032aff5cc3d4c59f511c5076",
+          "sha256": "8c6ea571a988b3ff631be11cec06e08495b544667c14c6b675e6b26d3708a976",
+          "bytes": 8001,
+          "primary_url": "https://github.com/ran-j/PS2Recomp/blob/2c5fbb9389e11dd95693385969490c9e8e6f57b4/ps2xRuntime/src/main.cpp"
+        },
+        {
+          "repository": "ran-j/PS2Recomp",
+          "commit": "2c5fbb9389e11dd95693385969490c9e8e6f57b4",
+          "actual_tree": "de4870c58c1be47b8f4725d49e1a148eda1c2987",
+          "path": "ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.cpp",
+          "blob": "564d87381a934f57112782f7fc638c5c366a92fd",
+          "sha256": "9be593bb2d8f1cee9db5861406575650538e18d53a01e43f8a69a9c319887aa9",
+          "bytes": 53993,
+          "primary_url": "https://github.com/ran-j/PS2Recomp/blob/2c5fbb9389e11dd95693385969490c9e8e6f57b4/ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.cpp"
+        },
+        {
+          "repository": "ran-j/PS2Recomp",
+          "commit": "2c5fbb9389e11dd95693385969490c9e8e6f57b4",
+          "actual_tree": "de4870c58c1be47b8f4725d49e1a148eda1c2987",
+          "path": "ps2xRuntime/CMakeLists.txt",
+          "blob": "589d76850a7e3c9b99eea17d66ba0a8cad7d3f24",
+          "sha256": "dbda0bb76363c22e7c5fe84f15bf65698184db32d34556d5b62098e93c84e6e0",
+          "bytes": 19684,
+          "primary_url": "https://github.com/ran-j/PS2Recomp/blob/2c5fbb9389e11dd95693385969490c9e8e6f57b4/ps2xRuntime/CMakeLists.txt"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "tools/make_release.py",
+          "blob": "74de2056fdefe9b01f15577339d4e12f3670939f",
+          "sha256": "6ac851247a25d6bafa1fd4fae5db350883a504a5ba3fd5dfa491a173c7303581",
+          "bytes": 15813,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/tools/make_release.py"
+        },
+        {
+          "repository": "jcsix694/def-jam-vendetta-recomp",
+          "commit": "d3d857b436beceebf1c77b0141c46bb7f13ee1fe",
+          "actual_tree": "e364d9d19129a323654c84980e29d38c6a2d5402",
+          "path": "tools/release.py",
+          "blob": "2400fbc9d3eb4f1fca7f49833fc8d62710db0bcf",
+          "sha256": "319e3a84e5225fafa0500f233d9ce360e8e75a331e7f9ee706c53fbe6a345974",
+          "bytes": 10407,
+          "primary_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/tools/release.py"
+        },
+        {
+          "repository": "ran-j/PS2Recomp",
+          "commit": "2c5fbb9389e11dd95693385969490c9e8e6f57b4",
+          "actual_tree": "de4870c58c1be47b8f4725d49e1a148eda1c2987",
+          "path": "ps2xRuntime/src/lib/ps2_runtime.cpp",
+          "blob": "45cb9d267ec998c92f1951d3bc22e7d4c686851e",
+          "sha256": "77cd184f2e70eacfd5ea584ec95829553e3deeead0a19c04e4b0970dd7c6c9ee",
+          "bytes": 80901,
+          "primary_url": "https://github.com/ran-j/PS2Recomp/blob/2c5fbb9389e11dd95693385969490c9e8e6f57b4/ps2xRuntime/src/lib/ps2_runtime.cpp"
+        }
+      ],
+      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 2579,
+      "id": "gran-turismo-4-playstation-2-gt4recomp",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/gran-turismo-4-playstation-2-gt4recomp.json",
+      "candidate_sha256": "f66270c2433cbdc615b22c592f5964880d3cfcda47157167586684da97a6c175",
+      "own_specification_sha256": "afcff05c4e9b5c3d362d08343d188d7c176930a5dff0bbdfd451abd4da78c343",
+      "current_criteria": "\n\n- [ ] Next action: Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution.\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {
+        "originals": "USA v2.00SCUS97328 plain5314478080B ISO exactSHA pinnedJSON; own pins.rs+setup consumer distinct originalCORE/ELF andpreparednativeELF.",
+        "normal_lifetime": "Own tauri main Builder.run remains alive; game::start child/ownedwatcher, tray hidesonPlay returnsHomeafterexit. Closewhilegameasks thenkill-on-close job; no mandatorynormaldetach. Secondinstance returnsafterforeground. OptionalWebViewrestart andacceptedinstallerupdate excluded. Directinternalenv unoffered ratherthanwholelauncherhold.",
+        "replacement_owner": "Official upstream launcher/installer owns runtime, renderer, preparation, data movement; Core nonowning selected outer only",
+        "persistence": "Own paths+relocation+legacy_install+textures+saves consumer bindings. Install/data; APPDATAuserlibrary/settings/cardbackups; LOCALAPPDATAfallback/legacy; Documentslegacy/moved andPreviousData readlayer. Startup migrations/textureflatten/oldprogramcleanup; runtimecardlibrary prep+harvest/sessionprune20; no newCoredataauthority.",
+        "held_operations": [
+          "Fresh wholepackage brandedartwork acquisition without specificgrant; owner upstream/rightsholder; resume applicablegrant or independentlypermittedcopy",
+          "Directinternalplayer environment reproduction unoffered; supportedouterlauncher offered",
+          "Optional installerupdate/WebViewrestart continuation unoffered",
+          "Managed Portcove build/update/data handling unoffered"
+        ],
+        "limits": [
+          "Published asset metadata only; no archive/PE/output-byte inspection or sourcebinary certificate",
+          "No compiler/helper/game/native/private-original/real-save/installed/protected execution",
+          "No repository/shared/Core/schema/generated/Roadmap/remote mutations"
+        ]
+      },
+      "acquisition_condition": "Fresh acquisition of the selected branded GT4Recomp Windows package is held while the applicable permission or authorized-source basis for its bundled cover-front artwork and derived brand assets remains unresolved. NOTICE leaves the cover-art licence for owner confirmation; the MIT code grant does not resolve it. Resume on an attributable applicable basis or a reviewed supported de-branded package/preparation; independently permitted complete installations remain separate.",
+      "source_bindings": [
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "CMakeLists.txt",
+          "blob": "3e8e81d2cb8cbff8788a8b5cdf77109532d1478f",
+          "sha256": "57180f25b31fc1cd6256e7b059c7d0a7d57bdd031752c0956ecfbf472105229d",
+          "bytes": 9327,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/CMakeLists.txt"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "LICENSE",
+          "blob": "9006395c184b1b289fee9324f0e3dfa7394b29a5",
+          "sha256": "6ef414e487d2d012008577155da07cd87e65e3d0711ef1d0bf2424191265a54e",
+          "bytes": 1614,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/LICENSE"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "NOTICE.md",
+          "blob": "b15bab59d43000f617221439a34e5c71dbd1e901",
+          "sha256": "652cb9b380884c96364ad051c734f7f732fe7c09f88c72294f287b1172367824",
+          "bytes": 1849,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/NOTICE.md"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "README.md",
+          "blob": "8395de80435366ad86233e7d79d870856f468f2d",
+          "sha256": "99a6545e9e77820b635704d1f615668dcbd445600b00401b9f932ee614edb0bb",
+          "bytes": 12154,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-core/src/launch.rs",
+          "blob": "8f95e69adba9a76ac22cd1f6f6d92e26da7307a9",
+          "sha256": "7e8324051c334f8e583fea1bf0db5e23cdb209fae0830e707b5ccd1b7a977775",
+          "bytes": 13558,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-core/src/launch.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-core/src/paths.rs",
+          "blob": "cd519fbed879b9510adb9a2119679ca4b2dcc436",
+          "sha256": "1c814b2b5a1d3e19d1816d684e0733cd1fffa34605aeeba8cc12e9f70ec92474",
+          "bytes": 33746,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-core/src/paths.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-core/src/migrate.rs",
+          "blob": "1a802ede2792a83662d3a7a83c83732eb85ab188",
+          "sha256": "13e4ee44bc6c67a51d44a10ff1b3dbe51a5722aee38f93942b9b39ac926e1fe7",
+          "bytes": 27378,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-core/src/migrate.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-platform/src/game.rs",
+          "blob": "1355810d3b95615b851cb93fc4c8a043bfc55ba4",
+          "sha256": "d772be059880571d30bb8be8752171d65e95a2f4716ff13ba5314b079c708f4d",
+          "bytes": 5772,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-platform/src/game.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-platform/src/process.rs",
+          "blob": "dc3e37fcce93cee1f30c16f32ac5d4d405805740",
+          "sha256": "a389d26670dfb1eb9f34a54b3bb789d25908e41faae38a705bdf1fe9149317c4",
+          "bytes": 24599,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-platform/src/process.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "native/install_paths.cpp",
+          "blob": "c7d14550b07c46a6c2b66b58ae7f4f1fee87b5d8",
+          "sha256": "959a417ec36fdd39a5f681bc72802413402826fd749e16a81fb9c0668cdb7de1",
+          "bytes": 4228,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/native/install_paths.cpp"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/main.rs",
+          "blob": "e02f2f1831536d75e708e8488a1974136fb596af",
+          "sha256": "e7debf857444f10d00a0e840e36a926a01cd4062a3c5dc32d0bbb5ffa87ea16d",
+          "bytes": 9446,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/main.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/commands.rs",
+          "blob": "7c3c364d57d1f99f0f9f9da17a3b8f0616a15ff4",
+          "sha256": "c1147e7efc8f8e91b2c0e418f86afb69c091da5d3dd531fd2de9dde5a625752e",
+          "bytes": 43916,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/commands.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-disc/src/pins.rs",
+          "blob": "3b9ca4e42c068cf55111ba69c9510b930af707d8",
+          "sha256": "26a01d08de19d59f9e7e938c2a5b618a1826eb8183da71ba0943f5f256c41fe5",
+          "bytes": 2873,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-disc/src/pins.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-disc/src/setup.rs",
+          "blob": "b6621172081a0f4dba28b4ad69e7bbd3309723a5",
+          "sha256": "0c8eefcfc04a9e3ec796a6f5abdd857fac63483f6033e8fb188d691a5b8a1da9",
+          "bytes": 25235,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-disc/src/setup.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/tray.rs",
+          "blob": "f9c5d9ebb528853f5b6d23d581006328a86966f1",
+          "sha256": "2f4f9c2fb1ab9997e0605b02bc38921571d85ab9b2e4896473449d79dc4ed39f",
+          "bytes": 10102,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/tray.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/relocation.rs",
+          "blob": "2fd8707ad2915878d58241a24ba2c890c9ba27bd",
+          "sha256": "2ec134185cf031abfd442b511cbfdb9ac52b0419fd75bfc02dde31edf6450bcb",
+          "bytes": 20016,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/relocation.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/webview_guard.rs",
+          "blob": "05982c27e2350bcaed056afc96acf21649ad217e",
+          "sha256": "4b222655036de3026cff5f963a70102de1be2826479cbf7177391cef4327cb2e",
+          "bytes": 19397,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/webview_guard.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/updates.rs",
+          "blob": "6ebcc25ba15418cf7ba54d0660dc5391e3cf0954",
+          "sha256": "4bc2fb1f5734fac211eb2cba5a6266a7d08b9395ec87c83356e90aa8d0e45d6f",
+          "bytes": 22354,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/updates.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/state.rs",
+          "blob": "6f2b6e7d90b0584eeee463e46de5ec2d22a085b9",
+          "sha256": "47e46274ffce0ac2b8ecd92f408b015b360920d0300cf5679550e7f1fc6b704b",
+          "bytes": 10376,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/state.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-core/src/relocate.rs",
+          "blob": "9ce2fe927e7519028b360b1fbc3303bbd6ddb097",
+          "sha256": "c02c4ad5f2bcae263cbe41e9791f58dfbb1b16ae34fc57bd0033e31eba2fa376",
+          "bytes": 44275,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-core/src/relocate.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-core/src/config.rs",
+          "blob": "502dbdc281e06747bfb877fc10c44bcda146146e",
+          "sha256": "c0a4c45f7c7402d49e5d593cb678e84cee89f89237adae343f4dba5d0c172e6f",
+          "bytes": 11649,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-core/src/config.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/tauri.conf.json",
+          "blob": "b966531409c10789b126a186fed4a992412a05c6",
+          "sha256": "c4925aac71a1bb846b7776b0cf27f22b96eeb5081de3d904d600c924629bbe2d",
+          "bytes": 1080,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/tauri.conf.json"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "installer/gt4recomp.nsi",
+          "blob": "ffc89dfafe6239d949a7e8d872d672efbf9a38ed",
+          "sha256": "761b5c2bb0f5df36897abb12ced671cb672b332b77f269a14c8d54f5ca1bc11f",
+          "bytes": 36506,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/installer/gt4recomp.nsi"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-platform/src/legacy_install.rs",
+          "blob": "8f4b7817a011e311f3d0e8bf83155a298b68f08f",
+          "sha256": "b65f55462b5c61acdabc3de907ebfbbe28259a68d5545f391df484e949683b04",
+          "bytes": 16734,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-platform/src/legacy_install.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-core/src/textures.rs",
+          "blob": "a55decfec41acceec46937099a9afb2f17a822ef",
+          "sha256": "cfc8f56d1197e712a19516922335706e85a03927edc2743216768ffcd03be28e",
+          "bytes": 14824,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-core/src/textures.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "launcher/crates/gt4l-tauri/src/saves.rs",
+          "blob": "274620cbf1e5fe9ce8f3cb6048995d90b5590b43",
+          "sha256": "dc415b7f4358e4fb0f6f7583cbbbd9cb95e4838eb30ac437086b6d854aa39491",
+          "bytes": 20734,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/launcher/crates/gt4l-tauri/src/saves.rs"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "docs/inputs/usa-v2.00.json",
+          "blob": "404849e5ce0ccd8cb65d44a70fd8b961f85b43aa",
+          "sha256": "dc45eae6f123906895f899badfaf755300cb7f44867c0873ae0532be10832fa8",
+          "bytes": 720,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/docs/inputs/usa-v2.00.json"
+        },
+        {
+          "repository": "moesuito/gt4-staticrecomp",
+          "commit": "5d7a669bdecf5e60c0782ca449f48aacac3c7a32",
+          "actual_tree": "2a1ba9cf47d7d37251f75013c14a0fbbf35bfc20",
+          "path": "docs/inputs/usa-v2.00-native.json",
+          "blob": "b751a348287c8d736894e450c2e777ab6df8e7ef",
+          "sha256": "a7117e1134d8ec68de98a69deb3497e2e7d9216485cc2f97961ba12e9aa865cd",
+          "bytes": 2276,
+          "primary_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/docs/inputs/usa-v2.00-native.json"
+        }
+      ],
+      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 2680,
+      "id": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled.json",
+      "candidate_sha256": "73cfd86a135abecd6346ebe6286f0a63e944ebfb1168761bd0476e436714084d",
+      "own_specification_sha256": "fb009eff412eaf89079a01b9eab00de72d0e1b6780d624cd581e32e1e6555b51",
+      "current_criteria": "\n\n- [ ] Next action: Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution.\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {
+        "originals": "Own German PAL SLES02767 CUE+3BIN; exact datatrack tuple bound own game.toml and SDK prepare_disc.py; no whole-set hash.",
+        "normal_lifetime": "Own CMake generated marker and full glob + exact runtime.cmake sets PSX_HAS_GAME_DISPATCH; host early-return prevents setup forwarding in completed product. Optional rebuild/relaunch not offered.",
+        "replacement_owner": "Upstream/player; Core bounded nonowning selected native only",
+        "persistence": "Own game.toml saves root; exact pinned main/memcard/savestate/config_loader consumers plus all5 reached own mod plugins bound. InstantLoading extracted/ writer and failed-partial removal included. LegacyPST moves/marker/card startup writes described without sibling inference.",
+        "held_operations": [
+          "Core-managed acquisition/build/update/backup/migration/deletion unoffered",
+          "Optional PGO/rebuild/netplay continuation unoffered",
+          "No original-data grant or package/native qualification inferred"
+        ],
+        "limits": [
+          "Published asset metadata only; no archive/PE/output-byte inspection or sourcebinary certificate",
+          "No compiler/helper/game/native/private-original/real-save/installed/protected execution",
+          "No repository/shared/Core/schema/generated/Roadmap/remote mutations"
+        ]
+      },
+      "acquisition_condition": null,
+      "source_bindings": [
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": ".gitmodules",
+          "blob": "2da1bdbfd300fc6443787d0cd834b4dbdcd1b1e3",
+          "sha256": "8c12f94432e294605971e42065e8f5933edb2e238af238e1b7fb37758f24b0f7",
+          "bytes": 234,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/.gitmodules"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "CMakeLists.txt",
+          "blob": "49c27f089beb69a99415ec6173eff4766b7a9d7f",
+          "sha256": "586b6701332dbd402271b057352654642885db5416605196f551112f1a6059d7",
+          "bytes": 4338,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/CMakeLists.txt"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "LICENSE",
+          "blob": "9de11406de26c4caaa58905663c662e65a1e7bdf",
+          "sha256": "cdd5b76dc578f7117b9c602ca44952adc9eef9e4511f8d7264286cb6664b2645",
+          "bytes": 4680,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/LICENSE"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "README.md",
+          "blob": "7b9ace5f614e4072f8181a7cc63be8f376ca90ab",
+          "sha256": "ed76ef4e780b9521d7a3328aaa5a1019f0ec2c7bc5d9cd473ef415dbe635baf7",
+          "bytes": 5071,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/README.md"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "codegen_setup.c",
+          "blob": "f7547ad694d843647d6e408981f843a78e888cd8",
+          "sha256": "5e021b4fdd923c97f1311af9c63e230cab1f84124445e7c022d1a1a126486757",
+          "bytes": 1883,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/codegen_setup.c"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "game.toml",
+          "blob": "2942c49c4ea8fb3ca11ed8068b36102e3a0a87d7",
+          "sha256": "8e6127c646d9947f037706b448ab13c62629e84e5203e13edb2a80196c23e2dd",
+          "bytes": 4676,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/game.toml"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "LICENSE",
+          "blob": "bb43759dce58708f103779981ed41998b0c16075",
+          "sha256": "133629d3a7fa3543e96e27cc8c03c27dd6cd6c395e0a02fc1eda307d1d206cc6",
+          "bytes": 3892,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/LICENSE"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "runtime/runtime.cmake",
+          "blob": "2c2872d07c924463ff042de1d8928721a142cf98",
+          "sha256": "16eecc9f5487496a37e0139ea7f26d3578fe8a5bc889aeef3a0e8d36cee45813",
+          "bytes": 134076,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/runtime/runtime.cmake"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "runtime/src/main.cpp",
+          "blob": "08ee8678b28080a5415d2d50e0b90e9c0fff7d6f",
+          "sha256": "d44c3344a71ea06da684dcc013ae6a5c995619a43a00699698dc1a3c4fdf3009",
+          "bytes": 787848,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/runtime/src/main.cpp"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "host/psxrecomp_codegen_host.c",
+          "blob": "9fdd3ef1a8fa0fff51cba148383e61305b639b94",
+          "sha256": "cd070efc984490d1a2cfbb719ef5bfeb6fe25efdcf9e24c5b39d2a5cd6b87693",
+          "bytes": 174234,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/host/psxrecomp_codegen_host.c"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "runtime/src/savestate.c",
+          "blob": "c9b42d531d0a894669f56c34f21851b25eb04cef",
+          "sha256": "101bc23b26064e2683995f7aee79436995ee57ca1600b3d53c3b51ba3c0d3cc1",
+          "bytes": 33391,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/runtime/src/savestate.c"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "runtime/src/memcard.c",
+          "blob": "c7c10afcab568bd1e183b88707ddd0bb0fd91f92",
+          "sha256": "06250e049ba5eeb4d003ae53955fed66143b622b2564971c0a5faa10495bff48",
+          "bytes": 11748,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/runtime/src/memcard.c"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "tools/prepare_disc.py",
+          "blob": "92a321ca55fbc18adb0a4d5e8390f733bca1d9d8",
+          "sha256": "5cf720d4d90932808a49b1cd64b604f9a123d1c554bc331fbd8fa826cefa671e",
+          "bytes": 27155,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/tools/prepare_disc.py"
+        },
+        {
+          "repository": "RetroPortingToolKit/recomp-ui",
+          "commit": "65833d7401510c3e1151b9f6d8e539f19183d8b1",
+          "actual_tree": "cb0db17c742ff649aa639867f80ae12edca10067",
+          "path": "LICENSE",
+          "blob": "a4e60e1cc9c426120561d3ab85b58fcc9201a3ef",
+          "sha256": "676252c9efb0849cc08cdba279318b4d62ae144c19a52a0aa7ab5ca845ae5ddc",
+          "bytes": 1072,
+          "primary_url": "https://github.com/RetroPortingToolKit/recomp-ui/blob/65833d7401510c3e1151b9f6d8e539f19183d8b1/LICENSE"
+        },
+        {
+          "repository": "RetroPortingToolKit/recomp-ui",
+          "commit": "65833d7401510c3e1151b9f6d8e539f19183d8b1",
+          "actual_tree": "cb0db17c742ff649aa639867f80ae12edca10067",
+          "path": "src/common/launcher_files.c",
+          "blob": "0272a7e9025c6501e05935df5dbcfd473b2d95f5",
+          "sha256": "5d41dc8d3b6250b7f3482c235cf48c521784decf91cfc0a582d773592069ce8f",
+          "bytes": 27677,
+          "primary_url": "https://github.com/RetroPortingToolKit/recomp-ui/blob/65833d7401510c3e1151b9f6d8e539f19183d8b1/src/common/launcher_files.c"
+        },
+        {
+          "repository": "RetroPortingToolKit/recomp-ui",
+          "commit": "65833d7401510c3e1151b9f6d8e539f19183d8b1",
+          "actual_tree": "cb0db17c742ff649aa639867f80ae12edca10067",
+          "path": "src/recomp_launcher.h",
+          "blob": "e0139663dd6ee3700cb3ba63534e1268b243316c",
+          "sha256": "6e8cf698bab34c08bc213f36d885b0d8e19c458c92cfeed78e6d0fd651a83c06",
+          "bytes": 118092,
+          "primary_url": "https://github.com/RetroPortingToolKit/recomp-ui/blob/65833d7401510c3e1151b9f6d8e539f19183d8b1/src/recomp_launcher.h"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "bios/OpenBIOS.LICENSE",
+          "blob": "cfe373134026851c3389e03a758b6ac066a00f72",
+          "sha256": "98996af8dd3199a8519785b6d36f037ed607ba14d3181f6de2bdd79374f77380",
+          "bytes": 1575,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/bios/OpenBIOS.LICENSE"
+        },
+        {
+          "repository": "Nero2611/psxrecomp",
+          "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+          "actual_tree": "c38e17f8de5e75560fdeac2290191dd582eede0d",
+          "path": "recompiler/src/config_loader.cpp",
+          "blob": "13eb7af29edc5b77ab38121ccd8fd9ca50dddde5",
+          "sha256": "d00d87f52cd3d25732969cf6feca05870de539592218fbcf8632c7bdf3aa1449",
+          "bytes": 143550,
+          "primary_url": "https://github.com/Nero2611/psxrecomp/blob/e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59/recompiler/src/config_loader.cpp"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "mods/plugins/instant_loading.c",
+          "blob": "e1f424a16496d4470d9baea7b879c4869e0efa22",
+          "sha256": "b661c354d89e85614f1bb85332d2e3593a2001ba7a572211ad5d15be1cc3c279",
+          "bytes": 10555,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/mods/plugins/instant_loading.c"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "mods/plugins/ntsc_60hz.c",
+          "blob": "f9872ac290416de81c4763c54514b600fba58e0a",
+          "sha256": "0cc11ced3e47c299ab7261faeae782ab71bd537312e8fd94419893e4a994ffc2",
+          "bytes": 1872,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/mods/plugins/ntsc_60hz.c"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "mods/plugins/busy_waits.c",
+          "blob": "6cdda985cb165ddef5e846030d5b806e9698a866",
+          "sha256": "1b3ac95a22dc96682ed4a8f17387a090bbc9548398f5f09d0b4044d7db763059",
+          "bytes": 5406,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/mods/plugins/busy_waits.c"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "mods/plugins/terrain_line.c",
+          "blob": "cc8020be98c71adbc1640fdbc840056b724e3a82",
+          "sha256": "9e56342998852f7ccdcb3dc4dacdb3a7ffea4c6cf50b538901d2cb572c25ef87",
+          "bytes": 7717,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/mods/plugins/terrain_line.c"
+        },
+        {
+          "repository": "Nero2611/FrontschweineRecomp",
+          "commit": "b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e",
+          "actual_tree": "baa4ccd0f05774b23f207db9f83ba201e43ff3ac",
+          "path": "mods/plugins/widescreen.c",
+          "blob": "a3960b0375c9df8154f29c57312d96ea4a5083a6",
+          "sha256": "c3bfed056cb3807fde68677ae845d3259fd44cc8d929e11f7530ea9bcddfc019",
+          "bytes": 918,
+          "primary_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/mods/plugins/widescreen.c"
+        }
+      ],
+      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "migration_supplement": {
+        "repository": "Nero2611/psxrecomp",
+        "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+        "bindings": [
+          {
+            "repository": "Nero2611/psxrecomp",
+            "commit": "e23b15fda6c5a2b7b6db2a48937cc31f3bb54b59",
+            "path": "runtime/src/mod_packages.cpp",
+            "git_blob": "d6196dabfca721441791709bdcbebb9659337c2d",
+            "sha256": "363725ac8475b0ca3fb9ce5a1fdb7c07e567b16e0e3c7eca0bfca4f821475eb5",
+            "bytes": 180292
+          },
+          {
+            "file": "frontschweine-mod-packages.h",
+            "git_blob": "76ece89b6ad4c85229edd3e93cce062a077f4700",
+            "sha256": "7c0c4dd25612463e805289d13cc0ee4fbc6c5555e85328ce21818a5f99512f07",
+            "bytes": 20256
+          },
+          {
+            "file": "frontschweine-mod-runtime.cpp",
+            "git_blob": "c5c7a275d3f999bc12f0bd51faaf3d4f9ae36af4",
+            "sha256": "b5f819892b3128320a206341436303080aa4aee448a6ff9f319a9491880cb297",
+            "bytes": 71433
+          }
+        ],
+        "trace": "main.cpp initializes exe-parent/mods; mod_runtime sets manager root and scans; mod_packages migrates packages/id/version into installed, deletes duplicates and final legacy tree unless stranded/error. Malformed settings deletes previous .bad before rename."
+      },
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 2734,
+      "id": "goodshepherd23-galerians-recompiled",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/goodshepherd23-galerians-recompiled.json",
+      "candidate_sha256": "727271b9034d6b18b184e0aa811a7a3e4a4683681e085073d370c13bdea3c936",
+      "own_specification_sha256": "d3dba4d0687448d062f38c2febde69258af5aa510a573c1ad0256733dd650ca6",
+      "current_criteria": "\n\n- [ ] Next action: Generate and rebuild from disc on first setup; static compilation misses some blocks and falls back to interpreter. Keep incomplete playthrough claims separate from package availability.\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {
+        "originals": "OwnthreeUSA SLUS00986/01098/01099 CUE/BIN; MD5 dataTrack01 values fromownREADME, Disc1size/SHA1/MD5 config. Normal runtime discserial/TOC compatibility distinct from fullinput hashes. No whole-set/entitlement certificate.",
+        "normal_lifetime": "Own CMake GEN_MARKER/GLOB+exactruntime.cmake generateddispatch definition -> PSX_HAS_GAME_DISPATCH hostearlyreturn, same native main launcher/game. Rootsetuphost and optionalGenerate/PGO/rebuildsuccessors excluded. No buildexecuted.",
+        "replacement_owner": "Upstream/user owns preparation/runtime/data/recovery, Core nonowning selectedintent/consent/revalidate/Play/preservingregistrationremoval only",
+        "persistence": "Own gamecfg saves/ and discroster; exactownpin main/state/memcard consumers anchorconfig/sidecars/cards/customroots, settings.bad removal/rename, legacyPST MoveFile intoBIOSfolders/marker andcardinit blankwrites. Priorindependentold/newroot/runtimebackups explicit; no crosscompatibility.",
+        "held_operations": [
+          "Unperformed Coremanaged acquisition/build/update/backup/migration/destruction",
+          "OptionalPGO/Generate/rebuildsuccessor continuation notoffered",
+          "No explicit mandatorynative/source-output requirement identified in own genericminimum; preserveupstreamknownlimits"
+        ],
+        "limits": [
+          "No archive/PE/package/outputbytes inspected or sourcebinary certificate",
+          "No native/helper/compiler/game/privateoriginal/real-save/installed/protected execution or qualification",
+          "No source/shared/generated/schema/Core/Roadmap/remote mutations"
+        ]
+      },
+      "acquisition_condition": null,
+      "source_bindings": [
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": ".gitmodules",
+          "blob": "46bbb9a5d9d80a2bf6997931e8a54a60576892f2",
+          "sha256": "8e0a8159122b0d4b033a43866015b652a0ff133004ceaa0dff37e510c7bc79f4",
+          "bytes": 182,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/.gitmodules"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "CMakeLists.txt",
+          "blob": "076451681d174e681961ca25eb961bcb95dda51b",
+          "sha256": "4f78b5ed59c6164432a42d3ee5f2a586493ecd6d935f88e74a67638937c75e86",
+          "bytes": 4345,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/CMakeLists.txt"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "README.md",
+          "blob": "5d9cf30928c38fa72f7f9ad4a7a3c49a5d0785dd",
+          "sha256": "c14e2e606778b58ed3766aa0c184ca63bf2e059144b275807c6c97685128529d",
+          "bytes": 9432,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/README.md"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "codegen_setup.c",
+          "blob": "5db75f1089ed8c3c5f0b99db107f8a7ab8c6c674",
+          "sha256": "4b3424201b5b2fb41e6ac5773ce6b38e3f1279d1048a8ff889daa33719b806c6",
+          "bytes": 1846,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/codegen_setup.c"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "game.toml",
+          "blob": "a9a3ad423d40a886b220615d9901f8b4c11c0ed8",
+          "sha256": "ef12e2fa6226197278b50c9ae845a5d5847ebd2d2b9edf2f7c4daed882800fe7",
+          "bytes": 2409,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/game.toml"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "path": "LICENSE",
+          "blob": "4b510c2b281245524bbe8df725b7f3d73e8b1f9d",
+          "bytes": 3852,
+          "sha256": "03912c9ba1b055f2364b5adf318f4ca8a66c640e991f16e9ff5b2a516d3f24e2",
+          "url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/LICENSE",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "path": "runtime/runtime.cmake",
+          "blob": "d5e931724a61e6bddd5cb65aea6c1686413d594b",
+          "bytes": 105909,
+          "sha256": "60331a56d09493eb7ddf5c160673b2065e0f093992af002e380fdc432c5efd44",
+          "url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/runtime/runtime.cmake",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "path": "runtime/src/main.cpp",
+          "blob": "cd3a073af313460e440be0f5abf15294a6f7113b",
+          "bytes": 721451,
+          "sha256": "c19d333bb2c4d99a1c3784e737370ae663d89ab7808bdfe43941b049b89ff886",
+          "url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/runtime/src/main.cpp",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "path": "host/psxrecomp_codegen_host.c",
+          "blob": "95a43d510656944661705e399a4da0f8ddb91fe6",
+          "bytes": 171013,
+          "sha256": "b57652dcf4f3d667a8ba556e2b94f6cae8a7dc704afe9f3d354a8565e1be0501",
+          "url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/host/psxrecomp_codegen_host.c",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "path": "runtime/src/memcard.c",
+          "blob": "a0dfbacd2bce4d1dbcf2f0ae7eea7acb0b0a8925",
+          "bytes": 12828,
+          "sha256": "d1206c337e2d1dcd8843c436bb82e8120b2ab0f1ab4b246da7fac53b9888d4e7",
+          "url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/runtime/src/memcard.c",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "path": "runtime/src/savestate.c",
+          "blob": "7f191c991af85dbea60075154daa497230dafeb9",
+          "bytes": 45549,
+          "sha256": "cecc9ad8ece471814aa1666143e66fa7722b80a30ddd790bb3c9f47c7a7cdee2",
+          "url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/runtime/src/savestate.c",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "path": "recompiler/src/config_loader.cpp",
+          "blob": "a8affe7b6a91878f4c29d28fad032c5114713537",
+          "bytes": 134905,
+          "sha256": "dcef017cba2442d6d52c57956fda621ff693f9ea580945ac137bb6527ebf43c5",
+          "url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/recompiler/src/config_loader.cpp",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/recomp-ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "path": "LICENSE",
+          "blob": "a4e60e1cc9c426120561d3ab85b58fcc9201a3ef",
+          "bytes": 1072,
+          "sha256": "676252c9efb0849cc08cdba279318b4d62ae144c19a52a0aa7ab5ca845ae5ddc",
+          "url": "https://github.com/Alexbeav/recomp-ui/blob/be8ac1d03ee19d55394b5a5f2d9d1506edd56659/LICENSE",
+          "actual_tree": "773e83fd1d78c4f254df754fd64716aef91fe500",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/recomp-ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "path": "src/common/launcher_files.c",
+          "blob": "aa9b491e6db0d37dcc42815a05c1b99e3cabb5c8",
+          "bytes": 18535,
+          "sha256": "6b0da1c45a637b9d8749bb38fcb4c7f9e06dd08bed7c6c049b639b1e34ef938f",
+          "url": "https://github.com/Alexbeav/recomp-ui/blob/be8ac1d03ee19d55394b5a5f2d9d1506edd56659/src/common/launcher_files.c",
+          "actual_tree": "773e83fd1d78c4f254df754fd64716aef91fe500",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "Alexbeav/recomp-ui",
+          "commit": "be8ac1d03ee19d55394b5a5f2d9d1506edd56659",
+          "path": "src/recomp_launcher.h",
+          "blob": "7208b191b65e00fc1a2712ad834bd7c08dbc3ad0",
+          "bytes": 75710,
+          "sha256": "183cd9c7799dea1f122d91538667d596b575e2d733a43f6b7e6a5ef4c0aae3ad",
+          "url": "https://github.com/Alexbeav/recomp-ui/blob/be8ac1d03ee19d55394b5a5f2d9d1506edd56659/src/recomp_launcher.h",
+          "actual_tree": "773e83fd1d78c4f254df754fd64716aef91fe500",
+          "reuse_manifest_sha256": "b02bbc155ddd94e336eecc0fd7e9bb77792abc5323f1b0616ac0867040598612",
+          "applicability": "Own selected Galerians tree gitlink exactly matches this SDK/UI commit; shared source consumer only. Own title originals/permissions/save coordinates/patches remain separately verified; no sibling game/packaged-output qualification inherited."
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "bios/OpenBIOS.LICENSE",
+          "blob": "cfe373134026851c3389e03a758b6ac066a00f72",
+          "sha256": "98996af8dd3199a8519785b6d36f037ed607ba14d3181f6de2bdd79374f77380",
+          "bytes": 1575,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/bios/OpenBIOS.LICENSE"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "patches/0002-pgo-windows-soft-stop.patch",
+          "blob": "134272f7c640d61645ea182008962eab892d324e",
+          "sha256": "28a75fe106791c812c0fdd8a9b394d320dd461f3aa3e4acc5aec489cfedb98c7",
+          "bytes": 1552,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/patches/0002-pgo-windows-soft-stop.patch"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "patches/0003-bilinear-tile-seam.patch",
+          "blob": "507b918fc9b09a089e5ca4f0bb8b60a914817b36",
+          "sha256": "3ca456b4ae675d45519804067206b25ab473a7be21ff4969c220121ac5c2bfc0",
+          "bytes": 1406,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/patches/0003-bilinear-tile-seam.patch"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "patches/0004-depth24-fill-cpu-mirror.patch",
+          "blob": "f256005304fd46af1e680ff08222678c7cd6cc47",
+          "sha256": "264c82982bafd4de57bf8932cfdc652c97b7f0bbeaa9c336e17afd41aaa454f4",
+          "bytes": 1110,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/patches/0004-depth24-fill-cpu-mirror.patch"
+        },
+        {
+          "repository": "goodshepherd23/Galerians-Recompiled",
+          "commit": "91656a8ea801f1c231ecf4177e004c641944eb1b",
+          "actual_tree": "fe78d5546498f3f9abf55e4f4aae0aed031e38ab",
+          "path": "scripts/package_setup_release.sh",
+          "blob": "d15a1c9726550bcd5a41ad99c023b7e3fdfb84b6",
+          "sha256": "a58fb4a4a0361bffa47a2e48a38b66a7d9e0b3f79bf059b05b72dd3a07a56ec6",
+          "bytes": 3950,
+          "primary_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/scripts/package_setup_release.sh"
+        },
+        {
+          "repository": "Alexbeav/psxrecomp",
+          "commit": "a839474e2941cdc44488ace4d53584e6a485ea41",
+          "actual_tree": "695263b5b52e8bd71ab9db0553722951e98a4e81",
+          "path": "tools/prepare_disc.py",
+          "blob": "f3e39f2838c65c04223a31476a24fbc35b46b5a7",
+          "sha256": "c7f787ea1b9f2e53aa8473428a7a43ffa67f77773280ea2ed32ecb65ade9f449",
+          "bytes": 23573,
+          "primary_url": "https://github.com/Alexbeav/psxrecomp/blob/a839474e2941cdc44488ace4d53584e6a485ea41/tools/prepare_disc.py"
+        }
+      ],
+      "canonical_completion": "PARTIAL OPEN: own Generate/rebuild-from-disc first-setup criterion remains unproved; upstream instructions and inert selected-copy controls do not establish actual setup.",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 2825,
+      "id": "goodshepherd23-jetmoto2-recomp",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/goodshepherd23-jetmoto2-recomp.json",
+      "candidate_sha256": "acf75d81e0727f13324b4e34e3c93653afb0da3c7266a37ce987a2ebe54e4807",
+      "own_specification_sha256": "7c149b31fe0bac4b6691b7a71c003f324d5430d7607d1c10d419e55e63da7ccc",
+      "current_criteria": "\n\n- [ ] Next action: Early release Windows11x64 only; sound/CDmusic and wider gameplay remain untested per status; .NET10 SDK setup distinct from runtime.\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {
+        "originals": "Own Championship Edition USA SCUS94167 CUE+17BIN; serial shared with different 1997 build; no fullinput hash proved",
+        "normal_lifetime": "Own launcher Process.Start returns without Wait; excluded. Documented source generation/build outputs assembly apphost JetMoto2Recomp; direct Program synchronously Runtime.Run; exact pinned Runtime owns presentation loop until game done.",
+        "replacement_owner": "Upstream/player; Core selected-native nonowning registration only",
+        "persistence": "CWD settings.json/interface.ini/carda.sav/cardb.sav; configurable cards, saved CdPath; AppContext cheats.json. Bound ConfigManager/MemoryCard/HostWindow and own optional diagnostics. Missingcard Format; malformed config resets in memory; no cleanup/migration contract inferred.",
+        "held_operations": [
+          "Managed acquisition/build/update/backup/rollback unoffered",
+          "Root detached bootstrapper unoffered",
+          "Unknown originalhash and optional gameplay/saving not converted into proof"
+        ],
+        "limits": [
+          "No package bytes/PE/runtime outputs inspected",
+          "No compiler/native/game/private inputs executed",
+          "Source bindings not binary certificate"
+        ]
+      },
+      "acquisition_condition": null,
+      "source_bindings": [
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": ".gitmodules",
+          "blob": "c48f44adfeed26f8f9f938aae2b69073a257665e",
+          "sha256": "4a2138253a1d11cd1f370a430897ef74b87587cc3fb211185456c8c47960c9b5",
+          "bytes": 95,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/.gitmodules"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "LICENSE",
+          "blob": "7ebdaceccf9944ff7dc5d251cb40c9159edfdf82",
+          "sha256": "31bf1005500ba9ed03b7ef3fa715ece8fc5b0b36366deff0dfd9a8df1884e7dc",
+          "bytes": 1071,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/LICENSE"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "README.md",
+          "blob": "52e971452d34f968c456c1606e12f337ed819ab9",
+          "sha256": "f86180c89279162179f8c2812436fd6abfbafa4bf9e2fd3c5d81398624c9f1e1",
+          "bytes": 7100,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "Program.cs",
+          "blob": "69ef44f566c8d8cf1b012dadc80c98ad77c5c057",
+          "sha256": "170d0914e974a0f32bb5d0671fc840d2856999b955c6735257c70e71cc938a76",
+          "bytes": 2079,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/Program.cs"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "JetMoto2Recomp.csproj",
+          "blob": "f45215cd9a3558b37cba430b9e12dac9d86eb43e",
+          "sha256": "d84cd90f73eda5c10b40afd719cd8e73d5b6750ce230414c04099c0ac53a7f68",
+          "bytes": 1082,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/JetMoto2Recomp.csproj"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "tools/Launcher/Program.cs",
+          "blob": "2665b5a55fd8aff0a11e1cf34582c85a9886a122",
+          "sha256": "4e7868f876367f29a01956f246058e004d004fb26c255ab2c27c8e97a4ddc0e3",
+          "bytes": 7713,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/tools/Launcher/Program.cs"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "config/JetMoto2.json",
+          "blob": "011d19bea4b1fa1590eaea777724f6794c9bbe42",
+          "sha256": "02308d7a88ebd3dacbb89283abf4c6ec13fac78ce8765d24296c9e92472160ae",
+          "bytes": 4813,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/config/JetMoto2.json"
+        },
+        {
+          "repository": "BlackLabelHQ/RecompOne",
+          "commit": "29d630394388d9f326197ab2d1430e3559d32df8",
+          "actual_tree": "d52e1a0449f348f436ff60339e5cf750fd172e31",
+          "path": "LICENSE",
+          "blob": "d50a594dcadfff37a76e3872c3f6619708fff622",
+          "sha256": "5fe34e5d43a161f111402b2d04b710966516aac31718d48b70df4a22d087d674",
+          "bytes": 1063,
+          "primary_url": "https://github.com/BlackLabelHQ/RecompOne/blob/29d630394388d9f326197ab2d1430e3559d32df8/LICENSE"
+        },
+        {
+          "repository": "BlackLabelHQ/RecompOne",
+          "commit": "29d630394388d9f326197ab2d1430e3559d32df8",
+          "actual_tree": "d52e1a0449f348f436ff60339e5cf750fd172e31",
+          "path": "RecompOne.Runtime/Runtime.cs",
+          "blob": "6396dcd7925e97060929bd9f25ddda3f728f991c",
+          "sha256": "d9eecc516234eb793e7c8d987c67c04c92cc24bff2be27dce1e351a9c7054d5c",
+          "bytes": 9553,
+          "primary_url": "https://github.com/BlackLabelHQ/RecompOne/blob/29d630394388d9f326197ab2d1430e3559d32df8/RecompOne.Runtime/Runtime.cs"
+        },
+        {
+          "repository": "BlackLabelHQ/RecompOne",
+          "commit": "29d630394388d9f326197ab2d1430e3559d32df8",
+          "actual_tree": "d52e1a0449f348f436ff60339e5cf750fd172e31",
+          "path": "RecompOne.Runtime/Config/ConfigManager.cs",
+          "blob": "09bb2e6ed4ff778b1d4fb4d63803555f2c6e414a",
+          "sha256": "51552347a754ce6a43c81385bc34696121a943645e2321528d052dee148a29ca",
+          "bytes": 4218,
+          "primary_url": "https://github.com/BlackLabelHQ/RecompOne/blob/29d630394388d9f326197ab2d1430e3559d32df8/RecompOne.Runtime/Config/ConfigManager.cs"
+        },
+        {
+          "repository": "BlackLabelHQ/RecompOne",
+          "commit": "29d630394388d9f326197ab2d1430e3559d32df8",
+          "actual_tree": "d52e1a0449f348f436ff60339e5cf750fd172e31",
+          "path": "RecompOne.Runtime/Config/GameConfig.cs",
+          "blob": "0fc3b1689b7dba1344b447533b4b197048da99ad",
+          "sha256": "610bf4a4f8e8d5a2a767c6c68b064ed5d67a0c9e6f0c56543af15451c66efe0e",
+          "bytes": 4143,
+          "primary_url": "https://github.com/BlackLabelHQ/RecompOne/blob/29d630394388d9f326197ab2d1430e3559d32df8/RecompOne.Runtime/Config/GameConfig.cs"
+        },
+        {
+          "repository": "BlackLabelHQ/RecompOne",
+          "commit": "29d630394388d9f326197ab2d1430e3559d32df8",
+          "actual_tree": "d52e1a0449f348f436ff60339e5cf750fd172e31",
+          "path": "RecompOne.Runtime/Hardware/MemoryCard.cs",
+          "blob": "f5590c59c16752a29d5a2aef339f26e3f4638c60",
+          "sha256": "3855c39631991ffc59e4c2ab6e32a5641d1d8fd29fa6fe11de635528ce74d0ec",
+          "bytes": 5181,
+          "primary_url": "https://github.com/BlackLabelHQ/RecompOne/blob/29d630394388d9f326197ab2d1430e3559d32df8/RecompOne.Runtime/Hardware/MemoryCard.cs"
+        },
+        {
+          "repository": "BlackLabelHQ/RecompOne",
+          "commit": "29d630394388d9f326197ab2d1430e3559d32df8",
+          "actual_tree": "d52e1a0449f348f436ff60339e5cf750fd172e31",
+          "path": "RecompOne.Runtime/Host/Window/Settings/Sections/PathsSettingsSection.cs",
+          "blob": "77c2dd15e029747b870718c53ef0a87a9aca9482",
+          "sha256": "2cee9a25e079a62b0e9074ca59928601edd2eb1d0b765eed8b555bfdd3ff224b",
+          "bytes": 3565,
+          "primary_url": "https://github.com/BlackLabelHQ/RecompOne/blob/29d630394388d9f326197ab2d1430e3559d32df8/RecompOne.Runtime/Host/Window/Settings/Sections/PathsSettingsSection.cs"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "patches/Diag.cs",
+          "blob": "1f6e8e5ec53acd5d8a5bb5acb46aafaaabb2b39c",
+          "sha256": "9aa8f9ba19f343df4cc227030fed7549c62b350ab86686c441f18ac0ae572170",
+          "bytes": 6509,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/patches/Diag.cs"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "patches/TestInput.cs",
+          "blob": "83545c733b640b8cc48c1b2748d905ff98c2335f",
+          "sha256": "69073afdb0636651ef4ca3052f482743ad762b7fd42f67a0de96016288d740f6",
+          "bytes": 2491,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/patches/TestInput.cs"
+        },
+        {
+          "repository": "goodshepherd23/JetMoto2-Recomp",
+          "commit": "cd14d8727d16c1da12cf1da547de3f5b8d6b473b",
+          "actual_tree": "004f4b7eb0ca90b7f8ae14138a219f60d6c1ee64",
+          "path": "patches/Cheats.cs",
+          "blob": "40e8ee95509594bc3bdc940bb145f9ed2a933ce4",
+          "sha256": "8df0ec8178f34da8f9e6bee1caa63d0a0037f14ca9a8f420eb4bcf08048b527c",
+          "bytes": 3909,
+          "primary_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/patches/Cheats.cs"
+        },
+        {
+          "repository": "BlackLabelHQ/RecompOne",
+          "commit": "29d630394388d9f326197ab2d1430e3559d32df8",
+          "actual_tree": "d52e1a0449f348f436ff60339e5cf750fd172e31",
+          "path": "RecompOne.Runtime/Host/Window/HostWindow.cs",
+          "blob": "9f23c09951d89e47572cdd83743152ffd81d6eb2",
+          "sha256": "5a2fe41fe65cbe60466ef336bfa89fa4861db7f7bfcc35507c4e4c0bef2f8599",
+          "bytes": 29051,
+          "primary_url": "https://github.com/BlackLabelHQ/RecompOne/blob/29d630394388d9f326197ab2d1430e3559d32df8/RecompOne.Runtime/Host/Window/HostWindow.cs"
+        }
+      ],
+      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    },
+    {
+      "issue": 2830,
+      "id": "djultra64-clayfighter64",
+      "cohort": "affected-312",
+      "authored_path": "crates/portcove-core/catalog/ports/djultra64-clayfighter64.json",
+      "candidate_sha256": "6b996217a18ec5407df7a1c204185e688b8b47497f57d65d9791ffe540099455",
+      "own_specification_sha256": "dae6c969eb0c1565c078ffe1af4c50dd88b0f1aa02de5b4418d56d407704df37",
+      "current_criteria": "\n\n- [ ] Next action: Fusion of two editions; determine whether independently catalogable edition records or fused product; do not map generic ClayFighter64 title to only one game without requirements check.\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n",
+      "facts": {
+        "originals": "Both USA normalizedROMsha exact own docs + import consumers. Fusion disposition answered by own README/docs/main; no separateedition addition.",
+        "normal_lifetime": "Own release launch.py subprocess.call exactnativeargs/CWD, own main holds SDLgame loop +runtime; no wrapper/successor offered.",
+        "replacement_owner": "Upstream/player; Core nonowning selection only",
+        "persistence": "Own portable_paths rejects outside/symlink escapes; main routes display/native/training/control profiles local/settings andGPUcaches local/cache. All reached own selected profile writers bound; imported assets installer replacement bound.",
+        "held_operations": [
+          "Fresh completepackage acquisition without named media grant; owner upstream/component rights holder; resume exact applicable grant or independently permitted copy",
+          "Managed acquire/extract/update/backup/migration/destruction unoffered",
+          "SDKrelease archive/sourcebinary mapping not certified"
+        ],
+        "limits": [
+          "Published asset metadata only; no archive/PE/output-byte inspection or sourcebinary certificate",
+          "No compiler/helper/game/native/private-original/real-save/installed/protected execution",
+          "No repository/shared/Core/schema/generated/Roadmap/remote mutations"
+        ]
+      },
+      "acquisition_condition": "Fresh acquisition of the selected ClayFighter64 package is held while the applicable permission or authorized-source basis for its named bundled character-branding images and replacement title-announcement media remains unresolved. NOTICE places those media outside the port-code licence; publisher attribution is not a grant of all underlying depicted-character or media rights. Resume on an attributable applicable inclusion/use basis or a reviewed supported replacement/exclusion package; independently permitted completed copies remain separate.",
+      "source_bindings": [
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "CMakeLists.txt",
+          "blob": "9cf844b03a3ea20042c88a7d6d3bc0b131f5c604",
+          "sha256": "61d2010613c47e1dc225ccd9395afd7d96d964b547ad6637a169872789be7327",
+          "bytes": 16588,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/CMakeLists.txt"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "LICENSE",
+          "blob": "94a9ed024d3859793618152ea559a168bbcbb5e2",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "bytes": 35147,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/LICENSE"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "README.md",
+          "blob": "49a337b521bc83faf57301a355db470cf14c22f0",
+          "sha256": "8cbcb70f9b8028fbf70e34b95dc980c2ec5132cdf95e01a2ccef7e3818b7147b",
+          "bytes": 8931,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/main.cpp",
+          "blob": "bc08e98d64413ed0e5c825ae767e8fda6f43b3da",
+          "sha256": "c124ab50f7d7fb8f1db20402104ab999999b0c49bd1494d3b53f6b92d216578b",
+          "bytes": 15916,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/main.cpp"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/portable_paths.cpp",
+          "blob": "13dd8a882129ddc5954dd3e93d1620c31ac4f3fd",
+          "sha256": "73934143c89f518757cc2463e839be47d668588ac86c33b0b1864037b7ad560b",
+          "bytes": 1111,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/portable_paths.cpp"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/portable_paths.h",
+          "blob": "0e19a35148084782133af62df9106bc0d61aaa37",
+          "sha256": "2107dfa0d545089bf819d082c5a26fd94cfa707dedb008ec62073d392a9edf06",
+          "bytes": 446,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/portable_paths.h"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "docs/INSTALL.md",
+          "blob": "7710d6355929e0733327f641483bb9850c9d7315",
+          "sha256": "78392a8a651cb6dd890d3b9c2e26eae8426f33f2dc61dffe238e52a65440f80d",
+          "bytes": 4373,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/docs/INSTALL.md"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "docs/BUILD.md",
+          "blob": "92f0a56fe9cd6c0aeeed5f9f26bbf606922b6daf",
+          "sha256": "176515d3b90c005ac9376292c4b8473e74e4243dd74c980993b0be9a8f721e1d",
+          "bytes": 5331,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/docs/BUILD.md"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "tools/release/launch.py",
+          "blob": "ebff485be7c2ecc47212f425602d5e733d0983ac",
+          "sha256": "03c3a125e356d804da722966500d44132451f209998f43f4b9c34fe2452e2817",
+          "bytes": 1435,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/tools/release/launch.py"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "NOTICE",
+          "blob": "8b9644b55bcb555795d8445858043ee3367ffbea",
+          "sha256": "135eba45622fb6cdc755e22cc992660e017a66fa51808ff226ebcae08c8d5972",
+          "bytes": 1546,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/NOTICE"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "CREDITS.md",
+          "blob": "1f04c08775274a9212a42a8b465e5341d3a91d6e",
+          "sha256": "2fe7968a39a1b8c412cf354b80339564795c6cafe9f590ea911bb1c9c01b203e",
+          "bytes": 2562,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/CREDITS.md"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "licenses/provenance.json",
+          "blob": "0b13ebdc0cc706c908eb54466aa5d32c51d54b45",
+          "sha256": "e4c9332af84ba5c7d2e72f4c174c7ed35084b8d886539fe2adfde412cc85bb20",
+          "bytes": 426,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/licenses/provenance.json"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "config/dependencies-2.0.json",
+          "blob": "0f5a799ca33dcfde55b8e7d445c0f78738d4459e",
+          "sha256": "d9082028ddcccdefe26fa7436cc65aa4e2ac9f4f10b76b330d45db588fdc7113",
+          "bytes": 18761,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/config/dependencies-2.0.json"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "tools/release/import_assets.py",
+          "blob": "4908983c540233cc7669c0ad0bf9c976335ce6a5",
+          "sha256": "4728556ebffb21979c3282fa6de7c3a778ec0b635d7ccee903deda03af9e318d",
+          "bytes": 14345,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/tools/release/import_assets.py"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "tools/sc_import_assets.py",
+          "blob": "f94b2646b07c039a8da4cb07ea71269d26d22e26",
+          "sha256": "b5b99e62f4346eb9e70a211dd2ee003bd34b78a5a019166ee9e3ca19c53bf1eb",
+          "bytes": 3035,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/tools/sc_import_assets.py"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/sc_assets.cpp",
+          "blob": "73ee132a2969a6cacaf18639814a2274410f3f82",
+          "sha256": "fca0cec04b522ba199a4ce80e8abfb0506159532c5668c234161a120bd9f5b68",
+          "bytes": 5617,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/sc_assets.cpp"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/native_preferences.cpp",
+          "blob": "3e962c5ced04aaddebedacc700f8ef09099b0901",
+          "sha256": "68012dc1065caf0d5711a0417e1f4f3fd7ad0bc7ee6443ecab21a6b233a07805",
+          "bytes": 6798,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/native_preferences.cpp"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/graphics_config.cpp",
+          "blob": "3c286c1d4d36192322c7cf55252143e9baeac489",
+          "sha256": "4cd7884f725470bdf0b08bcf7f87a6f1927588ac67119da6a6601ea962e9810f",
+          "bytes": 4453,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/graphics_config.cpp"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/training_preferences.cpp",
+          "blob": "9a6c523b3ba5cde1b9aeeb72091cd2f8230d48a8",
+          "sha256": "05b685a372a4413a088caaa5249a16c74949c051b98da1562fee51686cb8efa0",
+          "bytes": 3512,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/training_preferences.cpp"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/training_stage.cpp",
+          "blob": "f3066e7409935418e4f5cd5c197fe28a5cd7c40a",
+          "sha256": "27f66f37fc90b6a4b4c46e27bbac30d7a8a18a0352da38675e6c8cd5638540ed",
+          "bytes": 6326,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/training_stage.cpp"
+        },
+        {
+          "repository": "djultra64/ClayFighter64",
+          "commit": "fbdaa0652d80cd57f51084806f701c2aeaaed03b",
+          "actual_tree": "693cf4482cbc0ab988140655d98aa989f7c15ed2",
+          "path": "host/input.cpp",
+          "blob": "d90c6b1958cc2ccf93e8fa28d58a885a895c17b7",
+          "sha256": "e6f9fd4e2b117e35a92c65bd78aee1950a8abf0e15f1e49257dbacc60f9628bd",
+          "bytes": 7081,
+          "primary_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/host/input.cpp"
+        }
+      ],
+      "canonical_completion": "UNRESOLVED until whole-own-criteria review, applicable checks and guarded delivery; guide not automatic completion",
+      "scope": "Source-known conditional non-owning Windows copy; actual game/native/package/installed/real-save/protected acceptance NOT RUN",
+      "preparation": "Maintained per-record preparation passed; Core final-head CI remains required."
+    }
+  ],
+  "review_repairs": {
+    "2680": "settings.bad destruction plus reached mod migration; preserve old/new roots before startup.",
+    "2825": "Upstream early-release tests limited to Windows11x64.",
+    "1799": "External IPS input permission retained; whole-engine acquisition guard not inferred.",
+    "1891": "Exact two selected scene script attachments retained; no native export identity invented."
+  }
+}

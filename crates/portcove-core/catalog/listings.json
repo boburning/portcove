@@ -15029,13 +15029,51 @@
     {
       "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
       "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
-      "summary": "Upstream route: Windows ZIP contains settings/bootstrap program, portable Python and source; local game compilation on first run (20–30 minutes upstream estimate). Limits: Playable upstream release with full-game completion unestablished; first-run local compilation and prerequisite installation remain explicit. Upstream platforms: Windows10/11 x86-64 setup/source ZIP; local compilation, Vulkan1.3 GPU. This is a builder/bootstrap package. Original data: User-owned USA SLUS-20639 ISO or CHD. Portcove setup/gameplay not verified.",
+      "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders. Packaged game-derived branding has separate rights; use an independently permitted complete copy.",
       "original_game_title": "Def Jam Vendetta (PlayStation 2)",
       "project_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
       "issue_number": 2561,
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/jcsix694/def-jam-vendetta-recomp"
+      "setup_url": "https://github.com/jcsix694/def-jam-vendetta-recomp",
+      "manual_setup": {
+        "help_url": "https://github.com/jcsix694/def-jam-vendetta-recomp/blob/d3d857b436beceebf1c77b0141c46bb7f13ee1fe/README.md",
+        "steps": [
+          {
+            "title": "Use the exact owned USA disc and permitted kit",
+            "instruction": "Use a complete upstream v0.4.4 Windows copy and components you are independently permitted to use, with your own Def Jam Vendetta USA SLUS-20639 ISO or supported CHD. The preparation tool checks for SLUS_206.39 and prepares a plain sector ISO and extracted files; that serial/member check is not a whole-disc cryptographic or entitlement certificate. Project GPL and dependency terms do not grant the named settings-app artwork/logo excluded by THIRD-PARTY-NOTICES.txt."
+          },
+          {
+            "title": "Finish upstream preparation first",
+            "instruction": "Complete Def Jam Vendetta Recompiled Settings.exe setup outside Portcove. Upstream extracts your own disc, generates C++ and builds locally, including supported compiler/tool installation and prompts. Use Windows10/11x64, Vulkan1.3 and upstream hardware requirements. Wait until the game and its complete matching files are built. The release build kit applies this title's pinned PS2Recomp patch; do not mix an unpatched framework or another game's output."
+          },
+          {
+            "title": "Select the completed player",
+            "instruction": "Select files/Def Jam Vendetta Recompiled.exe in the complete creating installation, use files as working directory and pass the one literal argument game/SLUS_206.39. Keep the complete game/, disc/, DLLs, settings and companion runtime files. The official settings Play consumer passes that same extracted ELF with the files working directory; the generated player owns its normal runtime.run loop. Do not select the settings bootstrapper, run.bat or incomplete output."
+          },
+          {
+            "title": "Back up effective data before startup or maintenance",
+            "instruction": "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated. Do not assume save compatibility or restore older player data with an old runtime."
+          },
+          {
+            "title": "Keep Update and Rebuild outside the tracked game session",
+            "instruction": "The normal startup check can offer Play or hand off to the upstream settings program for Update/Rebuild and end the game process. Finish pending preparation and replacements before registration. If you choose maintenance, let the selected game session end, complete upstream work, then revalidate the resulting native player before another Play. Portcove does not follow that successor, suppress the feature or own upstream repair."
+          },
+          {
+            "title": "Keep one runtime replacement and recovery owner",
+            "instruction": "The upstream settings program owns journaled file updates and rebuilds; its setup publishes the generated game and DLLs through staged .new replacements. Keep recovery copies outside upstream update/build scratch locations. Portcove only registers the explicitly selected completed native copy; it does not acquire originals, build, update, roll back or delete external saves/runtime files. Requesting Play remains a separate consent action."
+          },
+          {
+            "title": "Preserve terms and qualification limits",
+            "instruction": "Retain GPL PS2Recomp/title notices, paraLLEl-GS LGPL and all other individual component notices. The title's name/logo and settings-app artwork are explicitly outside its project licence; fresh acquisition of a whole package needs applicable permission for those components. An independently permitted prepared copy does not establish broader distribution rights, source/output byte correspondence or save compatibility."
+          }
+        ],
+        "warnings": [
+          "Only an independently permitted completed copy is offered; fresh package acquisition has a separate named-branding permission condition.",
+          "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected Def Jam Vendetta Recompiled Windows kit is held while the applicable permission or authorized-source basis for its settings-app game-logo and artwork assets remains unresolved. THIRD-PARTY-NOTICES explicitly excludes those components from the project GPL grant. Resume with an attributable applicable basis or a reviewed supported kit excluding/replacing those assets; independently permitted completed copies remain separate."
     },
     {
       "id": "defjam-gamecube-recomp-nakamizake-nakamizake-def-jam-fight-for-ny",
@@ -15862,13 +15900,51 @@
     {
       "id": "djultra64-clayfighter64",
       "name": "ClayFighter63andOneThird: ClayFighter64 fusion edition (djultra64 ClayFighter64)",
-      "summary": "Upstream route: Upstream runtime package for ClayFighter 64; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream fusion has16fighters/training and requires both ROMs. Uses63andOneThird rules with donor characters, not complete SculptorsCut behavior. Validation is bounded. Fusion of two editions; determine whether independently catalogable edition records or fused product; do not map generic ClayFighter64 title to only one game without requirements check. Upstream platforms: Windows10/11 x64 SSSE3/SSE4.1/Vulkan; Linux x86-64 glibc2.38+, GLIBCXX3.4.31, X11/XWayland/Python3.10+. Windows Python bundled. Original data: Both own USA ROMs required, normalized z64 SHA256: ClayFighter63andOneThird357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07; SculptorsCut9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f. z64/v64/n64 or single-ROMZIP accepted. One fusion edition uses63andOneThird gameplay plus donor characters; not a full alternate SculptorsCut recreation. No original BIOS requested. Portcove setup/gameplay not verified.",
+      "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. Packaged branding and title audio have separate rights; use only a complete copy and components you are independently permitted to use.",
       "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
       "project_url": "https://github.com/djultra64/ClayFighter64",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/djultra64/ClayFighter64",
-      "issue_number": 2830
+      "issue_number": 2830,
+      "manual_setup": {
+        "help_url": "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md",
+        "steps": [
+          {
+            "title": "Supply both exact owned games",
+            "instruction": "This is one fused product, not a complete alternate Sculptor's Cut recreation. Supply your own ClayFighter63⅓ USA and ClayFighter:Sculptor's Cut USA ROMs. After normalization to big-endian z64 their SHA256 values are357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07 and9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f respectively. Keep both originals separately. Other regions/revisions and modified ROMs are unsupported; supported byte orders or a single-ROM ZIP are handled by upstream preparation."
+          },
+          {
+            "title": "Complete permitted upstream asset installation",
+            "instruction": "Use a complete v2.1.1 Windows x86-64 copy and components you are independently permitted to use. The GPL licence for authored port code does not grant packaged branding, depicted original characters or the separately supplied title announcement. With Windows10/11x64, SSSE3/SSE4.1 CPU and current Vulkan drivers, finish Install Assets.vbs outside Portcove. The upstream Python runtime is included; the installer verifies both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
+          },
+          {
+            "title": "Select the prepared native player",
+            "instruction": "After successful installation, select clayfighter64.exe in the complete portable package root, set that root as working directory and use literal arguments --rom probe-output/base.z64 --sc-assets local/sc_roster/asset-image-roster.z64. These are the same native arguments used by the upstream Play wrapper. Do not select VBS/CMD/Python installers or unfinished data. The native player owns the game window and normal game loop. Saving launch details and requesting Play require separate consent."
+          },
+          {
+            "title": "Preserve imported files and settings",
+            "instruction": "Before first prepared startup, moves or updates, close the game and keep a separate complete recovery copy of local/, probe-output/, config and all original ROMs. Imported files include probe-output/base.z64, local/sc_roster/asset-image-roster.z64, local/sc_bios/bios.bin and local/import-manifest.json. Upstream installation replaces its generated outputs; reinstallation requires both originals. Keep current player settings separate from an older runtime backup."
+          },
+          {
+            "title": "Keep portable custom profiles inside the game",
+            "instruction": "Display, native game options, P1/P2 controls and training settings live in local/settings/ by default; graphics caches live under local/cache/. The executable locates its installation from its own directory/config and changes CWD to it. Optional --data-dir or --user-data selects a profile only inside that installation; outside paths and escaping symlinks are rejected. --controls imports a profile but subsequent edits save inside the installation. Preserve every selected in-root profile, temporary/recovery copies and any custom source controls before maintenance."
+          },
+          {
+            "title": "Keep maintenance upstream-owned",
+            "instruction": "The player and upstream own asset extraction, runtime replacement, settings and recovery. Portcove registers the explicitly selected prepared native copy; it does not acquire the originals, run extraction, update or delete external data. Finish upstream maintenance outside a tracked session, retain a complete previous runtime and current player data, then revalidate the selected executable. Do not infer compatibility between fused data, other editions or different builds."
+          },
+          {
+            "title": "Respect component and edition boundaries",
+            "instruction": "Retain the GPL authored-code licence and individual SDK/RT64/SDL/Python/Microsoft notices. NOTICE explicitly excludes the branding and supplied replacement announcement from the code licence; obtaining another full package needs an applicable independent grant for those components. The optional title announcement falls back to the original ROM audio when absent, but this guide does not prescribe modifying a package or bypassing its grants. Both-ROM fusion identity and upstream claims do not establish full gameplay or save compatibility."
+          }
+        ],
+        "warnings": [
+          "Fresh acquisition of packaged branding/title media remains conditional on its own applicable permission; original-game rights are separate.",
+          "Only an already prepared independently permitted complete copy is offered; extraction, updates and recovery remain upstream-owned."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected ClayFighter64 package is held while the applicable permission or authorized-source basis for its named bundled character-branding images and replacement title-announcement media remains unresolved. NOTICE places those media outside the port-code licence; publisher attribution is not a grant of all underlying depicted-character or media rights. Resume on an attributable applicable inclusion/use basis or a reviewed supported replacement/exclusion package; independently permitted completed copies remain separate."
     },
     {
       "id": "dkc1-recomp",
@@ -20007,7 +20083,7 @@
     {
       "id": "gabrielnnk-bigodao",
       "name": "Wario Land: Super Mario Land 3 / Bigodão (GABRIELNNK)",
-      "summary": "Explore Wario Land: Super Mario Land 3 / Bigodão (GABRIELNNK) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Link an independently permitted, completed Bigodão Windows build; upstream owns exact ROM/DX preparation, updates and save storage.",
       "project_url": "https://github.com/GABRIELNNK/Bigodao",
       "issue_number": 1799,
       "platforms": [],
@@ -20020,6 +20096,40 @@
         "image_sha256": "5873adbc749035989cbc2d03e7f5571859f2b29d1a05d964b741a089aac0ab83",
         "game_slug": "wario-land-super-mario-land-3",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use a completed Windows copy",
+            "instruction": "Use an independently permitted, already completed Windows native Bigodão build with wario_land_port.exe from the upstream CMake target. Keep its complete runtime and tools/wl_sm3_dx_v12_patch.json together in a writable folder. This route does not build missing generated game code or identify the contents of an uninspected release ZIP."
+          },
+          {
+            "title": "Keep exact original and patch inputs",
+            "instruction": "For upstream first-run preparation, supply your legally obtained Wario Land - Super Mario Land 3 (World) ROM (SHA-256 ac1682f17abcf590311a233289ee325214c2d71ab3a5aa175004002d85075e56) and independently permitted korxo DX v1.2 IPS patch (SHA-256 599d9f59090df3e1e77c1678e069290a2cd9ce59c71cf58d66c4dc3db8b7facd). Owning the game or the project code license does not grant acquisition or redistribution of the patch or optional music/art packs."
+          },
+          {
+            "title": "Back up old and new storage before startup",
+            "instruction": "Before first startup or an update, close Bigodão and separately back up the complete old and new folders, saves/, legacy loose .sav/.rtc/.state files, wario.o2r and any .tmp recovery file, mods/, and the SDL preference directory for gbrecompiled/runtime (normally %APPDATA%/gbrecompiled/runtime/runtime_prefs.ini; local runtime_prefs.ini is a fallback). Startup copies eligible legacy loose saves into missing saves/ destinations and retains the old files; failure to create saves/ falls back to beside-executable storage."
+          },
+          {
+            "title": "Let upstream prepare its private data package",
+            "instruction": "Complete the upstream ROM/IPS picker before registration. It patches a copy in memory and creates wario.o2r beside the executable, with a current-directory fallback for an existing package. An older texture recipe can request re-preparation; creation verifies a temporary package, then removes the prior package before renaming the replacement. Keep the separate pre-start backup and original inputs; cancelling that update can continue with the previously loaded old ROM."
+          },
+          {
+            "title": "Link the ordinary native executable",
+            "instruction": "Add the completed wario_land_port.exe through the existing-copy route, choose its containing folder as the working directory, and leave arguments empty. The picker and normal game loop run inside that process. Do not select Android files, packaging tools, or a compiler helper."
+          },
+          {
+            "title": "Preserve saves, preferences and mods",
+            "instruction": "Preserve the complete saves/ folder, legacy save copies, preferences, mods/ including 3d_marcas.txt, captures and custom packs. The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
+          },
+          {
+            "title": "Keep replacement ownership upstream",
+            "instruction": "Quit the game completely before maintenance, relinking or removal. Upstream and the user own preparation, runtime replacement and updates; Portcove only links the selected executable and does not install, update, roll back, move or delete this external copy or its player data."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/README.md"
       }
     },
     {
@@ -20825,7 +20935,7 @@
     {
       "id": "goodshepherd23-galerians-recompiled",
       "name": "Galerians (Galerians Recompiled)",
-      "summary": "Upstream route: ReleaseZIP is a setup/bootstrapper, not a ready-made complete game. Galerians_Recompiled wizard selects disc1 then Generate&rebuild compiles locally; Windows can fetch portable tools, otherhosts require compiler tools. Upstream owns preparation. Limits: Upstream only: Upstream reports local generation/build and BIOS/FMV/title progress. Some blocks use interpreter fallback; complete three-disc playthrough Unknown. Generate and rebuild from disc on first setup; static compilation misses some blocks and falls back to interpreter. Keep incomplete playthrough claims separate from package availability. Upstream platforms: Windows/Linux/macOS setup ZIPs. Windows may fetch tools; Linux/macOS need CMake, Ninja, Python and a compiler. Exact host architecture Unknown. Original data: Own all three Galerians USA discs: SLUS00986,SLUS01098,SLUS01099. Data-track MD5s217885a22fbb0f3092f8405ce42419ea,5bc6de661cb074cd5218ac0b9daecda2,992e16e5164febd23c8242ede1fc0d8c. Bundled OpenBIOS replaces retail BIOS. Setup generates/builds game code locally; some blocks fall back to interpreter. Portcove setup/gameplay not verified.",
+      "summary": "Register the completed Windows Galerians player generated by upstream from your own three USA discs. Keep preparation, disc selection, save-state migration and runtime replacement with upstream; this is a non-owning existing-copy route, not a managed build.",
       "original_game_title": "Galerians",
       "project_url": "https://github.com/goodshepherd23/Galerians-Recompiled",
       "platforms": [],
@@ -20839,7 +20949,43 @@
         "game_slug": "galerians",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2734
+      "issue_number": 2734,
+      "manual_setup": {
+        "help_url": "https://github.com/goodshepherd23/Galerians-Recompiled/blob/91656a8ea801f1c231ecf4177e004c641944eb1b/README.md",
+        "steps": [
+          {
+            "title": "Prepare the exact three owned discs upstream",
+            "instruction": "Use a complete kit, components and a privately prepared player you are independently permitted to use for noncommercial purposes under the pinned framework terms. Supply your own Galerians USA CUE/BIN discs1/2/3, serials SLUS-00986, SLUS-01098 and SLUS-01099; keep every companion track and each CUE together, with all three discs in the same folder. Upstream identifies their dataTrack01 MD5s as217885a22fbb0f3092f8405ce42419ea,5bc6de661cb074cd5218ac0b9daecda2 and992e16e5164febd23c8242ede1fc0d8c. Those are data-track identifiers, not whole-set/CUE hashes or permission to acquire the discs. Disc1’s preparation config also specifies size695399376 and SHA1 f69e7299e5cea91a74e1e4c9893e6781d1227d1d; do not substitute another region or edition."
+          },
+          {
+            "title": "Finish the supported private preparation before attachment",
+            "instruction": "The Windows release ZIP is a setup kit without generated game code. Complete its upstream wizard with Disc1 and Generate & rebuild outside Portcove, using its supplied OpenBIOS and supported tools. The source-build recipe additionally applies this title’s three patches and uses --force-emitters; follow the matching upstream recipe instead of mixing framework revisions. Preserve all three originals separately. Generation starts from Disc1; the one resulting program uses the later discs as data. Reachable discovery retains interpreter fallback for unreached code; this is not an all-code-ahead-of-time guarantee."
+          },
+          {
+            "title": "Select the completed native game product",
+            "instruction": "Select the successful build-release/Galerians_Recompiled.exe product, use its complete build-release directory as working directory and leave arguments empty. Keep matching bios/, mods/, assets, game.toml and runtime companions and the selected own disc paths. This completed game-dispatch product keeps the normal launcher/game in-process. Do not register the root setup host, scripts, toolchain or unfinished output: a Windows setup host can forward to another process and exit. Saving launch details and requesting Play are separate actions requiring your consent."
+          },
+          {
+            "title": "Preserve all effective settings, cards and original roots",
+            "instruction": "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised."
+          },
+          {
+            "title": "Keep legacy state migration and disc selection explicit",
+            "instruction": "Upstream’s first legacy-state migration can move loose state_*.pst files into openbios/ or scph1001/ subfolders and writes .pst_bios_isolated even when some files are skipped. Preserve the old and new save folders and marker together in separate pre-start backups; no automatic retry or cross-BIOS compatibility is promised. Use the native player’s own Disc Selection/Change disc controls for later owned CUEs and retain every source disc; Portcove does not import saves, switch discs or migrate profiles."
+          },
+          {
+            "title": "Leave rebuilds, mods and runtime replacement with upstream",
+            "instruction": "Upstream/user owns generation, rebuilding, updates, recovery and save writes. Builds stage their mod catalog and can clear/replace mods/packages before copying title packages; back up custom mods and the complete working output outside all build/staging destinations before rebuilding. Optional Generate & rebuild/PGO/restart actions can create successors and are outside this tracked-player route. Close all actual games/helpers/successors before maintenance or another attachment, then review/relink changed bytes. Removing registration preserves every external file; no Core-managed update, rollback, backup, migration or deletion is offered."
+          },
+          {
+            "title": "Retain title-specific requirements and limitations",
+            "instruction": "Keep applicable PolyForm Noncommercial framework, separate MIT launcher/OpenBIOS and other component notices; these do not grant original-game redistribution rights. The inspected release is early. Upstream reports early gameplay but has not established play beyond the first room, save/load, mid-game disc changes, a full playthrough or PGO. Those limits remain; optional cheats, controllers and graphics features are not compatibility promises. Retain known-working copies when updating."
+          }
+        ],
+        "warnings": [
+          "The release is a setup kit; attach the completed private native product. Keep all three owned discs and separate backups before legacy-state migration or rebuilding. Saving/loading and mid-game disc changes remain upstream-unverified beyond the reported early test scope."
+        ]
+      }
     },
     {
       "id": "goodshepherd23-hellnight-recompiled",
@@ -20890,13 +21036,50 @@
     {
       "id": "goodshepherd23-jetmoto2-recomp",
       "name": "Jet Moto 2: Championship Edition (Jet Moto 2 Recompiled)",
-      "summary": "Upstream route: Upstream Windows ZIP first launchJetMoto2.exe recompiles supporteddisc toC#and builds with.NET10SDK. Updates trigger one rebuild whilekeeping saves/settings. Upstream owns codegeneration; not zero-toolchain runtime. Limits: Upstream only: Early release; bounded boot/menu/racing claims. Sound/CD music and wider gameplay remain untested per status. Early release Windows11x64 only; sound/CDmusic and wider gameplay remain untested per status; .NET10 SDK setup distinct from runtime. Upstream platforms: Windows x64 and .NET10 SDK first-build route. Tested only Windows11x64; other hosts not established. Original data: PS1 JetMoto2 ChampionshipEdition SCUS94167 own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+      "summary": "Windows x64 upstream-prepared native player for Jet Moto 2: Championship Edition USA (SCUS-94167). Complete upstream .NET 10 generation/build first, then register build/JetMoto2Recomp.exe; the root JetMoto2.exe setup launcher starts a separate player and exits. Preserve the creating build directory, disc, settings and memory cards. Upstream reports bounded racing progress; sound/CD music, saving and wider gameplay remain untested.",
       "original_game_title": "Jet Moto 2: Championship Edition",
       "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
-      "issue_number": 2825
+      "issue_number": 2825,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the exact edition",
+            "instruction": "Use your independently permitted copy and own Jet Moto 2: Championship Edition USA disc (SCUS-94167), with its CUE and all 17 BIN tracks. The original 1997 Jet Moto 2 shares the serial but is a different build. Keep the complete named disc set in the upstream disc directory; this guide does not establish a full-disc checksum or rights to original data."
+          },
+          {
+            "title": "Complete upstream preparation",
+            "instruction": "Use the upstream v0.1.5 Windows kit and .NET 10 SDK, following its README generation and build instructions outside Portcove. The kit launcher compiles locally and version changes can trigger another build. Finish preparation before registering the generated player; keep the complete creating kit, runtime dependencies and output together."
+          },
+          {
+            "title": "Select the completed player",
+            "instruction": "Select build/JetMoto2Recomp.exe with its complete build directory as the working directory and no additional arguments. Do not select the root JetMoto2.exe launcher: it starts the player separately and exits. The direct player keeps the game and presentation loop in its own process."
+          },
+          {
+            "title": "Keep the selected disc and card paths",
+            "instruction": "The player reuses an existing valid saved disc path; otherwise it tries ../disc/Jet Moto 2 - Championship Edition (USA).cue beside the creating build. Settings can select another disc or card path and require a restart. A custom path does not establish that another edition is compatible."
+          },
+          {
+            "title": "Back up before starting or rebuilding",
+            "instruction": "With the game closed, keep a separate complete prior kit/build backup and copies of settings.json, interface.ini, carda.sav, cardb.sav and cheats.json in build, plus every configured external card/disc path. Settings and cards are working-directory relative unless customized; cheats.json is beside the player. Missing cards are formatted in memory and later written; unreadable or short existing cards and malformed settings need your recovery copy. Do not assume save compatibility across builds or replace current player data with an older runtime backup."
+          },
+          {
+            "title": "Keep one replacement owner",
+            "instruction": "Upstream and the player own preparation, rebuilds, runtime replacement, settings and saves. Portcove registers the explicitly selected native player without acquiring originals, building, updating or managing its external data. Finish upstream updates outside a tracked game session, retain a complete recovery copy, then revalidate the selected player."
+          },
+          {
+            "title": "Respect the early-release limits",
+            "instruction": "Upstream reports a completed Slickrock Gorge race, with sound/CD music, memory-card saving, other tracks, season, gamepad and two-player play untested. Menu art can extend beyond the right edge. Optional JM2 diagnostic/input/cheat environment features are outside this route. Keep the project and RecompOne notices; their MIT grants do not grant original game content. Upstream states that this early release was tested only on Windows 11 x64; this is its reported test scope, not Portcove qualification for Windows 10 or another host."
+          }
+        ],
+        "help_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md",
+        "warnings": [
+          "Only an independently permitted completed native copy is offered; upstream setup and replacement remain external.",
+          "The launcher that compiles and starts a child player is not the registered player."
+        ]
+      }
     },
     {
       "id": "gothic-ii-night-of-the-raven-opengothic",
@@ -21115,7 +21298,7 @@
     {
       "id": "gran-turismo-4-playstation-2-gt4recomp",
       "name": "Gran Turismo 4 (PlayStation 2) (GT4Recomp)",
-      "summary": "Upstream route: Windows x64 installer; stable v1.2.3. Separate v1.3.0-rc5 test channel has portable ZIP. Limits: Stable1.2.3 playable with known limits;1.3RC channel differs. No full-game completion claim; wheel/license demos limited. Upstream platforms: Windows10/11 x86-64 installer; stable/prerelease package channels distinct. No native Linux/macOS package established. Original data: User-owned USA v2.00 SCUS-97328 ISO; optional Spec II 1.10 owned image only on prerelease. Portcove setup/gameplay not verified.",
+      "summary": "Windows x64 GT4Recomp official launcher for an upstream-prepared Gran Turismo 4 USA v2.00 installation. Register GT4Recomp.exe; its normal owned session supplies renderer configuration, launches and watches the game, then returns to the launcher. Preserve installation data, AppData save libraries and legacy roots before its automatic migrations/cleanup. Branded artwork grants remain separate from the code licence; use an independently permitted complete copy.",
       "original_game_title": "Gran Turismo 4 (PlayStation 2)",
       "project_url": "https://github.com/moesuito/gt4-staticrecomp",
       "platforms": [],
@@ -21129,7 +21312,49 @@
         "game_slug": "gran-turismo-4",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2579
+      "issue_number": 2579,
+      "manual_setup": {
+        "help_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md",
+        "steps": [
+          {
+            "title": "Use a permitted installation and exact owned disc",
+            "instruction": "Use an independently permitted complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the5314478080-byte ISO SHA25667b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately; identity checks do not grant game-data rights. NOTICE defers the bundled cover and brand-art licence to its owner; the MIT code licence does not grant those components."
+          },
+          {
+            "title": "Finish official upstream setup",
+            "instruction": "Complete the official installer and launcher disc setup outside Portcove. The launcher copies the ISO, verifies preparation, installs the renderer and checks CPU/Vulkan requirements. Use supported Windowsx64, SSE4.1 CPU, Vulkan1.2 and WebView2; retain the complete matching installation and DLLs. This route uses the official launcher, not the internal gt4vulkan.exe with a guessed environment or another version's renderer."
+          },
+          {
+            "title": "Back up all current and legacy roots before first startup",
+            "instruction": "Close the game and launcher; keep a separate complete prior installation and current <install>/data, %APPDATA%/GT4Recomp, %LOCALAPPDATA%/GT4Recomp and Documents/Gran Turismo 4, including any moved-name sibling or recorded previous installation data. Include settings, controls, Saves, Replays, card backups, runtime/card.ps2, original/prepared disc data, custom textures and configured read/fallback roots. Keep the backups outside old installation cleanup targets. Startup can move user and large data, flatten textures and remove the old per-user program/game folder, fixed shortcuts and registry entries. The running installation and its data-folder layout are excluded from that legacy cleanup; do not rely on an old executable folder as your recovery copy."
+          },
+          {
+            "title": "Register the official outer launcher",
+            "instruction": "Select GT4Recomp.exe from its complete creating installation, use its installation directory as working directory and leave arguments empty. Start only when a separate GT4Recomp instance is not already running; a second launcher can merely bring the first forward and return. Portcove tracks the selected launcher session, not game-only play time. Save launch details and consent to Play separately; then use the upstream launcher's Play operation."
+          },
+          {
+            "title": "Let the upstream launcher own the game session",
+            "instruction": "The launcher stays alive, hides to the tray during Play and watches its child game; when the game exits it harvests the card and returns Home. The launcher supplies required renderer environment, config, per-session files and card locks. Quit/save through the game, wait for the upstream launcher to finish card handling, then close the launcher to end the selected session. Closing it while playing asks first and can end the game through its kill-on-close job. Do not register an internal payload, bypass the owner or assume closing Portcove provides a save checkpoint."
+          },
+          {
+            "title": "Preserve effective saves and recovery paths",
+            "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
+          },
+          {
+            "title": "Keep update and restart transitions upstream-owned",
+            "instruction": "Upstream owns setup, renderer downloads/updates, runtime replacement, data movement and recovery. A launcher update starts its installer and exits; WebView recovery can restart the launcher in safe mode. Complete these transitions outside the registered normal session and revalidate the resulting launcher. Portcove does not reproduce renderer environment, follow replacement processes, acquire originals or delete/restore external data."
+          },
+          {
+            "title": "Retain component terms and known limits",
+            "instruction": "Preserve MIT code notices and the separately GPL GSdx/PCSX2 renderer notices/source alongside all other components. NOTICE specifically leaves branded cover/artwork permission unresolved; fresh wholepackage acquisition needs the applicable grant or an independently permitted complete copy. Upstream licensedemos/menu backgrounds, wheel support, long sessions and hardware coverage retain their stated limits. The offered launcher route is not a new observation of game execution, save compatibility or protected delivery."
+          }
+        ],
+        "warnings": [
+          "Use an independently permitted complete installation; bundled brand/cover artwork permission is a separate acquisition condition.",
+          "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected branded GT4Recomp Windows package is held while the applicable permission or authorized-source basis for its bundled cover-front artwork and derived brand assets remains unresolved. NOTICE leaves the cover-art licence for owner confirmation; the MIT code grant does not resolve it. Resume on an attributable applicable basis or a reviewed supported de-branded package/preparation; independently permitted complete installations remain separate."
     },
     {
       "id": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
@@ -22594,13 +22819,54 @@
     {
       "id": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
       "name": "Hogs of War / Frontschweine (PlayStation German PAL) (Frontschweine Recompiled)",
-      "summary": "Upstream route: Windows x64 setup ZIP with source; user supplies Python3.11+, then Generate & rebuild compiles privately. No prebuilt game code. Limits: Upstream start-to-finish claim with retained interpreter fallback when optional overlay toolchain fails; German edition only. Upstream platforms: Windows10/11 x86-64 setup pack, user Python3.11+ and downloaded toolchain; local PS1 code generation/build. No other established player package. Original data: User-owned German PAL SLES-02767 CUE plus three BIN tracks; exact data-track checksum checked; other regions unsupported. Portcove setup/gameplay not verified.",
+      "summary": "Windows x64 native player for Frontschweine / Hogs of War German PAL (SLES-02767), prepared locally from your own disc using upstream tools. Finish generation and rebuild first, then select build/Frontschweine_Recompiled.exe with its complete runtime. Preserve saves, mods, extracted data and overlay caches. Upstream owns preparation and replacement; other regions and Portcove-managed builds are not offered.",
       "original_game_title": "Hogs of War / Frontschweine (PlayStation German PAL)",
       "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Nero2611/FrontschweineRecomp",
-      "issue_number": 2680
+      "issue_number": 2680,
+      "manual_setup": {
+        "help_url": "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/README.md",
+        "steps": [
+          {
+            "title": "Prepare the exact German disc",
+            "instruction": "Use your independently permitted noncommercial copy and own Frontschweine German PAL disc (SLES-02767), with its CUE and all three BIN tracks. Keep the complete original set separate. Upstream identifies data Track 01 by size391706784, MD5a833706e9f28020cc665b9f1d5148f74 and SHA1ba85ec068293da37cdc261c2b77143dfb2057774; these do not identify the CUE or whole set and do not grant game-data rights."
+          },
+          {
+            "title": "Complete upstream setup",
+            "instruction": "Use the matching v0.1.0 Windows setup kit or documented source recipe. Supply your own disc, Generate and rebuild outside Portcove; Windows uses Git and Python3.11 and the upstream toolchain setup. Its rebuild includes PGO training runs. Finish all preparation before registration. Bundled OpenBIOS replaces a retail BIOS. Preserve the exact title/framework/UI combination, staged mods, BIOS and runtime dependencies."
+          },
+          {
+            "title": "Select the completed game",
+            "instruction": "Select build/Frontschweine_Recompiled.exe, use its complete creating build directory as working directory and leave arguments empty. Do not register the root setup host, unfinished output, toolchain or rebuild process. The completed game-dispatch product keeps the normal launcher and game in its process; optional Generate/rebuild successors are outside this route. Saving launch details and requesting Play are separate actions requiring consent."
+          },
+          {
+            "title": "Back up effective data before startup",
+            "instruction": "With the game closed, retain a separate complete prior runtime and copies of exe-local settings.toml, disc.cfg, bios.cfg, mods, saves/, game.toml and game_options.toml, every configured external card/save/disc path and overlay-capture root. Default cards and states use the title saves directory; explicit card paths and --memcard-dir can change effective roots. Include loose legacy state_*.pst, openbios/scph1001 state folders and the .pst_bios_isolated marker: upstream can move legacy states on first startup and write its marker even after skipped moves. Do not assume retries or cross-BIOS/build state compatibility. Card initialization can attempt a blank-card write after an existing image cannot be opened. Include current settings.toml.bad outside the active installation: malformed settings cause startup to delete the older .bad file, then rename current settings.toml to .bad before future settings writes."
+          },
+          {
+            "title": "Preserve extracted files, mods and caches",
+            "instruction": "The game-owned Instant Loading mod reads or rewrites exe-local extracted/ files from the mounted disc and removes a failed partial extraction. Runtime-loaded overlays can be translated and cached; preserve build/cache, custom capture roots, extracted data and all custom mods separately before rebuilding. Build staging owns bundled mod content. Missing overlay tools can leave upstream interpreter fallback; this guide does not promise every code path is already compiled."
+          },
+          {
+            "title": "Preserve both mod layouts before migration",
+            "instruction": "Before startup, separately back up the complete exe-local mods/ tree, including packages/, bundled/, installed/ and state.toml. The pinned runtime migrates legacy mods/packages/<id>/<version> into mods/installed/<id>/<version>, preferring a rename then recursive copy fallback. It deletes legacy versions already present in bundled/ or installed/, and removes the remaining legacy packages tree when its migration reports no stranded version/error. Do not rely on duplicate legacy folders or unrecognized loose files as recovery copies; preserve them outside that tree before starting. Build-staged bundled mods and user-installed mods remain upstream-owned."
+          },
+          {
+            "title": "Keep one replacement owner",
+            "instruction": "Upstream and the player own tools, generation, rebuilds, updates, game settings, cards and recovery. Portcove only registers your selected completed native copy; it does not acquire originals, build or replace the runtime or delete its external files. Finish upstream maintenance outside a tracked session, retain a complete recovery copy, then revalidate the selected executable. Recover runtime and current player data deliberately rather than rewinding saves with an old build."
+          },
+          {
+            "title": "Keep title and permission limits",
+            "instruction": "This is the German PAL title, not a promise for another Hogs of War region or build. The upstream playthrough statement is its report, not a new qualification of your prepared copy. Preserve the project and pinned framework PolyForm Noncommercial notices, the UI notice and supplied OpenBIOS licence; their component terms do not grant the original disc contents."
+          }
+        ],
+        "warnings": [
+          "Use an independently permitted completed native copy for the noncommercial purposes allowed by its components.",
+          "Setup, PGO, optional netplay and rebuilding remain upstream operations; save compatibility is not promised."
+        ]
+      }
     },
     {
       "id": "hotel-mario-static-recomp-tools81-hotel-mario",
@@ -24032,7 +24298,7 @@
     {
       "id": "jhdev2006-super-mario-world-remastered-public",
       "name": "Super Mario World / Super Mario World Remastered (JHDev2006)",
-      "summary": "Explore Super Mario World / Super Mario World Remastered (JHDev2006) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Link a permitted Windows export of archived JHDev2006 Super Mario World Remastered, preserving its ROM gate and profile shared with Remastered Plus.",
       "project_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public",
       "issue_number": 1891,
       "platforms": [],
@@ -24045,7 +24311,42 @@
         "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
         "game_slug": "super-mario-world",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep this archived parent distinct",
+            "instruction": "Use an independently permitted, already completed Windows Godot game export of JHDev2006 Super Mario World Remastered, keeping its native game executable and any companion .pck/data together. The upstream project is archived and abandoned. This is the parent project, not BTFighter Remastered Plus, snesrev/smw, or another similarly named implementation; their binaries and qualification are not interchangeable."
+          },
+          {
+            "title": "Keep artwork and original-file permissions separate",
+            "instruction": "Fresh package acquisition remains conditional on permission for its bundled original sprites and music. The root ISC code license and owning a Super Mario World ROM do not establish that component grant. This guide only links a completed copy you are independently permitted to use; it does not obtain the game, rebuild or extract Nintendo assets, or bypass that condition."
+          },
+          {
+            "title": "Use the exact upstream ROM gate",
+            "instruction": "Place your own recognized SNES ROM at baserom.sfc in the SuperMarioWorldRemastered user-data folder shown by the ROM screen. The selected checker accepts seven full-file hashes; the explicitly labelled USA1.0 image has SHA-256 0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b. Other exact Japanese, European and headered variants are listed upstream, while one accepted hash has no established edition label. The gate checks the file hash; it does not extract or license the already bundled artwork/music."
+          },
+          {
+            "title": "Back up the actual shared profile before startup",
+            "instruction": "With this game and Remastered Plus closed, separately back up the complete old and new runtime folders and the actual SuperMarioWorldRemastered Godot profile, normally %APPDATA%/SuperMarioWorldRemastered on Windows. Preserve baserom.sfc, settings.cfg, Saves/ with campaign subfolders, modlist.json and every referenced external resource pack. Startup creates settings when missing and verifies/rewrites existing settings; save creation/replacement and the in-game delete action can overwrite or remove a campaign slot. Keep recovery copies outside the active profile."
+          },
+          {
+            "title": "Keep parent and fork data recoverable",
+            "instruction": "The independently checked parent configuration and the existing Remastered Plus record select the same SuperMarioWorldRemastered custom user directory. Do not run or switch them against an unbacked-up shared profile. No save, mod, campaign or settings compatibility between forks or versions, and no automatic profile migration, is qualified."
+          },
+          {
+            "title": "Link the completed game export",
+            "instruction": "Choose the native game .exe in your completed Windows export, use its containing game folder as the working directory, and leave arguments empty. The exact packaged filename and release-ZIP layout have not been established here; do not select a Godot editor, console/helper wrapper or installer. The selected project starts the ROM-check scene and transitions within its Godot process; its title-screen Quit ends that process."
+          },
+          {
+            "title": "Keep updates and external data upstream",
+            "instruction": "Close the game completely before replacing, relinking or removing an external copy. Upstream and the user own the runtime, companion files, custom packs and all player data. Portcove only links the selected existing executable and does not install, update, roll back, move or delete it. An archived release is not a promise of future maintenance or live online-service availability."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/README.md"
+      },
+      "download_block_reason": "Fresh acquisition of the selected parent Super Mario World Remastered Windows export is held while an attributable permission or authorized-source basis for its bundled original-game sprite and music assets remains unresolved. The project ISC code grant and an owner-supplied ROM do not establish that separate media basis. Resume with an applicable reviewed basis or a supported clean package/preparation excluding or independently sourcing those assets; independently permitted existing completed copies remain distinct."
     },
     {
       "id": "jiggle-or-physics-3dge7161-dead-or-alive",
@@ -24270,7 +24571,7 @@
     {
       "id": "junior-jones-adventure-island-ii-nes-static-recomp",
       "name": "Adventure Island II / Adventure Island II (NES) Static Recomp (Junior-Jones)",
-      "summary": "Explore Adventure Island II / Adventure Island II (NES) Static Recomp (Junior-Jones) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Link a permitted Adventure Island II Windows Launcher with its exact owned iNES image; preserve its portable snapshots, settings and supervised game process.",
       "project_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
       "issue_number": 1792,
       "platforms": [],
@@ -24283,6 +24584,40 @@
         "image_sha256": "422d170a9fc52432deb31dbe053ee86869e991f1220dfa52975b6651aab413ca",
         "game_slug": "adventure-island-ii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the full prepared Windows copy",
+            "instruction": "Use an independently permitted, completed upstream Windows Launcher.exe and its complete companion files. The v1.0.0 Windows ZIP publisher SHA-256 is 19ef61618f3594ffbda4a4ac42c99d182e2777ea92397aba72acd9c3a41d87d0; this identifies the offered package and is not a Portcove inspection of its contents. Keep gamecontrollerdb.txt and applicable SDL/controller notices with a current source-built copy."
+          },
+          {
+            "title": "Supply the exact original image",
+            "instruction": "Provide your legally obtained Adventure Island II (USA).nes in the Rom folder beside Launcher.exe, or choose it through Browse ROM. The selected frontend requires a 262160-byte iNES file with SHA-256 10dd53fd62c95e77856b09c693b3bdd14b62a89988902eea111257cafe9b8acc and its exact header; a different revision, payload-only dump or modified header is not accepted. The ROM is opened read-only."
+          },
+          {
+            "title": "Preserve the portable player files first",
+            "instruction": "With the game and launcher closed, separately back up the complete old and new game folders, settings.ini, Snapshots/ including Quick Save.ai2state, Screenshots/, the original ROM location and any custom copies. Startup creates or updates settings.ini beside the executable, including its welcome flag. Snapshot save overwrites its selected slot; capture failure can delete an incomplete screenshot. No cross-build snapshot compatibility is established."
+          },
+          {
+            "title": "Complete the upstream first-run screen",
+            "instruction": "Open the ordinary Launcher.exe, dismiss its first-run Welcome window, select the verified ROM, and use Run. The launcher starts its own --game child internally and retains its process handle; do not select that internal child mode or copy its private control arguments into Portcove."
+          },
+          {
+            "title": "Link the outer launcher",
+            "instruction": "Add Launcher.exe through the existing-copy route, use the folder containing it as the working directory, and leave arguments empty. Keep the launcher open while the actual game is running; its message loop observes the child and retains its own window when play stops."
+          },
+          {
+            "title": "Exit the actual game before the launcher",
+            "instruction": "Quit the game window normally, then exit Launcher before maintenance, replacement, relinking or removal. Closing the launcher with a running game offers to exit both: upstream posts close to the game, waits two seconds, then may force termination. Avoid relying on that path for a final save or assuming that forced shutdown preserves progress."
+          },
+          {
+            "title": "Keep runtime and data ownership upstream",
+            "instruction": "The user and upstream own package preparation, runtime replacement, updates and all player files. Portcove only links this completed external copy; it does not install, update, roll back, back up or delete it. The project and third-party component notices do not grant rights to acquire or redistribute the original ROM."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md"
       }
     },
     {
