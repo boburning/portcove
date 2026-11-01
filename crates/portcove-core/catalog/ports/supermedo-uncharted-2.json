@@ -3,13 +3,45 @@
   "listing": {
     "id": "supermedo-uncharted-2",
     "name": "Uncharted2: Among Thieves — PS4 remaster (Supermedo uncharted_pc)",
-    "summary": "Upstream route: Upstream runtime package for uncharted_pc; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Collectionacquisition is shared, while this recordtargets only Uncharted2: Among Thieves. Limits: Upstream only: Upstream says all three collection games run. Per-game complete campaign Unknown here; separate Supermedo implementation. Supermedo implementation distinct from bc160201983 row43. Split game targets1/2/3 while sharing package, supported title/version constraints retained. Upstream platforms: Windows 10/11, direct PS4 x86-64 CPU execution and Vulkan graphics. Other OS routes not established. Original data: Own decrypted PS4 NathanDrakeCollection dump containing Uncharted2: Among Thieves. Exact patch/revision and firmware-module requirements not stated in the reviewed primary summary remain Unknown. Separate game identity shares collection acquisition and implementation, without inherited gameplay qualification. Portcove setup/gameplay not verified.",
+    "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Among Thieves before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
     "original_game_title": "Uncharted2: Among Thieves",
     "project_url": "https://github.com/Supermedo/uncharted_pc",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Supermedo/uncharted_pc",
-    "issue_number": 2817
+    "issue_number": 2817,
+    "manual_setup": {
+      "help_url": "https://github.com/Supermedo/uncharted_pc/blob/bbd1b3ac1019b22c332d059fda0cecb5a96c0bd9/README.md",
+      "steps": [
+        {
+          "title": "Prepare this PS4 remaster with the correct implementation",
+          "instruction": "Use a complete copy and components you are independently permitted to use. This record is SuperMedo’s0.3.11 implementation for Uncharted: Among Thieves, within your own decrypted PS4 Nathan Drake Collection folder. The selected instructions identify CUSA02343/CUSA02320 and require eboot.bin, big2-ps4_Shipping.elf, big3-ps4_Shipping.elf, sce_sys and u1data/u2data/u3data as applicable. Preserve supported per-title/version constraints in those instructions; neither every other CUSA/revision nor an exact whole-data digest is qualified here. Complete upstream setup outside Portcove and keep original base/update data. PS3 editions and the separate BilalReloaded implementation are different routes."
+        },
+        {
+          "title": "Keep the entire matching Windows package",
+          "instruction": "The inspected uncharted-windows.zip contains uncharted-windows/Uncharted.exe, Play Uncharted.exe, bin/bb-probe.exe, companion DLLs, scripts, _internal and resources. Keep the whole extracted directory. The AMD64 frontend is a frozen launcher; selecting its internal Python/probe, a DLL or an original PS4 executable bypasses setup. The game’s original x86-64 code runs through replacement PS4 services and Vulkan translation, not an inherited decompilation or another fork’s qualification. No original, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Select Among Thieves explicitly in the launcher",
+          "instruction": "Select Uncharted.exe, use its complete extracted uncharted-windows directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. In the upstream window choose Among Thieves (u2) and its intended source folder before upstream PLAY; the source maps that choice to big2-ps4_Shipping.elf. The --play/Play Uncharted.exe shortcut instead uses the collection-global saved start setting, so it does not bind this record to a fixed title. Recheck the game choice for every launch, including after another title used the same package. These are three game-specific guides sharing a launcher, not three independently pinned direct-start intents."
+        },
+        {
+          "title": "Preserve collection settings and every actual data root",
+          "instruction": "Keep %APPDATA%/uncharted-launcher/settings.json, the package user tree, bbport.ini, input.ini, out, art, game/update folders and logs. The saved user_dir or an established BB_USER_DIR/BB_DATA_DIR/BB_CONFIG/BB_INPUT_CONFIG or per-game source selection can use other locations; preserve every effective root. The launcher supports per-game source folders, while the collection’s saved start choice is shared. Keep the complete collection save/cache/trophy data rather than assuming per-record isolation, and retain independent originals/recovery copies. No migration, import, backup or deletion is performed here."
+        },
+        {
+          "title": "Keep launcher closure, restarts and maintenance explicit",
+          "instruction": "During ordinary play the frontend waits for run.py, which waits for native game children and handles collection LoadExec switches. Closing the GUI simply destroys its window and may leave the game running; quit all actual game players before closing it. In-game Apply and restart and the updater can start successor processes; finish such paths and runtime replacement outside an attached session, close actual helpers/successors, preserve copies and review/relink changed executable bytes. Source waiting paths do not prove observed forced-stop cleanup or save flush."
+        },
+        {
+          "title": "Retain per-title qualification and component limits",
+          "instruction": "Preserve GPL2-or-later and all packaged NVIDIA/Intel/Cinzel-font/component notices; these do not grant original-game rights or rights in separately chosen art/mods. Among Thieves retains its own upstream GPU/CPU/stability limits; a result for another collection game or the BilalReloaded fork does not qualify it. Upstream feature/play reports remain upstream claims. No Portcove gameplay, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves every external file; managed install/update/rollback/backup/removal are unavailable."
+        }
+      ],
+      "warnings": [
+        "Choose Among Thieves in the shared upstream launcher before Play; the saved --play shortcut is collection-global and closing the GUI can leave a child running."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

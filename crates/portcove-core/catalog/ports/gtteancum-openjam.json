@@ -3,7 +3,7 @@
   "listing": {
     "id": "gtteancum-openjam",
     "name": "NBA JAM: On Fire Edition (OpenJam)",
-    "summary": "Upstream route: UpstreamWindowsrelease includes game/runtime plus NBAJAMModManager.exe. Unzip beside own signedXBLAcontainer; manager extracts game, sets folders, converts optionalPS3modpackages and launches. This is runtime+data/modsetup, not demonstrated player compilation. Limits: Upstream only: Upstream says it runs/plays and converts PS3 mods. Complete-game, multiplayer and all-mod compatibility unverified here. Windows win64 release only, setup generates game code. Distinct from NBA Jam arcade and other editions; upstream plays claim without full-game validation here. Upstream platforms: Windows game/mod manager documented; win64 asset observed. Other native OS routes Unknown despite framework portability. Original data: Xbox360 XBLA NBA JAM OnFireEdition own signed console package. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared OpenJam Windows player for your purchased NBA JAM: On Fire Edition XBLA copy. The published player already contains recompiled code; upstream setup prepares your game data, with separate per-mod save roots.",
     "original_game_title": "NBA JAM: On Fire Edition",
     "project_url": "https://github.com/GTTeancum/OpenJam",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "nba-jam-on-fire-edition",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2807
+    "issue_number": 2807,
+    "manual_setup": {
+      "help_url": "https://github.com/GTTeancum/OpenJam/blob/8daa317846f34125a147114b129f47063b7c23ee/RELEASE.md",
+      "steps": [
+        {
+          "title": "Prepare your purchased On Fire Edition data upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own purchased Xbox Live Arcade NBA JAM: On Fire Edition container. The reviewed1.1 release manifest identifies LIVE content type000D0000 and TitleID584111EC; other NBA JAM editions, trial entitlements and arcade ROMs are outside this route. Finish the Mod Manager’s upstream unpack/data/UI preparation outside Portcove, retaining the original container and complete outputs. Setup does not generate the game’s native code in this selected release: the inspected published player already contains it. No original, unpacker, mod, compiler or game is obtained or run here."
+        },
+        {
+          "title": "Keep the complete actual Windows player unit",
+          "instruction": "The inspected OpenJam-v1.1-win64.zip contains AMD64 nbajam_ofe.exe, NBA JAM Mod Manager.exe, rexruntimerd.dll, rexgpu-xenosrd.dll, TracyClientrd.dll, metadata and controller notices. Keep the whole matching package with the prepared default.xex/data/UI tree. The manager is setup/mod administration; the normal prepared player is nbajam_ofe.exe. Do not select an original XEX, profiler, DLL, mod package or another platform’s shell script. Static inspection does not establish native dependency resolution or play."
+        },
+        {
+          "title": "Select the completed normal game",
+          "instruction": "Select nbajam_ofe.exe in the complete prepared game folder, use that folder as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The source defaults the game root to its executable’s folder and enters its native game application in that process. Complete initial unpacking, UI repair and missing-data work outside an attached attempt. This does not execute the manager or authorize an unowned game/trial entitlement."
+        },
+        {
+          "title": "Preserve separate base-game and per-mod saves",
+          "instruction": "Keep the entire prepared installation, including default.xex, data, metadata, ui, ui.original, mods, mods.list, saves.path and the complete saves tree. Each mod’s own saves.path can select a root relative to that mod or an external location; preserve every effective destination. Do not combine per-mod saves: the source explains that identical roster slots can mean different players, so sharing them can corrupt progression/unlocks. Also keep any established config, user-data and title-update roots, original containers and independent recovery copies. Portcove performs no save import, migration, backup or deletion."
+        },
+        {
+          "title": "Complete mod switching and maintenance upstream",
+          "instruction": "The upstream mod system can create successor game processes when switching mods. Complete switching, install/remove, source updates, data/UI repair and runtime replacement outside an attached session; close every actual player/helper/successor before changing files, then review/relink changed bytes. Mods can share unchanged game files through hard links, so preserve independent originals rather than treating a mod tree as an isolated backup. Quit normally; forced termination is not a save-flush or quiescence guarantee."
+        },
+        {
+          "title": "Retain permission and acceptance boundaries",
+          "instruction": "Keep all upstream, SDK/runtime, controller and component notices. Framework/port terms do not grant EA original-game rights, fonts/art extracted from your own game or separately acquired PS3 mod rights. Upstream gameplay/mod reports remain upstream claims; invalid-texture-fetch warnings and the unmapped clips path remain documented rough edges. No Portcove gameplay, mod/save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves all external files; managed install/update/rollback/backup/removal are not offered."
+        }
+      ],
+      "warnings": [
+        "Keep the full prepared game and each mod’s actual saves.path destination; mod switching may start a successor and hard-linked mod data is not an independent original backup."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

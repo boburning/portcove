@@ -3,7 +3,7 @@
   "listing": {
     "id": "y0oshi-lain-psx-decompiled",
     "name": "Serial Experiments Lain (lain-psx-decompiled)",
-    "summary": "Upstream route: Upstream runtime package for lain-psx-decompiled; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream reports matching PS1 code and native SDK implementation with two-disc data. Complete content/language/gameplay coverage Unknown here. Matching decompilation plus native client, no emulator; Windows/Linux/macOS packages. Preserve two-disc serial/hash requirements and content/language edition scope. Upstream platforms: Windows/macOS/Linux native client from matching decompilation. Exact architecture matrix follows selected package docs. Original data: PS1 SerialExperimentsLain original two Japanese discs own data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Serial Experiments Lain Windows client with both owned Japanese discs already imported. Its native client runs the game in process; preserve the separate imported-disc, memory-card and mod data tree.",
     "original_game_title": "Serial Experiments Lain",
     "project_url": "https://github.com/Y0oshi/lain-psx-decompiled",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "serial-experiments-lain",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2833
+    "issue_number": 2833,
+    "manual_setup": {
+      "help_url": "https://github.com/Y0oshi/lain-psx-decompiled/blob/ee9acb7f9a6197f88185a06b380e48b303e5583f/README.md",
+      "steps": [
+        {
+          "title": "Prepare both original Japanese discs upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed0.2.0 native client documents your own Japanese discs SLPS-01603 and SLPS-01604 as Redump .cue/.bin pairs. The data-track SHA1 values are6426fbdb45f27e089af650cddb8c41929c7890de and409668af454a0e0a33a71c1d22918d765e718608 respectively; they are not the original executable hash. Upstream import checks those identities but can also retain an unverified/modded dump with a warning. This guide qualifies only the documented source pair, not every accepted file or language modification. Finish import/setup outside Portcove and keep independent originals."
+        },
+        {
+          "title": "Keep the complete native client package",
+          "instruction": "The inspected Lain-windows.zip contains Lain/lain.exe as an AMD64 native player with its resources and thirdparty notices. Keep the complete matching Lain directory. This is the native client using a reimplemented PlayStation SDK; an original-PsyQ byte-identical rebuild is a different build result, not the selected Windows executable. Do not select a retail PS1 executable, disc image, compiler, script or another platform’s player. No original, subtitle pack, helper or game is obtained or executed by this attachment."
+        },
+        {
+          "title": "Select saved-disc direct play",
+          "instruction": "After both discs have been imported and settings saved upstream, select lain.exe, use its complete extracted Lain directory as working directory and set the single argument --play. Review the exact selected intent, then request Play separately. This skips the setup UI and enters the game within the selected native process using the saved discs/settings. If data is missing, complete setup outside that attached attempt before retrying. Static source/header observations do not establish native gameplay, disc swapping or dependency resolution."
+        },
+        {
+          "title": "Preserve imported discs, settings and the actual card",
+          "instruction": "Keep the whole active data folder, normally %APPDATA%/LainNative/lain-native on Windows, including imported discs, settings.ini, memcard1.mcd, packs, mods and other player data. The card is a raw128KiB image; that format alone is not save-compatibility acceptance. An already established LAIN_DATA_DIR or LAIN_MEMCARD can select an external data/card path; preserve those too, and the package directory used as a fallback if no per-user path was available. This guide adds no override and performs no card import, migration, backup or deletion."
+        },
+        {
+          "title": "Keep original, translation and component rights separate",
+          "instruction": "Preserve the upstream MIT notice, PsyCross and all thirdparty notices, including the separately linked OpenAL LGPL terms. Those grants do not provide original-game, memory-card-icon or third-party fan translation rights. The optional laingame.net subtitles are downloaded separately by upstream and are not bundled; review the exact pack’s permission and scope independently. Lua/native-plugin mods remain upstream-managed executable content, not newly trusted Portcove packages. Keep only components you are independently permitted to use."
+        },
+        {
+          "title": "Maintain the external client explicitly",
+          "instruction": "Quit the actual game normally before upstream replacement, disc reimport, card operations or mod changes. Preserve complete independent recovery copies and review/relink changed executable bytes. Source/frontend behavior and upstream whole-game/ending/timing reports remain upstream claims; no Portcove gameplay, swap, save/reload, installed-app or Supported acceptance is asserted. Forced termination is not a save-flush guarantee. Removing registration preserves all external files; managed install/update/rollback/backup/removal are not offered."
+        }
+      ],
+      "warnings": [
+        "Keep both original disc pairs and the actual imported-disc/card data root; the native client, original-PsyQ rebuild and fan subtitle packs have separate boundaries."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
