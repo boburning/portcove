@@ -425,7 +425,9 @@ export function usePortcoveData(libraryGeneration = 0) {
       register: (accept) => listenDesktopEvent("portcove://library-changed", accept),
       onEvent: () => {
         invalidateDiagnostics();
-        void reconcileWorkspace(true);
+        void reconcileWorkspace(true).catch(() => {
+          /* The refresh failure remains visible; this event has no awaiting caller. */
+        });
       },
       onFailure: (error) => setSubscriptionFailure({ error }),
     });

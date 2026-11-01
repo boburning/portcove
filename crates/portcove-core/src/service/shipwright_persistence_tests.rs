@@ -814,3 +814,65 @@ fn shipwright_runtime_file_junctions_hold_in_working_and_canonical_roots() {
         );
     }
 }
+
+#[test]
+fn shipwright_descriptive_catalog_changes_keep_retained_save_correction_for_backup() {
+    let (_temporary, mut service, active, _) = fixture();
+    let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
+    let engine = fs::read(active.path.join("engine.dll")).unwrap();
+    let executable = fs::read(active.path.join("soh.exe")).unwrap();
+    let mut current = service.catalog.authoritative_document();
+    let port = current
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap();
+    port.support_tier = if port.support_tier == crate::SupportTier::Stable {
+        crate::SupportTier::Rolling
+    } else {
+        crate::SupportTier::Stable
+    };
+    port.name = "New descriptive name".into();
+    port.summary = "Corrected summary".into();
+    port.project_url = "https://example.invalid/shipwright".into();
+    port.automated_tested_platforms = vec![Platform::WindowsX86_64];
+    port.manually_validated_platforms = vec![Platform::WindowsX86_64];
+    port.upstream_status = crate::UpstreamStatus::Retired;
+    service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+    );
+    assert_ne!(
+        service.catalog.port(PORT).unwrap().support_tier,
+        service.installed_port(&active).unwrap().support_tier,
+    );
+    game_write(&active, b"runtime save after catalog description changed");
+    fs::write(active.path.join("SoHTimeSplitData.json"), SPLITS_A).unwrap();
+    let interpreted = service.installed_mutability_port(&active).unwrap();
+    assert!(interpreted.persistent_paths.contains(&"Save".into()));
+    let backup = service.create_backup(PORT).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/Save/file1.sav")).unwrap(),
+        b"runtime save after catalog description changed"
+    );
+    assert_eq!(
+        fs::read(backup.path.join("data/SoHTimeSplitData.json")).unwrap(),
+        SPLITS_A
+    );
+    assert_eq!(
+        fs::read(active.path.join("Save/file1.sav")).unwrap(),
+        b"runtime save after catalog description changed"
+    );
+    assert_eq!(
+        fs::read(active.path.join(".portcove-manifest.json")).unwrap(),
+        manifest
+    );
+    assert_eq!(fs::read(active.path.join("engine.dll")).unwrap(), engine);
+    assert_eq!(fs::read(active.path.join("soh.exe")).unwrap(), executable);
+    assert!(
+        !service
+            .installed_port(&active)
+            .unwrap()
+            .persistent_paths
+            .contains(&"Save".into())
+    );
+}

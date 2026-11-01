@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdir, copyFile, writeFile, readFile } from "node:fs/promises";
+import { mkdir, appendFile, writeFile, readFile, access } from "node:fs/promises";
+import { isBuiltin } from "node:module";
+import { fileURLToPath } from "node:url";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -346,97 +349,119 @@ void test("writer policy requires fresh exact per-ref principals and unbypassabl
   assert.throws(() => requireReleaseInputWriterPolicy(make(), 202));
 });
 
-void test("held CLI source admission runs without installed dependencies and refuses before credential operations", async (context) => {
-  const root = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-admission-"));
-  await mkdir(path.join(root, "scripts"));
-  await mkdir(path.join(root, ".github/workflows"), { recursive: true });
-  for (const file of [
-    "release-reviewed-inputs.mts",
-    "release-control-phases.mts",
-    "assembler-job-identity.mts",
-    "production-controller-admission.mts",
-    "github-api.mts",
-    "release-readonly-child-environment.mts",
-    "release-coordinator-deadline.mts",
-    "release-signing-job-budget.mts",
-    "release-authority-configuration.mts",
-    "release-authority-configuration-contract.mts",
-    "release-public-build-binding-contract.mts",
-    "release-package-policy.mts",
-    "release-catalog-publication-contract.mts",
-    "release-metadata-contract.mts",
-    "controller-node-runtime.mts",
-    "release-canonical.mts",
-    "release-coordinator-namespace.mts",
-    "linux-beta-risk-706-profile.mts",
-    "release-native-qualification-contract.mts",
-    "runtime-values.mts",
-    "release-coordinator-errors.mts",
-    "release-input-protections.mts",
-    "release-classification-contract.mts",
-    "release-classification-principal.mts",
-  ])
-    await copyFile(new URL(file, import.meta.url), path.join(root, "scripts", file));
-  const workflow = Buffer.from("fixed inert source fixture\n");
-  await writeFile(path.join(root, ".github/workflows/release-reviewed-inputs.yml"), workflow);
-  const ref = "refs/tags/portcove-production-controller-fixture";
-  const policy = {
-    schema_version: 1,
-    mode: "admission-only",
-    execution_ref: ref,
-    revision: source,
-    workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
-    actor_id: "43177418",
-  };
-  const env = {
-    ...process.env,
-    GH_TOKEN: undefined,
-    GITHUB_TOKEN: undefined,
-    PORTCOVE_CONTROL_APP_TOKEN: undefined,
-    GITHUB_ACTIONS: "true",
-    GITHUB_SERVER_URL: "https://github.com",
-    GITHUB_API_URL: "https://api.github.com",
-    GITHUB_REPOSITORY: "boburning/portcove",
-    GITHUB_REPOSITORY_ID: "1354613114",
-    GITHUB_EVENT_NAME: "workflow_dispatch",
-    GITHUB_REF: ref,
-    GITHUB_REF_TYPE: "tag",
-    GITHUB_REF_PROTECTED: "true",
-    GITHUB_SHA: source,
-    GITHUB_WORKFLOW_SHA: source,
-    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${ref}`,
-    GITHUB_ACTOR: "boburning",
-    GITHUB_ACTOR_ID: "43177418",
-    GITHUB_TRIGGERING_ACTOR: "boburning",
-    GITHUB_RUN_ID: "9988",
-    GITHUB_RUN_ATTEMPT: "1",
-    GITHUB_JOB: "admission",
-    RUNNER_ENVIRONMENT: "github-hosted",
-    PORTCOVE_CONTROLLER_REVISION: source,
-    PORTCOVE_CONTROLLER_REF: ref,
-    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
-    RUNNER_TEMP: root,
-  };
-  const result: unknown = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [path.join(root, "scripts/release-reviewed-inputs.mts"), "admission"],
-      { env, encoding: "utf8" },
-    ),
+async function copyAdmissionModules(sourceRoot: string, destination: string) {
+  // Admission and held persistence refusal stop before later dynamic production
+  // imports. Runtime-selected workflow bytes remain an explicit inert fixture.
+  const inventory = readFixtureModuleClosure(sourceRoot, ["scripts/release-reviewed-inputs.mts"], {
+    includeDynamicImports: false,
+  });
+  assert.ok(inventory.external.every(isBuiltin), inventory.external.join(", "));
+  for (const module of inventory.modules) {
+    const target = path.join(destination, module.path);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, module.bytes, { flag: "wx" });
+  }
+  return inventory;
+}
+
+void test("held admission fixture refuses transitive external packages before copying", async (context) => {
+  const source = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-packages-"));
+  const destination = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-copy-"));
+  await mkdir(path.join(source, "scripts"));
+  await writeFile(
+    path.join(source, "scripts/release-reviewed-inputs.mts"),
+    'import "./helper.mts";\n',
   );
-  assert.ok(result);
-  assert.throws(() =>
-    execFileSync(
-      process.execPath,
-      [path.join(root, "scripts/release-reviewed-inputs.mts"), "persist"],
-      { env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-    ),
-  );
-  assert.match(
-    await readFile(path.join(root, "release-reviewed-inputs-persist.jsonl"), "utf8"),
-    /"status":"refused"/,
-  );
+  await writeFile(path.join(source, "scripts/helper.mts"), 'import "forbidden-fixture-package";\n');
+  await assert.rejects(copyAdmissionModules(source, destination), /forbidden-fixture-package/);
+  await assert.rejects(access(path.join(destination, "scripts")), { code: "ENOENT" });
 });
+
+for (const addedHelper of [false, true])
+  void test(`held CLI source admission runs without installed dependencies and refuses before credential operations${addedHelper ? " with a new transitive helper" : ""}`, async (context) => {
+    const root = disposableDirectory(context, path.join(os.tmpdir(), "portcove-input-admission-"));
+    const repository = fileURLToPath(new URL("..", import.meta.url));
+    if (addedHelper) {
+      const staging = disposableDirectory(
+        context,
+        path.join(os.tmpdir(), "portcove-input-source-"),
+      );
+      await copyAdmissionModules(repository, staging);
+      // Change a transitive dependency, not the fixture entry list. The fresh
+      // isolated copy must discover, copy and load the new relative helper.
+      await appendFile(
+        path.join(staging, "scripts/runtime-values.mts"),
+        '\nimport "./fixture-added/helper.mts";\n',
+      );
+      await mkdir(path.join(staging, "scripts/fixture-added"));
+      await writeFile(path.join(staging, "scripts/fixture-added/helper.mts"), "export {};\n");
+      const inventory = await copyAdmissionModules(staging, root);
+      assert.ok(
+        inventory.modules.some((module) => module.path === "scripts/fixture-added/helper.mts"),
+      );
+    } else await copyAdmissionModules(repository, root);
+    await assert.rejects(access(path.join(root, "node_modules")), { code: "ENOENT" });
+    await mkdir(path.join(root, ".github/workflows"), { recursive: true });
+    const workflow = Buffer.from("fixed inert source fixture\n");
+    await writeFile(path.join(root, ".github/workflows/release-reviewed-inputs.yml"), workflow);
+    const ref = "refs/tags/portcove-production-controller-fixture";
+    const policy = {
+      schema_version: 1,
+      mode: "admission-only",
+      execution_ref: ref,
+      revision: source,
+      workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+      actor_id: "43177418",
+    };
+    const env = {
+      ...process.env,
+      GH_TOKEN: undefined,
+      GITHUB_TOKEN: undefined,
+      PORTCOVE_CONTROL_APP_TOKEN: undefined,
+      GITHUB_ACTIONS: "true",
+      GITHUB_SERVER_URL: "https://github.com",
+      GITHUB_API_URL: "https://api.github.com",
+      GITHUB_REPOSITORY: "boburning/portcove",
+      GITHUB_REPOSITORY_ID: "1354613114",
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+      GITHUB_REF: ref,
+      GITHUB_REF_TYPE: "tag",
+      GITHUB_REF_PROTECTED: "true",
+      GITHUB_SHA: source,
+      GITHUB_WORKFLOW_SHA: source,
+      GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${ref}`,
+      GITHUB_ACTOR: "boburning",
+      GITHUB_ACTOR_ID: "43177418",
+      GITHUB_TRIGGERING_ACTOR: "boburning",
+      GITHUB_RUN_ID: "9988",
+      GITHUB_RUN_ATTEMPT: "1",
+      GITHUB_JOB: "admission",
+      RUNNER_ENVIRONMENT: "github-hosted",
+      PORTCOVE_CONTROLLER_REVISION: source,
+      PORTCOVE_CONTROLLER_REF: ref,
+      PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify(policy),
+      RUNNER_TEMP: root,
+    };
+    const result: unknown = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [path.join(root, "scripts/release-reviewed-inputs.mts"), "admission"],
+        { cwd: root, env, encoding: "utf8", timeout: 10000 },
+      ),
+    );
+    assert.ok(result);
+    assert.throws(() =>
+      execFileSync(
+        process.execPath,
+        [path.join(root, "scripts/release-reviewed-inputs.mts"), "persist"],
+        { cwd: root, env, encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "pipe"] },
+      ),
+    );
+    assert.match(
+      await readFile(path.join(root, "release-reviewed-inputs-persist.jsonl"), "utf8"),
+      /"status":"refused"/,
+    );
+  });
 
 void test("protection expiry during source acquisition refuses immediately before CAS with zero mutations", () => {
   const f = fixture();
