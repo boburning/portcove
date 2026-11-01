@@ -1968,6 +1968,7 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/release-control-inputs.test.mts",
   "scripts/release-windows-webview-driver.test.mts",
   "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
