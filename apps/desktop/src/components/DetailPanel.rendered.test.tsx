@@ -197,16 +197,16 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
     { ...port, persistent_paths: ["changed-provider-catalog-path"] },
     installRecord(),
   );
-  expect(managed).toContain("rules recorded for this installation");
-  expect(managed).toContain("Exact paths are not available");
+  expect(managed).toContain("current catalog declarations do not establish");
+  expect(managed).toContain("collection coverage is unknown");
   expect(managed).not.toContain("changed-provider-catalog-path");
   expect(managed).not.toContain("backup review");
   const retained = coverage(
     { ...preparedPort, persistent_paths: ["new-catalog-path"] },
     installRecord(),
   );
-  expect(retained).toContain("rules recorded for this installation");
-  expect(retained).toContain("Exact paths are not available");
+  expect(retained).toContain("current catalog declarations do not establish");
+  expect(retained).toContain("collection coverage is unknown");
   expect(retained).not.toContain("new-catalog-path");
   const external = coverage(preparedPort, null, {
     id: "external",
@@ -264,6 +264,10 @@ it.each([
   expect(html.includes("data-rollback-assessment")).toBe(disabled);
   const assessment = html.match(/<p\b[^>]*data-rollback-assessment[^>]*>(.*?)<\/p>/s)?.[1] ?? null;
   expect(assessment).toBe(message);
+  const versions = detailSection(html, "versions");
+  expect(versions).toContain("Older software may not understand");
+  expect(versions).toContain("newer saves or configuration");
+  expect(versions).toContain("Saved-data restore is a separate reviewed action");
 });
 
 describe("desktop components", () => {
@@ -472,7 +476,7 @@ describe("desktop components", () => {
       );
       expect(html).toContain("Check installed files");
       expect(html).toContain(`Uninstall ${currentPort.name}`);
-      expect(html).toContain("Managed by Portcove using this installation");
+      expect(html).toContain("This installation’s saved-data coverage could not be verified.");
       expect(html).toContain("Saved data follows this installation");
       expect(html).not.toContain("No saved data paths declared");
       expect(html).not.toContain("Game-owned settings and saves in the external runtime");
@@ -516,7 +520,7 @@ describe("desktop components", () => {
       const activation = html.match(/<button[^>]*>Apply update · retained-staged<\/button>/)?.[0];
       expect(activation).toBeDefined();
       expect(/\sdisabled(?:=|\s|>)/.test(activation ?? "")).toBe(Boolean(busy));
-      expect(html).toContain("Managed by Portcove using this installation");
+      expect(html).toContain("This installation’s saved-data coverage could not be verified.");
       expect(html).not.toContain("Choose game executable");
       expect(html).not.toContain("Remove registration");
       expect(html).not.toContain("Stored with your external runtime");

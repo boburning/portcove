@@ -40,7 +40,9 @@ use crate::{
 };
 
 mod backups;
+mod protection;
 use crate::AdapterKind;
+pub use protection::{InstallationProtection, PlayerDataProtection, ProtectionDeclaration};
 mod catalog_download;
 mod native_portable;
 pub(crate) mod package_selection;

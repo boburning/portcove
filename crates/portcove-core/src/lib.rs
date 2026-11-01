@@ -273,8 +273,9 @@ pub use service::{
     AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadCandidate,
     CatalogDownloadCandidates, CatalogDownloadCoverage, CatalogDownloadPreview,
     CatalogDownloadRelease, CatalogDownloadRequest, CatalogPackageAssessment,
-    IdentifiedLaunchRequest, InstallOverrides, ManagedRouteChangePreview, ManagedRouteChangeResult,
-    PendingSetupRecord, PendingSetupState, PortRemovalPreview, PortcoveService, SetupLaunchTarget,
+    IdentifiedLaunchRequest, InstallOverrides, InstallationProtection, ManagedRouteChangePreview,
+    ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState, PlayerDataProtection,
+    PortRemovalPreview, PortcoveService, ProtectionDeclaration, SetupLaunchTarget,
     SetupLaunchTargets,
 };
 pub use signed_catalog::{
