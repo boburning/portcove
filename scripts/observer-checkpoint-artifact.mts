@@ -1,7 +1,7 @@
 /** Inert, bounded continuation data. Never source, artifact or publication authority. */
 import { createHash, randomUUID } from "node:crypto";
 import { crc32, inflateRawSync } from "node:zlib";
-import { lstat, mkdir, readFile, rename, rm, writeFile, open, appendFile } from "node:fs/promises";
+import { lstat, mkdir, rename, rm, writeFile, open, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord, errorCode } from "./runtime-values.mts";
@@ -151,7 +151,11 @@ async function collectUnlockedObserverSnapshot(
   deadline = Infinity,
 ) {
   requireValue(Date.now() < deadline, "snapshot collection deadline exhausted");
-  const work = path.join(root, "work"),
+  const work = await assertOwnedUnlinkedPath(
+      root,
+      path.join(root, "work"),
+      "observer work directory",
+    ),
     directory = path.join(work, "upstream-observer");
   const bytes = await optionalFile(
     work,
@@ -255,7 +259,11 @@ export async function publishObserverSnapshot(
 ) {
   requireValue(Date.now() < deadline, "snapshot publication deadline exhausted");
   validateObserverSnapshot(snapshot, snapshot.config_sha256, Date.now());
-  const work = path.join(root, "work");
+  const work = await assertOwnedUnlinkedPath(
+    root,
+    path.join(root, "work"),
+    "observer work directory",
+  );
   await mkdir(work, { recursive: true });
   const destination = await assertOwnedUnlinkedPath(
     work,
@@ -310,7 +318,12 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   const { root, config, current, deadline, api } = options,
     now = options.now ?? Date.now;
   producer(current);
-  await mkdir(path.join(root, "work"), { recursive: true });
+  const work = await assertOwnedUnlinkedPath(
+    root,
+    path.join(root, "work"),
+    "observer work directory",
+  );
+  await mkdir(work, { recursive: true });
   let requests = 0,
     bytes = 0;
   const remaining = () => {
@@ -404,8 +417,21 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   );
   let expectedHistory = false;
   let reachedAgeBoundary = false;
+  let previousCreated = Infinity;
+  const seenRuns = new Set<number>();
   for (const raw of inventory.workflow_runs) {
-    requireValue(isRecord(raw), "run inventory invalid");
+    requireValue(
+      isRecord(raw) &&
+        Number.isSafeInteger(raw.id) &&
+        Number(raw.id) > 0 &&
+        !seenRuns.has(Number(raw.id)) &&
+        typeof raw.created_at === "string" &&
+        Number.isFinite(Date.parse(raw.created_at)) &&
+        Date.parse(raw.created_at) <= previousCreated,
+      "run inventory invalid or unordered",
+    );
+    seenRuns.add(Number(raw.id));
+    previousCreated = Date.parse(raw.created_at);
     if (raw.id === current.run || raw.status !== "completed") continue;
     requireValue(
       raw.workflow_id === workflowId &&
@@ -517,7 +543,21 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         after.digest === artifact.digest &&
         after.size_in_bytes === artifact.size_in_bytes &&
         after.expired === false &&
+        isRecord(after.workflow_run) &&
+        after.workflow_run.id === source.run &&
+        after.workflow_run.repository_id === repositoryId &&
+        after.workflow_run.head_repository_id === repositoryId &&
+        after.workflow_run.head_sha === source.source &&
         isRecord(runAfter) &&
+        runAfter.id === source.run &&
+        runAfter.workflow_id === workflowId &&
+        runAfter.path === workflow &&
+        runAfter.event === "schedule" &&
+        runAfter.head_branch === "main" &&
+        isRecord(runAfter.repository) &&
+        runAfter.repository.id === repositoryId &&
+        isRecord(runAfter.head_repository) &&
+        runAfter.head_repository.id === repositoryId &&
         runAfter.head_sha === source.source &&
         runAfter.run_attempt === source.attempt &&
         runAfter.status === "completed" &&
@@ -558,7 +598,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
       source: process.env.GITHUB_SHA ?? "",
     };
-    const config = sha256(await readFile(path.join(root, "release/upstream-observer.json")));
+    const config = sha256(
+      (await readBoundedEvidenceFile(path.join(root, "release/upstream-observer.json"), 16384))
+        .bytes,
+    );
     if (process.argv[2] === "restore" && process.argv.length === 3) {
       const deadline = Math.min(
         Date.now() + 60000,

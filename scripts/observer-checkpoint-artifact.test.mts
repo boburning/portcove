@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { newCatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
 import {
+  collectObserverSnapshot,
   validateObserverSnapshot,
   readObserverSnapshotArchive,
   publishObserverSnapshot,
@@ -303,6 +304,33 @@ void test("atomic restore refuses partial destinations, symlinks and contended l
   await rm(path.join(root, "work/upstream-observer.restore.lock"));
   await symlink(path.join(root, "work"), path.join(root, "work/upstream-observer"));
   await assert.rejects(publishObserverSnapshot(root, good), /symbolic-link/);
+});
+
+void test("a linked work ancestor cannot redirect snapshot reads or publication outside the checkout", async (t) => {
+  const root = await directory(t),
+    outside = await directory(t),
+    f = transport();
+  await writeFile(path.join(outside, "sentinel"), "preserve");
+  await symlink(outside, path.join(root, "work"));
+  const good = validateObserverSnapshot(snapshot(), config, Date.now());
+  await assert.rejects(publishObserverSnapshot(root, good), /symbolic-link/);
+  await assert.rejects(collectObserverSnapshot(root, config, source), /symbolic-link/);
+  await assert.rejects(
+    recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: f.download,
+    }),
+    /symbolic-link/,
+  );
+  assert.equal(await readFile(path.join(outside, "sentinel"), "utf8"), "preserve");
+  await assert.rejects(readFile(path.join(outside, "upstream-observer/catalog/checkpoint.json")), {
+    code: "ENOENT",
+  });
+  assert.equal(f.routes.length, 0);
 });
 
 void test("snapshot workflow keeps job-only read permission and shares the original finite output allowance", async () => {
