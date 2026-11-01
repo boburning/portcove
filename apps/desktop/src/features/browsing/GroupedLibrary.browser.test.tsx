@@ -107,7 +107,9 @@ it("requires an acknowledged choice, retains alternatives and targets the chosen
   await page.getByRole("button", { name: "Use Second project", exact: true }).first().click();
   expect(document.body.textContent).not.toContain("Play Second project");
   accept(false);
-  await expect.element(page.getByRole("alert")).toHaveTextContent("Your choice was not saved");
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("Your choice was not saved. Refresh choices before trying again.");
   expect(launch).not.toHaveBeenCalled();
   await page.getByRole("button", { name: "Use Second project", exact: true }).first().click();
   accept(true);

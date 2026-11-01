@@ -33,7 +33,11 @@ afterEach(async () => {
   delete document.documentElement.dataset.theme;
 });
 
-async function mount(theme = "dark", journey: "collection" | "collection-large" = "collection") {
+async function mount(
+  theme = "dark",
+  journey: "collection" | "collection-large" = "collection",
+  expectedLibraryEntries = journey === "collection-large" ? 60 : 12,
+) {
   localStorage.clear();
   const root = document.createElement("div");
   root.id = "root";
@@ -51,7 +55,7 @@ async function mount(theme = "dark", journey: "collection" | "collection-large" 
   );
   await expect
     .poll(() => document.querySelectorAll(".collection-entry").length)
-    .toBe(journey === "collection-large" ? 60 : 12);
+    .toBe(expectedLibraryEntries);
   document.documentElement.dataset.theme = theme;
 }
 
@@ -223,7 +227,7 @@ it("plays the distinct duplicate port from details and returns to its filtered r
 it("names exact port choices from their visible identity and readiness inside grouped Discover", async () => {
   await page.viewport(1366, 768);
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
-  await mount();
+  await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   const group = discoverGroupForPort("collection-1");
   expect(JSON.parse(group.dataset.discoverPortIds!)).toEqual(["collection-0", "collection-1"]);
@@ -514,7 +518,7 @@ for (const theme of ["dark", "light"]) {
   it(`keeps enlarged ${theme} grouped Discover artwork bounded and exact port identity reachable`, async () => {
     await page.viewport(1366, 768);
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
-    await mount(theme);
+    await mount(theme, "collection", 11);
     await page.getByRole("button", { name: "Discover", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
     const group = discoverGroupForPort("collection-1");
@@ -896,7 +900,7 @@ it("sorts actual Library entries by the selected title order without changing th
 it("keeps a grouped Discover Save unselected while pending and after a rejected write", async () => {
   await page.viewport(1024, 800);
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
-  await mount();
+  await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
   let rejectWrite!: (reason: Error) => void;

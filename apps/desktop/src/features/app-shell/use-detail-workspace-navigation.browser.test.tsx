@@ -58,17 +58,23 @@ afterEach(async () => {
 describe("detail workspace navigation", () => {
   it("switches implementations without losing the original group return and browsing scroll", async () => {
     const main = workspace.current!;
-    main.scrollTop = 114;
+    main.style.cssText = "height:100px;overflow:auto";
+    const spacer = document.createElement("div");
+    spacer.style.height = "2000px";
     const group = document.createElement("section");
     group.dataset.detailReturnGroup = "game:original";
     const trigger = document.createElement("button");
     trigger.dataset.detailOrigin = "catalog:card:port-a";
     trigger.dataset.detailGameId = "port-a";
     group.append(trigger);
-    document.body.append(group);
+    main.append(group, spacer);
+    document.body.append(main);
+    main.scrollTop = 114;
+    expect(main.scrollTop).toBe(114);
     await act(async () => navigation.open("port-a", trigger.dataset.detailOrigin));
     const staleClose = navigation.close;
     main.scrollTop = 700;
+    expect(main.scrollTop).toBe(700);
     await act(async () => navigation.replace("port-b"));
     expect(selectedId).toBe("port-b");
     await act(async () => staleClose());
