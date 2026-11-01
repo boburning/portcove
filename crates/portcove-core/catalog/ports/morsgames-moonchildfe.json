@@ -3,7 +3,7 @@
   "listing": {
     "id": "morsgames-moonchildfe",
     "name": "Moon Child (Moon Child FE)",
-    "summary": "Upstream route: Upstream runtime package for Moon Child FE; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream modern source port with autosaves/controls and restored1997content. MIT code/CC-BY-NC4assets documented; no independent full gameplay qualification. Windowsx86/x64Linuxx64/macOSuniversal binaries and browser route; LinuxARM64 source-build explicitly untested. LICENSE explicitly grants MIT code and CC BY-NC4 assets with original authors named; no player-supplied input required by README, respect noncommercial asset scope. Upstream platforms: Windows x86/x64, Linux x64, macOS universal and browser. Linux ARM64 source build expressly untested. Original data: No owner-supplied original game input specified for MoonChildFE. Port uses lateriOS code with restored1997Windows95 content. UpstreamLICENSE names original creators and grants MITcode plus CC-BY-NC4noncode assets. Respect noncommercial asset terms; source/license evidence establishes no managed gameplay/support qualification. Portcove setup/gameplay not verified.",
+    "summary": "Attach the complete Moon Child FE Windows package. Its code and bundled assets have separate MIT and noncommercial CC BY-NC4.0 terms; upstream owns runtime replacement, and player progress remains in its actual per-user or portable data folder.",
     "original_game_title": "Moon Child",
     "project_url": "https://github.com/MorsGames/MoonChildFE",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "moon-child",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2865
+    "issue_number": 2865,
+    "manual_setup": {
+      "help_url": "https://github.com/MorsGames/MoonChildFE/blob/b98445a93a8d9214fe1dedcae3870dd86731128f/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete permitted Friend Edition package",
+          "instruction": "Use a complete Moon Child FE copy you are independently permitted to use. The reviewed1.1.1 WindowsX64 ZIP contains AMD64 Moon Child FE.exe and its data tree. Keep them together in a writable extracted directory; do not select a browser build, macOS bundle or internal asset. This Friend Edition is based on the later iOS game with restored Windows95 features; the README does not require a player-supplied retail disc or original executable for this package. This guide does not obtain or execute upstream software."
+        },
+        {
+          "title": "Respect separate code and asset terms",
+          "instruction": "The pinned project LICENSE grants MIT terms for code and CC BY-NC4.0 terms for non-code assets, naming Metin Seven for graphics and Ramon Braumuller for music/sound. Retain those attributions, license terms and any component notices with the complete copy. Assets are restricted to noncommercial use; the code grant does not remove that restriction or grant trademark rights. The inspected ZIP did not include a standalone LICENSE file, so retain the authoritative upstream notice separately rather than assuming the absence removes its terms."
+        },
+        {
+          "title": "Select the normal native game",
+          "instruction": "Select Moon Child FE.exe, set its complete extracted package directory as working directory, and leave arguments empty. Review the exact selected intent, then request Play separately. The selected Windows entry runs the game host in the same process; no external launcher, compiler, original-game argument or helper is needed by this route. Static source/header inspection establishes those coordinates, not observed Windows play or dependency resolution."
+        },
+        {
+          "title": "Preserve the actual progress and settings root",
+          "instruction": "Keep the entire active MoonchildFE per-user preferences folder (normally %APPDATA%/MoonchildFE on Windows), including high scores, options and progress, plus the complete package/data directory. An already present .portable marker beside the executable redirects writable files to that package folder; preserve that existing root too. Do not add/remove the marker to move saves: this guide performs no migration. Keep independent recovery copies before updates and do not infer compatibility across editions or versions."
+        },
+        {
+          "title": "Maintain the external installation upstream",
+          "instruction": "Quit the actual game normally before replacing its package; source shutdown requests progress saving, while forced termination is not a save-flush guarantee. Complete upstream replacement outside an attached session, preserve the whole effective data root and review/relink changed executable bytes. Upstream features and automatic-progress claims remain upstream claims; no Portcove playthrough, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves all external files. Managed install/update/rollback/backup/removal are unavailable."
+        }
+      ],
+      "warnings": [
+        "Bundled assets have noncommercial CC BY-NC4.0 terms; preserve the active per-user or existing portable progress folder before upstream replacement."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

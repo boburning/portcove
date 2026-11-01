@@ -3,7 +3,7 @@
   "listing": {
     "id": "kevinfoley-herculan",
     "name": "Earthsiege 2 (Herculan)",
-    "summary": "Upstream route: Upstream runtime package for Herculan; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream 1.0 lists controller/Deck/accessibility fixes. Original official freeware download unavailable; engine package and game-data acquisition remain distinct. Windows/Linux x64 .NET bundled; original official freeware download unavailable according to upstream. No authorized game-data mirror established; runtime package remains valid owner-data route. Upstream platforms: Windows 10+ and Linux x86-64 glibc 2.34+, OpenGL 3.3/ICU. Bundled .NET; tools Windows-only; musl unsupported. Original data: Earthsiege 2 original files, installed directory or own retail CD/ISO. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach a prepared HERCULAN Windows installation for your independently permitted Earthsiege2 files. The self-contained engine owns upstream setup; retail-install saves and separate engine settings remain external player data.",
     "original_game_title": "Earthsiege 2",
     "project_url": "https://github.com/kevinfoley/Herculan",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "earthsiege-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2758
+    "issue_number": 2758,
+    "manual_setup": {
+      "help_url": "https://github.com/kevinfoley/Herculan/blob/e65c0634c741f252fa7a32064698a13caaa45530/README.MD",
+      "steps": [
+        {
+          "title": "Prepare the original-game installation upstream",
+          "instruction": "Use your own independently permitted Earthsiege2 game files. HERCULAN1.1.0 documents retail1.0, the1.0 Hi-Rez release without music, and1.10 GoldGames including French/German variants. The engine’s MIT grant does not redistribute or license original game files. Follow its original-install/CD/ISO setup outside Portcove, choose a writable installed game folder and retain the source disc/image. A disc itself is not the writable installation; no third-party game mirror, original acquisition or setup is performed here."
+        },
+        {
+          "title": "Choose the engine package, not the editing tools",
+          "instruction": "The inspected HERCULAN-1.1.0-win-x64.zip contains AMD64 Herculan.exe with native DLLs, Assets, notices and other matching companions. Keep the complete extracted package. It is a self-contained .NET release; HercWorksCSharp is a different data-viewing/editing tool and is not this player. Upstream specifies Windows10 or newer, x86-64 and OpenGL3.3; package/header inspection alone is not a runtime compatibility pass."
+        },
+        {
+          "title": "Select the prepared normal player",
+          "instruction": "After upstream setup has remembered the intended original installation, select Herculan.exe, use its complete extracted package directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The normal host runs the shell/game loop in its own process. If an install prompt opens, finish that setup outside the attached attempt before retrying. An established ES2_GAME_PATH or remembered install can select a different data root; confirm the intended copy rather than creating an override here."
+        },
+        {
+          "title": "Preserve original saves and separate engine settings",
+          "instruction": "Back up the retail installation before switching engines, as upstream requests. Keep the entire writable Earthsiege2 install: SAV holds save slots and GAMEFILE.STR, while DATA contains working mission/player files. Engine preferences and install-path.txt live separately in %APPDATA%/Herculan; current logs are in %LOCALAPPDATA%/Herculan, with older logs potentially in the roaming folder. Retain every established custom install/root, disc/music source and settings file. This attachment does not migrate, test compatibility, import or back up saves."
+        },
+        {
+          "title": "Keep maintenance and acceptance explicit",
+          "instruction": "Quit the actual game normally and close tools before upstream replacement or repair, retain independent recovery copies, and review/relink executable bytes after changes. Preserve MIT and all bundled component notices; those grants do not extend to Earthsiege2. HERCULAN is beta and upstream feature/retail-save compatibility statements remain upstream claims, not a Portcove play or save/reload pass. Removing registration preserves every external file. Portcove offers no managed install, update, rollback, backup or external removal and no Supported/native/installed-app acceptance here."
+        }
+      ],
+      "warnings": [
+        "Back up the original retail installation before switching engines; game saves and engine preferences are in different locations."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

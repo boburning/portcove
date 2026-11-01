@@ -3,13 +3,45 @@
   "listing": {
     "id": "mr-finster-vf2-recomp",
     "name": "Virtua Fighter 2 (Virtua Fighter 2 Recomp)",
-    "summary": "Upstream route: Upstream runtime package for Virtua Fighter 2 Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Bounded lockstep/frame/picture checks upstream. Online not yet; these checks do not establish full hardware/gameplay qualification. Only i960 CPU recompiled; Model2A board/TGP hardware still emulated. Windows/macOS/Deck packages; online not yet, independent from VF1/VF3. Upstream platforms: Windows/macOS/Steam Deck package family. i960 native compilation plus Model2A/TGP hardware model; exact Mac CPU follows docs. Original data: ArcadeModel2 VirtuaFighter2 MAME vf2.zip v2.1 own set. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach a prepared Virtua Fighter 2 Windows installation using your own exact arcade ROM set. Its Intel i960 program recompiled from your ROM at each startup; the Model2A board, TGP/renderer and sound devices still use separate MAME-derived implementation. Upstream owns ROM preparation, player data and runtime replacement.",
     "original_game_title": "Virtua Fighter 2",
     "project_url": "https://github.com/mr-finster/vf2-recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mr-finster/vf2-recomp",
-    "issue_number": 2834
+    "issue_number": 2834,
+    "manual_setup": {
+      "help_url": "https://github.com/mr-finster/vf2-recomp/blob/5e8bb67fa5235e2c0df843c8651049e6a785a89e/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact own-ROM game upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own vf2.zip (MAME vf2 set, Version2.1). The reviewed0.1.16 runtime reads and recompiles that input locally when it starts; no ROM is supplied by this guide. Follow upstream first-run selection/checks outside Portcove and retain the original archive before any picker copies it into the active roms folder. Another game’s similarly named set is not interchangeable. No original, game program, helper, reference build or test mode is obtained or executed here."
+        },
+        {
+          "title": "Keep this complete native Windows package",
+          "instruction": "The inspected selected Windows ZIP contains AMD64 VirtuaFighter2/VirtuaFighter2.exe with its matching assets/resources and LICENSES.txt. Keep the complete VirtuaFighter2 directory. The actual mechanism is Intel i960 program recompiled from your ROM at each startup; the Model2A board, TGP/renderer and sound devices still use separate MAME-derived implementation; do not describe the whole arcade hardware as recompiled native code or inherit another title’s qualification. Do not select a headless/reference/lockstep tool, ROM archive or another platform’s launcher as the registered executable."
+        },
+        {
+          "title": "Select the prepared ordinary player",
+          "instruction": "Select VirtuaFighter2.exe, use its complete extracted VirtuaFighter2 directory as working directory and leave arguments empty after upstream setup has located the intended ROM. Review the exact selected intent, then request Play separately. The ordinary SDL host runs the game in the selected process. If it asks for setup again, complete that outside the attached attempt before retrying. Source/header inspection establishes coordinates, not native execution, dynamic dependency resolution or gameplay."
+        },
+        {
+          "title": "Preserve the effective ROM and player-data locations",
+          "instruction": "Keep the complete active data folder, normally %APPDATA%/Virtua Fighter 2 Recomp on Windows, including settings.ini, roms, backup1 and eeprom, log.txt and screenshots/resources. An existing portable.txt mode or package-local roms/source-tree route can select another root; keep the actual location named by the upstream log. An already configured --roms, VF2_ROMS or settings.ini roms_folder selects a separate ROM folder, and an established VF2_DATA selects another data root. Retain all of them and original archives. This guide adds no override/portable marker, copies no ROM and performs no save migration."
+        },
+        {
+          "title": "Keep per-title restarts and maintenance external",
+          "instruction": "For this title, retain the original Version2.1 set and do not infer compatibility with VF1 or VF3. Complete upstream edition changes, arcade/service reset paths, setup and runtime replacement outside an attached session. Close the actual game and any successor, preserve independent recovery copies, then review/relink changed executable bytes. Quit normally so upstream can save NVRAM/settings; forced termination is not a flush or quiescence guarantee. Removing registration leaves all external files intact."
+        },
+        {
+          "title": "Retain permissions and observed limits",
+          "instruction": "Preserve the selected upstream/LICENSES.txt and component notices: MIT for its own code, MAME-derived BSD3-Clause parts, separate font/library terms and CC BY4.0 art/icon attribution to Mr Finster. Own-code grants do not grant SEGA original-game rights; the reference/tool terms do not automatically cover the player. Windows/macOS/Linux and online results are upstream claims, not Portcove observations. No Portcove online, gameplay, save/reload, installed-app or Supported acceptance is claimed. Portcove does not own managed installation, runtime updates, rollback, backup, ROMs or external deletion for this registration."
+        }
+      ],
+      "warnings": [
+        "Use the exact own-ROM Virtua Fighter 2 set and preserve every active data/ROM root; another arcade title or edition does not establish permission or save compatibility."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

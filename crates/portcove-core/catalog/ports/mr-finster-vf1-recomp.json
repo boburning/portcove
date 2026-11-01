@@ -3,13 +3,45 @@
   "listing": {
     "id": "mr-finster-vf1-recomp",
     "name": "Virtua Fighter (Virtua Fighter Recomp)",
-    "summary": "Upstream route: Upstream runtime package for Virtua Fighter Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Bounded upstream interpreter/MAME checks and gameplay claims. Online not yet; full hardware/playthrough qualification not established by lockstep checks. V60 compiled dynamically with Model1 hardware/TGP emulation; Windows/macOS/Deck packages. Online not yet; exact set/layout and CPU coverage retained. Upstream platforms: Windows/macOS/SteamDeck runtime family; native V60 compilation plus Model1/TGP model. Exact host CPU matrix follows selected docs. Original data: ArcadeModel1 VirtuaFighter MAMEvf.zip own set. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach a prepared Virtua Fighter Windows installation using your own exact arcade ROM set. Its V60 program recompiled dynamically from your ROM at startup; Model1 board/TGP devices remain implemented/emulated separately. Upstream owns ROM preparation, player data and runtime replacement.",
     "original_game_title": "Virtua Fighter",
     "project_url": "https://github.com/mr-finster/vf1-recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mr-finster/vf1-recomp",
-    "issue_number": 2863
+    "issue_number": 2863,
+    "manual_setup": {
+      "help_url": "https://github.com/mr-finster/vf1-recomp/blob/9586e1433366f8af6aa80659dc1f9f45291a086d/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact own-ROM game upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use, with your own vf.zip (MAME vf set). The reviewed1.5.0 runtime reads and recompiles that input locally when it starts; no ROM is supplied by this guide. Follow upstream first-run selection/checks outside Portcove and retain the original archive before any picker copies it into the active roms folder. Another game’s similarly named set is not interchangeable. No original, game program, helper, reference build or test mode is obtained or executed here."
+        },
+        {
+          "title": "Keep this complete native Windows package",
+          "instruction": "The inspected selected Windows ZIP contains AMD64 VirtuaFighter/VirtuaFighter.exe with its matching assets/resources and LICENSES.txt. Keep the complete VirtuaFighter directory. The actual mechanism is V60 program recompiled dynamically from your ROM at startup; Model1 board/TGP devices remain implemented/emulated separately; do not describe the whole arcade hardware as recompiled native code or inherit another title’s qualification. Do not select a headless/reference/lockstep tool, ROM archive or another platform’s launcher as the registered executable."
+        },
+        {
+          "title": "Select the prepared ordinary player",
+          "instruction": "Select VirtuaFighter.exe, use its complete extracted VirtuaFighter directory as working directory and leave arguments empty after upstream setup has located the intended ROM. Review the exact selected intent, then request Play separately. The ordinary SDL host runs the game in the selected process. If it asks for setup again, complete that outside the attached attempt before retrying. Source/header inspection establishes coordinates, not native execution, dynamic dependency resolution or gameplay."
+        },
+        {
+          "title": "Preserve the effective ROM and player-data locations",
+          "instruction": "Keep the complete active data folder, normally %APPDATA%/Virtua Fighter Recomp on Windows, including settings.ini, roms, nvram.sav, eeprom.sav or eeprom_93c46.sav, ranking_names.txt, log.txt and screenshots/resources. An existing portable.txt mode or package-local roms/source-tree route can select another root; keep the actual location named by the upstream log. An already configured --roms, VF_ROMS or settings.ini roms_folder selects a separate ROM folder, and an established VF_DATA selects another data root. Retain all of them and original archives. This guide adds no override/portable marker, copies no ROM and performs no save migration."
+        },
+        {
+          "title": "Keep per-title restarts and maintenance external",
+          "instruction": "For this title, the Model1 I/O board choice changes EEPROM representation; keep both existing EEPROM files. Complete upstream edition changes, arcade/service reset paths, setup and runtime replacement outside an attached session. Close the actual game and any successor, preserve independent recovery copies, then review/relink changed executable bytes. Quit normally so upstream can save NVRAM/settings; forced termination is not a flush or quiescence guarantee. Removing registration leaves all external files intact."
+        },
+        {
+          "title": "Retain permissions and observed limits",
+          "instruction": "Preserve the selected upstream/LICENSES.txt and component notices: MIT for its own code, MAME-derived BSD3-Clause parts, and separately licensed third-party/font components. Own-code grants do not grant SEGA original-game rights; the reference/tool terms do not automatically cover the player. Windows/macOS/Linux and online results are upstream claims, not Portcove observations. No Portcove online, gameplay, save/reload, installed-app or Supported acceptance is claimed. Portcove does not own managed installation, runtime updates, rollback, backup, ROMs or external deletion for this registration."
+        }
+      ],
+      "warnings": [
+        "Use the exact own-ROM Virtua Fighter set and preserve every active data/ROM root; another arcade title or edition does not establish permission or save compatibility."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
