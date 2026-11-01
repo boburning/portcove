@@ -13,7 +13,7 @@ import {
 } from "./release-catalog-inspection.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
-void test("shared Core machine reader pins current84 and refuses old/future schemas, malformed envelopes and reflected authority", async () => {
+void test("shared Core machine reader supports retained84 and current85 while refusing unknown schemas and reflected authority", async () => {
   const core = await readFile(
     new URL("../crates/portcove-core/src/lib.rs", import.meta.url),
     "utf8",
@@ -21,7 +21,7 @@ void test("shared Core machine reader pins current84 and refuses old/future sche
   const declarations = [...core.matchAll(/^pub const API_SCHEMA_VERSION: u32 = ([0-9]+);\r?$/gmu)];
   assert.deepEqual(
     declarations.map((match) => Number(match[1])),
-    [84],
+    [85],
   );
   const index = Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}');
   const files = new Map([["definitions/index.json", index]]);
@@ -41,14 +41,19 @@ void test("shared Core machine reader pins current84 and refuses old/future sche
     data: report,
   };
   assert.deepEqual(readCatalogCoreMachineEnvelope(JSON.stringify(envelope), "", files), report);
+  assert.deepEqual(
+    readCatalogCoreMachineEnvelope(JSON.stringify({ ...envelope, schema_version: 84 }), "", files),
+    report,
+  );
   for (const change of [
     { schema_version: 79 },
     { schema_version: 80 },
     { schema_version: 81 },
     { schema_version: 82 },
     { schema_version: 83 },
-    { schema_version: 85 },
+    { schema_version: 86 },
     { schema_version: "84" },
+    { schema_version: "85" },
     { command: "catalog.list" },
     { ok: false },
     { ok: "true" },

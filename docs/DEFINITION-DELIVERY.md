@@ -1125,6 +1125,13 @@ missing, extra, changed, linked or unsupported content refuses. The bounds are
 records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
+The maintained release inspector and its real-CLI build fixtures accept API84
+and API85 machine envelopes for this unchanged publication-schema-1 report.
+They retain exact envelope/report validation, byte binding and same-process
+inspection custody; unknown versions and reflected authority remain refused.
+This compatibility window changes no publisher, Root, signature or acceptance
+authority, and does not relabel earlier API84 observations.
+
 The release tool provides `sign-offline-definition-targets CONFIG`,
 `sign-definition-role ROLE CONFIG` and `assemble-definition-repository CONFIG`.
 Catalog Root and offline Targets remain separate from application authority.
