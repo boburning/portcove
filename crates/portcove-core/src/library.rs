@@ -2644,7 +2644,7 @@ impl Library {
             return Ok((Vec::new(), metrics));
         }
         metrics.record_query();
-        let acquisitions = crate::service::game_update_acquisition::views_from(connection)?;
+        let acquisitions = crate::operation::acquisition::views_from(connection)?;
         let mut ports = ports.to_vec();
         if include_acquisition_owners {
             let mut missing = acquisitions

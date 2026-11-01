@@ -22,6 +22,9 @@ use crate::{
     OperationTarget, OutputRelocationPlan, PortcoveError, Result, SourceImportPlan, database,
 };
 
+pub(crate) mod acquisition;
+pub(crate) mod publication;
+
 pub const OPERATION_EVENT_SCHEMA_VERSION: u32 = 3;
 
 #[cfg(test)]
@@ -144,7 +147,7 @@ pub(crate) struct LifecycleOperation {
     pub phase: LifecyclePhase,
     pub paths: LifecyclePaths,
     pub install: Option<InstallRecord>,
-    pub update_acquisition: Option<crate::service::game_update_acquisition::AcquisitionJournal>,
+    pub update_acquisition: Option<acquisition::AcquisitionJournal>,
     pub relocation: Option<OutputRelocationPlan>,
     pub source_import: Option<SourceImportPlan>,
     pub preparation: Option<crate::PreparationPlan>,
@@ -166,6 +169,53 @@ pub(crate) struct LifecycleOperation {
 }
 
 impl LifecycleOperation {
+    /// Codec-level family discrimination. Path and transition rules remain with
+    /// the checked family, never inferred by a caller from an optional payload.
+    pub(crate) fn validate_family(&self) -> Result<()> {
+        use LifecycleOperationKind::*;
+        if (self.install.is_some()
+            && !matches!(
+                self.kind,
+                Install | Adopt | Prepare | Activate | GhostshipRecovery
+            ))
+            || (self.relocation.is_some() != (self.kind == Relocate))
+            || (self.source_import.is_some() != (self.kind == ImportSource))
+            || (self.preparation.is_some() && self.kind != Prepare)
+            || (self.preparation_process_quiesced.is_some()
+                && !matches!(self.kind, Prepare | Install))
+            || (self.removal_installs.is_some() && self.kind != Remove)
+            || (matches!(self.kind, Install | Adopt | Prepare)
+                && matches!(
+                    self.phase,
+                    LifecyclePhase::Prepared
+                        | LifecyclePhase::PayloadPublished
+                        | LifecyclePhase::MetadataCommitted
+                )
+                && self.install.is_none())
+            || (self.kind == Activate
+                && (self.install.is_none()
+                    || !matches!(
+                        self.phase,
+                        LifecyclePhase::Preparing | LifecyclePhase::MetadataCommitted
+                    )))
+        {
+            return Err(PortcoveError::state(
+                "lifecycle journal has a missing or foreign family payload",
+            ));
+        }
+        validate_external_replacement(
+            self.kind,
+            self.activate,
+            self.external_registration_sha256.as_deref(),
+        )?;
+        validate_private_family(
+            self.kind,
+            &self.port_id,
+            self.ghostship_recovery.is_some(),
+            self.backup_deletion.is_some(),
+        )
+    }
+
     pub fn new(
         id: impl Into<String>,
         kind: LifecycleOperationKind,
@@ -212,24 +262,8 @@ impl OperationStore {
     }
 
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
-        validate_external_replacement(
-            operation.kind,
-            operation.activate,
-            operation.external_registration_sha256.as_deref(),
-        )?;
-        validate_private_family(
-            operation.kind,
-            &operation.port_id,
-            operation.ghostship_recovery.is_some(),
-            operation.backup_deletion.is_some(),
-        )?;
-        crate::service::game_update_acquisition::validate_journal(&self.library, operation)?;
-        if operation.removal_installs.is_some() && operation.kind != LifecycleOperationKind::Remove
-        {
-            return Err(PortcoveError::state(
-                "removal installation identities belong only to removal",
-            ));
-        }
+        operation.validate_family()?;
+        acquisition::validate_journal(&self.library, operation)?;
         operation.updated_at = Library::now();
         for path in operation
             .paths
@@ -285,11 +319,7 @@ impl OperationStore {
         let mut connection = database::connect(self.library.root())?;
         let transaction =
             connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        crate::service::game_update_acquisition::require_capacity(
-            &transaction,
-            operation,
-            update_acquisition_json.as_deref(),
-        )?;
+        acquisition::require_capacity(&transaction, operation, update_acquisition_json.as_deref())?;
         if operation.kind != LifecycleOperationKind::AcquireUpdate {
             crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;
         }
@@ -431,17 +461,6 @@ impl OperationStore {
                 removal_installs_json,
             ) = row?;
             let kind = kind.parse()?;
-            validate_external_replacement(
-                kind,
-                activate != 0,
-                external_registration_sha256.as_deref(),
-            )?;
-            validate_private_family(
-                kind,
-                &port_id,
-                ghostship_recovery_json.is_some(),
-                backup_deletion_json.is_some(),
-            )?;
             let operation = LifecycleOperation {
                 id,
                 kind,
@@ -470,7 +489,7 @@ impl OperationStore {
                     .transpose()?,
                 preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
                 external_registration_sha256,
-                update_acquisition: crate::service::game_update_acquisition::decode_journal(
+                update_acquisition: acquisition::decode_journal(
                     update_acquisition_json.as_deref(),
                 )?,
                 ghostship_recovery: ghostship_recovery_json
@@ -484,14 +503,8 @@ impl OperationStore {
                 created_at,
                 updated_at,
             };
-            if operation.removal_installs.is_some()
-                && operation.kind != LifecycleOperationKind::Remove
-            {
-                return Err(PortcoveError::state(
-                    "removal installation identities belong only to removal",
-                ));
-            }
-            crate::service::game_update_acquisition::validate_journal(&self.library, &operation)?;
+            operation.validate_family()?;
+            acquisition::validate_journal(&self.library, &operation)?;
             Ok(operation)
         })
         .collect()
