@@ -122,6 +122,10 @@ import {
   externalRuntimePickerObservation,
   externalRuntimeReviewScenario,
 } from "./desktop-external-runtime-test.mts";
+import {
+  prepareRegisteredSourceReuseInputs,
+  registeredSourceReuseScenario,
+} from "./desktop-source-reuse-test.mts";
 import { prepareRealRuntimeInputs, realRuntimeScenario } from "./desktop-real-runtime-test.mts";
 import {
   nativePickerObservation,
@@ -352,6 +356,9 @@ let installFixture:
     })
   | undefined;
 let externalFixture: Awaited<ReturnType<typeof createExternalRuntimeFixture>> | undefined;
+let registeredSourceReuseFixture:
+  | Awaited<ReturnType<typeof prepareRegisteredSourceReuseInputs>>
+  | undefined;
 let realRuntimeFixture: Awaited<ReturnType<typeof prepareRealRuntimeInputs>> | undefined;
 let bootstrapRecoveryFixture:
   | Awaited<ReturnType<typeof prepareBootstrapRecoveryFixture>>
@@ -687,7 +694,8 @@ function validateBackupFocusInventory(
     checks,
     application,
     nativeDriverPath,
-    acquisitionJourney: executionPlan.fixtures.acquisitionJourney,
+    acquisitionJourney:
+      executionPlan.fixtures.acquisitionJourney || executionPlan.fixtures.registeredSourceReuse,
     acquisitionLaunchSessions: () => acquisitionLaunchSessions(deadline),
   });
 }
@@ -1583,7 +1591,7 @@ async function connect() {
     () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
     30_000,
   );
-  if (executionPlan.fixtures.acquisitionJourney) {
+  if (executionPlan.fixtures.acquisitionJourney || executionPlan.fixtures.registeredSourceReuse) {
     const snapshot = path.join(
       output,
       `acquisition-connected-${connectedLaunches + 1}-processes.json`,
@@ -1983,7 +1991,10 @@ interface RestartObservation {
 const acquisitionGameObserver: AcquisitionGameObserver = {
   capture(game, name) {
     assert.equal(process.platform, "win32");
-    assert.ok(executionPlan.fixtures.acquisitionJourney && identityBoundSession);
+    assert.ok(
+      (executionPlan.fixtures.acquisitionJourney || executionPlan.fixtures.registeredSourceReuse) &&
+        identityBoundSession,
+    );
     const { executable } = game;
     const canonical = (value: string) =>
       path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
@@ -2571,6 +2582,20 @@ try {
     );
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
   }
+  if (selection.selected_scenarios.includes("native-registered-source-reuse")) {
+    const original = process.env.PORTCOVE_SOURCE_REUSE_ORIGINAL;
+    assert.ok(
+      original && path.isAbsolute(original),
+      "Source reuse requires an explicit absolute original ZIP",
+    );
+    registeredSourceReuseFixture = await prepareRegisteredSourceReuseInputs({
+      output,
+      library,
+      cli: required(values["preparation-cli"]),
+      original,
+    });
+    inputs.push(registeredSourceReuseFixture.before, registeredSourceReuseFixture.copy);
+  }
   if (selection.selected_scenarios.includes("native-real-prepared-runtime")) {
     const manifest = process.env.PORTCOVE_REAL_RUNTIME_INPUTS;
     assert.ok(
@@ -2743,6 +2768,26 @@ try {
       interruptHost: interruptCheckpointHost,
     });
   });
+  if (selection.selected_scenarios.includes("native-registered-source-reuse")) {
+    await registeredSourceReuseScenario({
+      browser: driverBrowser(),
+      output,
+      artifacts,
+      scenario,
+      library,
+      cli: required(values["preparation-cli"]),
+      fixture: required(registeredSourceReuseFixture),
+      application,
+      ownedGameProcess: acquisitionGameObserver,
+      ownedLaunchSessions: () => acquisitionLaunchSessions(performance.now() + 30000),
+      confirmNative: nativeConfirmation({
+        application,
+        getDriverPid: () => required(required(driver).pid),
+        output,
+        artifacts,
+      }),
+    });
+  }
   await scenario("native-real-prepared-runtime", async () => {
     const pickerContext = {
       application,

@@ -446,6 +446,7 @@ export class OwnedNativeSession {
         (check) =>
           [
             "native-real-prepared-runtime",
+            "native-registered-source-reuse",
             "native-reviewed-backup-restore-and-delete",
             "native-reviewed-source-reference-removal",
             "native-reviewed-steam-batch-add",

@@ -171,6 +171,152 @@ mod tests {
     };
     const PORT: &str = "zelda64-recomp";
 
+    fn source_setup_fixture(
+        variant: &str,
+    ) -> (
+        tempfile::TempDir,
+        crate::PortcoveService,
+        std::path::PathBuf,
+    ) {
+        let (temporary, configured, path) = crate::source_reuse::tests::fixture(variant);
+        let mut service = service_with_release(configured.library().clone(), "v1");
+        service.replace_catalog_for_test(configured.catalog().clone());
+        (temporary, service, path)
+    }
+
+    #[tokio::test]
+    async fn known_excluded_override_refuses_before_changing_the_registered_original() {
+        let (temporary, service, original) = source_setup_fixture("ntsc-u-1-0");
+        let baseline = serde_json::to_value(service.library().sources().unwrap()).unwrap();
+        let excluded = temporary.path().join("controlled-gamecube.z64");
+        std::fs::write(&excluded, crate::source_reuse::tests::GC_BYTES).unwrap();
+        let error = service
+            .install(PORT, None, Some(&excluded), None, true, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::SourceInvalid);
+        assert!(error.message.contains("not supported"));
+        assert!(error.message.contains("Choose"));
+        assert_eq!(
+            serde_json::to_value(service.library().sources().unwrap()).unwrap(),
+            baseline
+        );
+        assert!(service.status(PORT).unwrap().active.is_none());
+        assert_eq!(
+            std::fs::read(original).unwrap(),
+            crate::source_reuse::tests::USA_BYTES
+        );
+        assert_eq!(
+            std::fs::read(excluded).unwrap(),
+            crate::source_reuse::tests::GC_BYTES
+        );
+    }
+
+    #[tokio::test]
+    async fn known_excluded_saved_original_refuses_fresh_setup_without_rebaselining() {
+        let (_temporary, service, _) = source_setup_fixture("ntsc-u-gamecube");
+        let baseline = serde_json::to_value(service.library().sources().unwrap()).unwrap();
+        let error = service
+            .install(PORT, None, None, None, true, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::SourceInvalid);
+        assert_eq!(
+            serde_json::to_value(service.library().sources().unwrap()).unwrap(),
+            baseline
+        );
+        assert!(service.status(PORT).unwrap().active.is_none());
+    }
+
+    #[test]
+    fn original_setup_preserves_supported_replacements_and_unknown_informational_inputs() {
+        use crate::OperationCoordinator;
+        let (temporary, service, gamecube) = source_setup_fixture("ntsc-u-gamecube");
+        let operation = OperationCoordinator::new("source-setup-contract", None);
+        {
+            let port = service.catalog().port("2ship2harkinian").unwrap();
+            let _lock = service
+                .library()
+                .try_lock_port(&port.id, "install")
+                .unwrap();
+            let accepted = service
+                .validate_and_remember_source(port, Some(&gamecube), &operation)
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                accepted.sha256,
+                service
+                    .library()
+                    .source("majoras-mask")
+                    .unwrap()
+                    .unwrap()
+                    .sha256
+            );
+        }
+        let usa = temporary.path().join("selected-usa.z64");
+        std::fs::write(&usa, crate::source_reuse::tests::USA_BYTES).unwrap();
+        let unknown = temporary.path().join("selected-unknown.z64");
+        std::fs::write(
+            &unknown,
+            b"\x80\x37\x12\x40controlled legacy informational input",
+        )
+        .unwrap();
+        for selected in [&usa, &unknown] {
+            let port = service.catalog().port(PORT).unwrap();
+            let _lock = service.library().try_lock_port(PORT, "install").unwrap();
+            let accepted = service
+                .validate_and_remember_source(port, Some(selected), &operation)
+                .unwrap()
+                .unwrap();
+            assert_eq!(accepted.path, std::fs::canonicalize(selected).unwrap());
+        }
+        let review = service.review_source_reuse("majoras-mask").unwrap();
+        let app = review
+            .applications
+            .iter()
+            .find(|app| app.port_id == PORT)
+            .unwrap();
+        assert_eq!(
+            app.compatibility,
+            crate::SourceReuseCompatibility::Potential
+        );
+        assert!(app.can_review_setup);
+        assert_eq!(
+            review
+                .inspection
+                .applications
+                .iter()
+                .find(|app| app.port_id == PORT)
+                .unwrap()
+                .contract
+                .admission_mode,
+            crate::CatalogAdmissionMode::Informational
+        );
+    }
+
+    #[tokio::test]
+    async fn known_excluded_inbox_candidate_is_not_registered_during_fresh_setup() {
+        let (temporary, configured, _) = source_setup_fixture("ntsc-u-1-0");
+        let library = Library::open(temporary.path().join("inbox-library")).unwrap();
+        let mut service = service_with_release(library.clone(), "v1");
+        service.replace_catalog_for_test(configured.catalog().clone());
+        let inbox = library.source_inbox_profile_dir("majoras-mask").unwrap();
+        std::fs::create_dir_all(&inbox).unwrap();
+        let selected = inbox.join("controlled-gamecube.z64");
+        std::fs::write(&selected, crate::source_reuse::tests::GC_BYTES).unwrap();
+        let error = service
+            .install(PORT, None, None, None, true, |_| {})
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::SourceInvalid);
+        assert!(library.sources().unwrap().is_empty());
+        assert!(service.status(PORT).unwrap().active.is_none());
+        assert_eq!(
+            std::fs::read(selected).unwrap(),
+            crate::source_reuse::tests::GC_BYTES
+        );
+    }
+
     #[tokio::test]
     async fn checked_original_reuse_guard_survives_the_existing_install_path_without_reregistering()
     {

@@ -326,6 +326,26 @@ impl PortcoveService {
         Ok(registered)
     }
 
+    pub(super) fn verified_original_for_setup(
+        &self,
+        port: &crate::PortDefinition,
+    ) -> Result<SourceRecord> {
+        let profile_id = port
+            .source_profile
+            .as_deref()
+            .ok_or_else(|| PortcoveError::state("original-file setup requires a source profile"))?;
+        let registered = self.library.source(profile_id)?.ok_or_else(|| {
+            PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
+        })?;
+        let assessment = crate::source_inspection::verify_registered_assessment_with_checkpoint(
+            &self.catalog,
+            &registered,
+            &|| Ok(()),
+        )?;
+        self.require_original_setup_compatibility(port, &assessment.classification)?;
+        Ok(registered)
+    }
+
     pub(super) fn verified_source_record_with_checkpoint(
         &self,
         catalog: &Catalog,

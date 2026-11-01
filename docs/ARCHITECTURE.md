@@ -2225,6 +2225,14 @@ Source registration is a core-owned mutation. All source writers take a library/
 
 #### Inspection, source contracts and evidence
 
+Fresh original-file setup checks a recognized edition against the selected
+integration's nonempty supported-variant list before registering an override or
+inbox candidate, or using a saved registration. A known exclusion fails without
+replacing the saved baseline. Saved-source checks reuse the assessment computed
+by baseline verification. Unknown informational inputs and contracts without a
+listed variant set retain their existing admission; this setup check does not
+change generic source registration or installed-runtime launch policy.
+
 `source_assessment` defines the shared source fact contract: existing
 `SourceHealth` (including selected bytes without a baseline), classification,
 reviewed release-contract result, actual admission/mode/reason, and scoped

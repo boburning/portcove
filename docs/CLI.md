@@ -600,6 +600,10 @@ gameplay verification. Informational admission remains informational, with its
 legacy evidence gap and additional checks visible. For example, 2Ship lists
 Majora's Mask USA 1.0 and USA GameCube, while Zelda64 lists USA 1.0 only.
 One shared profile does not make the GameCube edition compatible with Zelda64.
+Fresh setup also checks known editions before accepting an explicit replacement,
+reusing a saved original or registering an inbox candidate. A known excluded
+edition leaves the saved registration unchanged and names the required edition.
+Unknown informational inputs retain their existing admission and additional checks.
 
 In Desktop Add games, **Use saved original files** checks the existing location
 and opens an eligible integration's ordinary setup review without another file

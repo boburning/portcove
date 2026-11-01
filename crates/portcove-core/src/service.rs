@@ -3425,14 +3425,17 @@ impl PortcoveService {
         };
         if let Some(path) = source_override {
             let _guards = self.lock_source_dependents(profile_id, Some(&port.id))?;
-            let source = self.inspect_source_record(profile_id, path)?;
+            let inspection = self.inspect_source(profile_id, path)?;
+            let classification = inspection.assessment.classification.clone();
+            let source = inspection.require_admitted_record()?;
+            self.require_original_setup_compatibility(port, &classification)?;
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
-        match self.verified_source_record(profile_id) {
+        match self.verified_original_for_setup(port) {
             Ok(source) => Ok(Some(source)),
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), operation)
+                .resolve_and_register_inbox_source(profile_id, Some(&port.id), Some(port), operation)
                 .map(Some)
                 .map_err(|error| {
                     if error.code == crate::ErrorCode::NotFound {
@@ -3468,7 +3471,7 @@ impl PortcoveService {
         match self.verified_source_record(profile_id) {
             Ok(source) => Ok(Some(source)),
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), operation)
+                .resolve_and_register_inbox_source(profile_id, Some(&port.id), None, operation)
                 .map(Some)
                 .map_err(|error| {
                     if error.code == crate::ErrorCode::NotFound {
@@ -3490,10 +3493,19 @@ impl PortcoveService {
         &self,
         profile_id: &str,
         already_locked: Option<&str>,
+        setup_port: Option<&PortDefinition>,
         operation: &OperationCoordinator,
     ) -> Result<SourceRecord> {
+        if setup_port.is_some_and(|port| port.source_profile.as_deref() != Some(profile_id)) {
+            return Err(PortcoveError::state(
+                "setup original-file profile does not match the selected integration",
+            ));
+        }
         let _guards = self.lock_source_dependents(profile_id, already_locked)?;
         if let Some(registered) = self.library.source(profile_id)? {
+            if let Some(port) = setup_port {
+                return self.verified_original_for_setup(port);
+            }
             self.verify_source_record(&registered)?;
             return Ok(registered);
         }
@@ -3520,7 +3532,11 @@ impl PortcoveService {
                     .detail("profile_id", profile_id)
                     .detail("path", selected.path.display().to_string()));
                 }
+                let classification = inspection.assessment.classification.clone();
                 let source = inspection.require_admitted_record()?;
+                if let Some(port) = setup_port {
+                    self.require_original_setup_compatibility(port, &classification)?;
+                }
                 self.library.register_source(&source)?;
                 Ok(source)
             }

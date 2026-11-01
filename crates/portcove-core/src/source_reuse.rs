@@ -136,6 +136,79 @@ impl PortcoveService {
         }
         Ok(guard)
     }
+
+    /// A profile match is not permission to replace originals for an integration
+    /// which explicitly lists different editions. Unknown informational inputs
+    /// keep their existing admission and this never changes launch policy.
+    pub(crate) fn require_original_setup_compatibility(
+        &self,
+        port: &crate::PortDefinition,
+        classification: &SourceClassification,
+    ) -> Result<()> {
+        let Some(profile_id) = port.source_profile.as_deref() else {
+            return Ok(());
+        };
+        let Some(catalog) = self.catalog().source_catalog() else {
+            return Ok(());
+        };
+        let contracts = catalog
+            .contracts
+            .iter()
+            .filter(|contract| {
+                contract.port_id == port.id
+                    && contract.profile_id == profile_id
+                    && contract.role == PortSourceRole::Game
+            })
+            .collect::<Vec<_>>();
+        let [contract] = contracts.as_slice() else {
+            return Ok(());
+        };
+        if listed_variant_support(contract, classification) != Some(false) {
+            return Ok(());
+        }
+        let required = catalog
+            .identities
+            .iter()
+            .filter(|profile| profile.id == profile_id)
+            .flat_map(|profile| &profile.variants)
+            .filter(|variant| contract.supported_variant_ids.contains(&variant.id))
+            .map(|variant| {
+                [
+                    Some(variant.title.as_str()),
+                    variant.region.as_deref(),
+                    variant.revision.as_deref(),
+                ]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(" ")
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        Err(PortcoveError::source(format!(
+            "This edition is not supported by {}. Choose {} and review setup again. The saved original-file location was not changed.",
+            port.name, if required.is_empty() { "one of the editions listed in Game files" } else { &required }
+        )).detail("port_id", &port.id).detail("profile_id", profile_id).detail("contract_id", &contract.id))
+    }
+}
+
+fn listed_variant_support(
+    contract: &crate::PortSourceContract,
+    classification: &SourceClassification,
+) -> Option<bool> {
+    match classification {
+        SourceClassification::Recognized { identity }
+            if !contract.supported_variant_ids.is_empty() =>
+        {
+            Some(
+                contract
+                    .supported_variant_ids
+                    .contains(&identity.variant_id),
+            )
+        }
+        // No list is not a known exclusion, including validator-only contracts.
+        _ => None,
+    }
 }
 
 fn application_review(
@@ -148,15 +221,11 @@ fn application_review(
         .map(|i| &i.assessment.classification)
     {
         _ if inspection.health != SourceHealth::Current => SourceReuseCompatibility::Unavailable,
-        Some(SourceClassification::Recognized { identity }) => {
-            if app
-                .contract
-                .supported_variant_ids
-                .contains(&identity.variant_id)
-            {
-                SourceReuseCompatibility::ListedIdentity
-            } else {
-                SourceReuseCompatibility::Incompatible
+        Some(classification @ SourceClassification::Recognized { .. }) => {
+            match listed_variant_support(&app.contract, classification) {
+                Some(true) => SourceReuseCompatibility::ListedIdentity,
+                Some(false) => SourceReuseCompatibility::Incompatible,
+                None => SourceReuseCompatibility::Potential,
             }
         }
         Some(SourceClassification::Ambiguous { .. }) => SourceReuseCompatibility::Unavailable,
@@ -221,17 +290,25 @@ fn application_review(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{Catalog, ErrorCode, Library};
     use std::{fs, path::PathBuf};
 
-    fn fixture(variant: &str) -> (tempfile::TempDir, PortcoveService, PathBuf) {
+    pub(crate) const USA_BYTES: &[u8] = b"\x80\x37\x12\x40controlled inert source identity fixture";
+    pub(crate) const GC_BYTES: &[u8] =
+        b"\x80\x37\x12\x40controlled inert GameCube identity fixture";
+
+    pub(crate) fn fixture(variant: &str) -> (tempfile::TempDir, PortcoveService, PathBuf) {
         let started = std::time::Instant::now();
         eprintln!("source reuse fixture: begin");
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("controlled.z64");
-        let bytes = b"\x80\x37\x12\x40controlled inert source identity fixture";
+        let bytes = if variant == "ntsc-u-gamecube" {
+            GC_BYTES
+        } else {
+            USA_BYTES
+        };
         fs::write(&path, bytes).unwrap();
         let mut service =
             PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
@@ -247,14 +324,16 @@ mod tests {
             .iter_mut()
             .find(|p| p["id"] == "majoras-mask")
             .unwrap();
-        let selected = profile["variants"]
-            .as_array_mut()
-            .unwrap()
-            .iter_mut()
-            .find(|v| v["id"] == variant)
-            .unwrap();
-        selected["representations"][0]["identities"][0]["sha1"] =
-            hex::encode(sha1::Sha1::digest(bytes)).into();
+        for (id, bytes) in [("ntsc-u-1-0", USA_BYTES), ("ntsc-u-gamecube", GC_BYTES)] {
+            let selected = profile["variants"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|v| v["id"] == id)
+                .unwrap();
+            selected["representations"][0]["identities"][0]["sha1"] =
+                hex::encode(sha1::Sha1::digest(bytes)).into();
+        }
         eprintln!(
             "source reuse fixture: parsing catalog at {:?}",
             started.elapsed()
@@ -324,6 +403,49 @@ mod tests {
         );
         let _guard = service
             .lock_source_reuse("2ship2harkinian", &review.reference, None)
+            .unwrap();
+    }
+
+    #[test]
+    fn an_unlisted_edition_set_stays_potential_instead_of_becoming_a_known_exclusion() {
+        let (_temporary, mut service, _) = fixture("ntsc-u-1-0");
+        let mut document = service.catalog().authoritative_document();
+        document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| {
+                contract.port_id == "zelda64-recomp" && contract.role == PortSourceRole::Game
+            })
+            .unwrap()
+            .supported_variant_ids
+            .clear();
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let review = service.review_source_reuse("majoras-mask").unwrap();
+        let application = review
+            .applications
+            .iter()
+            .find(|app| app.port_id == "zelda64-recomp")
+            .unwrap();
+        assert_eq!(
+            application.compatibility,
+            SourceReuseCompatibility::Potential
+        );
+        assert!(application.can_review_setup);
+        service
+            .require_original_setup_compatibility(
+                service.catalog().port("zelda64-recomp").unwrap(),
+                &review
+                    .inspection
+                    .inspection
+                    .unwrap()
+                    .assessment
+                    .classification,
+            )
             .unwrap();
     }
 
