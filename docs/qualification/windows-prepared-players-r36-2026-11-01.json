@@ -11,12 +11,7 @@
     "historical1422_additions": 0,
     "actual_complete_at_authoring": 0,
     "directRequired_completed": 0,
-    "partial_must_remain_open": [
-      1792,
-      1799,
-      1891,
-      2734
-    ]
+    "partial_must_remain_open": [1792, 1799, 1891, 2734]
   },
   "ports": [
     {
