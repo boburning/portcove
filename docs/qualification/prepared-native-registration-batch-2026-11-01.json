@@ -1,0 +1,1946 @@
+{
+  "format_version": 1,
+  "date": "2026-11-01",
+  "source_base": "451ef08ba314a674d7beacf8af26d7b47ae3f0ef",
+  "mechanism": "Existing nonowning explicit native executable/CWD/argv registration; no provider/schema/Core mechanism change",
+  "accounting": {
+    "records_changed": 11,
+    "new_strict_definitions": 0,
+    "original_524_members": 8,
+    "affected_312_members": 3,
+    "historical_1422_members": 7,
+    "prospective_finite_minima": 7,
+    "partial_only_open": [1120, 1130, 1119, 1310],
+    "fresh_acquisition_held": [2824, 2586, 1881],
+    "direct_required_beta_closures": 0,
+    "full_B1_complete": false
+  },
+  "records": [
+    {
+      "issue": 2824,
+      "id": "james2doyle-ffta-recomp",
+      "title": "Final Fantasy Tactics Advance (FFTA Recomp)",
+      "route": {
+        "exe": "FFTARecomp.exe",
+        "cwd": "complete creating package directory",
+        "argv": [],
+        "abi_scope": "retained bounded PE AMD64 header; not native qualification"
+      },
+      "source_and_preparation": "Own USA AFXE FFTA GBA ROM; title built-in and game.toml SHA1=4ac05441f4de70a4ec3dd932116346c61b8783d9. Picker itself accepts readable file; final runtime rereads and rejects SHA1 mismatch. Clean-room emibios LGPL3+ is bundled with expected SHA1 0c0d404d16c6b55b3071aba714f82077da132f14; no Nintendo dump. No private input acquired. Keep your own Final Fantasy Tactics Advance USA GBA ROM (AFXE), expected SHA-1 4ac05441f4de70a4ec3dd932116346c61b8783d9. The inspected source performs a final runtime hash rejection after the permissive file picker. The package includes the separately licensed clean-room emibios replacement; no Nintendo BIOS dump is required. Complete the normal upstream first selection/setup outside Portcove and keep game.toml, bios/, resources and existing original paths together.",
+      "entry_and_lifetime": "Select FFTARecomp.exe with its complete creating package directory as working directory and no extra arguments for the normal in-process launch screen. The inspected title runs that screen and game in the same process; it does not hand the game to a detached launcher. Retain only the supported literal arguments your working setup actually requires, including existing --save/--save-path and --state-dir choices. Do not select a tool or start a separate compiler/helper.",
+      "runtime_replacement_owner": "Upstream/user retain all runtime/data replacement; Core only selected native execution and registration. No auto-adoption of changed executables; relink after separate maintenance.",
+      "persistence": "game.toml save.path=saves/ffta_us.sav resolved relative TOML parent; --save/--save-path override literal; flash512/65536bytes. State slots default actualROM sidecars .stateN; --state-dir relocates basenames. exe-relative config.ini/keybinds.ini and launcher rom.cfg/bios.cfg/skip_launcher_on_boot, mods plus custom paths; preserve whole creating runtime and all external roots.",
+      "restrictions": [
+        "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Experimental upstream preview. Exact title/framework source and package metadata/static inspection are not proof of package-to-source correspondence, native gameplay, clean shutdown, real saves, installed Desktop, protected delivery or other-platform qualification."
+      ],
+      "package_integrity_evidence": {
+        "asset": "FFTARecomp-v2.1-windows-x64.zip",
+        "asset_id": 667508905,
+        "expected_provider_sha256": "67b20afd742c43556abc46693ab41b9a38fc98f4ff976f6902da5d34eab6ebb2",
+        "observed_sha256": "67b20afd742c43556abc46693ab41b9a38fc98f4ff976f6902da5d34eab6ebb2",
+        "scope": "Retained bounded physical ZIP preflight/static PE/docs; no new ZIP inspection/download/execution",
+        "receipt_sha256": "882b73bc0d11f7915d03971d0b0281c346a6ba66d612535d1a0e485653bc0246"
+      },
+      "primary_project_url": "https://github.com/james2doyle/ffta-recomp",
+      "source_bindings": [
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/launcher.cpp",
+          "blob": "56ee08226a77718b03cd7c0cee8d8122ca097e37",
+          "sha256": "dad1dfe1e3a8829bb244d0c6d48ccfc8bfd0cac7f7e58940662fa6a83b490364",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/launcher.cpp"
+        },
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/launcher_raygui.cpp",
+          "blob": "66da32e275b852a9e1c2d82225137e8b938ef263",
+          "sha256": "bf2d10f736a63795be90c7dd48efb8a9c14b5020c425f6ab5cdf5a3ddf74ff4a",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/launcher_raygui.cpp"
+        },
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/runtime.cpp",
+          "blob": "ced776a133e009647bf1bad4f6b30bcd9c12167e",
+          "sha256": "e4e684a5db3d77d5d2850252150878c86f8ccad85e88ca04755c1da4cf1c5cde",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/runtime.cpp"
+        },
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/save_config.cpp",
+          "blob": "a804704b64e4b893ebe1e34df5bef9086ff80a5c",
+          "sha256": "a13cbf6aaf8e02249655ffc72d33e1f7b7dea203a3ba217ef5440ea3bf0bce59",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/save_config.cpp"
+        },
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/launcher.h",
+          "blob": "88bbb82ca88ca515d1edc467c3851b832cb95731",
+          "sha256": "8bd486b47829593c3302bdf62a4b60c981df1f2d30f0e5d81bf353b02372b4fa",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/launcher.h"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": "game.toml",
+          "blob": "172cfc279767e863f06b91290e9c91b3d2885348",
+          "sha256": "ed68de6b0fad273e5103ebc785b251ecf8e856a64c71c38f6ea5e1449b6a10a7",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/game.toml"
+        },
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/asset_picker.cpp",
+          "blob": "a8ccee4875d3bee0772493a2fdf85e06e30efda1",
+          "sha256": "d518c5ea5f52aa10f60a53f811b11c0e3f5e4c17712ec67402fb3e88fd833d2e",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/asset_picker.cpp"
+        },
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/launcher_skip.h",
+          "blob": "da1203920fc6d34a277be052031efa8193d6b3fa",
+          "sha256": "2e8c66fe2fa95aaff699fecca4e8f9a1ea69eccbd4325b86dc92615dbe6f36e3",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/launcher_skip.h"
+        },
+        {
+          "repository": "james2doyle/gbarecompx",
+          "commit": "2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed",
+          "path": "src/runtime/menu_settings.h",
+          "blob": "a2f07dcbdb0eb40609eddef2fc9c4d82869753e4",
+          "sha256": "30ed565b12b6eab85fca693ae6b9c7712a94fc42617b4b340a02e222c05c4862",
+          "primary_url": "https://github.com/james2doyle/gbarecompx/blob/2a8bffbd2c8e31759317f2ecf1c9bd60f533d7ed/src/runtime/menu_settings.h"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "0f1ae462096ab64cc152bbaaf1801edc71945b23",
+          "path": ".gitmodules",
+          "blob": "1436d365c22e1010358d7de640ec0a4a317d9a8c",
+          "sha256": "43975be644d89ea630efb387fc21c724645fc422c06bea9f56e8caf0e15cbb24",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/0f1ae462096ab64cc152bbaaf1801edc71945b23/.gitmodules"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "0f1ae462096ab64cc152bbaaf1801edc71945b23",
+          "path": "CMakeLists.txt",
+          "blob": "8048ecbc70de4e9a70c452656168085bbb89266a",
+          "sha256": "a8214c202ee6de7eb995f74d8e2974a4b711e4980be3af4638e0d890c564ca40",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/0f1ae462096ab64cc152bbaaf1801edc71945b23/CMakeLists.txt"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "0f1ae462096ab64cc152bbaaf1801edc71945b23",
+          "path": "LICENSE",
+          "blob": "0caee0ce7fc200b540d5002de2aad2f62ba1f16b",
+          "sha256": "e08dd03c25e88111f2550eb7cab0861329dca5df05e8dcd58acebc8d171e2848",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/0f1ae462096ab64cc152bbaaf1801edc71945b23/LICENSE"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "0f1ae462096ab64cc152bbaaf1801edc71945b23",
+          "path": "README.md",
+          "blob": "eed3ec82167b38696cbd056d727b6a4f905a9c66",
+          "sha256": "17c517c491170eba9e310449668627525a4b94de4d4ccd0dfa131b8cd34d5f85",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/0f1ae462096ab64cc152bbaaf1801edc71945b23/README.md"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": ".gitmodules",
+          "blob": "1436d365c22e1010358d7de640ec0a4a317d9a8c",
+          "sha256": "43975be644d89ea630efb387fc21c724645fc422c06bea9f56e8caf0e15cbb24",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/.gitmodules"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": "CMakeLists.txt",
+          "blob": "8048ecbc70de4e9a70c452656168085bbb89266a",
+          "sha256": "a8214c202ee6de7eb995f74d8e2974a4b711e4980be3af4638e0d890c564ca40",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/CMakeLists.txt"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": "LICENSE",
+          "blob": "0caee0ce7fc200b540d5002de2aad2f62ba1f16b",
+          "sha256": "e08dd03c25e88111f2550eb7cab0861329dca5df05e8dcd58acebc8d171e2848",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/LICENSE"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": "README.md",
+          "blob": "eed3ec82167b38696cbd056d727b6a4f905a9c66",
+          "sha256": "17c517c491170eba9e310449668627525a4b94de4d4ccd0dfa131b8cd34d5f85",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/README.md"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": "src/main.cpp",
+          "blob": "38be32fe80239a5e2fea951d8d2499fa71aa7511",
+          "sha256": "5505487fd9da2d0c7ecb109983f8f915addaa7f9d3c7de8235aa5992df6f2731",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/src/main.cpp"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": "bios/README.md",
+          "blob": "dbd2c2d0c3177dddf353d6e6ad8e6cc165f621ca",
+          "sha256": "97ea2c732ad11837984a4cc3595a19ff888243343c2fb95f39d151ef26a64a4d",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/bios/README.md"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "43f129a91eb1ea560ca638b3304466463cd595b2",
+          "path": "LICENSES/LGPL-3.0-or-later.txt",
+          "blob": "dfc110da0bd1c19c6a58f332fcc2d67d95424bc8",
+          "sha256": "57db2dfce0b4438496b5828d7ccd45044a66691a7cd95020d18824e1c74f30c5",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/43f129a91eb1ea560ca638b3304466463cd595b2/LICENSES/LGPL-3.0-or-later.txt"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "0f1ae462096ab64cc152bbaaf1801edc71945b23",
+          "path": "src/main.cpp",
+          "blob": "38be32fe80239a5e2fea951d8d2499fa71aa7511",
+          "sha256": "5505487fd9da2d0c7ecb109983f8f915addaa7f9d3c7de8235aa5992df6f2731",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/0f1ae462096ab64cc152bbaaf1801edc71945b23/src/main.cpp"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "0f1ae462096ab64cc152bbaaf1801edc71945b23",
+          "path": "bios/README.md",
+          "blob": "dbd2c2d0c3177dddf353d6e6ad8e6cc165f621ca",
+          "sha256": "97ea2c732ad11837984a4cc3595a19ff888243343c2fb95f39d151ef26a64a4d",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/0f1ae462096ab64cc152bbaaf1801edc71945b23/bios/README.md"
+        },
+        {
+          "repository": "james2doyle/ffta-recomp",
+          "commit": "0f1ae462096ab64cc152bbaaf1801edc71945b23",
+          "path": "LICENSES/LGPL-3.0-or-later.txt",
+          "blob": "dfc110da0bd1c19c6a58f332fcc2d67d95424bc8",
+          "sha256": "57db2dfce0b4438496b5828d7ccd45044a66691a7cd95020d18824e1c74f30c5",
+          "primary_url": "https://github.com/james2doyle/ffta-recomp/blob/0f1ae462096ab64cc152bbaaf1801edc71945b23/LICENSES/LGPL-3.0-or-later.txt"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PROSPECTIVE ONLY: independent own-minimum/consequential-fact review, maintained per-record and combined validation, exact-head checks, guarded delivery and fresh canonical/Project reconciliation required; existing-copy register+explicit Play only. No broader management/Supported/native/protected completion.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/james2doyle-ffta-recomp.json",
+      "preimage_sha256": "0777a9e85fa6a29aa7af0a626dd63309ecb2cd28d2a647ef7370fee5e030a174",
+      "formatted_postimage_sha256": "14260fe443f7e46e3e749c465ef8582f79d2056b2ca6a72a5efb647c24862343",
+      "prepared_candidate_sha256": "4c250f02954a12f1043d3433c0a07af4bc6e4b8c4bf4c539bd82f78356caa7ad",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "fresh_acquisition_held": true,
+      "download_block_reason": "Fresh acquisition of the selected FFTA Recomp bundled player remains held for its launch-screen box art: packaged THIRD_PARTY_ATTRIBUTION.md explicitly says the image has unknown provenance and no assertable license. Resume with applicable permission for that exact image or a reviewed compatible upstream package/route resolving its inclusion. Independently permitted completed-copy registration does not clear this acquisition hold.",
+      "context_sha256": "429562369b84c23685e3fcf5d35222700a2b4c0c6f31d2b6c71c4f36d3c49021",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2575,
+      "id": "final-fantasy-tactics-advance-fftarecomp",
+      "title": "Final Fantasy Tactics Advance (FFTARecomp)",
+      "route": {
+        "executable": "FFTARecomp.exe",
+        "cwd": "completed installed player directory",
+        "argv": []
+      },
+      "source_and_preparation": "Use your own supported original FFTA USA ROM (SHA-256 43fc8204c6dceee58828aebc7af0c72eb807e99f35ad641c8bb0a4fa8b6edc19) or Europe ROM (8fab1e390cb9d5e695bfdb86e81246892e1aa8c0cb4014db8235ff76538ea632). v3 source supports both, despite older USA-only README wording. No BIOS is needed. The installer can warn and install an unverified image without FFTA patches; that is not this guide’s verified-original route, and success is not proof of exact source identity.",
+      "entry_and_lifetime": "Select the completed installed FFTARecomp.exe with its installed directory as working directory and no arguments. This supported wrapper finds its adjacent ffta.gba or the LocalAppData/FFTARecomp fallback, runs its matching recomp.exe play and waits for that initial process through command.output(). Keep the exact prepared tree and private generated translations. The optional in-game Switch ROM operation deliberately starts a successor process and ends the current game. The attached wrapper does not wait for that successor after its initial child ends. Treat switching as upstream activity outside this attached session: close every actual player before replacement or another attachment. Do not infer successor tracking, adoption or termination from the registration’s status. Keep the feature intact; no argument or private entry is used to disable or bypass it.",
+      "runtime_replacement_owner": "Upstream/user; external nonowning registration only.",
+      "persistence": "Preserve the installed tree and originals, %LOCALAPPDATA%/FFTARecomp data and shared-save-path.txt, %APPDATA%/FFTARecomp/input.cfg and av.cfg, and every effective custom root. Saves resolve FFTA_SAVE_PATH first, then a remembered existing save, then the ROM basename .sav; one neighboring .sav may be chosen and several open a picker. Normal gameplay writes the chosen save. Keep old saves and creating runtime: upstream cross-region compatibility claims and a shared path are not Portcove save qualification. Preserve caches/FFTARecomp translated libraries, mods, logs and backups; upstream may sweep superseded translation-revision caches. MIT project code, MIT/Apache foundation, CC0 gamedb, TinyCC LGPL and font/dependency notices apply separately; code grants do not grant ROM or third-party artwork rights.",
+      "restrictions": [
+        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+      ],
+      "package_integrity_evidence": {
+        "tag": "v3.0",
+        "asset": "FFTARecomp-windows-x86_64.zip",
+        "bytes": 11668058,
+        "sha256": "4fa1b6f5fd20debae5222d62c601f6b06468f5f701689b8edcd184526c80b2cd",
+        "scope": "Retained R26 bounded static ZIP/package inspection; metadata digest and retained inventory only reused here. No fresh package work or execution; package/source correspondence Unknown.",
+        "retained_inventory_sha256": "1cd368a11a24392194bc9b7e01482a9d186dcc0079be4b2ab685410e9471f0c1"
+      },
+      "primary_project_url": "https://github.com/Jorge262007/FFTARecomp",
+      "source_bindings": [
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/installer/src/rom_policy.rs",
+          "blob": "c285e12c675ae733be1e317d8e310a0481951613",
+          "sha256": "8056f16419529068b0106cad12ff29dd8f535698f357c9e5baefae2dcb536a05",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/installer/src/rom_policy.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/gba-core/src/ffta_rom.rs",
+          "blob": "6b994a6dc7af38609e61233836522a9b10bf1ad4",
+          "sha256": "69f222a0a5d6d6a5c29a674e39fa5b63f481fd5e503a812f529a0941f0cf4d93",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/gba-core/src/ffta_rom.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/recomp/src/rom_switch.rs",
+          "blob": "29d67caefc4bd3e7efb56e6df993f830ad1c9059",
+          "sha256": "16b06df89ff61b8f32fa30e820050316535d8867544d0374ad93f76989208743",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/recomp/src/rom_switch.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/recomp/src/main.rs",
+          "blob": "3fcf459cf00a5863c286c1134f618b10ae00218e",
+          "sha256": "96208603820aaab3dd538cf686eecd598c1d228cc06a34d608e0ff254174f75c",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/recomp/src/main.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/ffta-play/Cargo.toml",
+          "blob": "691800d5aa07365c5ba28e12432a574dc7445e7a",
+          "sha256": "f9a2de9471ced99bf9bd646bc4cf958c545ae23a9609787e3f8d18321cece821",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/ffta-play/Cargo.toml"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/recomp/src/play.rs",
+          "blob": "507cc03d5d668adafe7c7a99a5e4fb8a26fb4d9e",
+          "sha256": "863a07c0b19f5bdee24e195bc73753ba052df072035345a2d79a121c6879df85",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/recomp/src/play.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "Licenses/CREDITS.md",
+          "blob": "0c2937ab1f4b86f73f8a6e126a1a29d8cb59a921",
+          "sha256": "c1809c67fbd6388e141351e4bc38a72946852b5fa65ccde3c6e6b1b0b4372d68",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/Licenses/CREDITS.md"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/input-config/src/lib.rs",
+          "blob": "53a2cd0b8b5c83909014354d023fae82e6799615",
+          "sha256": "8ff5d6514b11c70b701dd73294ae7e0738a6e3625cc0a967fab007b7af430129",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/input-config/src/lib.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "README.md",
+          "blob": "d81149ea76b719a8e92527d57951f979b7332662",
+          "sha256": "e73c7c186a13811bfe12bc7f193199b3b3583983340bb183934fa0e74a965bcb",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/README.md"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "Licenses/LICENSE",
+          "blob": "2d7ddc8a6701600dd67d78e0341e583c504de2c4",
+          "sha256": "575f5716415012eb765364aa695c8723681db44c384562ff754a2b77c975b6e8",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/Licenses/LICENSE"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "Licenses/README.md",
+          "blob": "b09bbe2c7573453571094e9c10eb768b642cb291",
+          "sha256": "43a36417a58c9252c7475e9884c4a8e33714a12b3bbbe1c475e05ccf4512d382",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/Licenses/README.md"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "Licenses/THIRD_PARTY_NOTICES.md",
+          "blob": "6193e02d31980d04e18d7dbd8ba29c9360cb6c7a",
+          "sha256": "971eb811c8940ecabe28381016d9c507d79a02f66954cfa32e184f8b22c0e0bb",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/Licenses/THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/installer/README.md",
+          "blob": "ee5283053f647d7921b90aeab13e97d3dbfaa4d4",
+          "sha256": "e7d5906b25a91087a441ab8a639a877d1b7a2727120102574627ead421859e09",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/installer/README.md"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/installer/src/main.rs",
+          "blob": "298b3ca4aa8a2aaf646cd67df7c59d80ebaf4552",
+          "sha256": "23041d81aadc5593d57a638058913e67539ab0031a201b9bd75f2e3ff530b256",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/installer/src/main.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/ffta-play/src/main.rs",
+          "blob": "7926fafea2b5a0896e7eb9a75ac0396d573b0813",
+          "sha256": "72d4e2f23ac4ffa2a61e12553f51ff575a2ea51b9e593a2e7d59591c464d4384",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/ffta-play/src/main.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/launcher/src/main.rs",
+          "blob": "f2e68e5eafcc8511e72e8d792a53cc90e49ba915",
+          "sha256": "0ac2c9eac98957cf236acd2f88a7818f96a48e4b7f4e976319e1f8ebf84b6477",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/launcher/src/main.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/launcher/src/app.rs",
+          "blob": "4c7dcee2b6f57fb585b9a733cf90c37e673dc0d8",
+          "sha256": "95c14ec406a36704ea979db59576819cb198932dd3742157ab1df75f499338f7",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/launcher/src/app.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/launcher/src/platform.rs",
+          "blob": "e658558af4709ffee9eea5ebf9fb677d52baf8a4",
+          "sha256": "93198e4c64233cdc0c5e41719c0308d9c5e268ea9d311c8925ddb85707a4718e",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/launcher/src/platform.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/launcher/src/screens/play.rs",
+          "blob": "0e8dd44fad65d7219f4a4378a19449739a0def2f",
+          "sha256": "ba950624a6a56d9770afb9b57b72f18ca65f6f97ed89ecec6d88b05be37f96e9",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/launcher/src/screens/play.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "crates/recomp/src/save_path.rs",
+          "blob": "e0b37b65628822d1dccc0d321e643045513037d3",
+          "sha256": "157f06521b4e0f961650e34577cf98297912f9d6eec8ece264000ef0f5209536",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/crates/recomp/src/save_path.rs"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "docs/ffta_shared_save.md",
+          "blob": "5ace1b6712119194bd3dd998e2054f1ae67070ea",
+          "sha256": "e4af44d6b763adc420e537070df0a3b29f927960981dca29520c1be17f502b26",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/docs/ffta_shared_save.md"
+        },
+        {
+          "repository": "Jorge262007/FFTARecomp",
+          "commit": "fcc38cc46084793f29136419a8a15e6914a570ce",
+          "path": "docs/launcher.md",
+          "blob": "be48a8328158b58e36a6d9d46d178266bc511e93",
+          "sha256": "ca4b8f3f73b5fdd0802b6650210eb74b39d2f9ffc67b7d2d95390740030497b8",
+          "primary_url": "https://github.com/Jorge262007/FFTARecomp/blob/fcc38cc46084793f29136419a8a15e6914a570ce/docs/launcher.md"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PROSPECTIVE ONLY: independent own-minimum/consequential-fact review, maintained per-record and combined validation, exact-head checks, guarded delivery and fresh canonical/Project reconciliation required; existing-copy register+explicit Play only. No broader management/Supported/native/protected completion.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/final-fantasy-tactics-advance-fftarecomp.json",
+      "preimage_sha256": "2be7685c7a9725323ac19def51e6023e46e02a5c48fa3c8d8d7070dd64985524",
+      "formatted_postimage_sha256": "81a4cc0b240f6f4c8793a5ba00c2552e8e17e23d0023e5b570ed3ee433775019",
+      "prepared_candidate_sha256": "94e36055ad05d1c91a2f63dc0683b6419aaaca61fc2875d96354095daff77f35",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "86488ba1669f52c5dcf68594d5b1535fec734ec4df023ded1dd2d5d8a9d9dcc9",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 2586,
+      "id": "kingdom-hearts-chain-of-memories-gba-rekhcom",
+      "title": "Kingdom Hearts: Chain of Memories (GBA) (ReKHCoM)",
+      "route": {
+        "executable": "ReKHCoM.exe",
+        "cwd": "completed package root",
+        "argv": []
+      },
+      "source_and_preparation": "Use your own 32 MiB cartridge dump: Europe B8CP SHA-1 8db73586cdb11b3795907edebf43228dbcd3e6b2, USA B8CE 10729bd884f8fdca7a310b6d606c52e46657aa48 or Japan B8CJ 59ec0a0a4ccd1e6acb3bbd7bfb21d63988958cfa. The launcher verifies and places its selected original under roms. No ROM is included. Optional HD imports require separate owned ReMIX assets and are not a base-game prerequisite or a Portcove import operation.",
+      "entry_and_lifetime": "Select root ReKHCoM.exe with the complete package root as working directory and no arguments. Its supported Play path starts the selected 32-bit game or compatible bin64 runtime, supplies the shared data root and selected ROM, hides and waits until that game exits. Automatic 64-bit mode requires the matching host, guest image, SDL3 and SSE4.1; it can fall back to 32-bit. Retain upstream architecture choices instead of bypassing the launcher. Upstream and you own runtime replacement and architecture preference changes. After replacement, close actual games and launcher, retain the old complete copy and every data root, then review and relink changed selected bytes. This guide neither invokes an updater nor claims tracking of an independently relaunched or replaced program. The packaged README retains older version/32-bit-only text; use the inspected v2.3 root launcher and matching complete package rather than that stale architecture description.",
+      "runtime_replacement_owner": "Upstream/user; external nonowning registration only.",
+      "persistence": "Preserve the whole package and effective custom data roots: roms, kh_com*.sav and all save banks, kh_com*.ini, decompui.ini, states, backups, kh_com.log, retroachievements.ini, achievements*.dat, netlink.cfg, mods and optional hd assets/import journals. Save states are build-specific and do not contain cartridge SRAM. Upstream can adopt files from a neighboring older install and move HD scenes during startup; preserve both locations before maintenance. Keep account/token-bearing configuration private. CC0 source/decompilation and SDL3/ImGui/rcheevos notices remain separate from Square Enix/Disney artwork and game content.",
+      "restrictions": [
+        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+      ],
+      "package_integrity_evidence": {
+        "tag": "v2.3",
+        "asset": "ReKHCoM-v2.3-windows-x86-x64.zip",
+        "bytes": 81477235,
+        "sha256": "a06789879f74519fa19fe32b86392e62a693a518813735710feb5b37c0efc9c2",
+        "scope": "Retained R26 bounded static ZIP/package inspection; metadata digest and retained inventory only reused here. No fresh package work or execution; package/source correspondence Unknown.",
+        "retained_inventory_sha256": "2cd409595f9ea613e4a7677e97c4754f114b5d4fd1a3e58fc0e482e088394d8f"
+      },
+      "primary_project_url": "https://github.com/MatyMeatBoy/ReKHCoM",
+      "source_bindings": [
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/decompui/decompui.cpp",
+          "blob": "cfa0aec4bf9fdaf1da5d38d59eb8cede89377bf1",
+          "sha256": "4ae62d430e96a3b72a611baf693f316aa250da4447a018c8e115c33b30e890cf",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/decompui/decompui.cpp"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/decompui/runtime_selection.h",
+          "blob": "450f1a7fb62245922389915f109ad97efffa2a4a",
+          "sha256": "b95d4c86dc6ad63410f896877c500eb000331d4bf8be47c008e672986540e931",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/decompui/runtime_selection.h"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/decompui/runtime_preferences.h",
+          "blob": "24ca8e271ce58c21d7833e8bb422970d91c9054b",
+          "sha256": "679c9eb57c7d9f4202c34abacb5009bac19399476e8fd71f7355e0adc61551de",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/decompui/runtime_preferences.h"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/decompui/save_file.h",
+          "blob": "82793c7779d8d4aa19128cfc3be4281122bb9412",
+          "sha256": "8934b18e614729b87cb54e1393aedd479415c9fe798a942971d4ff55489d58a9",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/decompui/save_file.h"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/decompui/rom_folder.inc",
+          "blob": "eca25c99a26383473967a4e9f40cfc8add1b6c46",
+          "sha256": "f9878f7eb18bc2ed15a83dd76c06746f15f01c0cb6d1c966e6e094ede5cdf948",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/decompui/rom_folder.inc"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "LICENSE.md",
+          "blob": "1625c1793607996fcfc46420e8aa2f3d2b7efd1e",
+          "sha256": "6d489af6292662d9e36d34ce49423784984a5f6e41d7b58f49b01264df59fa03",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/LICENSE.md"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/decompui/assets/NOTICE.md",
+          "blob": "f2ebc635af6f1896eed385616ab884dc2d6eedf6",
+          "sha256": "36273fe86150e7580fa5e66576d7023a0ef874f91723873b94e2af6b607bd0d9",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/decompui/assets/NOTICE.md"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "README.md",
+          "blob": "d1efc93d9a7f20eda33f706586b2ae99a99a9119",
+          "sha256": "f2f5cb9255192f15bbec81006ace24f4578df1aed4bb80acef3d0b7510a39407",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/README.md"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/src/port_main.c",
+          "blob": "4daaa57c150cfeeb54821cd0ea51502ae1ea1cfe",
+          "sha256": "70adfb8b045e9d2b9ffdd3c4f3a616a1c31dd2ac01b087651c1467a1b26a6d07",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/src/port_main.c"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/src/port_config.c",
+          "blob": "d5c277215a3857588c6380fd3657577fe2fce973",
+          "sha256": "288bb0fcdf71f9afb41e4a40e2e84c38786779a146a4fd2e6eee3f53f52e6e8b",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/src/port_config.c"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/progress/RUNTIME_ARCHITECTURE_UPDATE.md",
+          "blob": "0aa361a24698cd2e0db110e347719f34bd2acd0b",
+          "sha256": "1224867b04e706fc0fb3acecc2a4af4dee35fd57da41fca89445b14b913ce92d",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/progress/RUNTIME_ARCHITECTURE_UPDATE.md"
+        },
+        {
+          "repository": "MatyMeatBoy/ReKHCoM",
+          "commit": "328a9ff5d8045b74b786843ce1c1a41ab78c11fb",
+          "path": "port/progress/HD_MOD.md",
+          "blob": "8c3471d4dcd1f3e68573f8160f271430ccbc7605",
+          "sha256": "c3d10742cf6dd17f01f454831d1a43e3ddda16f8384d105b3caf6029a16aca28",
+          "primary_url": "https://github.com/MatyMeatBoy/ReKHCoM/blob/328a9ff5d8045b74b786843ce1c1a41ab78c11fb/port/progress/HD_MOD.md"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PROSPECTIVE ONLY: independent own-minimum/consequential-fact review, maintained per-record and combined validation, exact-head checks, guarded delivery and fresh canonical/Project reconciliation required; existing-copy register+explicit Play only. No broader management/Supported/native/protected completion.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/kingdom-hearts-chain-of-memories-gba-rekhcom.json",
+      "preimage_sha256": "9609bc984ee01d8d471431bf440a53b4e630051174fd1b4200280d724f18eb8d",
+      "formatted_postimage_sha256": "97aa756148737151a283380a711f498c35dad1af0a5f5f0007efc364fa727af7",
+      "prepared_candidate_sha256": "7d84bebe97834d27365fa7be01783f396c541276a1d4190b0b842297235a338b",
+      "cohort": "affected-312",
+      "historical_1422_member": false,
+      "fresh_acquisition_held": true,
+      "download_block_reason": "Fresh bundled-package acquisition remains held for the separately excluded launcher artwork scope in assets/NOTICE.md: boxart.jpg, logo.png and rekhcom.ico belong to Square Enix/Disney and the source-code licence explicitly does not apply. Use only an independently permitted existing copy. Resume fresh acquisition with applicable permission for these exact components or a reviewed compatible package resolving that scope; CC0 source terms do not clear them.",
+      "context_sha256": "94f0cefe61a77164ce73029a6b857af55368c6513fad5bda4b9bdc9b2a010c25",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 1881,
+      "id": "vibecodekun-shantaerecomp",
+      "title": "Shantae / shantaerecomp (vibecodekun)",
+      "route": {
+        "executable": "shantae.exe",
+        "cwd": "completed package directory",
+        "argv": []
+      },
+      "source_and_preparation": "Use your own exact Shantae USA Game Boy Color ROM, SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. Other releases including World, Switch and Limited Run Games are different ROMs. The chooser enables Play only for the accepted original or explicitly supported compiled patch variants; patch compatibility must be established for that actual build. No ROM is supplied or licensed by this registration.",
+      "entry_and_lifetime": "Select shantae.exe with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced. Ordinary Quit ends the current process. Only explicitly choosing Return to Launcher schedules an atexit restart after saves close: on Windows that restart creates a new process without waiting. Treat that successor as upstream activity outside the attached session. Close every actual player and reopened launcher before maintenance or another attachment; registration status does not establish successor adoption or termination. This preserves the optional feature and does not disable it with arguments.",
+      "runtime_replacement_owner": "Upstream/user; external nonowning registration only.",
+      "persistence": "Keep the whole creating package, original ROM and every effective external root. Windows defaults portable state beside the executable; GBRECOMP_STATE_DIR overrides state and GBRECOMP_ASSET_DIR overrides assets. Preserve rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini, .sav battery data, .rtc, .stateN, map/patch-specific data, mods, shader_presets, shader_cache, logs and backups. Patch/native state compatibility is build-specific; do not infer save compatibility from another gbrecompiled game. Preserve per-shader licences and complete component notices.",
+      "restrictions": [
+        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+      ],
+      "package_integrity_evidence": {
+        "tag": "v0.2.0",
+        "asset": "shantae-recomp-0.2.0-windows-x64.zip",
+        "bytes": 85452643,
+        "sha256": "d85e17f17b2f25415ae5be237c29a3eba7b48b96d53a591b84aa1e84fa76a3e3",
+        "scope": "Retained R26 bounded static ZIP/package inspection; metadata digest and retained inventory only reused here. No fresh package work or execution; package/source correspondence Unknown.",
+        "retained_inventory_sha256": "18a6c80d7385c674a5c1c4efbe834fd533792f840d160b1521d273579d8b5b0c"
+      },
+      "primary_project_url": "https://github.com/vibecodekun/shantaerecomp",
+      "source_bindings": [
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "d870bd2e9969135adb7277bf5b02445a3cd50871",
+          "path": ".gitmodules",
+          "blob": "ba81e8a3e7f89e94beb4769440ab6e5e6cff1689",
+          "sha256": "aa74bdd1cbdf12ca2af78edffb8b6d718919b583150b591129dc4477ed8fe2b6",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/d870bd2e9969135adb7277bf5b02445a3cd50871/.gitmodules"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "d870bd2e9969135adb7277bf5b02445a3cd50871",
+          "path": "LICENSE",
+          "blob": "f6cf52f4276cf810369ff71a986221072021548b",
+          "sha256": "812c4a36b2d3d1e321c723b3a38d92cdf655c76e8a9007ff59740394dba2ef04",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/d870bd2e9969135adb7277bf5b02445a3cd50871/LICENSE"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "d870bd2e9969135adb7277bf5b02445a3cd50871",
+          "path": "README.md",
+          "blob": "683563be552085d2a6b6be86d450fb058eab2b4d",
+          "sha256": "b18c45c38707797eadc692d0c270dfaec05e1c9d7705e42439b863f055339601",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/d870bd2e9969135adb7277bf5b02445a3cd50871/README.md"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "06765fc2a44b43cab036ff323169813feb2b372e",
+          "path": ".gitmodules",
+          "blob": "ba81e8a3e7f89e94beb4769440ab6e5e6cff1689",
+          "sha256": "aa74bdd1cbdf12ca2af78edffb8b6d718919b583150b591129dc4477ed8fe2b6",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/06765fc2a44b43cab036ff323169813feb2b372e/.gitmodules"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "06765fc2a44b43cab036ff323169813feb2b372e",
+          "path": "LICENSE",
+          "blob": "f6cf52f4276cf810369ff71a986221072021548b",
+          "sha256": "812c4a36b2d3d1e321c723b3a38d92cdf655c76e8a9007ff59740394dba2ef04",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/06765fc2a44b43cab036ff323169813feb2b372e/LICENSE"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "06765fc2a44b43cab036ff323169813feb2b372e",
+          "path": "README.md",
+          "blob": "683563be552085d2a6b6be86d450fb058eab2b4d",
+          "sha256": "b18c45c38707797eadc692d0c270dfaec05e1c9d7705e42439b863f055339601",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/06765fc2a44b43cab036ff323169813feb2b372e/README.md"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "06765fc2a44b43cab036ff323169813feb2b372e",
+          "path": "THIRD-PARTY-LICENSES.md",
+          "blob": "03d4c1a8ab01fb281a72ed3905f9b1e5fd0e6300",
+          "sha256": "0cb96058529ade9b9e3ba9494d8dc489498f1f223028f41b77666ef706997e9a",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/06765fc2a44b43cab036ff323169813feb2b372e/THIRD-PARTY-LICENSES.md"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "06765fc2a44b43cab036ff323169813feb2b372e",
+          "path": "launcher_options.c",
+          "blob": "791e134dc793d96843def22ab2695da78c3bb48a",
+          "sha256": "05cf34c0dfa2925caf4c407013bdfd786526ccf1414c722d23344119cc291d8f",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/06765fc2a44b43cab036ff323169813feb2b372e/launcher_options.c"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "06765fc2a44b43cab036ff323169813feb2b372e",
+          "path": "tools/windows/README-windows.txt",
+          "blob": "fdda4f30b371eb205b668e0d59d7aa95255934bb",
+          "sha256": "f687005676b609e82efeed9e1656566fe3972058a3cc6532a8c24520ec845d6a",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/06765fc2a44b43cab036ff323169813feb2b372e/tools/windows/README-windows.txt"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "06765fc2a44b43cab036ff323169813feb2b372e",
+          "path": "tools/linux/README-linux.txt",
+          "blob": "8ced32519a4a2179f170e310ca313160d1804262",
+          "sha256": "eb0376ed1a192582d45b81363e1b41191e3beda209e86480d1119f905784f82f",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/06765fc2a44b43cab036ff323169813feb2b372e/tools/linux/README-linux.txt"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "d870bd2e9969135adb7277bf5b02445a3cd50871",
+          "path": "THIRD-PARTY-LICENSES.md",
+          "blob": "03d4c1a8ab01fb281a72ed3905f9b1e5fd0e6300",
+          "sha256": "0cb96058529ade9b9e3ba9494d8dc489498f1f223028f41b77666ef706997e9a",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/d870bd2e9969135adb7277bf5b02445a3cd50871/THIRD-PARTY-LICENSES.md"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "d870bd2e9969135adb7277bf5b02445a3cd50871",
+          "path": "launcher_options.c",
+          "blob": "791e134dc793d96843def22ab2695da78c3bb48a",
+          "sha256": "05cf34c0dfa2925caf4c407013bdfd786526ccf1414c722d23344119cc291d8f",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/d870bd2e9969135adb7277bf5b02445a3cd50871/launcher_options.c"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "d870bd2e9969135adb7277bf5b02445a3cd50871",
+          "path": "tools/windows/README-windows.txt",
+          "blob": "fdda4f30b371eb205b668e0d59d7aa95255934bb",
+          "sha256": "f687005676b609e82efeed9e1656566fe3972058a3cc6532a8c24520ec845d6a",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/d870bd2e9969135adb7277bf5b02445a3cd50871/tools/windows/README-windows.txt"
+        },
+        {
+          "repository": "vibecodekun/shantaerecomp",
+          "commit": "d870bd2e9969135adb7277bf5b02445a3cd50871",
+          "path": "tools/linux/README-linux.txt",
+          "blob": "8ced32519a4a2179f170e310ca313160d1804262",
+          "sha256": "eb0376ed1a192582d45b81363e1b41191e3beda209e86480d1119f905784f82f",
+          "primary_url": "https://github.com/vibecodekun/shantaerecomp/blob/d870bd2e9969135adb7277bf5b02445a3cd50871/tools/linux/README-linux.txt"
+        },
+        {
+          "repository": "vibecodekun/gbrecompiled",
+          "commit": "314fce0895f66a3a7b41734a01040352e47a5b0b",
+          "path": "runtime/src/gbrt.c",
+          "blob": "fabf0a45b8bb54aee5190f3cde6930d753d484d6",
+          "sha256": "f3894df2b8ce13a693dae51b988c2586d95f4dc4896fc8fdd68cca9f24a667e1",
+          "primary_url": "https://github.com/vibecodekun/gbrecompiled/blob/314fce0895f66a3a7b41734a01040352e47a5b0b/runtime/src/gbrt.c"
+        },
+        {
+          "repository": "vibecodekun/gbrecompiled",
+          "commit": "314fce0895f66a3a7b41734a01040352e47a5b0b",
+          "path": "runtime/src/gb_host_paths.c",
+          "blob": "16bae1337043585b386598384865c6efa58bf3e1",
+          "sha256": "aaf45e99ea0e27d48416243e12c2c6368cbe3a69837e7199eb77278b7e84bfd9",
+          "primary_url": "https://github.com/vibecodekun/gbrecompiled/blob/314fce0895f66a3a7b41734a01040352e47a5b0b/runtime/src/gb_host_paths.c"
+        },
+        {
+          "repository": "vibecodekun/gbrecompiled",
+          "commit": "314fce0895f66a3a7b41734a01040352e47a5b0b",
+          "path": "runtime/src/launcher.c",
+          "blob": "9b415bfcaa285558968f729e09a752b4908e6ce2",
+          "sha256": "479cbfb24b013b7d43337eaf987b53a681cf39880922d3706f56f6ef8e414de0",
+          "primary_url": "https://github.com/vibecodekun/gbrecompiled/blob/314fce0895f66a3a7b41734a01040352e47a5b0b/runtime/src/launcher.c"
+        },
+        {
+          "repository": "vibecodekun/gbrecompiled",
+          "commit": "314fce0895f66a3a7b41734a01040352e47a5b0b",
+          "path": "runtime/src/platform_sdl.cpp",
+          "blob": "d6f0d69f40a5fa0736d11c851ce22a24a34c86fd",
+          "sha256": "6e23b2544d84d259d9995a28f3042d0e5990198a7ff0fec892e9dedd6545abf4",
+          "primary_url": "https://github.com/vibecodekun/gbrecompiled/blob/314fce0895f66a3a7b41734a01040352e47a5b0b/runtime/src/platform_sdl.cpp"
+        },
+        {
+          "repository": "vibecodekun/recomp-ui",
+          "commit": "9b851c466793ffbdde9dee618c8bcdf29d24cbfb",
+          "path": "LICENSE",
+          "blob": "a4e60e1cc9c426120561d3ab85b58fcc9201a3ef",
+          "sha256": "676252c9efb0849cc08cdba279318b4d62ae144c19a52a0aa7ab5ca845ae5ddc",
+          "primary_url": "https://github.com/vibecodekun/recomp-ui/blob/9b851c466793ffbdde9dee618c8bcdf29d24cbfb/LICENSE"
+        },
+        {
+          "repository": "vibecodekun/recomp-ui",
+          "commit": "9b851c466793ffbdde9dee618c8bcdf29d24cbfb",
+          "path": "src/common/launcher_files.c",
+          "blob": "aa9b491e6db0d37dcc42815a05c1b99e3cabb5c8",
+          "sha256": "6b0da1c45a637b9d8749bb38fcb4c7f9e06dd08bed7c6c049b639b1e34ef938f",
+          "primary_url": "https://github.com/vibecodekun/recomp-ui/blob/9b851c466793ffbdde9dee618c8bcdf29d24cbfb/src/common/launcher_files.c"
+        },
+        {
+          "repository": "vibecodekun/gbrecompiled",
+          "commit": "314fce0895f66a3a7b41734a01040352e47a5b0b",
+          "path": "recompiler/src/codegen/c_emitter.cpp",
+          "blob": "1c0e4b6b65ae389c5e6673631f91b2fe1be0b8c0",
+          "sha256": "b30f353fe37c2814bbd685bfb0c44d70fb5c82ff2dce06fc3d4a06fe59e3eab0",
+          "primary_url": "https://github.com/vibecodekun/gbrecompiled/blob/314fce0895f66a3a7b41734a01040352e47a5b0b/recompiler/src/codegen/c_emitter.cpp"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PROSPECTIVE ONLY: independent own-minimum/consequential-fact review, maintained per-record and combined validation, exact-head checks, guarded delivery and fresh canonical/Project reconciliation required; existing-copy register+explicit Play only. No broader management/Supported/native/protected completion.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/vibecodekun-shantaerecomp.json",
+      "preimage_sha256": "c69bf5b0587201500e5127f7124df8be1de7e4bffb6f6f6e39b96af50cef5b4c",
+      "formatted_postimage_sha256": "02b8c941c7b4e84857ed018d526c0769bc93ce8181c06439179399fcbe2aeb83",
+      "prepared_candidate_sha256": "cbebc0ca6f13c75e9ab73e2d247c68f65a48280bac7c4b09f1ef5409efa546ce",
+      "cohort": "original-524",
+      "historical_1422_member": false,
+      "fresh_acquisition_held": true,
+      "download_block_reason": "Fresh acquisition of the selected bundled engine-fork scope remains held: THIRD-PARTY-LICENSES.md explicitly names the gbrecompiled fork as stating no licence of its own, separately from the parent gb-recompiled MIT and title PolyForm Noncommercial grants. The pinned build uses vibecodekun/gbrecompiled 314fce0895f66a3a7b41734a01040352e47a5b0b; do not inherit a grant for its separately authored changes. Use only an independently permitted existing copy. Resume with an attributable applicable grant for this exact fork scope or a reviewed compatible replacement package. Original game code/data and other named components retain their own rights.",
+      "context_sha256": "bcb95dc2702800a7612ef93f2bea63cdc295052358d47852790359b638f4d304",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 1120,
+      "id": "monster-hunter-portable-3rd-hd-yakumo",
+      "title": "Monster Hunter Portable 3rd HD Ver. Yakumo",
+      "route": {
+        "exe": "Yakumo.exe",
+        "cwd": "Complete creating package directory",
+        "argv": [],
+        "retained_argument_rule": "None normal prepared copy; retain existing supported --data-dir or game-directory literals only",
+        "abi_scope": "retained bounded PE AMD64 header; not native qualification"
+      },
+      "source_and_preparation": "Use your own Monster Hunter Portable 3rd HD Ver. NPJB-40001 original. The PS3 HD release contains the PSP UMD image that this player uses; do not substitute the ordinary PSP release or feed it a whole PS3-format disc image. Complete normal upstream setup before attachment. The selected source checks the disc ID and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then checks the prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. This does not authenticate every disc byte. Portcove obtains no original, key or preparation tool and does not run installation or generation.",
+      "entry_and_lifetime": "Select Yakumo.exe in its complete creating Windows folder, keeping its matching overlay libraries, FFmpeg DLLs, fonts and resources. Use that folder as working directory and no extra arguments for a normal already-prepared copy. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots. The native process runs the game in-process. Upstream Set Up Game Data Again and Restart Now after save import can end it and start a successor. Perform those actions outside the attached session; Core does not automatically adopt the successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement.",
+      "runtime_replacement_owner": "Upstream/user only; Core owns selected-native intent/consent/registration/explicit Play/relink/preserving removal. No external lifecycle authority.",
+      "persistence": "The Windows installed profile normally uses %APPDATA%/Yakumo/MHP3rd. The portable package uses data/ beside the executable. Existing portable.txt, a data/ folder, --portable, --data-dir and MHP3RD_DATA_DIR/MHP3RD_PORTABLE choices affect selection; retain the actual established mode and do not add/remove markers or trigger profile-copy prompts as registration work. A non-writable portable directory fails instead of silently falling back. Keep settings.ini, prepared EBOOT.ELF, copied disc.iso or its external in-place original, ms0/PSP/SAVEDATA (including ULJM05800, ULJM05800QST and ULJM05800DAT), mods, texture packs, pipeline caches/keys, logs, controller mappings, translations/fonts, save-backups, temporary files and all custom roots. A source-build game directory may retain its own ms0 and older saves; do not migrate it automatically.",
+      "restrictions": [
+        "MIT covers the project’s own original code; third-party IP remains independently owned. Preserve the applicable packaged FFmpeg LGPL and font/dependency notices; this is not a whole-game rights certificate.",
+        "Upstream documents untranslated/blank save-dialog screens, curved-surface issues and unsupported code mods; reported rendering, multiplayer, controller and save compatibility are publisher claims, not Portcove observations. No game, original, helper, installer or native session was run."
+      ],
+      "package_integrity_evidence": {
+        "tag": "v0.7.5",
+        "asset_id": 635475842,
+        "asset": "yakumo-0.7.5-windows-x86_64-portable.zip",
+        "bytes": 220399914,
+        "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+        "expected_sha256": "7927e3f1e30afcd6f908038ced4a9c99ca58c92510920ec9f36a7b2b1d2ed69c",
+        "observed_sha256": "7927e3f1e30afcd6f908038ced4a9c99ca58c92510920ec9f36a7b2b1d2ed69c",
+        "raw_preparser_bounds": {
+          "records": 377,
+          "central_bytes": 58656,
+          "declared_expanded_bytes": 690618979
+        },
+        "extraction_writes": 0,
+        "upstream_code_or_game_execution": false,
+        "limits": "Bounded PE/optional-header prefixes and chosen documentation only; no complete ABI/dependency/native/runtime qualification or package-source equivalence inferred.",
+        "scope": "Retained bounded ZIP central-directory preflight, computed hash comparison, bounded PE prefixes and selected textual notices only; zero extraction/code execution. No source-to-binary certificate."
+      },
+      "primary_project_url": "https://github.com/TeamGDB/Yakumo",
+      "source_bindings": [
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "CMakeLists.txt",
+          "blob": "edb5627d1cf00580817fb4fbf18f67b59ccbce51",
+          "sha256": "2c062e15740349f4acd0b1b2c0ed37da8c521f1597a6aeb342cd7b4421e4cf1b",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/CMakeLists.txt"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "LICENSE",
+          "blob": "4169d16e1543d7e1d4a5df1840eb7f38d6968494",
+          "sha256": "8c4687b291e404b2938bb550f20efb364eac6c185f35157ac9c7b34b922045c5",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/LICENSE"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "README.es.md",
+          "blob": "c0fadf0b84ba53b5c7ce08814fbdb555a68572e4",
+          "sha256": "f647ca52fb9a6bd4bc6c01ff4cf17a6bc5c559a639e0a9abd8737834e5352984",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/README.es.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "README.md",
+          "blob": "44178049a5e821d94adae0b073ebef7bbde6ca0e",
+          "sha256": "b86cd29e71860f12fda9de77e5c1bea9e02e72e828f3c4b0bb718c4d31b6f7a8",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/README.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "README.ru.md",
+          "blob": "fe32c7c2c403cf52d9aab10a1a1690c93c2e9930",
+          "sha256": "17b3b59d07cb3c8c4307e25e27b5f4d389ddb82176d4631a4506a3e82990b320",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/README.ru.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "b61852aef10870400320b96d92a14136ac17b051",
+          "path": "CMakeLists.txt",
+          "blob": "edb5627d1cf00580817fb4fbf18f67b59ccbce51",
+          "sha256": "2c062e15740349f4acd0b1b2c0ed37da8c521f1597a6aeb342cd7b4421e4cf1b",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/b61852aef10870400320b96d92a14136ac17b051/CMakeLists.txt"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "b61852aef10870400320b96d92a14136ac17b051",
+          "path": "LICENSE",
+          "blob": "4169d16e1543d7e1d4a5df1840eb7f38d6968494",
+          "sha256": "8c4687b291e404b2938bb550f20efb364eac6c185f35157ac9c7b34b922045c5",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/b61852aef10870400320b96d92a14136ac17b051/LICENSE"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "b61852aef10870400320b96d92a14136ac17b051",
+          "path": "README.es.md",
+          "blob": "f31181c2af9cfc9db8d1ab2146e50ece0005387b",
+          "sha256": "77ba6ec2acbada31cf87f2609eb962d4ff66a57f17f8ee91f312c3f2ad5706c5",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/b61852aef10870400320b96d92a14136ac17b051/README.es.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "b61852aef10870400320b96d92a14136ac17b051",
+          "path": "README.md",
+          "blob": "8981cb8d5975b74a2d656c60f6b64f8812faa294",
+          "sha256": "0a3324285c00e5c54597539f560a0026e62f481962f94d31f43e25978f5ee9c8",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/b61852aef10870400320b96d92a14136ac17b051/README.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "b61852aef10870400320b96d92a14136ac17b051",
+          "path": "README.ru.md",
+          "blob": "ef0e00b14b2f2272975794c09db05022d48ea7a4",
+          "sha256": "6093553830c21f13ce2dbc123b7006ea757400805e3a5d13b56e0d62c541511c",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/b61852aef10870400320b96d92a14136ac17b051/README.ru.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/README.md",
+          "blob": "43de0ed4f011397500491cb5c83cc80bf95bc158",
+          "sha256": "2f1377910fcce1107e5495de8409428925f51649409e112817abe26e04a16f0a",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/README.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/host/main.cpp",
+          "blob": "99bcb305b7e59de267cb03af92c0c0a01a7900cd",
+          "sha256": "c8561868485d9daf16e31481d5ad0acb55f74dd0c65d971e915d0ed2527f20f9",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/host/main.cpp"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/host/app_paths.cpp",
+          "blob": "2c4f975da42632485b2762297118aacbac38f69c",
+          "sha256": "eedeba39592c8d1e0ca3f53cb9f0256064c8a5d5cf04c61350f04218c8983294",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/host/app_paths.cpp"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/packaging/THIRD_PARTY_NOTICES.md",
+          "blob": "0eb2f2a55ba8f89110ce1fb09ce44f964de07af0",
+          "sha256": "6dd687fede7d5d8e166e6756ec2113bb11526c69ebd3f68d3d901af033735056",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/packaging/THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/config/mhp3rd_npjb40001.toml",
+          "blob": "7a3f4cc6c8f5f51e7643e615d17bec636ea54dbd",
+          "sha256": "b9f1ccc5c3becd1b2a005af2ecf1367e1af200d045f69b0c6e841af5aab9d788",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/config/mhp3rd_npjb40001.toml"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/host/install/user_data.cpp",
+          "blob": "5e0892cbbcb7c1a387e6755a391ca4e7f4ead2c8",
+          "sha256": "9a4ba23a036a7070e83d437a01648cb103650fe50ad257ec4f7456bc933be891",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/host/install/user_data.cpp"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/host/install/game_identity.hpp",
+          "blob": "c02a955d48d2a515a40d6970705231ed50713e70",
+          "sha256": "d1767a6f4fc0efd38bfe6f8200453a1e020382f6e20c8078d18a391decb87a64",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/host/install/game_identity.hpp"
+        },
+        {
+          "repository": "TeamGDB/Yakumo",
+          "commit": "03e7ca2d5ebd1fe4e7958235f4041716e3637cb6",
+          "path": "profiles/mhp3rd/host/install/installer.cpp",
+          "blob": "86d5aa24a8baf87353019ebbb5baa12ba54f2b14",
+          "sha256": "bb6b63647f86c0a89d777541cdc039bbd009e738bf6e83dd8544fe88cbc1a530",
+          "primary_url": "https://github.com/TeamGDB/Yakumo/blob/03e7ca2d5ebd1fe4e7958235f4041716e3637cb6/profiles/mhp3rd/host/install/installer.cpp"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PARTIAL; MUST REMAIN OPEN this source-only delivery. Independent reviewer confirms the actual issue explicitly requires bounded actual-title Portcove launch and save preservation; inert first-party registration fixtures do not satisfy that criterion. No native authorization is supplied or requested. Resume with the owning authorized actual-title acceptance and evidence; preserve B1 GUI/native stop and all known title-specific limits.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/monster-hunter-portable-3rd-hd-yakumo.json",
+      "preimage_sha256": "57986544268b1993572ad79bdf3917a6012bfb2a31dc99bda23c7c875c4f4b73",
+      "formatted_postimage_sha256": "fda724f393cdb1bf55df3341691b96713be859e8923f1d60e220f91dc08e7bd2",
+      "prepared_candidate_sha256": "f6885b351b0c3c7fb8f96160f82a61e04e0fc99c82f1a68b2dbd88b4de9cfa85",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "4b8ed59f092c186a1b80e6d373f725d38233a63055edeee7b0569f3ea3219e6a",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Medium",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Researching",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 1130,
+      "id": "mario-party-4-party-board",
+      "title": "Mario Party 4 Party Board",
+      "route": {
+        "exe": "partyboard.exe",
+        "cwd": "Complete creating package directory",
+        "argv": [],
+        "retained_argument_rule": "None; retain actual original/extracted tree and existing setup",
+        "abi_scope": "upstream-preferred Win32/I386 on compatible Windows; no curated x64 claim"
+      },
+      "source_and_preparation": "The selected partyboard_0.2.0 release supports your own GameCube Mario Party 4 USA GMPE01 revision 0 ISO/RVZ. Complete its normal setup outside Portcove; a newer source README mentioning revision 1 does not broaden this alpha’s accepted input. The upstream release prefers its Win32/x86 build because the separate x64 build may crash in additional places. Use an already-working independently permitted copy on a compatible Windows host; no curated x64-package or other-platform acceptance is claimed.",
+      "entry_and_lifetime": "Select partyboard.exe and its complete creating package directory as working directory, with no extra arguments for the normal in-process startup. The source can browse an original each time; the documented GMPE01_00.iso or GMPE01_00.rvz beside the executable avoids that repeated pick. Keep the actual original, extracted GMPE01_00 tree and matching runtime/resources. Do not substitute a different revision, architecture or decompilation build.",
+      "runtime_replacement_owner": "Upstream/user only; Core owns selected-native intent/consent/registration/explicit Play/relink/preserving removal. No external lifecycle authority.",
+      "persistence": "Upstream locates this alpha’s saves in %APPDATA%/Party Board. Preserve the entire external profile, its settings/cache and any actual custom locations, plus the complete creating package, original image, extracted data, logs, mods, backups and temporary files. Dolphin save compatibility is only an upstream claim; no migration or import is performed. Unknown extra data grants no deletion rights. Upstream and you retain runtime replacement; keep the creating copy and review changed selected bytes after maintenance.",
+      "restrictions": [
+        "The independently selected native route is separate from curated package CPU classification. Win32 is not relabeled as Win64, and no generic provider exception is added.",
+        "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game."
+      ],
+      "package_integrity_evidence": {
+        "tag": "partyboard_0.2.0",
+        "asset_id": 415431240,
+        "asset": "partyboard_alpha_0.2.0_x86.zip",
+        "bytes": 15888129,
+        "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+        "expected_sha256": "2edb16fa85a31457304410d97e485ac66c07d404809ca5f4af861854db778c48",
+        "observed_sha256": "2edb16fa85a31457304410d97e485ac66c07d404809ca5f4af861854db778c48",
+        "raw_preparser_bounds": {
+          "records": 95,
+          "central_bytes": 8890,
+          "declared_expanded_bytes": 52508672
+        },
+        "extraction_writes": 0,
+        "upstream_code_or_game_execution": false,
+        "limits": "Bounded PE/optional-header prefixes and chosen documentation only; no complete ABI/dependency/native/runtime qualification or package-source equivalence inferred.",
+        "scope": "Retained bounded ZIP central-directory preflight, computed hash comparison, bounded PE prefixes and selected textual notices only; zero extraction/code execution. No source-to-binary certificate."
+      },
+      "primary_project_url": "https://github.com/mariopartyrd/partyboard",
+      "source_bindings": [
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": ".gitmodules",
+          "blob": "c66a96a3ad32891282ac6f27bd5509fc80d69440",
+          "sha256": "936f0be010c79eaa9ddd7182941284a358e93d3dbde64a8a7a9744af60b3a5e3",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/.gitmodules"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "CMakeLists.txt",
+          "blob": "242ab51e301bdd16e727db1b96d64af65fa2e7af",
+          "sha256": "41089d58b0e155d576e7cc96377c01b2190c3b04c5d3a861accce483ab3a9170",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/CMakeLists.txt"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "README.md",
+          "blob": "a297e78dbc85831aaaa8df51ef2789a0f2761864",
+          "sha256": "b5eb020f900599b30adf3e713b38b59d570fa4513bc7db03995fcadc81dc0221",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/README.md"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "src/port/portmain.c",
+          "blob": "57bad2c81f19df959bc488dcf0a109a4f35c0844",
+          "sha256": "a9847bfbb126f67626b30ccf06e0fe95565b3f8783e26306298c17f318e3ccd7",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/src/port/portmain.c"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "src/port/dvd.c",
+          "blob": "fe5ad5d8228bb94eb3db3944a0a55286b005b7a4",
+          "sha256": "2f48daa45a6b90a73b2219b365c6d2c31afd14f2a06ee0576c362daa3e4543c2",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/src/port/dvd.c"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "src/port/OS.c",
+          "blob": "baa2bfb1256ee09997269ca1ed94f636fa7ea8dc",
+          "sha256": "211221d1110c4d831e7f1f4481c3a08ed31741f5ade3dedbbb47829fd65aa4ca",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/src/port/OS.c"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "src/port/imgui.cpp",
+          "blob": "66c978b933b194e171c48f30a2b84a0da4c304b3",
+          "sha256": "b3409285729b2c7c4c41ed959c0d3b200c9c8d9a3e744f4f906f79b81522f9f0",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/src/port/imgui.cpp"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "config/GMPE01_00/config.yml",
+          "blob": "7e4233af9fe9ba92f25e60685663e8d8f4aad60c",
+          "sha256": "785a7fab3fa2576de1f5cb51df20ff88055aa36f18e4b31851d01b16dabbd6ce",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/config/GMPE01_00/config.yml"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "building.md",
+          "blob": "af8587ebb9c626f100b9f27fa2d05cc5f2c7dcef",
+          "sha256": "2e760bdaacea26f58d05919c12d6f6b8ba8b5bd0222890b92b19ec3f7a56eaa7",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/building.md"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "src/port/stubs.c",
+          "blob": "3e144f80b5fbf0f660f7f92205e453dc42ca0ab6",
+          "sha256": "72e6d1e8d042386ddd67fb29fd744f44d6d7bd23057c839024faed737935cb7f",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/src/port/stubs.c"
+        },
+        {
+          "repository": "mariopartyrd/partyboard",
+          "commit": "39958e830b68bcd42ec3e960904b0a4c587cc3e7",
+          "path": "src/game/main.c",
+          "blob": "7cc4883861edeae219eaf225d108219cd85db955",
+          "sha256": "57f60a995b155c39bf98388eab02948154d5bf51ab662f63563a0c2f2f2c2b64",
+          "primary_url": "https://github.com/mariopartyrd/partyboard/blob/39958e830b68bcd42ec3e960904b0a4c587cc3e7/src/game/main.c"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PARTIAL; MUST REMAIN OPEN this source-only delivery. Independent reviewer confirms the actual issue explicitly requires bounded actual-title Portcove launch and save preservation; inert first-party registration fixtures do not satisfy that criterion. No native authorization is supplied or requested. Resume with the owning authorized actual-title acceptance and evidence; preserve B1 GUI/native stop and all known title-specific limits.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/mario-party-4-party-board.json",
+      "preimage_sha256": "58bc4383a30bbecf9b1590bea063ca4bdde7abab963e3bcccd6fa8b5f4f07526",
+      "formatted_postimage_sha256": "8addcdbff1b0abe0df4852a762092b4596369bf0c7b0e55db5eecda800da405f",
+      "prepared_candidate_sha256": "8addcdbff1b0abe0df4852a762092b4596369bf0c7b0e55db5eecda800da405f",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "3958f8a2c2b460220ea1dd46ce9dd9061b46e95ffab8bba90a36dcfe3da073eb",
+      "planning_at_pickup": {
+        "Status": "Ready",
+        "Priority": "Medium",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Researching",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 373,
+      "id": "pokemon-platinum-pokeplatinum-pc-port-lead",
+      "title": "Pokémon Platinum / pokeplatinum PC-port lead",
+      "route": {
+        "exe": "main.exe",
+        "cwd": "Complete already-prepared creating package directory",
+        "argv": [],
+        "retained_argument_rule": "None documented normal start",
+        "abi_scope": "retained bounded PE AMD64 header; not native qualification"
+      },
+      "source_and_preparation": "Use your own Pokémon Platinum USA CPUE01 .nds original and complete the selected player’s first-launch extraction outside Portcove. The selected release is an experimental 64-bit native PC port using libntr, not merely a matching DS decompilation. Keep all resulting files together and do not substitute another region or a DS ROM build. No helper/compiler/original is acquired or run by this guide.",
+      "entry_and_lifetime": "Select main.exe and its complete creating package directory as working directory, with no extra arguments for the documented normal start. Retain its matching libraries, header.bin, firmware.bin and resources and the established original/extracted-data arrangement. Keep the working renderer and input settings; no additional backend or control-mode qualification is inferred. Do not select the MSys2 installers, source build scripts or a console-target output.",
+      "runtime_replacement_owner": "Upstream/user only; Core owns selected-native intent/consent/registration/explicit Play/relink/preserving removal. No external lifecycle authority.",
+      "persistence": "The upstream README says firmware.bin contains only an offset and space for WiFi configuration, not a Nintendo DS firmware dump. Preserve that mutable configuration, the complete working folder and extracted game files, actual saves/settings/logs/mods/backups/temporary files and every external location used by this copy. Do not assume the package folder contains every save. The title’s libntr dependency tracks main without an immutable SDK pin; exact released SDK defaults and complete save-coordinate mapping are not established here. No backup, deletion, migration or save/firmware compatibility is offered.",
+      "restrictions": [
+        "Use only an independently permitted copy, original and components. The README identifies separate MIT libntr obligations for redistributors; it is not a whole-game IP certificate or source-to-binary receipt.",
+        "Experimental upstream preview may crash or show graphical defects. Package/source/SDK correspondence, full persistent-data mapping, actual native gameplay and real-save behavior remain Unknown; no installed Desktop or protected publication is qualified."
+      ],
+      "package_integrity_evidence": {
+        "tag": "v0.1.12",
+        "asset_id": 626767205,
+        "asset": "release_win64.zip",
+        "bytes": 42881832,
+        "expected_sha256_source": "official GitHub API digest; distinct from locally computed hash",
+        "expected_sha256": "0db11b84199b1b7cebdbdb8ceca26fc4c2a2a1c2f448aef86bfde8b26f49e5ec",
+        "observed_sha256": "0db11b84199b1b7cebdbdb8ceca26fc4c2a2a1c2f448aef86bfde8b26f49e5ec",
+        "raw_preparser_bounds": {
+          "records": 8,
+          "central_bytes": 471,
+          "declared_expanded_bytes": 123383170
+        },
+        "extraction_writes": 0,
+        "upstream_code_or_game_execution": false,
+        "limits": "Bounded PE/optional-header prefixes and chosen documentation only; no complete ABI/dependency/native/runtime qualification or package-source equivalence inferred.",
+        "scope": "Retained bounded ZIP central-directory preflight, computed hash comparison, bounded PE prefixes and selected textual notices only; zero extraction/code execution. No source-to-binary certificate."
+      },
+      "primary_project_url": "https://github.com/cybervisi0n/pokeplatinum",
+      "source_bindings": [
+        {
+          "repository": "cybervisi0n/pokeplatinum",
+          "commit": "6d74e552a228355c614c23bcfe9e158095767f00",
+          "path": "README.md",
+          "blob": "ffed8e5d452f33a6959ffa65928cc5cda4ea4149",
+          "sha256": "b18d5241e0a6187bb066bd74c41acb6bcc5e34ba7c94f10758fb95441e33e1e3",
+          "primary_url": "https://github.com/cybervisi0n/pokeplatinum/blob/6d74e552a228355c614c23bcfe9e158095767f00/README.md"
+        },
+        {
+          "repository": "cybervisi0n/pokeplatinum",
+          "commit": "6d74e552a228355c614c23bcfe9e158095767f00",
+          "path": "meson.build",
+          "blob": "fbf02dbc5aa0f4c9427b746b48a532b6e8230a34",
+          "sha256": "f97fc75a3ded6b4ea6525d3568ae3de29b30c5b87bdb2e0e5fd6b4d22487d8c9",
+          "primary_url": "https://github.com/cybervisi0n/pokeplatinum/blob/6d74e552a228355c614c23bcfe9e158095767f00/meson.build"
+        },
+        {
+          "repository": "cybervisi0n/pokeplatinum",
+          "commit": "6d74e552a228355c614c23bcfe9e158095767f00",
+          "path": "subprojects/libntr.wrap",
+          "blob": "0662bd7addb89014096b618678536e7c2d423c11",
+          "sha256": "96c74d7a250bc5bcf1b6763dc1558e40d9f0915e52011303f668f3e087cf7058",
+          "primary_url": "https://github.com/cybervisi0n/pokeplatinum/blob/6d74e552a228355c614c23bcfe9e158095767f00/subprojects/libntr.wrap"
+        },
+        {
+          "repository": "cybervisi0n/pokeplatinum",
+          "commit": "6d74e552a228355c614c23bcfe9e158095767f00",
+          "path": "subprojects/libntrsystem.wrap",
+          "blob": "243f5d4833f8343db61323af4a1fe9bc298c091c",
+          "sha256": "c5d077bdb987786b831e1a827fa9fb704fd213078cebd48a63cc5a4014b88fc8",
+          "primary_url": "https://github.com/cybervisi0n/pokeplatinum/blob/6d74e552a228355c614c23bcfe9e158095767f00/subprojects/libntrsystem.wrap"
+        },
+        {
+          "repository": "cybervisi0n/pokeplatinum",
+          "commit": "6d74e552a228355c614c23bcfe9e158095767f00",
+          "path": "subprojects/libntrwifi.wrap",
+          "blob": "c315cb1925e20d4c3556699ef0fbef108cc7c204",
+          "sha256": "1c98df0f7cc17bfaefccf0481925f7c49ba79c91626984497be014a5856d667f",
+          "primary_url": "https://github.com/cybervisi0n/pokeplatinum/blob/6d74e552a228355c614c23bcfe9e158095767f00/subprojects/libntrwifi.wrap"
+        },
+        {
+          "repository": "cybervisi0n/pokeplatinum",
+          "commit": "6d74e552a228355c614c23bcfe9e158095767f00",
+          "path": "subprojects/libntrdwc.wrap",
+          "blob": "7113df864ec21a2a7967262c0af09dc5a36de3ec",
+          "sha256": "8b2b184445e95cd68ce18b7ef3a11b09caad60246a71064cc329b32c937021b6",
+          "primary_url": "https://github.com/cybervisi0n/pokeplatinum/blob/6d74e552a228355c614c23bcfe9e158095767f00/subprojects/libntrdwc.wrap"
+        },
+        {
+          "repository": "cybervisi0n/pokeplatinum",
+          "commit": "6d74e552a228355c614c23bcfe9e158095767f00",
+          "path": "src/main.c",
+          "blob": "aa38f040cea16d72e25971b4d7add729dd3a8d25",
+          "sha256": "09782e533b3e02f30bb3a94edb0ae9a661834844281cddc519706b42290f0cc9",
+          "primary_url": "https://github.com/cybervisi0n/pokeplatinum/blob/6d74e552a228355c614c23bcfe9e158095767f00/src/main.c"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index.",
+        "Exact released libntr SDK defaults and full save-coordinate mapping remain Unknown."
+      ],
+      "closure_eligibility": "PROSPECTIVE ONLY: independent own-minimum/consequential-fact review, maintained per-record and combined validation, exact-head checks, guarded delivery and fresh canonical/Project reconciliation required; existing-copy register+explicit Play only. No broader management/Supported/native/protected completion. Own pinned-recipe/distribution-authority and source/setup/output safety criteria require explicit independent applicability review; conditional copy wording alone cannot waive them.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/pokemon-platinum-pokeplatinum-pc-port-lead.json",
+      "preimage_sha256": "32fc3b5dc3257377893c0eb6fd70f19bfde830ba88f3a7a5e0358bcca1a05f04",
+      "formatted_postimage_sha256": "6fafded00a3752848b44e6638af989901aa82a96e6efcaee6a56236842856026",
+      "prepared_candidate_sha256": "81083c0ec8585f0091f29f22c59afc37ccfaa30ee0ed8d6e287b222d20874cff",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "a6e769040bf59276c767dcf1b5111ed38b6c92e031fe03fea9257e7aa7107d56",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 1119,
+      "id": "ace-combat-5-static-recompilation",
+      "title": "Ace Combat 5 Static Recompilation",
+      "route": {
+        "exe": "build/gcc/ac5.exe",
+        "cwd": "creating project root",
+        "argv": [
+          "--data",
+          "<absolute generated directory>",
+          "--disc",
+          "<absolute own USA ISO or extracted-disc directory>",
+          "--watchdog",
+          "0"
+        ]
+      },
+      "source_and_preparation": "Complete the supported upstream build from your own Ace Combat 5: The Unsung War USA SLUS-20851 original. Its extracted SLUS_208.51 must be 3634092 bytes, SHA-256 c3594227605307806592416dbd723bf5771952e279ee281a40da305426667385. Keep the ISO or extracted disc files for runtime reads. Upstream GCC 15+, MSYS2 UCRT64 SDL3, Python, CMake/Ninja and Vulkan SDK preparation remains outside Portcove. Retain all documented overrides/hooks during generation; the shorter diagnostic CMake command is not the supported complete recipe.",
+      "entry_and_lifetime": "The normal native dispatch owns the game session until exit; --vblanks 0 is the documented default. The source’s short post-entry-return diagnostic pump is not proof of a normal gameplay time limit. No gameplay or startup observation was performed.",
+      "runtime_replacement_owner": "Upstream/user only",
+      "persistence": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods.",
+      "restrictions": [
+        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+      ],
+      "package_integrity_evidence": {
+        "scope": "SOURCE ONLY for consequential route claims. Retained release metadata is not archive contents or local artifact hash. No package download, archive parse, PE/ABI/dependency inspection or execution.",
+        "public_asset_status": "1119/355 public RAR and 379 ZIP metadata only; 1310 no package inspection.",
+        "source_binary_correspondence": "Unknown"
+      },
+      "primary_project_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
+      "source_bindings": [
+        {
+          "repository": "sal063/Ace-Combat-5-Static-recompilation",
+          "commit": "625ac191e382d64ec10944a7e53a272a70bcea73",
+          "path": "CMakeLists.txt",
+          "blob": "ac53a6472981dfb66c0eceb189af079a9f517d58",
+          "sha256": "e479e5f7786cd33896fd27f78ca02bb6c33d189d65481b7bf0a6825d4172f82b",
+          "primary_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation/blob/625ac191e382d64ec10944a7e53a272a70bcea73/CMakeLists.txt"
+        },
+        {
+          "repository": "sal063/Ace-Combat-5-Static-recompilation",
+          "commit": "625ac191e382d64ec10944a7e53a272a70bcea73",
+          "path": "LICENSE",
+          "blob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "primary_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation/blob/625ac191e382d64ec10944a7e53a272a70bcea73/LICENSE"
+        },
+        {
+          "repository": "sal063/Ace-Combat-5-Static-recompilation",
+          "commit": "625ac191e382d64ec10944a7e53a272a70bcea73",
+          "path": "README.md",
+          "blob": "984028bd0f2f1e9aafb6cf47049422e6b639e719",
+          "sha256": "5f803be38ba9f76cc732ba591f1c93741937730fe987d08afd9a9db4e1bfab54",
+          "primary_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation/blob/625ac191e382d64ec10944a7e53a272a70bcea73/README.md"
+        },
+        {
+          "repository": "sal063/Ace-Combat-5-Static-recompilation",
+          "commit": "625ac191e382d64ec10944a7e53a272a70bcea73",
+          "path": "runtime/src/ps2_main.c",
+          "blob": "f3d84f6e2a2f732af8908a09163cc6cd3fc684a4",
+          "sha256": "eabfd61c7927492620e85104c84e53d6a6f1a7c328e9a38809d4110d147afc89",
+          "primary_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation/blob/625ac191e382d64ec10944a7e53a272a70bcea73/runtime/src/ps2_main.c"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PARTIAL; MUST REMAIN OPEN this source-only delivery. Independent reviewer confirms the actual issue explicitly requires bounded actual-title Portcove launch and save preservation; inert first-party registration fixtures do not satisfy that criterion. No native authorization is supplied or requested. Resume with the owning authorized actual-title acceptance and evidence; preserve B1 GUI/native stop and all known title-specific limits.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/ace-combat-5-static-recompilation.json",
+      "preimage_sha256": "11bbefe9288811556ec6d15e8b796f34d32bda572610537714c340c8dbf5c4c9",
+      "formatted_postimage_sha256": "e03ac6c8cbc9075fdee129501b4af485b1c1b6dded305f111fc0ed61d8b49f1d",
+      "prepared_candidate_sha256": "3589acaaea56640a1be7dbccd68485d7701376b3a020eca6cf2da2d46086bb2e",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "b0b3d684d471a8cc27855b704fa2e034bea12d1b80dc442d3830706f8edcbbec",
+      "planning_at_pickup": {
+        "Status": "Triage",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Windows",
+        "Port stage": "Researching",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 355,
+      "id": "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
+      "title": "Ace Combat X: Skies of Deception / Ace-Combat-X-Recompilation",
+      "route": {
+        "exe": "build/pspreco-sdl3.exe",
+        "cwd": "creating project root",
+        "argv": ["<absolute generated/image.bin>", "<absolute own ISO or extracted-game directory>"]
+      },
+      "source_and_preparation": "Use an independently permitted completed native build for Ace Combat X: Skies of Deception USA ULUS10176. Upstream preparation uses your own UMD ISO and your own decrypted EBOOT.elf, generates image.bin and matching native code, and builds the windowed SDL3/Vulkan player. Decryption and extraction tooling remain the user’s upstream preparation, outside Portcove. Preserve disc.manifest and cdi.manifest with extracted data: the runtime uses original sectors. Do not use another Ace Combat game’s disc, BIOS or save contract.",
+      "entry_and_lifetime": "The native entry loads its generated image and own disc data, calls the recompiled module and remains in its thread scheduler until shutdown. This is a source-reviewed completed-copy route; no public RAR contents or native behavior were inspected or executed.",
+      "runtime_replacement_owner": "Upstream/user only",
+      "persistence": "Keep the entire creating project, generated image/native code, original UMD-derived files, extraction manifests, runtime libraries and permitted fonts. Default saves use memstick/PSP/SAVEDATA relative to the chosen CWD; PSPRECO_MEMSTICK overrides that root. Default pspreco.toml is CWD-relative; PSPRECO_SETTINGS overrides it. Keep textures/ULUS10176 and PSPRECO_TEXTURES, PSPRECO_FONTDIR and every other actual custom path, with mods/scripts, caches, logs and backups. Retain project GPL-2.0 and separate ImGui, ATRAC decoder, Basis/zstd and font notices. The source calls its PPSSPP PGF fonts freely licensed; this is an upstream attribution, not a new grant for PSP firmware or the original game. No cross-game/save compatibility is assumed.",
+      "restrictions": [
+        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+      ],
+      "package_integrity_evidence": {
+        "scope": "SOURCE ONLY for consequential route claims. Retained release metadata is not archive contents or local artifact hash. No package download, archive parse, PE/ABI/dependency inspection or execution.",
+        "public_asset_status": "1119/355 public RAR and 379 ZIP metadata only; 1310 no package inspection.",
+        "source_binary_correspondence": "Unknown"
+      },
+      "primary_project_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
+      "source_bindings": [
+        {
+          "repository": "sal063/Ace-Combat-X-Recompilation",
+          "commit": "f6268e959cac75481989077a94305b22e55ec8ad",
+          "path": "LICENSE",
+          "blob": "a66a55f9806c0500ee810a8b13c024f34a6b2e16",
+          "sha256": "de124e5a899ae4074ebf5c0f790494178ab66d310606b86203d67a6f3ef45168",
+          "primary_url": "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/LICENSE"
+        },
+        {
+          "repository": "sal063/Ace-Combat-X-Recompilation",
+          "commit": "f6268e959cac75481989077a94305b22e55ec8ad",
+          "path": "NOTICE.md",
+          "blob": "b68122cf05208b22c86a319eb49194dc7e08aa50",
+          "sha256": "8dd0866714219d24c2608d68ef58c6764f6490fe08dc3ec198238064ee0135c3",
+          "primary_url": "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/NOTICE.md"
+        },
+        {
+          "repository": "sal063/Ace-Combat-X-Recompilation",
+          "commit": "f6268e959cac75481989077a94305b22e55ec8ad",
+          "path": "README.txt",
+          "blob": "3596b82892f5a60f7a0068963d452b9fa5dee427",
+          "sha256": "16b98300ccb84f9fb2585e2ea07d2195db4f07852ad0625f73b7268f1ca52737",
+          "primary_url": "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/README.txt"
+        },
+        {
+          "repository": "sal063/Ace-Combat-X-Recompilation",
+          "commit": "f6268e959cac75481989077a94305b22e55ec8ad",
+          "path": "runtime/host/main.c",
+          "blob": "29e1dbacafe3dd677316cebdceb90acb1262195a",
+          "sha256": "0dcd12da2c2baa2edd996b6e2f181f6e91d6e5085439b67798c174f241fbb85e",
+          "primary_url": "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/runtime/host/main.c"
+        },
+        {
+          "repository": "sal063/Ace-Combat-X-Recompilation",
+          "commit": "f6268e959cac75481989077a94305b22e55ec8ad",
+          "path": "runtime/hle/savedata.c",
+          "blob": "9fff142446295d7de3f3c09ebd2bb2d11736017d",
+          "sha256": "dee33c89954d2d03ea412717d502157d6da6dc43c6bb71b6a21705c1bbdb0656",
+          "primary_url": "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/runtime/hle/savedata.c"
+        },
+        {
+          "repository": "sal063/Ace-Combat-X-Recompilation",
+          "commit": "f6268e959cac75481989077a94305b22e55ec8ad",
+          "path": "runtime/host/settings.c",
+          "blob": "63792552fc90e0cfb2981ec07d812d89530bdd19",
+          "sha256": "f8eec9f4a57b1fec4e07290cc58b5d856f7f3b045f631438fd1d7d6cbc90bd82",
+          "primary_url": "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/runtime/host/settings.c"
+        },
+        {
+          "repository": "sal063/Ace-Combat-X-Recompilation",
+          "commit": "f6268e959cac75481989077a94305b22e55ec8ad",
+          "path": "runtime/hle/libfont.c",
+          "blob": "ef5ca6f08c4a523777a4f1f516c63baab057def6",
+          "sha256": "b8d83a3660444c62294412828cb0bbf5db8d4a3694cae3f3af41479296eff6ea",
+          "primary_url": "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/runtime/hle/libfont.c"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PROSPECTIVE ONLY: independent own-minimum/consequential-fact review, maintained per-record and combined validation, exact-head checks, guarded delivery and fresh canonical/Project reconciliation required; existing-copy register+explicit Play only. No broader management/Supported/native/protected completion. Own pinned-recipe/distribution-authority and source/setup/output safety criteria require explicit independent applicability review; conditional copy wording alone cannot waive them.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/ace-combat-x-skies-of-deception-ace-combat-x-recompilation.json",
+      "preimage_sha256": "ab4357fe3bf17214467e1d59fb7024717fc7e9ba4e0d6d83d0152a08a493e718",
+      "formatted_postimage_sha256": "030291dd106cd9d4d0da2ec5a267b5a2ed1a59f57b44f7f39fe133ec9301be2c",
+      "prepared_candidate_sha256": "030291dd106cd9d4d0da2ec5a267b5a2ed1a59f57b44f7f39fe133ec9301be2c",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "3ebef833cf21f4dccd78a0b79e98e2e40019a172bc8d076952da779933e61374",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 1310,
+      "id": "star-wars-episode-iii-revenge-of-the-sith",
+      "title": "Star Wars: Episode III - Revenge of the Sith (SWROTS-PC)",
+      "route": {
+        "exe": "swrots.exe",
+        "cwd": "completed player directory",
+        "argv": []
+      },
+      "source_and_preparation": "Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied.",
+      "entry_and_lifetime": "Normal level changes, mission restarts and saves use the default in-process reboot path. An explicit Debug ProcessReboot setting, or a reboot fallback, may deliberately create a --relaunch successor and exit without waiting. That successor is outside the attached session: close every actual game before maintenance or another attachment. Do not infer successor adoption or termination from registration status, or disable upstream features with invented arguments.",
+      "runtime_replacement_owner": "Upstream/user only",
+      "persistence": "Keep the entire creating runtime and GameData, saves, settings.ini, controls.ini, mods, cache, logs and all custom paths. SWROTS_TEST_SAVES can redirect saves; preserve any actual configured location rather than treating it as disposable test data. Save logs include current/previous run and Message.log; reboot launch-data files may also be local. Preserve originals, loose mods, native companions and backups before upstream updates. Project GPL-3.0-or-later, adapted Cxbx-Reloaded GPL-2.0-or-later and ImGui MIT notices apply separately from Lucasfilm game content; no code licence grants original-game rights.",
+      "restrictions": [
+        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+      ],
+      "package_integrity_evidence": {
+        "scope": "SOURCE ONLY for consequential route claims. Retained release metadata is not archive contents or local artifact hash. No package download, archive parse, PE/ABI/dependency inspection or execution.",
+        "public_asset_status": "1119/355 public RAR and 379 ZIP metadata only; 1310 no package inspection.",
+        "source_binary_correspondence": "Unknown"
+      },
+      "primary_project_url": "https://github.com/jedijosh920/SWROTS-PC",
+      "source_bindings": [
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/LICENSE"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "README.md",
+          "blob": "1155f06fab0e71803ae7ab6d3f0c4e6199dbee33",
+          "sha256": "9e7d4cc04e0a5a70024116f3bb4eb0bcd989abad409df30679ba95254b3d45e3",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/README.md"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "THIRD_PARTY_NOTICES.md",
+          "blob": "619b4ba0a2bdcb21de7f891efaff4be988de6cbb",
+          "sha256": "69870d1880c8f5461a150bf2ed4e9ad14d4826149ddfb2fc2191b7645c838862",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/THIRD_PARTY_NOTICES.md"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "src/core/main.cpp",
+          "blob": "c65cf65ee1d268557a4af41901f870c6e57058d6",
+          "sha256": "1ccdd823d1af8b0e16ee8e01b1047cf6fd1279b65de10c3fd793b1bfef5cef6c",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/src/core/main.cpp"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "src/core/install.cpp",
+          "blob": "7fe9214512a9ab2c00e50a91a43e4c6ac257fda5",
+          "sha256": "61891d3d0401f93f747bb2e85a12fc401db8cbcba6bf4b5d913f5db3eefaebee",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/src/core/install.cpp"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "src/core/settings.cpp",
+          "blob": "378c0a5d11f8f0865aff58579a761f5cde0cb7be",
+          "sha256": "15ff8defbb1aed86a48045be5f2c464419e008ff9ebf4b1f541f7728b11ab165",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/src/core/settings.cpp"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "docs/install.md",
+          "blob": "098621fbf77f5bb4cdb88163ec117401d0b815b2",
+          "sha256": "3c679cc0664c1b79e2053a76475f090a9e438136986a59f9047edc7b4e9553c7",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/docs/install.md"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "docs/settings.md",
+          "blob": "afc3951c15c3faae79b11f05101e066152ffc67b",
+          "sha256": "a25310c7b94401b4315cbb8cd117ef0b79e3b7e01f36e3766d9aac39a45c1720",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/docs/settings.md"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "src/loader/loader.cpp",
+          "blob": "5e412ea991cc3f81444eacd74183a1591aa0888f",
+          "sha256": "bffefc777c92de33ed4ae0d51f2289b49aa1387688a60d4b52e2e6d3ca9f4dd4",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/src/loader/loader.cpp"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "src/kernel/reboot.cpp",
+          "blob": "5b980ee1bfde1b2be6c7930be0182da6353106ca",
+          "sha256": "a5903bb9fccdc15d865c38b88d8a30aa9b01766f53cdee1064efd8c9ad677c96",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/src/kernel/reboot.cpp"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "src/game/game.h",
+          "blob": "a4db457ce26d28c1f875bc8c873ab84019057c58",
+          "sha256": "cb85fbbb93d7d92b15d74a0305963fd2d9018dbb892112838d3c518463616ca3",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/src/game/game.h"
+        },
+        {
+          "repository": "jedijosh920/SWROTS-PC",
+          "commit": "5be69c5624a5cce0a0fc95ba65408cafc59f0c20",
+          "path": "src/kernel/misc.cpp",
+          "blob": "2172c8c4909af10522124ffb0a2a6ffe7705e6b1",
+          "sha256": "cc20ba63f903af3296007504f4c3bb0a000e2a7b6d3fefd33a065a83f703c07c",
+          "primary_url": "https://github.com/jedijosh920/SWROTS-PC/blob/5be69c5624a5cce0a0fc95ba65408cafc59f0c20/src/kernel/misc.cpp"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PARTIAL OPEN: own top selected-platform-asset OR reproducible-prepared-output condition has no bound selected artifact or actual output reproduction in this source-only guide. Retain scope and fields until explicit applicable evidence; source inspection alone is not reproduction.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/star-wars-episode-iii-revenge-of-the-sith.json",
+      "preimage_sha256": "ddbc64ac35f101c35b194c900f2870a6b220e59489aa92088ad9e7de06a413da",
+      "formatted_postimage_sha256": "7f023111e191a3970f32f550b9a85f486e31f35d8af7b83d0c8915d18857e337",
+      "prepared_candidate_sha256": "7f023111e191a3970f32f550b9a85f486e31f35d8af7b83d0c8915d18857e337",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "200b9ef4f5a6e034729902d3a8c5a60fd234c2646e7b14afb4f3751604a91745",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "None",
+        "Horizon": "Someday",
+        "Target release": "Unscheduled",
+        "Release commitment": null,
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    },
+    {
+      "issue": 379,
+      "id": "the-simpsons-game-thesimpsonsgamerecomp",
+      "title": "The Simpsons Game / TheSimpsonsGameRecomp",
+      "route": {
+        "exe": "simpsons-launcher.exe",
+        "cwd": "completed flat package directory",
+        "argv": ["--play"]
+      },
+      "source_and_preparation": "Use an independently permitted complete The Simpsons Game Recompiled Windows copy with matching launcher, simpsons.exe, runtime libraries and native_shaders. Complete the official upstream install from your own Xbox 360 ISO before attachment, retaining gamedata/default.xex and the complete data including movies. USA title ID 45410809 is the main target; Europe is separately described as less tested, with no inherited qualification. Select the correct AVX2 build, or the upstream NoAVX2 build for a compatible older SSE4.2 CPU. Portcove does not extract originals or install host runtimes.",
+      "entry_and_lifetime": "The supported --play launcher waits for its normal game process. Upstream owns its independent update mechanism: it may replace launcher/engine files and ask you to restart, or leave a separately named new launcher if replacement fails. Close actual players and companions before deliberate replacement; preserve old working files, then review and relink changed selected bytes. This registration does not invoke, authenticate or manage that updater.",
+      "runtime_replacement_owner": "Upstream/user only",
+      "persistence": "Keep the complete runtime, gamedata and every effective data root. Windows player saves/cache default to %LOCALAPPDATA%/simpsons with a home/AppData/Local fallback; the launcher passes that effective path explicitly. simpsons.toml is beside the game executable. Preserve launcher.json, art, mods, backups, diagnostics, logs, shader caches, native shaders and any custom engine/lib/data configuration. Upstream Play may repair saves and create backups; those operations remain upstream-owned, not Portcove backup/rollback promises. Keep private profiles and credentials private. Project GPLv3, ReXGlue/Xenia BSD-3-Clause, XenonRecomp MIT and other notices remain separate from the original game and assets.",
+      "restrictions": [
+        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+      ],
+      "package_integrity_evidence": {
+        "scope": "SOURCE ONLY for consequential route claims. Retained release metadata is not archive contents or local artifact hash. No package download, archive parse, PE/ABI/dependency inspection or execution.",
+        "public_asset_status": "1119/355 public RAR and 379 ZIP metadata only; 1310 no package inspection.",
+        "source_binary_correspondence": "Unknown"
+      },
+      "primary_project_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",
+      "source_bindings": [
+        {
+          "repository": "YesterMester/TheSimpsonsGameRecomp",
+          "commit": "4ff637bc47900c86f003a48ec3f5ab6cbefc55c6",
+          "path": "LICENSE",
+          "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "primary_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp/blob/4ff637bc47900c86f003a48ec3f5ab6cbefc55c6/LICENSE"
+        },
+        {
+          "repository": "YesterMester/TheSimpsonsGameRecomp",
+          "commit": "4ff637bc47900c86f003a48ec3f5ab6cbefc55c6",
+          "path": "README.md",
+          "blob": "f48cd89b5516a5e0e5c8f47fbb707e28268e15ed",
+          "sha256": "c97f3698ad557be613a371323276c2dfc332765771e6450ffc11dbbea72abf65",
+          "primary_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp/blob/4ff637bc47900c86f003a48ec3f5ab6cbefc55c6/README.md"
+        },
+        {
+          "repository": "YesterMester/TheSimpsonsGameRecomp",
+          "commit": "4ff637bc47900c86f003a48ec3f5ab6cbefc55c6",
+          "path": "launcher/launcher.py",
+          "blob": "d72aceb900a1d0c618995c78095d0fe3015193c5",
+          "sha256": "69cfd285b025779045d8081f7e526cce0d83b6ebdef8880e6981e6fb6f73b94e",
+          "primary_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp/blob/4ff637bc47900c86f003a48ec3f5ab6cbefc55c6/launcher/launcher.py"
+        },
+        {
+          "repository": "YesterMester/TheSimpsonsGameRecomp",
+          "commit": "4ff637bc47900c86f003a48ec3f5ab6cbefc55c6",
+          "path": "simpsons/src/main.cpp",
+          "blob": "7215cb78a591cb169fd31739f3e743528e17c10f",
+          "sha256": "b015028b99346035933bd584ac4e76e0d5cddab4ab9b0ba83d2324318b512608",
+          "primary_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp/blob/4ff637bc47900c86f003a48ec3f5ab6cbefc55c6/simpsons/src/main.cpp"
+        },
+        {
+          "repository": "YesterMester/TheSimpsonsGameRecomp",
+          "commit": "4ff637bc47900c86f003a48ec3f5ab6cbefc55c6",
+          "path": "simpsons/src/simpsons_app.h",
+          "blob": "6678f89cb0179c490ee1ac8a438df3d4dff1ae54",
+          "sha256": "85beda3a0681b44794a86dc1f5af91bd66c346d72822c88c486594ebc2f76762",
+          "primary_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp/blob/4ff637bc47900c86f003a48ec3f5ab6cbefc55c6/simpsons/src/simpsons_app.h"
+        },
+        {
+          "repository": "YesterMester/TheSimpsonsGameRecomp",
+          "commit": "4ff637bc47900c86f003a48ec3f5ab6cbefc55c6",
+          "path": "simpsons/CMakeLists.txt",
+          "blob": "2d563ef87a818477e9b7e1ed6418b3abfd6bced7",
+          "sha256": "bf85bb708f223701ba33bfa4bb521b0e15f4c294699dc2dea1610cbcc23e31ac",
+          "primary_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp/blob/4ff637bc47900c86f003a48ec3f5ab6cbefc55c6/simpsons/CMakeLists.txt"
+        },
+        {
+          "repository": "YesterMester/TheSimpsonsGameRecomp",
+          "commit": "4ff637bc47900c86f003a48ec3f5ab6cbefc55c6",
+          "path": "simpsons/simpsons_manifest.toml",
+          "blob": "0fe7df3acd585765c3b3a88e991c1bf66f3c7a39",
+          "sha256": "7552b8229ac9697ccba5162ed550a626c17eef9a0511c2554d1621a645a4cfc6",
+          "primary_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp/blob/4ff637bc47900c86f003a48ec3f5ab6cbefc55c6/simpsons/simpsons_manifest.toml"
+        }
+      ],
+      "unknowns": [
+        "Authentic package-to-source/SDK correspondence not established; recorded source and package are separate evidence scopes.",
+        "Actual-title native execution, actual original, real save/session/shutdown, installed Desktop and protected delivery not run/established by this index."
+      ],
+      "closure_eligibility": "PROSPECTIVE ONLY: independent own-minimum/consequential-fact review, maintained per-record and combined validation, exact-head checks, guarded delivery and fresh canonical/Project reconciliation required; existing-copy register+explicit Play only. No broader management/Supported/native/protected completion.",
+      "direct_required_beta_closure": false,
+      "authored_path": "crates/portcove-core/catalog/ports/the-simpsons-game-thesimpsonsgamerecomp.json",
+      "preimage_sha256": "eee524d9492a311acd521e4b95475ecda77f447fb9898eae9cc4f93dfa55b651",
+      "formatted_postimage_sha256": "17362338a7eac191435226ca6d70db1e0be4953eec638503eacc55baa6227922",
+      "prepared_candidate_sha256": "65c9ad32f6fcfd170d1e224c1228feff79ae3b5be48813381d9ba5818f49a05d",
+      "cohort": "original-524",
+      "historical_1422_member": true,
+      "fresh_acquisition_held": false,
+      "download_block_reason": null,
+      "context_sha256": "1d3d9c12b1ffc33db2750e20c3b240a77c55b255d502abde5ee2954637d83709",
+      "planning_at_pickup": {
+        "Status": "Inbox",
+        "Priority": "Low",
+        "Horizon": "Later",
+        "Target release": "Unscheduled",
+        "Release commitment": "Planned",
+        "Work type": "Port",
+        "Workstream": "Port catalog",
+        "Platform": "Unknown",
+        "Port stage": "Watchlist",
+        "Effort": "Unknown"
+      }
+    }
+  ],
+  "maintained_preparations": [
+    {
+      "issue": 2824,
+      "report_sha256": "1bd166733c9724865f39aac5ff737919faf57983278e27fbac9dc8bfc4dcd398",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "c8cae7ff5ec6fbb73d8edcb37b439269e03f6e18fcf7ba724fd32f457a8e46f3",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2575,
+      "report_sha256": "e4e17589b9c90800835fb2479b3397ea6697c3e1316e073ea3bb231191ed48c5",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "645e6b7edcd863b972b3a11549fb142e76feae087e0beadd2fdf0e1ceff48632",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 2586,
+      "report_sha256": "e01f188387d4e4bf4c64fe9d8ea3b02f67a47f50e849478989747e0f688f147e",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "9e1cb703c7a1fdc10bb46c9d19ce78886eb168b2fc6dbe4d4f44fa897c36bd5e",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 1881,
+      "report_sha256": "a04bbdb37ee59223682187866be9770a6ef7764e3695a6e9b225251917bd47ee",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "27590cd9574c8a636f2ebd1d376046309ebb7492cc94c6090ebf63f43125439b",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 1120,
+      "report_sha256": "c70f9f6427da081c829dce0e7171e600d860ab374bfee568de05de7ebb828e7e",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "a0b492cada8ee8dc2bf56f732f46964f9838ce5fad87cc0ddf70e001f91b89bf",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 1130,
+      "report_sha256": "3d569b330c981423328bbe5f258342316569d3fcf40a86564d3517e82d11d5c8",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "2a27b903a5db97b96509daf7fa1414d52bd4849c4f208b169c3767111b8d52bd",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 373,
+      "report_sha256": "d6cbb41dd72a3fab7d21b1057796789a4371308bee51227d72613688f6b1b752",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "d67f544a025cc44d224086f6277311681050c0eb5650c37e60a44fcf446c0bbd",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 1119,
+      "report_sha256": "a0ed97773cd413dfc447e5f3490941a887d98439e9d11d585ca230160deea91f",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "1c828a2f2645d2941bba105e0f7f06c05fdc45228f72e67f506a8a2b49eba34b",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 355,
+      "report_sha256": "a52704ba466e1af613ccadeed6f7c300ac737e73536edfeac12c42a36ea1358a",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "254e45fd00b7c3d9c229c1db6e97641192d7a89396d1b63712064313d112be34",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 1310,
+      "report_sha256": "6132d76f2fa2ffa82717866d52d3327770c88bd1d21a635e174596c874ea349c",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "544b84f218cdc2523f126b46936f2d8540f58f298e48a1cf68c1b4a1dcf9c972",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    {
+      "issue": 379,
+      "report_sha256": "4f11b6220f214b5d78136c3954d13a113e40b7ab28c4578a06f480fac8f97e32",
+      "operational_changed": false,
+      "listing_validation": {
+        "input_sha256": "00cfe4e056c82419858a30e864f88062787d644dae0adc3b900844d0b0f27f6d",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    }
+  ],
+  "combined_core_validation": {
+    "ports": 286,
+    "listings": 1424,
+    "port_input_sha256": "e037d5beabd6977664448ab8e9ea522e548b49c63425eb13785585e32ef1863d",
+    "listing_input_sha256": "d327ec237fddebeae90be21a91c52a9e7aa50bdb3e82b4af3e1dba53afa663c3",
+    "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4",
+    "strict_receipt_reuse": {
+      "sha256": "781a61e3845112c07e39540016a3c4882be5c7cf2b33f8f211f797524aabfe23",
+      "scope": "Exact unchanged strict/schema parsing only; newer lifecycle behavior not established by retained validator; current-head CI remains required."
+    }
+  },
+  "required_first_party_cases": [
+    "service::user_selected::tests::james2doyle_ffta_recomp_prepared_player_route_2824",
+    "service::user_selected::tests::final_fantasy_tactics_advance_fftarecomp_prepared_player_route_2575",
+    "service::user_selected::tests::kingdom_hearts_chain_of_memories_gba_rekhcom_prepared_player_route_2586",
+    "service::user_selected::tests::vibecodekun_shantaerecomp_prepared_player_route_1881",
+    "service::user_selected::tests::monster_hunter_portable_3rd_hd_yakumo_prepared_player_route_1120",
+    "service::user_selected::tests::mario_party_4_party_board_prepared_player_route_1130",
+    "service::user_selected::tests::pokemon_platinum_pokeplatinum_pc_port_lead_prepared_player_route_373",
+    "service::user_selected::tests::ace_combat_5_static_recompilation_prepared_player_route_1119",
+    "service::user_selected::tests::ace_combat_x_skies_of_deception_ace_combat_x_recompilation_prepared_player_route_355",
+    "service::user_selected::tests::star_wars_episode_iii_revenge_of_the_sith_prepared_player_route_1310",
+    "service::user_selected::tests::the_simpsons_game_thesimpsonsgamerecomp_prepared_player_route_379",
+    "service::catalog_download::tests::james2doyle_ffta_recomp_component_hold_before_network_2824",
+    "service::catalog_download::tests::kingdom_hearts_chain_of_memories_gba_rekhcom_component_hold_before_network_2586",
+    "service::catalog_download::tests::vibecodekun_shantaerecomp_component_hold_before_network_1881"
+  ],
+  "early_review_sha256": "93789f3319698bc5e93395fd419ebdf8ea70836f61ea13c758bcd319320bfb04",
+  "validator_applicability_review_sha256": "de599c56b4cd636cb3c6e1e372d9835b4537a0a0206ac477015b2f0038bd3fc0",
+  "observation_boundary": "Pinned public source/static package evidence, authoring and first-party fixtures only. No original/private data acquisition, upstream compiler/helper/installer/game execution, native GUI, actual title launch/real-save, installed-client, Supported or protected/publication acceptance. Parser-only retained validator does not establish newer Core lifecycle behavior; exact-head hosted execution remains required. Actual observed CI and delivery are recorded on the PR.",
+  "failed_feedback": "Initial whole-worktree writer scan encountered an absent stale registered worktree before mutation. Revised bounded target-path scan records absent paths without altering registrations; all143 checked, no actual scoped overlap. No speculative family infrastructure or unavailable native participation introduced."
+}

@@ -3083,11 +3083,13 @@
     {
       "id": "ace-combat-5-static-recompilation",
       "name": "Ace Combat 5 Static Recompilation",
-      "summary": "Explore Ace Combat 5 Static Recompilation and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an upstream-prepared Ace Combat 5 Windows player using your own supported USA disc and retained project data.",
       "project_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
       "issue_number": 1119,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
       "artwork": {
         "game_id": 14753,
@@ -3096,6 +3098,34 @@
         "image_sha256": "633bdf32b6da69fea10c6c71958361ca651c11d30645d7c0fd404f8277b9ee2a",
         "game_slug": "ace-combat-5-the-unsung-war",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
+        "steps": [
+          {
+            "title": "Complete the title’s preparation upstream",
+            "instruction": "Complete the supported upstream build from your own Ace Combat 5: The Unsung War USA SLUS-20851 original. Its extracted SLUS_208.51 must be 3634092 bytes, SHA-256 c3594227605307806592416dbd723bf5771952e279ee281a40da305426667385. Keep the ISO or extracted disc files for runtime reads. Upstream GCC 15+, MSYS2 UCRT64 SDL3, Python, CMake/Ninja and Vulkan SDK preparation remains outside Portcove. Retain all documented overrides/hooks during generation; the shorter diagnostic CMake command is not the supported complete recipe."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select the completed build/gcc/ac5.exe, with its creating project root as working directory. Use --data followed by the absolute generated directory containing ps2_image.bin, --disc followed by your absolute own ISO or extracted-disc directory, and --watchdog 0. That is the documented normal play command: the upstream watchdog otherwise abandons a no-field interval during the normal initial black screen. Do not select gsreplay, a compiler or a generator. Keep the adjacent shaders, SDL3.dll and libwinpthread-1.dll, with the driver Vulkan loader available."
+          },
+          {
+            "title": "Keep the actual session and successor boundary",
+            "instruction": "The normal native dispatch owns the game session until exit; --vblanks 0 is the documented default. The source’s short post-entry-return diagnostic pump is not proof of a normal gameplay time limit. No gameplay or startup observation was performed."
+          },
+          {
+            "title": "Review Play and preserve external ownership",
+            "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Retain the complete creating copy and actual data",
+            "instruction": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+        ]
       }
     },
     {
@@ -3148,11 +3178,11 @@
     {
       "id": "ace-combat-x-skies-of-deception-ace-combat-x-recompilation",
       "name": "Ace Combat X: Skies of Deception / Ace-Combat-X-Recompilation",
-      "summary": "Explore Ace Combat X: Skies of Deception / Ace-Combat-X-Recompilation and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted upstream-prepared Ace Combat X Windows player with your own USA UMD-derived data.",
       "project_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
       "issue_number": 355,
       "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
       "artwork": {
         "game_id": 14755,
@@ -3161,6 +3191,34 @@
         "image_sha256": "affe730da2d39118160f0ced75be6bd7cd6b91a364495a7ec1fab2d69afe6a83",
         "game_slug": "ace-combat-x-skies-of-deception",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/sal063/Ace-Combat-X-Recompilation",
+        "steps": [
+          {
+            "title": "Complete the title’s preparation upstream",
+            "instruction": "Use an independently permitted completed native build for Ace Combat X: Skies of Deception USA ULUS10176. Upstream preparation uses your own UMD ISO and your own decrypted EBOOT.elf, generates image.bin and matching native code, and builds the windowed SDL3/Vulkan player. Decryption and extraction tooling remain the user’s upstream preparation, outside Portcove. Preserve disc.manifest and cdi.manifest with extracted data: the runtime uses original sectors. Do not use another Ace Combat game’s disc, BIOS or save contract."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select completed build/pspreco-sdl3.exe with its creating project root as working directory. Pass the absolute generated/image.bin and the absolute own ISO or complete extracted-game directory as its two literal arguments, exactly the documented native running route. Do not select the headless developer target, Python tools or a different game. Keep the matching SDL3/Vulkan dependencies and prepared tree."
+          },
+          {
+            "title": "Keep the actual session and successor boundary",
+            "instruction": "The native entry loads its generated image and own disc data, calls the recompiled module and remains in its thread scheduler until shutdown. This is a source-reviewed completed-copy route; no public RAR contents or native behavior were inspected or executed."
+          },
+          {
+            "title": "Review Play and preserve external ownership",
+            "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Retain the complete creating copy and actual data",
+            "instruction": "Keep the entire creating project, generated image/native code, original UMD-derived files, extraction manifests, runtime libraries and permitted fonts. Default saves use memstick/PSP/SAVEDATA relative to the chosen CWD; PSPRECO_MEMSTICK overrides that root. Default pspreco.toml is CWD-relative; PSPRECO_SETTINGS overrides it. Keep textures/ULUS10176 and PSPRECO_TEXTURES, PSPRECO_FONTDIR and every other actual custom path, with mods/scripts, caches, logs and backups. Retain project GPL-2.0 and separate ImGui, ATRAC decoder, Basis/zstd and font notices. The source calls its PPSSPP PGF fonts freely licensed; this is an upstream attribution, not a new grant for PSP firmware or the original game. No cross-game/save compatibility is assumed."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+        ]
       }
     },
     {
@@ -18480,11 +18538,13 @@
     {
       "id": "final-fantasy-tactics-advance-fftarecomp",
       "name": "Final Fantasy Tactics Advance (FFTARecomp)",
-      "summary": "Upstream route: Windows/Linux/Steam Deck installer packages plus Android APK; owned-ROM compilation Limits: Work in progress with useful native player route; ROM-region documentation is inconsistent between installation and release notes. Upstream platforms: Windows x86-64 and Linux x86-64/SteamDeck setup archives; Android APK also observed, APK ABI unknown in frozen research. Original data: Own GBA ROM; v3 notes add Europe although installation section still says USA Portcove setup/gameplay not verified.",
+      "summary": "Register an already prepared FFTARecomp Windows player using your own supported USA or Europe ROM and retained external saves.",
       "original_game_title": "Final Fantasy Tactics Advance",
       "project_url": "https://github.com/Jorge262007/FFTARecomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Jorge262007/FFTARecomp",
       "artwork": {
         "game_id": 414,
@@ -18494,7 +18554,39 @@
         "game_slug": "final-fantasy-tactics-advance",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2575
+      "issue_number": 2575,
+      "manual_setup": {
+        "help_url": "https://github.com/Jorge262007/FFTARecomp",
+        "steps": [
+          {
+            "title": "Complete supported preparation upstream",
+            "instruction": "Use a complete FFTARecomp copy and components you are permitted to use. Complete the official upstream Installer.exe preparation in a writable folder first; select the resulting installed FFTARecomp.exe, not Installer.exe or the payload template. The v3.0 package carries both FFTARecomp.exe and recomp.exe. Keep them, gamedb.sqlite, TinyCC/compiler support and their applicable notices together. Upstream owns setup, native translation/cache generation and replacement; Portcove does not run the installer or build the game."
+          },
+          {
+            "title": "Keep the exact owned original",
+            "instruction": "Use your own supported original FFTA USA ROM (SHA-256 43fc8204c6dceee58828aebc7af0c72eb807e99f35ad641c8bb0a4fa8b6edc19) or Europe ROM (8fab1e390cb9d5e695bfdb86e81246892e1aa8c0cb4014db8235ff76538ea632). v3 source supports both, despite older USA-only README wording. No BIOS is needed. The installer can warn and install an unverified image without FFTA patches; that is not this guide’s verified-original route, and success is not proof of exact source identity."
+          },
+          {
+            "title": "Attach the supported prepared player",
+            "instruction": "Select the completed installed FFTARecomp.exe with its installed directory as working directory and no arguments. This supported wrapper finds its adjacent ffta.gba or the LocalAppData/FFTARecomp fallback, runs its matching recomp.exe play and waits for that initial process through command.output(). Keep the exact prepared tree and private generated translations."
+          },
+          {
+            "title": "Keep optional successor sessions separate",
+            "instruction": "The optional in-game Switch ROM operation deliberately starts a successor process and ends the current game. The attached wrapper does not wait for that successor after its initial child ends. Treat switching as upstream activity outside this attached session: close every actual player before replacement or another attachment. Do not infer successor tracking, adoption or termination from the registration’s status. Keep the feature intact; no argument or private entry is used to disable or bypass it."
+          },
+          {
+            "title": "Review Play and retain external ownership",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the whole copy and effective data",
+            "instruction": "Preserve the installed tree and originals, %LOCALAPPDATA%/FFTARecomp data and shared-save-path.txt, %APPDATA%/FFTARecomp/input.cfg and av.cfg, and every effective custom root. Saves resolve FFTA_SAVE_PATH first, then a remembered existing save, then the ROM basename .sav; one neighboring .sav may be chosen and several open a picker. Normal gameplay writes the chosen save. Keep old saves and creating runtime: upstream cross-region compatibility claims and a shared path are not Portcove save qualification. Preserve caches/FFTARecomp translated libraries, mods, logs and backups; upstream may sweep superseded translation-revision caches. MIT project code, MIT/Apache foundation, CC0 gamedb, TinyCC LGPL and font/dependency notices apply separately; code grants do not grant ROM or third-party artwork rights."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+        ]
+      }
     },
     {
       "id": "final-fantasy-tactics-finfantacrecomp",
@@ -22793,11 +22885,13 @@
     {
       "id": "james2doyle-ffta-recomp",
       "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
-      "summary": "Upstream route: Upstream runtime package for FFTA Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Experimental preview; upstream claims strict static zero fallback and validated widescreen. Framework checks do not establish complete gameplay qualification. Experimental gbaretcompx preview, strict static execution claimed; Windows/Linux/Android assets, not full-mechanics qualification from framework tests. Upstream platforms: Windows10+ x86-64, Linux x86-64 OpenGL/X11, SteamOS3.x glibc2.35+/FUSE, Android9+ ARM64. Clean-room emibios bundled. Original data: Own FinalFantasyTacticsAdvance GBA USA ROM; release launch gate validates ROM hash, but exact revision/hash is not extracted in this review. Clean-room emibios is bundled; no Nintendo BIOS dump needed. Distinct from C017 Jorge262007/JRickey implementation and its Europe support claim. Portcove setup/gameplay not verified.",
+      "summary": "Register an independently permitted prepared FFTA Recomp Windows copy for your own supported USA GBA ROM. Fresh package acquisition remains held for its disclosed box-art component.",
       "original_game_title": "Final Fantasy Tactics Advance",
       "project_url": "https://github.com/james2doyle/ffta-recomp",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/james2doyle/ffta-recomp",
       "artwork": {
         "game_id": 414,
@@ -22807,7 +22901,44 @@
         "game_slug": "final-fantasy-tactics-advance",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2824
+      "issue_number": 2824,
+      "release_url": "https://github.com/james2doyle/ffta-recomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "FFTARecomp-",
+          "windows-x64.zip"
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected FFTA Recomp bundled player remains held for its launch-screen box art: packaged THIRD_PARTY_ATTRIBUTION.md explicitly says the image has unknown provenance and no assertable license. Resume with applicable permission for that exact image or a reviewed compatible upstream package/route resolving its inclusion. Independently permitted completed-copy registration does not clear this acquisition hold.",
+      "manual_setup": {
+        "help_url": "https://github.com/james2doyle/ffta-recomp",
+        "steps": [
+          {
+            "title": "Start with an independently permitted completed copy",
+            "instruction": "Attach only a complete existing Windows player and components you are independently permitted to use. The selected package discloses unlicensed-provenance retail box art; the project’s PolyForm Noncommercial grant does not grant that image’s rights. Fresh acquisition remains held for that named component. Observe the project’s applicable noncommercial terms."
+          },
+          {
+            "title": "Use your own supported USA original",
+            "instruction": "Keep your own Final Fantasy Tactics Advance USA GBA ROM (AFXE), expected SHA-1 4ac05441f4de70a4ec3dd932116346c61b8783d9. The inspected source performs a final runtime hash rejection after the permissive file picker. The package includes the separately licensed clean-room emibios replacement; no Nintendo BIOS dump is required. Complete the normal upstream first selection/setup outside Portcove and keep game.toml, bios/, resources and existing original paths together."
+          },
+          {
+            "title": "Attach the actual native player",
+            "instruction": "Select FFTARecomp.exe with its complete creating package directory as working directory and no extra arguments for the normal in-process launch screen. The inspected title runs that screen and game in the same process; it does not hand the game to a detached launcher. Retain only the supported literal arguments your working setup actually requires, including existing --save/--save-path and --state-dir choices. Do not select a tool or start a separate compiler/helper."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact native executable, working directory and literal arguments, then choose Play separately. Upstream and you own preparation, replacement and recovery of external files. Removing registration preserves every external file. Close the actual player before upstream maintenance; retain old runtime/data and review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve saves and all effective external roots",
+            "instruction": "The inspected game.toml uses saves/ffta_us.sav relative to its own directory for the 64KiB battery save. Existing --save or --save-path overrides can point elsewhere. Save-state slots normally live beside the actual selected ROM with .stateN names; --state-dir moves those basenames to the chosen directory. Do not assume all states live beside the player or in states/. Preserve your ROM directory and its state/sidecar files, actual custom save/state directories, the complete creating runtime, saves/, rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini, game.toml, config overlays, mods, screenshots, logs, backups and temporary files. No cross-version state/save compatibility or managed backup is claimed."
+          }
+        ],
+        "warnings": [
+          "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
+          "Experimental upstream preview. Exact title/framework source and package metadata/static inspection are not proof of package-to-source correspondence, native gameplay, clean shutdown, real saves, installed Desktop, protected delivery or other-platform qualification."
+        ]
+      }
     },
     {
       "id": "jazz-jackrabbit-2-jazz2-resurrection",
@@ -23724,11 +23855,13 @@
     {
       "id": "kingdom-hearts-chain-of-memories-gba-rekhcom",
       "name": "Kingdom Hearts: Chain of Memories (GBA) (ReKHCoM)",
-      "summary": "Upstream route: Keep stable versus prerelease clear. x86 Linux dependencies and optional HD mod using separate owned PC assets are distinct. Limits: Stable1.9.14 distinct from2.0 prerelease; optional HD mod needs separate owned PC assets. Platform betas differ. Upstream platforms: Stable Windows x86 and Linux x86 packages (32-bit); Android and ARMHF handheld betas are separate. Preserve32-bit Linux runtime dependencies. Original data: Own USA/Europe/Japan cartridge dump; native port based on Pheenoh/khcom matching decompilation. Portcove setup/gameplay not verified.",
+      "summary": "Register an independently permitted ReKHCoM Windows copy with its supported waiting launcher and your own supported cartridge dump.",
       "original_game_title": "Kingdom Hearts: Chain of Memories (GBA)",
       "project_url": "https://github.com/MatyMeatBoy/ReKHCoM",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/MatyMeatBoy/ReKHCoM",
       "artwork": {
         "game_id": 1220,
@@ -23738,7 +23871,40 @@
         "game_slug": "kingdom-hearts-chain-of-memories",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2586
+      "issue_number": 2586,
+      "manual_setup": {
+        "help_url": "https://github.com/MatyMeatBoy/ReKHCoM",
+        "steps": [
+          {
+            "title": "Complete supported preparation upstream",
+            "instruction": "Use an independently permitted complete Windows ReKHCoM copy, keeping ReKHCoM.exe, bin, bin64, assets, libraries and notices together. Complete original-ROM setup through its supported launcher upstream before attachment. The root launcher is 32-bit; the package also contains the optional 64-bit runtime. Do not use a private bin/bin64 runner or infer native parity from a package label."
+          },
+          {
+            "title": "Keep the exact owned original",
+            "instruction": "Use your own 32 MiB cartridge dump: Europe B8CP SHA-1 8db73586cdb11b3795907edebf43228dbcd3e6b2, USA B8CE 10729bd884f8fdca7a310b6d606c52e46657aa48 or Japan B8CJ 59ec0a0a4ccd1e6acb3bbd7bfb21d63988958cfa. The launcher verifies and places its selected original under roms. No ROM is included. Optional HD imports require separate owned ReMIX assets and are not a base-game prerequisite or a Portcove import operation."
+          },
+          {
+            "title": "Attach the supported prepared player",
+            "instruction": "Select root ReKHCoM.exe with the complete package root as working directory and no arguments. Its supported Play path starts the selected 32-bit game or compatible bin64 runtime, supplies the shared data root and selected ROM, hides and waits until that game exits. Automatic 64-bit mode requires the matching host, guest image, SDL3 and SSE4.1; it can fall back to 32-bit. Retain upstream architecture choices instead of bypassing the launcher."
+          },
+          {
+            "title": "Keep optional successor sessions separate",
+            "instruction": "Upstream and you own runtime replacement and architecture preference changes. After replacement, close actual games and launcher, retain the old complete copy and every data root, then review and relink changed selected bytes. This guide neither invokes an updater nor claims tracking of an independently relaunched or replaced program. The packaged README retains older version/32-bit-only text; use the inspected v2.3 root launcher and matching complete package rather than that stale architecture description."
+          },
+          {
+            "title": "Review Play and retain external ownership",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the whole copy and effective data",
+            "instruction": "Preserve the whole package and effective custom data roots: roms, kh_com*.sav and all save banks, kh_com*.ini, decompui.ini, states, backups, kh_com.log, retroachievements.ini, achievements*.dat, netlink.cfg, mods and optional hd assets/import journals. Save states are build-specific and do not contain cartridge SRAM. Upstream can adopt files from a neighboring older install and move HD scenes during startup; preserve both locations before maintenance. Keep account/token-bearing configuration private. CC0 source/decompilation and SDL3/ImGui/rcheevos notices remain separate from Square Enix/Disney artwork and game content."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+        ]
+      },
+      "download_block_reason": "Fresh bundled-package acquisition remains held for the separately excluded launcher artwork scope in assets/NOTICE.md: boxart.jpg, logo.png and rekhcom.ico belong to Square Enix/Disney and the source-code licence explicitly does not apply. Use only an independently permitted existing copy. Resume fresh acquisition with applicable permission for these exact components or a reviewed compatible package resolving that scope; CC0 source terms do not clear them."
     },
     {
       "id": "kirby-64-recompiled",
@@ -25275,11 +25441,11 @@
     {
       "id": "mario-party-4-party-board",
       "name": "Mario Party 4 Party Board",
-      "summary": "Explore Mario Party 4 Party Board and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted Party Board alpha Windows copy for your own USA revision-0 Mario Party 4 image. Preserve its controller requirement, external profile and known crash limits.",
       "project_url": "https://github.com/mariopartyrd/partyboard",
       "issue_number": 1130,
       "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/mariopartyrd/partyboard",
       "artwork": {
         "game_id": 2330,
@@ -25288,6 +25454,36 @@
         "image_sha256": "46115e471f2e3265d4b3ffe4f05945cdde7945c12f067dde680374281236ddd9",
         "game_slug": "mario-party-4",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/mariopartyrd/partyboard/releases",
+      "manual_setup": {
+        "help_url": "https://github.com/mariopartyrd/partyboard",
+        "steps": [
+          {
+            "title": "Keep the exact early-alpha copy and original",
+            "instruction": "The selected partyboard_0.2.0 release supports your own GameCube Mario Party 4 USA GMPE01 revision 0 ISO/RVZ. Complete its normal setup outside Portcove; a newer source README mentioning revision 1 does not broaden this alpha’s accepted input. The upstream release prefers its Win32/x86 build because the separate x64 build may crash in additional places. Use an already-working independently permitted copy on a compatible Windows host; no curated x64-package or other-platform acceptance is claimed."
+          },
+          {
+            "title": "Keep the required controller and known limits visible",
+            "instruction": "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. This guide repairs none of them and claims no full-game, physical-controller or completed-save qualification."
+          },
+          {
+            "title": "Attach the actual native player",
+            "instruction": "Select partyboard.exe and its complete creating package directory as working directory, with no extra arguments for the normal in-process startup. The source can browse an original each time; the documented GMPE01_00.iso or GMPE01_00.rvz beside the executable avoids that repeated pick. Keep the actual original, extracted GMPE01_00 tree and matching runtime/resources. Do not substitute a different revision, architecture or decompilation build."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the external profile and creating data",
+            "instruction": "Upstream locates this alpha’s saves in %APPDATA%/Party Board. Preserve the entire external profile, its settings/cache and any actual custom locations, plus the complete creating package, original image, extracted data, logs, mods, backups and temporary files. Dolphin save compatibility is only an upstream claim; no migration or import is performed. Unknown extra data grants no deletion rights. Upstream and you retain runtime replacement; keep the creating copy and review changed selected bytes after maintenance."
+          }
+        ],
+        "warnings": [
+          "The independently selected native route is separate from curated package CPU classification. Win32 is not relabeled as Win64, and no generic provider exception is added.",
+          "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game."
+        ]
       }
     },
     {
@@ -26849,11 +27045,13 @@
     {
       "id": "monster-hunter-portable-3rd-hd-yakumo",
       "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
-      "summary": "Explore Monster Hunter Portable 3rd HD Ver. Yakumo and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a completed native Yakumo Windows player for your own supported Monster Hunter Portable 3rd HD original. Keep preparation, restart, replacement and player data upstream-owned.",
       "project_url": "https://github.com/TeamGDB/Yakumo",
       "issue_number": 1120,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/TeamGDB/Yakumo",
       "artwork": {
         "game_id": 78633,
@@ -26862,6 +27060,42 @@
         "image_sha256": "cc6ccbd1f206dcf4a935c22236d60f7eb70cf214602345ef92a677b62c47811c",
         "game_slug": "monster-hunter-portable-3rd-hd-ver",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/TeamGDB/Yakumo/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "yakumo-",
+          "windows-x86_64-portable.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/TeamGDB/Yakumo",
+        "steps": [
+          {
+            "title": "Complete the exact owned-input preparation upstream",
+            "instruction": "Use your own Monster Hunter Portable 3rd HD Ver. NPJB-40001 original. The PS3 HD release contains the PSP UMD image that this player uses; do not substitute the ordinary PSP release or feed it a whole PS3-format disc image. Complete normal upstream setup before attachment. The selected source checks the disc ID and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then checks the prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. This does not authenticate every disc byte. Portcove obtains no original, key or preparation tool and does not run installation or generation."
+          },
+          {
+            "title": "Attach the actual native player",
+            "instruction": "Select Yakumo.exe in its complete creating Windows folder, keeping its matching overlay libraries, FFmpeg DLLs, fonts and resources. Use that folder as working directory and no extra arguments for a normal already-prepared copy. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the actual portable or installed profile",
+            "instruction": "The Windows installed profile normally uses %APPDATA%/Yakumo/MHP3rd. The portable package uses data/ beside the executable. Existing portable.txt, a data/ folder, --portable, --data-dir and MHP3RD_DATA_DIR/MHP3RD_PORTABLE choices affect selection; retain the actual established mode and do not add/remove markers or trigger profile-copy prompts as registration work. A non-writable portable directory fails instead of silently falling back. Keep settings.ini, prepared EBOOT.ELF, copied disc.iso or its external in-place original, ms0/PSP/SAVEDATA (including ULJM05800, ULJM05800QST and ULJM05800DAT), mods, texture packs, pipeline caches/keys, logs, controller mappings, translations/fonts, save-backups, temporary files and all custom roots. A source-build game directory may retain its own ms0 and older saves; do not migrate it automatically."
+          },
+          {
+            "title": "Keep upstream restart and replacement separate",
+            "instruction": "The native process runs the game in-process. Upstream Set Up Game Data Again and Restart Now after save import can end it and start a successor. Perform those actions outside the attached session; Core does not automatically adopt the successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement."
+          }
+        ],
+        "warnings": [
+          "MIT covers the project’s own original code; third-party IP remains independently owned. Preserve the applicable packaged FFmpeg LGPL and font/dependency notices; this is not a whole-game rights certificate.",
+          "Upstream documents untranslated/blank save-dialog screens, curved-surface issues and unsupported code mods; reported rendering, multiplayer, controller and save compatibility are publisher claims, not Portcove observations. No game, original, helper, installer or native session was run."
+        ]
       }
     },
     {
@@ -31852,11 +32086,13 @@
     {
       "id": "pokemon-platinum-pokeplatinum-pc-port-lead",
       "name": "Pokémon Platinum / pokeplatinum PC-port lead",
-      "summary": "Explore Pokémon Platinum / pokeplatinum PC-port lead and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted Pokémon Platinum native Windows copy after upstream preparation of your own USA CPUE01 original. Preserve the creating runtime, extracted files and actual player data.",
       "project_url": "https://github.com/cybervisi0n/pokeplatinum",
       "issue_number": 373,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/cybervisi0n/pokeplatinum",
       "artwork": {
         "game_id": 1519,
@@ -31865,6 +32101,41 @@
         "image_sha256": "7ee85df3ddb35c9ae815b4f3eae636d2e9a5100c3c53f72ae48ecd69e533dc57",
         "game_slug": "pokemon-platinum-version",
         "match_kind": "underlying-game"
+      },
+      "release_url": "https://github.com/cybervisi0n/pokeplatinum/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "release_win64.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/cybervisi0n/pokeplatinum",
+        "steps": [
+          {
+            "title": "Complete your own supported original’s setup upstream",
+            "instruction": "Use your own Pokémon Platinum USA CPUE01 .nds original and complete the selected player’s first-launch extraction outside Portcove. The selected release is an experimental 64-bit native PC port using libntr, not merely a matching DS decompilation. Keep all resulting files together and do not substitute another region or a DS ROM build. No helper/compiler/original is acquired or run by this guide."
+          },
+          {
+            "title": "Attach the actual completed native player",
+            "instruction": "Select main.exe and its complete creating package directory as working directory, with no extra arguments for the documented normal start. Retain its matching libraries, header.bin, firmware.bin and resources and the established original/extracted-data arrangement. Keep the working renderer and input settings; no additional backend or control-mode qualification is inferred. Do not select the MSys2 installers, source build scripts or a console-target output."
+          },
+          {
+            "title": "Review the attachment and choose Play separately",
+            "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
+          },
+          {
+            "title": "Keep firmware and user data with the creating runtime",
+            "instruction": "The upstream README says firmware.bin contains only an offset and space for WiFi configuration, not a Nintendo DS firmware dump. Preserve that mutable configuration, the complete working folder and extracted game files, actual saves/settings/logs/mods/backups/temporary files and every external location used by this copy. Do not assume the package folder contains every save. The title’s libntr dependency tracks main without an immutable SDK pin; exact released SDK defaults and complete save-coordinate mapping are not established here. No backup, deletion, migration or save/firmware compatibility is offered."
+          },
+          {
+            "title": "Keep upstream maintenance and network choices separate",
+            "instruction": "Upstream and you own preparation and runtime replacement. Close the actual game and companions, keep the entire old creating runtime and data, then review/relink changed selected bytes. WiFi/multiplayer, renderer quality and first-to-last gameplay are upstream goals/claims, not Portcove acceptance or authorization for accounts, uploads or network configuration."
+          }
+        ],
+        "warnings": [
+          "Use only an independently permitted copy, original and components. The README identifies separate MIT libntr obligations for redistributors; it is not a whole-game IP certificate or source-to-binary receipt.",
+          "Experimental upstream preview may crash or show graphical defects. Package/source/SDK correspondence, full persistent-data mapping, actual native gameplay and real-save behavior remain Unknown; no installed Desktop or protected publication is qualified."
+        ]
       }
     },
     {
@@ -37945,11 +38216,11 @@
     {
       "id": "star-wars-episode-iii-revenge-of-the-sith",
       "name": "Star Wars: Episode III - Revenge of the Sith (SWROTS-PC)",
-      "summary": "Explore Star Wars: Episode III - Revenge of the Sith (SWROTS-PC) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a completed SWROTS-PC Windows player with its matching core library, your own North American Xbox data and retained saves.",
       "project_url": "https://github.com/jedijosh920/SWROTS-PC",
       "issue_number": 1310,
       "platforms": [],
-      "availability": "unknown",
+      "availability": "packages",
       "setup_url": "https://github.com/jedijosh920/SWROTS-PC",
       "artwork": {
         "game_id": 6159,
@@ -37958,6 +38229,34 @@
         "image_sha256": "a67c8361ebec3bcceba214c28edda40cd8c1f188ef336f4a88bb0c669549cbfd",
         "game_slug": "star-wars-episode-iii-revenge-of-the-sith",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/jedijosh920/SWROTS-PC",
+        "steps": [
+          {
+            "title": "Complete the title’s preparation upstream",
+            "instruction": "Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "After upstream setup completes, select swrots.exe with the complete player directory as working directory and no arguments. This is the documented native 32-bit Windows entry; it loads the matching core.dll in the same process and keeps the game there. Do not attach core.dll, an installer/archive helper or a different console edition. Keep the established Windows graphics/audio/controller dependencies."
+          },
+          {
+            "title": "Keep the actual session and successor boundary",
+            "instruction": "Normal level changes, mission restarts and saves use the default in-process reboot path. An explicit Debug ProcessReboot setting, or a reboot fallback, may deliberately create a --relaunch successor and exit without waiting. That successor is outside the attached session: close every actual game before maintenance or another attachment. Do not infer successor adoption or termination from registration status, or disable upstream features with invented arguments."
+          },
+          {
+            "title": "Review Play and preserve external ownership",
+            "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Retain the complete creating copy and actual data",
+            "instruction": "Keep the entire creating runtime and GameData, saves, settings.ini, controls.ini, mods, cache, logs and all custom paths. SWROTS_TEST_SAVES can redirect saves; preserve any actual configured location rather than treating it as disposable test data. Save logs include current/previous run and Message.log; reboot launch-data files may also be local. Preserve originals, loose mods, native companions and backups before upstream updates. Project GPL-3.0-or-later, adapted Cxbx-Reloaded GPL-2.0-or-later and ImGui MIT notices apply separately from Lucasfilm game content; no code licence grants original-game rights."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+        ]
       }
     },
     {
@@ -41180,11 +41479,13 @@
     {
       "id": "the-simpsons-game-thesimpsonsgamerecomp",
       "name": "The Simpsons Game / TheSimpsonsGameRecomp",
-      "summary": "Explore The Simpsons Game / TheSimpsonsGameRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register a completed The Simpsons Game Windows player through its supported waiting launcher and preserve its external saves.",
       "project_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",
       "issue_number": 379,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",
       "artwork": {
         "game_id": 2656,
@@ -41193,6 +41494,34 @@
         "image_sha256": "5714cdd3982c957c499fb3c839db2f6d89e66930dcbfbcc3e32ad45095a312a1",
         "game_slug": "the-simpsons-game",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/YesterMester/TheSimpsonsGameRecomp",
+        "steps": [
+          {
+            "title": "Complete the title’s preparation upstream",
+            "instruction": "Use an independently permitted complete The Simpsons Game Recompiled Windows copy with matching launcher, simpsons.exe, runtime libraries and native_shaders. Complete the official upstream install from your own Xbox 360 ISO before attachment, retaining gamedata/default.xex and the complete data including movies. USA title ID 45410809 is the main target; Europe is separately described as less tested, with no inherited qualification. Select the correct AVX2 build, or the upstream NoAVX2 build for a compatible older SSE4.2 CPU. Portcove does not extract originals or install host runtimes."
+          },
+          {
+            "title": "Attach the completed supported native entry",
+            "instruction": "Select simpsons-launcher.exe with its complete flat package directory as working directory and --play as its literal argument. This documented entry uses the same preparation checks, settings, save protection and environment as the upstream Play button, then waits for game_proc. It starts the matching game with explicit game-data and user-data roots; do not substitute an extractor, private helper or the Linux script. Keep the established Windows C++ and graphics driver dependencies."
+          },
+          {
+            "title": "Keep the actual session and successor boundary",
+            "instruction": "The supported --play launcher waits for its normal game process. Upstream owns its independent update mechanism: it may replace launcher/engine files and ask you to restart, or leave a separately named new launcher if replacement fails. Close actual players and companions before deliberate replacement; preserve old working files, then review and relink changed selected bytes. This registration does not invoke, authenticate or manage that updater."
+          },
+          {
+            "title": "Review Play and preserve external ownership",
+            "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
+          },
+          {
+            "title": "Retain the complete creating copy and actual data",
+            "instruction": "Keep the complete runtime, gamedata and every effective data root. Windows player saves/cache default to %LOCALAPPDATA%/simpsons with a home/AppData/Local fallback; the launcher passes that effective path explicitly. simpsons.toml is beside the game executable. Preserve launcher.json, art, mods, backups, diagnostics, logs, shader caches, native shaders and any custom engine/lib/data configuration. Upstream Play may repair saves and create backups; those operations remain upstream-owned, not Portcove backup/rollback promises. Keep private profiles and credentials private. Project GPLv3, ReXGlue/Xenia BSD-3-Clause, XenonRecomp MIT and other notices remain separate from the original game and assets."
+          }
+        ],
+        "warnings": [
+          "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+        ]
       }
     },
     {
@@ -44491,11 +44820,13 @@
     {
       "id": "vibecodekun-shantaerecomp",
       "name": "Shantae / shantaerecomp (vibecodekun)",
-      "summary": "Explore Shantae / shantaerecomp (vibecodekun) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Register an independently permitted Shantae Recomp Windows copy for your own exact USA ROM and retained portable state.",
       "project_url": "https://github.com/vibecodekun/shantaerecomp",
       "issue_number": 1881,
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/vibecodekun/shantaerecomp",
       "artwork": {
         "game_id": 8432,
@@ -44504,7 +44835,40 @@
         "image_sha256": "7df41a67e947e2e6179f7fc876f2e4ce2671e6f7c1b485844ad49bfec6be7fb3",
         "game_slug": "shantae",
         "match_kind": "underlying-game"
-      }
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/vibecodekun/shantaerecomp",
+        "steps": [
+          {
+            "title": "Complete supported preparation upstream",
+            "instruction": "Use an independently permitted complete shantae-recomp Windows copy and preserve the matching runtime DLLs, assets, shaders, notices and any selected patches. Normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
+          },
+          {
+            "title": "Keep the exact owned original",
+            "instruction": "Use your own exact Shantae USA Game Boy Color ROM, SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. Other releases including World, Switch and Limited Run Games are different ROMs. The chooser enables Play only for the accepted original or explicitly supported compiled patch variants; patch compatibility must be established for that actual build. No ROM is supplied or licensed by this registration."
+          },
+          {
+            "title": "Attach the supported prepared player",
+            "instruction": "Select shantae.exe with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
+          },
+          {
+            "title": "Keep optional successor sessions separate",
+            "instruction": "Ordinary Quit ends the current process. Only explicitly choosing Return to Launcher schedules an atexit restart after saves close: on Windows that restart creates a new process without waiting. Treat that successor as upstream activity outside the attached session. Close every actual player and reopened launcher before maintenance or another attachment; registration status does not establish successor adoption or termination. This preserves the optional feature and does not disable it with arguments."
+          },
+          {
+            "title": "Review Play and retain external ownership",
+            "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+          },
+          {
+            "title": "Preserve the whole copy and effective data",
+            "instruction": "Keep the whole creating package, original ROM and every effective external root. Windows defaults portable state beside the executable; GBRECOMP_STATE_DIR overrides state and GBRECOMP_ASSET_DIR overrides assets. Preserve rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini, .sav battery data, .rtc, .stateN, map/patch-specific data, mods, shader_presets, shader_cache, logs and backups. Patch/native state compatibility is build-specific; do not infer save compatibility from another gbrecompiled game. Preserve per-shader licences and complete component notices."
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+        ]
+      },
+      "download_block_reason": "Fresh acquisition of the selected bundled engine-fork scope remains held: THIRD-PARTY-LICENSES.md explicitly names the gbrecompiled fork as stating no licence of its own, separately from the parent gb-recompiled MIT and title PolyForm Noncommercial grants. The pinned build uses vibecodekun/gbrecompiled 314fce0895f66a3a7b41734a01040352e47a5b0b; do not inherit a grant for its separately authored changes. Use only an independently permitted existing copy. Resume with an attributable applicable grant for this exact fork scope or a reviewed compatible replacement package. Original game code/data and other named components retain their own rights."
     },
     {
       "id": "vidanox-banjotooierecompiled",

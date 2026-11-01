@@ -355,6 +355,12 @@ mod tests {
         store.put(&mut raw).unwrap();
         let mut released = store.get(&raw.id).unwrap().unwrap();
         assert!(PublicationOperation::decode(&library, &mut released).is_ok());
+        let diagnostic = store.diagnostic_inventory().unwrap();
+        assert!(diagnostic.report.enumeration_complete);
+        assert!(diagnostic.report.problems.is_empty());
+        assert!(diagnostic.report.related_assessments_complete);
+        assert_eq!(diagnostic.report.decoded_rows, 1);
+
         raw.phase = LifecyclePhase::Preparing;
         raw.install = None;
         let mut writer = PublicationJournal::begin(raw).unwrap();

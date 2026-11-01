@@ -125,6 +125,37 @@ export async function backupReviewScenario({
       });
       artifacts.push(screenshot);
     };
+    const protectionSelector = 'section[aria-label="Player-data protection"]';
+    const observeProtection = async (name: string) => {
+      const currentInventory = inventory(port.id);
+      const protection = currentInventory.protection;
+      assert.ok(protection, "Core must expose protection facts for the owned library");
+      assert.equal(protection.port_id, port.id);
+      assert.ok(protection.installations.some((item) => item.install_id === install.id));
+      const expected = [
+        "Current Core snapshot",
+        protection.port_id,
+        protection.managed_data.path,
+        ...protection.installations.map((item) => item.install_id),
+      ];
+      if (protection.latest_completed_backup) expected.push(protection.latest_completed_backup.id);
+      if (currentInventory.state !== "healthy" || currentInventory.problems.length)
+        expected.push("Backup history is incomplete or needs attention");
+      await browser.wait(
+        async () => {
+          const panel = await browser.findElement(By.css(protectionSelector));
+          const rendered = await panel.getText();
+          return expected.every((value) => rendered.includes(value));
+        },
+        15_000,
+        "Player-data protection did not settle on the current Core inventory",
+      );
+      const observation = path.join(output, `${name}-core-inventory.json`);
+      await writeFile(observation, JSON.stringify(currentInventory, null, 2), { flag: "wx" });
+      artifacts.push(observation);
+      await capture(name, protectionSelector);
+    };
+    await observeProtection("native-protection-before-restore");
     await clickRestore();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
@@ -260,6 +291,7 @@ export async function backupReviewScenario({
       await readFile(path.join(safety.path, "data/owned-review-save.bin"), "utf8"),
       "changed after review",
     );
+    await observeProtection("native-protection-after-reviewed-restore");
     await clickVisible(
       await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')),
     );
@@ -333,6 +365,7 @@ export async function backupReviewScenario({
     assert.ok(degradedNotice);
     assert.ok((await degradedNotice.getText()).includes("What to do next"));
     assert.ok((await degradedNotice.getText()).includes(degraded.problems[0].proposed_action));
+    await observeProtection("native-protection-degraded-history");
     const usableRow = await row(other.id);
     assert.equal(
       await usableRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),

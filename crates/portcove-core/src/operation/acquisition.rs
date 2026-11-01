@@ -247,6 +247,27 @@ pub(crate) fn require_capacity(
     Ok(())
 }
 
+/// Pure inventory rule shared by strict status and read-only diagnostic views.
+pub(crate) fn validate_inventory_owner(
+    id: &str,
+    port_id: &str,
+    view: &GameUpdateAcquisition,
+    owner_count: usize,
+    duplicate_port: bool,
+) -> Result<()> {
+    if view.id != id
+        || Uuid::parse_str(id).is_err()
+        || view.port_id != port_id
+        || owner_count >= MAX_RECORDS
+        || duplicate_port
+    {
+        return Err(PortcoveError::verification(
+            "acquisition inventory has duplicate or over-bound owners",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn views_from(
     connection: &Connection,
 ) -> Result<HashMap<String, GameUpdateAcquisition>> {
@@ -263,16 +284,14 @@ pub(crate) fn views_from(
         let (id, port_id, json) = row?;
         let payload = decode_journal(json.as_deref())?
             .ok_or_else(|| PortcoveError::verification("acquisition state is missing"))?;
-        if payload.view.id != id
-            || Uuid::parse_str(&id).is_err()
-            || payload.view.port_id != port_id
-            || result.len() >= MAX_RECORDS
-            || result.insert(port_id, payload.view).is_some()
-        {
-            return Err(PortcoveError::verification(
-                "acquisition inventory has duplicate or over-bound owners",
-            ));
-        }
+        validate_inventory_owner(
+            &id,
+            &port_id,
+            &payload.view,
+            result.len(),
+            result.contains_key(&port_id),
+        )?;
+        result.insert(port_id, payload.view);
     }
     Ok(result)
 }
@@ -313,6 +332,70 @@ mod tests {
         )
         .unwrap()
         .record
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn diagnostic_inventory_explains_symlink_refusal_without_following_the_recorded_path() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let store = super::super::OperationStore::new(library.clone());
+        let mut operation = reserved(&library);
+        store.put(&mut operation).unwrap();
+        let parent = operation.paths.staging.as_ref().unwrap().parent().unwrap();
+        let outside = temporary.path().join("outside");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("sentinel"), b"preserve outside bytes").unwrap();
+        std::os::unix::fs::symlink(&outside, parent).unwrap();
+        assert!(store.all().is_err());
+        let diagnostic = store.diagnostic_inventory().unwrap();
+        assert_eq!(diagnostic.report.problems.len(), 1);
+        assert_eq!(
+            diagnostic.report.problems[0].stage,
+            crate::JournalValidationStage::Acquisition
+        );
+        assert!(!diagnostic.report.related_assessments_complete);
+        assert_eq!(
+            std::fs::read(outside.join("sentinel")).unwrap(),
+            b"preserve outside bytes"
+        );
+        assert!(store.all().is_err());
+    }
+
+    #[test]
+    fn diagnostic_inventory_reports_duplicate_acquisitions_without_authorizing_a_subset() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let store = super::super::OperationStore::new(library.clone());
+        let mut first = reserved(&library);
+        let mut second = reserved(&library);
+        store.put(&mut first).unwrap();
+        assert!(store.put(&mut second).is_err());
+        let db = crate::database::connect(library.root()).unwrap();
+        db.execute(
+            "INSERT INTO lifecycle_operations(id,kind,port_id,phase,staging_path,update_acquisition_json,created_at,updated_at)
+             VALUES (?1,'acquire_update',?2,'preparing',?3,?4,1,1)",
+            rusqlite::params![second.id,second.port_id,second.paths.staging.as_ref().unwrap().to_str().unwrap(),serde_json::to_string(second.update_acquisition.as_ref().unwrap()).unwrap()],
+        ).unwrap();
+        let inventory = store.diagnostic_inventory().unwrap();
+        assert_eq!(inventory.report.enumerated_rows, 2);
+        assert!(!inventory.report.related_assessments_complete);
+        assert_eq!(inventory.report.problems.len(), 1);
+        assert_eq!(
+            inventory.report.problems[0].stage,
+            crate::JournalValidationStage::AcquisitionInventory
+        );
+        assert!(views_from(&db).is_err());
+        let view = &first.update_acquisition.as_ref().unwrap().view;
+        assert!(
+            validate_inventory_owner(&first.id, &first.port_id, view, MAX_RECORDS, false).is_err()
+        );
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM lifecycle_operations", [], |r| r
+                .get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
     }
 
     #[test]

@@ -3,11 +3,11 @@
   "listing": {
     "id": "ace-combat-5-static-recompilation",
     "name": "Ace Combat 5 Static Recompilation",
-    "summary": "Explore Ace Combat 5 Static Recompilation and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register an upstream-prepared Ace Combat 5 Windows player using your own supported USA disc and retained project data.",
     "project_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
     "issue_number": 1119,
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
     "artwork": {
       "game_id": 14753,
@@ -16,6 +16,34 @@
       "image_sha256": "633bdf32b6da69fea10c6c71958361ca651c11d30645d7c0fd404f8277b9ee2a",
       "game_slug": "ace-combat-5-the-unsung-war",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/sal063/Ace-Combat-5-Static-recompilation",
+      "steps": [
+        {
+          "title": "Complete the title’s preparation upstream",
+          "instruction": "Complete the supported upstream build from your own Ace Combat 5: The Unsung War USA SLUS-20851 original. Its extracted SLUS_208.51 must be 3634092 bytes, SHA-256 c3594227605307806592416dbd723bf5771952e279ee281a40da305426667385. Keep the ISO or extracted disc files for runtime reads. Upstream GCC 15+, MSYS2 UCRT64 SDL3, Python, CMake/Ninja and Vulkan SDK preparation remains outside Portcove. Retain all documented overrides/hooks during generation; the shorter diagnostic CMake command is not the supported complete recipe."
+        },
+        {
+          "title": "Attach the completed supported native entry",
+          "instruction": "Select the completed build/gcc/ac5.exe, with its creating project root as working directory. Use --data followed by the absolute generated directory containing ps2_image.bin, --disc followed by your absolute own ISO or extracted-disc directory, and --watchdog 0. That is the documented normal play command: the upstream watchdog otherwise abandons a no-field interval during the normal initial black screen. Do not select gsreplay, a compiler or a generator. Keep the adjacent shaders, SDL3.dll and libwinpthread-1.dll, with the driver Vulkan loader available."
+        },
+        {
+          "title": "Keep the actual session and successor boundary",
+          "instruction": "The normal native dispatch owns the game session until exit; --vblanks 0 is the documented default. The source’s short post-entry-return diagnostic pump is not proof of a normal gameplay time limit. No gameplay or startup observation was performed."
+        },
+        {
+          "title": "Review Play and preserve external ownership",
+          "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
+        },
+        {
+          "title": "Retain the complete creating copy and actual data",
+          "instruction": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods."
+        }
+      ],
+      "warnings": [
+        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+      ]
     }
   }
 }

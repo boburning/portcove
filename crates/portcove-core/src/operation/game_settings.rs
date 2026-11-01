@@ -259,6 +259,10 @@ mod tests {
         let mut operation = record(&library);
         store.put(&mut operation).unwrap();
         let retained = store.get(&operation.id).unwrap().unwrap();
+        let diagnostic = store.diagnostic_inventory().unwrap();
+        assert_eq!(diagnostic.report.decoded_rows, 1);
+        assert!(diagnostic.report.problems.is_empty());
+        assert_eq!(diagnostic.decoded[0].id, operation.id);
         assert_eq!(
             serde_json::to_value(&retained.game_settings).unwrap(),
             serde_json::to_value(&operation.game_settings).unwrap()
@@ -347,6 +351,18 @@ mod tests {
             )
             .unwrap();
         assert!(store.get(&settings.id).is_err());
+        assert!(store.all().is_err());
+        let diagnostic = store.diagnostic_inventory().unwrap();
+        assert!(diagnostic.report.enumeration_complete);
+        assert_eq!(diagnostic.report.enumerated_rows, 2);
+        assert_eq!(diagnostic.report.decoded_rows, 1);
+        assert!(!diagnostic.report.related_assessments_complete);
+        assert_eq!(diagnostic.decoded[0].id, old.id);
+        assert_eq!(diagnostic.report.problems.len(), 1);
+        let problem = &diagnostic.report.problems[0];
+        assert_eq!(problem.operation_id.as_deref(), Some(settings.id.as_str()));
+        assert_eq!(problem.operation_kind.as_deref(), Some("settings_change"));
+        assert_eq!(problem.stage, crate::JournalValidationStage::Payload);
         let after: String = connection
             .query_row(
                 "SELECT game_settings_json FROM lifecycle_operations WHERE id=?1",
