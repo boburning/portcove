@@ -19,6 +19,7 @@ import {
 import { gameProjectLabel, gameTitle } from "../src/port-identity.ts";
 import { INTERFACE_SIZES } from "../src/interface-size-controller.ts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
+import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 
 /** The dispatcher owns normal application startup, isolated output and positive-exit restart. */
 export interface GameFirstContext extends ScenarioContext {
@@ -154,14 +155,22 @@ export async function gameFirstScenarios({
       const field = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
       await field.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, query);
     };
-    const expectSearch = async (query: string, expected: readonly string[]) => {
+    const expectSearch = async (
+      query: string,
+      expected: readonly string[],
+      excluded: readonly string[],
+    ) => {
       await search(query);
       await browser.wait(
-        async () =>
-          JSON.stringify(await catalogResultPortIds(browser)) ===
-          JSON.stringify([...expected].sort()),
+        async () => {
+          const matches = await catalogResultPortIds(browser);
+          return (
+            expected.every((id) => matches.includes(id)) &&
+            excluded.every((id) => !matches.includes(id))
+          );
+        },
         15_000,
-        `Search ${query} must retain the exact authored project identities`,
+        `Search ${query} must reach the authored projects and exclude unrelated identities`,
       );
     };
     const detail = async (id: string) => {
@@ -259,13 +268,29 @@ export async function gameFirstScenarios({
     try {
       await resetSize();
       await browser.manage().window().setRect({ width: 1280, height: 900 });
-      await expectSearch(gameTitle(required(ports[0])), pair);
+      const searchGame = () =>
+        expectSearch(gameTitle(required(ports[0])), pair, [picori.id, gzdoom.id]);
+      await searchGame();
       assert.equal(
         (await browser.findElements(By.css(`.discover-game${groupSelector}`))).length,
         1,
       );
-      for (const port of ports) await expectSearch(port.name, [port.id]);
-      await expectSearch(picori.name, [picori.id]);
+      const group = await browser.findElement(By.css(`.discover-game${groupSelector}`));
+      const matchingIds = decodeDiscoverPortIds(
+        await group.getAttribute("data-discover-matching-port-ids"),
+      );
+      assert.deepEqual(
+        matchingIds.sort((a, b) => a.localeCompare(b)),
+        [...pair].sort((a, b) => a.localeCompare(b)),
+        "Only explicit game identities may form this group; other search matches remain independent",
+      );
+      for (const port of ports)
+        await expectSearch(
+          port.name,
+          [port.id],
+          ports.filter((other) => other.id !== port.id).map((other) => other.id),
+        );
+      await expectSearch(picori.name, [picori.id], pair);
       assert.equal(
         (
           await browser.findElements(
@@ -274,13 +299,13 @@ export async function gameFirstScenarios({
         ).length,
         1,
       );
-      await expectSearch(gzdoom.id, [gzdoom.id]);
+      await expectSearch(gzdoom.id, [gzdoom.id], pair);
       assert.equal(
         (await browser.findElements(By.css('[data-detail-return-group="port:zdoom-gzdoom"]')))
           .length,
         1,
       );
-      await expectSearch(gameTitle(required(ports[0])), pair);
+      await searchGame();
       await openComparison();
       const chosen = required(
         ports.find((port) => port.id !== before.organization.preferred_port_by_game?.[gameId]),
@@ -405,7 +430,7 @@ export async function gameFirstScenarios({
           before.statuses.find((row) => row.port_id === id),
           "Choice preserves independent installation/readiness state",
         );
-      await expectSearch(gameTitle(required(ports[0])), pair);
+      await searchGame();
       await browser.wait(
         async () =>
           (await browser
