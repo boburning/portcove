@@ -36,6 +36,8 @@ import {
   readNativeSessionObservation,
 } from "./desktop-owned-native-session.mts";
 import { requestRealRuntimeClose } from "./desktop-real-runtime-test.mts";
+import { observeRegisteredRuntimeExit } from "./desktop-runtime-exit-observation.mts";
+import { createImageRefusal } from "./desktop-cover-observations.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
@@ -63,7 +65,12 @@ export interface GameFirstInstalledContext extends ScenarioContext {
   inputPaths: GameFirstInstalledInputPaths;
   confirmNative: ReturnType<typeof nativeConfirmation>;
   chooseGameFileFolder: ReturnType<typeof nativeGameFileFolderPicker>;
-  restartApplication: (name: string) => Promise<WebDriver>;
+  operatorObservation?: boolean;
+  restartApplication: (
+    name: string,
+    prepareWhileStopped?: () => Promise<void>,
+    childEnvironment?: NodeJS.ProcessEnv,
+  ) => Promise<WebDriver>;
   onManagedGame: (game: NativeManagedGame) => void;
   /** The owner must bind actual runtime pixels to the verified game identity. */
   captureGameFrame?: (request: {
@@ -487,6 +494,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         executableIdentity,
         play: () => click(By.css(playTarget)),
         core,
+        prefix: "picori",
       });
       report.launch = launch;
       report.game_frame = launch.game_frame;
@@ -514,6 +522,165 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         "true",
       );
       assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
+      // Refuse only proxy-aware provider traffic in this application's child
+      // environment. Definition traffic deliberately bypasses these proxies.
+      const provider: Record<string, unknown> = {
+        scope: "Scoped loopback proxy refusal of proxy-aware provider requests",
+        total_network_offline: "not-evaluated",
+        definition_unavailable: "not-evaluated",
+      };
+      report.provider_unavailable = provider;
+      let providerFailure: Error | undefined;
+      let providerCleanupFailure: Error | undefined;
+      let afterProviderLaunch: typeof saved | undefined;
+      let providerDenialObserved = false;
+      const durableState = async () => {
+        const current = await status();
+        return {
+          active: current.active,
+          previous: current.previous,
+          staged: current.staged,
+          channel: current.channel,
+          update_policy: current.update_policy,
+          sources: await sources(),
+          organization: await organization(),
+          favorites: await favorites(),
+        };
+      };
+      const durableBefore = await durableState();
+      const refusal = await createImageRefusal();
+      try {
+        browser = await context.restartApplication(
+          "picori-provider-refused",
+          undefined,
+          refusal.environment,
+        );
+        await libraryView();
+        assert.deepEqual(await durableState(), durableBefore);
+        assert.deepEqual(await userDataInventory(paths.user_data_root), saved.userData);
+        const beforeChecks = new Set(
+          transportValue("activity", fixtureSuccess(await invoke("get_activities"))).records.map(
+            (record) => record.id,
+          ),
+        );
+        await selectPrimaryNavigation(browser, "Activity");
+        const updatesTab = await browser.findElement(
+          By.xpath(
+            '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="Game updates"]]',
+          ),
+        );
+        await clickVisible(browser, updatesTab);
+        await browser.wait(
+          async () => (await updatesTab.getAttribute("aria-selected")) === "true",
+          5000,
+        );
+        const beforeTraffic = refusal.origins.length;
+        await click(button("Check installed ports for updates"));
+        const failureRegion = await browser.wait(
+          until.elementLocated(By.css(`[data-update-check-failure="${portId}"]`)),
+          60_000,
+        );
+        assert.equal(
+          await failureRegion.getAttribute("aria-label"),
+          `Update check failure for ${port.name}`,
+        );
+        const failedCheck = await browser.wait(async () => {
+          const records = transportValue(
+            "activity",
+            fixtureSuccess(await invoke("get_activities")),
+          ).records;
+          return (
+            records.find(
+              (record) =>
+                !beforeChecks.has(record.id) &&
+                record.operation === "check_update" &&
+                record.target_id === portId &&
+                record.status === "failed" &&
+                record.finished_at !== null,
+            ) || false
+          );
+        }, 60_000);
+        assert.ok(failedCheck);
+        const refusedRequests = refusal.origins.slice(beforeTraffic);
+        providerDenialObserved =
+          required(failedCheck.failure).code === "network" &&
+          refusedRequests.includes("other-origin");
+        provider.failed_check = failedCheck;
+        provider.refused_origins_during_check = refusedRequests;
+        provider.failure_ui = await failureRegion.getText();
+        assert.deepEqual(await durableState(), durableBefore);
+        assert.deepEqual(sessionIds(library), saved.sessions);
+        assert.deepEqual(await userDataInventory(paths.user_data_root), saved.userData);
+        if (providerDenialObserved) {
+          await libraryView();
+          assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
+          await capture("picori-provider-unavailable-play", playTarget, 100);
+          provider.launch = await launchManagedPicori({
+            context: { ...context, browser, operatorObservation: false },
+            installed,
+            executableIdentity,
+            play: () => click(By.css(playTarget)),
+            core,
+            prefix: "picori-provider-unavailable",
+          });
+          assert.deepEqual(await durableState(), durableBefore);
+          const current = await status();
+          assert.equal(current.successful_launches, saved.status.successful_launches + 1);
+          assert.ok(required(current.last_launched_at) >= required(saved.status.last_launched_at));
+          const ids = sessionIds(library);
+          assert.equal(ids.length, saved.sessions.length + 1);
+          assert.ok(saved.sessions.every((id) => ids.includes(id)));
+        } else {
+          provider.status = "held";
+          provider.reason =
+            "The adopted installation did not establish a provider network failure with matching scoped proxy traffic; a normal GitHub-installed artifact may be required. No policy change or retry was performed.";
+          assert.equal((await status()).successful_launches, saved.status.successful_launches);
+        }
+        afterProviderLaunch = {
+          status: await status(),
+          sources: await sources(),
+          organization: await organization(),
+          favorites: await favorites(),
+          sessions: sessionIds(library),
+          userData: await userDataInventory(paths.user_data_root),
+        };
+        provider.after_observation = afterProviderLaunch;
+      } catch (error) {
+        providerFailure = retainedError(error);
+        provider.failure = errorMessage(error);
+      } finally {
+        // Restore the real application environment even when the refused request
+        // or launch failed; closing this listener alone cannot restore the child.
+        try {
+          browser = await context.restartApplication("picori-provider-environment-restored");
+        } catch (error) {
+          providerCleanupFailure = retainedError(error);
+          provider.restore_failure = errorMessage(error);
+          console.error("Picori provider environment restoration failed:", errorMessage(error));
+        }
+        try {
+          await refusal.close();
+        } catch (error) {
+          providerCleanupFailure ??= retainedError(error);
+          provider.refusal_close_failure = errorMessage(error);
+          console.error("Picori scoped refusal cleanup failed:", errorMessage(error));
+        }
+      }
+      if (providerFailure) throw providerFailure;
+      if (providerCleanupFailure) throw providerCleanupFailure;
+      const preserved = required(afterProviderLaunch);
+      await libraryView();
+      assert.deepEqual(await status(), preserved.status);
+      assert.deepEqual(await durableState(), durableBefore);
+      assert.deepEqual(await sources(), preserved.sources);
+      assert.deepEqual(await organization(), preserved.organization);
+      assert.deepEqual(await favorites(), preserved.favorites);
+      assert.deepEqual(sessionIds(library), preserved.sessions);
+      assert.deepEqual(await userDataInventory(paths.user_data_root), preserved.userData);
+      assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
+      if (providerDenialObserved)
+        provider.status = "scoped-provider-unavailable-preservation-observed";
+      provider.restored_environment_restart_preserved_state = true;
       await verifyGameFirstInstalledInputs(
         inputPaths,
         prepared.metadata,
@@ -578,14 +745,17 @@ async function launchManagedPicori({
   executableIdentity,
   play,
   core,
+  prefix,
 }: {
   context: GameFirstInstalledContext;
   installed: InstallRecord;
   executableIdentity: FileIdentity;
   play: () => Promise<void>;
   core: (args: readonly string[]) => unknown;
+  prefix: string;
 }) {
   const { browser, application, library, output, artifacts } = context;
+  assert.match(prefix, /^[a-z0-9-]+$/u);
   const route: Record<string, unknown> = {
     gameplay: "not-evaluated",
     game_frame: { status: "unavailable" },
@@ -619,6 +789,7 @@ async function launchManagedPicori({
   let secondary: Error | undefined;
   let closeFile: string | undefined;
   let closeAttempted = false;
+  let observedExit = false;
   try {
     await play();
     const session = await browser.wait(async () => {
@@ -644,7 +815,7 @@ async function launchManagedPicori({
       session && session.child_pid && session.child_identity && session.supervisor_identity,
     );
     route.session = session;
-    const supervisorFile = path.join(output, "picori-supervisor-identity.json");
+    const supervisorFile = path.join(output, `${prefix}-supervisor-identity.json`);
     const supervisor = native("SnapshotDriver", supervisorFile, [
       "-DriverProcessId",
       String(session.supervisor_pid),
@@ -657,7 +828,7 @@ async function launchManagedPicori({
       session.supervisor_identity,
     );
     assert.equal((await fileIdentity(supervisor.driver.path)).sha256, appIdentity.sha256);
-    const gameFile = path.join(output, "picori-game-identity.json");
+    const gameFile = path.join(output, `${prefix}-game-identity.json`);
     const game = native("SnapshotApplication", gameFile, [
       "-DriverProcessId",
       String(session.child_pid),
@@ -675,7 +846,7 @@ async function launchManagedPicori({
     const ticks = (value: string) => Number((BigInt(value) - 116444736000000000n) / 10000n);
     assert.ok(ticks(supervisor.driver.started_filetime) >= earliest - 1000);
     assert.ok(BigInt(game.driver.started_filetime) >= BigInt(supervisor.driver.started_filetime));
-    closeFile = path.join(output, "picori-game-close-identity.json");
+    closeFile = path.join(output, `${prefix}-game-close-identity.json`);
     const close = native("Snapshot", closeFile, [
       "-DriverProcessId",
       String(session.supervisor_pid),
@@ -692,7 +863,7 @@ async function launchManagedPicori({
     route.live_game = { supervisor, game, close, executableIdentity };
     if (context.captureGameFrame) {
       const frame = await context.captureGameFrame({
-        name: "picori-real-runtime",
+        name: `${prefix}-real-runtime`,
         session,
         executable: executableIdentity.path,
         executableSha256: executableIdentity.sha256,
@@ -710,16 +881,27 @@ async function launchManagedPicori({
         if (!artifacts.includes(frame.artifact)) artifacts.push(frame.artifact);
       } else route.game_frame = frame;
     }
-    closeAttempted = true;
-    await requestRealRuntimeClose({
-      native,
-      closeFile,
-      executable: executableIdentity.path,
-      requestFile: path.join(output, "picori-ordinary-game-close.json"),
-      route,
-      artifacts,
-      write: writeFile,
-    });
+    if (context.operatorObservation) {
+      await observeRegisteredRuntimeExit({
+        session,
+        snapshot: gameFile,
+        native,
+        wait: (observe, timeout) => browser.wait(observe, timeout, undefined, 2000),
+        route,
+      });
+      observedExit = true;
+    } else {
+      closeAttempted = true;
+      await requestRealRuntimeClose({
+        native,
+        closeFile,
+        executable: executableIdentity.path,
+        requestFile: path.join(output, `${prefix}-ordinary-game-close.json`),
+        route,
+        artifacts,
+        write: writeFile,
+      });
+    }
     const terminal = await browser.wait(() => {
       const value = required(
         transportValue("launch_request", core(["launch", "show", session.id])),
@@ -730,7 +912,7 @@ async function launchManagedPicori({
     route.terminal = terminal;
     assert.equal(terminal.outcome, "succeeded");
     assert.equal(terminal.exit_code, 0);
-    const supervisorExit = path.join(output, "picori-supervisor-exit-identity.json");
+    const supervisorExit = path.join(output, `${prefix}-supervisor-exit-identity.json`);
     await writeFile(
       supervisorExit,
       JSON.stringify({
@@ -751,16 +933,24 @@ async function launchManagedPicori({
     route.failure = errorMessage(error);
   } finally {
     try {
-      if (closeFile && !closeAttempted)
-        await requestRealRuntimeClose({
-          native,
-          closeFile,
-          executable: executableIdentity.path,
-          requestFile: path.join(output, "picori-failure-ordinary-close.json"),
-          route,
-          artifacts,
-          write: writeFile,
-        });
+      if (closeFile && !closeAttempted && !observedExit) {
+        const observation = native("Observe", closeFile);
+        route.failure_exit_observation = observation;
+        const liveGame = observation.processes.find((entry) =>
+          samePath(entry.path, executableIdentity.path),
+        );
+        assert.ok(liveGame, "Failure cleanup requires the already verified game identity");
+        if (liveGame.state === "running")
+          await requestRealRuntimeClose({
+            native,
+            closeFile,
+            executable: executableIdentity.path,
+            requestFile: path.join(output, `${prefix}-failure-ordinary-close.json`),
+            route,
+            artifacts,
+            write: writeFile,
+          });
+      }
     } catch (error) {
       route.secondary_close_failure = errorMessage(error);
       secondary = retainedError(error);
@@ -770,7 +960,7 @@ async function launchManagedPicori({
       );
     } finally {
       try {
-        const file = path.join(output, "picori-managed-launch.json");
+        const file = path.join(output, `${prefix}-managed-launch.json`);
         await writeFile(file, JSON.stringify(route, null, 2), { flag: "wx" });
         artifacts.push(file);
       } catch (error) {

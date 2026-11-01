@@ -2785,6 +2785,7 @@ try {
       cli: required(values["preparation-cli"]),
       application,
       inputPaths: parseGameFirstInstalledInputPaths(values),
+      operatorObservation: values["game-first-operator-observation"],
       confirmNative: nativeConfirmation(pickerContext),
       chooseGameFileFolder: nativeGameFileFolderPicker(pickerContext),
       restartApplication,

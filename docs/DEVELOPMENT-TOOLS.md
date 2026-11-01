@@ -1969,7 +1969,7 @@ does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
 
 `--scenario native-game-first-installed-picori` is an explicit standalone Windows
-journey using normal products and catalog authority. Supply the normal CLI with
+journey through `just desktop-test` using normal products and catalog authority. Supply the normal CLI with
 `--preparation-cli` and six captured argument files: `--game-first-inputs`
 (version-1 metadata), `--game-first-source`, `--game-first-runtime`,
 `--game-first-shapes`, `--game-first-logic` and `--game-first-archive`.
@@ -1978,6 +1978,18 @@ verification prepares fresh owned copies, then ordinary source review and native
 copy confirmation create a managed installation. Upstream release identity stays
 separate from Core's adopted version. Library identity, favorite, Play routing,
 strict child/supervisor identity, ordinary close and restart retention are checked.
+`--game-first-operator-observation` selects the shared finite 300-second exit
+observer after strict game identity capture. The owner separately records actual
+game-window pixels and its supported close action during that interval; observing
+exit does not invent close intent or rendering. Without that flag, the existing
+identity-bound native close request remains the close mechanism.
+The same journey restarts only its owned application with a loopback refusal
+proxy. A new failed Picori update-check activity, its visible failure row and
+matching post-action proxy traffic are required before provider-unavailable
+preservation receives credit. That branch verifies another installed Play and
+retains its own launch/closure artifacts; local refusal without that evidence
+stays held. Cleanup restores the application environment and closes the proxy.
+This does not deny definition transports or establish total-network offline.
 Its finite 1200-second outer harness budget includes input custody and real copy
 review; product deadlines remain unchanged. Actual runtime pixels require a
 separately bound game-window observation. Desktop screenshots, process liveness

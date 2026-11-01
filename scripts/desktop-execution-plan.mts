@@ -257,6 +257,7 @@ export function planDesktopExecution(
     // The real-runtime module supplies strict process observation and normal close.
     for (const name of [
       "desktop-game-first-installed-test.mts",
+      "desktop-runtime-exit-observation.mts",
       "desktop-real-runtime-test.mts",
       "desktop-source-dialog-test.mts",
       "desktop-review-controls.mts",
@@ -524,6 +525,7 @@ export function parseDesktopHarnessOptions(args = process.argv.slice(2)) {
       "game-first-shapes": { type: "string" },
       "game-first-logic": { type: "string" },
       "game-first-archive": { type: "string" },
+      "game-first-operator-observation": { type: "boolean", default: false },
       "artwork-only": { type: "boolean", default: false },
       "adoption-only": { type: "boolean", default: false },
       "accessibility-only": { type: "boolean", default: false },
@@ -559,7 +561,10 @@ export function resolveDesktopHarnessSelection(
       throw new Error("Picori requires --preparation-cli without a fixture tool");
     for (const name of gameFirstInstalledArgumentNames)
       if (!values[name]) throw new Error(`Picori requires --${name}`);
-  } else if (gameFirstInstalledArgumentNames.some((name) => values[name])) {
+  } else if (
+    values["game-first-operator-observation"] ||
+    gameFirstInstalledArgumentNames.some((name) => values[name])
+  ) {
     throw new Error("Game-first private inputs require the exact standalone Picori scenario");
   } else if (Boolean(values["preparation-cli"]) !== Boolean(values["preparation-tool"]))
     throw new Error("--preparation-cli and --preparation-tool must be supplied together");

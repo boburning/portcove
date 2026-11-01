@@ -1600,6 +1600,13 @@ void test("Picori private-input selection captures the normal CLI and every supp
     ...flags.flatMap((flag) => [`--${flag}`, `/${flag}`]),
   ];
   const { values } = parseDesktopHarnessOptions(args);
+  assert.equal(values["game-first-operator-observation"], false);
+  assert.equal(
+    parseDesktopHarnessOptions([...args, "--game-first-operator-observation"]).values[
+      "game-first-operator-observation"
+    ],
+    true,
+  );
   if (process.platform === "win32") {
     const resolved = resolveDesktopHarnessSelection(values);
     assert.deepEqual(resolved.selected_scenarios, [id]);
@@ -1621,6 +1628,25 @@ void test("Picori private-input selection captures the normal CLI and every supp
     !plan.receiptInputs.some(
       (input) => input.kind === "executable" && input.name === "preparation-tool",
     ),
+  );
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
+    ).length,
+    1,
+  );
+  assert.throws(
+    () =>
+      resolveDesktopHarnessSelection(
+        parseDesktopHarnessOptions([
+          "--scenario",
+          "empty-library",
+          "--game-first-operator-observation",
+        ]).values,
+      ),
+    /exact standalone/u,
   );
   for (const flag of flags)
     assert.equal(

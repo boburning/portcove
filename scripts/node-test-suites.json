@@ -687,6 +687,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-runtime-exit-observation.test.mts",
+      "memberships": [
+        ["windows-storage-4", 298],
+        ["frontend-full-4", 298],
+        ["development-tools", 2098]
+      ]
+    },
+    {
       "file": "scripts/desktop-game-first-installed-inputs.test.mts",
       "memberships": [
         ["windows-storage-4", 299],
