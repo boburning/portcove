@@ -948,7 +948,10 @@ pub(crate) enum SourceCommand {
         profile_id: String,
     },
     /// Recheck a saved registration and review each integration's distinct source requirements.
-    Reuse { profile_id: String },
+    Reuse {
+        /// Registered game-file profile from `source list`; checks its existing baseline without changing files.
+        profile_id: String,
+    },
     /// Explicitly refresh route-bound game-file observations for one port on this host.
     Query(SourceQueryArgs),
     /// Recheck registered game files against their saved baselines.

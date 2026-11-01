@@ -12,6 +12,8 @@ import {
 import { RegisteredSourceSetup } from "./RegisteredSourceSetup";
 import type { Perform } from "../features/operations/use-operation-state";
 
+vi.mock("../file-picker", { spy: true });
+
 const source: SourceRecord = {
   profile_id: "majoras-mask",
   path: "D:/original.z64",
