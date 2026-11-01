@@ -2782,4 +2782,66 @@ mod tests {
     fn dead_or_alive_3_doa3_recomp_prepared_player_route_2560() {
         assert_listing_only_player_route("dead-or-alive-3-doa3-recomp", Some(false));
     }
+
+    #[test]
+    fn goliathret_edgeoftimerecomp_prepared_player_route_1818() {
+        assert_listing_only_player_route("goliathret-edgeoftimerecomp", Some(false));
+    }
+
+    #[test]
+    fn dragon_ball_z_burst_limit_dbz_burst_limit_recompiled_prepared_player_route_2664() {
+        assert_listing_only_player_route(
+            "dragon-ball-z-burst-limit-dbz-burst-limit-recompiled",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn dudux42_freedomunbound_prepared_player_route_2808() {
+        assert_listing_only_player_route("dudux42-freedomunbound", Some(false));
+    }
+
+    #[test]
+    fn erreib_pure_recomp_prepared_player_route_2749() {
+        assert_listing_only_player_route("erreib-pure-recomp", Some(false));
+    }
+
+    #[test]
+    fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_prepared_player_route_2570() {
+        assert_listing_only_player_route(
+            "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_prepared_player_route_2577() {
+        assert_listing_only_player_route(
+            "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn hard_corps_uprising_hard_corps_uprising_recompiled_prepared_player_route_2581() {
+        assert_listing_only_player_route(
+            "hard-corps-uprising-hard-corps-uprising-recompiled",
+            Some(true),
+        );
+    }
+
+    #[test]
+    fn jedeyesniv_art_pacman_ce_pc_recomp_prepared_player_route_2727() {
+        assert_listing_only_player_route("jedeyesniv-art-pacman-ce-pc-recomp", Some(false));
+    }
+
+    #[test]
+    fn iron_jay_banjo_tooie_xbla_recomp_prepared_player_route_2860() {
+        assert_listing_only_player_route("iron-jay-banjo-tooie-xbla-recomp", Some(false));
+    }
+
+    #[test]
+    fn fataldecomp_roller_prepared_player_route_2792() {
+        assert_listing_only_player_route("fataldecomp-roller", Some(false));
+    }
 }

@@ -1927,3 +1927,27 @@ async fn x_men_mutant_academy_2_xmen_mutant_academy_2_pc_component_hold_before_n
     assert_embedded_player_download_holds(&["x-men-mutant-academy-2-xmen-mutant-academy-2-pc"])
         .await;
 }
+
+#[tokio::test]
+async fn eternal_darkness_sanity_s_requiem_eternal_darkness_recomp_component_hold_before_network_2570()
+ {
+    assert_embedded_player_download_holds(&[
+        "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_component_hold_before_network_2577()
+ {
+    assert_embedded_player_download_holds(&[
+        "geometry-wars-retro-evolved-2-geometry-wars-2-recompiled",
+    ])
+    .await;
+}
+
+#[tokio::test]
+async fn hard_corps_uprising_hard_corps_uprising_recompiled_component_hold_before_network_2581() {
+    assert_embedded_player_download_holds(&["hard-corps-uprising-hard-corps-uprising-recompiled"])
+        .await;
+}
