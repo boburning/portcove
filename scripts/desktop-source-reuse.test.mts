@@ -8,6 +8,7 @@ import { runDesktopModuleFixture } from "./fixtures/desktop-module-fixture.mts";
 
 const id = "native-registered-source-reuse";
 const helper = "apps/desktop/scripts/desktop-source-reuse-test.mts";
+const exitObservation = "apps/desktop/scripts/desktop-runtime-exit-observation.mts";
 
 void test("real source reuse requires standalone Windows with normal production features", () => {
   const selection = resolveDesktopSelection({ platform: "win32", scenarios: [id] });
@@ -19,6 +20,7 @@ void test("real source reuse requires standalone Windows with normal production 
   assert.deepEqual(plan.build.cliFeatures, []);
   assert.deepEqual(plan.build.qualificationFeatures, []);
   assert.equal(plan.receiptInputs.filter((input) => input.path === helper).length, 1);
+  assert.equal(plan.receiptInputs.filter((input) => input.path === exitObservation).length, 1);
   assert.equal(
     plan.receiptInputs.filter(
       (input) => input.path === "apps/desktop/scripts/desktop-source-dialog-test.mts",
@@ -36,18 +38,20 @@ void test("real source reuse requires standalone Windows with normal production 
 });
 
 void test("source reuse helper changes retain maintained native and focused validation ownership", () => {
-  assert.equal(ordinaryOwnershipForPath(helper).unknown, false);
-  for (const change of [
-    { status: "M", path: helper },
-    { status: "A", path: helper },
-    { status: "D", path: helper },
-    { status: "R100", path: "docs/moved.md", previousPath: helper },
-    { status: "R100", path: helper, previousPath: "docs/moved.md" },
-  ]) {
-    const selected = classifyChanges([change]);
-    assert.ok(selected.nodeTests.has("scripts/desktop-source-reuse.test.mts"));
-    assert.ok(selected.nodeTests.has("scripts/desktop-boundary-wiring.test.mts"));
-    assert.equal(selected.unknown.has(helper), false);
+  for (const source of [helper, exitObservation]) {
+    assert.equal(ordinaryOwnershipForPath(source).unknown, false);
+    for (const change of [
+      { status: "M", path: source },
+      { status: "A", path: source },
+      { status: "D", path: source },
+      { status: "R100", path: "docs/moved.md", previousPath: source },
+      { status: "R100", path: source, previousPath: "docs/moved.md" },
+    ]) {
+      const selected = classifyChanges([change]);
+      assert.ok(selected.nodeTests.has("scripts/desktop-source-reuse.test.mts"));
+      assert.ok(selected.nodeTests.has("scripts/desktop-boundary-wiring.test.mts"));
+      assert.equal(selected.unknown.has(source), false);
+    }
   }
 });
 
@@ -139,10 +143,11 @@ void test("settled nonzero Play remains an aggregate failure and cannot admit ot
   );
 });
 
-void test("operator runtime observation keeps identity and exit proof separate from close intent", () => {
-  runDesktopModuleFixture(
-    new URL(`../${helper}`, import.meta.url),
-    `
+for (const source of [helper, exitObservation])
+  void test(`operator runtime observation keeps identity and exit proof separate from close intent: ${source}`, () => {
+    runDesktopModuleFixture(
+      new URL(`../${source}`, import.meta.url),
+      `
     const {observeRegisteredRuntimeExit} = await import(entry);
     const session={child_pid:11,child_identity:'windows-filetime:123'};
     const route={};let reads=0;const calls=[];
@@ -159,5 +164,5 @@ void test("operator runtime observation keeps identity and exit proof separate f
     }
     await assert.rejects(()=>observeRegisteredRuntimeExit({session,snapshot:'bound',route:{},native:mode=>{assert.equal(mode,'Observe');return {processes:[{pid:11,started_filetime:'123',state:'running'}]}},wait:async observe=>{assert.equal(observe(),false);throw Error('operator observation deadline')}}),/operator observation deadline/);
   `,
-  );
-});
+    );
+  });

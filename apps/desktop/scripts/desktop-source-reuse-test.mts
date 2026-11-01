@@ -31,9 +31,10 @@ import {
   nativeSessionScript,
   readNativeSessionObservation,
   type NativeSessionMode,
-  type NativeSessionObservations,
 } from "./desktop-owned-native-session.mts";
 import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
+import { observeRegisteredRuntimeExit } from "./desktop-runtime-exit-observation.mts";
+export { observeRegisteredRuntimeExit } from "./desktop-runtime-exit-observation.mts";
 
 const scenarioId = "native-registered-source-reuse";
 const profileId = "majoras-mask";
@@ -85,34 +86,6 @@ export function requireSuccessfulRegisteredRuntimeRoutes(routes: Record<string, 
     assert.equal(route.terminal.outcome, "succeeded");
     assert.equal(route.terminal.exit_code, 0);
   }
-}
-
-export async function observeRegisteredRuntimeExit({
-  session,
-  snapshot,
-  native,
-  wait,
-  route,
-}: {
-  session: LaunchSessionRecord;
-  snapshot: string;
-  native: <Mode extends "Observe" | "Wait">(
-    mode: Mode,
-    snapshot: string,
-  ) => NativeSessionObservations[Mode];
-  wait: (observe: () => boolean, timeout: number) => Promise<boolean>;
-  route: Record<string, unknown>;
-}) {
-  const exited = await wait(() => {
-    const observation = native("Observe", snapshot);
-    route.last_operator_exit_observation = observation;
-    const game = observation.processes.find((entry) => entry.pid === session.child_pid);
-    assert.ok(game);
-    assert.equal(`windows-filetime:${game.started_filetime}`, session.child_identity);
-    return game.state === "exited";
-  }, 300_000);
-  assert.equal(exited, true);
-  route.observed_game_exit = native("Wait", snapshot);
 }
 
 // A generated archive is preparation evidence, never a rendered-frame claim.

@@ -245,6 +245,7 @@ export function planDesktopExecution(
   if (registeredSourceReuse)
     for (const name of [
       "desktop-source-reuse-test.mts",
+      "desktop-runtime-exit-observation.mts",
       "desktop-real-runtime-test.mts",
       "desktop-review-controls.mts",
       "desktop-source-dialog-test.mts",

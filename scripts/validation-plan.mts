@@ -236,6 +236,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-source-reuse-test.mts",
+  "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
   "apps/desktop/scripts/desktop-artwork-observations.mts",
   "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",

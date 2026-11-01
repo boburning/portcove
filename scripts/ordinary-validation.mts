@@ -1707,6 +1707,10 @@ for (const [file, tests] of [
     ["scripts/desktop-source-reuse.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
   ],
   [
+    "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
+    ["scripts/desktop-source-reuse.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
     "apps/desktop/scripts/desktop-real-runtime-test.mts",
     [
       "scripts/desktop-real-runtime.test.mts",
