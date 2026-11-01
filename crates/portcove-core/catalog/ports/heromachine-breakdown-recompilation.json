@@ -3,7 +3,7 @@
   "listing": {
     "id": "heromachine-breakdown-recompilation",
     "name": "Breakdown / Breakdown-Recompilation (Heromachine)",
-    "summary": "Explore Breakdown / Breakdown-Recompilation (Heromachine) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach an independently permitted, already prepared Breakdown Windows installation; upstream owns its local USA Xbox-disc build, player settings and saves. Early-release limitations remain; no Core-managed build or runtime replacement is offered.",
     "project_url": "https://github.com/Heromachine/Breakdown-Recompilation",
     "issue_number": 1805,
     "platforms": [],
@@ -16,6 +16,38 @@
       "image_sha256": "9bc245ca26a70c0d55c8e80029c89642bd2dcfc48e0bccbdfdcea8d3a22f1be6",
       "game_slug": "breakdown",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Heromachine/Breakdown-Recompilation/blob/473b7d22c6c24b74f4bf424ecfff3cc1355c6a5a/README.md",
+      "steps": [
+        {
+          "title": "Prepare the complete owned-disc installation upstream",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The selected0.2.2 route needs your own original Xbox Breakdown USA ISO, Windows10/11 x64, Direct3D11 and roughly6GB for its local build. Keep Breakdown.exe and the entire matching tools/ tree together. Run the supported first-run preparation outside Portcove until the game DLL is ready. The inspected launcher checks Xbox-disc filesystem magic; extraction checks default.xbe exists. Exact accepted full-disc/XBE digest/revision authentication remains Unknown; those checks are not entitlement or a cryptographic USA-identity check. No original, compiler, helper or build is obtained or run by this registration."
+        },
+        {
+          "title": "Select the completed normal native launcher",
+          "instruction": "Select Breakdown.exe in its complete creating Windows package directory, use that directory as working directory and leave arguments empty. Keep the matching prepared installation and companions. The selected launcher loads work/build/breakdown_game.dll and runs the game in its own process/window; it is not an instruction to select a generated DLL, internal standalone executable, build helper or Linux launcher. Review and consent to the exact selected intent, then request Play separately."
+        },
+        {
+          "title": "Preserve the actual installation and all data roots",
+          "instruction": "The launcher normally uses %LOCALAPPDATA%/BreakdownRecomp for settings.ini, work/ with extracted game/generated build/ready markers, and logs/. Preserve that complete tree plus the selected original ISO and package. An established BREAKDOWN_DATA or BREAKDOWN_TOOLS override selects different roots; retain them too without creating a new override here. Logs include build/game/launcher records. Keep complete recovery copies outside generated work and staging trees before rebuilding."
+        },
+        {
+          "title": "Keep the effective save folder separate from rebuild data",
+          "instruction": "The upstream default save folder is %LOCALAPPDATA%/xboxrecomp. Its Options saved-games setting can select another location and is passed through XBOXRECOMP_SAVE_DIR. Preserve the actual save tree, settings and every established custom/external root; that default name does not establish per-title isolation or save compatibility. Choosing another saved-games folder does not move existing saves. This guide performs no save migration, import, backup or destructive management."
+        },
+        {
+          "title": "Complete rebuild and restart paths outside attachment",
+          "instruction": "Ordinary prepared play runs inside the selected process. Upstream repair/rebuild can invalidate ready/build stamps, replace generated work/toolkit/project/build material and request a fresh launcher process; Restart starts a successor and the current process exits. Complete setup, rebuilds and such restarts outside the attached-session scope, close all actual players/helpers/successors, then review/relink changed bytes. Portcove does not adopt or terminate a successor or own runtime replacement; preserve originals and independent recovery copies first."
+        },
+        {
+          "title": "Retain release and ownership limits",
+          "instruction": "Upstream0.2.2 is explicitly early/incomplete: some background music loops, Retry/loading can take a long time and some textures appear late. These remain attributable upstream limitations, not Portcove passes or repaired failures. Keep component notices; project/toolkit/component terms grant no Namco original-game rights. The release assembler takes an external toolkit working checkout, so exact packaged toolkit/source correspondence is not established here. Removing registration preserves every external file. No managed install/update/rollback/backup/removal or Supported/protected acceptance is offered."
+        }
+      ],
+      "warnings": [
+        "Upstream0.2.2 is early/incomplete; music loops, slow Retry/loading and late textures remain known upstream limitations."
+      ]
     }
   }
 }

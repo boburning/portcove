@@ -2888,4 +2888,54 @@ mod tests {
     fn crazyriddler_finesthourremastered_prepared_player_route_2785() {
         assert_listing_only_player_route("crazyriddler-finesthourremastered", Some(true));
     }
+
+    #[test]
+    fn nsmbu_recomp_irishbruse_prepared_player_route_1712() {
+        assert_listing_only_player_route("nsmbu-recomp-irishbruse", Some(false));
+    }
+
+    #[test]
+    fn heromachine_breakdown_recompilation_prepared_player_route_1805() {
+        assert_listing_only_player_route("heromachine-breakdown-recompilation", Some(false));
+    }
+
+    #[test]
+    fn elmasas_lcs_recomp_prepared_player_route_1836() {
+        assert_listing_only_player_route("elmasas-lcs-recomp", Some(true));
+    }
+
+    #[test]
+    fn kirby1237_parappatherapperrecomp_prepared_player_route_1864() {
+        assert_listing_only_player_route("kirby1237-parappatherapperrecomp", Some(true));
+    }
+
+    #[test]
+    fn nevercookfirst_dimensionsrecomp_prepared_player_route_1817() {
+        assert_listing_only_player_route("nevercookfirst-dimensionsrecomp", Some(true));
+    }
+
+    #[test]
+    fn goodshepherd23_hellnight_recompiled_prepared_player_route_1825() {
+        assert_listing_only_player_route("goodshepherd23-hellnight-recompiled", Some(false));
+    }
+
+    #[test]
+    fn njh_1001_wipeout2k97xl_prepared_player_route_1908() {
+        assert_listing_only_player_route("njh-1001-wipeout2k97xl", Some(false));
+    }
+
+    #[test]
+    fn elprogramadorloco_arch_jim2_recomp_prepared_player_route_1819() {
+        assert_listing_only_player_route("elprogramadorloco-arch-jim2-recomp", Some(false));
+    }
+
+    #[test]
+    fn eandis_sdoj_recomp_prepared_player_route_1880() {
+        assert_listing_only_player_route("eandis-sdoj-recomp", Some(true));
+    }
+
+    #[test]
+    fn kumapauz_project_reignition_prepared_player_route_1870() {
+        assert_listing_only_player_route("kumapauz-project-reignition", Some(false));
+    }
 }

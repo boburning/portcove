@@ -3,7 +3,7 @@
   "listing": {
     "id": "kumapauz-project-reignition",
     "name": "Sonic and the Secret Rings / Project Reignition (kumapauz)",
-    "summary": "Explore Sonic and the Secret Rings / Project Reignition (kumapauz) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Windows Project Reignition guidance for an independently permitted complete native copy. The retained v0.4.2 launch instruction names Project Reignition.exe; preserve its configurable save location and keep replacement with upstream.",
     "project_url": "https://github.com/kumapauz/project-reignition",
     "issue_number": 1870,
     "platforms": [],
@@ -16,6 +16,30 @@
       "image_sha256": "48ac80252098e82ba478d6b9f7bb727a1932cc4e3a126966eb072a2f42eb8d2f",
       "game_slug": "sonic-and-the-secret-rings",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Keep the complete permitted Windows copy",
+          "instruction": "Use a complete Windows copy of Project Reignition and components you are independently permitted to use. The retained v0.4.2 GitHub Windows release has a published launch instruction naming Project Reignition.exe. Keep all matching Godot runtime, resource and other supplied companions; do not copy only the EXE. This remake’s documented route does not request an original Wii disc/ROM/BIOS. Upstream marks the remake freeware/not for sale; its separate code and graphical-asset terms restrict use of those assets to this project, not other games."
+        },
+        {
+          "title": "Select the documented native entry",
+          "instruction": "For a completed copy matching that documented route, select Project Reignition.exe, use its complete containing directory as working directory and leave arguments empty. If your established copy uses upstream’s D3D12 alternative, preserve the two literal arguments --rendering-driver and d3d12 instead of selecting Run-in-D3D12-mode.bat; that script merely starts the native game and exits. Do not select Godot editor, setup/helper scripts or the project source as the player. Saving launch details and Play are separate actions."
+        },
+        {
+          "title": "Back up the actual selected save root before startup",
+          "instruction": "For the inspected v0.4.2 source, a successfully read saveLocation.txt beside the EXE selects an existing custom save directory. When that pointer is successfully read but its destination is missing/invalid, the fallback is save/ beside the EXE; when the pointer file is absent or unreadable, the fallback is Godot user:// for Sonic and the Secret Rings Remake. Preserve all active roots separately, including config.cfg, save*.dat and shared.dat, plus saveLocation.txt and any external/custom files. Saving config/shared data records the chosen directory back into saveLocation.txt. The game’s explicit delete-save command moves that chosen save to the trash; this registration does not manage deletion or migration."
+        },
+        {
+          "title": "Leave replacement and newer-version compatibility with upstream",
+          "instruction": "Upstream/player owns complete package installation, runtime replacement, data and recovery. Close the actual native game before backup or replacement, keep independent copies of old runtime and every save root outside replaced paths, then review/relink changed executable bytes. The current upstream README moves v1-and-newer releases to Game Jolt; their package entry, newer data/mod layout and migration are not established by the older v0.4.2 source/launch instruction. Do not copy newer folder rules over an older profile or assume save compatibility. Removing registration preserves external files; no managed update, rollback, backup, save migration or external deletion is offered."
+        }
+      ],
+      "warnings": [
+        "Keep the complete Windows package and meet its Godot/GPU/runtime requirements. The v0.4.2 route evidence does not qualify newer Game Jolt packages, their migration or mod layout. Keep graphical assets within Project Reignition and retain supplied terms/notices; freeware distribution is not a grant to resell the game or reuse its assets elsewhere."
+      ],
+      "help_url": "https://github.com/kumapauz/project-reignition/releases/tag/v0.4.2"
     }
   }
 }

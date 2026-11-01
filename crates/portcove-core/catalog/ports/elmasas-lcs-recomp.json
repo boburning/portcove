@@ -3,7 +3,7 @@
   "listing": {
     "id": "elmasas-lcs-recomp",
     "name": "Grand Theft Auto: Liberty City Stories / LCS Recomp (elmasas)",
-    "summary": "Explore Grand Theft Auto: Liberty City Stories / LCS Recomp (elmasas) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach an independently permitted complete LCSNative Windows copy prepared for your own Liberty City Stories USA v1.05 data. Upstream owns decrypted-input preparation, native runtime replacement and PSP save/settings files; no Core-managed build or maintenance is offered.",
     "project_url": "https://github.com/elmasas/lcs-recomp",
     "issue_number": 1836,
     "platforms": [],
@@ -16,6 +16,39 @@
       "image_sha256": "1ab62da533d92e87a56356e49a4793da7b7363327589b75e92358b5b1c8163e1",
       "game_slug": "grand-theft-auto-liberty-city-stories",
       "match_kind": "underlying-game"
-    }
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/elmasas/lcs-recomp/blob/ab91e87fe38f3efc5e4443069e7ce6b5a43e615b/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported owned-game files upstream",
+          "instruction": "Use a complete Windows copy and components you are independently permitted to use. The selected upstream route requires your own GTA: Liberty City Stories US v1.05, ULUS-10041, with decrypted EBOOT.ELF and its matching full PSP_GAME folder. Prepare them under the player package game/ directory outside Portcove, retaining the exact original separately. A PS2 edition, other region/revision or another PSP game is not this guide’s input. The native source loads ELF segments and module information; a complete original-image/ELF cryptographic digest and entitlement check is not established here. No decryption/extraction, original, key, compiler or helper is obtained or run by this registration."
+        },
+        {
+          "title": "Select the completed direct native player",
+          "instruction": "Choose LCSNative.exe in the complete creating Windows player folder, use that folder as working directory and leave arguments empty for the default game/EBOOT.ELF and game/ layout. Keep the matching Windows companions, settings and data files together. Native main initializes the renderer/profile, calls runtime.run synchronously and shuts down graphics/audio before returning. Do not choose a BAT file, analyzer/code generator, Linux script or a diagnostic dispatch/time-cap mode. Review and consent to the exact executable/CWD/arguments, then request Play separately."
+        },
+        {
+          "title": "Keep any established custom source intent exact",
+          "instruction": "The upstream source also supports literal --game <actual prepared directory> or --elf <actual ELF> input paths. This guide’s default remains the completed release layout. A source-build PLAY_LCS.bat sets PSPRECOMP_CONFIG to the source lcs/config/LCSNative.ini; that wrapper’s environment is not automatically reproduced by selecting its EXE. Do not silently substitute that configuration with a different file. Use only the actual upstream-established completed copy and settings, without a new per-title shell/environment wrapper."
+        },
+        {
+          "title": "Preserve game-side saves and all effective settings",
+          "instruction": "Preserve the entire prepared game directory, including PSP/SAVEDATA/ and every actual per-save file, auxiliary file and original PSP_GAME data. The inspected title profile writes saves under its selected game root; upstream in-game save/delete operations remain upstream-owned. Runtime settings default to LCSNative.ini beside the executable, while an established PSPRECOMP_CONFIG overrides that exact file. Preserve it, every source-tree config used by your existing setup, complete executable folder, mods/caches and actual logs/custom/external roots. Do not infer save compatibility or migration from another PSP port."
+        },
+        {
+          "title": "Leave replacement and recovery with upstream",
+          "instruction": "Close the actual player and all helpers before preparation, replacement, another attachment or backups. Keep separate complete known-working runtime, input and save/config backups outside any upstream generated build/staging directories; upstream source-build tools and player own generation and runtime replacement. Review/relink changed selected bytes afterward. Removing Portcove registration preserves every external file; it offers no managed update, rollback, backup/restore, save import/migration or deletion."
+        },
+        {
+          "title": "Retain platform, terms and evidence limits",
+          "instruction": "The selected Windows source uses its actual DirectX12 backend/configuration; Linux Vulkan/software choices are separate upstream paths. Preserve applicable MIT/component notices; these grant no Rockstar/Sony original-game rights. Keep the matching player and all data/config companions. No save compatibility, migration or Core-managed runtime lifecycle is promised."
+        }
+      ],
+      "warnings": [
+        "An existing source-build batch file can establish a different settings environment; selecting its EXE directly does not reproduce that environment."
+      ]
+    },
+    "download_block_reason": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct."
   }
 }

@@ -3,7 +3,7 @@
   "listing": {
     "id": "nsmbu-recomp-irishbruse",
     "name": "New Super Mario Bros. U Recompiled (IrishBruse)",
-    "summary": "Explore New Super Mario Bros. U Recompiled (IrishBruse) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Register the completed native Windows NSMBU game produced by upstream setup, using its own game/save arguments and data working directory. Upstream retains Wii U input preparation, updates and player-data ownership; the setup launcher is not the tracked game entry.",
     "project_url": "https://github.com/IrishBruse/nsmbu-recomp",
     "issue_number": 1712,
     "platforms": [],
@@ -16,6 +16,38 @@
       "image_sha256": "d07a74ef95ec7c6e2531e728efb9d985f1915e0fd2c6335b31f37375a1135608",
       "game_slug": "new-super-mario-bros-u",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/nsmbu-recomp/nsmbu-recomp/blob/8495be501f133b57a9070511d2178e810b8eceee/README.md",
+      "steps": [
+        {
+          "title": "Complete the exact owned-input preparation upstream",
+          "instruction": "Use an independently permitted complete Windows release and components. Finish the upstream installer and first-start preparation outside Portcove with your own supported New Super Mario Bros. U dump: USA standalone00050000-10101d00 base0 or matching1.3.0/titleversion64; Europe00050000-10101e00 base0 or matching1.3.0/version80; USAcombo00050000-1014b700 or Europecombo00050000-1014b800 version0 without separate update. Base-only standalone builds do not support mods; updated/combo builds do. The installer identifies the actual code/red-pro2.rpx by its own full SHA256 registry; no whole-disc or entitlement guarantee follows. Disc-image keys, if required for your own representation, stay with the supported upstream setup; no key acquisition/import/compiler is performed here."
+        },
+        {
+          "title": "Choose the supported completed native game, not its setup launcher",
+          "instruction": "In the successful upstream installation, select the actual data/bin/nsmbu.exe game recorded in install.json, with the installation data directory as CWD. Keep its matching bin companions, portable.txt marker when present, game/, nsmbu/ and complete release assets together. The upstream Windows direct shortcut uses literal arguments --game game --save nsmbu/save; use those for its default layout. If upstream established a different game root or save destination, use those exact paths as literal arguments instead of changing roots. Do not select NSMBU.exe, setup.py, a console batch file, an unbuilt placeholder or shader-warm/diagnostic mode."
+        },
+        {
+          "title": "Keep launch and process boundaries explicit",
+          "instruction": "The supported direct native entry accepts --game and --save, starts the guest main thread and owns the renderer event loop in that same process. Saving executable/CWD/arguments and requesting Play are separate actions requiring your consent. The GUI installer and Python launcher start the game as a detached child; they are not offered as the tracked entry. Finish setup/repair/relaunch outside this registration, close every actual game/helper first, and review/relink rebuilt bytes. No private payload bypass, shell wrapper, successor adoption or new Core lifecycle is introduced."
+        },
+        {
+          "title": "Preserve the entire effective portable or legacy profile",
+          "instruction": "The portable release normally installs under its own data/ directory: preserve install.json, bin/, game/, nsmbu/ with saves, controls, settings, states, mods, shader caches and logs, plus setup.log, work/ and all other established state. The game save arguments identify nsmbu/save with common/rp_savedata.dat and user/rp_personal_savedata.dat. bin/portable.txt makes the runtime profile ../nsmbu relative to bin; without it the Windows profile defaults to %APPDATA%/NSMBU. Older/nonportable setup also has its actual per-user data directory. Keep every established custom NSMBU_USER_DIR, state/cache/settings/log/mod root and external game/save path; do not merge them or infer Wii U/runtime/mod save compatibility."
+        },
+        {
+          "title": "Leave repair, imports and deletion with upstream",
+          "instruction": "Upstream setup can import an existing save or installation, rebuild generated outputs, replace directories through .old siblings and delete staging/old material, and optionally remove its downloaded compiler. Those are upstream-owned operations, not this guide\u2019s managed actions. Before setup/repair/update or first profile import, keep separate complete source/profile/runtime backups outside disposable work/toolchain/staging/.old paths. Changing a selected game or save root does not authorize moving/deleting the old one. Portcove performs no save import/migration or rollback and removing registration preserves every external file."
+        },
+        {
+          "title": "Retain requirements, terms and evidence limits",
+          "instruction": "This guide covers the native Windows x86-64 route with upstream Windows10/11 and Vulkan requirements; Android/ARM/macOS/Linux claims are separate. Keep applicable MPL2.0 and exact runtime/component notices. They grant no Nintendo original-game/key/artwork rights. Upstream partial-playability, performance, renderer, controls, save-state and mod claims remain their claims, not Portcove observation or compatibility promises. No Core-managed acquisition/preparation/update/backup/delete or Supported/protected acceptance is offered."
+        }
+      ],
+      "warnings": [
+        "Select the completed native game rather than the GUI installer: the installer can exit while the actual game continues."
+      ]
     }
   }
 }
