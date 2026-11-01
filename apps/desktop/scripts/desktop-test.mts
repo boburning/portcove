@@ -4801,7 +4801,12 @@ try {
   });
   if (browser) {
     const diagnostics = path.join(output, "harness-failure-diagnostics.json");
-    await captureStartupDiagnostics(browser)
+    await captureStartupDiagnostics(browser, {
+      observeStartupTargets:
+        selection.selected_scenarios.length === 1 &&
+        selection.selected_scenarios[0] === "native-game-first-choice-and-restart" &&
+        connectedLaunches === 0,
+    })
       .then((details) => writeFile(diagnostics, JSON.stringify(details, null, 2), { flag: "wx" }))
       .then(() => artifacts.push(diagnostics))
       .catch(() => {});
