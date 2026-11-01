@@ -1,0 +1,411 @@
+{
+  "format_version": 1,
+  "kind": "PROPOSED public Tails NativePortable source/static qualification record; implementation and lifecycle results pending",
+  "date": "2026-11-01",
+  "port": {
+    "id": "mechakotik-tails-adventure",
+    "issue": 1895,
+    "issue_url": "https://github.com/boburning/portcove/issues/1895",
+    "project": "https://github.com/mechakotik/tails-adventure",
+    "proposal_sha256": "ae4243ed2b8554cece7e4e45d3929b8dcb0846926896fa98f348ccd4b11b78e7",
+    "state_scope": "Proposed exact reviewed strict record; not admitted, Supported, delivered or canonically complete."
+  },
+  "batch_table": [
+    {
+      "port_issue": "Tails Adventure Remake / #1895",
+      "Windows_route_and_change": "Proposed NativePortable official complete WindowsZIP; tails-adventure.exe; creating directory; noargs. Core sole proposed managed replacement owner.",
+      "evidence_validation": "Pinned own source/direct component terms;59 reconstructed trees/21 retained source leaves+separate exact controller LICENSE; retained bounded staticZIP/AMD64prefix. Three proposed actual-ID inert cases pending.",
+      "remaining_hold": "Current-base exact record/fixture addition, actual-ID lifecycle execution, final source/CI/current-target review and normal delivery/canonical reconciliation. No concrete selected source/component exclusion identified within reviewed scope.",
+      "exact_closure_eligibility": "Not eligible now; finite own outcome prospective after actual promised operation qualification and guarded delivery. Optional gameplay remains Notrun, not a fabricated universal gate."
+    }
+  ],
+  "source": {
+    "tag": "v0.3.2-1",
+    "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+    "commit_url": "https://github.com/mechakotik/tails-adventure/commit/0a937b2a82f5f737d212413ba23d659502862245",
+    "actual_tree": "3d1a95c3c347317eafd6c89fe67376744cf35bc1",
+    "reconstructed_tree_objects": 59,
+    "selected_tree_entries": 797,
+    "retained_verified_leaf_rows": 21,
+    "leaf_rows": [
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": ".gitmodules",
+        "blob": "cf9e41355d8117e31103ce97861fc932b687a4e8",
+        "bytes": 631,
+        "sha256": "72e61ef64978455752d8d5204b17ddadae85141c7efb8d6aae2a01dbc70b2c81",
+        "retained_filename": "tag--.gitmodules",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/.gitmodules"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "CMakeLists.txt",
+        "blob": "ff8768abbcda0e3137aa58c2d6983d96b8b472d2",
+        "bytes": 5520,
+        "sha256": "c317c445be02fd3245cd494c933ff04a6f5a4d83d306b7671d86409d02099bdd",
+        "retained_filename": "tag--CMakeLists.txt",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/CMakeLists.txt"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "LICENSE",
+        "blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+        "bytes": 35149,
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+        "retained_filename": "tag--LICENSE",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/LICENSE"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "README.md",
+        "blob": "8142fbe7e71aa2760b4c459686ca0d13738a632a",
+        "bytes": 4066,
+        "sha256": "131b925164a2276c59c8436aed94ce5d7b5091f253ca10db84c942b8175c355e",
+        "retained_filename": "tag--README.md",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/README.md"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/engine/filesystem.cpp",
+        "blob": "216fc5b2510ecb6626c575e07b76352482b971d0",
+        "bytes": 2758,
+        "sha256": "14cf683f1a09862bad7d1b597d42cd5dd4fff77e7def7937a58bd5def3aec03d",
+        "retained_filename": "tag--src__engine__filesystem.cpp",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/engine/filesystem.cpp"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/engine/filesystem.h",
+        "blob": "12d7eeac121193d0ad82d9bdbf7d418b81f5fdd5",
+        "bytes": 466,
+        "sha256": "aef9d597e02afd76f21c6ceb37877c691d481b8a9f565b57e60d497203354c56",
+        "retained_filename": "tag--src__engine__filesystem.h",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/engine/filesystem.h"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/engine/main.cpp",
+        "blob": "88607f64ccd547363ae903f4f1972e8651588888",
+        "bytes": 283,
+        "sha256": "046f291965706a3ffa001ae8a6f89af7099b27922495ac3c1c97caa105ea300d",
+        "retained_filename": "tag--src__engine__main.cpp",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/engine/main.cpp"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/engine/save.cpp",
+        "blob": "9be420fb45d40f312f2d0fe2eb9f06e1fbc67f69",
+        "bytes": 4325,
+        "sha256": "0c573a4d3ed3710140f59da677285703a8fa650e8c57d0b56bb4e00ea48f259a",
+        "retained_filename": "tag--src__engine__save.cpp",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/engine/save.cpp"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/engine/save.h",
+        "blob": "f1c899d2648d322dedfa65f725e73d7af73304ab",
+        "bytes": 632,
+        "sha256": "edf213c23f84c5afda1ee79752cff280d218b2de104a9786eb334963eed3ec73",
+        "retained_filename": "tag--src__engine__save.h",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/engine/save.h"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "docs/BUILDING.md",
+        "blob": "35180128cfad62317c6d5a3d8b5f9a8197662a9d",
+        "bytes": 2330,
+        "sha256": "7a742687e702be6c608443cf5018403165ff76c97a492ad91ca2e44ab5941a0c",
+        "retained_filename": "tag--docs__BUILDING.md",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/docs/BUILDING.md"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "assets/default_config",
+        "blob": "2ccb649454ae5a0e2362d4900f8cdcddf6236315",
+        "bytes": 977,
+        "sha256": "d34d325a30e77025eb0cfdb8c34852ef3fa88dc5322dc7f513adeb305387fe7a",
+        "retained_filename": "tag--assets__default_config",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/assets/default_config"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/engine/game.cpp",
+        "blob": "8eb4c8ad435a8aa01d9060186aaf405e673c03a0",
+        "bytes": 5884,
+        "sha256": "eaba4e412cd0c427f774c4641fe72232fb9927fbe8e9fb43907510bf69d5d4f4",
+        "retained_filename": "tails-adventure--src__engine__game.cpp",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/engine/game.cpp"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "docs/MODDING.md",
+        "blob": "878974a46bc650d8bf547057ac20277fcd109dc8",
+        "bytes": 5376,
+        "sha256": "09aa37cd81f95d329a652033cd64451a982152d7d3e2d2cf44ddfdca615cd0fd",
+        "retained_filename": "tails-adventure--docs__MODDING.md",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/docs/MODDING.md"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/ui/credits_screen.cpp",
+        "blob": "e19efab494a7200f0446210b320df8fb7aeaf811",
+        "bytes": 8056,
+        "sha256": "e40d66add22f773e246dcd87b4dbed12c1c2438406ab9f5d4a437705a006522d",
+        "retained_filename": "tails-adventure--src__ui__credits_screen.cpp",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/ui/credits_screen.cpp"
+      },
+      {
+        "repository": "mechakotik/tails-adventure",
+        "commit": "0a937b2a82f5f737d212413ba23d659502862245",
+        "path": "src/engine/resource_manager.cpp",
+        "blob": "87d3c19f52050f05cd80654b06f2dda66e577406",
+        "bytes": 7354,
+        "sha256": "c1eba715fb622b92a4055c30834e19685dc3b8ec06ac1da022cde2d4d96cafd1",
+        "retained_filename": "tails-adventure--src__engine__resource_manager.cpp",
+        "url": "https://github.com/mechakotik/tails-adventure/blob/0a937b2a82f5f737d212413ba23d659502862245/src/engine/resource_manager.cpp"
+      },
+      {
+        "repository": "libsdl-org/SDL",
+        "commit": "43c928ee86afa45e460adbd0e39bb72d92fc5dd6",
+        "path": "LICENSE.txt",
+        "blob": "e9adee4484511b4b1730461679fed21d9b13d88e",
+        "bytes": 884,
+        "sha256": "1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd",
+        "retained_filename": "dependency-SDL-LICENSE.txt",
+        "url": "https://github.com/libsdl-org/SDL/blob/43c928ee86afa45e460adbd0e39bb72d92fc5dd6/LICENSE.txt"
+      },
+      {
+        "repository": "libsdl-org/SDL_image",
+        "commit": "0b5fd67f1559b98b656257981d75b6209c73581a",
+        "path": "LICENSE.txt",
+        "blob": "acaf5b21bfa3e95545547a2fb8b71ee476ef7607",
+        "bytes": 878,
+        "sha256": "e36997fe492c48e7ed873065cc3a694f38e8189a328d3709099ffdc9a8843f4c",
+        "retained_filename": "dependency-SDL_image-LICENSE.txt",
+        "url": "https://github.com/libsdl-org/SDL_image/blob/0b5fd67f1559b98b656257981d75b6209c73581a/LICENSE.txt"
+      },
+      {
+        "repository": "libsdl-org/SDL_mixer",
+        "commit": "a2d867c1830e2a48089dbfefc1a5fdb6e8c80a7a",
+        "path": "LICENSE.txt",
+        "blob": "acaf5b21bfa3e95545547a2fb8b71ee476ef7607",
+        "bytes": 878,
+        "sha256": "e36997fe492c48e7ed873065cc3a694f38e8189a328d3709099ffdc9a8843f4c",
+        "retained_filename": "dependency-SDL_mixer-LICENSE.txt",
+        "url": "https://github.com/libsdl-org/SDL_mixer/blob/a2d867c1830e2a48089dbfefc1a5fdb6e8c80a7a/LICENSE.txt"
+      },
+      {
+        "repository": "mdqinc/SDL_GameControllerDB",
+        "commit": "c6062ec4b92254aced84843d94d379410774d907",
+        "path": "README.md",
+        "blob": "a7214632f31e216a7359d47ebb276362d7a8da3b",
+        "bytes": 3092,
+        "sha256": "41415e4491993d59f16abb917155fe9dc1471deceaeabd55418101cbf0e8ce48",
+        "retained_filename": "dependency-SDL_GameControllerDB-README.md",
+        "url": "https://github.com/mdqinc/SDL_GameControllerDB/blob/c6062ec4b92254aced84843d94d379410774d907/README.md"
+      },
+      {
+        "repository": "mechakotik/tmxpp",
+        "commit": "6efb8aa317fc2558433fcab27b201f871341f346",
+        "path": "LICENSE",
+        "blob": "36d6adaaff4863a5d436e45065d13bf3ef160c51",
+        "bytes": 612,
+        "sha256": "3479c356626ba37f19eaa970f301a1f51b55f1d2e1555f5e60bc3a50fdc061f9",
+        "retained_filename": "dependency-tmxpp-LICENSE",
+        "url": "https://github.com/mechakotik/tmxpp/blob/6efb8aa317fc2558433fcab27b201f871341f346/LICENSE"
+      },
+      {
+        "repository": "ToruNiina/toml11",
+        "commit": "b32a2fff0d27e1f7522f26a125101500ddb47156",
+        "path": "LICENSE",
+        "blob": "f55c511d6f09f82c8f5a89ac70756d459fe0081a",
+        "bytes": 1077,
+        "sha256": "b547d41695cdfbc1d054b5044578e476a0e9d756849f1e0cb3864cfc83e50a9e",
+        "retained_filename": "dependency-toml11-LICENSE",
+        "url": "https://github.com/ToruNiina/toml11/blob/b32a2fff0d27e1f7522f26a125101500ddb47156/LICENSE"
+      }
+    ],
+    "controller_supplement": {
+      "repository": "mdqinc/SDL_GameControllerDB",
+      "commit": "c6062ec4b92254aced84843d94d379410774d907",
+      "path": "LICENSE",
+      "blob": "23abb73f2b67d1f5b5b9b4d6c949654d525173bb",
+      "bytes": 884,
+      "sha256": "97f35b302b361680ec1e891e95d2d52097bb95abff361434916d99dc1305f127",
+      "primary_url": "https://github.com/mdqinc/SDL_GameControllerDB/blob/c6062ec4b92254aced84843d94d379410774d907/LICENSE"
+    },
+    "source_binding_scope": "Serialized actual tree identity and Gitblob/SHA256 leaves; not upstream source/binary reproducibility or full linked dependency certificate."
+  },
+  "package": {
+    "release_url": "https://github.com/mechakotik/tails-adventure/releases/tag/v0.3.2-1",
+    "asset_url": "https://github.com/mechakotik/tails-adventure/releases/download/v0.3.2-1/tails-adventure-v0.3.2-1-windows.zip",
+    "release_id": 312258250,
+    "asset_id": 405999799,
+    "name": "tails-adventure-v0.3.2-1-windows.zip",
+    "bytes": 6625286,
+    "provider_expected_sha256": "3dac0a4d470046b76a72d8e5d8f69afe766920d54f0585e69e5119db5702dd6e",
+    "retained_observed_sha256": "3dac0a4d470046b76a72d8e5d8f69afe766920d54f0585e69e5119db5702dd6e",
+    "scope": "Historical public package inspection reused; no new payload read/hash/download in this preparation/review. Independent provider expectation matched prior observed archive; no authenticity/sourcebinary/gameplay inheritance.",
+    "physical_index": {
+      "records": 474,
+      "central_bytes": 34790,
+      "declared_expanded_bytes": 15632665
+    },
+    "selected_entry": {
+      "path": "tails-adventure.exe",
+      "machine": "AMD64/0x8664",
+      "prefix_bytes_read": 152,
+      "sections": 19,
+      "scope": "Bounded prefix, not execution or complete ABI/dependency validation"
+    },
+    "package_notices": "No standalone LICENSE/COPYING/notice member found in retained inventory; source and direct dependency terms retained separately. No publisher compliance or wholeIP certificate supplied."
+  },
+  "operation_boundaries": {
+    "originals": "No original ROM/BIOS selection, user-source compiler, helper or first-run extraction required by selected complete Windowspackage; its matching assets must remain complete. This is a route requirement fact, not original-game/asset permission certification.",
+    "launch": "Ordinary same-process main/game loop; normal destructor writes config. No upstream updater/replacement found in inspected main/game/save/filesystem/resource paths; filename-negative complete-tree observation is bounded, not wholebinary proof.",
+    "runtime_owner": "Proposed Core NativePortable owns accepted managed replacement/atomic activation; external replacement remains subject to existing reconciliation, no concurrent upstream self-update owner offered.",
+    "persistence": "Windows executable-adjacent config is a FILE combining options+progress; mods/ overrides packaged resources. Neither config nor mods is in pristine package. No save/custom-root migration inferred. Shipped assets/default_config and other assets stay immutable runtime; user edits must refuse affected maintenance/removal safely until independently preserved/reconciled.",
+    "maintenance": "managed-compatible-release through unchanged GitHub asset/executable rules and accepted expected digests. Selected version is evidence snapshot, not added manualpin. N+1 fixtures are explicitly synthetic; no arbitrary save/mod semantic compatibility or future package is certified.",
+    "backup_rollback": "Proposed preservation of established config FILE+mods; runtime rollback preserves current player data, does not rewind save bytes. Actual API consent/safety/recovery/removal assertions pending."
+  },
+  "rights": {
+    "affirmative_reviewed": "Selected project GPL3; exact pinned SDL/SDL_image/SDL_mixer zlib-style, tmxpp ISC and toml11 MIT; controller DB exact LICENSE zlib-style supplement. No concrete named exclusion prohibiting proposed client acquisition/install/use identified within reviewed selected scope.",
+    "limits": [
+      "GPLproject label is not a blanket original Sega/content/asset or wholeIP certificate. Credits are attribution, not independent grant or prohibition.",
+      "Transitive codec terms, static linked binary mapping, complete asset provenance and publisher packaging-notice compliance are not certified.",
+      "No downstream repackaging/relicensing, protected publication, signing or owner-policy authority follows. Preserve applicable terms; any concrete newly established mandatory component restriction must be isolated to its operation."
+    ]
+  },
+  "pending_actual_ID_cases": [
+    {
+      "name": "tails_nativeportable_provider_and_pristine_config_file_absence_1895",
+      "status": "PROPOSED/NOT RUN",
+      "coverage": [
+        "Actual embedded ID and unchanged actual provider definition, stable numeric-1 release accepted",
+        "Production GithubReleaseProvider::with_api_root + maintained test_http::serve_http metadata fixtures; observed N identity/digest, synthetic compatible N+1",
+        "Wrong-platform, ambiguous assets and missing expected integrity refusals; no qualification mutation",
+        "Real Core install of inert flat tails-adventure.exe/assets fixture; actual launch coordinates/no source/build route",
+        "Pristine active/canonical config and mods remain absent, including direct retained restore call; config never initialized as directory"
+      ]
+    },
+    {
+      "name": "tails_nativeportable_progression_rollback_backup_restore_recovery_1895",
+      "status": "PROPOSED/NOT RUN",
+      "coverage": [
+        "Active runtime config FILE + nested mods written before first launch as a deliberately modeled preplay state; no real game claim",
+        "Unchanged actual embedded definition N→N+1 progression, runtime/artifact identity changes, config+mods exact bytes preserved",
+        "Latest active data survives runtime rollback (not rewind to N/backup data)",
+        "Backup/restore consent and safety copy retains newer config+mods while explicit restore returns older bytes",
+        "ActivationMetadataCommitted fault then reopen/recover preserves committed N+2/runtime and current data; no repair of product assertions"
+      ]
+    },
+    {
+      "name": "tails_nativeportable_cancel_immutable_refusal_removal_preservation_1895",
+      "status": "PROPOSED/NOT RUN",
+      "coverage": [
+        "Started-event cancellation through actual update cancellation API preserves old active/runtime/data",
+        "Player modification of immutable assets/default_config refuses update/removal/preview under existing portable_runtime_modified key; failed exact bytes retained",
+        "Explicit test-modeled user preservation outside install followed by restoration to known immutable fixture bytes; refusal not bypassed/discarded",
+        "Fresh removal consent preserves canonical config FILE+mods; reinstall restores established data; pristine first install remains separate"
+      ]
+    }
+  ],
+  "qualification_limits": [
+    "Preparation reports declared287portcontracts/1424listings and only1895newcompatibilityID; identity bookkeeping/declaration checks do not establish lifecycle acceptance.",
+    "Preparation collected issue+repo only: incomplete/emptyassets are Unknown for that run; retained selected-release/staticZIP packet supplies prior evidence.",
+    "No Rust parser/formatter/typecheck/test/build or actual package/native/helper/compiler/game/real-save/private/installed/protected operation performed by this proposal.",
+    "No exact-head CI, current-target approval, canonical closure or user availability earned here."
+  ],
+  "accounting": {
+    "approved858_cohort": "original-524",
+    "historical1422_member": false,
+    "historical_additional_credit": 0,
+    "records_changed_in_delivered_source": 0,
+    "completed_outcomes": 0,
+    "direct_Required_beta_resolved": 0,
+    "full_B1_complete": false,
+    "membership_scope": "Retained exact issue+durableID frozen membership proof; notliveProject/Required/support authority."
+  },
+  "evidence_references": [
+    {
+      "filename": "candidate-binding.json",
+      "bytes": 628,
+      "sha256": "245f66b6082b8aa6c16dd30c30ab68a23a264c0133cec712f2b34d7fb8c238d8"
+    },
+    {
+      "filename": "cohort-membership.json",
+      "bytes": 3409,
+      "sha256": "e939c2b9d33ae6bf26249cfd2980a98217e675b8dbf93c974ee428c25de7c9ab"
+    },
+    {
+      "filename": "preparation-applicability.json",
+      "bytes": 5916,
+      "sha256": "22e9d7f02be8042c92c0ae8e5d2352a97d4a3001e3a9eb319363bcc52f578279"
+    },
+    {
+      "filename": "source-operation-review.json",
+      "bytes": 20541,
+      "sha256": "e4e8dcd5d8fcfea274f8d83f21e4ea0aa613de6e35d8e34ea1a5d6f56a30aa90"
+    },
+    {
+      "filename": "fixture-proposal-review.json",
+      "bytes": 8705,
+      "sha256": "53a9000cbf643802cbd69f029c632b5e2bbc6839c167ffacf17564c6f43694d9"
+    },
+    {
+      "filename": "controller-license-binding.json",
+      "bytes": 398,
+      "sha256": "0c2b6922a5b02890abfef9a008d672aaa9db68bafd49a8f3f2521d963049b234"
+    },
+    {
+      "filename": "test-index.json",
+      "bytes": 8440,
+      "sha256": "afbc886d85f2ce4be1b163804a2eb01035297d66c3bc7d8e965431e9237787de"
+    },
+    {
+      "filename": "tails-nativeportable-fixtures.patch",
+      "bytes": 16575,
+      "sha256": "922ca66c625f7ade04c02f5264aef5d6dde692ae8360ccb94593ea0455213a0f"
+    }
+  ],
+  "next": "Integrator applies only accepted ae424 record (preserving existing artwork), appends actualID to compatibility additions, applies separately reviewed cases and generates outputs; actual validation/review/guarded delivery remain separate.",
+  "source_base": "364b88c2d92c6a99d84acbdadd473cdef86fa05c",
+  "root_implementation": {
+    "scope": "Exact reviewed NativePortable candidate plus actual-ID fixture proposal applied; no production Core/provider/schema change",
+    "authored_path": "crates/portcove-core/catalog/ports/mechakotik-tails-adventure.json",
+    "formatted_postimage_sha256": "9a44c97fb884a210cad83a6dee456db839234c84004d63f19143398344754c89",
+    "compatibility_fixture_change": "append actual ID only; all prior ports and source IDs preserved",
+    "fresh_declaration_validation": {
+      "ports": {
+        "count": 287,
+        "input_sha256": "d35e579da9a9161cf9c313b8f4ddffb54cd02986f3516b6ae921fdaf05c2088f",
+        "original_process_status": 0,
+        "stdout_sha256": "23874cf7b2895e60e6d93039633a13f8feea551eb6c0e29476c1d25b2aaddbf3",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      },
+      "listings": {
+        "count": 1424,
+        "input_sha256": "2e87a27d8901f60898a423bd96361aa1ddd58303d3183feb5a25b46a168d5542",
+        "original_process_status": 0,
+        "stdout_sha256": "cd5841a15b8ecaec365b034a3efa16419ab7612f17c740a390624af146ca3b0c",
+        "validator_artifact_sha256": "06dd083d7b3cc124867527cd0e7f32c0cb12893f76268f69aad63589f70a11c4"
+      }
+    },
+    "preparation_applicability_sha256": "22e9d7f02be8042c92c0ae8e5d2352a97d4a3001e3a9eb319363bcc52f578279",
+    "execution_scope": "Three actual-ID cases await Windows CI execution; Linux declaration inspection does not execute them. No actual game/private original/native/real-save/installed/protected acceptance."
+  }
+}
