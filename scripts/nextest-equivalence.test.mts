@@ -373,6 +373,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     {
       platform: "x86_64-pc-windows-msvc",
       filter:
+        "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_retained_launch_revocation_prevents_child_start_after_reopen$/)",
+      periods: 12,
+    },
+    {
+      platform: "x86_64-pc-windows-msvc",
+      filter:
         "package(portcove-core) & test(/^library_move::tests::published_move_recovers_without_two_writable_libraries$/)",
       periods: 12,
     },
