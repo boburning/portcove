@@ -45,20 +45,18 @@ function BoundGameSettingsControl({ portId, installId, generation, busy }: Props
       current = false;
     };
   }, [portId, installId, generation, busy, request]);
+  const reread = () => {
+    setError(undefined);
+    setView(undefined);
+    setRequest((value) => value + 1);
+  };
   if (busy)
     return <p role="status">Finish the current operation before reviewing game settings.</p>;
   if (error)
     return (
       <section aria-label="Game settings">
         <p role="alert">{error}</p>
-        <Button
-          variant="outline"
-          onClick={() => {
-            setError(undefined);
-            setView(undefined);
-            setRequest((value) => value + 1);
-          }}
-        >
+        <Button variant="outline" onClick={reread}>
           Read settings again
         </Button>
       </section>
@@ -75,20 +73,25 @@ function BoundGameSettingsControl({ portId, installId, generation, busy }: Props
     );
   if (!view) return <p role="status">Reading game settings…</p>;
   return (
-    <GameSettingsPanel
-      view={view}
-      generation={generation}
-      actions={{
-        review: (fileId, settingId, change) =>
-          desktopApi.reviewGameSetting(portId, fileId, settingId, change, generation),
-        apply: (review) => desktopApi.applyGameSetting(review, generation),
-      }}
-      changed={(next) => {
-        if (next.port_id !== portId || (next.available && next.install_id !== installId)) {
-          setView(undefined);
-          setError("This installation changed. Refresh its details before editing settings.");
-        } else setView(next);
-      }}
-    />
+    <>
+      <GameSettingsPanel
+        view={view}
+        generation={generation}
+        actions={{
+          review: (fileId, settingId, change) =>
+            desktopApi.reviewGameSetting(portId, fileId, settingId, change, generation),
+          apply: (review) => desktopApi.applyGameSetting(review, generation),
+        }}
+        changed={(next) => {
+          if (next.port_id !== portId || (next.available && next.install_id !== installId)) {
+            setView(undefined);
+            setError("This installation changed. Refresh its details before editing settings.");
+          } else setView(next);
+        }}
+      />
+      <Button variant="outline" onClick={reread}>
+        Read settings again
+      </Button>
+    </>
   );
 }

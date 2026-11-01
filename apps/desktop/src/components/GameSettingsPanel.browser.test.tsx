@@ -401,13 +401,14 @@ it("retries a failed settings read and preserves a local unavailable reason", as
   const read = vi
     .spyOn(desktopApi, "gameSettings")
     .mockRejectedValueOnce(new Error("controlled read failure"))
-    .mockResolvedValue({
+    .mockResolvedValueOnce({
       ...settings(),
       available: false,
       install_id: null,
       reason: "Retained release does not offer settings",
       files: [],
-    });
+    })
+    .mockResolvedValue(settings());
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -428,4 +429,7 @@ it("retries a failed settings read and preserves a local unavailable reason", as
   expect(read).toHaveBeenCalledTimes(2);
   expect(host.textContent).toContain("Retained release does not offer settings");
   expect(host.querySelector("input")).toBeNull();
+  await click("Read settings again");
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(host.querySelector("input")?.value).toBe("70");
 });
