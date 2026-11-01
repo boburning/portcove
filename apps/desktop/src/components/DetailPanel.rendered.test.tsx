@@ -197,16 +197,16 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
     { ...port, persistent_paths: ["changed-provider-catalog-path"] },
     installRecord(),
   );
-  expect(managed).toContain("rules recorded for this installation");
-  expect(managed).toContain("Exact paths are not available");
+  expect(managed).toContain("coverage could not be verified");
+  expect(managed).toContain("collection coverage is unknown");
   expect(managed).not.toContain("changed-provider-catalog-path");
   expect(managed).not.toContain("backup review");
   const retained = coverage(
     { ...preparedPort, persistent_paths: ["new-catalog-path"] },
     installRecord(),
   );
-  expect(retained).toContain("rules recorded for this installation");
-  expect(retained).toContain("Exact paths are not available");
+  expect(retained).toContain("coverage could not be verified");
+  expect(retained).toContain("collection coverage is unknown");
   expect(retained).not.toContain("new-catalog-path");
   const external = coverage(preparedPort, null, {
     id: "external",

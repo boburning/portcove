@@ -1563,6 +1563,9 @@ pub enum BackupInventoryState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BackupInventory {
     pub port_id: String,
+    /// Read-only coverage interpretation; absent in older API responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protection: Option<crate::service::PlayerDataProtection>,
     /// Read-only eligibility to attempt creation; execution rechecks under its lock.
     pub create_assessment: crate::PortActionAssessment,
     /// Eligibility to review a usable snapshot; consent and execution remain authoritative.

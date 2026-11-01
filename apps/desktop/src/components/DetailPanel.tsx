@@ -87,6 +87,7 @@ import {
   releaseChannelPresentation,
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
+import { ProtectionSummary } from "./ProtectionSummary";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
@@ -148,6 +149,7 @@ interface DetailPanelProps {
   backups?: BackupRecord[];
   backupProblems?: BackupProblem[];
   backupState?: BackupInventory["state"] | undefined;
+  backupProtection?: BackupInventory["protection"] | undefined;
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
@@ -189,6 +191,7 @@ export function DetailPanel(props: DetailPanelProps) {
     backups = [],
     backupProblems = [],
     backupState = "healthy",
+    backupProtection,
     backupCreateAssessment,
     backupRestoreAssessment,
     backupReadState,
@@ -371,6 +374,7 @@ export function DetailPanel(props: DetailPanelProps) {
       backups={backups}
       backupProblems={backupProblems}
       backupState={backupState}
+      backupProtection={backupProtection}
       backupCreateAssessment={backupCreateAssessment}
       backupRestoreAssessment={backupRestoreAssessment}
       backupReadState={backupReadState}
@@ -429,6 +433,7 @@ function DetailBody(model: {
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
+  backupProtection?: BackupInventory["protection"] | undefined;
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
@@ -1365,7 +1370,9 @@ function RequirementsSummary({
 }
 
 function savedDataContext(status: PortStatus | undefined) {
-  const retained = Boolean(status?.active || status?.staged);
+  const retained = Boolean(
+    status?.active || status?.staged || status?.previous || status?.external_runtime,
+  );
   const setup = status?.readiness?.setup_contract;
   const retainedSetup = retained && setup?.retained ? setup : undefined;
   return { retained, setup, retainedSetup };
@@ -1402,7 +1409,7 @@ function SavesAndSettingsSummary({
       <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         <small className="mb-[5px] block text-[var(--color-text-muted)]">Saved data handling</small>
         {retained && !retainedSetup
-          ? "Managed by Portcove using this installation’s recorded saved-data rules"
+          ? "This installation’s saved-data coverage could not be verified."
           : behavior === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
             : behavior === "external-user-owned"
@@ -1413,9 +1420,9 @@ function SavesAndSettingsSummary({
         <h3 className="mb-1 text-sm font-semibold">What a backup covers</h3>
         {retained && !retainedSetup ? (
           <p>
-            Backups use Portcove’s managed saves and settings folder. Files collected from the game
-            follow the rules recorded for this installation. Exact paths are not available in this
-            summary.
+            Portcove can back up data already in its managed saves and settings folder. Runtime
+            collection coverage is unknown here; current catalog declarations do not establish rules
+            for this retained installation.
           </p>
         ) : (
           <>
@@ -2493,6 +2500,10 @@ function VersionRollback({
         <Icon glyph={RotateCcw} />
         Restore previous version
       </Button>
+      <p className="text-sm text-pc-muted-foreground">
+        This switches game software and keeps current saved data. Older software may not understand
+        newer saves or configuration. Saved-data restore is a separate reviewed action in Saves.
+      </p>
       {rollback.blocked && (
         <p role="status" data-rollback-assessment>
           {rollback.reason}
@@ -3740,46 +3751,55 @@ function DetailSavesSection({
 }) {
   return (
     <>
-      {external ? (
+      <ProtectionSummary
+        portId={model.port.id}
+        status={model.status}
+        protection={model.backupProtection}
+        inventoryState={model.backupState}
+        problems={model.backupProblems}
+        readState={model.backupReadState}
+      />
+      {external && (
         <CurrentStateSummary
           title={
             <span className="inline-flex items-center gap-2">
               <Icon glyph={FolderOpen} />
-              Saves managed externally
+              External runtime and managed backup data
             </span>
           }
         >
           <section aria-label="Saved-data coverage">
             <p>
-              This installation’s saves and settings stay outside Portcove’s managed backups,
-              updates and removal. Follow the port’s instructions to copy them separately.
+              Portcove does not collect this external runtime directory. Data written to Portcove’s
+              managed backup folder can still be backed up and restored when Core permits it.
+              External profiles and custom save locations remain outside Portcove’s managed backups;
+              follow the port’s instructions to copy them separately.
             </p>
             <ProjectLink href={model.port.project_url}>
               Open upstream project <Icon glyph={ArrowRight} />
             </ProjectLink>
           </section>
         </CurrentStateSummary>
-      ) : (
-        <SavesStorageGroup
-          port={model.port}
-          status={model.status}
-          installed={model.installed}
-          deferSetupChoices={model.deferSetupChoices}
-          backups={model.backups}
-          backupProblems={model.backupProblems}
-          backupState={model.backupState}
-          backupCreateAssessment={model.backupCreateAssessment}
-          backupRestoreAssessment={model.backupRestoreAssessment}
-          backupReadState={model.backupReadState}
-          retryBackupRead={model.retryBackupRead}
-          libraryGeneration={model.libraryGeneration}
-          busy={model.busy}
-          outputExternalBusy={model.outputExternalBusy}
-          outputLocationChanged={model.outputLocationChanged}
-          outputApplying={model.outputApplying}
-          actions={model.actions}
-        />
       )}
+      <SavesStorageGroup
+        port={model.port}
+        status={model.status}
+        installed={model.installed}
+        deferSetupChoices={model.deferSetupChoices}
+        backups={model.backups}
+        backupProblems={model.backupProblems}
+        backupState={model.backupState}
+        backupCreateAssessment={model.backupCreateAssessment}
+        backupRestoreAssessment={model.backupRestoreAssessment}
+        backupReadState={model.backupReadState}
+        retryBackupRead={model.retryBackupRead}
+        libraryGeneration={model.libraryGeneration}
+        busy={model.busy}
+        outputExternalBusy={model.outputExternalBusy}
+        outputLocationChanged={model.outputLocationChanged}
+        outputApplying={model.outputApplying}
+        actions={model.actions}
+      />
     </>
   );
 }
