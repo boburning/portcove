@@ -40,7 +40,9 @@
           "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+      ],
       "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
     },
     "original_game_title": "WarioWare: Twisted!"

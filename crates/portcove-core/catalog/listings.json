@@ -27354,39 +27354,44 @@
     {
       "id": "lostartefacts-trx",
       "name": "Tomb Raider I-III / TRX (LostArtefacts)",
-      "summary": "Set up Tomb Raider I–III with the upstream TRX Windows installer and your original game files.",
+      "summary": "Prepare Tomb Raider I–III with the upstream combined TRX Windows ZIP and your own original game files.",
       "project_url": "https://github.com/LostArtefacts/TRX",
       "issue_number": 1898,
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "packages",
-      "setup_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
+      "setup_url": "https://github.com/LostArtefacts/TRX/blob/ee54e5674a4ad73a95c491ec995a88a05683e24d/docs/trx/INSTALLING.md",
       "release_url": "https://github.com/LostArtefacts/TRX/releases",
       "manual_setup": {
         "steps": [
           {
-            "title": "Run the upstream Windows installer",
-            "instruction": "Open the download folder and run the Windows Installer EXE yourself. Choose a separate TRX folder and the game packs you want."
+            "title": "Extract the complete combined Windows player",
+            "instruction": "Download the official combined TRX Windows ZIP and extract it into a new, separate folder. Keep TRX.exe beside cfg/, games/, modules/ and scripts/. The inspected 1.12 package contains a 32-bit Windows executable; the Windows x64 host label does not make it an x64 binary. If using an upstream combined installer supplied separately, let that installer arrange the chosen game packs instead."
           },
           {
-            "title": "Select your original game files",
-            "instruction": "Use the installer’s supported Steam, GOG or disc locations for the corresponding Tomb Raider games. Let it arrange the required files; the portable ZIP needs manual game-specific placement instead."
+            "title": "Copy the corresponding original files",
+            "instruction": "Use your own corresponding Tomb Raider I, II or III files from Steam, GOG or disc. Follow the linked combined guide: TR1 data/*.phd goes into games/tr1/levels/, with fmv/ and music/ under games/tr1/. TR2 data/*.tr2 goes into games/tr2/levels/, main.sfx into games/tr2/, and fmv/ and music/ into their matching subfolders. TR3 data/*.tr2 goes into games/tr3/levels/, main.sfx into games/tr3/, audio/cdaudio.wad into games/tr3/audio/, cuts/*.tr2 into games/tr3/cuts/, and fmv/ into games/tr3/fmv/. Extract a purchased disc image first when needed; do not put these originals in top-level data/, fmv/, music/, audio/ or cuts/. Expansion packs have separate mappings in the guide."
           },
           {
-            "title": "Choose the installed player",
-            "instruction": "Finish Portcove setup with the installed TRX.exe and its folder. Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
+            "title": "Choose the prepared player and game",
+            "instruction": "Finish setup with TRX.exe and its containing folder after preparing your chosen game. With no arguments, TRX opens the last selected game or expansion. To select a base game explicitly, enter two separate argument lines in Portcove: --mod on the first line, then tr1, tr2 or tr3 on the second. The engine download alone does not prepare the commercial originals."
+          },
+          {
+            "title": "Preserve the prepared copy before updating",
+            "instruction": "Close TRX and back up the prepared folder, including originals, cfg/, saves/ and screenshots/, plus any locations selected through TRX_DIR, TRX_CONFIG_DIR, TRX_CACHE_DIR, TRX_GAMES_DIR, TRX_SAVES_DIR or TRX_SCREENSHOTS_DIR. You or upstream own updates and all these files; Portcove registration does not manage replacement or provide backups. For an older layout, prepare a fresh folder and follow the upstream migration guide before changing the registration. Mixing old cfg/<game-id>/ and top-level original trees with games/<game-id>/ is refused by TRX; keep the old copy intact until the replacement is ready."
           }
         ],
         "warnings": [
-          "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data."
+          "Each original game and expansion keeps its own data requirements. The engine package does not supply ownership of commercial game data.",
+          "TR4 work is experimental upstream and is outside this Tomb Raider I–III setup claim."
         ],
-        "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md"
+        "help_url": "https://github.com/LostArtefacts/TRX/blob/ee54e5674a4ad73a95c491ec995a88a05683e24d/docs/trx/INSTALLING.md"
       },
       "download_asset_hints": {
         "windows-x86-64": [
           "TRX-",
-          "-Windows_Installer.exe"
+          "-Windows.zip"
         ]
       }
     },
@@ -30366,7 +30371,9 @@
             "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+        ],
         "help_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md"
       },
       "original_game_title": "Dragon Ball Z: Buu's Fury",
@@ -30413,7 +30420,9 @@
             "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+        ],
         "help_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md"
       },
       "original_game_title": "Dragon Ball Z: The Legacy of Goku II",
@@ -30548,7 +30557,8 @@
         ],
         "warnings": [
           "Preserve the actual folder containing normal cartridge saves (.sav) and optional state slots (.stateN) separately, including .tmp, .bak and .prev-size.bak recovery siblings. A Portcove-managed copy’s backup excludes external originals, BIOS and save folders.",
-          "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
+          "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots.",
+          "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
         ],
         "references": [
           {
@@ -30610,7 +30620,9 @@
             "instruction": "If Library identifies this copy as Portcove-managed, use its compatible beta update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+        ],
         "help_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md"
       },
       "original_game_title": "Super Mario Advance 2: Super Mario World",
@@ -30649,7 +30661,9 @@
             "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+        ],
         "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme"
       },
       "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3",
@@ -30711,7 +30725,9 @@
             "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+        ],
         "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
       },
       "original_game_title": "WarioWare: Twisted!",
