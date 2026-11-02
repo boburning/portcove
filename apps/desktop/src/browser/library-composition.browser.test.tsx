@@ -317,7 +317,7 @@ it("keeps compatibility facts visible while disclosing project history on detail
   await disclosure.click();
   await expect.element(page.getByText("Upstream project", { exact: true })).toBeVisible();
   await page.getByText("Test results", { exact: true }).click();
-  await expect.element(page.getByText(/^Recorded history, earlier test results/)).toBeVisible();
+  await expect.element(page.getByText(/^These are earlier test results\./)).toBeVisible();
   expect(document.body.textContent).not.toContain("No current check");
 });
 

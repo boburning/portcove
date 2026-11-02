@@ -851,7 +851,7 @@ function updateFailure(
   };
 }
 it.each([
-  ["committed", false, "The change was saved. Check the result before trying again."],
+  ["committed", false, "Your change was saved. Check the result before trying again."],
   ["unknown", false, "Portcove couldn't confirm whether anything changed."],
   ["no_changes", false, "No files were changed by this operation."],
   ["no_changes", true, "No files were changed by this operation."],
@@ -1328,7 +1328,9 @@ it.each(["acquired", "attention_required"] as const)(
     expect(discard).toHaveBeenCalledExactlyOnceWith("sample", next.id, 9);
     expect(apply).not.toHaveBeenCalled();
     expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
-    expect(container.textContent).toContain("Archive discarded");
+    expect(container.textContent).toContain(
+      "Downloaded update deleted. Installed versions and saved data are unchanged.",
+    );
   },
 );
 
@@ -1465,7 +1467,9 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
   await show(original);
   await click("Download for later");
   await click("Download archive for later");
-  expect(container.textContent).toContain("Last command: Update downloaded, not installed");
+  expect(container.textContent).toContain(
+    "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged.",
+  );
   expect(container.textContent).toContain(
     "The operation finished, but library status could not be refreshed",
   );

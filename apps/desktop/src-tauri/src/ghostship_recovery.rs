@@ -211,7 +211,7 @@ mod tests {
             &reviewed,
             &reviewed.plan_sha256,
             |message| async move {
-                assert!(message.contains("fresh derivative"));
+                assert!(message.contains("new copy of the older installation"));
                 true
             },
             || async {

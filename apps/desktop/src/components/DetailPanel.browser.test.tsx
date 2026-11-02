@@ -579,7 +579,7 @@ it("opens actual Overview evidence and future-folder controls in a renderer fixt
         "project",
       ],
       ["Platforms and installation method", "Installation method", "compatibility"],
-      ["Test results", "Recorded history, earlier test results", "recorded-checks"],
+      ["Test results", "These are earlier test results", "recorded-checks"],
     ] as const) {
       const summary = page.getByText(label, { exact: true });
       await summary.click();

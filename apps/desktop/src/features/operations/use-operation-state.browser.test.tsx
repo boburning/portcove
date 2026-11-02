@@ -472,7 +472,9 @@ it("releases local exclusion when diagnostic invalidation fails after a committe
     outcome: "succeeded",
     refreshFailure: problem,
   });
-  expect(host.textContent).toContain("current state could not be refreshed");
+  expect(host.textContent).toContain(
+    "The action finished, but Portcove couldn’t refresh this screen.",
+  );
   await act(async () => {
     expect(
       await state.perform("check", () => Promise.resolve("new check"), {

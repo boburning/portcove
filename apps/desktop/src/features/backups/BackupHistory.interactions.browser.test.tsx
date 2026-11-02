@@ -673,7 +673,9 @@ it.each(
   expect(button?.disabled).toBe(true);
   await act(async () => button?.click());
   expect(create).not.toHaveBeenCalled();
-  expect(document.body.textContent).toContain("Current backup availability is unavailable");
+  expect(document.body.textContent).toContain(
+    "Backup availability could not be confirmed. Refresh the backup inventory to check again.",
+  );
 });
 
 it("projects restore-only recovery separately from deletion and refuses stale eligibility after a failed read", async () => {

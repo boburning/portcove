@@ -464,7 +464,9 @@ it("reviews preparation, preserves progress until cancellation, and shows contro
   expect(document.body.textContent).toContain("Cancellation requested");
   expect((await desktopApi.activities()).records[0]?.status).toBe("running");
   await click("Settle fixture cancellation");
-  expect(document.body.textContent).toContain("Preparation did not complete");
+  expect(document.body.textContent).toContain(
+    "Setup didn’t finish. Check the selected game files before starting again.",
+  );
   await click("Review setup");
   await click("Prepare game data");
   await click("Fail fixture preparation");

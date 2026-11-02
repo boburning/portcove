@@ -428,7 +428,7 @@ it("holds unknown migrated readiness and query separately until correction", asy
   root = createRoot(host);
   flushSync(() => root.render(<Fixture />));
   await expect
-    .element(page.getByText(/Restored readiness “future” is not supported/))
+    .element(page.getByText(/We couldn’t restore the status filter “future”\./))
     .toBeInTheDocument();
   await chooseReadiness("All (unavailable)");
   expect(JSON.parse(localStorage.getItem(key)!) as unknown).toMatchObject({

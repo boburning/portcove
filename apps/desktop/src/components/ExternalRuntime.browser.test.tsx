@@ -390,7 +390,9 @@ it("reviews explicit user launch details without accepted-package or file-manage
   expect(document.body.textContent).toContain(
     "Portcove has not authenticated it as an official package",
   );
-  expect(document.body.textContent).toContain("You or upstream own setup and updates");
+  expect(document.body.textContent).toContain(
+    "You’ll handle setup and updates yourself, or through the game’s own launcher.",
+  );
   expect(document.body.textContent).not.toContain("Checked files");
   expect(apply).not.toHaveBeenCalled();
   expect(oldPreview).not.toHaveBeenCalled();

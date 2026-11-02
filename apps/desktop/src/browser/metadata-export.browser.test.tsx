@@ -53,7 +53,7 @@ it("announces a declined metadata picker as cancelled without exporting or showi
     .poll(() => page.getByRole("status", { name: "Task updates" }).element().textContent)
     .toContain("export library metadata · fixture/library: cancelled.");
   expect(exported).not.toHaveBeenCalled();
-  expect(document.body.textContent).not.toContain("Metadata exported to");
+  expect(document.body.textContent).not.toContain("Library information exported to");
   expect(document.querySelector("[data-invocation-announcements]")?.textContent).not.toContain(
     "finished",
   );
@@ -74,7 +74,7 @@ it("exports the selected path and retains its successful metadata receipt", asyn
   expect(exported).toHaveBeenCalledExactlyOnceWith("C:\\owned\\metadata.json");
   await expect
     .poll(() => document.body.textContent)
-    .toContain("Metadata exported to C:\\owned\\metadata.json");
+    .toContain("Library information exported to C:\\owned\\metadata.json");
 });
 
 for (const failure of ["picker", "export"] as const) {
@@ -92,7 +92,7 @@ for (const failure of ["picker", "export"] as const) {
     expect(document.querySelector("[data-invocation-announcements]")?.textContent).not.toContain(
       "cancelled",
     );
-    expect(document.body.textContent).not.toContain("Metadata exported to");
+    expect(document.body.textContent).not.toContain("Library information exported to");
     expect(exported).toHaveBeenCalledTimes(failure === "picker" ? 0 : 1);
   });
 }

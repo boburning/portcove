@@ -1469,7 +1469,7 @@ it("preserves a saved root until removal is confirmed", async () => {
   await click("Remove");
   expect(remove).not.toHaveBeenCalled();
   await captureParityState("game-files-remove-root-reviewed-fixture");
-  await click("Keep folder");
+  await click("Keep scanning this folder");
   expect(remove).not.toHaveBeenCalled();
   await click("Remove");
   await click("Stop scanning this folder");

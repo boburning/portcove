@@ -1164,7 +1164,7 @@ function SourceHealth({
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
     <SettingsRow className="source-health col-span-full min-h-0 grid-cols-1" data-focus-group>
-      <div className="settings-title flex items-center justify-between gap-[12px]">
+      <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
         <h2 className="m-0 flex items-center gap-2">Game files and BIOS</h2>
         <Button
           data-focusable

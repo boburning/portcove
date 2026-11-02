@@ -284,7 +284,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
     .element(page.getByRole("region", { name: "Game-file filter results" }))
     .toBeInTheDocument();
   expect(document.querySelector('[aria-label="Game-file filter results"]')?.textContent).toContain(
-    "files are not confirmed missing",
+    "They are not confirmed missing.",
   );
   await userEvent.click(button("Invalidate library observation"));
   await expect
