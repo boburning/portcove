@@ -3,7 +3,7 @@
   "listing": {
     "id": "crash-team-racing-ctr-recompiled",
     "name": "Crash Team Racing (CTR Recompiled)",
-    "summary": "Research listing. Upstream route: Upstream Generate & Build; packages on Windows, Linux, macOS Limits: Critical post-race/ChangeLevel failures explicitly reported upstream; retain research status. Upstream platforms: Windows/Linux/macOS Generate & Build setup packages; exact package host CPU architectures unknown in frozen audit. Critical post-race failures remain. Original data: Own Crash Team Racing USA PS1 disc SCUS-94426 as CUE/BIN. Current game.toml pins data track 1 to 605,698,800 bytes, SHA-1 1bb785082def3fe25f6b46be06d4eaf33c5bc772; boot executable SCUS_944.26. Generate & Build uses OpenBIOS unless the player supplies a local SCPH BIOS. Original images and proprietary BIOS are not distributed. Portcove setup/gameplay not verified.",
+    "summary": "An experimental Crash Team Racing port with critical post-race and ChangeLevel failures reported by the project. Windows, Linux and macOS setup packages use Generate & Build; exact host CPU architectures are unconfirmed. Use your own USA PlayStation SCUS-94426 CUE/BIN. The current game.toml requires data track 1 to be 605,698,800 bytes with SHA-1 1bb785082def3fe25f6b46be06d4eaf33c5bc772 and boot executable SCUS_944.26. Setup uses OpenBIOS unless you supply your own local SCPH BIOS. Original images and proprietary BIOS are not distributed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Crash Team Racing",
     "project_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
     "platforms": [],

@@ -19,11 +19,11 @@
         },
         {
           "title": "Keep the complete matching Windows package",
-          "instruction": "The inspected selected Windows ZIP contains infamous-windows-x86_64/inFAMOUS Second Son.exe, a separate classic frontend, Play shortcut, out/tlg-probe.exe and the matching frozen-runtime, scripts, DLLs and resources. Keep the complete extracted package in a writable location. Select the current ordinary frontend, not its classic sibling, Play wrapper, internal probe/GPU helper, Python, a DLL or the original PS4 eboot.bin. Static AMD64 headers do not establish GPU/driver or dynamic dependency acceptance."
+          "instruction": "The inspected selected Windows ZIP contains infamous-windows-x86_64/inFAMOUS Second Son.exe, a separate classic frontend, Play shortcut, out/tlg-probe.exe and the matching frozen-runtime, scripts, DLLs and resources. Keep the complete extracted package in a writable location. Select the current ordinary frontend, not its classic sibling, Play wrapper, internal probe/GPU helper, Python, a DLL or the original PS4 eboot.bin. Portcove has not tested GPU or driver compatibility or dependency loading."
         },
         {
           "title": "Select the waiting direct-play intent",
-          "instruction": "After upstream first setup and preparation are complete, select inFAMOUS Second Son.exe, use its full extracted infamous-windows-x86_64 directory as working directory, and use the single argument --play. Review the exact selected intent, then request Play separately. The pinned frontend dispatches --play to its runner with no finite gameplay timeout; that runner waits/polls for the game child’s exit. The ordinary GUI has separate close-on-play/reopen behavior, so do not substitute that mode as the same process-lifetime evidence. Finish any new preparation outside attachment; no child cleanup or gameplay has been observed here."
+          "instruction": "After upstream first setup and preparation are complete, select inFAMOUS Second Son.exe, use its full extracted infamous-windows-x86_64 directory as working directory, and use the single argument --play. Review and consent to the selected launch details, then choose Play separately. The pinned frontend dispatches --play to its runner with no finite gameplay timeout; that runner waits/polls for the game child’s exit. The ordinary interface can close on Play and reopen later, so it does not provide the same waiting behavior. Finish any new preparation outside attachment; Portcove has not tested child-process cleanup or gameplay."
         },
         {
           "title": "Preserve the actual save root and both preference files",

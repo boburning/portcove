@@ -27,15 +27,15 @@
         },
         {
           "title": "Attach the supported prepared native entry",
-          "instruction": "Select burstlimit.exe with its complete creating Windows player directory as working directory and no extra arguments for normal start-screen/Play flow. Keep the matching SDK/runtime, graphics/upscaler DLLs, resources and their notices together. The source resumes game execution inside the same process after the start screen; its runtime waits for the guest thread and requests host quit at completion. Do not select an online helper, updater, build script or Linux Wine wrapper."
+          "instruction": "Select burstlimit.exe with its complete Windows player folder as the working directory. Normal startup and Play need no extra arguments. Keep all matching SDK, runtime, graphics and upscaler DLLs, resources and notices together. The start screen and game run in the selected process, which waits for game execution to finish before requesting quit. Do not select an online helper, updater, build script or Linux Wine wrapper."
         },
         {
           "title": "Preserve actual original and data-root selection",
-          "instruction": "The source can use game_data_root/ beside the executable when it contains default.xex, while an established game_data_root option/config may select elsewhere. Keep the complete original-derived game folder and every effective custom root. Retain only supported literal arguments your working setup already requires; do not substitute another title\u2019s source or silently relocate original/data paths."
+          "instruction": "The source can use game_data_root/ beside the executable when it contains default.xex, while an established game_data_root option/config may select elsewhere. Keep the complete original-derived game folder and every effective custom root. Retain only supported literal arguments your working setup already requires; do not substitute another title’s source or silently relocate original/data paths."
         },
         {
           "title": "Keep upstream updates, restarts and online choices separate",
-          "instruction": "The upstream Update button can download and replace its files and restart; maintenance and any resulting successor remain upstream/user activity outside this attachment. Close all actual players/companions before deliberate replacement, retain old runtime/data and review/relink changed selected bytes. No successor adoption, updater authentication, online account/VPN/router setup, remote service or mod/save import operation is offered by Portcove. Upstream network/ranking features and Windows-user-name defaults are distinct from this local registration; keep identity/profile material private."
+          "instruction": "The upstream Update button can download and replace files, then restart the application. Finish updates outside a Portcove play session; Portcove does not track the restarted application as the selected player. Close all game instances and companion tools before replacing files. Keep the previous working runtime and data, then relink and review the changed executable. Configure online accounts, VPNs, routers and mod or save imports separately through upstream tools. Network and ranking features may use your Windows user name by default; keep identity and profile files private."
         },
         {
           "title": "Review Play and preserve every effective profile",
@@ -51,8 +51,8 @@
         }
       ],
       "warnings": [
-        "Source and publisher release metadata only: no archive/PE inspection, actual package-to-source/SDK correspondence, upstream game/helper execution, real saves, installed-client, Supported or protected qualification.",
-        "Windows native and Linux Wine-package evidence remain distinct. Upstream performance, renderer, controller, online and full-game claims are not Portcove observations; actual component/original permission remains mandatory."
+        "This guidance is based on upstream source and release descriptions. Portcove has not inspected the package or confirmed that it matches the source and SDK, and has not tested game startup, saves or installed behavior.",
+        "The Windows player and Linux Wine package have separate requirements. Upstream performance, renderer, controller, online and full-game claims have not been confirmed by Portcove. Use only components and original files you are independently permitted to use."
       ]
     }
   },

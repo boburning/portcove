@@ -43,7 +43,7 @@
         }
       ],
       "warnings": [
-        "Windows asset v0.9.6 still names source1cb3fe6; current HEAD58393a9 is different. Filename/source-consumer evidence and provider expected digest do not authenticate uninspected archive or executable bytes. No native/game/real-save/installed-client/Supported/protected acceptance was performed.",
+        "Windows package v0.9.6 names source revision 1cb3fe6; later source revision 58393a9 is different. A filename or published expected checksum does not confirm the uninspected package’s contents. Portcove has not tested startup, gameplay, saves or installed behavior.",
         "Fresh acquisition/distribution of translated game-code content remains unresolved; independently permitted existing-copy use is conditional. No SmartScreen bypass, optional texture download or original acquisition operation is offered."
       ]
     },

@@ -27,11 +27,11 @@
         },
         {
           "title": "Keep the exact owned original",
-          "instruction": "Use your own supported original FFTA USA ROM (SHA-256 43fc8204c6dceee58828aebc7af0c72eb807e99f35ad641c8bb0a4fa8b6edc19) or Europe ROM (8fab1e390cb9d5e695bfdb86e81246892e1aa8c0cb4014db8235ff76538ea632). v3 source supports both, despite older USA-only README wording. No BIOS is needed. The installer can warn and install an unverified image without FFTA patches; that is not this guide’s verified-original route, and success is not proof of exact source identity."
+          "instruction": "Use your own supported original FFTA USA ROM (SHA-256 43fc8204c6dceee58828aebc7af0c72eb807e99f35ad641c8bb0a4fa8b6edc19) or Europe ROM (8fab1e390cb9d5e695bfdb86e81246892e1aa8c0cb4014db8235ff76538ea632). v3 source supports both, despite older USA-only README wording. No BIOS is needed. The installer can warn and install an unverified image without FFTA patches; this guide covers only the ROM hashes above. A completed installation does not mean an unknown ROM matches either edition."
         },
         {
           "title": "Attach the supported prepared player",
-          "instruction": "Select the completed installed FFTARecomp.exe with its installed directory as working directory and no arguments. This supported wrapper finds its adjacent ffta.gba or the LocalAppData/FFTARecomp fallback, runs its matching recomp.exe play and waits for that initial process through command.output(). Keep the exact prepared tree and private generated translations."
+          "instruction": "Select the completed installed FFTARecomp.exe with its installed directory as working directory and no arguments. This supported wrapper finds its adjacent ffta.gba or the LocalAppData/FFTARecomp fallback, starts its matching recomp.exe play and waits for that initial game process to exit. Keep the exact prepared tree and private generated translations."
         },
         {
           "title": "Keep optional successor sessions separate",
@@ -47,7 +47,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+        "Use only a copy and components you are independently permitted to use. Portcove has not confirmed that the installed player matches the source, or tested gameplay, saving or installed behavior. Preserve every original, runtime, save, setting, mod, cache, backup and custom location; another executable can share the same data."
       ]
     }
   },

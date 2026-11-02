@@ -3,7 +3,7 @@
   "listing": {
     "id": "quake-ironwail",
     "name": "Quake (Ironwail)",
-    "summary": "Windows prepared-player route: use a complete permitted Ironwail0.8.2 copy and your own compatible Quake data. Preserve actual portable, store-selected and migrated profile roots; upstream owns migration and replacement. Core offers explicit nonowning registration and selected-process Play, without original/mod/save or other-platform qualification.",
+    "summary": "Windows prepared-player route: use a complete permitted Ironwail0.8.2 copy and your own compatible Quake data. Preserve actual portable, store-selected and migrated profile roots; upstream owns migration and replacement. Portcove can register this existing copy and start the selected player, without original/mod/save or other-platform qualification.",
     "original_game_title": "Quake",
     "project_url": "https://github.com/andrei-drexler/ironwail",
     "platforms": [],
@@ -22,7 +22,7 @@
           "instruction": "Use your own compatible classic or rerelease Quake data and finish upstream discovery/picker/configuration plus a normal start/quit before registration. Preserve the selected original/rerelease flavor and actual base/id1/expansion/mod set. Do not point at another edition, relabel data or replace your only creating copy to make a registration succeed. Core does not acquire, validate original PAK identities or prepare the game."
         },
         {
-          "title": "Keep the working player coordinates",
+          "title": "Keep the player’s existing launch settings",
           "instruction": "Use the actual prepared runtime working directory and established supported literal arguments/data/edition choices. Preserve existing absolute -basedir and custom game/root choices where used. Review exact intent and consent, then choose Play separately. No Core environment rewrite or forced portable mode is supplied."
         },
         {
@@ -30,14 +30,14 @@
           "instruction": "Standalone copies may use their base/game folders; Windows store-selected copies can use actual Saved Games/Ironwail/original or Saved Games/Ironwail/rerelease. Keep the actual known-folder location, old Nightdive Studios/Quake tree, standalone/store/custom roots, ironwail.cfg and all saves/autosaves/screenshots/demos/mod/addon files and unknowns. Startup migration can rename episode directories and move recognized files, writing a new config and removing its old copy; it is not a read-only import. Finish any chosen upstream migration first and keep the full pre-migration tree recoverable. No cross-version mod/save/replay roundtrip is certified."
         },
         {
-          "title": "Keep replacement and removal ownership clear",
-          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          "title": "Update the game and remove its registration",
+          "instruction": "Close every running copy before changing external files. You manage setup, game replacement, profile changes, data migration and recovery. Keep the working game version and every data folder, update it with the project’s tools, then review and select the changed executable before choosing Play. Portcove monitors only the process you selected and agreed to launch. It does not prevent other copies from running, restrict file access or take over unrelated helpers or replacement processes. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or deletion."
         }
       ],
       "warnings": [
-        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
-        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
-        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+        "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
     }
   },

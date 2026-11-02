@@ -96,7 +96,9 @@ it("preserves external runtime preparation without a managed setup assessment", 
       actions={actions}
     />,
   );
-  expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe("Prepare your runtime");
+  expect(host.querySelector("[data-detail-readiness]")?.textContent).toBe(
+    "Prepare your installation",
+  );
   expect(host.textContent).not.toContain("Setup status unknown");
 });
 
@@ -395,7 +397,7 @@ it("keeps malformed current setup availability from opening an installation revi
     />,
   );
   expect(host.textContent).toContain(
-    "Current setup availability is unavailable. Refresh the workspace to check again.",
+    "Setup availability could not be confirmed. Refresh the workspace to check again.",
   );
   expect(
     [...host.querySelectorAll("button")].some(

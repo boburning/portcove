@@ -4,7 +4,7 @@
     "id": "p3d-pc-maouanimus-maouanimus-persona-3-dancing-in-moonlight",
     "name": "Persona 3: Dancing in Moonlight — p3d-pc (MaouAnimus) (MaouAnimus)",
     "original_game_title": "Persona 3: Dancing in Moonlight",
-    "summary": "Rhythm controls and character renderer described; exact full-playthrough not established;60Hz retained Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project describes rhythm controls and character rendering with 60 Hz timing. A full playthrough has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/MaouAnimus/p3d-pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "CUSA12636 owned decrypted dump; exact update unspecified"
+          "instruction": "Use your own decrypted CUSA12636 dump. This guide does not specify the required update; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Precompiled p3d.exe runtime or source MSYS2Clang64/Ninja; original game data remains required"
+          "instruction": "Use the precompiled p3d.exe runtime, or build from source with MSYS2 Clang64 and Ninja. Keep your original game data available."
         }
       ],
       "warnings": [
-        "Rhythm controls and character renderer described; exact full-playthrough not established;60Hz retained",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project describes rhythm controls and character rendering with 60 Hz timing. A full playthrough has not been established.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/MaouAnimus/p3d-pc"
     },

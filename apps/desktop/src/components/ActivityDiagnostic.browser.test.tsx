@@ -115,7 +115,7 @@ it("keeps completed conversion output beside an interrupted setup phase", async 
   await open();
   const phases = [...host.querySelectorAll("section")];
   expect(phases).toHaveLength(2);
-  expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("Preparing source data");
+  expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("Preparing game files");
   expect(fixtureValue(phases[0], "phases[0]").textContent).toContain("earlier conversion output");
   expect(fixtureValue(phases[0], "phases[0]").textContent).toContain(
     "Both output streams ended. Saved output is shown below",

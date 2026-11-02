@@ -208,9 +208,21 @@ The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
 complete inert recovery snapshot, in addition to the existing four-MiB summary
 reserve. Source handoffs use the remaining eight MiB across all batches. The
 snapshot contains the catalog scheduler and its referenced per-source checkpoints;
-it excludes reports, locks, temporary files and executables. If the entire snapshot
-cannot fit its reserve, publication fails visibly and the original checkpoints and
-cache remain retained. This is no increase to the request, runtime, response or
+it excludes reports, locks, temporary files and executables. Format 2 losslessly
+encodes the complete graph as a size- and SHA-256-bound gzip/base64 envelope. The
+four-MiB reserve applies to that entire encoded JSON payload, including base64 and
+metadata. The outer ZIP keeps its existing four-MiB compressed and expanded limits.
+Before decoding, the complete logical graph is limited to the existing
+thirty-two-MiB checkpoint reader bound; declared-size-limited inflation, canonical
+base64, decoded size/hash and all existing graph/scope checks are required. This
+adds an aggregate decoded bound without pruning any accepted checkpoint data.
+Legacy uncompressed format-1 artifacts keep their original four-MiB wire limit.
+Logs report controller, complete decoded and actual transferred sizes separately;
+the controller's size alone never proves the full graph fits.
+
+If the lossless encoding cannot fit its reserve, publication fails visibly and
+the original checkpoints and cache remain retained. This is no increase to the
+request, runtime, response or
 aggregate output allowances, and does not guarantee capacity for every future
 catalog workset.
 

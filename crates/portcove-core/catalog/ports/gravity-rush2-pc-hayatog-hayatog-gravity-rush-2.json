@@ -4,7 +4,7 @@
     "id": "gravity-rush2-pc-hayatog-hayatog-gravity-rush-2",
     "name": "Gravity Rush 2 — Gravity Rush2 PC (HayatoG) (HayatoG)",
     "original_game_title": "Gravity Rush 2",
-    "summary": "Image/audio/control30fps claimed LinuxRTX2060; distinct Prathewsh multi-title runtime; saves/openworldstilltesting; geometryoutlineoffbydefault Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports image, audio and controls at 30 FPS on Linux with an RTX 2060. This is separate from Prathewsh’s multi-title runtime. Saves and open-world gameplay are still being tested; geometry outlines are off by default. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/HayatoG/gr2_pc",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "CUSA03694 update01.11 owned decrypted dump; audio needs own libSceNgs2.sprx fromconsolefirmware"
+          "instruction": "Use your own decrypted CUSA03694 dump with update 01.11. Audio also needs your own libSceNgs2.sprx from console firmware."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Native runtime release/source launcher imports owned data"
+          "instruction": "Use the native runtime release or follow the source launcher instructions to import your own game data."
         }
       ],
       "warnings": [
-        "Image/audio/control30fps claimed LinuxRTX2060; distinct Prathewsh multi-title runtime; saves/openworldstilltesting; geometryoutlineoffbydefault",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports image, audio and controls at 30 FPS on Linux with an RTX 2060. This is separate from Prathewsh’s multi-title runtime. Saves and open-world gameplay are still being tested; geometry outlines are off by default.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/HayatoG/gr2_pc"
     },

@@ -3,7 +3,7 @@
   "listing": {
     "id": "riotashley81-jpg-vagrantstory-recomp",
     "name": "Vagrant Story (Vagrant Story Recompiled)",
-    "summary": "Research listing. Upstream route: Windowsrelease is a ROM-free runtime/bootstrapper. Reads own disc and backgroundcompiles battleengine/menus/title with bundledgcc; interpreter/TinyCC executes remaining code. Upstream owns generated code/cache. MSVC source build is separate. Limits: Upstream only: Background compilation covers battle/menu/title code; interpreter/TinyCC handles the remainder. Full-game/native coverage remains bounded. ROM-free Windows build reads original code; first-launch gcc compiles battle/menu/title engine; interpreter/TinyCC handles remainder. Preserve hybrid implementation and startup compile scope. Upstream platforms: Windows MSVC source build and release with bundled gcc/TinyCC. Other player platforms not established. Original data: PS1 Vagrant Story USA SLUS-01040 own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A hybrid Vagrant Story port: its ROM-free Windows player reads your own USA SLUS-01040 PlayStation disc, then compiles battle, menu and title code in the background with bundled GCC. An interpreter/TinyCC handles remaining code, so full-game native coverage is unconfirmed. The separate MSVC source build is a development route. The project manages generated code and caches. Other player platforms, exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Vagrant Story",
     "project_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "vagrant-story",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2771
+    "issue_number": 2771,
+    "manual_setup": {
+      "help_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/898a34db9913d0b9835ed26af6e769ea3389cc80/README.md",
+      "steps": [
+        {
+          "title": "Use the exact USA PlayStation original",
+          "instruction": "Use your own Vagrant Story USA SLUS-01040 CUE/BIN disc. The selected game.toml identifies data Track 01 by size 750643152 bytes and SHA1 38c63db6c49a06b91d87cd5a4e31b1ec68fe212c, boot SLUS_010.40; this is not a whole-CUE or all-region fingerprint. Finish original selection and settings in the upstream integrated launcher first."
+        },
+        {
+          "title": "Keep the complete hybrid Windows package",
+          "instruction": "Use the official v0.1.11 Windows x64 package as one complete unit, including VagrantStory_Recompiled.exe, game.toml, bios/, assets/, mods/, licenses/ and overlay_toolchain/. The player reads original code/data from the user’s disc and locally compiles battle/menu/title overlays with bundled gcc in the background, retaining cache/; other code still uses the interpreter and TinyCC. First preparation can take an hour or more and resume later. Do not call this fully static coverage, impose a short first-use gameplay deadline or substitute an interpreter-only demo for a prepared route."
+        },
+        {
+          "title": "Attach the integrated native player",
+          "instruction": "Select VagrantStory_Recompiled.exe, use its full player directory as working directory and leave arguments empty to retain the ordinary integrated launcher and settings. Review the selected program, working folder and arguments and choose Play when ready. Its selected native runtime hosts the frontend/game in process. Do not select codegen setup, overlay_toolchain tools, profiling/headless modes or another Vagrant Story implementation. Finish upstream preparation/maintenance and close the actual game normally."
+        },
+        {
+          "title": "Preserve executable-relative cards and generated cache",
+          "instruction": "The selected Windows runtime resolves relative settings and data from its actual executable directory. Keep the complete writable root, settings.toml, disc.cfg/bios.cfg where present, game.toml, input/bindings, mods, cache/ and all actual card paths. game.toml configures saves/, normally card1.mcd and card2.mcd, with existing explicit slot/directory overrides retained. Preserve durable cards separately from states and original disc/legacy copies. Do not clear slot paths through a new --memcard-dir argument, merge roots or discard generated overlay work. No migration, card restore or deletion is performed."
+        },
+        {
+          "title": "Retain exact component and maintenance terms",
+          "instruction": "The selected psxrecomp revision uses PolyForm Noncommercial 1.0.0; the exact recomp-ui revision is MIT. Keep those distinct terms plus OpenBIOS, bundled GCC/Binutils/mingw-w64, TinyCC, font and other notices; a project or UI license does not replace noncommercial restrictions or license original assets. Only use components you are independently permitted to use. Upstream/player owns updates and locally generated output: quit normally, keep populated cards/cache/recovery and review/relink changed bytes. No full playthrough, physical controller, real-save restore, native/installed, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Keep the complete player, local compiler/cache and existing card roots. Preserve the hybrid execution and exact noncommercial/component terms; another Vagrant Story port is a separate qualification."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

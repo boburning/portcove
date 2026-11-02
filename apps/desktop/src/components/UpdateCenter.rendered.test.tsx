@@ -226,7 +226,7 @@ describe("desktop components", () => {
     expect(html).toContain("Update policy run");
     expect(html).not.toContain("Update settings run");
     expect(html).not.toContain("Adopted installation");
-    expect(html).toContain("More details may be available in a support bundle.");
+    expect(html).toContain("More details may be available in a support report.");
     expect(html).not.toContain("source changed");
     for (const label of [
       "Completed",

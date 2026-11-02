@@ -30,7 +30,7 @@
           "instruction": "The inspected official 0.3.1 Windows portable ZIP contains AMD64 nhl3on3.exe, rexruntime.dll, rexgpu-xenos.dll, Visual C++ libraries and notices. Keep the complete extracted folder and game/ tree. The native player already contains its program; first-run extraction prepares original data rather than compiling a new game. The batch/PowerShell settings launcher is separate and is not the selected attached executable."
         },
         {
-          "title": "Attach direct native play",
+          "title": "Add the native game player",
           "instruction": "After upstream setup, select nhl3on3.exe, set the complete extracted package directory as working directory and leave arguments empty. Review the intent and request Play separately. Upstream documents direct starts after settings are saved; the linked game runs within this process. It searches game/ or game/extracted/ beside the executable/parents, so preserve the prepared layout and avoid accidentally selecting another tree. Finish any remaining setup outside the attachment."
         },
         {

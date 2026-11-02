@@ -1303,7 +1303,7 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
         </span>
         <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
           <small className="mb-[5px] block text-[var(--color-text-muted)]">
-            Available release channels
+            Available update channels
           </small>
           {port.channels.map((channel) => releaseChannelPresentation(channel).label).join(" · ")}
         </span>
@@ -1320,7 +1320,7 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
             : port.release.provider === "user-prepared"
               ? usesUserSelectedRuntime(port)
                 ? "You or the upstream launcher manage setup and updates. Portcove saves your selected launch details without authenticating the files as an official package."
-                : "Portcove uses the accepted package identity recorded in the catalog. You prepare the runtime."
+                : "Use the required package listed in the catalog to prepare the installation."
               : "Portcove checks this project for releases."}
         </span>
       </div>
@@ -1415,17 +1415,18 @@ function SavesAndSettingsSummary({
           Managed backup data and external declarations
         </h3>
         <p>
-          The external runtime directory is not collected. Data already written to Portcove’s
-          managed backup folder can be backed up when Core permits it. External profiles and custom
-          save locations remain excluded.
+          Portcove does not collect files from this external installation folder. Data already
+          written to Portcove’s managed backup folder can be backed up when the current backup
+          checks allow it. External profiles and custom save locations remain excluded.
         </p>
         {retainedSetup ? (
           <details>
             <summary data-focusable className="cursor-pointer">
-              Recorded external runtime declarations
+              Recorded file rules for this external installation
             </summary>
             <p>
-              These retained declarations describe the external runtime, not its collection scope.
+              These recorded rules describe the external installation. They do not show which files
+              Portcove collects.
             </p>
             {declared.length ? (
               <ul className="my-2 list-disc ps-5">
@@ -1464,9 +1465,9 @@ function SavesAndSettingsSummary({
         <h3 className="mb-1 text-sm font-semibold">What a backup covers</h3>
         {retained && !retainedSetup ? (
           <p>
-            Portcove can back up data already in its managed saves and settings folder. Runtime
-            collection coverage is unknown here; current catalog declarations do not establish rules
-            for this retained installation.
+            Portcove can back up data already in its managed saves and settings folder. Which
+            installation files Portcove collects is unknown here; current catalog declarations do
+            not establish rules for this installed version.
           </p>
         ) : (
           <>
@@ -1755,7 +1756,7 @@ function TechnicalDetails({
                 Current catalog saved-data declarations
               </small>
               {status?.active || status?.staged
-                ? "Saved data follows this installation's retained contract."
+                ? "Saved data follows the recorded rules for this installed version."
                 : persistentFiles || "No saved data paths declared"}
             </span>
           </div>
@@ -2822,7 +2823,7 @@ function availableInstallState(
     return {
       title: requirement === "Game files" ? "Needs game files" : `${requirement} needed`,
       description: externalRuntime
-        ? `${nextStep} before registering your prepared runtime. Portcove checks selected files and the external folder.`
+        ? `${nextStep} before saving your prepared installation’s location. Portcove checks selected files and the external folder.`
         : `${nextStep} before reviewing installation. Portcove checks selected files before activation.`,
       tone: "setup",
       icon: Wrench,
@@ -2830,9 +2831,9 @@ function availableInstallState(
   }
   if (externalRuntime)
     return {
-      title: "Prepare your runtime",
+      title: "Prepare your installation",
       description:
-        "Choose the accepted external folder after preparing it. Portcove reviews its files without installing or owning them.",
+        "Choose the prepared installation folder. Portcove checks its files against the accepted package without copying or taking ownership of them.",
       tone: "available",
       icon: Wrench,
     };
@@ -2969,7 +2970,7 @@ function presentDetailState({
   return installed && typeof status?.readiness?.launchable !== "boolean"
     ? {
         title: "Readiness unavailable",
-        description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
+        description: "Launch readiness could not be confirmed. Reopen Portcove to check again.",
         tone: "unknown",
         icon: Info,
       }
@@ -2986,7 +2987,7 @@ function presentDetailState({
           icon: AlertTriangle,
           ...(status?.staged
             ? {
-                updateAttention: `Update ${status.staged.version} is downloaded. You can review it separately.`,
+                updateAttention: `Update ${status.staged.version} is saved for later. You can review it separately.`,
               }
             : {}),
         }
@@ -3031,8 +3032,8 @@ function presentSetupState(
       ? {
           title: "Setup status unknown",
           description: selectedRequirement
-            ? `${availableInstallState(selectedRequirement).description} Current setup availability is unavailable. Refresh the workspace to check again.`
-            : "Current setup availability is unavailable. Refresh the workspace to check again.",
+            ? `${availableInstallState(selectedRequirement).description} Setup availability could not be confirmed. Refresh the workspace to check again.`
+            : "Setup availability could not be confirmed. Refresh the workspace to check again.",
           tone: "setup",
           icon: AlertTriangle,
         }
@@ -3081,7 +3082,7 @@ function backupCreateExplanation(
   consistent: boolean,
 ) {
   const unavailable =
-    "Current backup availability is unavailable. Refresh the backup inventory to check again.";
+    "Backup availability could not be confirmed. Refresh the backup inventory to check again.";
   if (!current) {
     if (readState?.status === "current") return unavailable;
     if (readState?.status === "failed")
@@ -3495,7 +3496,7 @@ function DetailRequirementsFacts({
         <dd>{requirementInstallationLabel({ external, retained, setup, port: model.port })}</dd>
       </div>
       <div>
-        <dt>Selected release channel</dt>
+        <dt>Selected update channel</dt>
         <dd>{releaseChannelPresentation(model.selectedChannel).label}</dd>
       </div>
       <div>
@@ -3584,11 +3585,11 @@ function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody
         </dl>
       </details>
       <details className="mt-4">
-        <summary data-focusable>Compatibility qualifications</summary>
+        <summary data-focusable>Platforms and installation method</summary>
         <CompatibilitySummary port={model.port} />
       </details>
       <details className="mt-4">
-        <summary data-focusable>Recorded checks</summary>
+        <summary data-focusable>Test results</summary>
         <DetailQualificationSummary
           port={model.port}
           sourceInspection={model.sources.sourceInspection}
@@ -3808,16 +3809,17 @@ function DetailSavesSection({
           title={
             <span className="inline-flex items-center gap-2">
               <Icon glyph={FolderOpen} />
-              External runtime and managed backup data
+              External installation and backup coverage
             </span>
           }
         >
           <section aria-label="Saved-data coverage">
             <p>
-              Portcove does not collect this external runtime directory. Data written to Portcove’s
-              managed backup folder can still be backed up and restored when Core permits it.
-              External profiles and custom save locations remain outside Portcove’s managed backups;
-              follow the port’s instructions to copy them separately.
+              Portcove does not collect files from this external installation folder. Data written
+              to Portcove’s managed backup folder can still be backed up and restored when the
+              current backup checks allow it. External profiles and custom save locations remain
+              outside Portcove’s managed backups; follow the port’s instructions to copy them
+              separately.
             </p>
             <ProjectLink href={model.port.project_url}>
               Open upstream project <Icon glyph={ArrowRight} />
@@ -3922,7 +3924,7 @@ function DetailVersionsSection({
                 title="Previous version"
                 description={
                   model.status?.previous
-                    ? `Retained version ${model.status.previous.version}. Review rollback availability before switching.`
+                    ? `Previous version ${model.status.previous.version}. Review whether it can be restored before switching.`
                     : "No previous version is recorded."
                 }
               >

@@ -198,7 +198,7 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
     installRecord(),
   );
   expect(managed).toContain("current catalog declarations do not establish");
-  expect(managed).toContain("collection coverage is unknown");
+  expect(managed).toContain("installation files Portcove collects is unknown");
   expect(managed).not.toContain("changed-provider-catalog-path");
   expect(managed).not.toContain("backup review");
   const retained = coverage(
@@ -206,7 +206,7 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
     installRecord(),
   );
   expect(retained).toContain("current catalog declarations do not establish");
-  expect(retained).toContain("collection coverage is unknown");
+  expect(retained).toContain("installation files Portcove collects is unknown");
   expect(retained).not.toContain("new-catalog-path");
   const external = coverage(preparedPort, null, {
     id: "external",
@@ -368,9 +368,9 @@ describe("desktop components", () => {
       actions,
     };
     const available = renderToStaticMarkup(<DetailPanel {...props} />);
-    expect(available).toContain("Prepare your runtime");
-    expect(available).toContain("without installing or owning them");
-    expect(available).toContain("You prepare the runtime");
+    expect(available).toContain("Prepare your installation");
+    expect(available).toContain("without copying or taking ownership of them");
+    expect(available).toContain("Use an installation you set up yourself");
     expect(available).not.toContain("Available to install");
     expect(available).not.toContain("Portcove checks this project for releases");
 
@@ -477,7 +477,7 @@ describe("desktop components", () => {
       expect(html).toContain("Check installed files");
       expect(html).toContain(`Uninstall ${currentPort.name}`);
       expect(html).toContain("This installation’s saved-data coverage could not be verified.");
-      expect(html).toContain("Saved data follows this installation");
+      expect(html).toContain("Saved data follows the recorded rules for this installed version.");
       expect(html).not.toContain("No saved data paths declared");
       expect(html).not.toContain("Game-owned settings and saves in the external runtime");
       expect(html).not.toContain("Choose game executable");
@@ -1437,7 +1437,7 @@ describe("desktop components", () => {
     ).toHaveLength(1);
     expect(missingBoth).toContain("Future update preferences");
     expect(missingBoth).toContain("Folder for a future install");
-    expect(missingBoth).toContain("Release channel");
+    expect(missingBoth).toContain("Update channel");
     expect(missingBoth).toContain("Folder for future installs");
     expect(uninstalled).toContain(
       "Portcove uses this game file in place and never uploads or changes it.",
@@ -1480,7 +1480,7 @@ describe("desktop components", () => {
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");
     expect(installed).not.toContain("Create a versioned backup of saves and settings");
-    expect(installed).toContain("1 verified backup");
+    expect(installed).toContain("1 backup");
     expect(installed).toContain("Restore");
     expect(installed).toContain("Delete");
     expect(installed).toContain("Uninstall Sample");
@@ -1490,7 +1490,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<details class="future-setup-disclosure advanced-settings[^"]*">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
-    expect(installed).toContain("No legacy platform coverage recorded");
+    expect(installed).toContain("No earlier platform tests recorded");
     expect(installed).toContain("Launch from another app");
     expect(installed).toContain("Finding the command-line app");
     expect(installed).not.toContain("portcove exec sample --");
@@ -1540,10 +1540,10 @@ describe("desktop components", () => {
       "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
     );
     expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Legacy port-wide automated tests</small>Windows · Linux",
+      "<small>Earlier automated tests</small>Windows · Linux",
     );
     expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Legacy port-wide hands-on tests</small>Windows · Linux",
+      "<small>Earlier hands-on tests</small>Windows · Linux",
     );
     const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[^]*?<\/button>/gu)];
     expect(buttons(linux).map(([button]) => button)).toEqual(
@@ -1984,8 +1984,8 @@ describe("desktop components", () => {
     for (const content of [
       port.summary,
       "Project status and release information",
-      "Compatibility qualifications",
-      "Recorded checks",
+      "Platforms and installation method",
+      "Test results",
     ])
       expect(overview).toContain(content);
     for (const content of ['aria-label="Game actions"', "Requirements"])

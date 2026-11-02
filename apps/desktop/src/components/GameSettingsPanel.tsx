@@ -123,15 +123,22 @@ function SettingEditor({
         !Number.isFinite(value) ||
         (type.kind === "integer" && !Number.isSafeInteger(value))
       ) {
-        setError("Enter a supported finite value.");
+        setError(
+          typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)
+            ? "This number is too large to save accurately."
+            : type.kind === "integer"
+              ? "Enter a whole number."
+              : "Enter a number.",
+        );
         return;
       }
     }
-    if (
-      value === undefined ||
-      (typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value))
-    ) {
-      setError("Choose a supported value.");
+    if (value === undefined) {
+      setError("Choose one of the listed options.");
+      return;
+    }
+    if (typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)) {
+      setError("This number is too large to save accurately.");
       return;
     }
     setError(undefined);
@@ -177,8 +184,12 @@ function SettingEditor({
         />
       )}
       {setting.value == null && (
+        <p className="m-0 text-xs text-pc-muted-foreground">Not saved yet; showing the default.</p>
+      )}
+      {(type.kind === "number" || type.kind === "integer") && (
         <p className="m-0 text-xs text-pc-muted-foreground">
-          Not saved yet; showing the verified default.
+          {type.kind === "integer" ? "Whole numbers" : "Numbers"} from {type.minimum} to{" "}
+          {type.maximum}, in steps of {type.step}.
         </p>
       )}
       {error && (
@@ -188,7 +199,7 @@ function SettingEditor({
       )}
       <div className="flex flex-wrap gap-2">
         <Button onClick={submit}>Review change</Button>
-        <Button onClick={() => review({ action: "reset" })}>Review default</Button>
+        <Button onClick={() => review({ action: "reset" })}>Reset to default…</Button>
       </div>
     </div>
   );
@@ -221,6 +232,9 @@ function SettingReview({
     };
   }, []);
   const description = useId();
+  const setting = view.files
+    .find((file) => file.id === intent.fileId)
+    ?.settings.find((item) => item.id === intent.settingId);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([identity, intent]),
     load: async () => {
@@ -274,14 +288,25 @@ function SettingReview({
             <dt>Setting</dt>
             <dd>{preview.label}</dd>
             <dt>Current saved value</dt>
-            <dd>
-              {preview.previous_value == null
-                ? "Not saved"
-                : JSON.stringify(preview.previous_value)}
-            </dd>
-            <dt>{intent.change.action === "reset" ? "Verified default" : "Proposed value"}</dt>
-            <dd>{JSON.stringify(preview.proposed_value)}</dd>
+            <dd>{settingValueLabel(preview.previous_value, setting)}</dd>
+            <dt>{intent.change.action === "reset" ? "Default" : "New value"}</dt>
+            <dd>{settingValueLabel(preview.proposed_value, setting)}</dd>
           </dl>
+        )}
+        {preview && (
+          <details>
+            <summary data-focusable>Technical details</summary>
+            <dl className="grid gap-2 wrap-anywhere">
+              <dt>Current saved value</dt>
+              <dd>
+                <code>{JSON.stringify(preview.previous_value ?? null)}</code>
+              </dd>
+              <dt>New value</dt>
+              <dd>
+                <code>{JSON.stringify(preview.proposed_value)}</code>
+              </dd>
+            </dl>
+          </details>
         )}
         <ActionReviewFailure error={error} />
         <DialogFooter>
@@ -301,4 +326,19 @@ function SettingReview({
       </DialogContent>
     </Dialog>
   );
+}
+
+function settingValueLabel(value: unknown, setting: GameSettingView | undefined) {
+  if (value == null) return "Not saved";
+  const type = setting?.value_type;
+  if (type?.kind === "enum") {
+    const choice = type.choices.find(
+      (item) => JSON.stringify(item.value) === JSON.stringify(value),
+    );
+    if (choice) return choice.label;
+    return "Unrecognized option";
+  }
+  if (typeof value === "boolean") return value ? "On" : "Off";
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return typeof value === "string" ? value : "Value unavailable";
 }

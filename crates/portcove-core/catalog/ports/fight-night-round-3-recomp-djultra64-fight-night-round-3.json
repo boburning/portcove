@@ -4,7 +4,7 @@
     "id": "fight-night-round-3-recomp-djultra64-fight-night-round-3",
     "name": "Fight Night Round 3 — Fight Night Round 3 Recomp (djultra64)",
     "original_game_title": "Fight Night Round 3",
-    "summary": "Regular release with 60 FPS gameplay claim; intermittent loading/text/audio defects remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream advertises 60 FPS gameplay. Intermittent loading, text and audio defects remain; Portcove has not confirmed performance. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/djultra64/Fight-Night-Round-3-Recomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Provide your own Fight Night Round 3 Xbox 360 disc ISO. Supported USA copy; exact hashes referenced by first-launch guide were not separately read."
+          "instruction": "Use your own supported USA Fight Night Round 3 Xbox 360 ISO. This guide does not include its required hashes; compare your files with the upstream first-launch guide before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Choose v1.0.2 Linux/Windows runtime package; first launch validates and imports own supported USA ISO."
+          "instruction": "Choose the v1.0.2 Linux or Windows runtime package. On first launch, follow the game’s checks and import your own supported USA ISO."
         }
       ],
       "warnings": [
-        "Regular release with 60 FPS gameplay claim; intermittent loading/text/audio defects remain.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream advertises 60 FPS gameplay. Intermittent loading, text and audio defects remain; Portcove has not confirmed performance.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/djultra64/Fight-Night-Round-3-Recomp"
     },

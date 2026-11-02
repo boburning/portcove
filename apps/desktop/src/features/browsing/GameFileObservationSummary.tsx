@@ -11,7 +11,7 @@ function observationStatus(
   if (outcome === "waiting") return "Waiting for the previous check to finish.";
   if (outcome === "failed") return "The latest check failed. No current file check is available.";
   if (outcome === "cancelled")
-    return "The latest check was canceled. No current file check is available.";
+    return "The latest check was cancelled. No current file check is available.";
   if (expired) return "The file check expired. Check again.";
   if (usable)
     return catalog
@@ -69,7 +69,7 @@ export function GameFileObservationSummary({
                 : "The previous check is informational only. "}
               {catalog
                 ? "To check again, open Filters → Check game-file filters."
-                : "Use Check selected route game files to check again."}
+                : "Use Check files for this option to check again."}
             </p>
           )}
         </div>

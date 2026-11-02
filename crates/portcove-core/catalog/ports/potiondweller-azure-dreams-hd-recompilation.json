@@ -3,13 +3,41 @@
   "listing": {
     "id": "potiondweller-azure-dreams-hd-recompilation",
     "name": "Azure Dreams (Azure Dreams HD Recompilation)",
-    "summary": "Research listing. Upstream route: Documented player/source route downloads framework toolchain, generates base C from own USA disc and rebuilds Windowsruntime. Overlays run interpreted unless separately compiled withcompile_overlays.py--static; preserve hybrid route. ZIP does not prove fully static coverage. Limits: Upstream only: Native base with interpreted overlays unless separately compiled. Full-game and native overlay coverage remain incomplete/Unknown. Base game recompiled; overlays interpreted unless separately compiled via compile_overlays.py --static. Windows route; retain hybrid scope and unqualified full-game state. Upstream platforms: Windows 10 source/toolchain preparation and release ZIP. Other player platforms not established. Original data: PS1 Azure Dreams USA SLUS-00614 own disc, OpenBIOS bundled. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "An Azure Dreams port with a recompiled base game and interpreted overlays unless you separately compile them with compile_overlays.py --static. A release ZIP alone does not establish fully static coverage or a full playthrough. The Windows 10 player/source route downloads its framework toolchain, generates base C from your own USA SLUS-00614 PlayStation disc and rebuilds locally. OpenBIOS is bundled. Other player platforms, exact accepted revision/hashes and further BIOS/firmware requirements are unconfirmed. You and the project manage generated files and updates; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Azure Dreams",
     "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
-    "issue_number": 2753
+    "issue_number": 2753,
+    "manual_setup": {
+      "help_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md",
+      "steps": [
+        {
+          "title": "Use your own exact USA disc",
+          "instruction": "Use Azure Dreams USA SLUS-00614 as the complete CUE/BIN set. The selected game.toml identifies data Track 01 by size 298576992 bytes and SHA1 fab68454be5e4e48f7a43ac797cc8c47325c6a20, boot executable SLUS_006.14; this is not a whole-CUE or arbitrary-region hash. Finish original selection and first setup in the upstream integrated launcher. OpenBIOS is the supplied firmware route, with its own notices; no Sony BIOS download is required by this route."
+        },
+        {
+          "title": "Keep the complete prepared Windows unit",
+          "instruction": "Use the official v0.9.1 Windows package, or a completed supported source build, with AzureDreams_Recompiled.exe, game.toml, bios/, assets/, mods/, presets/ and notices intact. The selected producer stages cover art as external files and removes boxart files from the player package; optional local original artwork is not required for preparation. Retain applicable project, psxrecomp, recomp-ui, OpenBIOS, font and other component terms. Framework licenses do not license the original disc, artwork or every mod."
+        },
+        {
+          "title": "Attach the integrated native player",
+          "instruction": "Select AzureDreams_Recompiled.exe, use its complete player directory as working directory and leave arguments empty to retain ordinary integrated launcher selection. Review the selected program, working folder and arguments and choose Play when ready, then use upstream PLAY after disc/settings preparation. The native program hosts that frontend/runtime in process. Do not register the supplied preset .bat files, which detach through start, a compiler or a prototype UI. An already chosen --preset hd or --preset original may be retained explicitly in the reviewed intent; do not silently switch an existing profile."
+        },
+        {
+          "title": "Preserve executable-relative cards and settings",
+          "instruction": "The selected Windows runtime anchors relative configuration, discs, BIOS, sidecars, cache and saves to the actual executable directory, not an arbitrary CWD. Keep the whole writable player root, game.toml, settings.toml, .psxrecomp.env, controls, mods, presets and all actual card paths. The configured default is saves/ with card1.mcd and card2.mcd; preserve explicit slot/path overrides and historical copies. Presets have separate settings/mod choices but share disc selection, controls and memory cards. Do not add --memcard-dir merely to launch: it can clear explicit slot paths and select another card root. No card move, merge, restore or deletion is performed."
+        },
+        {
+          "title": "Keep hybrid-code and maintenance boundaries",
+          "instruction": "The base game uses compiled code; overlays normally remain interpreted unless the owner records their own overlay captures, compiles them and rebuilds upstream. Captures contain original code and stay private; no capture or build is performed here. Original/HD settings, upstream speed claims and automated cases do not prove complete gameplay, controller behavior or real-save recovery. Exit normally before upstream replacement, preserve populated cards/configuration and recovery, and review/relink changed bytes. No native/installed, Supported or managed installation/update/rollback/backup/deletion acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the native EXE and retain the complete writable player root, all active cards and the current preset choice. Box art is optional; original-disc and overlay-capture rights remain separate."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

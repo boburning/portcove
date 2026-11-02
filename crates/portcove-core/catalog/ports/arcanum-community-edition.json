@@ -34,7 +34,7 @@
         }
       ],
       "warnings": [
-        "Upstream describes this as a technology preview. The existing upstream dependency remains: no managed release or complete original-data/persistence contract is established."
+        "The project describes a technology preview. Portcove does not offer a managed release, and complete original-file and saved-data requirements remain unconfirmed."
       ],
       "help_url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md"
     }

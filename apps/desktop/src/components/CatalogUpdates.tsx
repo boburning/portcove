@@ -107,7 +107,7 @@ function catalogFallbackSummary(reason: string) {
   if (reason.includes("selected definition was not loaded"))
     return "The selected catalog definition could not be loaded. Portcove continued with the available catalog information.";
   if (reason.includes("replay floor"))
-    return "A saved catalog did not match the accepted update sequence. Portcove continued with the available catalog information.";
+    return "Portcove couldn’t accept this catalog update. Portcove continued with the available catalog information.";
   if (reason.includes("signing key is not trusted"))
     return "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.";
   if (reason.includes("signature verification failed"))
@@ -207,8 +207,8 @@ function CatalogUpdatesDialog({
           Manage catalog updates
         </DialogTitle>
         <DialogDescription id="catalog-update-description" className="mb-4 leading-relaxed">
-          Trust a publisher, review a signed update, and choose which verified catalog Portcove
-          uses. The built-in catalog remains available offline.
+          Choose who can provide your game catalog and review their updates. The built-in catalog
+          remains available offline.
         </DialogDescription>
         <NavigationHints />
         <CatalogOrigin provenance={status?.provenance} />

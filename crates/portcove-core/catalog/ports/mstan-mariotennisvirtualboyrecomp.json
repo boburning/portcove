@@ -16,6 +16,34 @@
       "image_sha256": "cdccd75f3e79bb8f71a9f165d5c942f7809a5fa0334e7ef7bce054c5fa20957c",
       "game_slug": "marios-tennis",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp/blob/28995d368538559005aaaf9a78ab8e35eacecd71/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete Windows player and its terms",
+          "instruction": "Use MarioTennisVirtualBoyRecomp-windows-x64.zip v0.2.3 with MarioTennisVirtualBoyRecomp.exe, SDL2.dll, assets, licenses and existing optional mods retained together. Root MIT licensing covers build glue and documentation; original Nintendo game code/data/artwork and the separately pinned framework/UI keep their own terms. No permission to redistribute a ROM, generated cartridge code or third-party artwork is inferred. Upstream full-match and comparison claims are not Portcove native/gameplay observations."
+        },
+        {
+          "title": "Use your own matching Mario’s Tennis cartridge dump",
+          "instruction": "The supported Virtual Boy ROM is 524,288 bytes, CRC32 7CE7460D and SHA-256 5dc5e6b5d5f538f56b3b9727db1c7931d9dfe1bbd0743f698897e0fd90e70101. Use your own matching dump through the upstream picker and keep it at its current location. The runtime checks the supported ROM and refuses a mismatch. Another Virtual Boy title, archive wrapper or changed original is not a substitute. Optional color mods are separate and disabled by default; registration does not enable them or modify the ROM."
+        },
+        {
+          "title": "Add the ordinary native frontend",
+          "instruction": "Select MarioTennisVirtualBoyRecomp.exe, use its complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its native ROM picker. Preserve an existing remembered original/configuration rather than resetting it. Headless, trace and TCP-debug commands are developer routes, not the game entry offered here; release packaging disables debug tools."
+        },
+        {
+          "title": "Preserve configuration and cartridge progress",
+          "instruction": "Keep vbrecomp.cfg, keybinds.ini, mods and the entire saves folder beside the player, including the title’s existing cartridge-save file. Preserve the original ROM’s separate path and any existing --config, --save or --mods-dir choices if using a previously customized upstream route. Do not transplant another Virtual Boy title’s save or enable a mod to register the game. No source rewrite, save migration, conversion, backup or cross-build compatibility promise is supplied."
+        },
+        {
+          "title": "Keep updates and qualification upstream",
+          "instruction": "Close the actual game and helpers before upstream replacement or file recovery, retain the old complete runtime/data, and review/select the executable after changes. Portcove observes only the selected program and removing the reference leaves all external files intact. Upstream owns runtime replacement, optional mods and save compatibility. Managed acquisition/install/update/backup/rollback, full-session tracking and Supported qualification are not offered; controller, complete-game and real-save acceptance remain separately observed outcomes."
+        }
+      ],
+      "warnings": [
+        "Select MarioTennisVirtualBoyRecomp.exe in the complete Windows release, supply the exact own cartridge dump and retain vbrecomp.cfg plus the whole saves/mods layout. Optional color and developer modes are not enabled by registration."
+      ]
     }
   }
 }

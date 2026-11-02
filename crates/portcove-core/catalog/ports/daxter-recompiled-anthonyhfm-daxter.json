@@ -4,7 +4,7 @@
     "id": "daxter-recompiled-anthonyhfm-daxter",
     "name": "Daxter — daxter-recompiled (anthonyhfm)",
     "original_game_title": "Daxter",
-    "summary": "Experimentalalpha; nativeRefracthost exists; nofullgamecoverageclaim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "This experimental alpha has a native Refract player. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/anthonyhfm/daxter-recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Europe UCES00044 ownISO/executableSHA256checked; localPPSSPPdecryptrequired"
+          "instruction": "Use your own Europe UCES00044 ISO. The project checks the executable SHA-256 and requires local decryption through PPSSPP."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "make macos-run hydrates/decrypts/recompiles locally;WindowsMSVC/Qt6/FFmpegbuild; PSP/PPSSPPtargetsdevelopmentonly."
+          "instruction": "On macOS, follow make macos-run to prepare, decrypt and recompile locally. Windows uses the MSVC, Qt6 and FFmpeg source build. PSP and PPSSPP targets are for development only."
         }
       ],
       "warnings": [
-        "Experimentalalpha; nativeRefracthost exists; nofullgamecoverageclaim.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This experimental alpha has a native Refract player. A complete playthrough is unconfirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/anthonyhfm/daxter-recompiled"
     },

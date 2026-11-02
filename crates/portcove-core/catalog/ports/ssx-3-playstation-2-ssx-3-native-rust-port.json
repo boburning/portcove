@@ -3,13 +3,41 @@
   "listing": {
     "id": "ssx-3-playstation-2-ssx-3-native-rust-port",
     "name": "SSX 3 (PlayStation 2) (SSX 3 native Rust port)",
-    "summary": "Upstream route: Source only, Python setup translates own disc followed by Cargo build. No GitHub releases. Limits: Upstream says races/events/campaign playable; macOS tested, Linux build/tests pass but gameplay untested. Source only. Upstream platforms: Source only. macOS Apple-Silicon ARM64 developed/tested upstream; Ubuntu24.04 Linux x86-64 setup/build/tests work, gameplay untested. Windows native tooling documented; selected Windows CPU target unestablished. Original data: User-owned SSX 3 USA SLUS-20772 ISO, executable hash checked. Portcove setup/gameplay not verified.",
+    "summary": "A source-only SSX 3 PlayStation 2 port: Python setup translates your own USA SLUS-20772 ISO, checking its executable hash, then Cargo builds the player. There are no GitHub releases. The project reports races, events and campaign play on Apple Silicon macOS. Ubuntu 24.04 Linux x86-64 setup/build/tests pass, but gameplay is untested. Windows native tools are documented with exact CPU target unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "SSX 3 (PlayStation 2)",
     "project_url": "https://github.com/andersfischernielsen/ssx3-decomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/andersfischernielsen/ssx3-decomp",
-    "issue_number": 2711
+    "issue_number": 2711,
+    "manual_setup": {
+      "help_url": "https://github.com/andersfischernielsen/ssx3-decomp/blob/5082230d8370dcf7ad62d35e2d8beef487530191/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported PS2 source locally",
+          "instruction": "Use your own SSX 3 USA PS2 disc image for SLUS_207.72. Upstream documents tools/setup.py followed by cargo run --profile game -p ssx3; complete that preparation independently before attachment. The selected source does not publish a whole-disc digest here, so a filename or serial alone is not cryptographic verification. Other regions, the Xbox Berti port and other SSX games are separate source contracts."
+        },
+        {
+          "title": "Keep the existing completed Windows build together",
+          "instruction": "Use the completed windowed target/game/ssx3.exe in its existing prepared project. Keep the source tree, orig/SLUS_207.72, generated code and your original SSX 3 (USA).iso at their active locations. The native file reader and boot path use the build-time project root or existing SSX3_ISO/SSX3_DATA_DIR overrides; moving the executable alone does not relocate those inputs. Project MIT terms do not grant rights to the original game."
+        },
+        {
+          "title": "Attach the windowed native player",
+          "instruction": "Select the completed target/game/ssx3.exe, set working directory to its existing project root and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This entry boots the game and runs its window/event loop in the same process. Do not select ssx3-headless.exe, Cargo, a setup/compiler script, an event-skipping diagnostic or another platform build as the player."
+        },
+        {
+          "title": "Preserve the active card and settings roots",
+          "instruction": "For the ordinary project-built route, retain saves/ssx3-mc0.ps2 and saves/ssx3-settings.cfg under the existing working directory, together with all backups and any existing SSX3_MEMCARD/SSX3_SETTINGS overrides. Upstream’s optional private standalone pack selects a different default Windows root, Roaming AppData/SSX3, unless overridden. Do not mix those roots, replace a populated card or assume emulator/card/state compatibility. Keep original images, extracted data, generated outputs and texture/customization inputs private and intact."
+        },
+        {
+          "title": "Keep preparation and replacement upstream",
+          "instruction": "Upstream owns source updates, regeneration and compatibility decisions. Its optional bundle.py embeds original game data and is documented for personal use only; do not upload or share that private bundle. Complete changes outside a running game and review/relink the resulting player. Windows gameplay/controller behavior and real-save recovery remain unobserved here. Registration provides no managed installation, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Use the completed windowed ssx3.exe and its existing project root. Preserve both the ordinary saves/ root and any separately used standalone AppData/SSX3 root; private game-containing bundles must not be shared."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

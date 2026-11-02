@@ -4,7 +4,7 @@
     "id": "yakuzarecomp-tatsunakyo-yakuza",
     "name": "Yakuza — YakuzaRecomp (TatsunaKyo)",
     "original_game_title": "Yakuza",
-    "summary": "Native boot probe/modules and movie-frame reconstruction; no playable game build. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project reaches a native boot probe, modules and reconstructed movie frames. A playable game build is not available through this guide. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TatsunaKyo/YakuzaRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Europe PAL SLES54171 owned disc"
+          "instruction": "Use your own European PAL SLES54171 disc."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local research build route; Windows eventual target not a working Windows package."
+          "instruction": "Follow the project’s local research build instructions. Windows is a future target; a working Windows package is not available through this guide."
         }
       ],
       "warnings": [
-        "Native boot probe/modules and movie-frame reconstruction; no playable game build.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reaches a native boot probe, modules and reconstructed movie frames. A playable game build is not available through this guide.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/TatsunaKyo/YakuzaRecomp"
     },

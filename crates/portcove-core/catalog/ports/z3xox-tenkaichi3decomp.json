@@ -16,6 +16,34 @@
       "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
       "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/z3xox/Tenkaichi3Decomp/blob/be4c75b367fb859f088cc74126c8067bc6987d29/README.md",
+      "steps": [
+        {
+          "title": "Complete the supported PS2 disc preparation",
+          "instruction": "Use your own unmodified Dragon Ball Z: Budokai Tenkaichi 3 USA SLUS-21678 ISO. Complete Tenkaichi3Decomp-setup.exe upstream preparation before adding the prepared player. It verifies/extracts the disc data next to the program and needs about 4 GB. Other editions are not the gameplay base; a separate supported European-language import is an optional upstream choice. This guide supplies no disc, key, console access, original acquisition or source extraction."
+        },
+        {
+          "title": "Keep the complete selected Windows distribution",
+          "instruction": "Use the full Tenkaichi3Decomp-windows-x64.zip v0.1.39.4 folder with Tenkaichi3Decomp.exe, its setup program, libraries, resources, fonts and notices. Windows 10/11 x64 and the supported graphics/driver path apply; upstream can fall back from Vulkan to OpenGL. This port compiles original decompiled game code; AGPL-3.0-only port changes, retained earlier MIT contributions, third-party libraries and original rights are separate. No permission to redistribute original game code/data, optional stages or songs is inferred."
+        },
+        {
+          "title": "Add the completed ordinary game",
+          "instruction": "After setup select Tenkaichi3Decomp.exe, set its complete containing Tenkaichi3Decomp folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Keep the existing prepared gamedata layout and settings rather than selecting a setup/build tool or a developer replay command as gameplay. If you continue to use the upstream setup frontend for its own preparation/Play flow, that remains a separate upstream choice; Portcove does not automate it."
+        },
+        {
+          "title": "Preserve game data, saves and customization",
+          "instruction": "Keep the complete saves/ folder, bt3_settings.txt, gamedata/ including gamedata/mods and game-text, textures/, stages/, songs/, replays and related user files as present. Preserve the original ISO and any existing path/renderer overrides separately. External stages/music/mods have their own permissions; registration does not enable them. Do not replace populated memory-card/game saves, reset preferences or assume PCSX2 saves or another Budokai game’s data can be imported. Portcove performs no conversion, merging, save migration, backup or restore."
+        },
+        {
+          "title": "Keep updates, netplay and acceptance upstream",
+          "instruction": "Upstream owns update/restart, game-data preparation and compatibility. Online matchmaking/relay use, accounts, optional frame generation and controllers are not configured by registration. Close actual game/helpers before upstream replacement or recovery, preserve the old complete application/data and review/select the current executable after changes. Portcove observes only the selected program; activity completion is not full-session or safe-maintenance evidence. Removing its reference preserves external files. Managed install/update/backup/rollback and Supported qualification are unavailable; upstream gameplay and real-save reports are separate observations."
+        }
+      ],
+      "warnings": [
+        "Add the prepared Tenkaichi3Decomp.exe in the complete Windows release after upstream USA SLUS-21678 setup. Preserve saves/, bt3_settings.txt, gamedata and customization; another Budokai title/edition and optional online/mod routes are separate."
+      ]
     }
   }
 }

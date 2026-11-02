@@ -16,6 +16,34 @@
       "image_sha256": "6c68764e630651cb82ec2f8ed135d662dafe757ba40cb247ce104e4b91c76dda",
       "game_slug": "zelda-ii-the-adventure-of-link",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md",
+      "steps": [
+        {
+          "title": "Keep the Windows release archive intact",
+          "instruction": "Use the complete z2rs-0.6.0-x86_64-pc-windows-msvc.zip folder with z2rs-launcher.exe, z2rs.exe, companions and notices. z2-signal.exe is an optional signalling server, not the player. This is a Rust reconstruction with a native desktop frontend; upstream frame-comparison and enhancement claims do not establish a Portcove playthrough or native/controller observation."
+        },
+        {
+          "title": "Provide your own exact USA ROM",
+          "instruction": "In the upstream launcher choose your own Zelda II: The Adventure of Link (USA) NES ROM. Its accepted ROM body, after stripping the 16-byte iNES header, has CRC32 BA322865 and SHA-1 11333adb723a5975e0ecca3aee8f4747aa8d2d26. These identify the body, not the complete headered file. The game reads the ROM in place and remembers its path; keep it at that location. The project’s MIT code grant and original-ROM/HD-pack rights are separate; no ROM or extracted asset redistribution is granted."
+        },
+        {
+          "title": "Add the ordinary native launcher",
+          "instruction": "Select z2rs-launcher.exe, use its complete release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s ROM picker and Play control. Keep z2rs.exe beside it. After a remembered ROM exists, selecting z2rs.exe with the same directory and empty arguments is an upstream direct-player alternative. Preserve any existing Advanced game-binary override or Z2RS_GAME_BIN choice; do not substitute the server helper."
+        },
+        {
+          "title": "Preserve settings and all save slots",
+          "instruction": "Keep %APPDATA%/z2rs on Windows, or the existing XDG_DATA_HOME/z2rs override, including z2-native.json, battery saves, savestate*.z2snap and other user files. Preserve the original ROM’s separate path, optional HD packs, randomizer outputs and existing custom config paths. Do not assume save-state compatibility beyond upstream’s documented format, import another project’s saves or reset populated options to add the reference. The ROM is not copied into the default data directory."
+        },
+        {
+          "title": "Leave optional services and maintenance upstream",
+          "instruction": "Online co-op, the signalling service, HD packs and Discord presence are upstream options; Portcove does not enable services, supply credentials or configure them. The launcher starts a separate game process: Portcove follows the selected program only, and its activity can finish while the game continues. Close the actual game and helpers before replacing the complete upstream release or recovering files. Review/select the executable after updates. Reference removal preserves external files; managed updates, save conversion, backup, rollback, full-session tracking and Supported qualification are unavailable."
+        }
+      ],
+      "warnings": [
+        "Select z2rs-launcher.exe in the complete Windows release folder and supply your own exact USA ROM. Preserve %APPDATA%/z2rs and the ROM’s original path; the selected launcher does not establish full-game lifetime."
+      ]
     }
   }
 }

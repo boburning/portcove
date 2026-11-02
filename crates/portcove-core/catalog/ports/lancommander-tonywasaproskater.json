@@ -19,11 +19,11 @@
         },
         {
           "title": "Select the inspected x64 player package",
-          "instruction": "The inspected thps-windows-x64-1.4.0.zip has AMD64 thps.exe, README.txt and THIRD-PARTY-NOTICES.txt. This resolves the x64 package’s architecture separately from older source instructions mentioning32bit and the separate x86 release. Keep the matching complete prepared folder and data; upstream specifies Windows 10/11 and OpenGL3.3. Do not infer x86, Linux or physical GPU acceptance from this x64 static inspection."
+          "instruction": "The inspected thps-windows-x64-1.4.0.zip has AMD64 thps.exe, README.txt and THIRD-PARTY-NOTICES.txt. This resolves the x64 package’s architecture separately from older source instructions mentioning 32-bit and the separate x86 release. Keep the matching complete prepared folder and data; upstream specifies Windows 10/11 and OpenGL 3.3. Do not infer x86, Linux or physical GPU acceptance from this x64 static inspection."
         },
         {
           "title": "Review the normal play coordinates",
-          "instruction": "Select thps.exe, use its complete prepared package directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The normal entry runs the native game in its own process; do not select a PS1 executable, compiler or internal asset. Complete first setup or data repair outside an attached attempt. Native startup, gameplay and dynamic dependency resolution have not been observed here."
+          "instruction": "Select thps.exe, use its complete prepared package directory as working directory and leave arguments empty. Review and consent to the selected launch details, then choose Play separately. The normal entry runs the native game in its own process; do not select a PS1 executable, compiler or internal asset. Complete first setup or data repair outside an attached attempt. Native startup, gameplay and dynamic dependency resolution have not been observed here."
         },
         {
           "title": "Preserve game data and the separate Saved Games tree",

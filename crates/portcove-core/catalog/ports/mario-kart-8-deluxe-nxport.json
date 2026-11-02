@@ -3,7 +3,7 @@
   "listing": {
     "id": "mario-kart-8-deluxe-nxport",
     "name": "Mario Kart 8 Deluxe (nxport)",
-    "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: v3.0.4macOS tested upstream; time-trials,multiplayer,online,wireless crash. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for Mario Kart 8 Deluxe. Version3.0.4 documented. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An experimental nxport Switch builder for Mario Kart 8 Deluxe, using an Apple Silicon NVN compatibility layer with game-specific support. The project reports macOS testing of v3.0.4. Time trials, multiplayer, online and wireless modes crash. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Version 3.0.4 is documented. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Mario Kart 8 Deluxe",
     "project_url": "https://github.com/nxporting/nxport",
     "platforms": [],

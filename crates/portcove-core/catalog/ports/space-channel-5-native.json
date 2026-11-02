@@ -25,16 +25,16 @@
           "instruction": "Keep the complete upstream Windows package and use its supported import/preparation with your own original USA GDI and every adjacent track. Keep the originals together and read-only. The release needs no separately installed Python, Git or compiler for normal import. Portcove does not import the disc or build a Dreamcast runtime."
         },
         {
-          "title": "Keep the exact original and preparation boundary",
+          "title": "Use the matching original and setup procedure",
           "instruction": "Use the exact upstream importer’s supported USA layout: a data track at LBA 45000 in Mode1/2352 and its conjunctive extracted-executable identity checks. Those checks concern the imported executable and do not establish a whole-track-set cryptographic certificate. Keep matched extracted assets and native modules; do not substitute another region or partially copied track set."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "After upstream preparation completes, select build/sc5-native-dev.exe with the package root as working directory and the supported literal arguments --gdi followed by your absolute original GDI path. This documented native entry keeps the game harness in-process. Keep the matching build/native-diff modules and support files; do not attach an importer or an arbitrary helper."
         },
         {
-          "title": "Review Play and retain one replacement owner",
-          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          "title": "Review launch details and manage updates",
+          "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
         },
         {
           "title": "Preserve the whole creating copy and effective data",
@@ -42,7 +42,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
       ]
     }
   }

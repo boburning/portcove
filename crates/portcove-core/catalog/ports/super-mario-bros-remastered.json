@@ -14,12 +14,12 @@
           "instruction": "Extract the official 1.1-stable Windows.zip outside the Portcove library. Keep its five files unchanged; do not add portable.txt, loader metadata or mods."
         },
         {
-          "title": "Connect your original",
+          "title": "Select your original game file",
           "instruction": "Choose and check your exact Super Mario Bros. (World) NES original separately in Portcove."
         },
         {
           "title": "Review the shared account directory",
-          "instruction": "Choose the runtime folder below. Review the resolved Windows account and APPDATA/SMB1R directory, then explicitly accept the shared-data disclosure."
+          "instruction": "Choose the extracted runtime folder. Review the resolved Windows account and APPDATA/SMB1R directory, then explicitly accept the shared-data disclosure."
         },
         {
           "title": "Prepare the cached original manually",

@@ -37,7 +37,7 @@
           "instruction": "Keep %LOCALAPPDATA%/Takedawn/Game or the actual game folder chosen upstream, plus data-folder.txt that remembers an alternate root. Preserve %APPDATA%/Takedawn with settings, controller profiles and UDATA/4541005b saves, backups and save history; retain shader/texture caches, logs, custom music, mods, original images, old program copies and every effective custom root, including any RECOMP_SAVE_DIR override. The upstream program may migrate earlier Burnout3-named data on startup; retain those earlier folders too. Source review does not certify real-save or cross-version compatibility."
         },
         {
-          "title": "Retain permissions and honest evidence limits",
+          "title": "Use permitted content and check this guide’s limits",
           "instruction": "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate. Public release metadata and upstream BUILDINFO are publisher assertions, not a reproduced build or independently inspected installed package. This guide offers local completed-copy launch only; it grants no network/account setup, gameplay, installed-client, Supported or protected-publication acceptance."
         }
       ],

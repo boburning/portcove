@@ -29,7 +29,7 @@
           "instruction": "Keep restuff.exe, restuff.toml, all SDK/GPU/shader DLLs and packaged data together. Use restuff.exe with its established executable-directory working coordinates. prewarm_shaders.bat is an optional GPU-cache helper, not the normal game entry; do not attach or run it through this guide. Normal first launch performs its own shader/pipeline warming, so prior helper execution is not an added requirement."
         },
         {
-          "title": "Review the native attachment and choose Play separately",
+          "title": "Review launch details, then choose Play",
           "instruction": "Select the intended completed native Windows player, its established working directory and supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep the whole creating runtime and data usable. This is non-owning attachment: upstream/player owns source preparation, engine replacement and recovery. Core provides no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file."
         },
         {

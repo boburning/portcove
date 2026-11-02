@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-valkyrie-profile-recomp",
     "name": "Valkyrie Profile / Alexbeav PSXRecomp",
-    "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
+    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/valkyrie-profile-recomp",
     "issue_number": 491,
     "platforms": ["windows-x86-64", "linux-x86-64"],

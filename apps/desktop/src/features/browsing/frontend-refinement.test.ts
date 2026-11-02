@@ -58,10 +58,10 @@ it.each(["library", "catalog"] as const)(
       expect(browseStatusSummary(ready.state, status, true)).toEqual({
         showReadiness: false,
         update: {
-          acquiring: "Downloading archive",
-          verifying: "Verifying archive",
-          acquired: "Archive downloaded",
-          attention_required: "Archive needs attention",
+          acquiring: "Downloading update",
+          verifying: "Checking downloaded update",
+          acquired: "Update downloaded, not installed",
+          attention_required: "Downloaded update needs attention",
         }[phase],
       });
     }

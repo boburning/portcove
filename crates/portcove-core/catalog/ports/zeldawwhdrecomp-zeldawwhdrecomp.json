@@ -16,6 +16,34 @@
       "image_sha256": "2a1bbeb196640888a17f5911593796fe7fe73c25fff25201c789ad6ea0cec8f6",
       "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/blob/f55548214ac2d029c3c92d6d4be9a4f6e77ba35e/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported Wii U base game upstream",
+          "instruction": "Use your own The Legend of Zelda: The Wind Waker HD USA title 00050000-10143500 or Europe 00050000-10143600, version 0. The selected setup accepts a supported extracted game or archive; updates contain different code and are not interchangeable with the base version. Complete upstream validation, extraction and local native-code build using the official v0.5.0-devel.f5554821 Windows x86-64 package. An already extracted supported game needs no console-key operation. Private originals, decryption keys and any optional imports remain entirely upstream/user-owned."
+        },
+        {
+          "title": "Keep the complete completed-build tree",
+          "instruction": "Retain the full release and data/ tree: install.json, guest-sdk.json, bin/wwhd.exe and its matching runtime DLLs, prepared game/, save/, user/, captures, tools/ and sdk/. The packaged Wind Waker HD.exe is the setup interface, not the locally generated game. The ordinary translated product is distinct from the optional decomp product and code-mod builds; keep their maintenance and compatibility separate. Retain project MPL-2.0 and all Cemu/runtime/library/component notices without treating them as a license to original game data."
+        },
+        {
+          "title": "Attach the actual native product",
+          "instruction": "Select the completed data/bin/wwhd.exe, set working directory to that actual data/ directory and use --game \"the existing prepared game directory\" --save \"the existing active save directory\". This matches the selected producer’s native-game shortcut and bypasses the detaching Windows setup launcher. Review the exact paths and intent and choose Play when ready. Preserve an existing --user-dir or --data-dir override if already used; do not add one to create an empty profile. Keep the game and matching DLLs together and close its actual native window normally."
+        },
+        {
+          "title": "Preserve portable saves, settings and custom roots",
+          "instruction": "The release’s existing portable.txt beside the native EXE keeps user settings/controls/states/shader caches under data/user; the game save normally stays under data/save. Without that marker, source-build user configuration can use %APPDATA%/WWHD; an existing WWHD_USER_DIR/--user-dir takes precedence. Preserve every actually active root, original/base game, install receipt, save backups, user data, captures and prior installation. Cemu/Wii U, GameCube or earlier-port save import is an explicit upstream conversion/copy step, not an attachment guarantee. Do not change markers, merge saves, copy a new empty user tree over an old one or delete recovery."
+        },
+        {
+          "title": "Keep preview, setup and maintenance limits",
+          "instruction": "The selected artifact is a development preview; Windows ARM64, Android, Linux and macOS have separate setup/runtime evidence. Upstream owns toolchain/source preparation, updates, optional code mods and recovery. Finish rebuilds/replacement outside a game session, preserve populated data and review/relink changed bytes. This route does not run setup, obtain private input or assert full gameplay, native/installed observations or real-save restore. Portcove supplies no managed installation/update/backup/rollback/migration/external deletion for the selected player."
+        }
+      ],
+      "warnings": [
+        "Select completed data/bin/wwhd.exe with the actual prepared game and save paths. Keep the whole data tree and existing portable/user-root choice; the top-level Windows setup interface detaches."
+      ]
     }
   }
 }

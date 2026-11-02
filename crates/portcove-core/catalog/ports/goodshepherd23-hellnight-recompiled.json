@@ -29,7 +29,7 @@
         },
         {
           "title": "Select the documented completed build product",
-          "instruction": "Select the finished build-release/Hellnight_Recompiled.exe and use that complete build-release directory as working directory; leave arguments empty. Upstream stages runtime configs for direct build launches. The completed game-dispatch product keeps its normal launcher/game in-process rather than taking the setup-host forward path. Keep the same supported disc selected if the player asks. Saving launch details and Play are separate actions. Setup, Generate & rebuild, PGO optimize or optional relaunch/restart actions remain outside this tracked initial-player route; close any actual successors before another attachment or maintenance."
+          "instruction": "Select the finished build-release/Hellnight_Recompiled.exe and use that complete build-release directory as working directory; leave arguments empty. Upstream stages runtime configs for direct build launches. The completed player runs its normal launcher and game in the selected process, while the setup program starts another process and exits. Keep the same supported disc selected if the player asks. Saving launch details and Play are separate actions. Setup, Generate & rebuild, PGO optimize or optional relaunch/restart actions remain outside this tracked initial-player route; close any actual successors before another attachment or maintenance."
         },
         {
           "title": "Back up active settings, cards and all custom roots before startup",

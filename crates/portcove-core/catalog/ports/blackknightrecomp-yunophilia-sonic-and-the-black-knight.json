@@ -4,7 +4,7 @@
     "id": "blackknightrecomp-yunophilia-sonic-and-the-black-knight",
     "name": "Sonic and the Black Knight — BlackKnightRecomp (yunophilia)",
     "original_game_title": "Sonic and the Black Knight",
-    "summary": "Boot/gameplay claimed; Proton9/Experimental tests software Vulkan only; SteamDeck not tested Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project reports startup and gameplay. Proton 9 and Experimental tests used software Vulkan only; Steam Deck play is untested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/yunophilia/BlackKnightRecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA RENE8P/Europe RENP8P/Japan RENJ8P owned ISO/RVZ/WIA/WBFS; extracts once ~3.5GB"
+          "instruction": "Use your own USA RENE8P, Europe RENP8P or Japan RENJ8P disc in ISO, RVZ, WIA or WBFS form. The first extraction needs about 3.5 GB."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release exe includes translated code; source build reads own discs; installer retains extracted data"
+          "instruction": "The release executable includes the translated game code; follow its installer instructions with your own disc data. The installer retains the extracted data. Building from source is a separate route that reads your own discs."
         }
       ],
       "warnings": [
-        "Boot/gameplay claimed; Proton9/Experimental tests software Vulkan only; SteamDeck not tested",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports startup and gameplay. Proton 9 and Experimental tests used software Vulkan only; Steam Deck play is untested.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/yunophilia/BlackKnightRecomp"
     },

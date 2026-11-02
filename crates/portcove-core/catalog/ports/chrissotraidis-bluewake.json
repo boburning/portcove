@@ -16,6 +16,34 @@
       "image_sha256": "3cddca6230a670b7b1eb79f84ea5b57202b9341ed4e0b47067a3e1a0e0cba1a9",
       "game_slug": "the-legend-of-zelda-the-wind-waker",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
+      "steps": [
+        {
+          "title": "Use the exact GameCube edition and Windows route",
+          "instruction": "Use your own The Legend of Zelda: The Wind Waker GameCube USA GZLE01 revision 0 disc image in the supported ISO/GCM representation. Wind Waker HD for Wii U and other revisions are separate contracts. The Windows release is a native x86-64 host using translated game code and a Dolphin-derived runtime; this does not establish a completely native implementation. Follow the selected upstream release or its supported owned-disc source build; do not redistribute a private game-derived build."
+        },
+        {
+          "title": "Keep the complete Windows package or completed build",
+          "instruction": "Retain the complete BlueWake folder, BlueWake.exe, game module, DLLs, resources and notices. The inspected selected release is v0.10.0; some README/build-page links still name v0.9.0, so do not combine their files or treat that older text as a second artifact selection. Windows 10/11 x64, Direct3D 12 and the release CPU requirements apply; the normal game module uses x86-64-v3 features including AVX2, FMA and BMI2. A source build has its own Visual Studio/Clang, Python, Git, CMake and Ninja prerequisites; the packaged player and build tools are different routes."
+        },
+        {
+          "title": "Add the existing native frontend",
+          "instruction": "Select BlueWake.exe in the complete BlueWake folder, use that containing folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its own disc picker. Keep the selected disc at its existing location. RVZ and other compressed formats require their separate upstream conversion/preparation; Portcove does not acquire originals, run a converter or supply keys. Preserve project, runtime, original-game and optional texture-pack rights separately."
+        },
+        {
+          "title": "Preserve the active memory card and configuration",
+          "instruction": "Keep the whole %APPDATA%/BlueWake folder, including GZLE01.card, sram.bin, settings.ini, logs, caches, texture/mod data and existing backups. An existing portable.txt beside BlueWake.exe instead selects its adjacent user folder; preserve that marker and populated folder. Do not create a new portable marker to add the reference or assume data moves automatically. Wind Waker Recomp 0.4 can share the same Windows data root; preserve a separate copy before switching upstream builds. Renaming a Dolphin .gci to .card is not a save conversion, and Dolphin save states are not game saves."
+        },
+        {
+          "title": "Keep maintenance and observations separate",
+          "instruction": "Close the actual game and helpers before upstream replacement, rebuild, save import or recovery. Use upstream’s documented save tools on retained copies; Portcove does not migrate or repair cards. Review/select the executable after changes. Only the selected program is observed; removing the reference preserves external files. Managed acquisition/update/backup/rollback and Supported qualification are not supplied. Upstream playability, save-survival and controller reports are not Portcove gameplay, native or real-save observations."
+        }
+      ],
+      "warnings": [
+        "Keep BlueWake.exe with its complete Windows release/build and your own GameCube USA revision 0 disc. Preserve the actual %APPDATA%/BlueWake or existing portable user folder, including GZLE01.card; Wii U HD and Dolphin save states are separate."
+      ]
     }
   }
 }

@@ -3,7 +3,7 @@
   "listing": {
     "id": "jazz-jackrabbit-2-jazz2-resurrection",
     "name": "Jazz Jackrabbit 2 (Jazz² Resurrection)",
-    "summary": "Upstream route: Native C++ reimplementation with detailed desktop original-data setup. Limits: Supports several original editions; downloads use project site/release channel outside this code repo. Upstream platforms: Official project-site Windows/Linux/macOS downloads with original-data setup. Selected artifact CPU architectures unknown in frozen research. Original data: Supply the original Jazz Jackrabbit 2 installation directory contents in Jazz2 Resurrection Source/ (or its documented per-user Source directory for the selected package). README supports the Shareware Demo, Holiday Hare 98, The Secret Files and Christmas Chronicles, as well as the original game; each provides its own content. Exact accepted patch/localization remains Unknown here. Portcove setup/gameplay not verified.",
+    "summary": "Play Jazz Jackrabbit 2 with Jazz2 Resurrection and your own supported original or shareware data in Source/. Supported editions include the original game, Shareware Demo, Holiday Hare 98, The Secret Files and Christmas Chronicles; each supplies only its own content. Official Windows, Linux and macOS downloads have separate CPU and renderer choices. Check the exact patch and language requirements upstream before setup. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Jazz Jackrabbit 2",
     "project_url": "https://github.com/deathkiller/jazz2-native",
     "platforms": [],
@@ -27,7 +27,7 @@
         },
         {
           "title": "Complete preparation without replacing your state",
-          "instruction": "Keep the selected tree as working directory so Content, Source and Cache resolve together. Missing Anims.j2a/AnimsSw.j2a does not produce a playable installation. With originals present, upstream converts data during startup, can replace converted cache contents, and records its own binary Source.idx; that is not a Portcove setup receipt. Preserve the full original Source, custom Content, complete Cache and unknown files before changing versions. The package-owned Source/_Readme.txt does not make the entire Source directory disposable."
+          "instruction": "Keep the selected tree as working directory so Content, Source and Cache resolve together. Missing Anims.j2a/AnimsSw.j2a does not produce a playable installation. With originals present, upstream converts data during startup, can replace converted cache contents, and records its own binary Source.idx; Portcove does not perform that conversion or confirm it succeeded. Preserve the full original Source, custom Content, complete Cache and unknown files before changing versions. The package-owned Source/_Readme.txt does not make the entire Source directory disposable."
         },
         {
           "title": "Keep the creating settings and progress location",
@@ -35,16 +35,16 @@
         },
         {
           "title": "Check the working copy before registration",
-          "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
         },
         {
           "title": "Keep updates and removal under the existing owner",
-          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
         }
       ],
       "warnings": [
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
       ]
     }
   },

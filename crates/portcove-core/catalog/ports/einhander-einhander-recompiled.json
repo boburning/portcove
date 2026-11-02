@@ -23,15 +23,15 @@
       "steps": [
         {
           "title": "Complete the owned-input preparation upstream",
-          "instruction": "Use your own USA Einhänder PlayStation disc, SCUS-94243, as its CUE and every referenced BIN. The official Windows setup ZIP is a local build kit, not a ready game: it supplies no original disc, retail BIOS or generated game code. Complete upstream’s supported Generate & rebuild flow with its Python/toolchain outside Portcove. OpenBIOS is generated locally by default; an optional retail BIOS must be your own permitted copy. Keep the actual working disc and BIOS selections. This guide runs no compiler/helper and imports no original through Core."
+          "instruction": "Use your own USA Einhänder PlayStation disc, SCUS-94243, as its CUE and every referenced BIN. The official Windows setup ZIP is a local build kit, not a ready game: it supplies no original disc, retail BIOS or generated game code. Complete upstream’s supported Generate & rebuild flow with its Python/toolchain outside Portcove. OpenBIOS is generated locally by default; an optional retail BIOS must be your own permitted copy. Keep the actual working disc and BIOS selections. Portcove does not run the compiler or setup helpers, or import your original files."
         },
         {
           "title": "Attach the completed product",
           "instruction": "After successful upstream preparation, select build-release/Einhander_Recompiled.exe, the completed executable’s parent directory as working directory and the supported --launcher literal argument. Keep its staged game.toml and matching resources in place. The root setup executable starts a replacement product and exits on Windows, so select the completed product instead. Keep Generate/Rebuild and SDK/toolchain changes as deliberate upstream maintenance outside the active attached session; an intentional rebuild can end or replace the process."
         },
         {
-          "title": "Review the native attachment and choose Play separately",
-          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
         },
         {
           "title": "Preserve the whole creating project and effective player data",
@@ -39,7 +39,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
       ]
     }
   }

@@ -14,7 +14,7 @@
       "help_url": "https://github.com/mr-finster/vf1-recomp/blob/9586e1433366f8af6aa80659dc1f9f45291a086d/README.md",
       "steps": [
         {
-          "title": "Prepare the exact own-ROM game upstream",
+          "title": "Set up the game with your matching ROM",
           "instruction": "Use a complete copy and components you are independently permitted to use, with your own vf.zip (MAME vf set). The reviewed 1.5.0 runtime reads and recompiles that input locally when it starts; no ROM is supplied by this guide. Follow upstream first-run selection/checks outside Portcove and retain the original archive before any picker copies it into the active roms folder. Another game’s similarly named set is not interchangeable. No original, game program, helper, reference build or test mode is obtained or executed here."
         },
         {
@@ -26,11 +26,11 @@
           "instruction": "Select VirtuaFighter.exe, use its complete extracted VirtuaFighter directory as working directory and leave arguments empty after upstream setup has located the intended ROM. Review the exact selected intent, then request Play separately. The ordinary SDL host runs the game in the selected process. If it asks for setup again, complete that outside the attached attempt before retrying. Source/header inspection establishes coordinates, not native execution, dynamic dependency resolution or gameplay."
         },
         {
-          "title": "Preserve the effective ROM and player-data locations",
+          "title": "Keep the ROM and game-data folders in use",
           "instruction": "Keep the complete active data folder, normally %APPDATA%/Virtua Fighter Recomp on Windows, including settings.ini, roms, nvram.sav, eeprom.sav or eeprom_93c46.sav, ranking_names.txt, log.txt and screenshots/resources. An existing portable.txt mode or package-local roms/source-tree route can select another root; keep the actual location named by the upstream log. An already configured --roms, VF_ROMS or settings.ini roms_folder selects a separate ROM folder, and an established VF_DATA selects another data root. Retain all of them and original archives. This guide adds no override/portable marker, copies no ROM and performs no save migration."
         },
         {
-          "title": "Keep per-title restarts and maintenance external",
+          "title": "Restart and update this game through the project",
           "instruction": "For this title, the Model1 I/O board choice changes EEPROM representation; keep both existing EEPROM files. Complete upstream edition changes, arcade/service reset paths, setup and runtime replacement outside an attached session. Close the actual game and any successor, preserve independent recovery copies, then review/relink changed executable bytes. Quit normally so upstream can save NVRAM/settings; forced termination is not a flush or quiescence guarantee. Removing registration leaves all external files intact."
         },
         {

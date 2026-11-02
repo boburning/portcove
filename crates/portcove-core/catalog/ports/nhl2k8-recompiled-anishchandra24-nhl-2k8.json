@@ -4,7 +4,7 @@
     "id": "nhl2k8-recompiled-anishchandra24-nhl-2k8",
     "name": "NHL 2K8 — NHL2K8-Recompiled (anishchandra24)",
     "original_game_title": "NHL 2K8",
-    "summary": "Upstream boots/menus/quickGames/franchise/tournaments/saveLoad tested on2PCs; crowd stutter/paleRed/brightness defects; online unsupported; clean-machine dependency install unverified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project reports boot, menus, quick games, franchise, tournaments and save/load tests on two PCs. Crowd stutter, pale-red colouring and brightness defects remain. Online play is unsupported, and dependency installation on a clean machine has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/anishchandra24/NHL2K8-Recompiled",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "title54540809 v0.0.0.3 default.xex size9383936 SHA256 BA4E63334FAF296019657C6E86BBD444CB05646E29FA6C7B72F4BF9709CE4225; own extracted folder incl other game files."
+          "instruction": "Use your own extracted title 54540809 version 0.0.0.3 folder with all game files. Its default.xex must be 9383936 bytes with SHA256 BA4E63334FAF296019657C6E86BBD444CB05646E29FA6C7B72F4BF9709CE4225."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "v0.2.0 setup builds locally via pinned patched SDK; VS2022CommunityClang/CMake required; Windowsx64D3D12."
+          "instruction": "Use the v0.2.0 setup to build locally with its pinned patched SDK. Install the documented VS2022 Community Clang and CMake prerequisites. The player targets Windows x64 with D3D12."
         }
       ],
       "warnings": [
-        "Upstream boots/menus/quickGames/franchise/tournaments/saveLoad tested on2PCs; crowd stutter/paleRed/brightness defects; online unsupported; clean-machine dependency install unverified.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports boot, menus, quick games, franchise, tournaments and save/load tests on two PCs. Crowd stutter, pale-red colouring and brightness defects remain. Online play is unsupported, and dependency installation on a clean machine has not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/anishchandra24/NHL2K8-Recompiled"
     },

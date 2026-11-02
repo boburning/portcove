@@ -1171,7 +1171,7 @@ describe("workspace refresh recovery", () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
     await act(async () =>
-      operations.perform("support bundle", () => Promise.resolve("bundle.zip"), {
+      operations.perform("support report", () => Promise.resolve("bundle.zip"), {
         refresh: "none",
         invalidateDiagnostics: false,
       }),

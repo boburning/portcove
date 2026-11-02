@@ -3,13 +3,41 @@
   "listing": {
     "id": "shihabal3amri-tekken-tag-tournament-2-pc",
     "name": "Tekken Tag Tournament 2 (tekken-tag-tournament-2-pc)",
-    "summary": "Upstream route: ttt2_setup.exe is bootstrapper/installer: checks own disc+TU3, builds PCversion and prepares shaders. Separate ttt2-server packages are hosting utilities. Upstream installer/server maintainers own runtime preparation; Portcove does not. Limits: Upstream only: Upstream advertises 59 fighters, rollback and ranked play. Installer/TU3 preparation and dedicated-server coverage remain distinct; gameplay untested here. Player installer ttt2_setup.exe differs from server Linux/ARM64 packages. Do not label dedicated server assets as Linux player runtime. Upstream 59-fighter/rollback/ranked claims untested here. Upstream platforms: Windows 10/11 player installer. Windows/Linux amd64 and Linux ARM64 server packages are not Linux player runtimes. Original data: Xbox 360 Tekken Tag Tournament 2 own game and supported title update. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A Tekken Tag Tournament 2 Windows 10/11 player installer. ttt2_setup.exe checks your own Xbox 360 disc and supported TU3, builds the PC version and prepares shaders. Separate ttt2-server Windows/Linux amd64 and Linux ARM64 packages host servers; they are not Linux players. The project’s claims of 59 fighters, rollback and ranked play are untested here. Its installer and server maintainers manage preparation, rather than Portcove. Exact accepted game revision/hashes and BIOS/firmware needs are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Tekken Tag Tournament 2",
     "project_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
-    "issue_number": 2748
+    "issue_number": 2748,
+    "manual_setup": {
+      "help_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/blob/e19ce43fe49ecd4b2e7887886e95625bca86a315/README.md",
+      "steps": [
+        {
+          "title": "Complete the upstream player installation",
+          "instruction": "Use your own Tekken Tag Tournament 2 (USA, Europe) Xbox 360 disc ISO and supported Title Update 3. Finish ttt2_setup.exe, including extraction, patching and shader preparation, before adding the player. The installer checks the retail Default.xex SHA-1 a942090b7c293d0ce63346ed8a2974448135d0dd and the decrypted TU3 image SHA-1 66adbc1a7744ec840a3ae8e51f8aeb677140d789; these are different objects, not ISO hashes. Do not bypass a source mismatch or substitute another title update."
+        },
+        {
+          "title": "Keep the installed Windows player together",
+          "instruction": "Keep the complete installed folder containing Tekken Tag Tournament 2.exe, its runtime libraries, notices and game/tekken.img with the other extracted game files. Use Windows 10/11 64-bit, DirectX 11 graphics and the documented storage budget of about 13 GB. The separately published ttt2-server packages are hosting utilities, not Linux players. Original game, Steamworks/runtime and project rights remain separate."
+        },
+        {
+          "title": "Add the completed native game",
+          "instruction": "Select Tekken Tag Tournament 2.exe, choose its installed containing directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. The ordinary installed layout supplies game-root and renderer defaults; do not copy a development launch command or select ttt2_setup.exe, uninstall.exe or a server utility as the game. Steam sign-in and online services remain upstream requirements for online play; Portcove does not configure accounts or servers."
+        },
+        {
+          "title": "Preserve the separate user-data folder",
+          "instruction": "Keep the complete %LOCALAPPDATA%/TTT2Recomp folder, including saves, profiles, settings.ini, shader cache, logs and network/replay data as present, as well as the original disc/TU3 and installed game directory. Preserve any existing upstream environment overrides rather than resetting them to add the reference. Portcove does not import, merge, convert or back up these files. The upstream uninstaller has a separate remove-saves choice; removing the Portcove reference does not run it."
+        },
+        {
+          "title": "Leave maintenance and qualification upstream",
+          "instruction": "Quit the actual game and helpers before upstream repair, replacement or recovery. Upstream owns installation, shaders, runtime updates and source verification. Review/select the executable again after changes. Portcove observes the selected program only and supplies launch plus reference removal, with no managed update, backup, rollback or deletion of external files. Upstream fighter, rollback, ranked and save-survival claims are not Portcove gameplay, network, controller or real-save observations; Supported qualification is not supplied."
+        }
+      ],
+      "warnings": [
+        "Use the completed Tekken Tag Tournament 2.exe installation, not its setup or dedicated server. Preserve %LOCALAPPDATA%/TTT2Recomp and the complete game folder; own disc plus supported TU3 are required."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

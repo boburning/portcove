@@ -74,7 +74,7 @@ export function PreliminarySourceSelections({
                   if (candidate && profile) onReview(candidate);
                 }}
               >
-                Review preliminary selection
+                Check these files
               </Button>
             )}
           </div>

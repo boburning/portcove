@@ -16,6 +16,34 @@
       "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
       "game_slug": "bloodborne",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port/blob/2cc3764f59c3256955207604c6c6098739b932b6/README.md",
+      "steps": [
+        {
+          "title": "Use your own exact game edition",
+          "instruction": "Use your own complete, already decrypted Bloodborne PS4 CUSA03173 v1.09 folder with eboot.bin. Another region/version, encrypted package or executable without its matching assets is not the accepted source. Complete upstream’s game-folder selection and preparation before relying on Play. No game files, keys, console access, decryption, credentials or original-source acquisition are supplied by Portcove."
+        },
+        {
+          "title": "Keep this fork’s full Windows release together",
+          "instruction": "Use the complete bloodborne_pc_windows_port_v0.8.0_release.zip folder with BloodborneLauncher.exe, out/bbport.exe, runtime/GPU libraries, run.bat, python-embed, scripts, resources and notices. The documented Windows x64 host needs Vulkan 1.3 and AVX with OSXSAVE/XCR0 YMM enabled; AVX2 is not universally required. It runs the original x86-64 PS4 code with compatibility services and shadPS4-derived GPU translation, not a source decompilation. Base GPL-2.0-or-later and GPL-3.0-or-later bbhost-derived component terms remain separate from original-game and other dependency rights."
+        },
+        {
+          "title": "Add the normal packaged Windows launcher",
+          "instruction": "Select BloodborneLauncher.exe, use its complete containing release root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s supported game-folder and Play controls. The packaged PySide frontend delegates through its supplied run.bat/embedded Python/runtime context. Keep those companions; selecting cmd.exe, python.exe, run.bat or a bare out/bbport.exe is not the same upstream play contract."
+        },
+        {
+          "title": "Keep this installation’s saves and settings intact",
+          "instruction": "Preserve the complete user/ directory with saves and shader caches, bbport.ini, bblauncher_settings.json, input/mod configuration, out/ prepared content, logs and other existing files. Keep any existing BB_USER_DIR and configured path overrides with their actual populated folders. Preserve original dumps separately. Do not replace these with another fork’s similarly named state or assume shadPS4/client save migration just because the title matches. Portcove performs no save import, merging, conversion, backup or restore."
+        },
+        {
+          "title": "Keep runtime replacement and optional features upstream",
+          "instruction": "Online services, mods, patches, experimental scaling/GPU choices and credentials remain upstream options; registration does not enable them. Portcove observes the selected launcher only, not every successor game/helper. Close actual processes before upstream replacement, preparation repair or recovery, preserve the prior complete application/data and review/select the launcher again after changes. Removing the library reference keeps external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable. Upstream playable/controller/save reports are not Portcove native/gameplay or real-save acceptance."
+        }
+      ],
+      "warnings": [
+        "Select this fork’s BloodborneLauncher.exe in the intact v0.8.0 release root with your own decrypted CUSA03173 v1.09. Preserve user/, bbport.ini, bblauncher_settings.json and all helper context; AVX/OSXSAVE and Vulkan requirements remain."
+      ]
     }
   }
 }

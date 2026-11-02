@@ -4,7 +4,7 @@
     "id": "v64recomp-quake-us-polaco1782-quake-n64",
     "name": "Quake (N64) — v64recomp / quake-us (polaco1782)",
     "original_game_title": "Quake (N64)",
-    "summary": "Research project. Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Quake (N64) N64 own USA ROM; quake-us exactsize/SHA1 inprofile. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own Quake (N64) Nintendo 64 USA ROM. Check the required size and SHA-1 in games/quake-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "tools/import_rom.py --profile games/quake-us/profile.toml normalizes ownz64/n64/v64, CMake quake-us-release builds native quake-us; externalROMdefault, optionalembeddedbuildprivate. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Use tools/import_rom.py --profile games/quake-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake quake-us-release target to produce the native quake-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
         }
       ],
       "warnings": [
-        "Per-title gameplay not established by shared README; linked game notes required; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The shared README does not confirm gameplay for this game. Check the linked game notes; progress reported for other games does not establish that this one works. A full playthrough and Portcove gameplay checks have not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/polaco1782/v64recomp"
     },

@@ -150,6 +150,116 @@ describe("individual update failure interaction", () => {
 
 vi.mock("../../clipboard", { spy: true });
 
+describe("retained task recovery navigation", () => {
+  const interrupted = (): ActivityRecord => {
+    const failure = failureReport();
+    failure.presentation.presentation_key = "operation_interrupted";
+    failure.presentation.summary = "Portcove stopped before this task finished.";
+    failure.presentation.mutation_state = "unknown";
+    failure.presentation.recovery_actions = ["review_current_state", "view_technical_details"];
+    return {
+      id: "interrupted-update",
+      operation: "update",
+      target_kind: "port",
+      target_id: port.id,
+      status: "failed",
+      started_at: 1,
+      finished_at: 2,
+      message: "private-worker-message",
+      failure,
+      cancellation: null,
+    };
+  };
+
+  async function renderTask(activity: ActivityRecord) {
+    const onSelect = vi.fn();
+    const result = await renderComponent(
+      <UpdateCenter
+        section="tasks"
+        generation={1}
+        ports={[port]}
+        statuses={new Map()}
+        activities={[activity]}
+        activityFeed={{
+          records: [activity],
+          current_activity_ids: [],
+          attention_required_activity_ids: [activity.id],
+          recovery_required_activity_ids: [],
+          active_and_actionable_complete: true,
+          terminal_history_complete: true,
+          terminal_history_count: 1,
+          terminal_history_limit: 20,
+        }}
+        outcomes={[]}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={vi.fn()}
+        onSelect={onSelect}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+    return { result, onSelect };
+  }
+
+  it("opens only the failed task's resolved game through its offered review action", async () => {
+    const { result, onSelect } = await renderTask(interrupted());
+    try {
+      await expect
+        .element(page.getByText("Portcove stopped before this task finished."))
+        .toBeVisible();
+      expect(document.body.textContent).not.toContain("private-worker-message");
+      expect(onSelect).not.toHaveBeenCalled();
+      await page.getByRole("button", { name: "Review game", exact: true }).click();
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+        port.id,
+        "updates:activity:interrupted-update:review",
+      );
+    } finally {
+      await result.unmount();
+    }
+  });
+
+  it("keeps setup review ahead of the generic game review", async () => {
+    const activity = interrupted();
+    activity.failure!.presentation.recovery_actions.unshift("review_preparation");
+    const { result, onSelect } = await renderTask(activity);
+    try {
+      await expect
+        .element(page.getByRole("button", { name: "Review setup", exact: true }))
+        .toBeVisible();
+      await expect
+        .element(page.getByRole("button", { name: "Review game", exact: true }))
+        .not.toBeInTheDocument();
+      await page.getByRole("button", { name: "Review setup", exact: true }).click();
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+        port.id,
+        "updates:activity:interrupted-update:review",
+      );
+    } finally {
+      await result.unmount();
+    }
+  });
+
+  it.each(["missing-port", "library"])(
+    "offers no game review for unresolved %s targets",
+    async (target) => {
+      const activity = interrupted();
+      if (target === "library") activity.target_kind = "library";
+      else activity.target_id = target;
+      const { result, onSelect } = await renderTask(activity);
+      try {
+        await expect
+          .element(page.getByRole("button", { name: "Review game", exact: true }))
+          .not.toBeInTheDocument();
+        expect(onSelect).not.toHaveBeenCalled();
+      } finally {
+        await result.unmount();
+      }
+    },
+  );
+});
+
 it("keeps the focused task and expanded diagnostics mounted through Activity regrouping", async () => {
   const record: ActivityRecord = {
     id: "settling-task",

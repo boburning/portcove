@@ -28,7 +28,7 @@
           "instruction": "Finish the upstream settings application and a normal working launch first. Select strikers.exe. Its installation is the normal working folder, but preserve the established working directory and literal paths if the actual working launch differs; relative INI/source/profile paths can otherwise change. A configured copy normally needs no extra arguments. The settings app starts the game detached, so select the game itself. Preserve your actual strikers.ini and source paths. Portcove saves launch details without starting setup; choosing Play is separate."
         },
         {
-          "title": "Keep the existing configuration and profile coordinates",
+          "title": "Keep your configuration and profile paths",
           "instruction": "The runtime looks for strikers.ini beside its executable before the working-folder fallback; an explicit STRIKERS_CONFIG selects another file. Existing USER_DIR and CACHE_DIR configuration or STRIKERS_USER_DIR/STRIKERS_CACHE_DIR can select other profile/cache paths. Keep the same established configuration and absolute paths; this route does not invent environment redirects or migrate data. The Windows default user folder is APPDATA/Super Mario Strikers. Another runtime folder does not isolate a shared profile."
         },
         {

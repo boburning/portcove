@@ -17,12 +17,12 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Extract Windows release and populate game with own retail disc files; no title updates are supported."
+          "instruction": "Extract the Windows release and place your own retail disc files in game. Use the base game; title updates are not supported."
         }
       ],
       "warnings": [
         "Release/input options documented; full progression coverage unknown.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation"
     },

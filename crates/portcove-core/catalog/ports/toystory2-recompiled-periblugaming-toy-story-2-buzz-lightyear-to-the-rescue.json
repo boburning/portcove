@@ -4,11 +4,11 @@
     "id": "toystory2-recompiled-periblugaming-toy-story-2-buzz-lightyear-to-the-rescue",
     "name": "Toy Story 2: Buzz Lightyear to the Rescue — ToyStory2 Recompiled (PeriBluGaming)",
     "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue",
-    "summary": "Information only; source hold. Nativegame runtime; exactgameplayprogressunknown Acquisition is blocked: Committed/distributed translated gameC and package provenance require review; precise gameplay completion is unestablished. Resume: Expose manual ToyStory2 research listing with standalone route and optional RetComM integration, retaining generated-code acquisition hold. Portcove has not verified setup or gameplay.",
+    "summary": "Information only. ToyStory2 Recompiled has a native player, but exact gameplay progress is unconfirmed. New downloads remain unavailable while committed/distributed translated game C and package provenance are unresolved. Standalone own-disc information and optional RetComM integration do not clear that condition. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/PeriBluGaming/ToyStory2Recomp",
     "platforms": ["windows-x86-64", "macos-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "Committed/distributed translated gameC and package provenance require review; precise gameplay completion is unestablished. Resume: Expose manual ToyStory2 research listing with standalone route and optional RetComM integration, retaining generated-code acquisition hold.",
+    "download_block_reason": "New downloads are unavailable while the committed/distributed translated game C and package provenance remain unresolved. Gameplay completion is unconfirmed. Information about the standalone own-disc route and optional RetComM integration is retained; these do not clear the generated-code acquisition condition.",
     "issue_number": 3401
   },
   "upstream_lineage": {

@@ -87,27 +87,27 @@ pub(crate) async fn cleanup_preparation(
     let (confirmation_message, confirmation_action) = if retained_entry_count == 0 {
         (
             format!(
-                "Remove the reviewed empty private preparation state for {}?\n\nRecorded private path: {}\nEntries: 0 (0 bytes)\n\nThe recorded path is empty or already absent. Portcove removes only that private path if it exists and its stale recovery journal. The original installation, registered source, saved data, backups, and logs are preserved. Portcove requires durable proof that the owned preparation process tree stopped before cleanup.",
+                "Remove the empty setup folder and its recovery record for {}?\n\nSetup folder: {}\nEntries: 0 (0 bytes)\n\nThe setup folder is empty or already absent. Portcove removes only that folder if it exists and its unfinished-task record. Your original installation, original game files, saved data, backups and logs stay in place. Portcove must confirm that setup and its child processes have stopped before deleting anything.",
                 preview.port_id,
                 preview.retained_path.display(),
             ),
-            "Remove empty private state",
+            "Remove empty setup record",
         )
     } else {
         (
             format!(
-                "Permanently remove the reviewed private preparation folder for {}?\n\nFolder: {}\nFiles: {} ({} bytes)\n\nThe original installation, registered source, saved data, backups, and logs are preserved. Portcove requires durable proof that the owned preparation process tree stopped before cleanup.",
+                "Permanently delete the setup working folder for {}?\n\nFolder: {}\nFiles: {} ({} bytes)\n\nYour original installation, original game files, saved data, backups and logs stay in place. Portcove must confirm that setup and its child processes have stopped before deleting anything.",
                 preview.port_id,
                 preview.retained_path.display(),
                 preview.retained.files.len(),
                 preview.retained.total_bytes,
             ),
-            "Remove reviewed private files",
+            "Delete setup working files",
         )
     };
     if !confirm_destructive(
         &app,
-        "Confirm retained preparation cleanup",
+        "Delete unfinished setup files?",
         confirmation_message,
         confirmation_action,
     )

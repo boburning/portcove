@@ -79,13 +79,13 @@ it("invalidates a reviewed backup after editing and exposes recoverable import e
     "Restore from a library copy",
   );
   expect(document.body.textContent).toContain(
-    "You need a library metadata file and a separate copy of the original library folder.",
+    "You need a library information file and a separate copy of the original library folder.",
   );
   expect(document.body.textContent).toContain("Restore into a new or empty library.");
   expect(document.body.textContent).toContain(
     "A review alone does not verify a complete recovery copy.",
   );
-  expect(document.body.textContent).toContain("Library metadata file");
+  expect(document.body.textContent).toContain("Library information file");
   expect(document.body.textContent).toContain("Copy of the original library folder");
   expect(document.body.textContent).toContain(plan.destination_root);
   expect(document.body.textContent).toContain("Use an export you trust.");

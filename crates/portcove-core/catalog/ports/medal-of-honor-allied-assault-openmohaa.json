@@ -33,12 +33,12 @@
           "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
         },
         {
-          "title": "Preserve the actual player data",
+          "title": "Keep your existing game data",
           "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
         },
         {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+          "title": "Add the game and manage your files",
+          "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
         }
       ],
       "warnings": [],

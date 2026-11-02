@@ -37,7 +37,7 @@
         },
         {
           "title": "Link the ordinary native executable",
-          "instruction": "For the inspected 1.7 Windows package, add bigodao_1.7_win.exe through the existing-copy route, use the bigodao_1.7_win folder containing it as the working directory, and leave arguments empty. For a separately completed source build, select its wario_land_port.exe with that executable's parent folder and no arguments. The reviewed source runs its picker and ordinary game loop in one process; this is source evidence, not an observed launch of the package. Do not select Android files, packaging tools, or a compiler helper."
+          "instruction": "For the inspected 1.7 Windows package, add bigodao_1.7_win.exe through the existing-copy route, use the bigodao_1.7_win folder containing it as the working directory, and leave arguments empty. For a separately completed source build, select its wario_land_port.exe with that executable's parent folder and no arguments. The source runs its picker and normal game loop in one process; Portcove has not tested launch with this package. Do not select Android files, packaging tools, or a compiler helper."
         },
         {
           "title": "Preserve saves, preferences and mods",

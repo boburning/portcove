@@ -22,11 +22,19 @@ tester.run("player-copy", playerCopy, {
       "const view = <details><summary>Technical details</summary><p>Qualification</p></details>",
     ),
     code(
-      "const view = <details><summary>Full identity and evidence</summary><p>Qualification</p></details>",
+      "const view = <details><summary>File details and test results</summary><p>Qualification</p></details>",
     ),
     code("const view = <p>Verified local release</p>"),
+    code(
+      'const code = "operation_hold"; const view = <details><summary>Technical details</summary><p>Execution intent</p></details>',
+    ),
   ],
   invalid: [
+    invalid("const view = <p>Review this execution intent</p>", "engineering-handoff"),
+    invalid(
+      'const view = <button aria-label="Review operation hold">Review</button>',
+      "engineering-handoff",
+    ),
     ...[
       "adapter",
       "materialization",

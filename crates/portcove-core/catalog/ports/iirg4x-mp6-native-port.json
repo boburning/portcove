@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the prepared player",
-          "instruction": "Select mp6native.exe, use its complete extracted package folder as working directory and leave arguments empty. Review the exact intent and request Play separately, then use the upstream player UI with its already prepared content. Working directory matters: Windows saves are deliberately relative to it. Complete any missing import/preparation outside the attached attempt. Quit the actual game normally; forced termination is not a save-flush guarantee."
+          "instruction": "Select mp6native.exe, use its complete extracted package folder as working directory and leave arguments empty. Review and consent to the selected launch details, then choose Play separately, then use the upstream player UI with its already prepared content. Working directory matters: Windows saves are deliberately relative to it. Complete any missing import/preparation outside the attached attempt. Quit the actual game normally; forced termination is not a save-flush guarantee."
         },
         {
           "title": "Preserve actual saves and content configuration",
@@ -43,7 +43,7 @@
         },
         {
           "title": "Maintain the external copy and limited scope",
-          "instruction": "Quit the actual game normally before upstream replacement or data operations; forced termination is not a save-flush guarantee. Review/relink changed executable bytes. Source, package and upstream playability reports do not establish native gameplay, complete-game, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable. The canonical scope records only 49 of 81 minigames playable and unsupported board minigames skipped with notice. Keep these as upstream coverage limits; a prepared player is not whole-campaign, board, microphone or every-platform acceptance."
+          "instruction": "Quit the game normally before changing files; forced termination may not finish saving. After an upstream update, relink and review the changed executable. Removing the registration leaves all external files in place; Portcove does not install, update, roll back, back up or delete this copy. Upstream reports only 49 of 81 minigames playable, with unsupported board minigames skipped after a notice. Portcove has not confirmed minigames, boards, microphone support, saving or gameplay on Windows or other platforms."
         }
       ],
       "warnings": [

@@ -315,7 +315,9 @@ for (const width of [1200, 960]) {
       title.getBoundingClientRect().bottom,
     );
     await page.getByText("File matching details", { exact: true }).click();
-    const routeCheck = page.getByRole("heading", { name: "Game files for this route" });
+    const routeCheck = page.getByRole("heading", {
+      name: "Game files for this setup or launch option",
+    });
     expect(routeCheck.element().getBoundingClientRect().top).toBeGreaterThan(
       action.getBoundingClientRect().bottom,
     );
@@ -384,7 +386,7 @@ it.each(["dark", "light"])(
     expect(metadata.textContent).toContain("Previous check");
     expect(metadata.textContent).toContain("Existing installation setup · Linux · Preview");
     expect(metadata.textContent).toContain("Filters → Check game-file filters");
-    expect(document.querySelector('[aria-label="Catalog game-file observation"]')).toBeNull();
+    expect(document.querySelector('[aria-label="Game-file filter results"]')).toBeNull();
     expect(document.body.textContent).not.toContain("Complete set:");
     await page.screenshot({
       element: metadata.parentElement!,
@@ -576,8 +578,8 @@ it("opens actual Overview evidence and future-folder controls in a renderer fixt
         "Catalog designation (not a test result)",
         "project",
       ],
-      ["Compatibility qualifications", "Installation method", "compatibility"],
-      ["Recorded checks", "Recorded history, not a fresh check", "recorded-checks"],
+      ["Platforms and installation method", "Installation method", "compatibility"],
+      ["Test results", "These are earlier test results", "recorded-checks"],
     ] as const) {
       const summary = page.getByText(label, { exact: true });
       await summary.click();

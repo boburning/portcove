@@ -1184,23 +1184,28 @@ function ActivityFailure({
   target: ReturnType<typeof activityTarget>;
   onSelect: (portId: string, originKey?: string) => void;
 }) {
+  const actions = activity.failure?.presentation.recovery_actions;
+  const reviewLabel = actions?.includes("review_preparation")
+    ? "Review setup"
+    : actions?.includes("review_current_state")
+      ? "Review game"
+      : undefined;
   return (
     <>
       {activity.failure ? (
         <div className={activityDetailsClass}>
           <p>{activity.failure.presentation.summary}</p>
-          {activity.failure.presentation.recovery_actions.includes("review_preparation") &&
-            target.portId && (
-              <Button
-                data-focusable
-                variant="link"
-                size="sm"
-                data-detail-origin={`updates:activity:${activity.id}:review`}
-                onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
-              >
-                Review setup
-              </Button>
-            )}
+          {reviewLabel && target.portId && (
+            <Button
+              data-focusable
+              variant="link"
+              size="sm"
+              data-detail-origin={`updates:activity:${activity.id}:review`}
+              onClick={() => onSelect(target.portId!, `updates:activity:${activity.id}:review`)}
+            >
+              {reviewLabel}
+            </Button>
+          )}
           <FailureDetails
             presentation={activity.failure.presentation}
             code={activity.failure.code}
@@ -1208,7 +1213,7 @@ function ActivityFailure({
         </div>
       ) : (
         activity.message && (
-          <p className={activityDetailsClass}>More details may be available in a support bundle.</p>
+          <p className={activityDetailsClass}>More details may be available in a support report.</p>
         )
       )}
     </>

@@ -4,7 +4,7 @@
     "id": "fh2-recompiled-gabrick75-forza-horizon-2-xbox-360",
     "name": "Forza Horizon 2 (Xbox 360) — FH2 Recompiled (Gabrick75)",
     "original_game_title": "Forza Horizon 2 (Xbox 360)",
-    "summary": "Menus/races run below console performance; native renderer has image defects. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports menus and races running below console performance, with image defects in the native renderer. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Gabrick75/fh2-recompiled",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Provide your own Forza Horizon 2 (Xbox 360) Xbox 360 disc ISO or extracted full disc files. USA; title 4D530AA4; own shader library where selected renderer needs it."
+          "instruction": "Use your own USA Forza Horizon 2 Xbox 360 ISO or complete extracted disc files, title ID 4D530AA4. Supply your own shader library if the selected renderer requires it."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Android APK is offered in Releases; native-renderer shaders and source builds may require local generation from own USA game files."
+          "instruction": "An Android APK is offered in Releases. Native-renderer shaders and source builds may need local generation from your own USA game files; follow the instructions for your chosen build."
         }
       ],
       "warnings": [
-        "Menus/races run below console performance; native renderer has image defects.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports menus and races running below console performance, with image defects in the native renderer.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Gabrick75/fh2-recompiled"
     },
