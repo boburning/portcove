@@ -16,34 +16,6 @@
       "image_sha256": "8a55d6f4e9926fdcf3c153282c3b7fbbca940db69a9470044baae4a563f28f8d",
       "game_slug": "ratchet-and-clank-clone-home",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "help_url": "https://github.com/samioan/rac-j2me-remastered/blob/c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b/README.md",
-      "steps": [
-        {
-          "title": "Use the selected Going Mobile release only",
-          "instruction": "Use the complete GoingMobileRemastered-goingmobile-v0.1.1-win64.zip folder with GoingMobile.exe, bin/goingmobile_port_a1.exe, SDL2.dll and notices. This offered route is Ratchet & Clank: Going Mobile using the supported a1 J2ME build; Clone Home and other builds in the broader repository are separate work. The implementation is based on original decompiled game logic, not a clean-room claim. Retain project/component and original-game rights separately; no right to redistribute the original JAR, extracted data or original game code is granted here."
-        },
-        {
-          "title": "Complete the upstream original-JAR import",
-          "instruction": "Choose your own authorized RAC-GoingMobile-a1.jar in the upstream launcher, then complete its local import before using Play. The filename describes the supported variant but is not an independent cryptographic fingerprint; no exact original-JAR digest is established by this guide. The launcher unpacks and copies the required content into adjacent data/. This guide supplies no JAR, phone/account acquisition, decompiler execution or source conversion. Do not substitute another mobile variant or the other game’s JAR."
-        },
-        {
-          "title": "Add the ordinary native launcher",
-          "instruction": "Select GoingMobile.exe, use its complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its normal Play control. The launcher passes the selected prepared data directory and saved options to bin/goingmobile_port_a1.exe. Keep that context together; the internal player with no required data argument is not an equivalent route. Registration does not change graphics, controls or optional modes."
-        },
-        {
-          "title": "Keep imported data and the separate save root",
-          "instruction": "Retain the whole adjacent data/ folder, launcher configuration, application/companions and the existing original JAR separately. Keep %LOCALAPPDATA%/rac-gm-port-a1 with all saves, display settings, logs and related files as present. The launcher’s copy of the JAR contents and the user-profile save root serve different purposes; retaining only the executable or data/ does not retain progress. Preserve existing custom data choices and do not merge Clone Home/another JAR build’s state. No save import, conversion, migration, backup or restore is performed."
-        },
-        {
-          "title": "Leave updates and recovery upstream",
-          "instruction": "Upstream’s launcher checks and installs its own updates. Quit actual game/helpers before replacement or recovery and keep prior complete application/data/save copies; recheck the selected launcher after changes. Portcove follows only the selected program and a finished activity does not prove every successor stopped. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable; gameplay, audio, controller and real-save reports remain separately observed outcomes."
-        }
-      ],
-      "warnings": [
-        "Add GoingMobile.exe from the complete Windows a1 release after importing your own authorized JAR. Preserve adjacent data/ and %LOCALAPPDATA%/rac-gm-port-a1 separately; Clone Home and other mobile variants are not covered by this route."
-      ]
     }
   }
 }

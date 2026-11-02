@@ -16,34 +16,6 @@
       "image_sha256": "313d6afdc7b8b20debfc26560beffd862e53cb28b262875edd9bfdf2cac63d7a",
       "game_slug": "muscle-march",
       "match_kind": "underlying-game"
-    },
-    "manual_setup": {
-      "help_url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/README.md",
-      "steps": [
-        {
-          "title": "Finish upstream setup with your own inputs",
-          "instruction": "Use your own Muscle March USA WiiWare WAD, SHA-1 ed99ce114d9793dbf21d5c9589d7947afebd4259, and your own Wii console’s common-key input through upstream’s local launcher. Other WAD revisions are not interchangeable. Complete that private setup outside Portcove first; this guide supplies no WAD, key, key extraction, decryption or firmware. Portcove does not read a console backup or run the upstream importer."
-        },
-        {
-          "title": "Keep the complete Windows package",
-          "instruction": "Use the complete MuscleMarch-windows.zip v0.1.0-beta.5 folder, retaining musclemarch-launcher.exe, musclemarch.exe, libraries, notices and the prepared user data. Windows 10/11 64-bit is the documented host; upstream calls Windows builds new and lightly tested. Preserve GPL-3.0 project/runtime, separate components and original-game rights. A native package and upstream whole-game claim do not establish Portcove gameplay, real-controller, real-save or Supported acceptance."
-        },
-        {
-          "title": "Add the normal native launcher",
-          "instruction": "Select musclemarch-launcher.exe in the extracted MuscleMarch folder, set that containing folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s normal Play control. It supplies the actual game executable’s prepared-data, NAND and working-directory context; selecting a context-free musclemarch.exe is not the same route. Keep the launcher and runtime together, and preserve your existing Pure/Enhanced, graphics and controller choices."
-        },
-        {
-          "title": "Preserve the complete user-data root",
-          "instruction": "Keep the whole active user-data root: normally %APPDATA%/Muscle March on Windows, an existing MUSCLE_MARCH_HOME override, or the upstream adjacent user fallback if the normal folder is unavailable, including launcher.ini, settings.ini, the locally prepared game files, NAND/save content, logs, backups and other user files as present. Keep the original WAD in its existing location separately. Do not delete this folder to register or troubleshoot the player: it contains both preparation and progress. Do not merge another Wii title’s NAND/save tree, reset existing settings or assume portable-root migration. Portcove performs no save import, conversion, backup, restore or key handling."
-        },
-        {
-          "title": "Leave replacement and recovery upstream",
-          "instruction": "The launcher starts a separate native game with its required context. Portcove observes only the selected launcher and its activity is not proof that the actual game or helpers have closed. Quit them before upstream replacement, preparation repair or recovery, retaining the previous complete application/data, and review/select the launcher again after changes. Upstream owns game-file preparation, runtime updates and compatibility. Removing the library reference preserves all external files; managed installation/update/rollback, full-session tracking and Supported qualification are not supplied."
-        }
-      ],
-      "warnings": [
-        "Add musclemarch-launcher.exe with the complete MuscleMarch folder after private upstream setup. Preserve %APPDATA%/Muscle March, including prepared content and saves; no WAD/key processing or full-game lifetime observation is supplied."
-      ]
     }
   }
 }
