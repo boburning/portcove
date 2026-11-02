@@ -1972,6 +1972,11 @@ can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
 
+Game-first visual captures scroll to one complete identified target, then let the
+shared settled-capture owner wait for fresh, stable geometry before taking its
+single candidate image. Every observation still requires complete visibility;
+the before/after screenshot equality check rejects changes during capture.
+
 `--scenario native-game-first-installed-picori` is an explicit standalone Windows
 journey through `just desktop-test` using normal products and catalog authority. Supply the normal CLI with
 `--preparation-cli` and six captured argument files: `--game-first-inputs`

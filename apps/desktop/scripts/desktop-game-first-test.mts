@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
-import type { WebDriver } from "selenium-webdriver";
+import type { WebDriver, WebElement } from "selenium-webdriver";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import { fixtureSuccess, requiredFixtureValue as required } from "./desktop-scenario-state.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
-import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
+import { prepareCaptureTarget, requireCompleteCaptureTarget } from "../test/capture-target.ts";
 import {
   catalogResultPortIds,
   clearCatalogFilters,
@@ -117,6 +117,55 @@ export function observeGameFirstCaptureReadiness(size: number) {
     documentWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
   };
+}
+
+export async function captureGameFirstTarget<Semantic extends { ready: boolean }>({
+  browser,
+  output,
+  name,
+  scenario,
+  target,
+  element,
+  readiness,
+}: {
+  browser: WebDriver;
+  output: string;
+  name: string;
+  scenario: string;
+  target: string;
+  element: WebElement;
+  readiness: () => Promise<Semantic>;
+}) {
+  await prepareCaptureTarget({
+    target,
+    label: name,
+    scroll: () =>
+      executeBrowserScript(
+        browser,
+        (selected) =>
+          selected.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+        element,
+      ),
+    observe: () => executeBrowserScript(browser, observeVisibleTarget, target, "visual" as const),
+  });
+  return captureSettledVisual({
+    browser,
+    output,
+    name,
+    scenario,
+    target,
+    observeTarget: async () => {
+      const observed = await executeBrowserScript(
+        browser,
+        observeVisibleTarget,
+        target,
+        "visual" as const,
+      );
+      requireCompleteCaptureTarget(observed, target);
+      return observed;
+    },
+    readiness,
+  });
 }
 
 /** Normal controls and read-only IPC only; no qualification catalog or installation fixture. */
@@ -252,35 +301,13 @@ export async function gameFirstScenarios({
     };
     const capture = async (name: string, selector: string, size: number) => {
       const target = await browser.wait(until.elementLocated(By.css(selector)), 15_000);
-      const prepared = await prepareCaptureTarget({
-        target: selector,
-        label: `Game-first ${name}`,
-        scroll: () =>
-          executeBrowserScript(
-            browser,
-            (element) =>
-              element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
-            target,
-          ),
-        observe: () =>
-          executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
-      });
-      const captured = await captureSettledVisual({
+      const captured = await captureGameFirstTarget({
         browser,
         output,
         name: `game-first-${name}`,
         scenario: scenarioId,
         target: selector,
-        observeTarget: async () => {
-          const observation = await executeBrowserScript(
-            browser,
-            observeVisibleTarget,
-            selector,
-            "visual" as const,
-          );
-          requireUnchangedCaptureTarget(prepared.observation, observation);
-          return observation;
-        },
+        element: target,
         readiness: () => executeBrowserScript(browser, observeGameFirstCaptureReadiness, size),
       });
       artifacts.push(captured.image.path, captured.receipt);

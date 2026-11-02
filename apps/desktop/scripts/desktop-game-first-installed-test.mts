@@ -39,9 +39,7 @@ import { requestRealRuntimeClose } from "./desktop-real-runtime-test.mts";
 import { observeRegisteredRuntimeExit } from "./desktop-runtime-exit-observation.mts";
 import { createImageRefusal } from "./desktop-cover-observations.mts";
 import { executeBrowserScript } from "./browser-script.mts";
-import { observeVisibleTarget } from "./browser-readiness.mts";
-import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
-import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
+import { captureGameFirstTarget } from "./desktop-game-first-test.mts";
 import {
   catalogResultPortIds,
   captureAccessibilityReport,
@@ -437,35 +435,13 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
       );
       const capture = async (name: string, selector: string, expectedSize: number) => {
         const target = await browser.wait(until.elementLocated(By.css(selector)), 15_000);
-        const preparedTarget = await prepareCaptureTarget({
-          target: selector,
-          label: name,
-          scroll: () =>
-            executeBrowserScript(
-              browser,
-              (element) =>
-                element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
-              target,
-            ),
-          observe: () =>
-            executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
-        });
-        const captured = await captureSettledVisual({
+        const captured = await captureGameFirstTarget({
           browser,
           output,
           name,
           scenario: gameFirstInstalledScenarioId,
           target: selector,
-          observeTarget: async () => {
-            const observed = await executeBrowserScript(
-              browser,
-              observeVisibleTarget,
-              selector,
-              "visual" as const,
-            );
-            requireUnchangedCaptureTarget(preparedTarget.observation, observed);
-            return observed;
-          },
+          element: target,
           readiness: () =>
             executeBrowserScript(
               browser,

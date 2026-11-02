@@ -19,10 +19,8 @@ import { executeBrowserScript } from "./browser-script.mts";
 import {
   readGameFirstObservation,
   observeGameFirstCaptureReadiness,
+  captureGameFirstTarget,
 } from "./desktop-game-first-test.mts";
-import { observeVisibleTarget } from "./browser-readiness.mts";
-import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
-import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 import { INTERFACE_SIZES } from "../src/interface-size-controller.ts";
 import {
   captureAccessibilityReport,
@@ -237,44 +235,13 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
               15_000,
             );
             if (target.name === "action") assert.equal(await element.getText(), expectedAction);
-            const prepared = await prepareCaptureTarget({
-              target: target.selector,
-              label: name,
-              scroll: () =>
-                executeBrowserScript(
-                  browser,
-                  (element) =>
-                    element.scrollIntoView({
-                      block: "center",
-                      inline: "nearest",
-                      behavior: "instant",
-                    }),
-                  element,
-                ),
-              observe: () =>
-                executeBrowserScript(
-                  browser,
-                  observeVisibleTarget,
-                  target.selector,
-                  "visual" as const,
-                ),
-            });
-            const image = await captureSettledVisual({
+            const image = await captureGameFirstTarget({
               browser,
               output,
               name,
               scenario: scenarioId,
               target: target.selector,
-              observeTarget: async () => {
-                const observed = await executeBrowserScript(
-                  browser,
-                  observeVisibleTarget,
-                  target.selector,
-                  "visual" as const,
-                );
-                requireUnchangedCaptureTarget(prepared.observation, observed);
-                return observed;
-              },
+              element,
               readiness: () =>
                 executeBrowserScript(browser, observeGameFirstCaptureReadiness, layout.size),
             });

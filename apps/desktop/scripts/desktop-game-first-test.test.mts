@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vite-plus/test";
-import { readGameFirstObservation } from "./desktop-game-first-test.mts";
+import { captureGameFirstTarget, readGameFirstObservation } from "./desktop-game-first-test.mts";
 import { failureReport, portStatus } from "../src/test-fixtures.ts";
 import { transportValue } from "./transport-values.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type {
   OutputDesktopBootstrapStatus,
@@ -216,5 +217,81 @@ test("status schema failures and workspace/status disagreement remain fatal with
       1,
     );
     assert.deepEqual(readbacks, []);
+  }
+});
+
+test("game-first capture settles later complete geometry and still refuses movement during the screenshot", async () => {
+  const { mkdtemp, readFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const { observeVisibleTarget } = await import("./browser-readiness.mts");
+  type Driver = import("selenium-webdriver").WebDriver;
+  type ElementHandle = import("selenium-webdriver").WebElement;
+  const output = await mkdtemp(path.join(tmpdir(), "pcv-game-first-capture-"));
+  try {
+    for (const moveDuringScreenshot of [false, true]) {
+      let observations = 0,
+        screenshots = 0;
+      const element = {} as ElementHandle;
+      const browser = {
+        executeScript: async (script: unknown, ...args: unknown[]) => {
+          if (script !== observeVisibleTarget) {
+            assert.equal(args[0], element, "Only the explicit preflight scroll is permitted");
+            return;
+          }
+          const index = observations++;
+          return {
+            target: "#choice",
+            target_count: 1,
+            visible: true,
+            clipping: [],
+            rect: {
+              x: 20,
+              y: index < 2 ? 100 : screenshots && moveDuringScreenshot ? 140 : 120,
+              width: 100,
+              height: 40,
+            },
+            viewport: { width: 1280, height: 900, device_pixel_ratio: 1 },
+            application_state: { document_ready: "complete", loading: 0 },
+          };
+        },
+        takeScreenshot: async () => {
+          assert.ok(
+            observations >= 4,
+            "Wait for two matching observations after the preflight geometry changed",
+          );
+          screenshots++;
+          return Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64");
+        },
+      } as unknown as Driver;
+      const name = moveDuringScreenshot ? "changed" : "settled";
+      const capture = captureGameFirstTarget({
+        browser,
+        output,
+        name,
+        scenario: "owned-game-first",
+        target: "#choice",
+        element,
+        readiness: async () => ({ ready: true }),
+      });
+      if (moveDuringScreenshot) {
+        await assert.rejects(capture, /Application state changed during capture/);
+        await assert.rejects(readFile(path.join(output, name + "-capture.json")), {
+          code: "ENOENT",
+        });
+        const failure: unknown = JSON.parse(
+          await readFile(path.join(output, name + "-capture-failure.json"), "utf8"),
+        );
+        assert.ok(isRecord(failure));
+        assert.equal(failure.acceptance, false);
+      } else {
+        const result = await capture;
+        assert.equal(result.observation.state.rect?.y, 120);
+        assert.equal(result.outcome, "captured");
+      }
+      assert.equal(screenshots, 1);
+    }
+  } finally {
+    await rm(output, { recursive: true, force: true });
   }
 });
