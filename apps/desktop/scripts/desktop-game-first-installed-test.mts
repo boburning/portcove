@@ -377,7 +377,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
       );
       await click(button("Continue to copy confirmation"), 180_000);
       await confirmNative(
-        "Confirm existing installation copy",
+        "Copy existing installation?",
         "Copy into Portcove",
         portId,
         "picori-real-adoption",

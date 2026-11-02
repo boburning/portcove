@@ -353,6 +353,21 @@ void test("native game-file picker titles match the actual application dialog", 
   }
 });
 
+void test("game-first adoption confirms the actual native copy title and button", async () => {
+  const adoption = await readFile("apps/desktop/src-tauri/src/adoption.rs", "utf8");
+  const confirmation = adoption.match(
+    /confirm_destructive\(\s*&app,\s*"([^"]+)",\s*message,\s*"([^"]+)"/u,
+  );
+  assert.ok(confirmation, "Actual adoption confirmation must be captured");
+  const scenario = await readFile(
+    "apps/desktop/scripts/desktop-game-first-installed-test.mts",
+    "utf8",
+  );
+  const caller = scenario.match(/await confirmNative\(\s*"([^"]+)",\s*"([^"]+)",\s*portId,/u);
+  assert.ok(caller, "Game-first copy must retain exact port identity confirmation");
+  assert.deepEqual(caller.slice(1), confirmation.slice(1));
+});
+
 async function isolatedConsumer(t: TestContext, fixture: string) {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-confirmation-contract-"));
   t.after(() => rm(root, { recursive: true, force: true }));
