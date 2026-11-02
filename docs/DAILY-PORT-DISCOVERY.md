@@ -47,7 +47,21 @@ dated primary links. Text is inert data, never a command or authority grant.
 
 Actions checks complete open/closed issue and active/archived Project coverage,
 authored catalog lineage and immutable primary identity before publishing a
-bot-authored plan on #177. It refreshes complete upstream release/selected-asset
+bot-authored plan on #177. Repository transfers retain their immutable ID: reconcile
+that ID and the independently catalogable game against authored lineage and all
+canonical owners before calling a candidate new. One exact, known-game owner is
+retained, including closed/deferred owners; ambiguous scope, conflicting IDs and
+orphaned catalog identities remain held. Distinct IDs within a proposal alone do
+not prove new implementations. Separate games sharing one repository remain separate.
+Primary-verified repository/game identity refines the generic title hint through
+creation and recovery. Equal display titles alone do not merge distinct known
+implementations; conflicting durable keys and unknown identities still hold.
+The executor appends a factual observation to a verified existing owner instead
+of creating another issue or aborting unrelated new candidates. It binds and
+reads back that observation, deduplicates identical candidate/primary evidence
+across proposals, preserves the complete owner body, state and planning fields,
+and runs scoped doctor. A lost comment response recovers only its confirmed
+material marker; absence never authorizes reposting. It refreshes complete upstream release/selected-asset
 pagination and pinned README evidence through the maintained investigator. The
 plan binds the exact proposed bodies, primary bindings and `plan_sha256`.
 New receipts use `plan_encoding: proposal-bound-v1`: each ordered descriptor
@@ -109,17 +123,23 @@ has a durable bot receipt before POST and a stable marker in the issue. An
 ambiguous POST without a confirmed marker remains held; it is never recaptured.
 Confirmed issues recover through `normalize-port`, preserving owner changes by
 refusing mismatched bodies. Exactly one active item, the complete issue body,
-neutral planning fields and applicable scoped doctors must verify before the
+neutral planning fields and applicable scoped doctors must verify for new intake before the
 receipt says `complete`. A logical batch over ten retains its final full doctor.
-Scoped receipts retain `global_health: not_evaluated`.
+Existing-owner observations retain their original planning rather than applying
+neutral defaults. All candidates, including existing owners, remain in the same
+ordered receipt and its logical-batch full-doctor obligation. Scoped receipts retain `global_health: not_evaluated`.
 The existing Actions job owns bounded continuation; the hosted chat need not
-notice and rerun ordinary temporary holds. It runs at most three joined worker
-passes, each with the existing cold quota/byte/time envelope and fresh queue,
-primary and inventory reads. Only typed inventory movement or budget admission
+notice and rerun ordinary temporary holds. It runs up to twelve joined worker
+passes under one 90-minute wall deadline inside the existing 100-minute job,
+each with the existing cold quota/byte/time envelope and fresh queue,
+primary and inventory reads. A worker is joined before another can start and its
+timeout is capped by the remaining wall deadline. Only typed inventory movement, successful-but-stale quota observation or budget admission
 holds with no unconfirmed mutation can continue. Each pass preserves its own
 diagnostics. Eligible requests at an exhausted queue tail run first next pass;
-a repeated budget hold without semantic delivery progress stops. Queue collection
-revision drift can restart a read-only pass. Missing/inconsistent reports, killed
+a repeated budget hold without semantic delivery progress stops. Inventory holds
+stop after three consecutive identical progress observations; continuing delivery
+can use later windows rather than requiring an operator after the third pass.
+Queue collection revision drift gets at most three read-only passes. Missing/inconsistent reports, killed
 workers, provider/auth/identity/owner conflicts, ambiguous writes and failed
 receipt readbacks stop automatic recovery. Independent requests may still finish;
 any held request keeps the overall job incomplete. The job has a finite 100-minute
@@ -160,7 +180,33 @@ The shared inventory reader permits one admitted complete replacement for known
 Project revision/count drift per execution batch. It discards the changed view;
 another drift or any provider/integrity failure holds intake within the same budget.
 
-Hosted reporting reads the bot receipt and exact request/plan binding. An issue
+Quota observation can cross its reset boundary during a successful HTTP 200.
+The bounded transport can reobserve that valid-but-stale response once, charging
+both reads to the same byte/request/time envelope before any write. Malformed or
+denied responses and transport failures are not retried. A still-stale observation
+can enter the same bounded fresh-worker continuation only when no mutation is
+uncertain. Active provider backoff and ambiguous writes remain holds.
+
+Hosted reporting reads the bot receipt and exact request/plan binding. Use the
+maintained read-only status route when CLI access is available:
+
+```sh
+node scripts/hosted-discovery-intake.mts status --request <proposal-comment-id> --json
+```
+
+It reports `submitted`, `partial`, `blocked` or `complete`, new `delivered` versus
+verified `existing` counts, pending candidates, the last diagnostic and whether
+the full doctor is required. It refuses a forged/stale proposal binding or a
+complete claim without the candidate-bound scoped doctors and applicable full
+doctor. It needs ordinary GitHub read access, no Actions event or Project write
+credential, and never runs intake. Without CLI access, read the same bound bot
+receipt on #177 and preserve these distinctions. The scheduled investigator must
+use its final receipt counts, retain pending work and precise blockers, and
+must not call an accepted proposal or all distinct candidate IDs completed new
+implementations. Existing-owner facts belong with the retained owner; only
+genuine identity/owner decisions require intervention. Finite exhausted recovery
+remains pending in this journal for the next existing intake event; it does not
+create another timer, scheduler or automatic POST retry. An issue
 creation response, automatic attachment, accepted dispatch or running workflow
 is not completed intake. Existing canonical owners, deferrals, release scope,
 catalog support and runtime qualification retain their own authority. Completion

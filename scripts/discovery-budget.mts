@@ -485,40 +485,51 @@ export function createDiscoveryTransport(
   ) => perform(method, url, body, binary, conditionalEtag);
   const refreshQuotas = () =>
     budget.refreshProvider(source, () => {
-      const response = perform(
-        "GET",
-        "https://api.github.com/rate_limit",
-        undefined,
-        false,
-        undefined,
-        true,
-      );
-      if (response.status !== 200)
-        throw new GitHubApiError("http_error", `Quota observation HTTP ${response.status}`, {
-          status: response.status,
+      // A valid HTTP 200 can straddle a reset boundary. Reobserve that read
+      // once, charging the same envelope; never retry a failed transport or POST.
+      for (let observation = 0; observation < 2; observation++) {
+        const response = perform(
+          "GET",
+          "https://api.github.com/rate_limit",
+          undefined,
+          false,
+          undefined,
+          true,
+        );
+        if (response.status !== 200)
+          throw new GitHubApiError("http_error", `Quota observation HTTP ${response.status}`, {
+            status: response.status,
+          });
+        const data: unknown = JSON.parse(response.text);
+        if (!isRecord(data) || !isRecord(data.resources))
+          throw new Error("Incomplete provider quota observation");
+        const quotas = ["core", "graphql", "search"].map((resource) => {
+          const value = (data.resources as Record<string, unknown>)[resource];
+          if (
+            !isRecord(value) ||
+            !Number.isSafeInteger(value.remaining) ||
+            Number(value.remaining) < 0 ||
+            !Number.isSafeInteger(value.limit) ||
+            Number(value.limit) < Number(value.remaining) ||
+            !Number.isSafeInteger(value.reset) ||
+            Number(value.reset) <= 0
+          )
+            throw new Error("Incomplete provider quota observation");
+          return {
+            resource,
+            remaining: Number(value.remaining),
+            resetAt: new Date(Number(value.reset) * 1000).toISOString(),
+          };
         });
-      const data: unknown = JSON.parse(response.text);
-      if (!isRecord(data) || !isRecord(data.resources))
-        throw new Error("Incomplete provider quota observation");
-      const quotas = ["core", "graphql", "search"].map((resource) => {
-        const value = (data.resources as Record<string, unknown>)[resource];
-        if (
-          !isRecord(value) ||
-          !Number.isSafeInteger(value.remaining) ||
-          Number(value.remaining) < 0 ||
-          !Number.isSafeInteger(value.limit) ||
-          Number(value.limit) < Number(value.remaining) ||
-          !Number.isSafeInteger(value.reset) ||
-          Number(value.reset) * 1000 <= budget.now()
-        )
-          throw new Error("Incomplete or stale provider quota observation");
-        return {
-          resource,
-          remaining: Number(value.remaining),
-          resetAt: new Date(Number(value.reset) * 1000).toISOString(),
-        };
-      });
-      for (const quota of quotas) budget.observeProvider(quota, source, quota.resource === "core");
+        if (quotas.some((quota) => Date.parse(quota.resetAt) <= budget.now())) continue;
+        for (const quota of quotas)
+          budget.observeProvider(quota, source, quota.resource === "core");
+        return;
+      }
+      throw new GitHubApiError(
+        "quota_stale",
+        "Provider quota observation remains stale after its bounded refresh",
+      );
     });
   const runner = (args: readonly string[], input?: string) => {
     if (args[0] === "auth" && args[1] === "status") return "";

@@ -11,6 +11,7 @@ import {
   hostedPlanHash,
   probeHostedProjectWrite,
   assertHostedCatalogIdentity,
+  collectHostedRequests,
 } from "./hosted-discovery-intake.mts";
 import { RoadmapClient, portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
@@ -44,6 +45,20 @@ const proposal = {
 };
 const encode = (data: unknown) =>
   `${hostedRequestMarker}\n\`\`\`json\n${JSON.stringify(data)}\n\`\`\``;
+void test("read-only bootstrap and queue quota/budget holds produce qualified continuation", () => {
+  for (const phase of ["bootstrap", "queue"])
+    for (const code of ["quota_stale", "budget_exhausted"]) {
+      const f = fixture();
+      const failure = () => {
+        throw new GitHubApiError(code, "Read-only capacity hold");
+      };
+      f.bridge.comments = phase === "queue" ? failure : () => [];
+      const result = collectHostedRequests(f.bridge, phase === "bootstrap" ? failure : () => {});
+      assert.equal(result.status, "held");
+      assert.equal(f.creations, 0);
+      assert.equal(f.writes, 0);
+    }
+});
 void test("real Project field writes use the complete API schema without CLI commands", () => {
   let pages = 0;
   const mutations: unknown[] = [];
@@ -160,6 +175,17 @@ function fixture(candidates = [candidate]) {
   client.api.request = (_method, endpoint, body) => {
     const value = body as { body: string };
     if (_method === "GET") {
+      const listing = endpoint.match(/issues\/(\d+)\/comments\?per_page=100$/u);
+      if (listing)
+        return {
+          body: [...comments.values()].filter(
+            (c) =>
+              c.issue_url ===
+              `https://api.github.com/repos/boburning/portcove/issues/${listing[1]}`,
+          ),
+          headers: new Map<string, string>(),
+          rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
+        };
       const c = comments.get(Number(endpoint.split("/").at(-1)));
       if (!c) throw new Error("Unknown comment read");
       return {
@@ -169,9 +195,16 @@ function fixture(candidates = [candidate]) {
       };
     }
     const id = _method === "POST" ? commentId++ : Number(endpoint.split("/").at(-1));
-    const c = { id, body: value.body, user: { login: "github-actions[bot]" }, issue_url: issueUrl };
+    const target = endpoint.match(/issues\/(\d+)\/comments$/u)?.[1] ?? "177";
+    const c = {
+      id,
+      body: value.body,
+      user: { login: "github-actions[bot]" },
+      issue_url: `https://api.github.com/repos/boburning/portcove/issues/${target}`,
+    };
     comments.set(id, c);
-    snapshots.push(JSON.parse(value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!));
+    if (target === "177")
+      snapshots.push(JSON.parse(value.body.match(/```json\n([\s\S]+)\n```$/u)![1]!));
     return {
       body: structuredClone(c),
       headers: new Map<string, string>(),
@@ -417,6 +450,310 @@ async function partialFixture(count = 3, stopIndex = count - 1) {
   f.bridge.inventory = inventory;
   return f;
 }
+void test("an existing canonical implementation is retained while unrelated new intake finishes", async () => {
+  const other = {
+    ...candidate,
+    title: "Another game",
+    game: "Another game",
+    upstream: `${candidate.upstream}-other`,
+    repository_id: candidate.repository_id + 1,
+    port_key: "another-game",
+  };
+  const f = fixture([candidate, other]);
+  const body = hostedBody({ ...candidate, port_key: "original-owner-key" }, 99);
+  f.issues.push({
+    id: "I150",
+    node_id: "I150",
+    number: 150,
+    title: "[Port] Original owner",
+    body,
+    state: "CLOSED",
+    url: "https://github.com/boburning/portcove/issues/150",
+    html_url: "https://github.com/boburning/portcove/issues/150",
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  const execution = f.client.executionIssue.bind(f.client);
+  f.client.executionIssue = (number) => {
+    const value = execution(number);
+    if (number === 150) value.item.Status = "Done";
+    return value;
+  };
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.equal(f.creations, 1);
+  assert.equal(f.normalizations, 0);
+  assert.equal(f.issues[0]!.body, body);
+  assert.equal(result.delivery[0]!.status, "existing");
+  assert.equal(result.delivery[0]!.created_issue, undefined);
+  assert.equal(result.delivery[0]!.existing, true);
+  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(f.bridge.status(f.request, f.all()).existing, 1);
+  assert.equal(f.bridge.status(f.request, f.all()).delivered, 1);
+  const before = f.comments.size;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.comments.size, before);
+});
+function existingOwnerFixture(candidates = [candidate]) {
+  const f = fixture(candidates);
+  const body = hostedBody({ ...candidate, port_key: "existing-key" }, 99);
+  f.issues.push({
+    id: "I150",
+    node_id: "I150",
+    number: 150,
+    title: "[Port] Existing owner",
+    body,
+    state: "OPEN",
+    url: "https://github.com/boburning/portcove/issues/150",
+    html_url: "https://github.com/boburning/portcove/issues/150",
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  return f;
+}
+void test("a canonical owner appearing in the final pre-POST inventory is observed instead of duplicated", async () => {
+  const f = fixture();
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = (cache, full) => {
+    const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"));
+    if (receipt && !f.issues.length) {
+      const raw = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```/u)![1]!) as {
+        delivery: { status: string }[];
+      };
+      if (raw.delivery[0]?.status === "create-attempted") {
+        const body = hostedBody(
+          {
+            ...candidate,
+            upstream: "https://github.com/previous-owner/native-game",
+            port_key: "previous-owner-key",
+          },
+          99,
+        );
+        f.issues.push({
+          id: "I150",
+          node_id: "I150",
+          number: 150,
+          title: "[Port] Earlier implementation name",
+          body,
+          state: "OPEN",
+          url: "https://github.com/boburning/portcove/issues/150",
+          html_url: "https://github.com/boburning/portcove/issues/150",
+          updatedAt: "2026-10-28T00:00:00Z",
+        });
+      }
+    }
+    return inventory(cache, full);
+  };
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.status, "existing");
+  assert.equal(f.creations, 0);
+});
+void test("same-game implementations with distinct immutable repositories do not conflict on their display title", async () => {
+  const f = existingOwnerFixture();
+  f.issues[0]!.title = `[Port] ${candidate.title}`;
+  f.issues[0]!.body = hostedBody(
+    {
+      ...candidate,
+      repository_id: candidate.repository_id + 1,
+      upstream: "https://github.com/independent/native-game",
+      port_key: "independent-implementation",
+    },
+    99,
+  );
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.equal(f.creations, 1);
+});
+void test("equal-title independent implementations retain canonical catalog-lineage evidence without a body ID", () => {
+  const f = fixture();
+  // Use the real authored catalog owner to exercise the bridge's catalog path.
+  const c = {
+    ...candidate,
+    title: "Paper Mario ReCut",
+    game: "Paper Mario",
+    upstream: "https://github.com/independent/paper-mario",
+    repository_id: 987612342,
+    port_key: "independent-paper-mario",
+  };
+  const body = hostedBody(
+    {
+      ...candidate,
+      upstream: "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated",
+      port_key: "paper-mario-recut",
+      game: "Paper Mario",
+    },
+    99,
+  ).replace(/GitHub repository ID: \d+\n/u, "");
+  f.issues.push({
+    id: "I118",
+    node_id: "I118",
+    number: 118,
+    title: `[Port] ${c.title}`,
+    body,
+    state: "OPEN",
+    url: "https://github.com/boburning/portcove/issues/118",
+    html_url: "https://github.com/boburning/portcove/issues/118",
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  const inventory = f.bridge.inventory();
+  assert.doesNotThrow(() =>
+    f.bridge.duplicates(inventory, {
+      candidate: c,
+      body: hostedBody(c, 100),
+      body_sha256: "a".repeat(64),
+      evidence_sha256: "b".repeat(64),
+      primary: {
+        repository_id: c.repository_id,
+        readme_commit: "c".repeat(40),
+        readme_blob: "d".repeat(40),
+        release_fingerprint: "e".repeat(64),
+      },
+    }),
+  );
+});
+void test("existing observations deduplicate across proposals and preserve non-neutral owner fields", async () => {
+  const f = existingOwnerFixture();
+  Object.assign(f.fields, { Status: "Deferred", Priority: "High" });
+  await f.bridge.process(f.request, f.all());
+  const request = { ...f.request, id: 101 };
+  f.comments.set(101, request);
+  const second = await f.bridge.process(request, f.all());
+  assert.equal(second.delivery[0]!.status, "existing");
+  assert.equal([...f.comments.values()].filter((c) => c.issue_url.endsWith("/150")).length, 1);
+  assert.equal(f.fields.Status, "Deferred");
+  assert.equal(f.fields.Priority, "High");
+  assert.equal(f.normalizations, 0);
+  assert.equal(f.creations, 0);
+});
+void test("a transferred immutable catalog repository routes to its original owner", async () => {
+  const c = {
+    ...candidate,
+    upstream: "https://github.com/TheBozos/SoulCaliburIII_Recomp",
+    repository_id: 1429680367,
+    game: "Soulcalibur III",
+    port_key: "new-owner-claimed-key",
+  };
+  const f = fixture([c]);
+  const body = hostedBody(
+    {
+      ...c,
+      upstream: "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+      port_key: "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",
+    },
+    99,
+  );
+  f.issues.push({
+    id: "I3033",
+    node_id: "I3033",
+    number: 3033,
+    title: "[Port] Soulcalibur III",
+    body,
+    state: "OPEN",
+    url: "https://github.com/boburning/portcove/issues/3033",
+    html_url: "https://github.com/boburning/portcove/issues/3033",
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.delivery[0]!.canonical_issue, 3033);
+  assert.equal(f.creations, 0);
+});
+void test("uncertain observation POSTs recover only a confirmed marker and never repost on absence", async () => {
+  for (const confirmed of [true, false]) {
+    const f = existingOwnerFixture();
+    const request = f.client.api.request.bind(f.client.api);
+    let posts = 0;
+    f.client.api.request = (...args) => {
+      if (args[0] === "POST" && args[1].endsWith("/150/comments")) {
+        posts++;
+        if (confirmed) request(...args);
+        throw new GitHubApiError("budget_exhausted", "Observation POST response unknown");
+      }
+      return request(...args);
+    };
+    await assert.rejects(f.bridge.process(f.request, f.all()));
+    f.client.api.request = request;
+    if (confirmed) assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+    else await assert.rejects(f.bridge.process(f.request, f.all()), /without reposting/u);
+    assert.equal(posts, 1);
+  }
+});
+void test("unknown game scope and conflicting immutable identity remain held before any plan or write", async () => {
+  for (const mode of ["unknown", "conflict"]) {
+    const f = existingOwnerFixture();
+    f.issues[0]!.body =
+      mode === "unknown"
+        ? f.issues[0]!.body.replace(/Underlying game: \*\*[^*]+\*\*/u, "Game scope unknown")
+        : f.issues[0]!.body.replace(
+            String(candidate.repository_id),
+            String(candidate.repository_id + 1),
+          );
+    await assert.rejects(f.bridge.process(f.request, f.all()), /identity held/u);
+    assert.equal(f.comments.size, 1);
+    assert.equal(f.writes, 0);
+    assert.equal(f.creations, 0);
+  }
+});
+void test("reporting reads only hash-bound receipts and refuses completion without scoped or full doctor", async () => {
+  const f = fixture();
+  assert.equal(f.bridge.status(f.request, f.all()).status, "submitted");
+  await f.bridge.process(f.request, f.all());
+  assert.equal(f.bridge.status(f.request, f.all()).status, "complete");
+  const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!;
+  const r = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```/u)![1]!) as {
+    delivery: { doctor?: unknown }[];
+  };
+  delete r.delivery[0]!.doctor;
+  receipt.body = receipt.body.replace(
+    /```json\n[\s\S]+\n```/u,
+    "```json\n" + JSON.stringify(r) + "\n```",
+  );
+  assert.throws(() => f.bridge.status(f.request, [f.request, receipt]), /doctor|object/u);
+});
+void test("pre-plan diagnostics report blocked while stale diagnostics cannot describe an edited proposal", () => {
+  const f = fixture();
+  f.bridge.diagnostic(f.request, new Error("Unknown game identity"), f.all());
+  assert.equal(f.bridge.status(f.request, f.all()).status, "blocked");
+  assert.equal(f.bridge.status(f.request, f.all()).pending, 1);
+  f.request.body = encode({ ...proposal, investigator: "edited-context" });
+  assert.equal(f.bridge.status(f.request, f.all()).status, "submitted");
+});
+void test("a large logical batch ending in an existing owner cannot finish without its full doctor", async () => {
+  const candidates = Array.from({ length: 10 }, (_, i) => ({
+    ...candidate,
+    title: `New game ${i}`,
+    game: `New game ${i}`,
+    upstream: `${candidate.upstream}-${i}`,
+    repository_id: candidate.repository_id + i + 1,
+    port_key: `new-game-${i}`,
+  }));
+  const f = existingOwnerFixture([...candidates, candidate]);
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let fullRequired = false;
+  f.bridge.inventory = (cache, full) => {
+    if (full) {
+      fullRequired = true;
+      throw new Error("Full doctor input unavailable");
+    }
+    return inventory(cache, full);
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Full doctor input unavailable/u);
+  assert.equal(fullRequired, true);
+  assert.equal(f.creations, 10);
+  const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!;
+  const raw = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```/u)![1]!) as {
+    status: string;
+    doctor?: unknown;
+    delivery: { status: string }[];
+  };
+  assert.equal(raw.delivery[10]!.status, "existing");
+  assert.equal(raw.status, "incomplete");
+  raw.status = "complete";
+  delete raw.doctor;
+  receipt.body = receipt.body.replace(
+    /```json\n[\s\S]+\n```/u,
+    "```json\n" + JSON.stringify(raw) + "\n```",
+  );
+  assert.throws(() => f.bridge.status(f.request, [f.request, receipt]), /required full doctor/u);
+});
 void test("neutral recovery prefix spends no empty normalization or intermediate whole-inventory reads", async () => {
   const f = await partialFixture();
   const inventory = f.bridge.inventory.bind(f.bridge);
