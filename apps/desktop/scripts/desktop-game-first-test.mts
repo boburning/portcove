@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { isDeepStrictEqual } from "node:util";
 import { realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
@@ -32,7 +33,7 @@ const gameId = "the-legend-of-zelda-majoras-mask";
 const pair = ["2ship2harkinian", "zelda64-recomp"] as const;
 const groupSelector = `[data-detail-return-group="game:${gameId}"]`;
 
-/** Retry only Core's explicit stale workspace read; never replay a player action. */
+/** Repeat only explicitly stale reads or independently confirmed transitions; never replay an action. */
 export async function readGameFirstObservation(invoke: ScenarioInvoke, readbacks: unknown[]) {
   let initial: { generation: number; library_root: string | null } | undefined;
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -93,6 +94,56 @@ export async function readGameFirstObservation(invoke: ScenarioInvoke, readbacks
     );
     assert.equal(after.library_root, initial.library_root);
     if (!workspace) continue;
+    const selected = (rows: typeof statuses) =>
+      pair.map((id) => required(rows.find((row) => row.port_id === id)));
+    if (!isDeepStrictEqual(selected(statuses), selected(workspace.statuses))) {
+      // A player action may commit AFTER Core returned a consistent snapshot.
+      // Confirm that transition independently; a stable disagreement remains fatal.
+      const confirmation = await invoke("get_workspace_snapshot", { generation });
+      const confirmedBootstrap = transportValue(
+        "desktop_bootstrap_status",
+        fixtureSuccess(await invoke("get_bootstrap_status")),
+      );
+      assert.equal(confirmedBootstrap.ready, true);
+      assert.equal(confirmedBootstrap.generation, initial.generation);
+      assert.equal(confirmedBootstrap.library_root, initial.library_root);
+      const confirmationFailure =
+        isRecord(confirmation) && confirmation.ok === false
+          ? transportValue("desktop_desktop_error", confirmation.error)
+          : undefined;
+      if (
+        confirmationFailure?.code === "conflict" &&
+        confirmationFailure.details.workspace_snapshot_stale === "true" &&
+        confirmationFailure.details.retryable === "true"
+      ) {
+        readbacks.push({
+          phase: "workspace-snapshot-refusal",
+          attempt,
+          generation,
+          code: "conflict",
+          workspace_snapshot_stale: "true",
+          retryable: "true",
+        });
+        continue;
+      }
+      const confirmed = transportValue("desktop_workspace_snapshot", fixtureSuccess(confirmation));
+      const changed = pair.filter(
+        (id) =>
+          !isDeepStrictEqual(
+            required(workspace.statuses.find((row) => row.port_id === id)),
+            required(confirmed.statuses.find((row) => row.port_id === id)),
+          ),
+      );
+      if (changed.length) {
+        readbacks.push({
+          phase: "workspace-observation-transition",
+          attempt,
+          generation,
+          port_ids: changed,
+        });
+        continue;
+      }
+    }
     for (const id of pair)
       assert.deepEqual(
         required(statuses.find((row) => row.port_id === id)),
@@ -101,7 +152,7 @@ export async function readGameFirstObservation(invoke: ScenarioInvoke, readbacks
       );
     return { bootstrap, organization, workspace, statuses };
   }
-  throw new Error("Workspace snapshot remained stale after 3 full read observations");
+  throw new Error("Workspace observation did not settle after 3 full read observations");
 }
 
 /** Serialized read-only observation; optional metadata failure does not block choice. */

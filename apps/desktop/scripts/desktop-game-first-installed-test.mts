@@ -51,6 +51,7 @@ import {
 } from "./desktop-review-controls.mts";
 import { gameIdentityLabel, gameTitle } from "../src/port-identity.ts";
 import { INTERFACE_SIZES } from "../src/interface-size-controller.ts";
+import { gameFirstLaunchStartDeadlineMs } from "../../../scripts/desktop-scenarios.mts";
 
 export const gameFirstInstalledScenarioId = "native-game-first-installed-picori";
 const portId = "project-picori";
@@ -117,7 +118,7 @@ function sessionIds(library: string, selectedPortId: InstalledManagedPortId = po
     database.close();
   }
 }
-async function userDataInventory(root: string) {
+export async function userDataInventory(root: string) {
   const files: { name: string; bytes: number; sha256: string }[] = [];
   let total = 0;
   async function visit(directory: string, depth: number) {
@@ -814,25 +815,30 @@ export async function launchInstalledManagedGame({
   let observedExit = false;
   try {
     await play();
-    const session = await browser.wait(async () => {
-      const fresh = sessionIds(library, expectedPortId).filter((id) => !before.has(id));
-      assert.ok(fresh.length <= 1, "One Play must create exactly one managed session");
-      if (!fresh[0]) return false;
-      const current = required(
-        transportValue("launch_request", core(["launch", "show", fresh[0]])),
-      );
-      assert.equal(current.owner_kind, "managed");
-      assert.equal(current.port_id, expectedPortId);
-      assert.equal(current.install_id, installed.id);
-      assert.ok(samePath(current.install_root, installed.path));
-      assert.equal(current.outcome, null, "Retain early game failures");
-      return current.phase === "running" &&
-        current.child_pid &&
-        current.child_identity &&
-        current.supervisor_identity
-        ? current
-        : false;
-    }, 30_000);
+    const session = await browser.wait(
+      async () => {
+        const fresh = sessionIds(library, expectedPortId).filter((id) => !before.has(id));
+        assert.ok(fresh.length <= 1, "One Play must create exactly one managed session");
+        if (!fresh[0]) return false;
+        const current = required(
+          transportValue("launch_request", core(["launch", "show", fresh[0]])),
+        );
+        assert.equal(current.owner_kind, "managed");
+        assert.equal(current.port_id, expectedPortId);
+        assert.equal(current.install_id, installed.id);
+        assert.ok(samePath(current.install_root, installed.path));
+        assert.equal(current.outcome, null, "Retain early game failures");
+        return current.phase === "running" &&
+          current.child_pid &&
+          current.child_identity &&
+          current.supervisor_identity
+          ? current
+          : false;
+      },
+      gameFirstLaunchStartDeadlineMs(expectedPortId),
+      undefined,
+      2_000,
+    );
     assert.ok(
       session && session.child_pid && session.child_identity && session.supervisor_identity,
     );

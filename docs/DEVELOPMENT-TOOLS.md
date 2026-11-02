@@ -2006,14 +2006,25 @@ Picori's generated asset directories can contain thousands of retained files.
 After game exit, the harness allows up to 1800 seconds for each authoritative
 collection result, polling every two seconds. Both normal and provider-unavailable
 launches must still finish successfully with exit code zero and positive process
-cleanup. Its finite 4500-second outer budget includes both collection observations,
-the two 300-second operator exit observations, input custody and cleanup. These are
+cleanup. Before game creation, each Picori start wait allows 3600 seconds because
+normal Core collects and restores the generated retained tree during preparation;
+the actual second launch exceeded the former 30-second harness wait while still
+preparing. MM retains its 30-second start wait. The finite 11700-second outer budget
+includes two 3600-second starts, two 1800-second collection observations, two
+300-second operator exit observations and 300 seconds for input custody/cleanup. These are
 harness limits; product deadlines and zero automatic retries remain unchanged.
-Keep the original 30-second collection failure and 600-second recovery timeout
+Keep the original 30-second launch-start and collection failures and 600-second recovery timeout
 as failed evidence, separately from any result under the calibrated limits.
 The owned data inventory allows 8192 entries per directory for Picori's observed
 5712-entry generated palette directory. Its 32768-file total, 256 MiB aggregate,
 64 MiB member, depth, link and file-hash checks remain unchanged.
+
+Game-first native readback compares independently issued status and workspace reads.
+A source import can commit after an internally consistent workspace snapshot returns.
+On disagreement, a fresh workspace read must independently confirm a relevant status
+transition before the harness repeats its full observation, at most three times and
+within the original library generation/root. Unexplained stable disagreements and
+malformed responses remain fatal; no player action is replayed.
 Actual runtime pixels require a
 separately bound game-window observation. Desktop screenshots, process liveness
 and accessibility reports do not establish rendering, gameplay, real saves,

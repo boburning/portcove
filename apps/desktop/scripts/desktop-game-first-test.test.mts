@@ -132,12 +132,43 @@ test("a stale workspace refusal retries the full read and returns fresh organiza
   assert.ok(!JSON.stringify(readbacks).includes("private-"));
 });
 
+test("a confirmed write between independent workspace and status reads repeats the full observation", async () => {
+  const changed = statuses.map((row) => ({ ...row, successful_launches: 1 }));
+  const updated = { ...workspace, statuses: changed };
+  const fixture = reads(
+    [success(workspace), success(updated), success(updated)],
+    [],
+    success(changed),
+  );
+  const readbacks: unknown[] = [];
+  const value = await readGameFirstObservation(fixture.invoke, readbacks);
+  assert.equal(
+    value.organization.revision,
+    2,
+    "Repeat organization too; do not return a mixed observation",
+  );
+  assert.deepEqual(value.statuses, changed);
+  assert.deepEqual(value.workspace.statuses, changed);
+  assert.deepEqual(
+    fixture.calls.map((call) => call.command),
+    [...attemptCommands, "get_workspace_snapshot", "get_bootstrap_status", ...attemptCommands],
+  );
+  assert.deepEqual(readbacks, [
+    {
+      phase: "workspace-observation-transition",
+      attempt: 1,
+      generation: 7,
+      port_ids: ["2ship2harkinian", "zelda64-recomp"],
+    },
+  ]);
+});
+
 test("sustained explicit workspace refusals remain fatal after exactly three full observations", async () => {
   const fixture = reads([refusal(), refusal(), refusal(), success(workspace)]);
   const readbacks: unknown[] = [];
   await assert.rejects(
     readGameFirstObservation(fixture.invoke, readbacks),
-    /remained stale after 3 full read observations/u,
+    /did not settle after 3 full read observations/u,
   );
   assert.deepEqual(
     fixture.calls.map((call) => call.command),
@@ -208,20 +239,93 @@ test("generation and root changes fail both at the refusal boundary and before a
   }
 });
 
-test("status schema failures and workspace/status disagreement remain fatal without retries", async () => {
-  for (const reply of [
-    success([{}]),
-    success(statuses.map((row) => ({ ...row, successful_launches: 1 }))),
-  ]) {
-    const fixture = reads([success(workspace)], [], reply);
+test("status schema failures and stable workspace/status disagreement remain fatal without retries", async () => {
+  for (const [reply, snapshots, expectedReads] of [
+    [success([{}]), [success(workspace)], 1],
+    [
+      success(statuses.map((row) => ({ ...row, successful_launches: 1 }))),
+      [success(workspace), success(workspace)],
+      2,
+    ],
+  ] as const) {
+    const fixture = reads([...snapshots], [], reply);
     const readbacks: unknown[] = [];
     await assert.rejects(readGameFirstObservation(fixture.invoke, readbacks));
     assert.equal(
       fixture.calls.filter((call) => call.command === "get_workspace_snapshot").length,
+      expectedReads,
+    );
+    assert.equal(
+      fixture.calls.filter((call) => call.command === "get_library_organization").length,
       1,
     );
     assert.deepEqual(readbacks, []);
   }
+});
+
+test("confirmed read transitions are bounded and cannot cross a library generation or root", async () => {
+  const changed = statuses.map((row) => ({ ...row, successful_launches: 1 }));
+  const updated = { ...workspace, statuses: changed };
+  const fixture = reads(
+    Array.from({ length: 3 }, () => [success(workspace), success(updated)]).flat(),
+    [],
+    success(changed),
+  );
+  const readbacks: unknown[] = [];
+  await assert.rejects(
+    readGameFirstObservation(fixture.invoke, readbacks),
+    /did not settle after 3 full read observations/u,
+  );
+  assert.equal(
+    fixture.calls.filter((call) => call.command === "get_library_organization").length,
+    3,
+  );
+  assert.equal(readbacks.length, 3);
+  for (const identity of [
+    { ...bootstrap, generation: 8 },
+    { ...bootstrap, library_root: "E:/other-library" },
+  ]) {
+    const moved = reads(
+      [success(workspace), success(updated)],
+      [bootstrap, bootstrap, identity],
+      success(changed),
+    );
+    await assert.rejects(readGameFirstObservation(moved.invoke, []));
+    assert.equal(
+      moved.calls.filter((call) => call.command === "get_library_organization").length,
+      1,
+    );
+  }
+});
+
+test("confirmation failures preserve strict explicit-refusal flags and never turn malformed reads into retries", async () => {
+  const changed = statuses.map((row) => ({ ...row, successful_launches: 1 }));
+  for (const bad of [
+    success({}),
+    { ...refusal(), error: { ...refusal().error, code: "state" } },
+    {
+      ...refusal(),
+      error: { ...refusal().error, details: { workspace_snapshot_stale: true, retryable: "true" } },
+    },
+  ]) {
+    const fixture = reads([success(workspace), bad], [], success(changed));
+    const readbacks: unknown[] = [];
+    await assert.rejects(readGameFirstObservation(fixture.invoke, readbacks));
+    assert.equal(
+      fixture.calls.filter((call) => call.command === "get_library_organization").length,
+      1,
+    );
+    assert.deepEqual(readbacks, []);
+  }
+  const updated = { ...workspace, statuses: changed };
+  const fixture = reads([success(workspace), refusal(), success(updated)], [], success(changed));
+  const readbacks: unknown[] = [];
+  assert.deepEqual((await readGameFirstObservation(fixture.invoke, readbacks)).statuses, changed);
+  assert.equal(
+    fixture.calls.filter((call) => call.command === "get_library_organization").length,
+    2,
+  );
+  assert.equal(readbacks.length, 1);
 });
 
 test("game-first capture settles later complete geometry and still refuses movement during the screenshot", async () => {

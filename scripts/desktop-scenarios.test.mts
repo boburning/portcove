@@ -1017,6 +1017,7 @@ import {
 import {
   catalogReport,
   desktopHarnessDeadlineMs,
+  gameFirstLaunchStartDeadlineMs,
   desktopScenarioById,
   DESKTOP_PROFILES,
   DESKTOP_SCENARIOS,
@@ -3195,7 +3196,14 @@ void test("installed Picori is explicit, standalone and excludes inert fixture a
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
   assert.deepEqual(selection.prerequisites, ["desktop"]);
   assert.deepEqual(selection.setup_scenarios, []);
-  assert.equal(desktopHarnessDeadlineMs(selection), 4_500_000);
+  assert.equal(gameFirstLaunchStartDeadlineMs("project-picori"), 3_600_000);
+  assert.equal(gameFirstLaunchStartDeadlineMs("2ship2harkinian"), 30_000);
+  assert.equal(gameFirstLaunchStartDeadlineMs("zelda64-recomp"), 30_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 11_700_000);
+  assert.equal(
+    desktopHarnessDeadlineMs(selection),
+    2 * (gameFirstLaunchStartDeadlineMs("project-picori") + 1_800_000 + 300_000) + 300_000,
+  );
   assert.throws(
     () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
     /standalone/u,

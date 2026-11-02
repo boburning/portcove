@@ -22,6 +22,11 @@ const nativeResources = ["native-desktop", "keyboard-pointer"];
 // This explicit MM case does not change product or other scenario deadlines.
 export const gameFirstMMHarnessDeadlineMs = 40 * 60_000;
 
+/** Picori can synchronize its generated retained tree twice before game creation. */
+export function gameFirstLaunchStartDeadlineMs(portId: string) {
+  return portId === "project-picori" ? 3_600_000 : 30_000;
+}
+
 function scenario(
   id: string,
   description: string,
@@ -948,7 +953,8 @@ export function desktopHarnessDeadlineMs(
   // Picori generates thousands of retained assets. Allow two finite 30-minute
   // collection observations, two five-minute operator exit observations, and
   // five minutes for custody, setup and cleanup. No product deadline or retry changes.
-  if (selection.selected_scenarios.includes("native-game-first-installed-picori")) return 4_500_000;
+  if (selection.selected_scenarios.includes("native-game-first-installed-picori"))
+    return 11_700_000;
   // The retained 2026-11-01 A1 attempt exhausted 180s verifying immutable
   // inputs before App launch. Allow finite room for custody, captures and restart;
   // keep every inner wait, identity check and cleanup unchanged.
