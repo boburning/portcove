@@ -276,13 +276,43 @@ Recovery has one at-most-sixty-second collection opportunity inside the existing
 nine-minute job opportunity, with finite metadata, compressed and expanded bytes
 and no automatic retry. Snapshots have one-day retention and a twenty-four-hour
 recovery-age bound. The deployment cutover explicitly records a new baseline only
-when trusted predecessor source shows no matching snapshot publisher; an older
+when trusted predecessor source shows no snapshot publisher; an older
 publisher is inspected even after artifact expiry. Missing post-cutover history,
 invalid or unavailable advertised artifacts and incomplete inventories require
 explicit recovery rather than a silent new baseline. Interrupted snapshot export
 does not erase the earlier cache or original failures. A later real scheduled
 run must demonstrate continued source/page/Core progress separately from fixture
 tests and an individual batch's `made_progress` field.
+
+The November 2 checkpoint-history loss has one explicitly approved fresh-baseline
+opportunity, pinned in source to failed scheduled run `41476042003`, its original
+attempt/source/creation identity, main ancestry anchor `c66e450e`, and the unchanged
+configuration digest. Only its first natural scheduled successor, attempt one,
+may initialize an entirely absent checkpoint tree. Every intervening scheduled
+status consumes that opportunity, including queued, failed and cancelled runs;
+reruns and manual dispatch cannot use it. The known predecessor must still be
+inside the existing twenty-four-hour recovery window. Provider-verified current
+run identity, complete ordered history, retained main ancestry, and exact-current-
+source Contents metadata bind the config and both catalog/listing input files.
+Their paths, regular-file type, size and locally computed Git blob identity must
+match. A final provider/run-history readback precedes an exclusive local consumption
+receipt and atomic publication. A failed publication retains that receipt.
+
+Valid surviving checkpoints take precedence. Partial trees, invalid/expired
+artifacts, unavailable metadata, quota/deadline exhaustion and changed inputs
+remain refusals; none enter this terminal missing-history initializer. A config
+change cannot turn missing history from an already deployed publisher into an
+initial baseline. There is no reusable flag, dispatch input, credential, new
+permission, schedule change or automatic reset path.
+
+The new controller starts with sequence zero, no source observations, no successful
+clocks and no provider/Core cursors. Validated historical `baseline` provenance
+records lost prior continuity, unknown initial freshness, the actual initializer
+and SHA-256 identities of its inputs. Ordinary later progress and snapshots retain
+that provenance without treating it as current eligibility or refreshing its
+clocks. Existing artifacts and failures remain evidence; fresh bounded reads must
+recollect every missing fact. The one-time opportunity is spent even if its first
+job fails, so another whole-history loss still requires an explicit decision.
 
 Discovery reads scheduled history in ten-record pages through the relevant age
 boundary, retaining the existing hundred-record ceiling. Every fetched page must
