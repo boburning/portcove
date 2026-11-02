@@ -3,13 +3,41 @@
   "listing": {
     "id": "linkssy2-darkwatchdarkeredition",
     "name": "Darkwatch (Darkwatch: Darker Edition)",
-    "summary": "Upstream route: Windows 0.5 ZIP contains runtime/setup: ImportISO validates own disc and prepares assets/shaders, then PlayDarkwatch.exe starts directly. Linux 0.5.5 compatibility archive runs Windowsruntime throughProton. Upstream owns import/setup; local game compilation not inferred from developer source. Limits: Upstream only: Upstream describes Windows 0.5 and bounded Linux compatibility testing. Source validation covers 23 files; no native Linux or full-game proof follows. Windows 0.5 runtime/setup; latest 0.5.5 is a Linux Proton compatibility test with no new Windows asset. Do not select globally newest tag for every platform. Upstream platforms: Windows 10 v1903+/11 x64 D3D12. Linux/Steam Deck use Proton Experimental; 0.5.5 is a compatibility test, not native Linux. Original data: Original Xbox Darkwatch supported North American revision; full/trimmed ISO; exact default.xbe validation. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, already prepared Darkwatch: Darker Edition native Windows runtime. Resolve its actual active version and keep the complete upstream installation; Play Darkwatch.exe only checks startup and does not wait for the game.",
     "original_game_title": "Darkwatch",
     "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
-    "issue_number": 2736
+    "issue_number": 2736,
+    "manual_setup": {
+      "help_url": "https://github.com/linkssy2/DarkwatchDarkerEdition/blob/57f1e32364db6294bcd04e366f01b5a119f8bb74/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own supported Xbox Darkwatch ISO/XISO, title 43430016. The selected supported-disc manifest pins default.xbe to 5,021,696 bytes and SHA256 72fc8033e01df4f22c703121cfd160969c642b18e841248224fc97a8f32050d7, plus individual game-data fingerprints. Finish the upstream 0.7.1 Windows launcher setup and shader preparation outside Portcove. Direct ISO mode retains the original image; Import once and Use Existing Install have different data locations. Keep originals and all recovery records independently. No ISO, importer, helper, shader preparer or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the full Windows release and prepared data",
+          "instruction": "The inspected official 0.7.1 Windows x64 ZIP contains AMD64 Darkwatch Darker Edition.exe, Play Darkwatch.exe and payload/runtime/darkwatch_xbe.exe with matching tools/resources/notices. A prepared installed runtime is required: do not attach the unprepared payload template. The latest selected tag has a Windows asset; the older 0.5.5 Proton-only ordering note no longer describes this release. Proton remains a separate experimental route. Windows requires .NET 4.8, x86-64-v2 and supported D3D12 graphics."
+        },
+        {
+          "title": "Select the active native runtime explicitly",
+          "instruction": "After successful upstream setup, identify the actual installation root: an installation-location.json can link an external GameData root, whose active.json selects versions/<32-hex-version>/. Select darkwatch_xbe.exe in that active prepared version directory, use that same complete directory as working directory and leave arguments empty. Review the precise intent and request Play separately. This matches the backend normal native command/CWD. Play Darkwatch.exe and its helper return after a one-second startup check, so this guide does not attach them as a wait-through-game wrapper. Do not invent a version value or use the package template. If preparation, content repair or a new version is needed, finish it in the upstream launcher and then review/relink the actual active executable."
+        },
+        {
+          "title": "Keep the whole installation and data history",
+          "instruction": "Preserve the launcher package, GameData or linked installation, installation-location.json, active.json, versions/, darkwatch_xbe_settings.toml, hdd* saves, cache, installed-source/recovery records and all configured external images/data. Do not copy just the executable or point another version at existing saves. Upstream 0.6.1 upgrades may need one final original import because old recovery records were not retained. Preserve old/new data and independent recovery copies before upstream updates; this guide performs no repair, import, migration, backup or deletion."
+        },
+        {
+          "title": "Keep optional content and acceptance separate",
+          "instruction": "Optional gameplay HD packs are separate; Spanish voices/text are derived upstream from an independently permitted PAL PS2 SLES-53564 original. Retain SDK/component notices, copyright and restored/launcher-artwork provenance; the snapshot does not grant a license to original game content or freely license all artwork. Use only components you are independently permitted to use. Upstream owns updates, repairs, active-version switching and optional content. Quit the actual game normally, preserve recovery and review/relink replacement bytes. Upstream targeted checks do not establish our native/installed, campaign/co-op, real-save, full Spanish, hardware or Supported acceptance. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Attach only the actual active prepared darkwatch_xbe.exe and its version directory. Keep the full upstream installation; its Play wrapper returns before gameplay ends."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

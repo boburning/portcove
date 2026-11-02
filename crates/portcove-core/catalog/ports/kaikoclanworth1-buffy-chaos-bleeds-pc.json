@@ -3,7 +3,7 @@
   "listing": {
     "id": "kaikoclanworth1-buffy-chaos-bleeds-pc",
     "name": "Buffy the Vampire Slayer: Chaos Bleeds (Buffy Chaos Bleeds PC)",
-    "summary": "Upstream route: Upstream ZIP includes launcher+game program; Install imports own Xbox ISO and optionally converts movies withFFmpeg(downloadable). It is a data installer around an existing runtime, not documented first-launch game compilation. Launcher owns self-update. AndroidAPK imports PALdisc. Limits: Upstream only: Upstream describes runtime, data installer, controls/saves/updater. Android USA unsupported. No independent complete playthrough or device qualification. Windows package plus Android ARM64 APK. Android13/Vulkan1.3 PAL-only unlike desktop supported disc variants; preserve per-platform revision constraint. Upstream platforms: Windows x64 and Steam Deck via Proton; Android 13+ ARM64 Vulkan 1.3 accepts PAL only, unlike desktop disc variants. Original data: Original Xbox Buffy Chaos Bleeds own ISO; Android requires PAL Europe. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Buffy: Chaos Bleeds Windows player matching the installed PAL v2 or North American v1 Xbox original. Preserve SaveData, retained migration backups and the full matching regional program pair.",
     "original_game_title": "Buffy the Vampire Slayer: Chaos Bleeds",
     "project_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "buffy-the-vampire-slayer-chaos-bleeds",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2784
+    "issue_number": 2784,
+    "manual_setup": {
+      "help_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc/blob/34166525b72447515339edad3e46cd62ff7e1a86/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported desktop original",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Xbox Buffy: Chaos Bleeds ISO/XISO. Desktop supports European PAL version 2 (region 4, first-section code size 1,196,336 bytes) and North American version 1 (region 3, 1,193,024 bytes), title 56550005. These certificate/section checks are not a whole-disc cryptographic fingerprint. PS2/GameCube discs and other revisions are not admitted. Complete Buffy Launcher.exe installation, optional movie conversion and settings upstream into its chosen game folder, keeping independent originals. No disc, FFmpeg, installer, helper or game is obtained or executed here."
+        },
+        {
+          "title": "Keep both matching native programs",
+          "instruction": "The inspected official 1.0.2 Windows ZIP contains AMD64 buffy_chaos_bleeds.exe, buffy_chaos_bleeds_usa.exe and Buffy Launcher.exe with matching shaders/mods/resources. Keep the complete package and the prepared installation. The PAL player and USA player are built separately for their exact original code. Upstream Android is ARM64, Android 13+/Vulkan 1.3 and PAL-only: its reported Galaxy Z Fold7 test does not extend desktop or other-device qualification."
+        },
+        {
+          "title": "Attach the actual regional game program",
+          "instruction": "In the prepared installation, select buffy_chaos_bleeds.exe for PAL v2 or buffy_chaos_bleeds_usa.exe for North American v1. Set the complete installed game folder as working directory and leave arguments empty; review the intent and request Play separately. Source resolves default.xbe relative to the executable unless an existing BUFFY_GAME_DIR overrides it. If the other supported region is detected, upstream starts its matching companion and waits for it; do not remove the companion or enable a mismatch override. Missing/unsupported setup belongs in the upstream launcher before attachment."
+        },
+        {
+          "title": "Preserve real saves and old recovery",
+          "instruction": "Keep SaveData/ with BUFFY A.sav, B.sav and C.sav, SaveBackups/, buffy_settings.ini, installed game/movie data, mods/, custom texture replacements/dumps, ShaderCache/, bug_reports/ and logs, plus existing external source paths. Pre-0.4 UDATA saves can be converted on first game start or opening the upstream Saves tab, with originals retained in SaveBackups. Preserve old UDATA/XboxData and every previous installation until existing saves have been checked; this guide does not follow upstream cleanup suggestions or perform conversion, backup, restore or deletion."
+        },
+        {
+          "title": "Maintain the complete external installation",
+          "instruction": "The source tree contains xboxrecomp MIT and separately licensed audio/component notices; no project or toolkit notice licenses the original game, textures or third-party mods. Retain all applicable notices and use only a complete copy you are independently permitted to use. The upstream launcher owns download/update/restart, regional pairing, mods and optional movie preparation. Quit the actual player and companions normally before replacement or data changes, retain recovery copies and review/relink changed bytes. No native/installed, physical-device, gameplay, campaign/co-op, real-save or Supported acceptance is asserted. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the complete matching regional installation, SaveData and retained old-save recovery. Android is a separate PAL-only route; no game or device was run."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
