@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare the exact supported original upstream",
-          "instruction": "Use a complete player/components you are independently permitted to use and your own Skate 2 USA English/French Xbox 360 disc, title 4541087F, default.xex SHA1 a9b539c1acbc80aeaade3ffbe708e1fbd3a2dad7. This is an extracted executable digest, not the ISO hash. Other revisions/title updates need separate address configurations. Finish the upstream package’s Setup.bat import and first save-name/settings prompts before attachment. The extractor checks presence of default.xex, not this digest. No original, helper, extractor, compiler or game is executed here."
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Skate 2 USA English/French Xbox 360 disc, title 4541087F, default.xex SHA1 a9b539c1acbc80aeaade3ffbe708e1fbd3a2dad7. This is an extracted executable digest, not the ISO hash. Other revisions/title updates need separate address configurations. Finish the upstream package’s Setup.bat import and first save-name/settings prompts before attachment. The extractor checks presence of default.xex, not this digest."
         },
         {
           "title": "Keep the actual native player package",

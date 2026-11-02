@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Use your own exact USA disc",
-          "instruction": "Use Azure Dreams USA SLUS-00614 as the complete CUE/BIN set. The selected game.toml identifies data Track 01 by size 298576992 bytes and SHA1 fab68454be5e4e48f7a43ac797cc8c47325c6a20, boot executable SLUS_006.14; this is not a whole-CUE or arbitrary-region hash. Finish original selection and first setup in the upstream integrated launcher. OpenBIOS is the supplied firmware route, with its own notices; no Sony BIOS download is required by this route. No disc, BIOS, converter, helper, compiler or game is executed here."
+          "instruction": "Use Azure Dreams USA SLUS-00614 as the complete CUE/BIN set. The selected game.toml identifies data Track 01 by size 298576992 bytes and SHA1 fab68454be5e4e48f7a43ac797cc8c47325c6a20, boot executable SLUS_006.14; this is not a whole-CUE or arbitrary-region hash. Finish original selection and first setup in the upstream integrated launcher. OpenBIOS is the supplied firmware route, with its own notices; no Sony BIOS download is required by this route."
         },
         {
           "title": "Keep the complete prepared Windows unit",

@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare your original through upstream setup",
-          "instruction": "Use a complete player/components you are independently permitted to use and your own Xbox 360 skate (2007) ISO. The selected source uses a USA disc extraction example; an exact accepted XEX fingerprint is not published here, and another revision is not automatically compatible. Finish the official package’s Setup.bat import outside Portcove. The script checks default.xex exists and writes the game’s AllowMovieSkip.txt flag; that is not a cryptographic original-revision check. No ISO, extractor, helper, compiler or game is executed here."
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Xbox 360 skate (2007) ISO. The selected source uses a USA disc extraction example; an exact accepted XEX fingerprint is not published here, and another revision is not automatically compatible. Finish the official package’s Setup.bat import outside Portcove. The script checks default.xex exists and writes the game’s AllowMovieSkip.txt flag; that is not a cryptographic original-revision check."
         },
         {
           "title": "Use the actual native test package",

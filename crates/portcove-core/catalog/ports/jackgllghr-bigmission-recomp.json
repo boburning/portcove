@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare the exact Japanese PSP original",
-          "instruction": "Use your own Saru! Get You! SaruSaru Daisakusen Japan UCJS10060 version 1.00 ISO. The selected profile identifies PSP_GAME/SYSDIR/BOOT.BIN by size 3226216 bytes and SHA256 ee738a85dcd74a512430d1933226cc744c60b5dfb6e61bcc81eca1d5a208ec4b; this is not a whole-ISO digest. The profile does not supply EBOOT decryption. Finish original verification and local module generation through the supported upstream launcher before attachment. No ISO, decrypter, helper, compiler or game is accessed or executed here."
+          "instruction": "Use your own Saru! Get You! SaruSaru Daisakusen Japan UCJS10060 version 1.00 ISO. The selected profile identifies PSP_GAME/SYSDIR/BOOT.BIN by size 3226216 bytes and SHA256 ee738a85dcd74a512430d1933226cc744c60b5dfb6e61bcc81eca1d5a208ec4b; this is not a whole-ISO digest. The profile does not supply EBOOT decryption. Finish original verification and local module generation through the supported upstream launcher before attachment."
         },
         {
           "title": "Keep the complete Windows shell and local title module",

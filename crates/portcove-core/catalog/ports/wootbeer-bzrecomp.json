@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare the exact N64 original",
-          "instruction": "Use a complete player/components you are independently permitted to use and your own Battlezone: Rise of the Black Dogs USA Rev0 N64 ROM, internal name BATTLEZONE/game code NZOE. Upstream documents SHA1 cdd1d1dec9763ce6b7b1a70668effcead0a185a0 for its .n64 dump and 85b4febbe6fbd1ecfc883905e43e68e7188c44f9 for big-endian .z64. The selected native mapping gates normalized big-endian XXH3-64 f5f240b373301b9d, game ID bz.n64.us.1.0; filename extensions alone do not identify an original. Finish original selection/settings upstream. No ROM, converter, helper, compiler or game is executed here."
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Battlezone: Rise of the Black Dogs USA Rev0 N64 ROM, internal name BATTLEZONE/game code NZOE. Upstream documents SHA1 cdd1d1dec9763ce6b7b1a70668effcead0a185a0 for its .n64 dump and 85b4febbe6fbd1ecfc883905e43e68e7188c44f9 for big-endian .z64. The selected native mapping gates normalized big-endian XXH3-64 f5f240b373301b9d, game ID bz.n64.us.1.0; filename extensions alone do not identify an original. Finish original selection/settings upstream."
         },
         {
           "title": "Keep the complete Windows beta player",

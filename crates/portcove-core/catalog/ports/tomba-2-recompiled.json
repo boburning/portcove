@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Prepare the USA PlayStation original",
-          "instruction": "Use your own Tomba! 2: The Evil Swine Return USA SCUS-94454 disc as a complete CUE/BIN set; the upstream player also documents bare BIN/ISO inputs. Select it in the official v0.3.3 Windows integrated launcher and finish settings/preparation upstream. Italian PAL SCES-02686 uses separate regional mappings/configuration and is not qualified by the USA package. OpenBIOS is the bundled firmware route; the optional exact retail-BIOS selection is a separate user-supplied input, not required here. No original, firmware, helper, compiler or game is accessed or executed here."
+          "instruction": "Use your own Tomba! 2: The Evil Swine Return USA SCUS-94454 disc as a complete CUE/BIN set; the upstream player also documents bare BIN/ISO inputs. Select it in the official v0.3.3 Windows integrated launcher and finish settings/preparation upstream. Italian PAL SCES-02686 uses separate regional mappings/configuration and is not qualified by the USA package. OpenBIOS is the bundled firmware route; the optional exact retail-BIOS selection is a separate user-supplied input, not required here."
         },
         {
           "title": "Keep the complete Windows preview unit",

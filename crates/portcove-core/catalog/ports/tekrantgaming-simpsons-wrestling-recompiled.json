@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Prepare the exact USA PlayStation original",
-          "instruction": "Use your own The Simpsons Wrestling USA SLUS-01227 CUE with every referenced BIN. The selected game.toml identifies data Track 01 by size 506830128 bytes and SHA1 38602a1b9482670dbbd8ab25aa4a8bb520b5bebe, boot SLUS_012.27; this is not a whole-CUE or arbitrary-region fingerprint. Complete disc selection, controls and settings in the official v1.0.0 Windows player’s top-level SimpsonsWrestling.exe first. Keep your original at that remembered location. No disc, helper, compiler or game is accessed or executed here."
+          "instruction": "Use your own The Simpsons Wrestling USA SLUS-01227 CUE with every referenced BIN. The selected game.toml identifies data Track 01 by size 506830128 bytes and SHA1 38602a1b9482670dbbd8ab25aa4a8bb520b5bebe, boot SLUS_012.27; this is not a whole-CUE or arbitrary-region fingerprint. Complete disc selection, controls and settings in the official v1.0.0 Windows player’s top-level SimpsonsWrestling.exe first. Keep your original at that remembered location."
         },
         {
           "title": "Keep the launcher and private game folder together",

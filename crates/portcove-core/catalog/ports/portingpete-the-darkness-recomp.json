@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare the supported original Xbox 360 dump",
-          "instruction": "Use your own The Darkness Xbox 360 original disc revision, retaining all matching extracted files and default.xex under the prepared release’s Darkness/ directory. The selected original revision manifest pins XEX SHA256 aace35a8f9bcdc7f28aeab9ff8cf3bdf200353f5c83705f6284487347acb3c5f and decrypted image SHA256 180b7fc8f57462f6bac3404ecab061a8d79914c7a3e9a12c238bd3449e72d049. These are distinct executable identities, not a whole-disc hash. Finish the supported upstream checks/settings first. Separate Russian-localization revisions are not permission or compatibility inferred for this original-disc route. No disc, helper, compiler or game is accessed or executed here."
+          "instruction": "Use your own The Darkness Xbox 360 original disc revision, retaining all matching extracted files and default.xex under the prepared release’s Darkness/ directory. The selected original revision manifest pins XEX SHA256 aace35a8f9bcdc7f28aeab9ff8cf3bdf200353f5c83705f6284487347acb3c5f and decrypted image SHA256 180b7fc8f57462f6bac3404ecab061a8d79914c7a3e9a12c238bd3449e72d049. These are distinct executable identities, not a whole-disc hash. Finish the supported upstream checks/settings first. Separate Russian-localization revisions are not permission or compatibility inferred for this original-disc route."
         },
         {
           "title": "Keep the actual Windows player package",

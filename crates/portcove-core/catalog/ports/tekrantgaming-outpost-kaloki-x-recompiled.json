@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Prepare the exact owned XBLA original",
-          "instruction": "Use the official v1.1.1 Windows x64 package and your own Outpost Kaloki X original: Xbox Live Arcade title 584107DB/content type 000D0000, package size 21557248 bytes, default.xex 0.0.1.1 (2005-11-04), size 3252224 bytes and CRC32 ccb0ace9; this CRC/size evidence is not a stronger cryptographic digest. Finish Install from package and settings in the supported integrated launcher before attachment. A different title update or original edition is not interchangeable. No owned package, installer, compiler, helper or game is accessed or executed here."
+          "instruction": "Use the official v1.1.1 Windows x64 package and your own Outpost Kaloki X original: Xbox Live Arcade title 584107DB/content type 000D0000, package size 21557248 bytes, default.xex 0.0.1.1 (2005-11-04), size 3252224 bytes and CRC32 ccb0ace9; this CRC/size evidence is not a stronger cryptographic digest. Finish Install from package and settings in the supported integrated launcher before attachment. A different title update or original edition is not interchangeable."
         },
         {
           "title": "Keep the complete prepared player",

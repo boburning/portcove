@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Prepare the supported USA two-disc original",
-          "instruction": "Use your own Valkyrie Profile USA discs, Disc 1 SLUS-01156 and Disc 2 SLUS-01179, as complete CUE/BIN sets. The selected game.toml identifies Disc 1 data Track 01 by size 730448880 bytes and SHA1 fa13cbde448a47fa87b6c7829df1c5e6215f5f66; this is not a Disc 2 or whole-set fingerprint. The source lists both discs in a roster and boots the first program. Complete original selection, local generation/build, firmware selection and settings through the official v1.0.1 upstream setup before attachment. No disc, firmware, helper, compiler or game is accessed or executed here."
+          "instruction": "Use your own Valkyrie Profile USA discs, Disc 1 SLUS-01156 and Disc 2 SLUS-01179, as complete CUE/BIN sets. The selected game.toml identifies Disc 1 data Track 01 by size 730448880 bytes and SHA1 fa13cbde448a47fa87b6c7829df1c5e6215f5f66; this is not a Disc 2 or whole-set fingerprint. The source lists both discs in a roster and boots the first program. Complete original selection, local generation/build, firmware selection and settings through the official v1.0.1 upstream setup before attachment."
         },
         {
           "title": "Keep the completed product and setup tree",

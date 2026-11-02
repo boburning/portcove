@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare the USA PlayStation original upstream",
-          "instruction": "Use a complete player/components you are independently permitted to use and your own Castlevania Chronicles USA SLUS-01384 disc as CUE with all referenced BIN tracks, or CHD. The selected validator checks CUE/CHD structure and the native game’s --validate-disc route looks for SLUS_013.84; this is not a published whole-disc cryptographic digest. Finish disc selection, first-start game-code preparation and settings in the supported upstream launcher first. No original, validator, converter, compiler, helper or game is executed here."
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Castlevania Chronicles USA SLUS-01384 disc as CUE with all referenced BIN tracks, or CHD. The selected validator checks CUE/CHD structure and the native game’s --validate-disc route looks for SLUS_013.84; this is not a published whole-disc cryptographic digest. Finish disc selection, first-start game-code preparation and settings in the supported upstream launcher first."
         },
         {
           "title": "Keep the actual launcher and private runtime unit",

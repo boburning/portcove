@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Prepare the exact owned XBLA original",
-          "instruction": "Use the official v0.9.6 Windows x64 package and your own Earthworm Jim HD original: Xbox Live Arcade title 584109E2/content type 000D0000, default.xex 1.0.0.11 (2010-04-27), size 26726400 bytes and SHA1 62d9d28a3bce42843607c26ab4b200e91cb31203; the LIVE package is 455823360 bytes, but its owner-dependent header means a package checksum is not the executable revision. Finish Install from package and settings in the supported integrated launcher before attachment. A different title update or original edition is not interchangeable. No owned package, installer, compiler, helper or game is accessed or executed here."
+          "instruction": "Use the official v0.9.6 Windows x64 package and your own Earthworm Jim HD original: Xbox Live Arcade title 584109E2/content type 000D0000, default.xex 1.0.0.11 (2010-04-27), size 26726400 bytes and SHA1 62d9d28a3bce42843607c26ab4b200e91cb31203; the LIVE package is 455823360 bytes, but its owner-dependent header means a package checksum is not the executable revision. Finish Install from package and settings in the supported integrated launcher before attachment. A different title update or original edition is not interchangeable."
         },
         {
           "title": "Keep the complete prepared player",

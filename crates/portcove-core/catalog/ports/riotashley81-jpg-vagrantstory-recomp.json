@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Use the exact USA PlayStation original",
-          "instruction": "Use your own Vagrant Story USA SLUS-01040 CUE/BIN disc. The selected game.toml identifies data Track 01 by size 750643152 bytes and SHA1 38c63db6c49a06b91d87cd5a4e31b1ec68fe212c, boot SLUS_010.40; this is not a whole-CUE or all-region fingerprint. Finish original selection and settings in the upstream integrated launcher first. No disc, BIOS, helper, compiler or game is accessed or executed here."
+          "instruction": "Use your own Vagrant Story USA SLUS-01040 CUE/BIN disc. The selected game.toml identifies data Track 01 by size 750643152 bytes and SHA1 38c63db6c49a06b91d87cd5a4e31b1ec68fe212c, boot SLUS_010.40; this is not a whole-CUE or all-region fingerprint. Finish original selection and settings in the upstream integrated launcher first."
         },
         {
           "title": "Keep the complete hybrid Windows package",

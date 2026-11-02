@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare the exact AES original and BIOS",
-          "instruction": "Use your own KOF ’98 home/AES kof98h (NGH-2420), not the MVS kof98 set. The selected mapping uses 242-pn1.bin and 242-p2.bin, 242-s1.bin, 242-mg1.bin, 242-c1.bin through 242-c8.bin and 242-v1.bin through 242-v4.bin. It requires the AES neo-po.bin BIOS plus sfix.sfix, sm1.sm1 and 000-lo.lo from your own compatible BIOS set; the toolkit’s generic MVS example is not this game’s BIOS selection. Upstream docs/game-notes.md owns the per-file CRCs. No cartridge, BIOS, setup helper, compiler or game is accessed or executed here."
+          "instruction": "Use your own KOF ’98 home/AES kof98h (NGH-2420), not the MVS kof98 set. The selected mapping uses 242-pn1.bin and 242-p2.bin, 242-s1.bin, 242-mg1.bin, 242-c1.bin through 242-c8.bin and 242-v1.bin through 242-v4.bin. It requires the AES neo-po.bin BIOS plus sfix.sfix, sm1.sm1 and 000-lo.lo from your own compatible BIOS set; the toolkit’s generic MVS example is not this game’s BIOS selection. Upstream docs/game-notes.md owns the per-file CRCs."
         },
         {
           "title": "Complete the supported upstream build",

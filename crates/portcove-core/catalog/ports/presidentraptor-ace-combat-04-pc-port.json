@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Finish the official Windows preparation",
-          "instruction": "Use the official v2.2.3-beta setup with your own unmodified Ace Combat 04: Shattered Skies USA PS2 ISO, SLUS-20152. The selected original executable SLUS_201.52 must be 3248756 bytes with SHA256 38ecebd6965c2f74ec8973f538781506bf3a2cfad86f908deb6c5d585d528301; this is not a whole-ISO hash. Complete setup into an empty chosen folder and retain your original independently. The release setup carries the runtime and needs .NET Framework 4.8, about 4 GB free and Vulkan 1.3; the separate developer source-build route is not required merely to install this package. No original, installer, compiler, helper or game is executed here."
+          "instruction": "Use the official v2.2.3-beta setup with your own unmodified Ace Combat 04: Shattered Skies USA PS2 ISO, SLUS-20152. The selected original executable SLUS_201.52 must be 3248756 bytes with SHA256 38ecebd6965c2f74ec8973f538781506bf3a2cfad86f908deb6c5d585d528301; this is not a whole-ISO hash. Complete setup into an empty chosen folder and retain your original independently. The release setup carries the runtime and needs .NET Framework 4.8, about 4 GB free and Vulkan 1.3; the separate developer source-build route is not required merely to install this package."
         },
         {
           "title": "Keep the locally assembled game unit",

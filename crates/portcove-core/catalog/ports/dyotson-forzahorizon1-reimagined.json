@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare your own Xbox 360 original upstream",
-          "instruction": "Use the official v0.2.4 Windows setup and complete its supported original-file selection, game-code build and graphics/settings preparation. Inputs are your own Forza Horizon Xbox 360 disc image, Games on Demand package or complete extracted folder, title ID 4D5309C9. The selected base manifest identifies XEX module hash D48ABF1704CE5C4A; optional Title Update 4 uses version 0.0.4.12/module hash 336A44DC03EC8782. These module identifiers are not whole-disc cryptographic hashes. Retain owned update/DLC inputs separately; no original, installer, helper, compiler or game is executed here."
+          "instruction": "Use the official v0.2.4 Windows setup and complete its supported original-file selection, game-code build and graphics/settings preparation. Inputs are your own Forza Horizon Xbox 360 disc image, Games on Demand package or complete extracted folder, title ID 4D5309C9. The selected base manifest identifies XEX module hash D48ABF1704CE5C4A; optional Title Update 4 uses version 0.0.4.12/module hash 336A44DC03EC8782. These module identifiers are not whole-disc cryptographic hashes. Retain owned update/DLC inputs separately."
         },
         {
           "title": "Select the installed waiting launcher",

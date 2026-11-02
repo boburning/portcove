@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Prepare your own exact updated Switch data",
-          "instruction": "Use your own Bayonetta 2 version 1.2 with update v131072 already applied, as plain exefs/ and romfs/ files. The supported builder does not decrypt encrypted packages or accept console keys. Keep the original dump in its existing location. Complete the upstream build and settings in the official v0.3.3 B2recomp-builder-26c45d7.zip before attachment; it contains tools/source, not a prebuilt game.dll or game_native.exe. No original, key, compiler, builder or game is accessed or executed here."
+          "instruction": "Use your own Bayonetta 2 version 1.2 with update v131072 already applied, as plain exefs/ and romfs/ files. The supported builder does not decrypt encrypted packages or accept console keys. Keep the original dump in its existing location. Complete the upstream build and settings in the official v0.3.3 B2recomp-builder-26c45d7.zip before attachment; it contains tools/source, not a prebuilt game.dll or game_native.exe."
         },
         {
           "title": "Retain the whole local build and toolchain",

@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare the matching Complete Edition upstream",
-          "instruction": "Use a complete player/components you are independently permitted to use and your own Xbox 360 Midnight Club: Los Angeles Complete Edition USA/Europe ISO, title 545407F8. The selected source records default.xex version 0.0.0.8 linked 2009-07-17; this is not a whole-disc digest or permission to substitute another region/revision. Finish the upstream local extraction/build first. No original, extractor, helper, compiler or game is executed here."
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Xbox 360 Midnight Club: Los Angeles Complete Edition USA/Europe ISO, title 545407F8. The selected source records default.xex version 0.0.0.8 linked 2009-07-17; this is not a whole-disc digest or permission to substitute another region/revision. Finish the upstream local extraction/build first."
         },
         {
           "title": "Keep the completed upstream build",
