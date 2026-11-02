@@ -30821,34 +30821,6 @@
         "image_sha256": "313d6afdc7b8b20debfc26560beffd862e53cb28b262875edd9bfdf2cac63d7a",
         "game_slug": "muscle-march",
         "match_kind": "underlying-game"
-      },
-      "manual_setup": {
-        "help_url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/README.md",
-        "steps": [
-          {
-            "title": "Finish upstream setup with your own inputs",
-            "instruction": "Use your own Muscle March USA WiiWare WAD, SHA-1 ed99ce114d9793dbf21d5c9589d7947afebd4259, and your own Wii console’s common-key input through upstream’s local launcher. Other WAD revisions are not interchangeable. Complete that private setup outside Portcove first; this guide supplies no WAD, key, key extraction, decryption or firmware. Portcove does not read a console backup or run the upstream importer."
-          },
-          {
-            "title": "Keep the complete Windows package",
-            "instruction": "Use the complete MuscleMarch-windows.zip v0.1.0-beta.5 folder, retaining musclemarch-launcher.exe, musclemarch.exe, libraries, notices and the prepared user data. Windows 10/11 64-bit is the documented host; upstream calls Windows builds new and lightly tested. Preserve GPL-3.0 project/runtime, separate components and original-game rights. A native package and upstream whole-game claim do not establish Portcove gameplay, real-controller, real-save or Supported acceptance."
-          },
-          {
-            "title": "Add the normal native launcher",
-            "instruction": "Select musclemarch-launcher.exe in the extracted MuscleMarch folder, set that containing folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s normal Play control. It supplies the actual game executable’s prepared-data, NAND and working-directory context; selecting a context-free musclemarch.exe is not the same route. Keep the launcher and runtime together, and preserve your existing Pure/Enhanced, graphics and controller choices."
-          },
-          {
-            "title": "Preserve the complete user-data root",
-            "instruction": "Keep the whole active user-data root: normally %APPDATA%/Muscle March on Windows, an existing MUSCLE_MARCH_HOME override, or the upstream adjacent user fallback if the normal folder is unavailable, including launcher.ini, settings.ini, the locally prepared game files, NAND/save content, logs, backups and other user files as present. Keep the original WAD in its existing location separately. Do not delete this folder to register or troubleshoot the player: it contains both preparation and progress. Do not merge another Wii title’s NAND/save tree, reset existing settings or assume portable-root migration. Portcove performs no save import, conversion, backup, restore or key handling."
-          },
-          {
-            "title": "Leave replacement and recovery upstream",
-            "instruction": "The launcher starts a separate native game with its required context. Portcove observes only the selected launcher and its activity is not proof that the actual game or helpers have closed. Quit them before upstream replacement, preparation repair or recovery, retaining the previous complete application/data, and review/select the launcher again after changes. Upstream owns game-file preparation, runtime updates and compatibility. Removing the library reference preserves all external files; managed installation/update/rollback, full-session tracking and Supported qualification are not supplied."
-          }
-        ],
-        "warnings": [
-          "Add musclemarch-launcher.exe with the complete MuscleMarch folder after private upstream setup. Preserve %APPDATA%/Muscle March, including prepared content and saves; no WAD/key processing or full-game lifetime observation is supplied."
-        ]
       }
     },
     {
@@ -39711,34 +39683,6 @@
         "image_sha256": "8a55d6f4e9926fdcf3c153282c3b7fbbca940db69a9470044baae4a563f28f8d",
         "game_slug": "ratchet-and-clank-clone-home",
         "match_kind": "underlying-game"
-      },
-      "manual_setup": {
-        "help_url": "https://github.com/samioan/rac-j2me-remastered/blob/c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b/README.md",
-        "steps": [
-          {
-            "title": "Use the selected Going Mobile release only",
-            "instruction": "Use the complete GoingMobileRemastered-goingmobile-v0.1.1-win64.zip folder with GoingMobile.exe, bin/goingmobile_port_a1.exe, SDL2.dll and notices. This offered route is Ratchet & Clank: Going Mobile using the supported a1 J2ME build; Clone Home and other builds in the broader repository are separate work. The implementation is based on original decompiled game logic, not a clean-room claim. Retain project/component and original-game rights separately; no right to redistribute the original JAR, extracted data or original game code is granted here."
-          },
-          {
-            "title": "Complete the upstream original-JAR import",
-            "instruction": "Choose your own authorized RAC-GoingMobile-a1.jar in the upstream launcher, then complete its local import before using Play. The filename describes the supported variant but is not an independent cryptographic fingerprint; no exact original-JAR digest is established by this guide. The launcher unpacks and copies the required content into adjacent data/. This guide supplies no JAR, phone/account acquisition, decompiler execution or source conversion. Do not substitute another mobile variant or the other game’s JAR."
-          },
-          {
-            "title": "Add the ordinary native launcher",
-            "instruction": "Select GoingMobile.exe, use its complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its normal Play control. The launcher passes the selected prepared data directory and saved options to bin/goingmobile_port_a1.exe. Keep that context together; the internal player with no required data argument is not an equivalent route. Registration does not change graphics, controls or optional modes."
-          },
-          {
-            "title": "Keep imported data and the separate save root",
-            "instruction": "Retain the whole adjacent data/ folder, launcher configuration, application/companions and the existing original JAR separately. Keep %LOCALAPPDATA%/rac-gm-port-a1 with all saves, display settings, logs and related files as present. The launcher’s copy of the JAR contents and the user-profile save root serve different purposes; retaining only the executable or data/ does not retain progress. Preserve existing custom data choices and do not merge Clone Home/another JAR build’s state. No save import, conversion, migration, backup or restore is performed."
-          },
-          {
-            "title": "Leave updates and recovery upstream",
-            "instruction": "Upstream’s launcher checks and installs its own updates. Quit actual game/helpers before replacement or recovery and keep prior complete application/data/save copies; recheck the selected launcher after changes. Portcove follows only the selected program and a finished activity does not prove every successor stopped. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable; gameplay, audio, controller and real-save reports remain separately observed outcomes."
-          }
-        ],
-        "warnings": [
-          "Add GoingMobile.exe from the complete Windows a1 release after importing your own authorized JAR. Preserve adjacent data/ and %LOCALAPPDATA%/rac-gm-port-a1 separately; Clone Home and other mobile variants are not covered by this route."
-        ]
       }
     },
     {

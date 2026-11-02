@@ -1,23 +1,23 @@
 {
   "format_version": 1,
   "baseline": "4d55265b20eeb954e6b63d7073fd61fea287ac60",
-  "authored_membership_head": "044403be65af4c16e1819a847b5cb390905ff0f8",
-  "scope": "31 individually traced authored port records:29 new guides and2 corrections to existing ordinary-launcher choices. Existing user-selected executable/CWD/arguments only; no new Core capability, strict integration or support/platform promotion.",
+  "authored_membership_head": "283099c5c6b9bcede37208d1b2e46253b7cfa8bc",
+  "scope": "29 individually traced authored port records:27 new guides and2 corrections to existing ordinary-launcher choices. Existing user-selected executable/CWD/arguments only; no new Core capability, strict integration or support/platform promotion.",
   "counts": {
-    "substantive_port_changes": 31,
-    "new_guides": 29,
+    "substantive_port_changes": 29,
+    "new_guides": 27,
     "corrected_existing_guides": 2,
-    "finite_closure_proposals": 28,
+    "finite_closure_proposals": 25,
     "direct_required_beta_resolved": 0,
-    "partial_authored_outcomes": 3,
+    "partial_authored_outcomes": 4,
     "cohort_components": {
-      "original-524": 21,
+      "original-524": 19,
       "affected-312": 10
     },
     "initial_bounded_pool": 52,
     "additional_material_contract_correction_candidates": 6,
-    "ready_frozen_members": 31,
-    "new_canonical_hold_receipts": 12
+    "ready_frozen_members": 29,
+    "new_canonical_hold_receipts": 14
   },
   "shared_behavior": "Separately requested Play binds an explicitly selected native upstream program, working directory and arguments. Upstream retains preparation, runtime replacement, data and recovery. Only the selected program is observed: activity completion neither stops successors nor proves full-session exit or maintenance safety. Removing the reference preserves all external files. No managed installation/update/backup/rollback/migration/deletion is offered.",
   "contract_correction": "Managed full-successor lifetime requirements do not govern user-selected non-owning upstream launchers. Independent initial read-only review confirmed this operation boundary; all separate source, permission, artifact and explicit acceptance conditions remain.",
@@ -11794,341 +11794,6 @@
       "closure_boundary": "Finite source/setup and non-owning prepared-player adoption only; whole-owner independent review, exact-head CI, guarded delivery and canonical reconciliation remain required."
     },
     {
-      "issue": 1711,
-      "id": "muscle-march-recomp-tmcleroy",
-      "cohort": "original-524",
-      "authored_path": "crates/portcove-core/catalog/ports/muscle-march-recomp-tmcleroy.json",
-      "authored_preimage_sha256": "5dd9325d823bf6209f3a7711b9fd3ab97376736d18e177c8d187d14b1ab5cd42",
-      "authored_postimage_sha256": "52c1c338bf9f5ed6a02859887c4e00041880b74c5b4670040699404df81cff34",
-      "canonical_specification_sha256": "7b995cd1b2270527a9da2c62e7c492409e464f3f87121e07761a04c62eabb83b",
-      "canonical_status_at_pickup": "Inbox",
-      "canonical_stage_at_pickup": "Watchlist",
-      "canonical_next_actions": [
-        "Metadata intake can proceed. Binary integration is held pending an explicit upstream/governance use disposition plus exact source, executable and write/ownership contracts. This intake authorizes no artifact acquisition, key handling or runtime execution."
-      ],
-      "source_repository": "tmcleroy/muscle-march-recomp",
-      "source_repository_id": 1410637011,
-      "source_revision": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-      "source_tree_proof": {
-        "root": "ba1dd103be693f500be841fc8feafc51b20a3d14",
-        "entries": 481,
-        "serialized_tree_objects_verified": true,
-        "truncated": false
-      },
-      "source_evidence": [
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "LICENSE",
-          "blob": "94a9ed024d3859793618152ea559a168bbcbb5e2",
-          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
-          "bytes": 35147,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/LICENSE"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "README.md",
-          "blob": "b0c3a4f0f3910d6b0fa3518631169a5ef3800c18",
-          "sha256": "f37c07d74379a7401ea5c081c138c0a996fd80be04014c4703e59b5c6bdc9d55",
-          "bytes": 9947,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/README.md"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/launcher/CMakeLists.txt",
-          "blob": "151a459c9bce33d82c26a2967631d4f05d89f155",
-          "sha256": "e6f98acaa7e0bfb55d6e12700f2436ad2481dcb16cefbe1c8a972892b86ac316",
-          "bytes": 3386,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/launcher/CMakeLists.txt"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/launcher/src/main.cpp",
-          "blob": "5574514f435dc1392911e30a2931dc397955739e",
-          "sha256": "5eddae78c3f925c1f9bd8e994c8f939e1040aa4bfadb93a5817a2cf88fc7af93",
-          "bytes": 5919,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/launcher/src/main.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/launcher/src/prefs.cpp",
-          "blob": "e6d63acdc5185a12026bd28f481fb21a098cd3b1",
-          "sha256": "ccff5c5076d3569c9dc4eef84ec1b454c593172b318253e298faccc84aec210d",
-          "bytes": 1868,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/launcher/src/prefs.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/launcher/src/project.cpp",
-          "blob": "a6ec775d6da33e3a7384d8b06a09d61b1551f3c6",
-          "sha256": "b7a9dd77360a315a4e89c349e62bed78190bff723a99f7f6b88827f85772c423",
-          "bytes": 10162,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/launcher/src/project.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/launcher/src/runner.cpp",
-          "blob": "7135901a6e7b5602383c17605c5ba1900dee631b",
-          "sha256": "248a756648781cb5d71e329008297b2851001e5f7ee063092750eedaec4d1748",
-          "bytes": 6181,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/launcher/src/runner.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/launcher/src/subprocess.cpp",
-          "blob": "dfba1c6782c5ddf5cab26bd27a0188028ba6ccd3",
-          "sha256": "f967050769b8a70e309aafc4d763c0a1734a7d777bee3c3c3f3d11b88ddb2b75",
-          "bytes": 10978,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/launcher/src/subprocess.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/engine/src/platform/settings.cpp",
-          "blob": "55570908fa396f9e1ffbb4b965c8cf3204a29895",
-          "sha256": "15491b7ee705b6a470d4405879be5d8dee52885a5d612d87975656ed387c37af",
-          "bytes": 5891,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/engine/src/platform/settings.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "THIRD_PARTY_NOTICES.md",
-          "blob": "3fb84a42d9706185958b7118f82090b42ccf610f",
-          "sha256": "aefcd7c9a973a006cc0e5766a4f3d3d6659797d264061c7ddb288fc45e68933d",
-          "bytes": 2538,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/THIRD_PARTY_NOTICES.md"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "Makefile",
-          "blob": "bd0cc86f9b727aacbce497babc3507fbb8d3a526",
-          "sha256": "1de210f812468cf18cc6ae158a3e2398a48e10afdad6fa2ad741290695dd37bf",
-          "bytes": 5996,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/Makefile"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "tools/make_appimage.py",
-          "blob": "2e432f773115a26e8a6850d8aa8c8e98edaf3304",
-          "sha256": "68d11de8a7ab1254b4bc316bbbcb74df1d5deb46b02f87cd6fa0caab6f8797e5",
-          "bytes": 4109,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/tools/make_appimage.py"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/games/musclemarch/launcher/src/game_process.cpp",
-          "blob": "9cf1addd8cfab77e0d54e96e3c3b28445f3aa4c9",
-          "sha256": "61312a811763af000e65d2f9545e649c40209357fbb394b9356bd06fceed1dbf",
-          "bytes": 7288,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/games/musclemarch/launcher/src/game_process.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/games/musclemarch/launcher/src/app.cpp",
-          "blob": "af72dd6db0223f29d2317eb2f29ecb92d05df6f2",
-          "sha256": "df06cf3635735090154c9b2cb13d0e4f89bb4fee862bcaa04abf6991673e9765",
-          "bytes": 38899,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/games/musclemarch/launcher/src/app.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/games/musclemarch/launcher/src/install.cpp",
-          "blob": "b1f7645651190f5f6ac0f64f785fe9c3d51b6b3b",
-          "sha256": "2f75f4439ca9dae2390e8f4c0f6d129ad8d7cbd2bab5812bdc83718a29816734",
-          "bytes": 15910,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/games/musclemarch/launcher/src/install.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/games/musclemarch/launcher/src/main.cpp",
-          "blob": "d41a5919c80bf2cf9fed3704db86edc727a43f20",
-          "sha256": "a8e38332fed3c834c9bc23d4ba39e89e3a3efcf16717fbfb095358f6f29cd533",
-          "bytes": 5927,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/games/musclemarch/launcher/src/main.cpp"
-        },
-        {
-          "repository": "tmcleroy/muscle-march-recomp",
-          "repository_id": 1410637011,
-          "commit": "9bd9aae2704e7c92043af7d8b0b7051c4a615f1e",
-          "path": "port/games/musclemarch/game.cpp",
-          "blob": "53ae7d04f1406bf94b434e7a9ca4efaea7981f57",
-          "sha256": "aa0b1c80b418d92de85b2bf4fb1bc57b844378c5788d76aec3634ca28b20dce0",
-          "bytes": 427,
-          "url": "https://github.com/tmcleroy/muscle-march-recomp/blob/9bd9aae2704e7c92043af7d8b0b7051c4a615f1e/port/games/musclemarch/game.cpp"
-        }
-      ],
-      "artifact_observation": {
-        "content_selection": {
-          "native_members": "all EXE/DLL suffix members",
-          "documentation_members": "bounded notice/configuration-name filter",
-          "unselected_members": "full physical/logical index checks only; no full CRC or ABI claim"
-        },
-        "observed_at": "2026-11-02T08:42:49.318484+00:00",
-        "observed_sha256": "26436cf51b454fb8fc42bc8ed3b017fc46a3b82bdd0609e26ecdc5cc19e8eff3",
-        "expected_digest_matched": true,
-        "expected_digest_authority": "official API metadata retained before download; null means no expected digest published",
-        "raw_preparser": {
-          "physical_records": 16,
-          "central_bytes": 1589,
-          "declared_expanded_bytes": 26761855,
-          "raw_names_bound_before_parser": true
-        },
-        "limits": {
-          "archive_bytes": 536870912,
-          "central_bytes": 4194304,
-          "physical_records": 32768,
-          "member_bytes": 536870912,
-          "expanded_aggregate_bytes": 2147483648,
-          "max_name_bytes": 512,
-          "selected_stream_chunk_bytes": 1048576,
-          "selected_header_bytes": 65560,
-          "documentation_total_bytes": 4194304
-        },
-        "parser": "Python3.14.4 zipfile after raw physical-index checks",
-        "all_members_full_CRC_verified": false,
-        "no_extraction_writes": true,
-        "no_upstream_execution": true,
-        "asset": {
-          "id": 632511786,
-          "name": "MuscleMarch-windows.zip",
-          "size": 9526383,
-          "digest": "sha256:26436cf51b454fb8fc42bc8ed3b017fc46a3b82bdd0609e26ecdc5cc19e8eff3",
-          "browser_download_url": "https://github.com/tmcleroy/muscle-march-recomp/releases/download/v0.1.0-beta.5/MuscleMarch-windows.zip",
-          "updated_at": "2026-10-12T03:13:35Z"
-        },
-        "member_count": 16,
-        "native_members": [
-          {
-            "path": "MuscleMarch/musclemarch.exe",
-            "bytes": 18642432,
-            "sha256": "5418e98acb8994328e3f3747b47c306aea4c25bc1d39c404595f471d4617189b",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 10,
-              "bytes_retained": 65560,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          },
-          {
-            "path": "MuscleMarch/musclemarch-launcher.exe",
-            "bytes": 1861120,
-            "sha256": "b7a1be201f23a908d0d28d58979fc39a27a264e0fa74260f41e201838e8dd5c2",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 10,
-              "bytes_retained": 65560,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          },
-          {
-            "path": "MuscleMarch/libwinpthread-1.dll",
-            "bytes": 59133,
-            "sha256": "283307f63c56437e57e1dc70832fd53aca1ea1e88b1c660e1a70575e9f6b0cc7",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 12,
-              "bytes_retained": 59133,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          },
-          {
-            "path": "MuscleMarch/libstdc++-6.dll",
-            "bytes": 2188728,
-            "sha256": "c3594e764a749d3a88ba3cdf0a7541f59a41f98ea318e81ed674ad85d3d71a64",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 11,
-              "bytes_retained": 65560,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          },
-          {
-            "path": "MuscleMarch/libgcc_s_seh-1.dll",
-            "bytes": 115891,
-            "sha256": "d5c698cac9356729e75f226cdd91b5501f7cd94a022685297bf57f1a18e1501f",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 11,
-              "bytes_retained": 65560,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          },
-          {
-            "path": "MuscleMarch/SDL3.dll",
-            "bytes": 3834365,
-            "sha256": "7be09c1f5b83f70112fa9b381d47f3102968e45f7c7d4ec4d418c66c7f6052cc",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 12,
-              "bytes_retained": 65560,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          }
-        ],
-        "documentation_paths": [
-          "MuscleMarch/THIRD_PARTY_NOTICES.md",
-          "MuscleMarch/README.md",
-          "MuscleMarch/LICENSE.txt"
-        ],
-        "documentation_decoded_text_sha256": {
-          "MuscleMarch/THIRD_PARTY_NOTICES.md": "aefcd7c9a973a006cc0e5766a4f3d3d6659797d264061c7ddb288fc45e68933d",
-          "MuscleMarch/README.md": "f37c07d74379a7401ea5c081c138c0a996fd80be04014c4703e59b5c6bdc9d55",
-          "MuscleMarch/LICENSE.txt": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
-        }
-      },
-      "actual_route_and_change": "New guide: musclemarch-launcher.exe; full MuscleMarch folder; empty args; private WAD/key preparation upstream.",
-      "source_setup": {
-        "title": "Finish upstream setup with your own inputs",
-        "instruction": "Use your own Muscle March USA WiiWare WAD, SHA-1 ed99ce114d9793dbf21d5c9589d7947afebd4259, and your own Wii console’s common-key input through upstream’s local launcher. Other WAD revisions are not interchangeable. Complete that private setup outside Portcove first; this guide supplies no WAD, key, key extraction, decryption or firmware. Portcove does not read a console backup or run the upstream importer."
-      },
-      "persistence": {
-        "title": "Preserve the complete user-data root",
-        "instruction": "Keep the whole active user-data root: normally %APPDATA%/Muscle March on Windows, an existing MUSCLE_MARCH_HOME override, or the upstream adjacent user fallback if the normal folder is unavailable, including launcher.ini, settings.ini, the locally prepared game files, NAND/save content, logs, backups and other user files as present. Keep the original WAD in its existing location separately. Do not delete this folder to register or troubleshoot the player: it contains both preparation and progress. Do not merge another Wii title’s NAND/save tree, reset existing settings or assume portable-root migration. Portcove performs no save import, conversion, backup, restore or key handling."
-      },
-      "limitations": [
-        "Add musclemarch-launcher.exe with the complete MuscleMarch folder after private upstream setup. Preserve %APPDATA%/Muscle March, including prepared content and saves; no WAD/key processing or full-game lifetime observation is supplied."
-      ],
-      "title_exception": "Owner supplies private WAD/key outside Portcove; Windows lightly tested. MUSCLE_MARCH_HOME and fallback user roots retained.",
-      "finite_closure_proposal": true,
-      "closure_boundary": "Finite source/setup and non-owning prepared-player adoption only; whole-owner independent review, exact-head CI, guarded delivery and canonical reconciliation remain required."
-    },
-    {
       "issue": 1639,
       "id": "pt-pc-loreanxavier",
       "cohort": "original-524",
@@ -17211,168 +16876,6 @@
       "closure_boundary": "Finite source/setup and non-owning prepared-player adoption only; whole-owner independent review, exact-head CI, guarded delivery and canonical reconciliation remain required."
     },
     {
-      "issue": 1872,
-      "id": "samioan-rac-j2me-remastered",
-      "cohort": "original-524",
-      "authored_path": "crates/portcove-core/catalog/ports/samioan-rac-j2me-remastered.json",
-      "authored_preimage_sha256": "ccd9ac1654fe320cbfe50a780cf520f8c805df65ab885f75de06474e614af20b",
-      "authored_postimage_sha256": "e2f03d72548d95aae064159be25a922d126de2883fb6b94a1cc191167e1fedf1",
-      "canonical_specification_sha256": "d4a7022e74555f4d0379f45abaa0f6e903898c1e5bb6e7c815373aaf063199b5",
-      "canonical_status_at_pickup": "Inbox",
-      "canonical_stage_at_pickup": "Watchlist",
-      "canonical_next_actions": [
-        "No current blocker has been established. Exact resume condition pending triage."
-      ],
-      "source_repository": "samioan/rac-j2me-remastered",
-      "source_repository_id": 1387124163,
-      "source_revision": "c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b",
-      "source_tree_proof": {
-        "root": "99a59df2239e433c92452f5b90db81d830fa766b",
-        "entries": 282,
-        "serialized_tree_objects_verified": true,
-        "truncated": false
-      },
-      "source_evidence": [
-        {
-          "repository": "samioan/rac-j2me-remastered",
-          "repository_id": 1387124163,
-          "commit": "c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b",
-          "path": "NOTICE.md",
-          "blob": "4b106a794fad6c4415a6d356385bf0dcb2936e06",
-          "sha256": "10810f0ee423cd1a601624fd39db25d8bb24bf7e70a508e975c5e20179573ac5",
-          "bytes": 2014,
-          "url": "https://github.com/samioan/rac-j2me-remastered/blob/c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b/NOTICE.md"
-        },
-        {
-          "repository": "samioan/rac-j2me-remastered",
-          "repository_id": 1387124163,
-          "commit": "c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b",
-          "path": "README.md",
-          "blob": "4d4db1f483e4c2492b4a50f6e8b45f42cf76cb73",
-          "sha256": "c5e8b09c9b116b4033fd6a892a64300a54a7ba670f129b71cecb9fb23926f636",
-          "bytes": 6483,
-          "url": "https://github.com/samioan/rac-j2me-remastered/blob/c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b/README.md"
-        },
-        {
-          "repository": "samioan/rac-j2me-remastered",
-          "repository_id": 1387124163,
-          "commit": "c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b",
-          "path": "goingmobile/port/dist_readme.txt",
-          "blob": "e8d7b7adf9d785c1bf1f101bc2258a63fe60d9b0",
-          "sha256": "9f8afe2963e58770d7c8a2dca1f14e49fee8c89e9b4acb309b5953ce16cee854",
-          "bytes": 2318,
-          "url": "https://github.com/samioan/rac-j2me-remastered/blob/c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b/goingmobile/port/dist_readme.txt"
-        },
-        {
-          "repository": "samioan/rac-j2me-remastered",
-          "repository_id": 1387124163,
-          "commit": "c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b",
-          "path": "goingmobile/port/src/launcher/launcher_main.cpp",
-          "blob": "60bca37d19ab48804043748868b3b19dd53e1712",
-          "sha256": "d4608ef326003bcda381dc0b1adf97582bc9671da3804a67cbbda9c6be1144d3",
-          "bytes": 44184,
-          "url": "https://github.com/samioan/rac-j2me-remastered/blob/c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b/goingmobile/port/src/launcher/launcher_main.cpp"
-        },
-        {
-          "repository": "samioan/rac-j2me-remastered",
-          "repository_id": 1387124163,
-          "commit": "c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b",
-          "path": "goingmobile/port/src_a1/main.cpp",
-          "blob": "48728f53560a0178b65fefcad005584ac1d6ed0d",
-          "sha256": "8290e4bf1e4d5c2430d4206acb6295674564944f5e7804d976165a29236ba0ce",
-          "bytes": 9626,
-          "url": "https://github.com/samioan/rac-j2me-remastered/blob/c85cfb32813bb0cfca70f9351d4a9fd18ff4ce5b/goingmobile/port/src_a1/main.cpp"
-        }
-      ],
-      "artifact_observation": {
-        "content_selection": {
-          "native_members": "all EXE/DLL suffix members",
-          "documentation_members": "bounded notice/configuration-name filter",
-          "unselected_members": "full physical/logical index checks only; no full CRC or ABI claim"
-        },
-        "observed_at": "2026-11-02T08:55:09.324170+00:00",
-        "observed_sha256": "c81e15d867a53b95fc16c233e7a558c803c8437339761031b62b096d0b8899c5",
-        "expected_digest_matched": true,
-        "expected_digest_authority": "official API metadata retained before download; null means no expected digest published",
-        "raw_preparser": {
-          "physical_records": 4,
-          "central_bytes": 245,
-          "declared_expanded_bytes": 4783962,
-          "raw_names_bound_before_parser": true
-        },
-        "limits": {
-          "archive_bytes": 536870912,
-          "central_bytes": 4194304,
-          "physical_records": 32768,
-          "member_bytes": 536870912,
-          "expanded_aggregate_bytes": 2147483648,
-          "max_name_bytes": 512,
-          "selected_stream_chunk_bytes": 1048576,
-          "selected_header_bytes": 65560,
-          "documentation_total_bytes": 4194304
-        },
-        "parser": "Python3.14.4 zipfile after raw physical-index checks",
-        "all_members_full_CRC_verified": false,
-        "no_extraction_writes": true,
-        "no_upstream_execution": true,
-        "asset": {
-          "id": 590317664,
-          "name": "GoingMobileRemastered-goingmobile-v0.1.1-win64.zip",
-          "size": 4326439,
-          "digest": "sha256:c81e15d867a53b95fc16c233e7a558c803c8437339761031b62b096d0b8899c5",
-          "browser_download_url": "https://github.com/samioan/rac-j2me-remastered/releases/download/goingmobile-v0.1.1/GoingMobileRemastered-goingmobile-v0.1.1-win64.zip",
-          "updated_at": "2026-09-26T09:04:32Z"
-        },
-        "member_count": 4,
-        "native_members": [
-          {
-            "path": "bin/goingmobile_port_a1.exe",
-            "bytes": 472064,
-            "sha256": "6ffd33e1bf3faef86bb742db39398589c352a704625dc68abad0c7f6768f7c20",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 7,
-              "bytes_retained": 65560,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          },
-          {
-            "path": "GoingMobile.exe",
-            "bytes": 4307456,
-            "sha256": "e5992417ae2921274c193495cc9364076400dff95631c8a6636b082f2936056e",
-            "full_member_CRC_verified": true,
-            "pe_prefix": {
-              "machine": "0x8664",
-              "sections": 7,
-              "bytes_retained": 65560,
-              "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
-            }
-          }
-        ],
-        "documentation_paths": ["NOTICE.md", "README.txt"],
-        "documentation_decoded_text_sha256": {
-          "NOTICE.md": "5d0a52d231c7ac0d450e8b8d2c655a3be665998507e74d008261c6bb48c861ff",
-          "README.txt": "77624aefd7e24fee7203296bee6fb98b48d8590230f1837668988acacfa3e256"
-        }
-      },
-      "actual_route_and_change": "New guide: GoingMobile.exe; complete Windows release root; empty args; own a1 JAR import upstream. Clone Home is separate.",
-      "source_setup": {
-        "title": "Use the selected Going Mobile release only",
-        "instruction": "Use the complete GoingMobileRemastered-goingmobile-v0.1.1-win64.zip folder with GoingMobile.exe, bin/goingmobile_port_a1.exe, SDL2.dll and notices. This offered route is Ratchet & Clank: Going Mobile using the supported a1 J2ME build; Clone Home and other builds in the broader repository are separate work. The implementation is based on original decompiled game logic, not a clean-room claim. Retain project/component and original-game rights separately; no right to redistribute the original JAR, extracted data or original game code is granted here."
-      },
-      "persistence": {
-        "title": "Keep imported data and the separate save root",
-        "instruction": "Retain the whole adjacent data/ folder, launcher configuration, application/companions and the existing original JAR separately. Keep %LOCALAPPDATA%/rac-gm-port-a1 with all saves, display settings, logs and related files as present. The launcher’s copy of the JAR contents and the user-profile save root serve different purposes; retaining only the executable or data/ does not retain progress. Preserve existing custom data choices and do not merge Clone Home/another JAR build’s state. No save import, conversion, migration, backup or restore is performed."
-      },
-      "limitations": [
-        "Add GoingMobile.exe from the complete Windows a1 release after importing your own authorized JAR. Preserve adjacent data/ and %LOCALAPPDATA%/rac-gm-port-a1 separately; Clone Home and other mobile variants are not covered by this route."
-      ],
-      "title_exception": "Only Going Mobile a1 offered; JAR filename is not a hash. Clone Home/other builds retain separate acceptance.",
-      "finite_closure_proposal": true,
-      "closure_boundary": "Finite source/setup and non-owning prepared-player adoption only; whole-owner independent review, exact-head CI, guarded delivery and canonical reconciliation remain required."
-    },
-    {
       "issue": 2748,
       "id": "shihabal3amri-tekken-tag-tournament-2-pc",
       "cohort": "affected-312",
@@ -17765,9 +17268,9 @@
       "limitations": [
         "Add only the installed game.exe after the recommended Windows v0.52.0 setup. Keep the exact PAL GDI/three-track input, versioned application, content binding and active user-data/content roots; unresolved Windows startup failures remain upstream."
       ],
-      "title_exception": "Newer v0.52.1 assets are Linux-only; Windows v0.52.0 is explicitly recommended. Startup failures remain unresolved.",
-      "finite_closure_proposal": true,
-      "closure_boundary": "Finite source/setup and non-owning prepared-player adoption only; whole-owner independent review, exact-head CI, guarded delivery and canonical reconciliation remain required."
+      "title_exception": "Actual installed native-player artifact or controlled owned-input build remains uninspected; the public setup header is not that player. Upstream Windows startup failures remain unresolved.",
+      "finite_closure_proposal": false,
+      "closure_boundary": "Actual installed native-player artifact or controlled owned-input build remains uninspected; the public setup header is not that player. Upstream Windows startup failures remain unresolved."
     },
     {
       "issue": 2900,
@@ -22198,6 +21701,12 @@
       "state": "OPEN; no closure or Project field mutation by this observation"
     },
     {
+      "issue": 1711,
+      "receipt": "https://github.com/boburning/portcove/issues/1711#issuecomment-6574105595",
+      "body_sha256": "f1eda12b2eb3700766a675d3dc3f012f40feef041a933207e0759d73d78762f6",
+      "state": "OPEN; no closure or Project field mutation by this observation"
+    },
+    {
       "issue": 1788,
       "receipt": "https://github.com/boburning/portcove/issues/1788#issuecomment-6573684974",
       "body_sha256": "2d905fb41176e1e339af22e8c74790f67234367dd75a90b60281edd4de100365",
@@ -22219,6 +21728,12 @@
       "issue": 1871,
       "receipt": "https://github.com/boburning/portcove/issues/1871#issuecomment-6573685459",
       "body_sha256": "e38ccbe2cde7985c2e95cd603acb390626af897d181e6f8c7604e1a4cf78afc2",
+      "state": "OPEN; no closure or Project field mutation by this observation"
+    },
+    {
+      "issue": 1872,
+      "receipt": "https://github.com/boburning/portcove/issues/1872#issuecomment-6574106059",
+      "body_sha256": "32e2b873d0a289a67f2c2211fe8f2c0fe631a4cdaffff4b483b379437c675a36",
       "state": "OPEN; no closure or Project field mutation by this observation"
     },
     {
@@ -22273,9 +21788,11 @@
     "1871": "Published player still needs native artifact/build inspection",
     "1903": "Flash/client-server and media boundary need separate qualification",
     "2610": "Official launcher path found; player contract remains to qualify",
-    "377": "Native file observed; exact first-game HD source remains unresolved"
+    "377": "Native file observed; exact first-game HD source remains unresolved",
+    "1711": "Explicit translated-binary integration/use-disposition permission hold; remove Play-ready guidance.",
+    "1872": "Canonical owner is Clone Home; Going Mobile is a different game and cannot satisfy it."
   },
   "direct_required_boundary": "Ten direct title owners and3Required parents were refreshed at pickup; no actionable public-only resolution superseded their private/native/protected/historical conditions. No direct Required closure is proposed.",
   "remaining_cohort_boundary": "Only reviewed finite source/setup/adoption components can close. The preserved858 union, #1422/#2510/#2926 and their remaining required/cohort acceptance remain unfinished. No whole Required parent/cohort closes.",
-  "batch_size_reason": "31 lies within the normal30–50 range. Progressive use of the initial52-record reserve plus6material contract-correction candidates retained exact holds and excluded unready routes. Membership is frozen; no speculative work or unrelated additions were added to reach exactly40."
+  "batch_size_reason": "Initially frozen at31, repaired to29 after independent review removed one permission-held title and one wrong-title guide. This is below the normal 30–50 range: finish the already frozen/reviewed candidate without padding, and retain the approximately 40 default for the next unfrozen routine batch. The initial52-record reserve plus6material contract-correction candidates was checked progressively."
 }
