@@ -525,22 +525,6 @@ function BrowserFilterRecovery({
 }) {
   return (
     <>
-      {model.view === "library" &&
-        !model.firstUseEmpty &&
-        (model.constrained || model.query.trim()) && (
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <p className="m-0" role="status">
-              {model.resultsUnavailable
-                ? "Results unavailable"
-                : `${model.visiblePorts.length} of ${model.overview.installed} library ${model.overview.installed === 1 ? "entry" : "entries"}`}
-            </p>
-            {(model.resultsUnavailable || model.visiblePorts.length > 0) && (
-              <Button variant="ghost" onClick={model.reset}>
-                Reset view
-              </Button>
-            )}
-          </div>
-        )}
       {model.view === "catalog" &&
         !model.visiblePorts.length &&
         typeof model.filter !== "string" &&
@@ -787,21 +771,23 @@ function BrowserEmptyState({
       />
     );
   return (
-    <EmptyState
-      icon={Settings2}
-      title={view === "library" ? "No matching library entries" : "No matching games"}
-      description={
-        query
-          ? `No ${view === "library" ? "library entries" : "games"} match “${query}” with the current view. Reset search, filters, quick views and collection selection to browse again.`
-          : `No ${view === "library" ? "library entries" : "games"} match the current filters and view. Reset filters, quick views and collection selection to browse again.`
-      }
-      action={
-        <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
-          <Icon glyph={Settings2} />
-          Reset view
-        </Button>
-      }
-    />
+    <div className={view === "library" ? "library-empty-result" : undefined}>
+      <EmptyState
+        icon={Settings2}
+        title={view === "library" ? "No matching library entries" : "No matching games"}
+        description={
+          query
+            ? `No ${view === "library" ? "library entries" : "games"} match “${query}” with the current view. Reset search, filters, quick views and collection selection to browse again.`
+            : `No ${view === "library" ? "library entries" : "games"} match the current filters and view. Reset filters, quick views and collection selection to browse again.`
+        }
+        action={
+          <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
+            <Icon glyph={Settings2} />
+            Reset view
+          </Button>
+        }
+      />
+    </div>
   );
 }
 
@@ -1628,11 +1614,23 @@ function CollectionResultSummary({
     | "libraryReadiness"
     | "view"
     | "collectionLayoutFailure"
+    | "firstUseEmpty"
+    | "constrained"
+    | "query"
+    | "visiblePorts"
+    | "reset"
+    | "overview"
   >;
 }) {
   return (
-    <>
-      <span>{model.resultsUnavailable ? "Ports unavailable" : model.resultCount}</span>
+    <div className="collection-result-summary">
+      <span>
+        {model.resultsUnavailable
+          ? "Ports unavailable"
+          : model.view === "library" && (model.constrained || model.query.trim())
+            ? `${model.visiblePorts.length} of ${model.overview.installed} library ${model.overview.installed === 1 ? "entry" : "entries"}`
+            : model.resultCount}
+      </span>
       {model.organizationView !== "all" && (
         <span>
           Collection:{" "}
@@ -1645,6 +1643,14 @@ function CollectionResultSummary({
       {model.libraryReadiness !== "all" && model.view === "library" && (
         <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
       )}
+      {model.view === "library" &&
+        !model.firstUseEmpty &&
+        (model.constrained || model.query.trim()) &&
+        (model.resultsUnavailable || model.visiblePorts.length > 0) && (
+          <Button variant="ghost" size="sm" onClick={model.reset}>
+            Reset view
+          </Button>
+        )}
       {model.collectionLayoutFailure && (
         <span role="status">
           {model.collectionLayoutFailure === "read"
@@ -1652,7 +1658,7 @@ function CollectionResultSummary({
             : "This collection view is available for this session; it could not be saved."}
         </span>
       )}
-    </>
+    </div>
   );
 }
 
