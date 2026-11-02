@@ -3,7 +3,7 @@
   "listing": {
     "id": "tomba-2-recompiled",
     "name": "Tomba! 2 Recompiled",
-    "summary": "Explore Tomba! 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach the prepared Tomba! 2 USA Windows preview with your own disc. Keep its complete native/overlay runtime, memory cards and separately prepared seamless-loading resources; Italian PAL and optional imported character assets have separate scope.",
     "project_url": "https://github.com/mstan/Tomba2Recomp",
     "issue_number": 169,
     "platforms": [],
@@ -16,6 +16,34 @@
       "image_sha256": "c3845309b87055c9c8744fbd6cd2549c6e00a19a72cee4ff8449ca3d0cc2e66e",
       "game_slug": "tomba-2-the-evil-swine-return",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/Tomba2Recomp/blob/97709516d657480ea66cbe2473d9fbae5986ca81/README.md",
+      "steps": [
+        {
+          "title": "Prepare the USA PlayStation original",
+          "instruction": "Use your own Tomba! 2: The Evil Swine Return USA SCUS-94454 disc as a complete CUE/BIN set; the upstream player also documents bare BIN/ISO inputs. Select it in the official v0.3.3 Windows integrated launcher and finish settings/preparation upstream. Italian PAL SCES-02686 uses separate regional mappings/configuration and is not qualified by the USA package. OpenBIOS is the bundled firmware route; the optional exact retail-BIOS selection is a separate user-supplied input, not required here. No original, firmware, helper, compiler or game is accessed or executed here."
+        },
+        {
+          "title": "Keep the complete Windows preview unit",
+          "instruction": "Retain Tomba2Recomp.exe, its bios/, assets/, mods/, game.toml, input/configuration and all component notices together. The selected release preparation requires original-disc AOT extraction/inventory, including candidates for all 22 area files and shared code. Counts are inventory, not proof of full native coverage: interpreter/runtime-compilation fallback and incomplete playthrough qualification remain explicit. Linux/AppImage and Italian player paths are distinct, not inherited Windows or save compatibility."
+        },
+        {
+          "title": "Attach the integrated native USA player",
+          "instruction": "Select Tomba2Recomp.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream original/settings preparation. Review the exact intent and request Play separately, then use the integrated Launch if shown. The selected native runtime hosts the launcher and game in process and anchors relative paths to its executable directory. Do not select a compiler, source-build helper, Italian runtime, an optional-mod importer or a prototype UI as ordinary Play. Close the game normally before upstream replacement."
+        },
+        {
+          "title": "Preserve cards, configuration and seamless data",
+          "instruction": "Keep the whole writable player root, saves/ with all actual card1.mcd/card2.mcd or explicit slot/root overrides, settings.toml, input/bindings, disc selection, mods, cache/ and any overlay captures. Keep prepared seamless-loading data under the actual %LOCALAPPDATA%/Tomba2Recomp/seamless root on Windows and all historical/custom copies. Converted cache/captures contain code/resources from your own disc and stay private. Durable cards, quick states and generated caches are different data; do not infer restore compatibility or discard them during updates. No migration, restore or deletion is performed."
+        },
+        {
+          "title": "Keep optional mods and maintenance separate",
+          "instruction": "The USA release uses title-specific Seamless Loading rather than generic CD Speed/Fast Loading; retain that choice and region-specific mod catalog. Mario’s Hat is optional/experimental and requires the user’s separately verified Super Smash Bros. 64 USA 1.0 ROM; neither that original nor imported assets are provided or accessed here. Keep psxrecomp PolyForm Noncommercial 1.0.0, recomp-ui MIT, OpenBIOS and all project/library/font notices distinct from original/optional content rights. Upstream owns preparation and replacement: quit normally, retain recovery and review/relink changed bytes. No full playthrough, physical controller, real-save restore, native/installed, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Use the USA Tomba2Recomp.exe and preserve its cards plus the separate seamless-loading cache. Italian mappings, imported-character mods and complete native coverage require their own evidence."
+      ]
     }
   }
 }
