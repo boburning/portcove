@@ -4939,7 +4939,8 @@ try {
     await captureStartupDiagnostics(browser, {
       observeStartupTargets:
         selection.selected_scenarios.length === 1 &&
-        selection.selected_scenarios[0] === "native-game-first-choice-and-restart" &&
+        (selection.selected_scenarios[0] === "native-game-first-choice-and-restart" ||
+          selection.selected_scenarios[0] === "native-saved-folder-selected-setup") &&
         connectedLaunches === 0,
     })
       .then((details) => writeFile(diagnostics, JSON.stringify(details, null, 2), { flag: "wx" }))

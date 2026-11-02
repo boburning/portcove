@@ -20,6 +20,54 @@ import {
 } from "./desktop-review-controls.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 
+export function staleSourceImportScript(
+  request: Record<string, unknown>,
+  done: (result: string) => void,
+) {
+  const native = (
+    window as Window & {
+      __TAURI_INTERNALS__?: {
+        transformCallback(f: (value: unknown) => void, once: boolean): number;
+        unregisterCallback(id: number): void;
+        invoke(command: string, args: object): Promise<unknown>;
+      };
+    }
+  ).__TAURI_INTERNALS__;
+  if (!native) throw Error("Native IPC unavailable");
+  const channel_frames: unknown[] = [];
+  let closeChannel!: () => void;
+  const closed = new Promise<void>((resolve) => {
+    closeChannel = resolve;
+  });
+  const id = native.transformCallback((value) => {
+    channel_frames.push(value);
+    if (value !== null && typeof value === "object" && "end" in value) closeChannel();
+  }, false);
+  void native
+    .invoke("import_source", { ...request, onEvent: `__CHANNEL__:${id}` })
+    .then(
+      (value) => ({ ok: true, value, channel_frames }),
+      (error: unknown) => ({ ok: false, error, channel_frames }),
+    )
+    .then(async (result) => {
+      // The existing WebDriver script deadline bounds this wait. Observe the
+      // entire channel through closure before asserting absence of data.
+      await closed;
+      native.unregisterCallback(id);
+      done(JSON.stringify(result));
+    });
+}
+
+export function assertStaleSourceImportReply(stale: Record<string, unknown>) {
+  assert.equal(stale.ok, false);
+  assert.equal(object(stale.error).code, "conflict");
+  assert.deepEqual(
+    stale.channel_frames,
+    [{ index: 0, end: true }],
+    "A stale import must close its channel before sending any application frame",
+  );
+}
+
 export async function sourceIntakeNativeBoundaries({
   browser,
   invoke,
@@ -165,45 +213,18 @@ export async function sourceIntakeNativeBoundaries({
     const stale = object(
       JSON.parse(
         String(
-          await browser.executeAsyncScript(
-            (request: Record<string, unknown>, done: (result: string) => void) => {
-              const native = (
-                window as Window & {
-                  __TAURI_INTERNALS__?: {
-                    transformCallback(f: (value: unknown) => void, once: boolean): number;
-                    unregisterCallback(id: number): void;
-                    invoke(command: string, args: object): Promise<unknown>;
-                  };
-                }
-              ).__TAURI_INTERNALS__;
-              if (!native) throw Error("Native IPC unavailable");
-              const events: unknown[] = [];
-              const id = native.transformCallback((value) => events.push(value), false);
-              void native
-                .invoke("import_source", { ...request, onEvent: `__CHANNEL__:${id}` })
-                .then(
-                  (value) => ({ ok: true, value, events }),
-                  (error: unknown) => ({ ok: false, error, events }),
-                )
-                .then((result) => {
-                  native.unregisterCallback(id);
-                  done(JSON.stringify(result));
-                });
-            },
-            {
-              generation,
-              profileId,
-              path: owned.gamePath,
-              mode: "use_current_location",
-              expectedPlan: plan.plan_sha256,
-            },
-          ),
+          await browser.executeAsyncScript(staleSourceImportScript, {
+            generation,
+            profileId,
+            path: owned.gamePath,
+            mode: "use_current_location",
+            expectedPlan: plan.plan_sha256,
+          }),
         ),
       ),
     );
-    assert.equal(stale.ok, false);
-    assert.equal(object(stale.error).code, "conflict");
-    assert.deepEqual(stale.events, []);
+    observed.stale_import = stale;
+    assertStaleSourceImportReply(stale);
     assert.deepEqual(transportValues("source", command(["source", "list"], other)), []);
     assert.deepEqual(sources(), before);
     await browser.navigate().refresh();

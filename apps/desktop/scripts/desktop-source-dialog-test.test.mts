@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { it } from "vite-plus/test";
+import { it, vi } from "vite-plus/test";
+import { Channel } from "@tauri-apps/api/core";
+import {
+  staleSourceImportScript,
+  assertStaleSourceImportReply,
+} from "./desktop-source-intake-boundaries-test.mts";
 import {
   selectedSetupGeneration,
   selectedSetupRead,
@@ -399,3 +404,66 @@ it.each([
     }
   },
 );
+
+it("distinguishes a real Tauri Channel closing frame from source progress", async () => {
+  const callbacks = new Map<number, (frame: unknown) => void>();
+  let next = 1;
+  const native = {
+    transformCallback(f: (frame: unknown) => void) {
+      const id = next++;
+      callbacks.set(id, f);
+      return id;
+    },
+    unregisterCallback(id: number) {
+      callbacks.delete(id);
+    },
+    invoke: () => Promise.reject({ code: "conflict" }),
+  };
+  vi.stubGlobal("window", { __TAURI_INTERNALS__: native });
+  try {
+    const data: unknown[] = [];
+    new Channel((message: unknown) => data.push(message));
+    let completed = false;
+    const result = new Promise<string>((resolve) => {
+      runInNewContext(`(${staleSourceImportScript.toString()})(request, done)`, {
+        window: { __TAURI_INTERNALS__: native },
+        request: { generation: 7 },
+        done(value: string) {
+          completed = true;
+          resolve(value);
+        },
+      });
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(completed, false, "Do not finish before channel closure");
+    for (const callback of [...callbacks.values()]) callback({ index: 0, end: true });
+    const reply = object(JSON.parse(await result));
+    assert.equal(data.length, 0, "The actual pinned Tauri Channel emits no application message");
+    assertStaleSourceImportReply(reply);
+    assert.deepEqual(reply.channel_frames, [{ index: 0, end: true }]);
+    assert.equal(callbacks.size, 0);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("refuses any application frame or malformed termination for a stale import", () => {
+  for (const channel_frames of [
+    [],
+    [
+      { index: 0, message: { kind: "progress" } },
+      { index: 1, end: true },
+    ],
+    [{ index: 1, end: true }],
+    [{ index: 0, end: false }],
+    [
+      { index: 0, end: true },
+      { index: 0, end: true },
+    ],
+    [{ index: 0, end: true, message: { kind: "progress" } }],
+  ])
+    assert.throws(() =>
+      assertStaleSourceImportReply({ ok: false, error: { code: "conflict" }, channel_frames }),
+    );
+});
