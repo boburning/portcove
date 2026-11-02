@@ -16,6 +16,34 @@
       "image_sha256": "88f320e3b09e0184754d87712cee5f28ca0020a1001de4678129db4694985a14",
       "game_slug": "metroid-prime-hunters",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp/blob/ec81d42a6d620990fa8a653edf940b578c67438e/README.md",
+      "steps": [
+        {
+          "title": "Choose the exact supported cartridge",
+          "instruction": "Use your own Metroid Prime Hunters USA/Australia revision-0 Nintendo DS image, AMHE, 67,108,864 bytes, SHA-1 90164d1ac127ee5f9815ea4ae7de798c7b5fc629 or SHA-256 7d0a98ff98e1b7c985d1f3d89b01730af1b2115061a4dfea847612d217a8b855. European Rev 1 and other builds are not interchangeable. Finish the upstream launcher’s ROM, controls, display and firmware choice before adding it. The current default supports built-in FreeBIOS with generated firmware; optional retail BIOS/firmware have their own user-supplied source requirements."
+        },
+        {
+          "title": "Keep the complete Windows alpha release",
+          "instruction": "Use the complete official v0.7.12-alpha Windows x64 release, retaining MetroidPrimeHuntersRecomp.exe, nds_runner.exe, game.toml, libraries, resources and overlay toolchain. The launcher supplies the selected execution model, renderer, input/profile options and firmware state; a bare nds_runner.exe with empty arguments does not preserve that setup. Keep the title project’s MIT terms separate from the exact NDS framework’s PolyForm Noncommercial terms and other FreeBIOS/runtime/component notices. Original Nintendo data and private generated/captured material have separate rights."
+        },
+        {
+          "title": "Add the native frontend",
+          "instruction": "Select MetroidPrimeHuntersRecomp.exe, use the complete existing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream frontend’s Play. It launches nds_runner.exe with its own context. Portcove observes the selected frontend only and its activity may end while the game continues. Use the actual game/upstream controls to quit; no full-game lifetime or successful gameplay follows from the frontend’s exit."
+        },
+        {
+          "title": "Preserve cartridge saves and player identity",
+          "instruction": "Keep the original ROM path and its adjacent .sav, all game-directory saves/savestates/, game.toml, mods, overlay/generated caches and backups. Retain Roaming AppData/MetroidPrimeHuntersRecomp/mods.ini and its sibling firmware-generated.bin or firmware-retail.bin, as applicable, plus existing custom paths. Do not replace a console/network identity or settings profile merely to add the frontend. Native in-game saves and execution states are separate; states remain build/model-specific and no conversion or migration is promised."
+        },
+        {
+          "title": "Keep extended modes and replacement upstream",
+          "instruction": "Close the actual runner, frontend and helpers before upstream update, rebuild or recovery. The Windows native/HLE/GL and targeted comparison results are upstream claims, not new Portcove native/gameplay/controller/save observations. Online/Wiimmfi play remains experimental and requires its own compatible settings and participation; this guide does not configure accounts, servers or networking. Removing the library reference preserves external files. No managed installation/update/backup/rollback, full-session tracking or inherited DS/other-game qualification is offered."
+        }
+      ],
+      "warnings": [
+        "Use the complete v0.7.12-alpha native frontend with the exact USA/Australia Rev-0 ROM and existing firmware/profile/save paths. The runner can continue after Portcove’s frontend activity ends. Preserve build-specific states and use actual game controls to quit; no managed/native acceptance is implied."
+      ]
     }
   }
 }
