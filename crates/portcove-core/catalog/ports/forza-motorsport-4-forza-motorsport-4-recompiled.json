@@ -3,7 +3,7 @@
   "listing": {
     "id": "forza-motorsport-4-forza-motorsport-4-recompiled",
     "name": "Forza Motorsport 4 (Forza Motorsport 4 Recompiled)",
-    "summary": "Upstream route: Windows alpha package; extracted Europe GOTY Disc 1 Limits: Experimental alpha; limited campaign/performance validation and conservative renderer profile. Upstream platforms: Windows x86-64 no-build alpha ZIP; source-build route also Windows x86-64. No other qualified upstream platform implied. Original data: Own Forza Motorsport 4 Europe Game of the Year Xbox 360 Disc 1, title 4D530910, media 42C67824. Extract default.xex, XMediaFacade_default.xex, SpeechFacade_default.xex and full Media tree into game/. Optional Disc 2 content is separately player-supplied; its four Marketplace packages are checked by upstream. Portcove setup/gameplay not verified.",
+    "summary": "Attach the prepared official Forza Motorsport 4 Windows alpha player for the exact Europe GOTY Disc 1 inputs. Preserve its explicit game/user/cache roots and independent originals; current native-player packaging supersedes older builder-first instructions.",
     "original_game_title": "Forza Motorsport 4",
     "project_url": "https://github.com/Alexbeav/fm4-recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "forza-motorsport-4",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2676
+    "issue_number": 2676,
+    "manual_setup": {
+      "help_url": "https://github.com/Alexbeav/fm4-recomp/blob/d41c918759869f9175b898f9c010c4b123794031/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact independently owned inputs",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Europe GOTY Disc 1, title 4D530910/media 42C67824. Required originals are default.xex (15,187,968 bytes; SHA256 B34DFB88978819CCCDA6DAFD755E7139970A58FBF6707DFBCBA06846857F52BD), XMediaFacade_default.xex (2,662,400; 2E82A8D08A59E79F4D68E68B744C2872855BFDD583EB39AD0A9C54E5B3FA1492), SpeechFacade_default.xex (2,138,112; 49D506A2F8556836943D8BAB3A50B6CD3877524500509EF462FB6E9802F2F4BF), and the complete matching Media tree. These are individual XEX hashes, not whole-disc hashes. Finish upstream preparation first; no originals, compiler, helper or game are executed here."
+        },
+        {
+          "title": "Keep the actual native player package",
+          "instruction": "The inspected official v0.1.0-alpha.2 player ZIP contains AMD64 fm4.exe, matching SpeechFacade/XMediaFacade native DLLs, runtime libraries and notices. Its release/package README explicitly provides a ready-to-run player: older tagged builder-first/source-kit instructions do not mean this package requires a developer compiler or SDK. Keep the entire package. Its public SDK binding is f16992c92e610c2d71773994436b442d9946f4e1; no private build or full/fast experiment is qualified. Package requirements are Windows 11 x64, AVX2 and D3D12."
+        },
+        {
+          "title": "Attach the native player with its real roots",
+          "instruction": "Select fm4.exe and the full package directory as working directory. Match the published Launch FM4.bat native command using --game_data_root=\"absolute existing game folder\" --user_data_root=\"absolute existing user folder\" --cache_root=\"absolute existing user/cache folder\", substituting the actual prepared absolute paths and retaining upstream long-path spelling when necessary. The batch file checks all three XEXs before synchronously running this native player. Review the exact intent and request Play separately; do not select a compiler, helper, source kit or diagnostic probe."
+        },
+        {
+          "title": "Preserve originals, profiles and writable game data",
+          "instruction": "Keep game/Media and XEXs, user/ profiles/saves/cache, fm4.toml, logs, actual external roots and independent recovery copies. Packaged allow_game_relative_writes=true means the prepared game tree is not promised read-only. Optional independently owned Disc 2 marketplace content uses disc2-content/ and upstream startup installation into user data; this guide imports nothing. Never replace the only original or live profile with a fresh package."
+        },
+        {
+          "title": "Retain limits and upstream maintenance",
+          "instruction": "Keep GPLv3 project and ReXGlue, Xenia, FFmpeg, runtime and other component notices; they do not license original game assets. The selected baseline uses D3D12 ROV, full readback and synchronous host copies; upstream reports heavy scenes near 30 FPS and fresh-profile blank car thumbnails. Binary/package inspection does not prove a race, save round trip or stable 60 FPS. Quit normally before upstream replacement, retain recovery and review/relink changed bytes. Managed install/update/rollback/backup/deletion, Supported and native/physical acceptance are not offered."
+        }
+      ],
+      "warnings": [
+        "Use the actual ready-to-run player rather than the older source kit. Keep explicit game/user/cache paths, independent originals and profiles; this alpha can write into its prepared game tree."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

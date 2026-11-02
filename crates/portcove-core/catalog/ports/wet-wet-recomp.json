@@ -3,13 +3,41 @@
   "listing": {
     "id": "wet-wet-recomp",
     "name": "WET (WET Recomp)",
-    "summary": "Upstream route: Windows package/launcher; source-build instructions also present Limits: Own disc import; launcher self-update explicitly replaces port files while preserving game folder. Non-owning route may be simplest. Upstream platforms: Windows10/11 x86-64 package/launcher and Linux x86-64 Vulkan source-build preset. WPF launcher is Windows-only; Linux requires extracted-data build route. Original data: Own WET Xbox 360 ISO. The upstream Windows launcher imports it into game/; Linux source builds use extracted data in game/. ReXGlue preparation consumes the game executable and assets. Reviewed README does not identify the accepted region, media ID, executable revision or digest. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, already prepared WET Windows player through wet.exe and its actual imported game directory. Preserve the existing SDK-selected data roots; exact original revision and default persistence placement remain unverified.",
     "original_game_title": "WET",
     "project_url": "https://github.com/Supermedo/wet-recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Supermedo/wet-recomp",
-    "issue_number": 2720
+    "issue_number": 2720,
+    "manual_setup": {
+      "help_url": "https://github.com/Supermedo/wet-recomp/blob/d324f40eedef7fdd79241e6b7c4197380c4768e7/README.md",
+      "steps": [
+        {
+          "title": "Prepare your original upstream",
+          "instruction": "Use a complete permitted WET player/components and your own Xbox 360 WET original. Finish ADD ISO/import and settings in the upstream launcher before registration. The retained importer establishes a prepared game/default.xex route, but no exact supported region/media/revision or default.xex digest is established here. Do not infer that every WET revision works. No original, importer, compiler, helper or game is executed here."
+        },
+        {
+          "title": "Keep the actual official native package",
+          "instruction": "The inspected v0.6.0 Windows ZIP includes AMD64 wet.exe, runtime DLLs and extract-xiso.exe; the managed WPF WetLauncher.exe has a different PE machine classification and is not the native game. Source-build instructions do not turn this complete native package into a mandatory end-user compile. Keep the whole matching package and notices, with separately prepared game data."
+        },
+        {
+          "title": "Attach the normal native executable",
+          "instruction": "Select wet.exe, use the complete package directory as working directory and set --game_data_root=\"absolute actual prepared game directory\". Review the exact intent and request Play separately. This matches the launcher’s native game-data argument; the native app enters the linked game and otherwise searches executable-folder/game then working-directory/game. Do not select the importer or detached WPF launcher. Launcher display/controller arguments do not automatically transfer to direct launch; finish and retain native settings, using upstream F3 settings where appropriate."
+        },
+        {
+          "title": "Preserve the actual existing data layout",
+          "instruction": "Keep the full original/imported game directory, native configuration and logs, launcher preferences, saves/profiles/cache and every existing SDK-selected or explicitly configured external data root. This investigation does not establish the SDK’s exact default Windows persistence directory: identify and retain the existing active roots from your prepared installation and logs before replacement; do not assume all saves are beside wet.exe or create an empty substitute. Retain existing explicit data-root arguments when applicable. No move, conversion, restore or deletion is performed."
+        },
+        {
+          "title": "Preserve qualification and maintenance boundaries",
+          "instruction": "Keep project MIT and SDK/Xenia/component notices; original game permissions remain separate. The selected source still registers missing guest-function return stubs, so fixes and native packaging do not establish whole-campaign completeness. Upstream launcher updates can replace/restart programs; finish them outside Portcove, quit the actual game and review/relink changed bytes. Exact original fingerprint, default data placement and native/save acceptance remain unfinished on the owner. No Supported or managed lifecycle outcome is asserted."
+        }
+      ],
+      "warnings": [
+        "Exact original revision and default SDK save-root placement remain unknown. Preserve the actual existing prepared installation and all active data roots; direct wet.exe launch does not inherit every launcher option."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

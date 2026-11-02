@@ -3,13 +3,41 @@
   "listing": {
     "id": "tk22-26-jetforcegemini-recomp",
     "name": "Jet Force Gemini (Jet Force Gemini Recomp)",
-    "summary": "Upstream route: Upstream runtime package for Jet Force Gemini Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream claims complete fully playable campaign. No Portcove playthrough, physical controls/audio or original-multiplayer qualification here. Upstream claims full campaign v1.4, prebuilt runtime needs no developer compilation. Original multiplayer scope and this claim remain upstream evidence, not tested here. Upstream platforms: Windows x64 prebuilt runtime. ROM import requires no developer tools or player compilation. Original data: N64 JetForceGemini supported USA big-endian z64 own ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Jet Force Gemini Windows launcher with its prebuilt native runtime and exactly verified US ROM import. Preserve the active profile, imported ROM and storage locator; no developer build tools or campaign acceptance are inferred.",
     "original_game_title": "Jet Force Gemini",
     "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
-    "issue_number": 2835
+    "issue_number": 2835,
+    "manual_setup": {
+      "help_url": "https://github.com/TK22-26/JetForceGemini-Recomp/blob/5ec705f7d1575135e7965fe1376666b225f22ee1/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported N64 original",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Jet Force Gemini US big-endian .z64 ROM: 33,554,432 bytes, SHA1 493ced9008dbe932d6e91179b68e8630cf23a023. The released importer checks the whole file and stores its verified copy as roms/jfg-us.z64 under the selected profile. Other regions, modified originals and byte-swapped files are not admitted by this route. Finish Select ROM and normal profile/settings preparation upstream; keep the independent original. No ROM, converter, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the complete prebuilt Windows release",
+          "instruction": "The inspected official 1.4.0 Windows x64 ZIP contains AMD64 JFG-Launcher.exe and jfg-native-boot.exe, matching libraries/notices and jfg-package.json binding the native runtime. The launcher carries its own embedded setup/helper and stages it in profile data; a missing loose JFG-Setup.exe in this package is not evidence that the native runtime must be built by the player. The released player needs no Git, Python, Visual Studio or developer compilation. Maintainer-only generated/oracle inputs remain outside this public player route and are not accessed or represented as reproducible from this guide."
+        },
+        {
+          "title": "Attach the prepared normal launcher",
+          "instruction": "Select JFG-Launcher.exe, use its complete extracted player directory as working directory and leave arguments empty. Review the intent and request Play separately, then use its normal Play action with the prepared profile. Source keeps the native frontend and supervised session handle while the game runs; it is not a short-lived compiler wrapper. Keep the matching native runtime/helper/resources together. Do not select the bare jfg-native-boot.exe with its default finite probe, add private child flags, diagnostic replays or developer scene selectors as normal Play. End the actual game normally, then close the returning launcher to finish the session."
+        },
+        {
+          "title": "Preserve profiles, copied ROMs and storage selection",
+          "instruction": "Normally keep %LOCALAPPDATA%/JFGRecomp with profiles/default and any selected profiles, verified roms/, native profile/configuration, saves, controller-pak data, settings, shader caches and helper/support data. Game > Settings can choose another storage directory, copying existing profile data without overwriting destination files, then restarting the launcher. Existing portable.txt/userdata and storage-location.txt affect that selection. Keep the actual active root, the locator beside the launcher, old roots, originals and recovery together when moving/updating. Cartridge saves and controller paks are different objects; this guide performs no import, migration, backup, restore or deletion."
+        },
+        {
+          "title": "Keep runtime, component and campaign claims distinct",
+          "instruction": "Retain project MIT, N64Recomp/runtime, RT64, RmlUi/FreeType, fonts and all shipped component notices; these do not license the original Rare/Nintendo game or third-party mods. The dependency inventory explicitly excludes the unqualified RecompFrontend entry pending permission; it is not a grant or the current native UI’s admission. Upstream campaign verification used testing mods/unlocked state, and modern controls/high-refresh/device feel retain limitations. Quit normally, keep recovery and review/relink changed bytes after upstream replacement. No native/installed, ordinary campaign, real-save, physical-device, supported excluded component or Supported acceptance is asserted. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the prebuilt launcher/runtime unit, exact imported US ROM, profiles and storage-location.txt. Do not attach a finite-probe default or infer campaign/device acceptance from upstream testing mods."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
