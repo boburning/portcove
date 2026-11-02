@@ -142,11 +142,13 @@ it.each(["dark", "light"])("keeps cached setup reasons and Details access in %s"
     await expect.element(identity).toHaveAccessibleDescription(new RegExp(item.reason));
     await expect.element(card).toMatchTextContent(/Not installed/);
     await expect.element(card).not.toMatchTextContent(/Ready to play/);
-    await userEvent.click(identity);
+    await userEvent.click(identity, { timeout: 1000 });
     await expect
       .element(page.getByRole("heading", { name: `Details for ${item.name}`, exact: true }))
       .toBeInTheDocument();
-    await userEvent.click(page.getByRole("button", { name: "Back to catalog", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Back to catalog", exact: true }), {
+      timeout: 1000,
+    });
   }
   expect(invoke).not.toHaveBeenCalled();
 });
