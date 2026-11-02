@@ -4,7 +4,7 @@
     "id": "gt2-recomp-samiulh25-gran-turismo-2-simulation-mode-v1-2",
     "name": "Gran Turismo 2 (Simulation Mode v1.2) — gt2-recomp (SamiulH25)",
     "original_game_title": "Gran Turismo 2 (Simulation Mode v1.2)",
-    "summary": "Research project. Hybrid static/incremental decomp; stable menu/garage and race rendering; end-to-end saves unproved. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports menus, the garage and race rendering from a mix of recompiled and progressively decompiled code. Save/load through a full session remains unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/SamiulH25/gt2-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA GT2 SimulationMode v1.2 own CUE/BIN MD5 e697a485b661a12fa6c327186c336a31 and SCUS_944.88. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own USA Gran Turismo 2 Simulation Mode v1.2 disc in CUE/BIN form, MD5 e697a485b661a12fa6c327186c336a31, with SCUS_944.88. Keep your originals separately."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local PSXRecomp generation/CMake with own data/OpenBIOS; overlays interpreter plus GTFS. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Follow upstream’s local PSXRecomp generation and CMake build with your own data and OpenBIOS. The project uses an overlay interpreter and GTFS. Portcove does not install or prepare this source project automatically."
         }
       ],
       "warnings": [
-        "Hybrid static/incremental decomp; stable menu/garage and race rendering; end-to-end saves unproved. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports menus, the garage and race rendering from a mix of recompiled and progressively decompiled code. Save/load through a full session remains unconfirmed. Portcove has not confirmed runtime behavior or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/SamiulH25/gt2-recomp"
     },

@@ -3,7 +3,7 @@
   "listing": {
     "id": "heart-of-darkness-hode",
     "name": "Heart of Darkness (hode)",
-    "summary": "Research listing. Upstream route: Native engine rewrite with explicit original Windows data set and paths. Limits: Observed release assets only Switch/Vita; desktop build/package route needs follow-up. Upstream platforms: Desktop source-build route; observed release binaries are Switch/Vita only. No established desktop package or desktop CPU artifact in frozen research. Original data: Supply original Heart of Darkness Windows release data, from the Demo or CD: hod.paf (or hod_demo.paf/hod_demo2.paf), setup.dat and matching *_hod.lvl, *_hod.sss and *_hod.mst files. Demo data provides demo content, not the full game. Exact localization/revision is not pinned in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Build the hode desktop engine upstream with your own supported Windows Heart of Darkness data. The listed release binaries are for Switch and Vita, not desktop. Use hod.paf, setup.dat and matching *_hod.lvl, *_hod.sss and *_hod.mst files; demo files hod_demo.paf or hod_demo2.paf provide only demo content. Check the exact edition and language before setup. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Heart of Darkness",
     "project_url": "https://github.com/usineur/hode",
     "platforms": [],
@@ -27,16 +27,16 @@
         },
         {
           "title": "Review the completed player and intent",
-          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
         {
           "title": "Retain upstream replacement and external ownership",
-          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every original-file, profile and data location it uses. Update it with the project’s tools, then review and select the changed executable in Portcove. You manage setup, replacement, file changes, data migration and recovery. Portcove monitors the process you selected; it does not restrict file access or prevent other copies from running. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
         }
       ],
       "warnings": [
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
-        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
       ]
     }
   },

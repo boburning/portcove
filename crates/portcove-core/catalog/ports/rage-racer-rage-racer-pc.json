@@ -23,11 +23,11 @@
           "instruction": "Use your own PAL/Europe SCES-006.50 Rage Racer CUE with referenced BIN tracks, Track01 BIN or supported CHD. Preserve the full original set/path for streamed data/audio; a lone Track01 is not all audio tracks. The native picker/saved disc path selects input and imports renderer assets live in-process/in-memory; no separate launcher, extractor, SDK/.NET/Python or generated game executable is required. Core does not authenticate the full image or other regions/masterings."
         },
         {
-          "title": "Select the actual native game and creating context",
+          "title": "Select the game and its existing launch settings",
           "instruction": "For normal defaults select Rage-Racer.exe with zero launch arguments and its installation root as initial working directory. Preserve an established supported --config and its absolute file path as separate literal arguments when already required for the creating profile. Preserve an already working custom CWD/config/environment rather than redirecting a profile merely to register. The main process remains through importer/renderer/MainLoop and shutdown. Do not select editor/scenario/source tools or add development/cache/scenario options for ordinary Play. Registration itself does not import or launch anything."
         },
         {
-          "title": "Review intent and keep updates player-owned",
+          "title": "Review launch details and manage updates yourself",
           "instruction": "Review and consent to the exact native executable, directory and literal arguments (empty for defaults, or the established --config and absolute path when required), then choose Play separately. Core observes only the selected process, not an exclusive family/sandbox or full-game qualification. No self-downloading game replacement path was established for this selected entry. Upstream/player owns the copy, repair and actual replacement; close every real instance before changing files and review a replacement through fresh relink."
         },
         {

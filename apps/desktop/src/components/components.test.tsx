@@ -168,7 +168,7 @@ describe("desktop components", () => {
     expect(groupMarkup("controls")).toContain("Keyboard shortcuts");
     expect(groupMarkup("controls")).toContain("Controller navigation");
     const advanced = groupMarkup("advanced");
-    expect(advanced.indexOf("Create support bundle")).toBeLessThan(
+    expect(advanced.indexOf("Create a support report")).toBeLessThan(
       advanced.indexOf("Original game files stay local"),
     );
     expect(advanced).toContain("Custom catalog sources");
@@ -217,7 +217,7 @@ describe("desktop components", () => {
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
     expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Game catalog"));
     expect(advanced.indexOf("metadata may remain")).toBeLessThan(
-      advanced.indexOf(">Create support bundle</button>"),
+      advanced.indexOf(">Create a support report</button>"),
     );
     expect(advanced).toContain("Original game files stay local");
     const about = html.slice(html.indexOf('data-settings-group="about"'));
@@ -250,9 +250,9 @@ describe("desktop components", () => {
     const details = renderToStaticMarkup(
       <DetailPanel port={untestedPort} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
     );
-    expect(details).toContain("Legacy port-wide automated tests");
-    expect(details).toContain("Legacy port-wide hands-on tests");
-    expect(details).toContain("No legacy platform coverage recorded");
+    expect(details).toContain("Earlier automated tests");
+    expect(details).toContain("Earlier hands-on tests");
+    expect(details).toContain("No earlier platform tests recorded");
   });
 
   it("keeps retired-upstream maintenance distinct from Portcove support", () => {
@@ -288,7 +288,7 @@ describe("desktop components", () => {
       "<small>Catalog designation (not a test result)</small>Stable",
     );
     expect(html.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Available release channels</small>Stable",
+      "<small>Available update channels</small>Stable",
     );
     expect(html).toContain("Portcove uses the pinned release recorded in the catalog");
     expect(html).not.toContain("no upstream fixes or support");

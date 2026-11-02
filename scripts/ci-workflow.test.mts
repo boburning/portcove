@@ -579,6 +579,10 @@ void test("extracted validation evidence suite remains in hosted and repository 
 
 void test("hosted plans use bounded transport before checkout and retain the same qualification outputs", async () => {
   assert.doesNotMatch(workflow, /PORTCOVE_PLAN_JSON:/);
+  assert.doesNotMatch(workflow, /plan_json:/);
+  assert.doesNotMatch(qualificationWorkflow, /plan_json:/);
+  assert.match(classify, /path: work\/ci-plan\/validation-plan\.json/);
+  assert.match(classify, /name: validation-plan-.*github\.run_attempt/);
   assert.match(workflow, /plan_gzip_base64: \$\{\{ steps\.plan\.outputs\.plan_gzip_base64 \}\}/);
   assert.match(qualificationWorkflow, /jobs\.qualify\.outputs\.plan_gzip_base64/);
   const release = await readWorkflow(new URL("../.github/workflows/release.yml", import.meta.url));

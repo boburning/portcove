@@ -3,13 +3,41 @@
   "listing": {
     "id": "skate-2007-skate1recompiled",
     "name": "skate (2007) (Skate1Recompiled)",
-    "summary": "Upstream route: Windows package; drag own ISO to Setup.bat Limits: Release setup documents a playable executable route; macOS ARM64 source build explicitly untested. Upstream platforms: Windows package/source route; selected Windows archive CPU unknown in frozen research. macOS ARM64 source instructions explicitly untested; Intel Mac unsupported. Original data: Own Xbox 360 skate (2007) disc image. Upstream release setup imports the ISO; source extraction examples use Skate. (USA).iso. Preserve all extracted game files, including default.xex. Exact accepted regional executable revision/hash remains unspecified in the reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "A skate (2007) Windows player/source route using your own Xbox 360 disc image. Drag it onto Setup.bat to import and build locally. Source examples use Skate. (USA).iso; preserve all extracted files, including default.xex. Exact Windows package architecture and accepted regional executable revision/hashes are unconfirmed. macOS ARM64 source instructions are explicitly untested, and Intel Mac is unsupported. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "skate (2007)",
     "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
-    "issue_number": 2607
+    "issue_number": 2607,
+    "manual_setup": {
+      "help_url": "https://github.com/cookingwithsimon/Skate1Recompiled/blob/d94ce91e444eb66e068a09f4994eacb71550a84c/README.md",
+      "steps": [
+        {
+          "title": "Prepare your original through upstream setup",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Xbox 360 skate (2007) ISO. The selected source uses a USA disc extraction example; an exact accepted XEX fingerprint is not published here, and another revision is not automatically compatible. Finish the official package’s Setup.bat import outside Portcove. The script checks default.xex exists and writes the game’s AllowMovieSkip.txt flag; that is not a cryptographic original-revision check."
+        },
+        {
+          "title": "Use the actual native test package",
+          "instruction": "The inspected official v0.2.0 Windows ZIP contains AMD64 Skate1-PC-v0.2.0/skate1.exe, rexruntimerd.dll, matching runtime libraries, skate1.toml, portable.txt and the separate setup/extraction scripts. The packaged player does not require the tagged developer build route merely to start an already prepared game. Keep the full writable unit and game/ tree. Package requirements are Windows 10/11 x64, AVX2 and D3D12; source minimum assumptions do not replace those package requirements."
+        },
+        {
+          "title": "Attach the prepared normal game",
+          "instruction": "Select skate1.exe, use the complete Skate1-PC-v0.2.0 directory as working directory and leave arguments empty after upstream import/settings. Review the selected program, working folder and arguments and choose Play when ready. The native app enters its linked game in process; missing or relative game_data_root resolves beside the executable. Do not select Setup.bat, PowerShell, an extractor or a developer compiler as the normal game. Preserve any existing deliberate external game-data settings."
+        },
+        {
+          "title": "Preserve portable and historical data roots",
+          "instruction": "The source’s existing portable.txt choice forces user data and cache beneath executable-folder/userdata; keep that marker and the complete userdata tree, profiles/saves/content/cache, skate1.toml, logs and originals. Do not create/remove a marker or move only the EXE. The packaged README says deleting the marker uses %APPDATA%/skate1, whereas the pinned SDK’s fallback uses Known Documents/skate1. This guide changes neither layout: preserve actual roots shown by the prepared installation/logs, historical AppData and Documents copies and existing explicit overrides when portable mode is absent. No conversion, synchronization, backup, restore or deletion is performed."
+        },
+        {
+          "title": "Keep permissions and maturity explicit",
+          "instruction": "Keep applicable title, ReXGlue/Xenia, runtime and other component notices; no original-game grant or blanket title license is inferred. The declared SDK is mchughalex/rexglue-skate3 7eb0faf7787f5e01333c228b8e3f03c32f7295ea plus this title’s patch, not an interchangeable SDK from another port. Upstream freeskate/career-start reports are not physical-controller, whole-career or save-reload observations here. Quit normally before upstream replacement, retain the complete data/recovery copies and review/relink changed bytes. No Supported, native/installed or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Keep the full native player and existing portable marker/data. The packaged non-portable AppData note conflicts with the pinned Documents fallback; preserve the actual active and historical roots instead of switching them."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -22,19 +22,19 @@
       "steps": [
         {
           "title": "Keep a permitted complete native player",
-          "instruction": "Use an already permitted working official v1.5.5.5 Windows x64 dbz3.exe with all matching adjacent runtime/GPU DLLs and its established graphics/VC++ context. The publisher documents native release play using your own game files; project MIT does not grant original-media or all-package/component rights. Old v1.2.1 archive qualification does not qualify this newer package. This is Budokai 3 HD, not the HD Collection menu, Budokai1 or another project."
+          "instruction": "Use an already working official v1.5.5.5 Windows x64 dbz3.exe and components you are independently permitted to use. Keep all matching runtime and GPU DLLs, and the graphics and VC++ prerequisites used by that installation. The project’s MIT licence does not grant rights to original media or every packaged component. Older v1.2.1 test results do not apply to this version. This game is Budokai 3 HD; do not select the HD Collection menu, Budokai 1 or another project."
         },
         {
           "title": "Finish original selection and onboarding upstream",
-          "instruction": "Use your own Xbox360 Budokai3 HD US/NA or EU/PAL original. Preserve the matching 4,890,624-byte yae3_xenon.xex or yae3_xenon_eu.xex and regional us/ or eu/ data files, or the complete supported original ISO and its actual path. The tagged baserom.md publishes separate XEX/AFS hashes; filename/menu detection or a short runtime checksum is not independent full-disc authentication. Complete the upstream picker/cache/region/settings flow outside Core first. Do not select the HD Collection root menu XEX, PS2 source or optional cross-game/modding tools as this game."
+          "instruction": "Use your own Xbox 360 Budokai 3 HD US/NA or EU/PAL original. Keep the matching 4,890,624-byte yae3_xenon.xex or yae3_xenon_eu.xex and regional us/ or eu/ files, or the complete supported ISO at its current path. Compare the separate XEX and AFS hashes in the tagged baserom.md; a filename, menu match or short runtime checksum does not check the full disc. Complete the game’s picker, cache, region and settings setup before adding it to Portcove. The HD Collection root menu XEX, PS2 files and optional cross-game or modding tools are different inputs."
         },
         {
           "title": "Select the normal completed application",
-          "instruction": "Select dbz3.exe itself, zero arguments for a normally configured copy, and its established writable containing installation-root initial working directory. Normal launcher PLAY starts the game within this application; close the application to end the selected session. Preserve already required supported literal arguments/custom profile context. Missing-data picker can start a replacement instance and exit, so finish preparation first; Core does not follow every successor. Do not select diagnostic skip/automation modes, an SDK/build script or modding kit."
+          "instruction": "Select dbz3.exe itself with its writable installation folder as the working directory. A normally configured copy needs no arguments; keep any supported arguments or custom profile settings your working copy already needs. The launcher’s PLAY button starts the game inside this application; close the application to end the selected session. Finish original-file setup first: its missing-data picker can start another instance and close the selected one, which Portcove may not follow. Do not select diagnostic or automation modes, an SDK, a build script or a modding kit."
         },
         {
-          "title": "Review intent and keep updates player-owned",
-          "instruction": "Review and consent to the exact native executable, working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Preparation, repair, profiles and actual replacement remain player/upstream owned. Close all real instances before changing files, keep the old creating runtime and review changed executable bytes through relink. Metadata removal preserves every external runtime, original and player file."
+          "title": "Review Play and manage updates yourself",
+          "instruction": "Review and consent to the selected executable, working directory and arguments, then choose Play separately. Portcove tracks the selected process; other game instances run separately and the game is not sandboxed. You and upstream manage preparation, repairs, profiles and updates. Close every game instance before changing files, keep the previous working runtime and current data, then relink and review the changed executable. Removing the registration leaves all external runtime, original and player files in place."
         },
         {
           "title": "Keep creating saves, configuration and custom content",
@@ -42,9 +42,9 @@
         }
       ],
       "warnings": [
-        "The selected release and current source are distinct observations; no new game/package/original execution, gameplay/save/mod/native/installed/protected qualification or Supported promotion is established. Optional online/cross-game/character/HD-mod features and their data rights are separate, not inherited by this base-player guide.",
-        "Upstream owns update checks, external release links, downloaded mods and replacement. Core supplies no acquisition/setup/Install/Update/Backup/Rollback/migration/deletion or overwrite-all preservation guarantee. Keep a recoverable old copy and player data; publisher update instructions do not grant Core mutation ownership.",
-        "Live original selection can refresh private XEX/ISO caches. Exact Core-owned original admission, isolated extraction/generation, variant and managed lifecycle qualification remain unoffered; no generic Xbox-family framework is required for this existing-copy handoff."
+        "Portcove has not confirmed this package’s gameplay, saves, mods or installed behavior. Optional online, cross-game, character and HD-mod features have their own setup and data-rights requirements.",
+        "Use upstream tools to check for updates, download mods and replace files. Portcove does not install, prepare, update, back up, roll back, migrate or delete this external copy. Keep a recoverable previous runtime and current player data before maintenance; replacing files may overwrite local changes.",
+        "Selecting original files can refresh the game’s private XEX and ISO caches. Portcove does not check or prepare those originals or manage this game’s installation."
       ]
     }
   }

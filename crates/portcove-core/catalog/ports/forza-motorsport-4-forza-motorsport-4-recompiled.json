@@ -27,11 +27,11 @@
         },
         {
           "title": "Keep the actual native player package",
-          "instruction": "The inspected official v0.1.0-alpha.2 player ZIP contains AMD64 fm4.exe, matching SpeechFacade/XMediaFacade native DLLs, runtime libraries and notices. Its release/package README explicitly provides a ready-to-run player: older tagged builder-first/source-kit instructions do not mean this package requires a developer compiler or SDK. Keep the entire package. Its public SDK binding is f16992c92e610c2d71773994436b442d9946f4e1; no private build or full/fast experiment is qualified. Package requirements are Windows 11 x64, AVX2 and D3D12."
+          "instruction": "Use the complete official v0.1.0-alpha.2 Windows player ZIP with fm4.exe, matching SpeechFacade and XMediaFacade native DLLs, runtime libraries and notices. This package is ready to run after original-file preparation; the older source-kit instructions do not require you to install a compiler or SDK for it. Its published SDK revision is f16992c92e610c2d71773994436b442d9946f4e1. Use Windows 11 x64 with AVX2 and Direct3D 12; keep all files together."
         },
         {
           "title": "Attach the native player with its real roots",
-          "instruction": "Select fm4.exe and the full package directory as working directory. Match the published Launch FM4.bat native command using --game_data_root=\"absolute existing game folder\" --user_data_root=\"absolute existing user folder\" --cache_root=\"absolute existing user/cache folder\", substituting the actual prepared absolute paths and retaining upstream long-path spelling when necessary. The batch file checks all three XEXs before synchronously running this native player. Review the exact intent and request Play separately; do not select a compiler, helper, source kit or diagnostic probe."
+          "instruction": "Select fm4.exe and the full package directory as working directory. Match the published Launch FM4.bat native command using --game_data_root=\"absolute existing game folder\" --user_data_root=\"absolute existing user folder\" --cache_root=\"absolute existing user/cache folder\", substituting the actual prepared absolute paths and retaining upstream long-path spelling when necessary. The batch file checks all three XEXs before synchronously running this native player. Review and consent to the selected launch details, then choose Play separately; do not select a compiler, helper, source kit or diagnostic probe."
         },
         {
           "title": "Preserve originals, profiles and writable game data",
@@ -39,7 +39,7 @@
         },
         {
           "title": "Retain limits and upstream maintenance",
-          "instruction": "Keep GPLv3 project and ReXGlue, Xenia, FFmpeg, runtime and other component notices; they do not license original game assets. The selected baseline uses D3D12 ROV, full readback and synchronous host copies; upstream reports heavy scenes near 30 FPS and fresh-profile blank car thumbnails. Binary/package inspection does not prove a race, save round trip or stable 60 FPS. Quit normally before upstream replacement, retain recovery and review/relink changed bytes. Managed install/update/rollback/backup/deletion, Supported and native/physical acceptance are not offered."
+          "instruction": "Keep GPLv3 project and ReXGlue, Xenia, FFmpeg, runtime and other component notices; they do not license original game assets. The selected baseline uses D3D12 ROV, full readback and synchronous host copies; upstream reports heavy scenes near 30 FPS and fresh-profile blank car thumbnails. Binary/package inspection does not prove a race, save round trip or stable 60 FPS. Quit normally before upstream replacement, retain recovery and review/relink changed bytes. Portcove does not install, update, roll back, back up or delete this external copy, and has not tested native gameplay or physical controls."
         }
       ],
       "warnings": [

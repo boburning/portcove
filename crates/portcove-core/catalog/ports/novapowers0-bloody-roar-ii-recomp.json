@@ -34,7 +34,7 @@
           "instruction": "Choose the prepared universal BloodyRoar2_Recompiled.exe, or the completed USA source-build product BloodyRoar2_Recompiled_USA.exe, with that player's complete folder as the working directory. Do not select an unprepared root/setup host, compiler or generation tool. This route covers the novapowers0 USA player. The separate Alexbeav implementation has its own setup and identity; Japan/Asia remains outside this route."
         },
         {
-          "title": "Preserve your established source and save coordinates",
+          "title": "Keep your existing original-file and save paths",
           "instruction": "For the ordinary direct route use three literal argument tokens: --no-launcher, --disc, and the absolute path to your supported USA CUE. Keep spaces inside the CUE path token. Preserve the working copy's existing BIOS choice, card/state/settings and custom locations. Do not add a new --memcard-dir merely to register: it clears explicit custom slot paths. Retain that override only if it was already part of your established working invocation, with its exact existing directory."
         },
         {

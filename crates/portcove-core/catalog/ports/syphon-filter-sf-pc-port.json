@@ -3,7 +3,7 @@
   "listing": {
     "id": "syphon-filter-sf-pc-port",
     "name": "Syphon Filter / SF-pc-port",
-    "summary": "A Windows native Syphon Filter player for your own USA v1.1 BIN/CUE. Keep package selection and replacement upstream, then register the completed native player.",
+    "summary": "Play Syphon Filter on Windows using your own USA v1.1 (SCUS-94240) BIN/CUE files. You handle setup and updates; Portcove can launch it.",
     "project_url": "https://github.com/Madxbio97/SF-pc-port",
     "issue_number": 344,
     "platforms": ["windows-x86-64"],
@@ -22,28 +22,36 @@
       "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
       "steps": [
         {
-          "title": "Choose an actual upstream Windows player package",
-          "instruction": "The inspected public-test.16 Windows x64 ZIP contains the native player; later listed 0.2.0 beta and test releases have no attached player packages at this observation. Select an actual published Windows package explicitly from upstream and verify its published identity before preparation. An empty newer release is not a replacement package. This guide does not pin automatic updates to an old test or offer Core-managed replacement."
+          "title": "Download a Windows version of the game",
+          "instruction": "Choose a release with a Windows player download. Extract the complete package and keep syphon_filter.exe with its DLLs, locales, assets and notices. A release with no attached player download cannot be used for this step."
         },
         {
-          "title": "Keep the complete player and your own supported image",
-          "instruction": "Keep syphon_filter.exe with matching DLLs, locales, assets and notices. Use your own Syphon Filter USA v1.1 SCUS-94240 BIN/CUE, keeping every referenced BIN beside its CUE. The selected native player opens BROWSE/DEPLOY in-process and validates the supported game executable. The package supplies no game image; this attachment adds no separate BIOS import or compilation step."
+          "title": "Keep your original disc files together",
+          "instruction": "Use your own Syphon Filter USA v1.1 (SCUS-94240) BIN/CUE files. Keep the CUE beside every BIN file it references. The download does not include the original game. This setup does not require a separate BIOS import or compilation step."
         },
         {
-          "title": "Select the native player and its normal launcher",
-          "instruction": "Select the completed syphon_filter.exe, its package directory as working directory and no arguments for the normal image picker. Choose your own CUE through the upstream launcher. A CMD wrapper or separate setup process is not needed."
+          "title": "Add the program to Portcove",
+          "instruction": "Choose syphon_filter.exe. For the documented normal launcher, use its package folder as the start folder and leave launch options empty. Check the selected program and launch options, then add it to Portcove. This does not start the game. A CMD wrapper or separate setup process is not needed."
         },
         {
-          "title": "Review the native attachment and choose Play separately",
-          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          "title": "Choose Play",
+          "instruction": "Use the game’s BROWSE/DEPLOY file picker to choose your CUE file. The game checks the supported game executable itself."
         },
         {
-          "title": "Retain both current and legacy user data",
-          "instruction": "For the inspected public-test.16 source, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; its fallback is the executable directory or working directory. Campaign saves use the effective user-data root under SyphonFilterPC/Saves/<sanitized serial>.sav, with backups and temporary files; the root can fall back through APPDATA and the system temporary directory. Upstream can migrate a legacy SyphonFilterPC.sav beside the CUE. Preserve that whole profile, every legacy original/save location, package, settings, mods and custom paths before replacing or moving a copy. Do not infer current-release storage or save compatibility from this older test package."
+          "title": "Back up your files before updating",
+          "instruction": "Close the game and its companion programs first. Keep the working program, original disc files, saves, settings, mods and custom data before replacing or moving this copy. Different program folders can share saves. Portcove can launch this copy, but it won’t update, back up, restore, switch to an older version, convert, move, or delete its files. Removing it from Portcove leaves those files in place. After replacing the program, review and update its saved launch details."
+        },
+        {
+          "title": "Where the inspected version keeps saves and settings",
+          "instruction": "For public-test.16, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; it can fall back to the executable folder or start folder. Campaign saves use SyphonFilterPC/Saves/<sanitized serial>.sav under the effective user-data folder, with backups and temporary files. That folder can fall back through APPDATA and the system temporary directory. The game can move a legacy SyphonFilterPC.sav beside the CUE into its newer save location. Preserve the whole profile and all legacy save locations. Other versions may use different locations or incompatible saves."
+        },
+        {
+          "title": "About the inspected download",
+          "instruction": "The inspected v0.1.0-public-test.16 Windows x64 ZIP contains the player. At the recorded inspection, the later listed 0.2.0 beta and test releases had no attached player packages. This is a historical observation, not a check of today’s latest release or a recommendation to use an older test. Check the project’s downloads before choosing a version."
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        "Use only a copy and components you are permitted to use. Back up the complete working installation, original files, saves, settings, mods, generated files, caches and any custom folders before maintenance. Another program can share the same saved data."
       ]
     }
   }

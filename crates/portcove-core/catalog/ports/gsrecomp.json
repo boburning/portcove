@@ -27,7 +27,7 @@
         },
         {
           "title": "Register the collection launcher",
-          "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; successful preparation is not completed gameplay qualification."
+          "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; finishing preparation does not confirm a complete playthrough."
         },
         {
           "title": "Keep current data and rebuild after updates",

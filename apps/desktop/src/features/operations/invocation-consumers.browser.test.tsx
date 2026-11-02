@@ -183,7 +183,9 @@ it("retains a successful nullable-consent result independently from failed readb
     { phase: "settled", outcome: "succeeded" },
   ]);
   expect([...state.invocations.values()][0]?.refreshFailure).toBeInstanceOf(Error);
-  expect(host.textContent).toContain("Action finished; current state could not be refreshed");
+  expect(host.textContent).toContain(
+    "The action finished, but Portcove couldn’t refresh this screen.",
+  );
   expect(backupsChanged).toHaveBeenCalledOnce();
 });
 

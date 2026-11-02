@@ -4,7 +4,7 @@
     "id": "chibi-robo-pc-armandpro12-armandpro12-chibi-robo-plug-into-adventure",
     "name": "Chibi-Robo! Plug Into Adventure! — Chibi Robo PC (Armandpro12) (Armandpro12)",
     "original_game_title": "Chibi-Robo! Plug Into Adventure!",
-    "summary": "Title/newgame/prologue realtimesoundbothregions; fullgame/videos/cleanmachineunverified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project reports the title screen, new game and prologue with real-time sound for both regions. A complete playthrough, videos and setup on a clean system are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Armandpro12/chibi-robo-pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA GGTE01/PAL GGTP01 own disc image"
+          "instruction": "Use your own USA GGTE01 or PAL GGTP01 disc image."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "PeruserSetup.exe localownerdiscbuild; preservesaves"
+          "instruction": "Follow Setup.exe to build locally from your own disc for your user account. Preserve existing saves before setup."
         }
       ],
       "warnings": [
-        "Title/newgame/prologue realtimesoundbothregions; fullgame/videos/cleanmachineunverified",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports the title screen, new game and prologue with real-time sound for both regions. A complete playthrough, videos and setup on a clean system are unconfirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Armandpro12/chibi-robo-pc"
     },

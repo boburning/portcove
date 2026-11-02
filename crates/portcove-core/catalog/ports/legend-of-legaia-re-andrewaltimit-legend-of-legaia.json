@@ -4,7 +4,7 @@
     "id": "legend-of-legaia-re-andrewaltimit-legend-of-legaia",
     "name": "Legend of Legaia — legend-of-legaia-re (AndrewAltimit)",
     "original_game_title": "Legend of Legaia",
-    "summary": "Upstream now explicitly claims full game New Game to credits with automated pad-driven milestone ladder, scenes, battles, menus and minigames. Retail parity still closing and some untraced sound effects use chosen substitutes. This is an upstream claim, not Portcove verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports automated controller-driven tests from New Game to credits, covering scenes, battles, menus and minigames. Matching the retail game is still in progress, and some unidentified sound effects use substitutes. Portcove has not confirmed a complete playthrough. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/AndrewAltimit/legend-of-legaia-re",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own USA SCUS-94254 BIN or CUE. Engine reads original game data at runtime. Other regions may extract, but game engine/patcher target USA; whole-image reference digest may vary with dumping method."
+          "instruction": "Use your own USA SCUS-94254 BIN or CUE. The engine reads the original data while playing. Other regions may extract, but the engine and patcher target USA. Whole-image hashes can vary with the dumping method."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README describes Releases platform archives carrying legaia-engine and supporting tools. Start the engine/desktop app, select the owned disc and Play. Browser play reads image locally. Source alternative cargo build --release with Rust edition 2024. Asset viewer/Studio are helpers, not separate port identities."
+          "instruction": "Follow the README for platform archives containing legaia-engine and its supporting tools. Open the engine or desktop app, select your own disc and choose Play. Browser play reads the image locally. A source build uses cargo build --release with Rust edition 2024. The asset viewer and Studio are tools, not separate game ports."
         }
       ],
       "warnings": [
-        "Upstream now explicitly claims full game New Game to credits with automated pad-driven milestone ladder, scenes, battles, menus and minigames. Retail parity still closing and some untraced sound effects use chosen substitutes. This is an upstream claim, not Portcove verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports automated controller-driven tests from New Game to credits, covering scenes, battles, menus and minigames. Matching the retail game is still in progress, and some unidentified sound effects use substitutes. Portcove has not confirmed a complete playthrough.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/AndrewAltimit/legend-of-legaia-re"
     },

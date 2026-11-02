@@ -131,7 +131,10 @@ function sourceFormatReason(status: PortStatus | undefined): string {
 function unavailable(action: PresentedAction): ActionPresentation {
   return {
     blocked: true,
-    reason: `Current ${action === "install" ? "setup" : action} availability is unavailable. Refresh the workspace to check again.`,
+    reason:
+      action === "install"
+        ? "Setup availability could not be confirmed. Refresh the workspace to check again."
+        : `Current ${action} availability is unavailable. Refresh the workspace to check again.`,
   };
 }
 

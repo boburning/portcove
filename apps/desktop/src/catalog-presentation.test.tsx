@@ -373,7 +373,7 @@ it.each(["catalog", "library"] as const)(
 );
 
 it.each(["stable", "beta", "rolling"] as const)(
-  "labels the declared Catalog release channel %s independently of support and the selected update stream",
+  "labels the declared Catalog update channel %s independently of support and the selected update stream",
   (channel) => {
     const port = { ...portDefinition(), channels: [channel], support_tier: "rolling" as const };
     const status = { ...portStatus(), active: cardInstall, channel };

@@ -30,7 +30,7 @@
           "instruction": "The inspected official v0.6.0-windows ZIP contains AMD64 rsc2-windows-x64/rsc2.exe and the matching package files. The newer v0.7.0 release has Linux assets and is not the Windows package. Keep the complete Windows unit and game/ data, and retain all applicable xboxrecomp MIT, Noto Sans OFL, stb and other component terms. The source explicitly retains a translated XDK XInputGetState body and compiled game logic; toolkit licensing does not grant rights over Microsoft or original game material. Use an independently permitted complete copy. No original, compiler, helper or game is obtained or executed here."
         },
         {
-          "title": "Attach the already configured Windows game",
+          "title": "Add your configured Windows game",
           "instruction": "Complete upstream settings first, then select rsc2.exe, use the complete rsc2-windows-x64 directory as working directory and leave arguments empty. Turn Show at startup off upstream if direct play is desired. Its integrated launcher applies saved settings before the linked native entry; it is not a separate setup executable. Keep the real game/ tree in that CWD. Do not add finite-frame, replay, tracing, Steam-shortcut or compiler actions to normal Play. Review the exact intent and request Play separately."
         },
         {
@@ -38,7 +38,7 @@
           "instruction": "Keep %APPDATA%/rsc2/settings.ini and the actual xboxrecomp save root, normally %LOCALAPPDATA%/xboxrecomp, with UserData/, TitleData/, Cache/ and any existing partition images or other player data. If LocalAppData cannot be resolved, source falls back to SaveData/ under CWD. This is not a title-specific directory by name: preserve other games already using that root and do not merge or delete it. Keep original data, existing environment overrides, previous CWD data and any external paths. This guide performs no migration, restore, backup or deletion."
         },
         {
-          "title": "Keep acceptance and replacement explicit",
+          "title": "Check the limits before replacing the game",
           "instruction": "Quit the real game normally before upstream replacement or data changes, retain recovery copies and review/relink changed executable bytes. Upstream Windows reports are from Wine; Linux races/controller/performance reports do not establish physical Windows, installed-app, campaign, real-save or Supported acceptance. Original XBE fingerprint work remains unfinished. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable."
         }
       ],

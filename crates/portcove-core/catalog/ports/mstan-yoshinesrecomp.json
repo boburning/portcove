@@ -26,11 +26,11 @@
           "instruction": "Select the already working completed cycle YoshiRecomp.exe, using its containing runtime folder as working directory for normal defaults. Preserve an already working custom working directory and the interpretation of existing path arguments instead of changing them merely to register. Do not choose setup.bat, setup.sh, a compiler, headless tool or another backend executable. Use one literal argument token: the absolute path to your supported ROM, with spaces kept inside that token. The ordinary upstream launcher remains available; these cycle builds do not accept the SNES --rom or --no-launcher flags. Preserve an established --config and its absolute path as separate tokens when already used; do not switch configuration merely to register."
         },
         {
-          "title": "Review intent and choose Play explicitly",
+          "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to the exact native executable, working directory and literal arguments. Registration does not compile, migrate, repair or launch the game. Choose Play separately; upstream’s ordinary launcher and game loop are in-process in the selected source. Portcove observes the selected process, not an exclusive process family. Relink an upstream replacement through a new review and close every actual player before upstream changes."
         },
         {
-          "title": "Preserve the creating copy and upstream ownership",
+          "title": "Keep your working copy and use the project’s updates",
           "instruction": "Preserve the whole creating runtime/source tree, original, config.ini and any custom configuration, its rom.cfg, older keybinds.ini, mods, cycle states under saves/<ROM stem>.cycstate, diagnostics/captures and all custom paths. Yoshi has no battery-backed save, but that does not make its cycle states disposable. Legacy binary states and states from the previous larger ROM are not qualified for this cycle/input; keep each with its creating copy. Do not rename or import old files merely to register. Upstream/player own preparation, repair and runtime replacement. Removing registration removes only Portcove metadata and preserves all external bytes."
         }
       ],

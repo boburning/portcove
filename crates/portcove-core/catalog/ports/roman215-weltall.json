@@ -30,7 +30,7 @@
           "instruction": "The inspected official 0.8.5 Windows ZIP contains AMD64 Weltall.exe and Weltall/Binaries/Win64/Weltall-Win64-Shipping.exe with matching Engine/, content and libraries. This is the Unreal Engine 5 recreation, not an original PlayStation executable or a generic PSX-emulator admission. Keep the complete package and place your originals in its documented Games/ tree, or retain an existing explicitly selected Games directory. No disc, patch, helper, compiler or game is obtained or executed here."
         },
         {
-          "title": "Attach the actual native game entry",
+          "title": "Add the game program",
           "instruction": "After completing upstream disc recognition and settings, select Weltall/Binaries/Win64/Weltall-Win64-Shipping.exe, set the complete extracted package root as working directory and leave arguments empty. The public package-check producer also selects that native binaries entry; do not add its diagnostic null-renderer/sound arguments to normal Play. The game source resolves packaged Games/ from the package root, with an existing -Games= override taking precedence. Review the exact intent and request Play separately. The outer bootstrap’s lifetime is not qualified by this selection; keep all packaged files in place."
         },
         {
@@ -38,7 +38,7 @@
           "instruction": "Keep the actual %LOCALAPPDATA%/Weltall tree, including Saves, settings, Saved/Crashes and logs, plus the complete package, Games/ originals, optional Assets/ replacements and any configured external paths. Options can import individual or memory-card saves and export .mcr cards under Saves/Cards; these are upstream operations, not observed conversion/restore compatibility. Disc swaps and Disc 2-only starts follow the original progression requirements. Keep independent old/new recovery before replacing or importing data; this guide performs no import, conversion, backup, restore, migration or deletion."
         },
         {
-          "title": "Keep rights and acceptance explicit",
+          "title": "Check permissions and reported limits",
           "instruction": "Retain project MIT and all Unreal Engine/Epic and packaged component notices; the own-code license does not license the original Square game, other-game content or third-party mods. Use only a complete copy and optional content you are independently permitted to use. Quit the actual game normally before upstream replacement/data work, preserve recovery and review/relink changed executable bytes. Upstream both-disc, automated-map/battle and partial-playthrough reports are not our full-campaign, native/installed, physical-device, real-save or Supported acceptance. Android/Linux and optional story extensions remain separate. Registration removal preserves external files; managed lifecycle operations remain unavailable."
         }
       ],

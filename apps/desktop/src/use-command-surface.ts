@@ -53,7 +53,7 @@ export function commandSurfaceCommands({
     {
       id: "catalog",
       group: "Navigation",
-      label: "Open Find games",
+      label: "Open Discover",
       description: "Browse native game ports",
       icon: Boxes,
       shortcut: commandShortcut("2"),
@@ -71,7 +71,7 @@ export function commandSurfaceCommands({
     {
       id: "search",
       group: "Navigation",
-      label: "Search Find games",
+      label: "Search Discover",
       description: "Find a port by title, installation method, or platform",
       icon: Search,
       action: focusSearch,

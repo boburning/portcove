@@ -3,7 +3,7 @@
   "listing": {
     "id": "return-to-castle-wolfenstein-iortcw",
     "name": "Return to Castle Wolfenstein (iortcw)",
-    "summary": "Windows prepared-player route: use the iortcw1.51c x64 single-player client with your own correctly prepared RTCW Main and applicable patch/locale data. Preserve actual base/home/game roots. Core offers nonowning registration/Play; upstream owns setup/replacement. Multiplayer, original assets and save compatibility remain separate.",
+    "summary": "Windows prepared-player route: use the iortcw1.51c x64 single-player client with your own correctly prepared RTCW Main and applicable patch/locale data. Preserve actual base/home/game roots. Portcove can register this existing copy and start the selected player; upstream owns setup/replacement. Multiplayer, original assets and save compatibility remain separate.",
     "original_game_title": "Return to Castle Wolfenstein",
     "project_url": "https://github.com/iortcw/iortcw",
     "platforms": [],
@@ -30,7 +30,7 @@
           "instruction": "Finish upstream single-player setup with your own supported RTCW Main data, including pak0.pk3 and applicable sp_pak1/sp_pak2/sp_pak3 and patch-data-141/locale files. Use the upstream instructions matching the actual edition/language; keep compatible code/data together in a separate recoverable working copy. Multiplayer requires its own data/code and is outside this SP route. Core neither downloads patches nor imports/authenticates original PK3s or runs a setup script."
         },
         {
-          "title": "Keep actual launch and profile coordinates",
+          "title": "Keep your launch settings and profile paths",
           "instruction": "Use the actual prepared working directory and same supported literal arguments. Preserve established fs_basepath/fs_homepath/fs_game choices and absolute custom roots as actually configured. Review exact intent/consent, then choose Play separately. Do not override the host profile root or force an unrelated empty profile to attach the player."
         },
         {
@@ -38,14 +38,14 @@
           "instruction": "Default Windows home data follows the actual Documents/RTCW known-folder location; configured roots and Main/game subdirectories may differ. Preserve the whole runtime and original data plus actual configs/profiles/saves/screenshots/demos/mods/unknown files in every base/home/game/custom/legacy root. Keep the old creating tuple before any upstream replacement. GPL engine and additional SP/component terms do not license the original game; no multiplayer, mod, or cross-version save compatibility follows from this registration."
         },
         {
-          "title": "Keep replacement and removal ownership clear",
-          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          "title": "Update the game and remove its registration",
+          "instruction": "Close every running copy before changing external files. You manage setup, game replacement, profile changes, data migration and recovery. Keep the working game version and every data folder, update it with the project’s tools, then review and select the changed executable before choosing Play. Portcove monitors only the process you selected and agreed to launch. It does not prevent other copies from running, restrict file access or take over unrelated helpers or replacement processes. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or deletion."
         }
       ],
       "warnings": [
-        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
-        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
-        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+        "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
     }
   },

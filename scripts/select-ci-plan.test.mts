@@ -12,6 +12,7 @@ import { rustQuality } from "./ci-workflow-fixture.mts";
 import { frontend } from "./ci-workflow-fixture.mts";
 import { catalog } from "./ci-workflow-fixture.mts";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -31,6 +32,7 @@ import {
   fastGroups,
   qualificationPlatforms,
   validateValidationPlan,
+  readValidationPlanInput,
 } from "./validation-plan.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
@@ -72,6 +74,45 @@ void test("GitHub outputs carry the conservative Linux diagnostics decision", as
     assert.equal(values.get("linux_diagnostics"), expected);
     assert.equal(values.get("plan_digest"), plan.digest);
   }
+});
+
+void test("catalog-wide GitHub outputs fit the UTF-16 quota without losing the exact plan", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-large-plan-outputs-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const plan = buildValidationPlan({
+    changes: Array.from({ length: 1100 }, (_, index) => {
+      const name = createHash("sha256").update(String(index)).digest("hex").slice(0, 32);
+      const file = `crates/portcove-core/catalog/ports/${name}.json`;
+      return { status: "M", oldMode: "100644", newMode: "100644", oldPath: file, newPath: file };
+    }),
+    eventName: "pull_request",
+    base: sha("b"),
+    mergeBase: sha("b"),
+    head: sha("a"),
+    checkout: sha("a"),
+  });
+  assert.ok(Buffer.byteLength(JSON.stringify(plan), "utf16le") > 1024 * 1024);
+  const output = path.join(root, "output");
+  await writeGithubOutputs(output, plan);
+  const text = await readFile(output, "utf8");
+  assert.ok(Buffer.byteLength(text, "utf16le") < 1024 * 1024);
+  assert.doesNotMatch(text, /^plan_json=/m);
+  const values = Object.fromEntries(
+    text
+      .trim()
+      .split("\n")
+      .map((line) => {
+        const split = line.indexOf("=");
+        return [line.slice(0, split), line.slice(split + 1)];
+      }),
+  );
+  assert.equal(values.plan_digest, plan.digest);
+  assert.deepEqual(
+    validateValidationPlan(
+      readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: values.plan_gzip_base64 }),
+    ),
+    plan,
+  );
 });
 
 for (const [profile, platforms] of [
@@ -470,7 +511,6 @@ void test("GitHub outputs are complete single-line values", async (t) => {
     "platform_matrix_json",
     "qualification_required",
     "plan_digest",
-    "plan_json",
     "plan_gzip_base64",
     "base",
     "merge_base",

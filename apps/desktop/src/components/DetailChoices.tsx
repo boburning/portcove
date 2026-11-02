@@ -44,8 +44,8 @@ export function SetupStatement({
   if (!organization || !context || status?.port_id !== portId) return null;
   const confirmed = setupConfirmed(organization.snapshot, portId, context);
   return (
-    <section aria-label="Your setup confirmation" className="mt-6 grid gap-3 text-sm">
-      <h3 className="text-base">Your setup confirmation</h3>
+    <section aria-label="Your setup reminder" className="mt-6 grid gap-3 text-sm">
+      <h3 className="text-base">Your setup reminder</h3>
       <label htmlFor={confirmationId} className="flex cursor-pointer items-start gap-3">
         <Checkbox
           id={confirmationId}
@@ -59,12 +59,11 @@ export function SetupStatement({
             })
           }
         />
-        <span>I have completed the upstream first-launch setup for this installation.</span>
+        <span>I’ve finished this game’s first-time setup.</span>
       </label>
       <p className="max-w-prose text-pc-muted-foreground">
-        This is your statement for the selected {context.kind} installation. It does not check game
-        files, change Play availability, or establish gameplay compatibility. A replacement
-        installation needs its own confirmation.
+        This optional reminder doesn’t check your files, test the game, or change whether Play is
+        available. A replacement installation needs its own reminder.
       </p>
       <ChoiceFailure organization={organization} />
     </section>
@@ -128,9 +127,9 @@ export function UpdateNoticePreferences({
                 choice: { ...choice, skipped_release: exactRelease },
               })
             }
-            aria-label={`Skip this version: ${exactRelease.version}`}
+            aria-label={`Hide the update notice for this version: ${exactRelease.version}`}
           >
-            Skip this version
+            Hide the update notice for this version
           </Button>
         )}
         {choice.skipped_release && (
@@ -146,14 +145,14 @@ export function UpdateNoticePreferences({
               })
             }
           >
-            Show skipped release again
+            Show this update notice again
           </Button>
         )}
       </div>
       {choice.skipped_release && (
         <p className="text-pc-muted-foreground">
-          Notices skipped for {choice.skipped_release.version} and this exact download. A rebuilt
-          release with different bytes will be shown again.
+          Notice hidden for {choice.skipped_release.version} and this download. We’ll show the
+          notice again if the publisher replaces the download.
         </p>
       )}
       <ChoiceFailure organization={organization} />

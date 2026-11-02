@@ -33,13 +33,13 @@ export function DetailQualificationSummary({
         <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
           <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
             <small className="mb-[5px] block text-[var(--color-text-muted)]">
-              Legacy port-wide automated tests
+              Earlier automated tests
             </small>
             {legacyCoverage(port.platforms, port.automated_tested_platforms)}
           </span>
           <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
             <small className="mb-[5px] block text-[var(--color-text-muted)]">
-              Legacy port-wide hands-on tests
+              Earlier hands-on tests
             </small>
             {legacyCoverage(port.platforms, port.manually_validated_platforms)}
           </span>
@@ -47,9 +47,9 @@ export function DetailQualificationSummary({
       )}
       {!technical && (
         <p className="text-sm text-pc-muted-foreground">
-          Recorded history, not a fresh check of your current files, release or device. Structural
-          and lifecycle passes do not establish gameplay or permission to launch. Legacy platform
-          coverage does not identify an exact artifact, edition or file format.
+          These are earlier test results. Passing automated checks doesn’t confirm that the game
+          plays correctly. These platform results don’t identify the exact download, edition or file
+          format tested.
         </p>
       )}
       {(["game", "bios"] as const).map((role) => {
@@ -126,8 +126,8 @@ export function DetailQualificationSummary({
               </>
             )}
             <p className="text-sm text-pc-muted-foreground">
-              Current applicability is unknown: this view has no current device, artifact or
-              inspection freshness context.
+              We haven’t confirmed whether these test results apply to your files, game version, or
+              device.
             </p>
           </section>
         );
@@ -179,27 +179,25 @@ function RecordedObservation({
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt>Recorded release</dt>
-          <dd>{record.scope.upstream_ref || "Not recorded — scope unknown"}</dd>
+          <dd>{record.scope.upstream_ref || "Not recorded"}</dd>
         </div>
         {technical && (
           <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
             <dt>Recorded contract</dt>
-            <dd>{record.scope.contract_id || "Not recorded — scope unknown"}</dd>
+            <dd>{record.scope.contract_id || "Not recorded"}</dd>
           </div>
         )}
         {technical && (
           <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
             <dt>Recorded check version</dt>
-            <dd>{record.scope.check_version || "Not recorded — scope unknown"}</dd>
+            <dd>{record.scope.check_version || "Not recorded"}</dd>
           </div>
         )}
         {technical && (
           <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
             <dt>Recorded artifact SHA-256</dt>
             <dd>
-              <code className="break-all">
-                {record.scope.artifact_sha256 || "Not recorded — scope unknown"}
-              </code>
+              <code className="break-all">{record.scope.artifact_sha256 || "Not recorded"}</code>
             </dd>
           </div>
         )}
@@ -207,8 +205,8 @@ function RecordedObservation({
       {!technical && (
         <p>
           {record.scope.check_version && record.scope.artifact_sha256
-            ? "Artifact and check identities recorded in Technical details."
-            : "Artifact or check identity not recorded — scope unknown."}
+            ? "Download and test details are available in Technical details."
+            : "The tested download or test version wasn’t recorded."}
         </p>
       )}
     </div>
@@ -232,7 +230,7 @@ function recordedEdition(record: SourceEvidence, variants: SourceVariant[]) {
         ]
           .filter(Boolean)
           .join(" · ")
-      : "Not recorded — scope unknown";
+      : "Not recorded";
   return edition;
 }
 
@@ -242,7 +240,7 @@ function legacyCoverage(
 ) {
   const completedSet = new Set(completed);
   const recorded = supported.filter((platform) => completedSet.has(platform));
-  if (recorded.length === 0) return "No legacy platform coverage recorded";
+  if (recorded.length === 0) return "No earlier platform tests recorded";
   const unrecorded = supported.filter((platform) => !completedSet.has(platform));
   const completedLabel = recorded.map((platform) => platformLabel(platform)).join(" · ");
   return unrecorded.length === 0

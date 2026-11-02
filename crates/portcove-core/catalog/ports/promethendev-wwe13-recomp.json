@@ -30,7 +30,7 @@
           "instruction": "The inspected official WWE13-Recomp-v1.5.zip contains AMD64 WWE13-Recomp-x64/wwe13.exe and WWE13 Launcher.exe, matching runtime libraries/notices and a separate Linux-x86_64 directory. Its Windows programs were inspected; Linux binaries and gameplay were not qualified by that check. Use the complete Windows root, with supported Windows 10/11, AVX2 and Vulkan graphics. Cached README version labels do not select an older package."
         },
         {
-          "title": "Attach the native program with explicit existing paths",
+          "title": "Add the game program with its existing paths",
           "instruction": "Select wwe13.exe and the complete WWE13-Recomp-x64 directory as working directory. Follow the upstream launch-plan coordinates: use the absolute path to your already prepared game folder as the first quoted argument, and --user_data_root= followed by the quoted absolute path to this installation’s existing userdata folder. Replace both paths with actual selections; do not use placeholders literally or select a new empty root. These are the source launcher’s game/user-root arguments, not another guessed cache or environment. Review the exact intent and request Play separately. The game entry validates the title update and owns the selected native process. Launcher-only display/performance environment choices do not automatically transfer to direct launch; finish or retain necessary settings upstream, and do not claim an identical presentation profile."
         },
         {
@@ -38,7 +38,7 @@
           "instruction": "Keep userdata/ with saves, DLC, profiles and settings, the selected WWE 13/ or external original folder, wwe13.toml controls, wwe13-enhanced.ini launcher settings, music/, logs/, backups/update-<version>/, custom creations and all configured external roots. Content imports can replace progress and require matching save-slot metadata; another WWE title’s package or shared save is not automatically compatible. Keep complete recovery copies before any upstream creation/save import or update. This guide performs no import, backup, restore, migration or deletion."
         },
         {
-          "title": "Retain notices and maintain outside attachment",
+          "title": "Keep licences and close the game before maintenance",
           "instruction": "Keep project BSD-3-Clause, the ReXGlue/Yukes/Xenia and all renderer, FFmpeg and component notices/corresponding-source materials. They do not license the retail game, mandatory update, music, creations or DLC. The external launcher owns update verification/replacement and rollback copies, plus its optional display/performance environment. Quit the actual game normally, retain independent recovery and review/relink changed bytes. Known graphical/timing limitations remain; no native/installed, Linux, campaign, real-save, creation corpus, online or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
         }
       ],

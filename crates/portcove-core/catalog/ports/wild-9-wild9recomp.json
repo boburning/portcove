@@ -3,7 +3,7 @@
   "listing": {
     "id": "wild-9-wild9recomp",
     "name": "Wild 9 (Wild9Recomp)",
-    "summary": "Upstream route: Official portable Windows/Linux/macOS runtime archives; user provides original NTSC-U SLUS-00425 data via upstream flow. Current README explicitly requires no compiler/Python/MSVC for player packages. Limits: NTSC-U SLUS-00425. Recent packages and checksum sidecars exist; reuse PSX family route. Upstream platforms: Portable Windows x86-64 ZIP, Linux x86-64 ZIP/AppImage, macOS x86-64 and ARM64 ZIPs; Linux glibc2.28+. Player packages need no compiler/Python/MSVC. Original data: Own Wild 9 NTSC-U/USA PS1 disc SLUS-00425 as CUE with its companion BIN track data. Upstream uses boot executable SLUS_004.25 and the remaining disc content. Player runtime includes OpenBIOS; Sony SCPH BIOS is optional, not required. Current portable releases require no Python/MSVC/compiler. Portcove setup/gameplay not verified.",
+    "summary": "A Wild 9 portable player for your own NTSC-U/USA SLUS-00425 PlayStation CUE and all referenced BIN tracks, including boot executable SLUS_004.25 and the remaining disc files. OpenBIOS is included; your own Sony SCPH BIOS is optional. Official Windows x86-64 ZIP, Linux x86-64 ZIP/AppImage and macOS x86-64/ARM64 ZIP packages need no compiler, Python or MSVC; Linux needs glibc 2.28+. Recent packages include checksum sidecars. Follow the project’s original-file setup; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Wild 9",
     "project_url": "https://github.com/plinkr/Wild9Recomp",
     "platforms": [],

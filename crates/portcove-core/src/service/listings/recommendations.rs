@@ -667,7 +667,7 @@ fn operation_eligibility(
     }
     let Some(status) = prepared.status.as_ref() else {
         return Eligibility::Unknown {
-            reason: "Existing Core operation assessment is unavailable.".into(),
+            reason: "We couldn’t check which actions are available for this game.".into(),
         };
     };
     let installed_offered = offered.is_some_and(|release| {
@@ -709,21 +709,124 @@ fn operation_eligibility(
             ) =>
         {
             Eligibility::Held {
-                reason: format!(
-                    "Existing Core {:?} assessment: {:?}.",
-                    action, assessment.reason
-                ),
+                reason: comparison_action_reason(assessment).into(),
             }
         }
         Some(assessment) => Eligibility::Unknown {
-            reason: format!(
-                "Existing Core {:?} assessment: {:?}.",
-                action, assessment.reason
-            ),
+            reason: comparison_action_reason(assessment).into(),
         },
         None => Eligibility::Unknown {
             reason: "No current operation assessment is available for this route.".into(),
         },
+    }
+}
+
+fn comparison_action_reason(assessment: &crate::PortActionAssessment) -> &'static str {
+    use crate::PortActionReason;
+    if let Some(definition) = assessment
+        .definition
+        .filter(|_| assessment.reason == PortActionReason::DefinitionIneligible)
+    {
+        use crate::DefinitionEligibilityReason as Reason;
+        return match definition.reason {
+            Reason::MandatoryChecksPassed => {
+                "Required catalog checks passed; review the game’s current action status."
+            }
+            Reason::PublisherRevoked => "The catalog publisher was revoked.",
+            Reason::CuratedArtifactRevoked => {
+                "This exact download was revoked. Keep your files and saves."
+            }
+            Reason::CuratedDistributionWithdrawn => {
+                "This download was withdrawn. Permitted installed use remains available."
+            }
+            Reason::UnknownSafetySemantics => {
+                "This version of Portcove can’t interpret the catalog’s safety requirements."
+            }
+            Reason::PublisherScopeRequired => "This publisher is not approved for this port.",
+            Reason::EngineCapabilityRequired => {
+                "This version of Portcove can’t use this setup option."
+            }
+            Reason::OwnershipMigrationRequired => {
+                "The existing installation needs review before Portcove can manage it."
+            }
+            Reason::MetadataReplay => "This catalog update is older than the accepted version.",
+            Reason::RefreshIncomplete => "The catalog update didn’t finish.",
+            Reason::MetadataStale => "Refresh the catalog information before continuing.",
+            Reason::RecordedIdentityChanged => {
+                "The accepted download information changed. Review it again."
+            }
+            Reason::AuthenticatedIntegrityRequired => {
+                "The required download verification information is missing."
+            }
+            Reason::LocalIntegrityFailed => "A required local file check failed.",
+            Reason::MandatoryCheckFailed => {
+                "A required check failed. Open the game to review the result."
+            }
+            Reason::SourceIdentityMismatch => {
+                "The original game files don’t match the required edition."
+            }
+            Reason::RequiredSourceMissing => "Required original game files are missing.",
+        };
+    }
+    match assessment.reason {
+        PortActionReason::Available => {
+            "This action is available; its files will be checked again before it runs."
+        }
+        PortActionReason::RouteNotOffered => "This setup option does not offer this action.",
+        PortActionReason::AlreadyRegistered => {
+            "This installation is already added to your library."
+        }
+        PortActionReason::UnsupportedPlatform => "This action is unavailable on this platform.",
+        PortActionReason::NotInstalled => "Add or install the game before using this action.",
+        PortActionReason::ReviewRequired => {
+            "Review the game’s current requirements before continuing."
+        }
+        PortActionReason::MissingSource => "Required original game files are missing.",
+        PortActionReason::UnreadableSource => {
+            "Portcove can’t read the original game files at their saved location."
+        }
+        PortActionReason::ChangedSource => {
+            "The original game files have changed since you added them. Check their saved location."
+        }
+        PortActionReason::IncompatibleSource => {
+            "These original game files cannot be used by this version. Choose and check the required edition and format."
+        }
+        PortActionReason::MissingBios => "A required BIOS file is missing.",
+        PortActionReason::UnreadableBios => {
+            "Portcove can’t read the BIOS file at its saved location."
+        }
+        PortActionReason::ChangedBios => {
+            "The BIOS file has changed since you added it. Check its saved location."
+        }
+        PortActionReason::IncompatibleBios => {
+            "This BIOS edition cannot be used by this version. Choose and check a supported BIOS."
+        }
+        PortActionReason::MissingRuntime => "A required game component is missing.",
+        PortActionReason::PreparationRequired => "Finish setting up the game files before playing.",
+        PortActionReason::SharedPreferencesReviewRequired => {
+            "Your Windows account or shared settings location changed. Leave the shared settings file in place. Review the game’s recovery instructions."
+        }
+        PortActionReason::SharedPreferencesUnavailable => {
+            "Portcove can’t safely check shared settings. Leave the file unchanged, close other copies of the game and check access to your Windows profile."
+        }
+        PortActionReason::InvalidInstallation => {
+            "Portcove couldn’t verify the installed game files."
+        }
+        PortActionReason::DefinitionIneligible => {
+            "This game’s catalog information does not permit this action. Open the game to review the reason."
+        }
+        PortActionReason::MissingData => "No saved data is available for backup.",
+        PortActionReason::MissingBackup => "No usable backup is available to restore.",
+        PortActionReason::UnreadableData => {
+            "Portcove can’t read the saved data. Check its location."
+        }
+        PortActionReason::UnsafeData => "The saved-data location needs a safety check.",
+        PortActionReason::RecoveryRequired => {
+            "An interrupted task needs recovery. Open Activity and follow its recovery instructions."
+        }
+        PortActionReason::AssessmentIncomplete => {
+            "Portcove couldn’t finish checking this action. Refresh the game’s status."
+        }
     }
 }
 

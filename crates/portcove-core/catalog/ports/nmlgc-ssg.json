@@ -22,7 +22,7 @@
           "instruction": "The inspected official P0341 GIAN07-2026-10-05.zip contains GIAN07.exe as PE x86/014c, with its modern SDL3.dll and separately packaged support files. Keep the complete release and original resources. This is not an AMD64 executable or the vintage GIAN07_win98.exe / original-DirectDraw route. Some alternate-named entries in this ZIP are zero-byte placeholders; they are not runnable players and are not selected by this guide. The current source’s modern Tup/SDL build instructions supersede the retained original historical README’s missing-link-source note for this route."
         },
         {
-          "title": "Attach the prepared modern game",
+          "title": "Add the prepared modern game",
           "instruction": "After completing upstream resource/layout preparation, select the actual nonempty modern GIAN07.exe, use its complete prepared program/resource directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The modern SDL main enters the game in that process; do not select the legacy Win98 variant, original executable, ssg_cli.exe replay tool or a zero-byte placeholder. Keep the complete installation instead of moving only the EXE."
         },
         {
@@ -30,7 +30,7 @@
           "instruction": "The modern Windows data resolver uses the executable’s base folder. Keep the full prepared root, including the actual 秋霜CFG.DAT/other configuration, scores, replays, original data archives, bgm/ content and any established custom audio/resource paths. Preserve old installation roots before choosing another directory; source configuration formats and vintage/modern behavior do not prove cross-version score/replay compatibility. This guide performs no conversion, replay validation, backup, restore, migration or deletion."
         },
         {
-          "title": "Keep source, replay and runtime acceptance separate",
+          "title": "Check what the source, replays and game tests establish",
           "instruction": "Retain the project MIT and all SDL3, codec and other component notices; source licensing does not grant rights to original game resources or optional music. Latest-release replay checks are bounded upstream evidence, not all-playthrough equivalence, physical hardware or our native/installed/gameplay observation. Quit normally before upstream replacement/data work, preserve recovery and review/relink changed executable bytes. Linux/FreeBSD are separate build routes. No Supported or managed lifecycle acceptance is asserted; registration removal preserves external files."
         }
       ],

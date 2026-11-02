@@ -30,7 +30,7 @@
           "instruction": "The inspected official 1.1.0 Windows x86-64 ZIP contains AMD64 Fukami/Fukami.exe and its matching libraries, resources/ package and share/fukami-default.ini/workload contract. Keep that full layout. It differs from a developer runtime, an extracted ELF or the macOS/Linux products. The app recognizes this complete Windows layout before applying its normal preparation and launch path."
         },
         {
-          "title": "Attach the prepared waiting application",
+          "title": "Add the prepared app that waits for the game",
           "instruction": "Select Fukami.exe, use its complete extracted Fukami folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Source creates a same-image child with the configured environment and original ELF, waits without a play-session timer and returns its exit status; it can restart that child after an upstream settings restart. Keep that supported parent rather than inventing environment/child flags or attaching a resource DLL. Finish missing-disc preparation outside the attached attempt. The source attempts a kill-on-close job on a best-effort basis; this is not an observed universal descendant-cleanup or save-flush guarantee."
         },
         {
@@ -38,7 +38,7 @@
           "instruction": "Normally keep %LOCALAPPDATA%/Fukami with fukami.ini, mc/ memory cards, disc/ extracted originals, sessions/ when logging is enabled and all other player data. The real Windows known folder can be relocated; an established FUKAMI_DATA_DIR selects another per-run root. Keep the source CHD or complete CUE/BIN and any external texture/settings/card paths, plus the matching immutable resource package. Card persistence, state files and session logs are distinct. This guide changes no environment and performs no extraction, migration, backup, restore or deletion."
         },
         {
-          "title": "Retain notices and maintenance ownership",
+          "title": "Keep licences and use the project’s maintenance tools",
           "instruction": "Keep project GPLv3, PCSX2-derived notices, libchdr, font/icon, renderer and other shipped component terms; they do not license the original game, optional replacement packs or third-party content. Quit the actual game and its waiting app normally before upstream replacement or data work, retain independent recovery and review/relink changed executable bytes. The reported long-session stall remains an upstream limitation; static source/archive checks do not establish native/installed, whole-game, real-save, hardware or Supported acceptance. Removing registration preserves external files; managed lifecycle operations remain unavailable."
         }
       ],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-warriors-ps2-coney",
     "name": "The Warriors (PS2) (Coney)",
-    "summary": "Research listing. Upstream route: Source-only CMake development build Limits: Incomplete source-only reconstruction: startup/frontend and limited levels, not complete gameplay. Upstream platforms: Source-only Windows x86-64 VisualStudio toolchain and Linux/macOS CMake routes; selected Linux/macOS CPU matrix unknown in frozen evidence. Incomplete game reconstruction. Original data: Own disc ISO/mounted folder containing WARRIORS.DIR and WARRIORS.WAD Portcove setup/gameplay not verified.",
+    "summary": "An incomplete source-only Warriors PS2 reconstruction reaching startup, the frontend and limited levels, rather than complete gameplay. Windows x86-64 uses Visual Studio; Linux/macOS use CMake, with exact host CPUs unconfirmed. Supply your own ISO or mounted disc folder containing WARRIORS.DIR and WARRIORS.WAD. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "The Warriors (PS2)",
     "project_url": "https://github.com/Ryubara/coney",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "the-warriors",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2903
+    "issue_number": 2903,
+    "manual_setup": {
+      "help_url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md",
+      "steps": [
+        {
+          "title": "Prepare your own PS2 copy with upstream Coney",
+          "instruction": "Coney is an incomplete source-built reimplementation, not a complete game or a ready-made Windows release. Follow upstream building instructions first; the documented Windows route uses the x64 Visual Studio 2022 C++/ATL tools, CMake 3.28+, Ninja and an OpenGL 3.3-capable driver. Supply your own The Warriors PS2 disc or ISO. The upstream installer currently recognizes NTSC-U SLUS-21215; Xbox assets and other revisions have separate unfinished scope. Portcove does not download a disc, build the program or run its installer."
+        },
+        {
+          "title": "Choose the completed native player and its existing context",
+          "instruction": "For an already completed upstream installation, select its coney.exe, use the complete installation folder as working directory and leave arguments empty. Its finished index/install.json identifies the adjacent game/ps2 installation. Keep that index and all installed files. For an already working source build, the documented output is build/dev/src/platform/coney.exe; preserve the repository/workspace working directory used by your working upstream command and supply --disc followed by the absolute path to your own existing ISO or complete WARRIORS.DIR/WARRIORS.WAD folder. Enter those two arguments on separate lines using your real path."
+        },
+        {
+          "title": "Keep installation and direct-disc routes distinct",
+          "instruction": "A finished upstream --data installation is an alternative to --disc; do not combine them or use --install as the Play command. Finish any upstream import or repair before adding the reference. Retain its game/ps2 data, overrides and index/install.json together, and keep an original disc image elsewhere unchanged. Review the selected executable, working directory and arguments, then choose Play separately when ready. Do not select the studio, research tools, a compiler or a headless diagnostic as this game."
+        },
+        {
+          "title": "Preserve the actual profiles and external files",
+          "instruction": "Normal Windows story profiles are profile-1.sav through profile-6.sav in profiles under %APPDATA%/Coney/Coney; an existing --profiles argument chooses another folder. Preserve the entire actual data/profile folder and that custom argument, plus the complete installation, original disc and any modifications. Test-mode memory-only profiles are not evidence that your normal profiles are backed up. Portcove does not migrate, repair, back up or remove these files; removing the reference removes only the reference."
+        },
+        {
+          "title": "Leave maintenance upstream and retain the limits",
+          "instruction": "Use upstream source/build or installation instructions for changes, after closing the actual game and any helpers. Keep the previous complete working copy and data before replacement and review the selected native path again afterwards. Preserve the project GPL-3.0-or-later and separate component/original-game terms. Source documentation reports startup movies, frontend and limited levels; many missions are unfinished or awaiting upstream gameplay approval. No complete campaign, native Windows, controller or save/reload result is supplied here. Only the selected program is observed; no managed install, update, rollback or Supported qualification is added."
+        }
+      ],
+      "warnings": [
+        "Use a completed Coney installation or your already working source build with your own PS2 data. Preserve the real Windows profiles or custom --profiles folder; this incomplete project and its other missions remain unqualified."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

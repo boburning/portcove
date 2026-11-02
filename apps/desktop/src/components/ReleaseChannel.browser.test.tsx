@@ -277,7 +277,7 @@ it.each([
     channels: ["stable"] as ReleaseChannel[],
     selected: "beta" as ReleaseChannel,
     label: "Preview",
-    reason: "not offered",
+    reason: "no longer listed",
   },
   {
     channels: ["stable"] as ReleaseChannel[],

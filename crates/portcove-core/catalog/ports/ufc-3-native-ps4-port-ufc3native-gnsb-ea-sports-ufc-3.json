@@ -4,7 +4,7 @@
     "id": "ufc-3-native-ps4-port-ufc3native-gnsb-ea-sports-ufc-3",
     "name": "EA Sports UFC 3 — UFC 3 native PS4 port (UFC3Native) (GNSB)",
     "original_game_title": "EA Sports UFC 3",
-    "summary": "Research project. Upstream playable menus/fights/audio/controls/saves and bounded career fixes; long-session memory/performance and campaign acceptance are not Portcove-qualified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. The project reports playable menus, fights, audio, controls and saves, with limited career fixes. Portcove has not confirmed long-session memory use, performance or campaign completion. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GNSB/UFC-3-PS4-PORT-LINUX-WINDOWS",
     "platforms": ["linux-x86-64", "windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own PS4 CUSA06534 update1.14 own base/update."
+          "instruction": "Use your own PS4 CUSA06534 base game and update 1.14."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual upstream0.1.9 WindowsZIP/UFC3.exe or Linux source route; own CUSA06534 base+1.14 update merged by merge_update.py. Runtime continues reading owned files; no package validation performed."
+          "instruction": "On Windows, use UFC3.exe from the project’s 0.1.9 ZIP, or follow the Linux source build. Merge your own CUSA06534 base game and update 1.14 with merge_update.py. The runtime continues to read your game files. The recorded review did not validate the package."
         }
       ],
       "warnings": [
-        "Upstream playable menus/fights/audio/controls/saves and bounded career fixes; long-session memory/performance and campaign acceptance are not Portcove-qualified.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports playable menus, fights, audio, controls and saves, with limited career fixes. Portcove has not confirmed long-session memory use, performance or campaign completion.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/GNSB/UFC-3-PS4-PORT-LINUX-WINDOWS"
     },

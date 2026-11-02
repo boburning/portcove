@@ -4,7 +4,7 @@
     "id": "v64recomp-1080-us-polaco1782-1080-snowboarding",
     "name": "1080° Snowboarding — v64recomp / 1080-us (polaco1782)",
     "original_game_title": "1080° Snowboarding",
-    "summary": "Research project. Explicit partial Nintendo64logo boundedDebug/Release only; menus/riding unvalidated; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. Explicit partial Nintendo 64 logo bounded Debug/Release only; menus/riding unvalidated; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "1080° Snowboarding N64 own JU revision0 ROM; 1080-us exactsize/SHA1 inprofile. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own 1080° Snowboarding Nintendo 64 JU revision 0 ROM. Check the required size and SHA-1 in games/1080-us/profile.toml before importing. Keep the original separately. These instructions do not download or run it."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "tools/import_rom.py --profile games/1080-us/profile.toml normalizes ownz64/n64/v64, CMake 1080-us-release builds native 1080-us; externalROMdefault, optionalembeddedbuildprivate. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Use tools/import_rom.py --profile games/1080-us/profile.toml to normalize your own .z64, .n64 or .v64 ROM. Build the CMake 1080-us-release target to produce the native 1080-us player. The default keeps the ROM external; an optional build that embeds it must remain private. This is manual setup from source; Portcove-managed download and completed setup or gameplay checks are not offered."
         }
       ],
       "warnings": [
-        "Explicit partial Nintendo64logo boundedDebug/Release only; menus/riding unvalidated; no othergame milestone borrowed, no fullplaythrough qualification. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Only a partial Nintendo 64 logo has been established in Debug and Release builds. Menus and riding are unverified. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/polaco1782/v64recomp"
     },

@@ -25,8 +25,8 @@
           "instruction": "Use an already lawfully prepared working Windows x64 kameorepowered.exe copy with its complete adjacent dependencies and the original creating data/profile. The tagged README grants MIT for host-side source/build/CI but expressly says recompiled generated game code and linked built binaries are not redistributable. Published releases or old matching digests do not override that exclusion. Fresh package acquisition remains held pending an applicable attributable permission/asset-clean route; this is not a blanket private-execution prohibition."
         },
         {
-          "title": "Finish original and variant preparation outside Core",
-          "instruction": "Use your own Kameo: Elements of Power Xbox 360 original, upstream documented USA extracted assets/default.xex, and complete existing extracted data. Keep vanilla and title-update builds distinct, with matching lawful update/DLC packages and actual extracted roots. Core does not extract an ISO/STFS package, install a title update, generate code or validate an exact disc/XEX hash. Do not infer foreign-revision, DLC, save or vanilla/TU interchangeability."
+          "title": "Finish original-file and edition setup upstream",
+          "instruction": "Use your own Kameo: Elements of Power Xbox 360 original, upstream documented USA extracted assets/default.xex, and complete existing extracted data. Keep vanilla and title-update builds distinct, with matching lawful update/DLC packages and actual extracted roots. Portcove does not extract an ISO/STFS package, install a title update, generate code or validate an exact disc/XEX hash. Do not infer foreign-revision, DLC, save or vanilla/TU interchangeability."
         },
         {
           "title": "Select the game with its established roots",
@@ -34,7 +34,7 @@
         },
         {
           "title": "Review intent and keep replacement upstream-owned",
-          "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
+          "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Portcove tracks the selected process; it does not prevent other instances or restrict the game’s file access. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
         },
         {
           "title": "Preserve the actual runtime, originals and user profile",
@@ -43,8 +43,8 @@
       ],
       "warnings": [
         "The selected v0.2.1 tag and current source differ. Its .sdk-version pins f22cd9dc, while a manifest also names 0.8.1; source/SDK review is not a source-to-binary certificate. The tagged pinned runtime requires game_data_root despite the abbreviated README zero-argument placement example. Only a completed already working copy with its actual supported arguments is offered.",
-        "Fresh downloads remain blocked by the explicit built-code redistribution condition, not missing optional LICENSE alone. No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, exact original authentication or new Xbox-family framework is provided. Existing source/extraction/variant/managed qualification remains unresolved.",
-        "No new game package/original/game execution, save/load/gameplay/installed/protected acceptance or Supported promotion. Prior Windows TU v0.2.1 artifact-integrity evidence remains scoped to that exact asset, not vanilla or arbitrary builds."
+        "New downloads remain paused because upstream explicitly excludes built game code from redistribution. This is a specific permission condition; an absent optional licence file is a separate fact. Portcove does not download, prepare, install, update, back up, roll back, migrate or delete this copy, or authenticate its original files.",
+        "Portcove has not run a new game package or original files, or tested save/load, gameplay or installed behavior. Earlier Windows title-update v0.2.1 file-integrity results apply only to that exact package, and do not cover vanilla or other builds."
       ]
     },
     "download_block_reason": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question."

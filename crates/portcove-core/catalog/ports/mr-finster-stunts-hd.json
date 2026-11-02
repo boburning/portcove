@@ -20,7 +20,7 @@
           "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
         },
         {
-          "title": "Keep useful alternatives and recovery limits",
+          "title": "Check the alternatives and recovery limits",
           "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
         }
       ],

@@ -4,7 +4,7 @@
     "id": "freedomuniterecompandroid-pateeerq-monster-hunter-freedom-unite",
     "name": "Monster Hunter Freedom Unite — FreedomUniteRecomp (PateeerQ)",
     "original_game_title": "Monster Hunter Freedom Unite",
-    "summary": "Retained README desktop bring-up boot/language-selection claim; ATRAC/MPEG bookkeeping without decoders, audio/music silent/movies black; Android native execution not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The retained README reports desktop startup and language selection. ATRAC and MPEG decoders are missing: audio and music are silent, and movies are black. Native Android execution has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/PateeerQ/FreedomUniteRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Europe ULES01213 ISO + decrypted EBOOT; PSP PGF font files from own allowed font folder/PPSSPP installation; no version/hash invented."
+          "instruction": "Use your own Europe ULES01213 ISO and decrypted EBOOT, with PSP PGF font files from a font folder or PPSSPP installation you are permitted to use. The required version and hash are not confirmed; check upstream before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Windows local CMake/MSVC source generation using scripts/setup.ps1 +scripts/run.ps1. Overlays regenerate iteratively after misses; Android is intended only, no Android package/qualified host."
+          "instruction": "Generate and build locally on Windows with CMake and MSVC using scripts/setup.ps1 and scripts/run.ps1. Upstream regenerates overlays as missing ones are found. Android is planned; no Android package or working Android build is confirmed."
         }
       ],
       "warnings": [
-        "Retained README desktop bring-up boot/language-selection claim; ATRAC/MPEG bookkeeping without decoders, audio/music silent/movies black; Android native execution not established.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The retained README reports desktop startup and language selection. ATRAC and MPEG decoders are missing: audio and music are silent, and movies are black. Native Android execution has not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/PateeerQ/FreedomUniteRecomp"
     },

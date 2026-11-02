@@ -3,7 +3,7 @@
   "listing": {
     "id": "infamous-2009-ps3-infamousreborn",
     "name": "inFamous (2009 PS3) (inFAMOUSreborn)",
-    "summary": "Upstream route: Windows Setup EXE checks/installs build tools, imports ISO/folder, generates and compiles locally Limits: Early native PS3 recompilation with setup1.1; launch announcement is not gameplay qualification. Upstream platforms: Windows10/11 x86-64 setup EXE, D3D12; local PS3 game translation/compilation and possible build-tool prerequisites. Original data: Own European BCES00220; encrypted ISO requires matching .dkey Portcove setup/gameplay not verified.",
+    "summary": "An early inFamous PS3 recompilation with setup 1.1. The Windows 10/11 x86-64 Direct3D 12 setup EXE checks or installs build tools, imports your own European BCES00220 ISO or game folder, then generates and compiles locally. Encrypted ISOs need their matching .dkey. A launch announcement does not establish playable progress; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "inFamous (2009 PS3)",
     "project_url": "https://github.com/whompay/inFAMOUSreborn",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "infamous",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2681
+    "issue_number": 2681,
+    "manual_setup": {
+      "help_url": "https://github.com/whompay/inFAMOUSreborn/blob/2a66df5010df8d3615b4f9d31885eeb1b28bd8f4/README.md",
+      "steps": [
+        {
+          "title": "Finish the supported European game setup",
+          "instruction": "Use your own inFamous European PS3 BCES00220 files and complete the upstream Windows setup, translation and build before adding the player. An already decrypted supported folder avoids a key-input route; encrypted images have their separate owner-supplied requirements. This guide provides no keys, decryption or game data. The selected 1.1 Windows setup is a preparation program, not an already compiled game. Windows 10/11 x64, Direct3D 12 and the upstream build/runtime prerequisites remain required."
+        },
+        {
+          "title": "Keep the complete prepared installation",
+          "instruction": "Retain the full completed port directory, its native inFamous.exe launcher, installer/launch.txt, build-install/inFamousRecomp.exe, the prepared game/ELF, libraries, settings and notices. The producer writes executable, working-directory, argument and environment values into launch.txt. The normal launcher reads those values; selecting the bare game without its published context is not an equivalent shortcut. Keep project/runtime/compiler/component terms separate from original game rights and do not share private translated outputs."
+        },
+        {
+          "title": "Add the native upstream launcher",
+          "instruction": "Select the completed inFamous.exe in its existing port directory, use that directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Its native launcher supplies the producer-written launch configuration and environment. Portcove observes that launcher only; it can report the launch finished after handoff while inFamousRecomp.exe and helpers still run. Use the game’s own controls to quit and do not interpret the launcher’s exit as full-game completion."
+        },
+        {
+          "title": "Preserve the current saves and launch configuration",
+          "instruction": "Keep the whole existing port, installer/launch.txt, settings.ini, all original/generated content and gamedata/. Default saves are under gamedata/dev_hdd0/home/00000001/savedata relative to the configured port working directory; retain all profiles, trophies and related data as present. Existing SAVEDATA_ROOT and other producer/user path overrides must remain intact. Do not transplant launch.txt into a different layout, reset populated settings or merge saves merely to add the launcher. No save conversion, migration, backup or restore is performed."
+        },
+        {
+          "title": "Leave updates and recovery upstream",
+          "instruction": "Close the actual game and helpers before upstream replacement, rebuild, repair or recovery, even if Portcove’s activity has finished. Upstream owns imports, build tools, runtime replacement and launch configuration; review/select the current launcher again after changes. Early-release PPU/SPU, rendering and campaign claims do not establish gameplay/controller/real-save acceptance here. Removing the library reference preserves all external files. No managed installation/update/backup/rollback, full-session tracking or Supported qualification is supplied."
+        }
+      ],
+      "warnings": [
+        "Select the completed inFamous.exe launcher and preserve installer/launch.txt plus its full port/data directory. Its handoff can outlive Portcove’s activity; close the actual game/helpers before upstream changes. The setup EXE and a context-free bare runtime are separate routes."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

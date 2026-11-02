@@ -30,7 +30,7 @@
           "instruction": "Choose your own supported Snowboard Kids (USA), game code NSKE, through the upstream ROM chooser. Upstream ROM-IDENTITY.md specifies its normalized identity and supported N64 byte orders. Preserve that original separately. Portcove does not acquire, upload, copy, patch or authenticate the ROM through this attachment route."
         },
         {
-          "title": "Review the engine, working directory and intent",
+          "title": "Review the game, working folder and launch details",
           "instruction": "Select the completed native SnowboardKidsEngine.exe with the established package root as working directory and only its supported literal arguments. Review and consent to the selected execution intent, then choose Play separately. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
         },
         {

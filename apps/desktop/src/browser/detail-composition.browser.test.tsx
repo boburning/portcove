@@ -270,12 +270,12 @@ it.each(["dark", "light"])(
       .element(page.getByRole("region", { name: "Set up and launch", exact: true }))
       .toHaveFocus();
     await page
-      .getByRole("textbox", { name: "Working directory", exact: true })
+      .getByRole("textbox", { name: "Start in folder", exact: true })
       .fill("fixture/disposable-retained-draft");
     await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
     await page.getByRole("tab", { name: "Game files", exact: true }).click();
     await expect
-      .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
+      .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
       .toHaveValue("fixture/disposable-retained-draft");
     page
       .getByRole("heading", { name: "Launch details", exact: true })

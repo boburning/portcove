@@ -30,7 +30,7 @@
           "instruction": "Keep midas.ini, gamecontrolleruser.txt and the entire Data tree: Saves/eeprom.bin, Profiles, WeaponSets, MatchSettings, Devices, Logs and shader lists, plus Mods and all original/custom ROM locations. Older ge.ini can be renamed to midas.ini once by upstream, so preserve its existing predecessor and recovery copy too. Player profiles, controller layouts and multiplayer settings are part of the retained external data. This guide performs no migration, import, backup or deletion and promises no cross-port/save compatibility."
         },
         {
-          "title": "Retain maintenance, permission and acceptance boundaries",
+          "title": "Check maintenance, permissions and reported limits",
           "instruction": "Quit the actual game normally before upstream repair or replacement; retain independent copies and review/relink changed executable bytes. Keep LICENSE.txt and THIRD_PARTY_NOTICES.txt. MIT covers Project Midas port code, not the decompiled game, GoldenEye or its assets; build-tool notices do not grant original-game rights. Linux blank-triangle limitations and upstream co-op/netplay/mod work remain at their own scope. No Portcove gameplay, multiplayer, save/reload, native-installed or Supported acceptance is claimed. Removing registration preserves all external files; managed install/update/rollback/backup/removal are unavailable."
         }
       ],

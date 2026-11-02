@@ -22,7 +22,7 @@
           "instruction": "The inspected official 1.0.8 Windows ZIP contains AMD64 Mother3Recomp.exe, matching libraries/assets and separate component license files. Keep its complete extracted folder. The game runs through the linked GBA framework: translated dispatch and runtime/interpreter fallback are distinct, and the source can force interpreter fallback when no dispatch table is present. A Windows PE is not proof every game instruction is statically native. A source build, Android APK and another GBA game are separate routes."
         },
         {
-          "title": "Attach normal upstream play",
+          "title": "Add the project’s normal player",
           "instruction": "Finish the upstream ROM/BIOS picker, any independently permitted translation and settings first; keep independent originals. Select Mother3Recomp.exe, set its complete extracted Windows directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then use the upstream Play UI for the already configured game. The selected native entry runs its setup UI and linked game in process. Complete missing input, patch application, imports or maintenance outside the attached attempt. This guide obtains or executes no BIOS, ROM, patch, compiler, helper or game."
         },
         {

@@ -261,7 +261,7 @@ it("keeps a recommendation beyond eight packages and an explicitly selected alte
       ),
     ).toBe(true),
   );
-  await click("Other and uncertain downloads");
+  await click("Other downloads — compatibility not confirmed");
   await page.getByRole("combobox", { name: /^Package/ }).click();
   await page.getByRole("option", { name: /alternative-8.zip/ }).click();
   await click("Show recommended packages");
@@ -306,7 +306,7 @@ it("retains a deliberate older release and package across refresh", async () => 
   await click("Change download options");
   await page.getByRole("combobox", { name: /^Release v/ }).click();
   await page.getByRole("option", { name: /v1.1/ }).click();
-  await click("Other and uncertain downloads");
+  await click("Other downloads — compatibility not confirmed");
   await page.getByRole("combobox", { name: /^Package/ }).click();
   await page.getByRole("option", { name: /game-variant.zip/ }).click();
   await click("Check downloads again");
@@ -333,7 +333,7 @@ it("requires a new choice when an explicitly selected package disappears", async
   });
   await click("Check downloads again");
   await click("Change download options");
-  await click("Other and uncertain downloads");
+  await click("Other downloads — compatibility not confirmed");
   await page.getByRole("combobox", { name: /^Package/ }).click();
   await page.getByRole("option", { name: /variant.zip/ }).click();
   vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(candidates);
@@ -374,7 +374,7 @@ it("suggests Core's native target and preserves a manual installation outside th
   await expect
     .element(page.getByRole("button", { name: "Finish adding game", exact: true }))
     .toBeVisible();
-  expect(document.querySelector('input[aria-label="Working directory"]')).toBeNull();
+  expect(document.querySelector('input[aria-label="Start in folder"]')).toBeNull();
   expect(document.body.textContent).not.toContain("Continue setup");
   expect(desktopApi.discoverSetupLaunchTargets).toHaveBeenCalledExactlyOnceWith(
     listing.id,
@@ -384,12 +384,12 @@ it("suggests Core's native target and preserves a manual installation outside th
   vi.mocked(pickHostToolExecutable).mockResolvedValue("C:/Games/Harbor/Harbor.exe");
   await click("Change launch details");
   await click("Choose game executable…");
-  expect(document.body.textContent).toContain("Executable: C:/Games/Harbor/Harbor.exe");
+  expect(document.body.textContent).toContain("Game program: C:/Games/Harbor/Harbor.exe");
   expect(
-    document.querySelector<HTMLInputElement>('input[aria-label="Working directory"]')?.value,
+    document.querySelector<HTMLInputElement>('input[aria-label="Start in folder"]')?.value,
   ).toBe("C:/Games/Harbor");
   await click("Refresh launch suggestions");
-  expect(document.body.textContent).toContain("Executable: C:/Games/Harbor/Harbor.exe");
+  expect(document.body.textContent).toContain("Game program: C:/Games/Harbor/Harbor.exe");
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
@@ -789,11 +789,11 @@ it("resumes durable downloads and binds folder/reminder operations to the exact 
     saved.id,
     9,
   );
-  await click("Remove setup entry…");
+  await click("Remove setup reminder…");
   expect(document.body.textContent).toContain("all files inside it stay where they are");
   expect(desktopApi.forgetPendingSetup).not.toHaveBeenCalled();
   await click("Cancel");
-  await click("Remove setup entry…");
+  await click("Remove setup reminder…");
   await click("Remove setup entry");
   expect(desktopApi.forgetPendingSetup).toHaveBeenCalledExactlyOnceWith(listing.id, saved.id, 9);
 });
@@ -1033,7 +1033,7 @@ it("starts with the reviewed preview channel and retains an explicit stable choi
     "beta",
   );
   await click("Change download options");
-  await page.getByRole("combobox", { name: /^Release channel/ }).click();
+  await page.getByRole("combobox", { name: /^Update channel/ }).click();
   await page.getByRole("option", { name: "Stable", exact: true }).click();
   await expect.element(page.getByText("game.zip · 2.0 KiB", { exact: true })).toBeVisible();
   expect(desktopApi.catalogDownloadCandidates).toHaveBeenLastCalledWith(
@@ -1176,7 +1176,7 @@ it("retains a manually selected setup target and literal arguments across remoun
   await click("Choose game executable…");
   await click("Change launch details");
   await page
-    .getByRole("textbox", { name: "Working directory", exact: true })
+    .getByRole("textbox", { name: "Start in folder", exact: true })
     .fill("C:/Upstream data");
   await page.getByText("Advanced launch options", { exact: true }).click();
   await page

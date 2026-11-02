@@ -24,7 +24,7 @@
           "instruction": "Use an already-permitted working v2.0.2 Skate 3 Recomp copy prepared through its supported upstream flow with your own legally obtained Xbox 360 base game and required Title Update 3. Fresh package use/component/notices acceptance remains held separately. Finish original extraction, TU3 staging and one successful normal startup outside Portcove before adding it. Core does not ingest the disc/TU package, run code generation or authenticate the whole prepared tuple. Do not treat a filename or size as complete original identity."
         },
         {
-          "title": "Keep title-update readiness and DLC ownership explicit",
+          "title": "Check the required update and optional DLC",
           "instruction": "This build executes TU3 code. Upstream rechecks its two TU payloads at normal startup and can return to its setup wizard if they are missing or changed; finish upstream recovery again before Core Play or relink. Upstream defaults skate3_auto_install_dlc to true and may import owned DLC found in executable-side, game-side or user-data dlc folders into the profile. Complete desired owned-DLC handling upstream and preserve those folders and the actual setting; configure it off upstream if you do not want that import. Portcove does not authorize DLC acquisition or perform this preparation."
         },
         {

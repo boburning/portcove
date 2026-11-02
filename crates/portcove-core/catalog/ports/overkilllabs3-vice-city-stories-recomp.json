@@ -30,7 +30,7 @@
           "instruction": "The inspected official Windows ZIP contains AMD64 VCSNative/VCSNative.exe, VCSLauncher.exe and matching runtime libraries. Keep the complete VCSNative directory. The native program uses the generated Allegrex profile, linked PSP services and Vulkan graphics; native CPU output does not remove those system/graphics compatibility layers. Do not select a PSP executable, build helper, macOS application or settings launcher as the attached game."
         },
         {
-          "title": "Attach the supported package-local layout",
+          "title": "Add the player with its supported local files",
           "instruction": "After upstream preparation, keep PSP_DATA beside VCSNative.exe with PSP_GAME/SYSDIR/EBOOT_DECRYPTED.ELF and complete PSP_GAME/USRDIR. Select VCSNative.exe, use the full VCSNative directory as working directory and leave arguments empty. Review the exact intent and request Play separately. Source discovers that package-local layout and runs the game on its native worker while the main thread services events until the worker finishes. A launcher-only remembered external path is not silently substituted for this direct route."
         },
         {

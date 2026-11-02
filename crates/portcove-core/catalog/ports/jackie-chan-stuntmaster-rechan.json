@@ -31,13 +31,13 @@
         },
         {
           "title": "Preserve the complete creating copy and player data",
-          "instruction": "Keep the whole actual runtime, shipped pc support and extracted fe/rchars/rtarget/scr/sound/tim/xc roots and other extracted files, your original/discimage, userfiles including jcsSAVE*.sav, jcsAUTOSAVE.sav and game.ini, ~mods including mods.ini and exported assets, any minidumps/rechan-crash reports, rechan.log when present and every unknown/custom path. Preserve existing external updater/recovery evidence under its upstream ownership. Do not delete the original merely because upstream permits removing an extracted image. No old/new save-format or mod compatibility is established here. Removing registration removes only Portcove metadata and preserves all external bytes."
+          "instruction": "Keep the whole actual runtime, shipped pc support and extracted fe/rchars/rtarget/scr/sound/tim/xc roots and other extracted files, your original disc image, user files including jcsSAVE*.sav, jcsAUTOSAVE.sav and game.ini, ~mods including mods.ini and exported assets, any minidumps/rechan-crash reports, rechan.log when present and every unknown/custom path. Preserve existing external updater/recovery evidence under its upstream ownership. Do not delete the original merely because upstream permits removing an extracted image. No old/new save-format or mod compatibility is established here. Removing registration removes only Portcove metadata and preserves all external bytes."
         }
       ],
       "warnings": [
         "The project’s MIT grant applies to its codebase, not original game data or every third-party component. Source declarations about newly authored support files do not certify arbitrary historical/current release contents; earlier package-integrity evidence retains its exact version and scope. Upstream/player must supply a permitted, already prepared copy.",
         "The upstream extractor/updater and ordinary runtime writes remain upstream-owned. No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, network sandbox or full successor-session guarantee is offered. Do not use its crash/export/test modes as a qualification shortcut.",
-        "Source review and the owned inert Core probe do not execute this game or establish gameplay, save/load, state/mod compatibility, other-platform, installed-app or protected delivery acceptance. Preserve each creating build and profile."
+        "Reviewing source and running an inert Portcove check do not run this game or confirm gameplay, saving, state/mod compatibility, installed behavior or other platforms. Preserve each working build and its profile separately."
       ]
     },
     "artwork": {

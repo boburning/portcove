@@ -16,6 +16,34 @@
       "image_sha256": "aa79d5c0a36bf2e6a94431c11d102591abb5bcfc082ec19432cfb7b0e1f55aeb",
       "game_slug": "sonic-adventure",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/sonicfreak1337/SARecomp/blob/40b160792a68232fb94c35ef7f2dea35b462b300/README.md",
+      "steps": [
+        {
+          "title": "Finish the explicitly recommended Windows setup",
+          "instruction": "Use SonicAdventureRecompiled-0.52.0-Windows.exe for the selected Windows route. The newer v0.52.1 release has Linux/Steam Deck assets and explicitly points Windows users to v0.52.0; it is not a replacement Windows package. Complete upstream setup before adding the installed player. Supply your own Sonic Adventure Dreamcast PAL v1.003 (1999), MK-5100050, as its GDI descriptor plus all three tracks with their existing relative filenames. Sonic Adventure DX, other regions/revisions and an isolated track are different inputs."
+        },
+        {
+          "title": "Keep the verified original layout and complete installed output",
+          "instruction": "Upstream setup verifies track layout, lengths and SHA-256 values. Track 3 must be 189f89cb695ff81b40878463f326ead759437794d733329ebf3943196ad59b45; this identifies that track, not the GDI descriptor or whole disc. Do not bypass a mismatch. Keep the completed versioned installation, game.exe, sonic-config.exe, SDL3.dll, resources, licenses and katana-content-root.txt with its separately prepared content store. The published EXE is a setup program, not the installed game. Windows x64 and Direct3D 11, or Vulkan 1.3 with suitable drivers for that renderer, remain upstream requirements."
+        },
+        {
+          "title": "Add the installed native game",
+          "instruction": "Select the completed installation’s game.exe, use its containing versioned application directory as working directory and leave arguments empty. Use the upstream-created Sonic Adventure Recompiled shortcut to identify the actual installation if needed. Review the selected program, folder and arguments, then choose Play when ready. Do not select the downloaded setup EXE, sonic-setup.exe or sonic-config.exe as gameplay. Rendering/timing mode choices remain with upstream configuration; no new mode, driver or diagnostic setting is enabled by registration."
+        },
+        {
+          "title": "Preserve user data and its separate content store",
+          "instruction": "Keep the active Windows data root: normally %LOCALAPPDATA%/SARecomp/experimental, an existing KATANA_USER_DATA_ROOT override, or user-data/ beside game.exe when existing SARECOMP_PORTABLE=1 or sarecomp-portable.txt selects it. Preserve the whole root with profiles, saves, settings, backups and import/export data, plus its sibling <data-root-name>-content store and katana-content-root.txt binding. Keep any SARECOMP_CACHE_ROOT override. Do not create a portable marker, move roots, convert VMU files or reset configuration merely to add the reference; use upstream’s own save-import tools for any separate migration."
+        },
+        {
+          "title": "Retain the unresolved upstream limitations",
+          "instruction": "Windows startup failures on some systems remain an upstream known issue. Successful package hashing or this guide does not resolve it or establish gameplay, native/controller, save compatibility or Supported acceptance. Preserve original-game, Katana-derived code and separate third-party license boundaries; no redistribution permission is inferred. Quit the actual game and helpers before upstream reinstall, replacement or recovery, preserve the previous complete application/content/data and review/select the current game.exe after changes. Portcove observes the selected program only and reference removal leaves external files intact; managed installation/update/backup/rollback and full-session tracking are unavailable."
+        }
+      ],
+      "warnings": [
+        "Add only the installed game.exe after the recommended Windows v0.52.0 setup. Keep the exact PAL GDI/three-track input, versioned application, content binding and active user-data/content roots; unresolved Windows startup failures remain upstream."
+      ]
     }
   }
 }

@@ -16,6 +16,34 @@
       "image_sha256": "d22eba829163bca403412274408dee95bf1b37c2e1b422028ca414de5eb1c730",
       "game_slug": "legendary-wings--1",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC/blob/f571cefe5b0469437699ea73a31cd2ce508c3c22/README.md",
+      "steps": [
+        {
+          "title": "Keep the selected Windows beta intact",
+          "instruction": "Use the complete LegendaryWings-windows-x64-beta.1.zip v0.1.0-beta.1 folder with LegendaryWings.exe, SDL2.dll, assets, config.ini and notices. The tagged repository README still says no Windows download has been published; the selected release and inspected package provide the concrete beta route, without establishing later versions or a source-to-binary reproduction claim. Upstream’s first-level remaster is early work; later art and gameplay defects remain. No native/gameplay/controller or Supported acceptance is supplied here."
+        },
+        {
+          "title": "Provide your own compatible USA cartridge dump",
+          "instruction": "Place your own Legendary Wings USA .nes in roms/ beside the player, following the packaged instructions. Another region or patched dump is not established as equivalent. This guide does not establish an independent cryptographic original-ROM fingerprint or provide a ROM, extracted assets or acquisition route. Keep NESRecomp’s PolyForm Noncommercial notice, SDL2/component notices and original Capcom/Nintendo rights separate from project modification claims; no original or remastered-art redistribution right is inferred."
+        },
+        {
+          "title": "Add the ordinary native player",
+          "instruction": "Select LegendaryWings.exe, choose its complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Keep roms, assets, SDL2.dll and config.ini in their existing relative locations. Do not select a compiler, source archive or another NES title’s player. Original/remastered graphics remain an upstream F6 choice; registration does not change presentation or enable mods."
+        },
+        {
+          "title": "Preserve the one-slot-per-ROM state",
+          "instruction": "Keep the entire saves/ folder beside the executable, the existing ROM location, config.ini and any user assets/settings. Upstream F8 saving replaces that ROM’s previous state slot; F9 loading replaces current progress. Execution states are not a promise of cartridge-battery format or compatibility between releases. Do not overwrite a saved state, merge another title’s data or reset settings to add the reference. Portcove performs no save conversion, import, migration, backup or restore."
+        },
+        {
+          "title": "Leave beta replacement and recovery upstream",
+          "instruction": "Quit the actual game/helpers before replacing the complete upstream beta or recovering files; keep the prior complete application/data and review/select the executable after changes. Portcove observes the selected program only, and reference removal preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are not offered. Upstream first-level/remaster and save-state reports remain separate from Portcove native, gameplay and real-save observations."
+        }
+      ],
+      "warnings": [
+        "Select LegendaryWings.exe in the complete beta folder with your own compatible USA ROM in roms/. Preserve config.ini and saves/; the single state slot is replaced on save, and cross-build compatibility is unconfirmed."
+      ]
     }
   }
 }

@@ -16,6 +16,34 @@
       "image_sha256": "f682920014e6f237bb1f66d93560dfd7ddf5238aac2fd47d3fbeaec684673e15",
       "game_slug": "san-francisco-rush-2049",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://t3hd0gg.com/project-r/",
+      "steps": [
+        {
+          "title": "Keep your existing upstream installation",
+          "instruction": "Use an already permitted, complete upstream-installed ProjectR 0.7.1 Windows copy. Keep its bin DLLs and share/doc notices. Select the installed player, not the installer or uninstaller. Installation, prerequisites, setup and runtime replacement remain upstream/player responsibilities; this guide does not authenticate a download or run setup."
+        },
+        {
+          "title": "Prepare this title through upstream",
+          "instruction": "Use your own arcade Special Edition sf2049se or Tournament Edition sf2049te/sf2049tea CHD or raw hard-drive dump. An optional MAME .dif must match that exact disk to import existing player profiles, times and ghosts. N64 and Dreamcast releases are different inputs. The built-in graphical setup owns import. Portcove supplies no original files or extraction. Use a working gamepad or wheel/pedals; upstream lists Windows 10 1903+, x86-64-v2 CPU and Vulkan 1.2 graphics. Ordinary keyboard driving is not supported."
+        },
+        {
+          "title": "Register the native player for Rush 2049",
+          "instruction": "Select the installed bin/project-r.exe, use its containing bin folder as working directory and add one argument: --2049. The inspected installer creates this title shortcut with that argument. If setup is incomplete, upstream returns to its main menu. Review these coordinates, then choose Play separately. Keep the same installation available to the other ProjectR title; registration does not create a second runtime owner."
+        },
+        {
+          "title": "Preserve shared configuration and player data",
+          "instruction": "Retain the entire existing ProjectR profile directory, documented under %LOCALAPPDATA%/ProjectR, including project-r.toml, data, logs and any configured external asset/player-data locations. Both title registrations share this runtime/profile; removing either reference must not delete it. Keep original CHD/raw/audio files and matching DIF imports unchanged. No data migration, save compatibility, backup or deletion ownership is established."
+        },
+        {
+          "title": "Let upstream own maintenance",
+          "instruction": "Close the actual game before upstream replacement or recovery, keep your previous working installation/profile and review the selected entry after changes. Portcove observes the selected program only. Upstream reserves its own rights and includes separate component notices; original-game rights remain separate. Windows execution, import/cancellation, gameplay and save/reload were not performed. Known upstream limits remain; this is conditional registration guidance, not managed or Supported qualification."
+        }
+      ],
+      "warnings": [
+        "Select installed bin/project-r.exe, not the setup executable. Preserve the shared ProjectR profile and each title’s distinct original inputs; upstream owns setup and updates."
+      ]
     }
   }
 }

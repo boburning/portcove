@@ -22,7 +22,7 @@
           "instruction": "The actual official v0.21.0 Windows ZIP contains AMD64 partyboard.exe, PartyBoardOnline.exe, regional game modules and runtime resources. Its manifest binds source 2fedc7553c1aab52cef671080e04ee44da9832aa. Older README version labels and the initial release’s missing Windows/macOS packages do not describe this selected artifact. Keep the complete extracted unit; a regional module or the optional online companion is not the ordinary player."
         },
         {
-          "title": "Attach the normal native game",
+          "title": "Add the normal native game",
           "instruction": "Select partyboard.exe, use its full package directory as working directory and leave arguments empty after upstream disc setup. Review the exact intent and request Play separately. Native main enters the normal port/UI in process. Lancer PartyBoard.cmd uses start and detaches, so do not select that script. Finish setup and original selection upstream, then return to the ordinary player; do not use test-profile, headless or online-test options as normal Play."
         },
         {
@@ -30,7 +30,7 @@
           "instruction": "Windows resolves the normal configuration root with SDL_GetPrefPath(\"MarioPartyRD\", \"Party Board\"), normally the roaming AppData MarioPartyRD/Party Board directory. Preserve the actual returned root, preferences, memory cards, achievements, pipeline cache, imported/original disc paths and existing recovery copies. Test-profile environment overrides are test isolation, not a portable-data recommendation. Keep regional cards and online/offline preferences distinct; no save conversion, backup, restore or folder removal is performed."
         },
         {
-          "title": "Keep online, permission and maintenance limits explicit",
+          "title": "Check online support, permissions and update limits",
           "instruction": "Retain project, Aurora, libco, MusyX, Dolphin AX reference and other component notices; no blanket license for Nintendo originals is inferred. Online/RetroAchievements login, credentials and external installer operations remain upstream and are not performed here. Online matching has revision-specific requirements, including USA revision 1 rather than revision 0; package availability does not prove multiplayer compatibility. Quit normally before upstream replacement, preserve data/recovery and review/relink changed bytes. No native/physical, real-save, online, Supported or managed lifecycle observation is asserted."
         }
       ],

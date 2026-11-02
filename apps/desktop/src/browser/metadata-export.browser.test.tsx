@@ -48,12 +48,12 @@ it("announces a declined metadata picker as cancelled without exporting or showi
   vi.mocked(pickMetadataExportPath).mockResolvedValue(null);
   const exported = vi.spyOn(desktopApi, "exportLibraryMetadata");
   await openExport();
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect
     .poll(() => page.getByRole("status", { name: "Task updates" }).element().textContent)
     .toContain("export library metadata · fixture/library: cancelled.");
   expect(exported).not.toHaveBeenCalled();
-  expect(document.body.textContent).not.toContain("Metadata exported to");
+  expect(document.body.textContent).not.toContain("Library information exported to");
   expect(document.querySelector("[data-invocation-announcements]")?.textContent).not.toContain(
     "finished",
   );
@@ -67,14 +67,14 @@ it("exports the selected path and retains its successful metadata receipt", asyn
     size: 803,
   });
   await openExport();
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect
     .poll(() => page.getByRole("status", { name: "Task updates" }).element().textContent)
     .toContain("export library metadata · fixture/library: finished.");
   expect(exported).toHaveBeenCalledExactlyOnceWith("C:\\owned\\metadata.json");
   await expect
     .poll(() => document.body.textContent)
-    .toContain("Metadata exported to C:\\owned\\metadata.json");
+    .toContain("Library information exported to C:\\owned\\metadata.json");
 });
 
 for (const failure of ["picker", "export"] as const) {
@@ -85,14 +85,14 @@ for (const failure of ["picker", "export"] as const) {
       vi.mocked(pickMetadataExportPath).mockRejectedValue(new Error("Picker unavailable"));
     else exported.mockRejectedValue(new Error("Export unavailable"));
     await openExport();
-    await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+    await page.getByRole("button", { name: "Export library information", exact: true }).click();
     await expect
       .poll(() => page.getByRole("alert").element().textContent)
       .toContain(failure === "picker" ? "Picker unavailable" : "Export unavailable");
     expect(document.querySelector("[data-invocation-announcements]")?.textContent).not.toContain(
       "cancelled",
     );
-    expect(document.body.textContent).not.toContain("Metadata exported to");
+    expect(document.body.textContent).not.toContain("Library information exported to");
     expect(exported).toHaveBeenCalledTimes(failure === "picker" ? 0 : 1);
   });
 }

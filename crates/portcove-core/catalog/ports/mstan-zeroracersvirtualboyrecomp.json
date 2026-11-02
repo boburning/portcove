@@ -16,6 +16,34 @@
       "image_sha256": "2870ff71b6eb0aadfa93a60911fe6eee70bf834fff19538be91b56d26d2bcb71",
       "game_slug": "zero-racers",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp/blob/96f6d05010f92f422cc37e3bd46b940ab3edec08/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete selected Windows release",
+          "instruction": "Use the full ZeroRacersVirtualBoyRecomp-windows-x64.zip v0.1.2 folder with ZeroRacersVirtualBoyRecomp.exe, SDL2.dll, assets, licenses and existing mods. Its packaged build information describes hybrid fallback and separately names framework/UI revisions; this guide does not certify source-to-binary reproduction or equate those entries with every selected tag pin. Root MIT covers project glue/tools/docs, not Nintendo cartridge code/artwork or separate framework/UI/font terms. No original or generated cartridge-data redistribution is granted."
+        },
+        {
+          "title": "Supply your own exact supported source",
+          "instruction": "The upstream supported ROM is Zero Racers (Japan, USA) (En) (Switch Online), 1,048,576 bytes, CRC32 71553796 and SHA-256 47421cd82dfd414d042d2f7f9db51e657d414d4ddfa46887efb544029fa11ce7. Supply your own authorized matching extracted .vb through Browse For ROM; this guide provides no original, acquisition, account, key or extraction route. Another game/revision or a ZIP container is not the accepted ROM. Do not bypass the launcher’s mismatch refusal."
+        },
+        {
+          "title": "Add the ordinary native frontend",
+          "instruction": "Select ZeroRacersVirtualBoyRecomp.exe, set the complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the normal ROM picker and Play control. Keep the original at its remembered location and preserve your existing display, controls and Pure/Enhanced choices. Registration does not install or enable the optional color/multiplayer mods, create an online room or configure a signalling service."
+        },
+        {
+          "title": "Keep progress separate from execution snapshots",
+          "instruction": "Preserve vbrecomp.cfg, keybinds.ini, the entire saves and mods folders and any existing custom configuration/save locations. Native single-player cartridge progress, build-specific execution snapshots, rewind history and multiplayer session snapshots are different contracts. Do not substitute one for another, merge another title’s data or infer compatibility across builds. Keep all existing slots/profiles and original files; Portcove performs no conversion, restore, save import or backup."
+        },
+        {
+          "title": "Leave maintenance and acceptance upstream",
+          "instruction": "Quit the actual game and helpers before upstream replacement or recovery, preserve the previous complete application/data and review/select the executable again after changes. Only the selected program is observed; activity completion is not full-session or maintenance-safety evidence. Removing the reference preserves all external files. Managed installation/update/backup/rollback and Supported qualification are unavailable. Upstream coverage, races, netplay, controller and save reports do not establish Portcove native/gameplay or real-save acceptance."
+        }
+      ],
+      "warnings": [
+        "Select the complete Windows release’s ZeroRacersVirtualBoyRecomp.exe with an authorized matching Switch Online .vb. Preserve vbrecomp.cfg, keybinds.ini, saves and mods; cartridge progress and build-specific session snapshots are separate."
+      ]
     }
   }
 }

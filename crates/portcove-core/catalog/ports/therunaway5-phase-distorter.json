@@ -16,6 +16,34 @@
       "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
       "game_slug": "earthbound",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/TheRunaway5/Phase-Distorter/blob/a15209b0e3f0c791f3929cf03079d0a936cfe2aa/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete Windows development release",
+          "instruction": "Use the full Phase-Distorter-0.5-windows-x86_64.zip folder with Phase Distorter.exe, matching SDL2.dll, resources and licenses. v0.5 is a development release. Its default gameplay path runs each game’s compiled program; the separate --native-session engine route remains experimental and is not enabled by this guide. Do not claim a completed wholly native engine or inherit another platform’s observations. Project, component and original-game permissions remain separate."
+        },
+        {
+          "title": "Import your own exact game separately",
+          "instruction": "Supply your own supported EarthBound US or Mother 2 Japanese SNES ROM through the application’s first-run picker. Headerless content is 3,145,728 bytes; an optional 512-byte copier header is accepted before validation. EarthBound SHA-256 is a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e; Mother 2 is 1f8cfd13177d86b0eb2c8adcf9e1a4f0ec8966fa1583072b65a1b1c0e7961a5d. Patched ROMs and other revisions are unsupported. Import each separately; their language, program, asset pack and saves remain distinct. No original or extracted asset pack is supplied by Portcove."
+        },
+        {
+          "title": "Add the ordinary native desktop frontend",
+          "instruction": "Select Phase Distorter.exe, choose its complete extracted Windows release folder as working directory and leave arguments empty to use the remembered/default game and upstream import UI. Review the selected program, folder and arguments, then choose Play when ready. An existing explicit --game earthbound or --game mother2 choice can remain unchanged. Import leaves originals and the executable unchanged; later starts use the locally imported pack. Do not select a headless, coverage or experimental native-session command as the ordinary player."
+        },
+        {
+          "title": "Preserve the external imported packs and saves",
+          "instruction": "Keep %APPDATA%/ebsrc/EarthBoundCpp on Windows, including earthbound.ebpak, mother2.ebpak, earthbound.srm, mother2.srm, display.cfg, controller preferences, snapshots/earthbound, snapshots/mother2 and other user files as present. Preserve existing --save, --assets and --config overrides and their actual locations. Save normally in game and exit normally to write battery RAM. Battery saves and named execution snapshots are different formats; no conversion or cross-game/build compatibility is inferred. A new release can find an old import in this external folder; that does not mean the download contains original game data."
+        },
+        {
+          "title": "Leave maintenance and recovery upstream",
+          "instruction": "Quit the actual game/helpers before upstream replacement or recovery, retain previous complete application/data and extract a new version into its own folder as upstream recommends. Review/select the current executable after changes. Portcove observes only the selected program, removes only its reference and performs no original import, pack rewrite, save migration, backup or restore. Managed installation/update/rollback, full-session tracking and Supported qualification are unavailable; upstream gameplay, controller and real-save reports remain separate from Portcove observations."
+        }
+      ],
+      "warnings": [
+        "Select Phase Distorter.exe in the complete Windows v0.5 folder. Keep the separate EarthBound/Mother 2 packs and saves under %APPDATA%/ebsrc/EarthBoundCpp or existing overrides; experimental native-session and snapshot formats are separate."
+      ]
     }
   }
 }

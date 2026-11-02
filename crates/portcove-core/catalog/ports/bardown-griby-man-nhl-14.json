@@ -4,7 +4,7 @@
     "id": "bardown-griby-man-nhl-14",
     "name": "NHL 14 — bardown (griby-man)",
     "original_game_title": "NHL 14",
-    "summary": "Listed offline modes reportedly completed by maintainer/friend. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The maintainer and a friend report completing the listed offline modes. Portcove has not confirmed those results. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/griby-man/bardown",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
@@ -17,12 +17,12 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Linux AppImage/Windows ZIP imports own NHL14 base ISO/folder and translates shaders; no TU accepted."
+          "instruction": "Use the project’s Linux AppImage or Windows ZIP to import your own NHL 14 base ISO or extracted folder. Setup translates shaders locally. Title updates are not accepted."
         }
       ],
       "warnings": [
-        "Listed offline modes reportedly completed by maintainer/friend.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The maintainer and a friend report completing the listed offline modes. Portcove has not confirmed those results.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/griby-man/bardown"
     },

@@ -173,10 +173,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
   await page.getByRole("button", { name: "Manage collections", exact: true }).click();
-  const commands = page
-    .getByText("Collection commands", { exact: true })
-    .element()
-    .closest("details")!;
+  const commands = page.getByText("Library tools", { exact: true }).element().closest("details")!;
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
   expect(commands.textContent).toContain("hidden by filters");
@@ -319,8 +316,8 @@ it("keeps compatibility facts visible while disclosing project history on detail
   expect(disclosure.element().closest("details")?.open).toBe(false);
   await disclosure.click();
   await expect.element(page.getByText("Upstream project", { exact: true })).toBeVisible();
-  await page.getByText("Recorded checks", { exact: true }).click();
-  await expect.element(page.getByText(/^Recorded history, not a fresh check/)).toBeVisible();
+  await page.getByText("Test results", { exact: true }).click();
+  await expect.element(page.getByText(/^These are earlier test results\./)).toBeVisible();
   expect(document.body.textContent).not.toContain("No current check");
 });
 

@@ -16,6 +16,34 @@
       "image_sha256": "88abbcf6173566371bfa0c09ded8749f289d54ba8a026d145b473e6854457dcc",
       "game_slug": "initial-d-arcade-stage-3",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-/blob/682d821f8aef1a3135a46665677ddfdc8ee646f6/README.md",
+      "steps": [
+        {
+          "title": "Use the public Windows early-demo route",
+          "instruction": "Use the complete Initial.D.Arcade.Stage.3.Recompiled.v2489.zip folder, keeping Initial D Arcade Stage 3 Recompiled.exe, Initial D Arcade Stage 3 Recompiled Runtime.exe, tools, libraries, settings and notices together. This is an unfinished Windows x64 public playtest for NAOMI 2 Initial D Arcade Stage 3 GDS-0033, not the Dreamcast game or a finished release. Its native SH-4/static-AOT and Vulkan claims remain upstream observations; Portcove does not infer complete instruction coverage, hardware or gameplay acceptance from them."
+        },
+        {
+          "title": "Complete upstream owned-data preparation",
+          "instruction": "Supply your own legally obtained matching gds-0033.chd and 317-0384-com.pic in the included game files directory. The ordinary upstream launcher validates and extracts the required files locally; allow about 1.3 GB of temporary space. A NAOMI 2 BIOS is neither required nor accepted by this route. Do not substitute a different CHD/PIC, bypass integrity failures, use a BIOS as the executable or share extracted private game files. Original arcade, project/runtime and component rights remain separate; this guide grants no acquisition, firmware or decryption authority."
+        },
+        {
+          "title": "Add the ordinary native launcher",
+          "instruction": "Select Initial D Arcade Stage 3 Recompiled.exe, set its complete containing product folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream launcher. It owns preparation/update prompts and supplies the runtime’s game, card, music, settings and presentation context. Keep its supplied PowerShell/tools and runtime with it; do not select powershell.exe, a PS1 script, the integrity/setup helper or a context-free Runtime.exe as the game. Preserve the upstream 60 FPS starting/default choice and any existing F1 choices rather than forcing experimental presentation."
+        },
+        {
+          "title": "Preserve the whole portable player-data layout",
+          "instruction": "Keep game files, card data, custom music and logs, idas3_user_settings.ini, update preferences and all other existing user files in the product folder. Preserve card data/InitialD_player_card.card or the existing selected CardImage path and every other card. A card image and a game-state snapshot are separate; do not reset a populated card, merge files, discard pending recovery data or assume that another arcade/Dreamcast build can use it. Portcove performs no card import/conversion, backup, restore or source extraction."
+        },
+        {
+          "title": "Keep maintenance and completion evidence upstream",
+          "instruction": "The selected native launcher can hand off through helpers. Portcove follows that program only; a finished activity does not prove the runtime/helpers have stopped or make files safe to replace. Quit them before upstream updater, repair or recovery, preserve the previous complete application/data, and review/select the launcher again after changes. Upstream’s update preservation, rollback, card and physical-controller reports are not Portcove observations. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable; this title’s unfinished acceptance remains explicit."
+        }
+      ],
+      "warnings": [
+        "Select Initial D Arcade Stage 3 Recompiled.exe with the complete v2489 product folder and your own matching CHD/PIC preparation. Preserve game files, every card, custom music, settings and logs; the runtime and setup scripts require their upstream context."
+      ]
     }
   }
 }

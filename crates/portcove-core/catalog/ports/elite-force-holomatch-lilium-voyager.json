@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Complete the Holomatch copy upstream",
-          "instruction": "Use a permitted completed native Windows Lilium Voyager copy with your own complete supported Star Trek Voyager: Elite Force Holomatch installation and baseEF data, including the required original game/cgame/UI modules. This engine is for multiplayer Holomatch, not single-player or Quake III. Its GPL engine does not include the non-free Elite Force game modules or grant rights to original assets. The observed v1.40 Windows archive has no independently published GitHub digest, so this guide does not offer Core acquisition or a freshly invented checksum."
+          "instruction": "Use a permitted completed native Windows Lilium Voyager copy with your own complete supported Star Trek Voyager: Elite Force Holomatch installation and baseEF data, including the required original game/cgame/UI modules. This engine is for multiplayer Holomatch, not single-player or Quake III. Its GPL engine does not include the non-free Elite Force game modules or grant rights to original assets. No independent GitHub checksum is published for the selected v1.40 Windows archive. Prepare a copy you are permitted to use; Portcove does not download it automatically."
         },
         {
           "title": "Select the actual Holomatch player",

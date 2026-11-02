@@ -29,8 +29,8 @@
           "instruction": "The reviewed 1.14.0 Windows AMD64 package contains retip.exe, retip.toml, the retip directory, retip_pipelines.bin, rex runtime/DXC DLLs and crash reporter companions. Attach the completed retip.exe with its established package working directory. Public title code uses an in-process ReXApp/windowed-app entry and opens the prepared game through its launch menu; the customized backend/native renderer is not public, so this is not a full backend or companion-process certification. No private backend access, build, GameJolt login or compiler execution is requested."
         },
         {
-          "title": "Attach the completed native player and choose Play separately",
-          "instruction": "After upstream preparation, select the intended native Windows executable, its established working directory and supported literal arguments. Review and consent to this attachment, then select Play separately. Keep the whole package together and close its actual player and companion processes before maintenance. This route provides non-owning attachment only: Core does not replace the engine, back up, convert, migrate or delete external data. Removing the registration preserves that data. Source review and synthetic attachment checks do not establish an installed session, forced-exit containment, gameplay or actual save compatibility."
+          "title": "Add the completed native player, then choose Play",
+          "instruction": "Finish setup with the project’s tools, then select the Windows game executable, working folder and supported launch arguments in Portcove. Review and agree to those details, then choose Play separately. Keep the complete package together and close the game and companion programs before changing files. You manage this external copy; Portcove does not replace it or back up, convert, migrate or delete its data. Removing its registration leaves those files in place. Source review and automated registration checks do not confirm an installed game session, successful forced exit, gameplay or save compatibility."
         },
         {
           "title": "Preserve the complete upstream-owned copy and actual data roots",
@@ -38,7 +38,7 @@
         }
       ],
       "warnings": [
-        "Preserve the complete creating runtime and every effective original, profile, mod, generated-cache and custom root before changes. Another selected executable can share the same player data."
+        "Before changing versions, keep a copy of the working game and all original files, profiles, mods, generated caches and custom data locations. Another executable may use the same saved data."
       ]
     }
   }

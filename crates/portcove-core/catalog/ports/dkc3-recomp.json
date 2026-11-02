@@ -4,7 +4,7 @@
   "listing": {
     "id": "dkc3-recomp",
     "name": "DKC3Recomp",
-    "summary": "Native Donkey Kong Country 3 recompilation. This Windows build has a known game-logic failure during startup; gameplay remains unqualified.",
+    "summary": "Native Donkey Kong Country 3 recompilation. This Windows build has a known game-logic failure during startup; Portcove has not confirmed gameplay.",
     "project_url": "https://github.com/elliotttate/DKC3Recomp",
     "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
     "artwork": {

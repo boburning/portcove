@@ -89,7 +89,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
           Restore from a library copy
         </DialogTitle>
         <DialogDescription id="import-library-description" className="mb-4 leading-relaxed">
-          You need a library metadata file and a separate copy of the original library folder.
+          You need a library information file and a separate copy of the original library folder.
           Restore into a new or empty library. Review the destination and copied files first.
           Portcove copies and verifies the restored content before opening the library. A review
           alone does not verify a complete recovery copy. The originals stay where they are.
@@ -105,7 +105,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
           </bdi>
         </p>
         <NavigationHints />
-        <label htmlFor="import-metadata">Library metadata file</label>
+        <label htmlFor="import-metadata">Library information file</label>
         <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
             ref={metadataInput}
@@ -117,7 +117,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
               setMetadata(event.target.value);
               setPlan(undefined);
             }}
-            placeholder="Choose the library metadata file"
+            placeholder="Choose the library information file"
           />
           <Button
             data-focusable
