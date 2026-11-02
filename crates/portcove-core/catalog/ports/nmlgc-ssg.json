@@ -3,13 +3,41 @@
   "listing": {
     "id": "nmlgc-ssg",
     "name": "Seihou Densetsu: Shuusou Gyoku (GIAN07)",
-    "summary": "Upstream route: Upstream runtime package and source build for GIAN07; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream modern source and shared game DLL/replay checks. Bounded ExtraStage replay is not full human playthrough; old missing-source note is historical. Modern GIAN07 port distinct vintage binaries; README includes original outdated missing-source note below modern build guide. Latest release full replay validation remains bounded; Windows binary/LinuxFreeBSD build routes. Upstream platforms: Windows VS2022 x86 cross-tools/Tup; Linux GCC15/Clang18 and FreeBSD build scripts. GIAN07/vintage binary roles must stay distinct. Original data: SeihouShuusouGyoku own graphics/music/sound/scripts resources. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared modern GIAN07 Windows x86 player for Shuusou Gyoku with your own original resources. Keep the modern SDL3 route separate from vintage binaries and replay tooling; the retained original README is not the current build contract.",
     "original_game_title": "Seihou Densetsu: Shuusou Gyoku",
     "project_url": "https://github.com/nmlgc/ssg",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/nmlgc/ssg",
-    "issue_number": 2837
+    "issue_number": 2837,
+    "manual_setup": {
+      "help_url": "https://github.com/nmlgc/ssg/blob/dc63b340a7c184b456850972b89324d9a8f13c4f/README.md",
+      "steps": [
+        {
+          "title": "Prepare the original resources upstream",
+          "instruction": "Use a complete modern GIAN07 copy/components you are independently permitted to use, with your own Shuusou Gyoku original graphics, audio, scripts and other required retail resources. The source release omits those resources. Keep a complete original installation and independent recovery; no original payload, extractor, compiler, helper or game is obtained or executed here. The exact retail data revision/full corpus fingerprints are not established by this bounded source/package inspection and remain Unknown."
+        },
+        {
+          "title": "Use the actual modern Windows program",
+          "instruction": "The inspected official P0341 GIAN07-2026-10-05.zip contains GIAN07.exe as PE x86/014c, with its modern SDL3.dll and separately packaged support files. Keep the complete release and original resources. This is not an AMD64 executable or the vintage GIAN07_win98.exe / original-DirectDraw route. Some alternate-named entries in this ZIP are zero-byte placeholders; they are not runnable players and are not selected by this guide. The current source’s modern Tup/SDL build instructions supersede the retained original historical README’s missing-link-source note for this route."
+        },
+        {
+          "title": "Attach the prepared modern game",
+          "instruction": "After completing upstream resource/layout preparation, select the actual nonempty modern GIAN07.exe, use its complete prepared program/resource directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The modern SDL main enters the game in that process; do not select the legacy Win98 variant, original executable, ssg_cli.exe replay tool or a zero-byte placeholder. Keep the complete installation instead of moving only the EXE."
+        },
+        {
+          "title": "Preserve the executable-side player data",
+          "instruction": "The modern Windows data resolver uses the executable’s base folder. Keep the full prepared root, including the actual 秋霜CFG.DAT/other configuration, scores, replays, original data archives, bgm/ content and any established custom audio/resource paths. Preserve old installation roots before choosing another directory; source configuration formats and vintage/modern behavior do not prove cross-version score/replay compatibility. This guide performs no conversion, replay validation, backup, restore, migration or deletion."
+        },
+        {
+          "title": "Keep source, replay and runtime acceptance separate",
+          "instruction": "Retain the project MIT and all SDL3, codec and other component notices; source licensing does not grant rights to original game resources or optional music. Latest-release replay checks are bounded upstream evidence, not all-playthrough equivalence, physical hardware or our native/installed/gameplay observation. Quit normally before upstream replacement/data work, preserve recovery and review/relink changed executable bytes. Linux/FreeBSD are separate build routes. No Supported or managed lifecycle acceptance is asserted; registration removal preserves external files."
+        }
+      ],
+      "warnings": [
+        "Select the actual modern x86 GIAN07.exe and keep its executable-side resources/data. Vintage binaries, zero-byte placeholders and bounded replay checks have separate scope."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
