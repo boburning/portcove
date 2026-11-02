@@ -1,3 +1,6 @@
+import { assessUpstreamLineage } from "./upstream-lineage.mts";
+import type { AuthoredPort } from "./catalog-authoring.mts";
+
 export function diagnosticText(value: unknown): string {
   return String(value);
 }
@@ -73,6 +76,12 @@ export function normalizePortKey(value: unknown) {
 export function normalizedPortTitle(value: unknown) {
   return normalizePortKey(diagnosticText(value ?? "").replace(portTitlePrefix, ""));
 }
+export const portGameKey = (game: string) =>
+  game
+    .normalize("NFKD")
+    .replace(/\p{Mark}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]/gu, "");
 
 export function normalizedUpstream(value: unknown) {
   try {
@@ -202,12 +211,14 @@ export function findPortIssueDuplicates(
     catalogId,
     portKey,
     repositoryIdentity,
+    catalogRecords,
   }: {
     title: string;
     upstream: string;
     catalogId?: string | null | undefined;
     portKey?: string | null | undefined;
     repositoryIdentity?: { id: number; game: string } | undefined;
+    catalogRecords?: readonly AuthoredPort[] | undefined;
   },
 ) {
   const candidateTitle = normalizedPortTitle(title);
@@ -226,17 +237,36 @@ export function findPortIssueDuplicates(
     const reasons = [];
     const { ids, keys, upstreams, title: titleIdentity } = portIdentity(issue);
     const body = itemBody(issue);
-    const repositoryIds = portRepositoryIds(body);
-    const knownGame = body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
+    const bodyIds = portRepositoryIds(body);
+    const authored = catalogRecords?.find(
+      (record) => record.listing.issue_number === issueNumber(issue),
+    );
+    const history = authored ? assessUpstreamLineage(authored).history : [];
+    const repositoryIds = [
+      ...new Set([
+        ...bodyIds,
+        ...history.flatMap((row) =>
+          row.repository?.host === "github.com" ? [Number(row.repository.id)] : [],
+        ),
+      ]),
+    ];
+    const knownUpstreams = [
+      ...upstreams,
+      ...history.map((row) => normalizedUpstream(row.project_url)),
+    ];
+    const knownGame =
+      authored?.listing.original_game_title ??
+      body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
     const separateIdentity =
       repositoryIdentity &&
-      repositoryIds.length === 1 &&
-      Number.isSafeInteger(repositoryIds[0]) &&
-      repositoryIds[0]! > 0 &&
-      ((repositoryIds[0] !== repositoryIdentity.id && !upstreams.includes(candidateUpstream)) ||
-        (repositoryIds[0] === repositoryIdentity.id &&
+      bodyIds.length <= 1 &&
+      repositoryIds.length > 0 &&
+      repositoryIds.every((id) => Number.isSafeInteger(id) && id > 0) &&
+      ((!repositoryIds.includes(repositoryIdentity.id) &&
+        !knownUpstreams.includes(candidateUpstream)) ||
+        (repositoryIds.includes(repositoryIdentity.id) &&
           knownGame &&
-          normalizedPortTitle(knownGame) !== normalizedPortTitle(repositoryIdentity.game)));
+          portGameKey(knownGame) !== portGameKey(repositoryIdentity.game)));
     const issueIdentity = ids[0] ?? keys[0] ?? titleIdentity;
     if (catalogId && ids.includes(catalogId)) reasons.push(`catalog ID ${catalogId}`);
     if (candidateKey && keys.includes(candidateKey)) reasons.push(`port key ${candidateKey}`);

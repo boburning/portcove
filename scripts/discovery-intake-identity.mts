@@ -1,4 +1,8 @@
-import { sourceProvenancePortIdentity, portRepositoryIds } from "./roadmap-issue.mts";
+import {
+  sourceProvenancePortIdentity,
+  portRepositoryIds,
+  portGameKey as discoveryGameKey,
+} from "./roadmap-issue.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
@@ -9,12 +13,7 @@ import type {
 } from "./discovery-reconciliation.mts";
 import type { DiscoveryLead } from "./discovery-leads.mts";
 
-export const discoveryGameKey = (game: string) =>
-  game
-    .normalize("NFKD")
-    .replace(/\p{Mark}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{Letter}\p{Number}]/gu, "");
+export { discoveryGameKey };
 const github = (url: string) =>
   /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/iu.test(url);
 const githubKey = (url: string) =>

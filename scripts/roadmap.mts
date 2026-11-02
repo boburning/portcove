@@ -102,6 +102,7 @@ import {
   diagnosticText,
   fieldValue,
 } from "./roadmap-issue.mts";
+import { readCatalogSource } from "./catalog-authoring.mts";
 import type { RoadmapIssueItem, RoadmapFieldValue } from "./roadmap-issue.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import {
@@ -3307,6 +3308,11 @@ export class RoadmapClient {
       catalogId,
       portKey,
       repositoryIdentity,
+      catalogRecords: repositoryIdentity
+        ? readCatalogSource(
+            fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+          ).records
+        : undefined,
     });
     if (duplicates.length) {
       throw new Error(
@@ -3399,6 +3405,11 @@ export class RoadmapClient {
         catalogId,
         portKey: form.portKey,
         repositoryIdentity,
+        catalogRecords: repositoryIdentity
+          ? readCatalogSource(
+              fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+            ).records
+          : undefined,
       },
     );
     if (duplicates.length) {

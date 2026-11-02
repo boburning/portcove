@@ -563,6 +563,53 @@ void test("same-game implementations with distinct immutable repositories do not
   assert.equal(result.status, "complete");
   assert.equal(f.creations, 1);
 });
+void test("equal-title independent implementations retain canonical catalog-lineage evidence without a body ID", () => {
+  const f = fixture();
+  // Use the real authored catalog owner to exercise the bridge's catalog path.
+  const c = {
+    ...candidate,
+    title: "Paper Mario ReCut",
+    game: "Paper Mario",
+    upstream: "https://github.com/independent/paper-mario",
+    repository_id: 987612342,
+    port_key: "independent-paper-mario",
+  };
+  const body = hostedBody(
+    {
+      ...candidate,
+      upstream: "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated",
+      port_key: "paper-mario-recut",
+      game: "Paper Mario",
+    },
+    99,
+  ).replace(/GitHub repository ID: \d+\n/u, "");
+  f.issues.push({
+    id: "I118",
+    node_id: "I118",
+    number: 118,
+    title: `[Port] ${c.title}`,
+    body,
+    state: "OPEN",
+    url: "https://github.com/boburning/portcove/issues/118",
+    html_url: "https://github.com/boburning/portcove/issues/118",
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  const inventory = f.bridge.inventory();
+  assert.doesNotThrow(() =>
+    f.bridge.duplicates(inventory, {
+      candidate: c,
+      body: hostedBody(c, 100),
+      body_sha256: "a".repeat(64),
+      evidence_sha256: "b".repeat(64),
+      primary: {
+        repository_id: c.repository_id,
+        readme_commit: "c".repeat(40),
+        readme_blob: "d".repeat(40),
+        release_fingerprint: "e".repeat(64),
+      },
+    }),
+  );
+});
 void test("existing observations deduplicate across proposals and preserve non-neutral owner fields", async () => {
   const f = existingOwnerFixture();
   Object.assign(f.fields, { Status: "Deferred", Priority: "High" });

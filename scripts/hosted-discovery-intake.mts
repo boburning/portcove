@@ -644,6 +644,7 @@ export class HostedIntakeBridge {
       upstream: c.upstream,
       portKey: c.port_key,
       repositoryIdentity: { id: c.repository_id, game: c.game },
+      catalogRecords: records,
     });
     if (duplicates.some((row) => row.issue.number !== owner))
       throw new Error(`Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`);

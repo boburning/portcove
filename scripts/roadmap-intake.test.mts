@@ -360,6 +360,13 @@ void test("primary repository/game identity refines title hints without bypassin
     }),
     [],
   );
+  assert.equal(
+    findPortIssueDuplicates([existing], {
+      ...candidate,
+      repositoryIdentity: { id: 123, game: "Gameone" },
+    }).length,
+    1,
+  );
 });
 void test("capture consumes the primary identity through its real duplicate guard before POST", () => {
   const client = new RoadmapClient(config);
@@ -406,6 +413,28 @@ void test("capture consumes the primary identity through its real duplicate guar
     repositoryIdentity: { id: 456, game: "Game one" },
   });
   assert.equal(posts, 1);
+  const catalogOwner = {
+    ...old,
+    id: "I118",
+    node_id: "I118",
+    number: 118,
+    url: "https://github.com/boburning/portcove/issues/118",
+    html_url: "https://github.com/boburning/portcove/issues/118",
+    body: renderPortIssueBody({
+      title: "Shared title",
+      upstream: "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated",
+      portKey: "paper-mario-recut",
+      currentEvidence: "Underlying game: **Paper Mario**",
+    }),
+  };
+  client.repositoryIssues = () => fixtureIssueInventory(client, [catalogOwner]);
+  client.createPortIssue({
+    title: "Shared title",
+    upstream: "https://github.com/owner/second",
+    portKey: "second",
+    repositoryIdentity: { id: 456, game: "Paper Mario" },
+  });
+  assert.equal(posts, 2);
 });
 
 void test("New Port form parsing requires a canonical key and direct https upstream", () => {
