@@ -25,11 +25,11 @@
           "instruction": "Use a legally permitted complete RE:INTEGRAL Windows copy. The reviewed v0.3.0 package requires 64-bit Windows 10 22H2 or Windows 11 and .NET Framework 4.8. Follow the upstream Prepare.cmd and Play.cmd setup outside Portcove, including the required prepared renderer, Godot project, tool caches and data. Public package availability does not grant original-game or separately authored component rights; no compiler, helper download, installer or original-data operation is performed by this guide."
         },
         {
-          "title": "Keep the correct original-disc contract",
+          "title": "Use the matching original disc",
           "instruction": "Use your own Japanese Metal Gear Solid Integral SLPM-86247 and SLPM-86248 discs, both represented as supported single-track MODE2/2352 BIN/CUE pairs. Plain ISO, another region and the VR Missions disc are not this contract. Retain every CUE and referenced BIN and any separately permitted language packs in their actual established locations. This is not admission of another MGS port or renderer."
         },
         {
-          "title": "Attach the normal completed launcher and choose Play separately",
+          "title": "Add the completed launcher, then choose Play",
           "instruction": "After completing upstream preparation and normal start/quit with the intended copy, select its native RE-INTEGRAL.exe launcher with the established working directory and supported literal arguments. Do not attach a preparation batch file or bypass the launcher with an unprepared renderer. The reviewed launcher tracks its native game, handles its bounded restart path, and prevents normal launcher closure while a game or preparation is active; it also owns the renderer companion lifecycle. This source review is not an installed or forced-exit full-session certification. Review and consent to the attachment intent, then select Play separately."
         },
         {

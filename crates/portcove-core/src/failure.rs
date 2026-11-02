@@ -105,6 +105,7 @@ pub(crate) enum KnownFailureCause {
     IncompleteLibrary,
     Busy,
     CancellationUnavailable,
+    OperationInterrupted,
     RequiredRuntimeUnverified,
     SourceChanged,
     AmbiguousAdoption,
@@ -183,6 +184,10 @@ impl KnownFailureCause {
             Self::CancellationUnavailable => (
                 "cancellation_unavailable",
                 "Cancellation is unavailable for this operation's current state. Review its current activity and result before taking another action.",
+            ),
+            Self::OperationInterrupted => (
+                "operation_interrupted",
+                "Portcove stopped before this task finished. Review the current state before trying again.",
             ),
             Self::RequiredRuntimeUnverified => (
                 "required_runtime_unverified",

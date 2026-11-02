@@ -1028,6 +1028,13 @@ the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
 removal. The launched program can make its normal writes; this is no sandbox.
 
+Supervision and launch results describe the selected native program. An upstream
+launcher can hand off to another process and close while the game continues;
+activity completion or registration removal neither stops that successor nor
+establishes that external files are safe to replace or recover. Close the actual
+game and its helpers before upstream maintenance. Managed packages retain the
+full-lifetime requirement above.
+
 This mode has empty archive/tree/executable-hint/mutable-path declarations and
 cannot combine with source invocation, managed policy, bundled runtime, setup
 or managed-build hooks. Historical source-catalog identities remain preserved
@@ -1058,6 +1065,14 @@ completed. Current prepared routes supply them separately from the retained `man
 compatibility and technical notes. Older definitions keep their prose fallback.
 Clients keep warnings visible, show numbered steps, and disclose the longer notes
 without parsing free-form prose or changing file/operation authority.
+Write each player step around one action: what to download, which original files
+are needed, what to select, and what happens next. Follow
+[content design](CONTENT-DESIGN.md#start-with-the-players-task). Keep exact editions,
+filenames, sidecars, commands, save locations and permission warnings. Put dated
+inspection evidence in compatibility/technical notes where the schema offers
+them. Missing edition or hash information is a limitation to explain, not an
+instruction to inspect internal research fields. Review the complete guide in
+context; a shared paragraph rewrite does not qualify every game's instructions.
 A platform-specific prepared spec may opt into `library_user_data: true` for
 `staged-source-portable`, with a safe `user_data_environment` name on the port.
 After retained-package and original-source revalidation, Core creates only the

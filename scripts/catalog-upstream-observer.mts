@@ -229,7 +229,10 @@ export function catalogObservationSources(input: unknown) {
   };
 }
 
-function progressCheckpoint(value: unknown, now: number): CatalogObserverCheckpoint {
+export function validateCatalogObserverCheckpoint(
+  value: unknown,
+  now: number,
+): CatalogObserverCheckpoint {
   if (
     !isRecord(value) ||
     value.format !== 1 ||
@@ -422,7 +425,10 @@ export async function advanceCatalogObservations(
 ) {
   const { sources, held, port_ids: catalogIds } = catalogObservationSources(catalog);
   const now = options.now ?? Date.now;
-  const state = prior === null ? newCatalogObserverCheckpoint() : progressCheckpoint(prior, now());
+  const state =
+    prior === null
+      ? newCatalogObserverCheckpoint()
+      : validateCatalogObserverCheckpoint(prior, now());
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
   const template = validateObserverConfig(options.config);

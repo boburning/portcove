@@ -125,7 +125,9 @@ it("keeps an unknown existing query unresolved instead of treating it as an empt
       favorites={saved}
     />,
   );
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain("not supported");
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    "These saved filters aren’t supported by this version of Portcove.",
+  );
   expect(saved.ids?.size).toBe(3);
   expect(saved.toggle).not.toHaveBeenCalled();
 });

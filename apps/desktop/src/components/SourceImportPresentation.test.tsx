@@ -91,7 +91,7 @@ it.each([
     expect(html).not.toContain("Wrong selected profile");
     expect(html).toContain(label);
     expect(html).toContain(limit);
-    expect(html).toContain("Additional file data planned: 64 B");
+    expect(html).toContain("Additional space needed: 64 B");
     expect(html.match(/<button /g)).toHaveLength(2);
     expect(JSON.stringify(review)).toBe(original);
   },
@@ -136,7 +136,7 @@ it.each(["copy", "move", "use_current_location"] as const)(
     expect(html).not.toContain("Wrong selected profile");
     expect(html).toContain("Currently saved location:");
     expect(html).toContain(review.existing_registration.path);
-    expect(html).toContain("Additional file data planned: 0 B");
+    expect(html).toContain("Additional space needed: 0 B");
     const present =
       mode === "use_current_location"
         ? ["Keep this location available"]

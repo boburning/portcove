@@ -3,7 +3,7 @@
   "listing": {
     "id": "interkarma-daggerfall-unity",
     "name": "Daggerfall Unity",
-    "summary": "Daggerfall Unity offers upstream packages for The Elder Scrolls II: Daggerfall. Follow upstream setup before registering your executable.",
+    "summary": "Play The Elder Scrolls II: Daggerfall with Daggerfall Unity and your own compatible game folder. Choose your original files in the game’s first-run setup wizard; keep external saves and originals recoverable.",
     "project_url": "https://github.com/Interkarma/daggerfall-unity",
     "issue_number": 1809,
     "availability": "packages",

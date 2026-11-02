@@ -34,12 +34,12 @@
           "instruction": "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises. TU6 and Four-Play/Free-for-All DLC are optional separately owned inputs with their own exact source checks; Free-for-All requires TU6. Do not remove/update content through this guide. The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
         },
         {
-          "title": "Preserve component permissions and external ownership",
+          "title": "Use permitted files and manage this copy yourself",
           "instruction": "Project GPL and ReXGlue/component terms do not grant the original game/TU/DLC or every bundled launcher component. This title identifies TRG revisionb384a28c712c9320eea8f9d50639dec49981b6c1 and expressly says it has no explicit license: fresh package acquisition/distribution needs its own attributable applicable permission or reviewed alternative; this conditional guide only attaches an independently permitted complete copy. Removing registration preserves external files; no external backup/restore, deletion, save conversion or managed maintenance is offered."
         }
       ],
       "warnings": [
-        "Source/metadata-only evidence: own v0.6.2 source differs from later HEAD; published package SHA-256 is a provider expectation, not inspected ZIP/PE bytes or compiled SDK/source correspondence.",
+        "This guide’s source evidence is for v0.6.2; later source revisions differ. The published package SHA-256 is the provider’s expected value. Portcove has not inspected the ZIP or executable files or confirmed which source and SDK produced them.",
         "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability."
       ]
     },

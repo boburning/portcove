@@ -3,7 +3,7 @@
   "listing": {
     "id": "urban-chaos-openchaos",
     "name": "Urban Chaos (OpenChaos)",
-    "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux SteamDeck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
+    "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux Steam Deck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
     "original_game_title": "Urban Chaos",
     "project_url": "https://github.com/UltimaBeaR/OpenChaos",
     "platforms": [],
@@ -34,7 +34,7 @@
           "instruction": "Preserve the complete creating game directory and current account’s AppData/OpenChaos profile: OpenChaos.config.json, saves, OpenChaos.crash_log.txt, debug and custom files. Writes normally use that overlay and reads prefer it over original files; all copies share it. Failed SDL preference lookup, early crash handling or absolute paths can use the creating working directory or explicit paths instead. Retain every effective root, not only the normal profile. No migration or real-save compatibility is established."
         },
         {
-          "title": "Review the prepared executable and intent",
+          "title": "Review the game program and launch details",
           "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
         },
         {

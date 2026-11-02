@@ -4128,9 +4128,42 @@ void test("native transport producers retain their actual Node consumers across 
         "apps/desktop/scripts/desktop-main-webview-boundary.native.test.mts",
       ],
     ],
+    [
+      "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
+      [
+        "scripts/desktop-runtime-exit-observation.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/desktop-game-first-installed-test.mts",
+      [
+        "scripts/desktop-runtime-exit-observation.test.mts",
+        "scripts/desktop-game-first-installed-inputs.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+      ],
+    ],
+    [
+      "apps/desktop/scripts/desktop-game-first-installed-mm-test.mts",
+      [
+        "scripts/desktop-runtime-exit-observation.test.mts",
+        "scripts/desktop-game-first-installed-inputs.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+        "scripts/desktop-boundary-wiring.test.mts",
+      ],
+    ],
+    [
+      "scripts/desktop-game-first-installed-inputs.mts",
+      [
+        "scripts/desktop-game-first-installed-inputs.test.mts",
+        "scripts/desktop-execution-plan.test.mts",
+      ],
+    ],
     ...[
       "apps/desktop/scripts/desktop-preparation-test.mts",
       "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+      "apps/desktop/scripts/desktop-game-first-test.mts",
     ].map((file): [string, string[]] => [
       file,
       [

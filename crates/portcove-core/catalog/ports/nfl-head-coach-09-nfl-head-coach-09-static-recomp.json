@@ -3,7 +3,7 @@
   "listing": {
     "id": "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
     "name": "NFL Head Coach 09 (NFL Head Coach 09 Static Recomp)",
-    "summary": "Upstream route: Windows setup; local compilation from own Xbox 360 disc image Limits: Local compilation route; runtime ISO retained and renderer/progression limits remain. Upstream platforms: Windows HC09Setup.exe/local-build route; selected host CPU architecture unknown in frozen README research. Retained ISO is needed at runtime. Original data: Own NFL Head Coach 09 Xbox 360 disc image, title 45410841. HC09Setup extracts its executable and compiles locally. Retain the ISO at its configured path for runtime disc reads; default.xex/image.pe are preparation outputs, not replacements for all disc data. Exact accepted region/revision/digest is not stated in reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "An NFL Head Coach 09 Windows setup route that compiles locally from your own Xbox 360 disc image, title 45410841. HC09Setup.exe extracts the executable and builds the player. Keep the ISO at its configured path for every run: default.xex and image.pe outputs do not replace all disc data. Renderer and progression limits remain. Exact host CPU architecture and accepted region/revision/hashes are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "NFL Head Coach 09",
     "project_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp",
     "platforms": [],

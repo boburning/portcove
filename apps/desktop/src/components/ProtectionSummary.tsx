@@ -4,14 +4,22 @@ import type { BackupReadState } from "../features/backups/use-port-backups";
 type Protection = NonNullable<BackupInventory["protection"]>;
 type Installation = Protection["installations"][number];
 
+const pathLabels: Record<Protection["managed_data"]["state"], string> = {
+  present: "Found",
+  missing: "Not found",
+  unsafe: "Needs safety review",
+  unreadable: "Couldn’t read",
+};
+
 const collectionLabels: Record<Installation["collection"], string> = {
   selected_for_collection:
-    "Active collection candidates selected by Core; backup checks run before copying",
+    "These files may be included in the next backup. They’ll be checked before copying.",
   direct_to_managed_data: "Writes directly to the managed data folder",
-  not_initialized: "Runtime collection is not initialized",
-  inactive: "Inactive version: its runtime data is not collected by a new backup",
-  external_not_collected: "The external runtime directory is not collected",
-  unavailable: "Runtime coverage could not be established",
+  not_initialized: "Save collection hasn’t been set up yet",
+  inactive:
+    "This version isn’t in use. New backups won’t collect files from its installation folder.",
+  external_not_collected: "Portcove won’t collect saves from this installation’s folder",
+  unavailable: "We couldn’t confirm which files can be backed up",
 };
 
 /** Presentation only. Existing Core assessments and reviewed actions own eligibility. */
@@ -45,36 +53,48 @@ export function ProtectionSummary({
   const complete = inventoryState === "healthy" && problems.length === 0;
   const current = matches && readState?.status === "current" && readState.hasInventory;
   return (
-    <section
-      aria-label="Player-data protection"
-      className="grid min-w-0 gap-3 text-sm wrap-anywhere"
-    >
-      <h3 className="m-0 text-base font-semibold">Protection and update ownership</h3>
+    <section aria-label="Backups and updates" className="grid min-w-0 gap-3 text-sm wrap-anywhere">
+      <h3 className="m-0 text-base font-semibold">Backups and updates</h3>
       {!current && (
         <p role="status">
           {readState?.status === "failed"
-            ? "Protection information could not be read. Last loaded facts may be out of date. Refresh backup history before taking action."
+            ? "We couldn’t load backup information. Previously loaded information may be out of date. Refresh backup history before continuing."
             : readState?.status === "pending"
-              ? "Checking protection information. Last loaded facts may be out of date."
-              : "Protection information is unavailable for the current installation. Refresh backup history before taking action."}
+              ? "Checking backup information. Previously loaded information may be out of date."
+              : "Backup information is unavailable for this installation. Refresh backup history before continuing."}
         </p>
       )}
       {matches && protection && (
         <>
-          <p>
-            {current ? "Current Core snapshot" : "Last loaded Core snapshot"} for implementation{" "}
-            <code>{protection.port_id}</code>. Game updates, application updates and definition
-            updates have separate owners.
-          </p>
+          <p>{current ? "Latest backup information" : "Last loaded backup information"}</p>
           {protection.problem && (
-            <p role="status">
-              Installation protection could not be fully read: {protection.problem}
-            </p>
+            <p role="status">We couldn’t load all backup information: {protection.problem}</p>
           )}
           {!protection.installations.length && !protection.problem && (
+            <p>No installation is recorded. Choose an installation to see who handles updates.</p>
+          )}
+          {!complete && (
+            <p role="status">
+              We couldn’t confirm your latest completed backup. Refresh backup history before
+              continuing.
+            </p>
+          )}
+          {protection.latest_completed_backup ? (
             <p>
-              No installation is recorded. Update ownership is unknown until an installation is
-              selected.
+              {current && complete ? "Latest completed backup" : "Last known completed backup"}:{" "}
+              {new Date(protection.latest_completed_backup.created_at * 1000).toLocaleString()} ·{" "}
+              <code>{protection.latest_completed_backup.id}</code> ·{" "}
+              {protection.latest_completed_backup.file_count} files. This backup is shared by this
+              game’s port versions. Review its files before restoring; older versions may not be
+              able to use these saves.
+            </p>
+          ) : (
+            <p>
+              {!complete
+                ? "We couldn’t confirm a completed backup because the history is incomplete."
+                : current
+                  ? "No completed backup recorded."
+                  : "No completed backup was listed when backup history was last loaded."}
             </p>
           )}
           {protection.installations.map((install) => (
@@ -83,79 +103,56 @@ export function ProtectionSummary({
               key={install.install_id}
             >
               <h4 className="m-0 font-semibold">
-                {install.role} · {install.version}
+                {
+                  {
+                    active: "Current version",
+                    previous: "Previous version",
+                    staged: "Prepared version",
+                    external: "Installation you maintain",
+                  }[install.role]
+                }{" "}
+                · {install.version}
               </h4>
               <p>
-                Installation <code>{install.install_id}</code>: updates owned by{" "}
-                {install.update_owner === "portcove" ? "Portcove" : "the upstream launcher or you"}.
-                Review the current action availability before updating.
+                Updates handled by:{" "}
+                {install.update_owner === "portcove" ? "Portcove" : "the game’s launcher or you"}.
               </p>
               <p>{collectionLabels[install.collection]}</p>
               {install.problem && <p role="status">{install.problem}</p>}
               {install.collection_root && (
                 <p>
-                  Collection root: <code>{install.collection_root}</code>
+                  Files checked for the next backup: <code>{install.collection_root}</code>
                 </p>
               )}
               {!!install.collection_candidates.length && (
                 <ul className="list-disc ps-5">
                   {install.collection_candidates.map((entry) => (
                     <li key={entry.path}>
-                      <code>{entry.path}</code> · {entry.state}
+                      <code>{entry.path}</code> · {pathLabels[entry.state]}
                     </li>
                   ))}
                 </ul>
               )}
-              <p>
-                Candidate presence is a metadata observation, not a completed backup or a
-                file-integrity check.
-              </p>
-              <Declaration title="Retained installation declarations" value={install.retained} />
-              <Declaration
-                title="Effective checked collection declarations"
-                value={install.effective}
-              />
+              <p>Finding these files does not mean they’ve been backed up or checked.</p>
+              <Declaration title="Backup rules for this installation" value={install.retained} />
+              <Declaration title="Files considered for backup" value={install.effective} />
               {install.exclusions.map((text) => (
                 <p key={text}>{text}</p>
               ))}
             </div>
           ))}
           <p>
-            Managed backup data root: <code>{protection.managed_data.path}</code> ·{" "}
-            {protection.managed_data.state}. Its existence alone does not establish save protection.
+            Saved-data folder: <code>{protection.managed_data.path}</code> ·{" "}
+            {pathLabels[protection.managed_data.state]}. This folder’s presence doesn’t mean its
+            contents have been backed up.
           </p>
-          {!complete && (
-            <p role="status">
-              Backup history is incomplete or needs attention. The newest completed backup cannot be
-              established from this read.
-            </p>
-          )}
-          {protection.latest_completed_backup ? (
-            <p>
-              {current && complete ? "Latest completed backup" : "Last known completed backup"}:{" "}
-              {new Date(protection.latest_completed_backup.created_at * 1000).toLocaleString()} ·{" "}
-              <code>{protection.latest_completed_backup.id}</code> ·{" "}
-              {protection.latest_completed_backup.file_count} files. This snapshot is shared by this
-              implementation’s versions. Review its contents and current restore availability in
-              backup history; its manifest does not prove game-save compatibility.
-            </p>
-          ) : (
-            <p>
-              {!complete
-                ? "No completed backup could be established from this incomplete read."
-                : current
-                  ? "No completed backup was found in this read."
-                  : "No completed backup was recorded in the last loaded read."}
-            </p>
-          )}
-          <Declaration title="Current catalog declarations" value={protection.catalog} />
+          <Declaration title="Backup rules in the current catalog" value={protection.catalog} />
           {protection.exclusions.map((text) => (
             <p key={text}>{text}</p>
           ))}
           <p>
-            Previous-version recovery changes software separately from saved data. Older software
-            may not understand newer saves or configuration. Review Versions before switching; use
-            reviewed backup restore to change player data.
+            Switching to an older game version does not restore older saves. Newer saves may not
+            work with it. To restore saved data, choose a backup in backup history.
           </p>
         </>
       )}
@@ -175,8 +172,13 @@ function Declaration({ title, value }: { title: string; value: Installation["ret
             Definition <code>{value.definition_sha256}</code>
           </p>
           <p>
-            Saved-data declaration: {value.saves_and_settings ?? "unknown"}. These are rules, not
-            proof of backed-up saves.
+            Save and settings rules:{" "}
+            {value.saves_and_settings === "portcove-managed"
+              ? "Portcove manages the listed files"
+              : value.saves_and_settings === "external-user-owned"
+                ? "You handle the external saves and settings"
+                : "Coverage unknown"}
+            . These are rules, not proof of backed-up saves.
           </p>
           {value.persistent_paths.length || value.persistent_file_patterns.length ? (
             <ul className="list-disc ps-5">
@@ -194,13 +196,13 @@ function Declaration({ title, value }: { title: string; value: Installation["ret
               ))}
             </ul>
           ) : (
-            <p>No local collection paths are declared.</p>
+            <p>No files in this installation folder are listed for backup.</p>
           )}
         </>
       ) : (
         <p>
-          No verified declaration is available. Current catalog rules do not establish retained
-          coverage.
+          Backup rules for this installation are unavailable. The current catalog can’t confirm what
+          this installation backs up.
         </p>
       )}
     </details>

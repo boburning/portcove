@@ -1,0 +1,488 @@
+{
+  "format_version": 1,
+  "baseline": "ac2bb00aa95480f4953f29729f452ef6a6350c3b",
+  "scope": "Two original-524 identities; historical 1422 membership is nonadditive. No direct Required closure or Supported promotion. Exact native artifact static inspection extends R36 source-only evidence.",
+  "prior_source_evidence": "https://github.com/boburning/portcove/blob/ac2bb00aa95480f4953f29729f452ef6a6350c3b/docs/qualification/windows-prepared-players-r36-2026-11-01.json",
+  "rows": [
+    {
+      "issue": 1792,
+      "id": "junior-jones-adventure-island-ii-nes-static-recomp",
+      "authored_preimage_sha256": "8d2923583ef13a1b92770504c2d148b26b3e043ea89e9a48b0a316e58b408d56",
+      "asset": {
+        "id": 530697292,
+        "name": "Adventure-Island-II-NES-Static-Recomp-1.0.0-Windows.zip",
+        "size": 1527099,
+        "digest": "sha256:19ef61618f3594ffbda4a4ac42c99d182e2777ea92397aba72acd9c3a41d87d0",
+        "updated_at": "2026-08-26T11:15:01Z",
+        "browser_download_url": "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/releases/download/v1.0.0/Adventure-Island-II-NES-Static-Recomp-1.0.0-Windows.zip"
+      },
+      "observed_archive_sha256": "19ef61618f3594ffbda4a4ac42c99d182e2777ea92397aba72acd9c3a41d87d0",
+      "observed_at": "2026-11-01T17:54:37.391578+00:00",
+      "raw_preparser_bounds": {
+        "records": 7,
+        "central_bytes": 435,
+        "declared_expanded_bytes": 4137718
+      },
+      "inspection_policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "parser_boundary_cases": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "members": [
+        {
+          "path": "Rom/Readme.txt",
+          "bytes": 215,
+          "compressed_bytes": 158,
+          "crc32": "773a37fb",
+          "directory": false
+        },
+        {
+          "path": "Screenshots/README.txt",
+          "bytes": 126,
+          "compressed_bytes": 101,
+          "crc32": "d37f67b1",
+          "directory": false
+        },
+        {
+          "path": "Snapshots/README.txt",
+          "bytes": 143,
+          "compressed_bytes": 112,
+          "crc32": "9b8aaeb8",
+          "directory": false
+        },
+        {
+          "path": "gamecontrollerdb.txt",
+          "bytes": 602815,
+          "compressed_bytes": 47178,
+          "crc32": "6debc33e",
+          "directory": false
+        },
+        {
+          "path": "Launcher.exe",
+          "bytes": 3530240,
+          "compressed_bytes": 1476630,
+          "crc32": "bf5013f0",
+          "directory": false
+        },
+        {
+          "path": "README.txt",
+          "bytes": 3295,
+          "compressed_bytes": 1662,
+          "crc32": "fb6e25c4",
+          "directory": false
+        },
+        {
+          "path": "SDL-LICENSE.txt",
+          "bytes": 884,
+          "compressed_bytes": 478,
+          "crc32": "1ebb0a8e",
+          "directory": false
+        }
+      ],
+      "full_member_observations": [
+        {
+          "path": "Rom/Readme.txt",
+          "bytes": 215,
+          "sha256": "b1af09f17dc693ed15c769c3b15c02fbb2222360a3836239907fdf74c3711443",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "Screenshots/README.txt",
+          "bytes": 126,
+          "sha256": "458496d6f1bfed91509f8d02b3599f047c6fd2010a57997fb6300838ca3d4825",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "Snapshots/README.txt",
+          "bytes": 143,
+          "sha256": "9852d434ec2f359a0c2d4792335767e30d93c19502087b624937176dbf263325",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "gamecontrollerdb.txt",
+          "bytes": 602815,
+          "sha256": "6bb4cab168b7e2fa38c3978ae03fde05bdbc051a28953d50534b235f8103151a",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "Launcher.exe",
+          "bytes": 3530240,
+          "sha256": "f49887439587ae607d61e018cf56b820713904e82859bf3eaf7c6ee6a8dcfaf9",
+          "zip_crc_verified": true,
+          "pe": {
+            "machine": "AMD64",
+            "optional_magic": "0x20b",
+            "subsystem": 2,
+            "sections": 6,
+            "imports": [
+              "COMDLG32.dll",
+              "USER32.dll",
+              "GDI32.dll",
+              "ole32.dll",
+              "SHELL32.dll",
+              "KERNEL32.dll",
+              "WINMM.dll",
+              "IMM32.dll",
+              "OLEAUT32.dll",
+              "VERSION.dll",
+              "ADVAPI32.dll",
+              "SETUPAPI.dll"
+            ],
+            "scope": "static ordinary import table; no runtime dependency resolution, delay/dynamic imports or ABI qualification"
+          }
+        },
+        {
+          "path": "README.txt",
+          "bytes": 3295,
+          "sha256": "035191aea3b2a4a416b5767b1b4efe37464cf72ca58c62cd2eeefb8c5eff4435",
+          "zip_crc_verified": true
+        },
+        {
+          "path": "SDL-LICENSE.txt",
+          "bytes": 884,
+          "sha256": "1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd",
+          "zip_crc_verified": true
+        }
+      ],
+      "packaged_documentation": [
+        {
+          "path": "Rom/Readme.txt",
+          "decoded_text_sha256": "b1af09f17dc693ed15c769c3b15c02fbb2222360a3836239907fdf74c3711443",
+          "scope": "hash of UTF-8 decoded text, not original member bytes; exact member hashes below"
+        },
+        {
+          "path": "Screenshots/README.txt",
+          "decoded_text_sha256": "458496d6f1bfed91509f8d02b3599f047c6fd2010a57997fb6300838ca3d4825",
+          "scope": "hash of UTF-8 decoded text, not original member bytes; exact member hashes below"
+        },
+        {
+          "path": "Snapshots/README.txt",
+          "decoded_text_sha256": "9852d434ec2f359a0c2d4792335767e30d93c19502087b624937176dbf263325",
+          "scope": "hash of UTF-8 decoded text, not original member bytes; exact member hashes below"
+        },
+        {
+          "path": "README.txt",
+          "decoded_text_sha256": "035191aea3b2a4a416b5767b1b4efe37464cf72ca58c62cd2eeefb8c5eff4435",
+          "scope": "hash of UTF-8 decoded text, not original member bytes; exact member hashes below"
+        },
+        {
+          "path": "SDL-LICENSE.txt",
+          "decoded_text_sha256": "1c040b8271b37e5076359f8fd54240e371114112924d2df81ef87c7d6a1dfdfd",
+          "scope": "hash of UTF-8 decoded text, not original member bytes; exact member hashes below"
+        }
+      ],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "offered_operation": "conditional non-owning existing-copy registration only",
+      "maintenance": "user-managed-update",
+      "actual_completion": "prospective; requires independent whole-criteria review, final-head CI, delivery and canonical readback",
+      "rights": "No original game, IPS, artwork/music or complete package acquisition/redistribution grant inferred; external copies remain conditional on independent permission.",
+      "authored_postimage_sha256": "efdce6bcdcd9873360d0ba94bfefa6d138711b4605272217b5456a031f2366cd",
+      "canonical_specification_sha256": "b10661d1ff4901fa45e3eff7c99bc0c22f9411dbb233d9816ccbdc147a7ef636",
+      "canonical_specification_observed_at": "2026-11-01T17:54:11.937Z"
+    },
+    {
+      "issue": 1799,
+      "id": "gabrielnnk-bigodao",
+      "authored_preimage_sha256": "7e9fd09092a9c5f41a8c97f8d213847bd62af1937bb130b0bfb0793086e4a5ab",
+      "asset": {
+        "id": 693441956,
+        "name": "bigodao_1.7_win.zip",
+        "size": 18714973,
+        "digest": "sha256:21e13616bbc0d62dcf1341be10d392694b1f6033965dc4c9ab15f13a8f028ac6",
+        "updated_at": "2026-10-30T21:15:03Z",
+        "browser_download_url": "https://github.com/GABRIELNNK/Bigodao/releases/download/1.7.0/bigodao_1.7_win.zip"
+      },
+      "observed_archive_sha256": "21e13616bbc0d62dcf1341be10d392694b1f6033965dc4c9ab15f13a8f028ac6",
+      "observed_at": "2026-11-01T17:54:53.800656+00:00",
+      "raw_preparser_bounds": {
+        "records": 4,
+        "central_bytes": 399,
+        "declared_expanded_bytes": 57452436
+      },
+      "inspection_policy": {
+        "max_archive_bytes": 134217728,
+        "max_central_metadata": 4194304,
+        "max_physical_records": 8192,
+        "max_name_bytes": 512,
+        "max_member_bytes": 536870912,
+        "max_aggregate_expanded_bytes": 1073741824,
+        "ZIP64_multidisk_encryption_links_unsupported": true
+      },
+      "parser": "Python3.14.4 zipfile after physical central-index checks",
+      "parser_boundary_cases": [
+        "valid near512-byte name",
+        "oversized declared index refused before ZipFile",
+        "oversized raw name refused before ZipFile"
+      ],
+      "members": [
+        {
+          "path": "bigodao_1.7_win/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "bigodao_1.7_win/bigodao_1.7_win.exe",
+          "bytes": 57451452,
+          "compressed_bytes": 18713621,
+          "crc32": "5308ff31",
+          "directory": false
+        },
+        {
+          "path": "bigodao_1.7_win/tools/",
+          "bytes": 0,
+          "compressed_bytes": 0,
+          "crc32": "00000000",
+          "directory": true
+        },
+        {
+          "path": "bigodao_1.7_win/tools/wl_sm3_dx_v12_patch.json",
+          "bytes": 984,
+          "compressed_bytes": 532,
+          "crc32": "fd301226",
+          "directory": false
+        }
+      ],
+      "full_member_observations": [
+        {
+          "path": "bigodao_1.7_win/bigodao_1.7_win.exe",
+          "bytes": 57451452,
+          "sha256": "a6d95f014520547cda456533ee7206f9b1c68502f788ea1da4b65ef685c95ecd",
+          "zip_crc_verified": true,
+          "pe": {
+            "machine": "AMD64",
+            "optional_magic": "0x20b",
+            "subsystem": 2,
+            "sections": 22,
+            "imports": [
+              "ADVAPI32.dll",
+              "comdlg32.dll",
+              "GDI32.dll",
+              "IMM32.dll",
+              "KERNEL32.dll",
+              "msvcrt.dll",
+              "ole32.dll",
+              "OLEAUT32.dll",
+              "SETUPAPI.dll",
+              "SHELL32.dll",
+              "USER32.dll",
+              "VERSION.dll",
+              "WINMM.dll"
+            ],
+            "scope": "static ordinary import table; no runtime dependency resolution, delay/dynamic imports or ABI qualification"
+          }
+        },
+        {
+          "path": "bigodao_1.7_win/tools/wl_sm3_dx_v12_patch.json",
+          "bytes": 984,
+          "sha256": "8cfceb4e270e462a6f942fc71c4cd88fe24a16f145b06be8e5ec0922400bb725",
+          "zip_crc_verified": true,
+          "json": {
+            "schema": "wl-sm3.ips-rom-patch",
+            "version": 1,
+            "patch_id": "korxo.wario-land-sm3-dx.v1.2",
+            "input_size": 524288,
+            "input_sha256": "ac1682f17abcf590311a233289ee325214c2d71ab3a5aa175004002d85075e56",
+            "patch_format": "IPS",
+            "patch_file": "../Wario Land - Super Mario Land 3 DX (World).ips",
+            "patch_sha256": "599d9f59090df3e1e77c1678e069290a2cd9ce59c71cf58d66c4dc3db8b7facd",
+            "patch_record_count": 1281,
+            "output_size": 1048576,
+            "output_sha256": "3b49325fb7dfb18dff87e3b619afcceb45e8451ad10ccbbf303194e36c97b68a",
+            "cartridge": {
+              "mapper_before": "MBC1+RAM+BATTERY",
+              "mapper_before_type": "0x03",
+              "rom_banks_before": 32,
+              "mapper_after": "MBC5+RAM+BATTERY",
+              "mapper_after_type": "0x1b",
+              "rom_banks_after": 64,
+              "cgb_flag_after": "0xc0",
+              "rom_size_code_after": "0x05"
+            },
+            "generated_code": {
+              "source_directory": "compiler_src/game_code_hack",
+              "entry_prefix": "hack1_2_WL_SM3",
+              "rom_load_api": "gb_context_load_rom"
+            }
+          }
+        }
+      ],
+      "packaged_documentation": [],
+      "extraction_writes": 0,
+      "upstream_code_or_game_execution": false,
+      "offered_operation": "conditional non-owning existing-copy registration only",
+      "maintenance": "user-managed-update",
+      "actual_completion": "prospective; requires independent whole-criteria review, final-head CI, delivery and canonical readback",
+      "rights": "No original game, IPS, artwork/music or complete package acquisition/redistribution grant inferred; external copies remain conditional on independent permission.",
+      "authored_postimage_sha256": "b523742093c71875b6e3d4c557f029c9e7e20175e13f482954bb894dcbcaa612",
+      "canonical_specification_sha256": "a6c2b6787fe70f0bab0cba5590a7286c2a2e2205755ea08bb71ba42ffc5e4563",
+      "canonical_specification_observed_at": "2026-11-01T17:54:13.165Z"
+    }
+  ],
+  "bigodao_release_source_comparison": [
+    {
+      "path": "README.md",
+      "r36_blob": "b7dc2bb75e5af515caf0d701e02a1de256f852d5",
+      "release_1_7_blob": "b7dc2bb75e5af515caf0d701e02a1de256f852d5",
+      "equal": true
+    },
+    {
+      "path": "LICENSE",
+      "r36_blob": "da0a6d0240f9c04d3d46789ecd66017be9bb209e",
+      "release_1_7_blob": "da0a6d0240f9c04d3d46789ecd66017be9bb209e",
+      "equal": true
+    },
+    {
+      "path": ".gitmodules",
+      "r36_blob": "ca6c88a8ae5c9667b66ad77ea667a8f9c2661396",
+      "release_1_7_blob": "ca6c88a8ae5c9667b66ad77ea667a8f9c2661396",
+      "equal": true
+    },
+    {
+      "path": "CMakeLists.txt",
+      "r36_blob": "5ebbae1e21f4869ed070cbe7cf906138a8a214a7",
+      "release_1_7_blob": "5ebbae1e21f4869ed070cbe7cf906138a8a214a7",
+      "equal": true
+    },
+    {
+      "path": "main.cpp",
+      "r36_blob": "d51b122a0e37ab4cac105b7f48ef461c90dde0e1",
+      "release_1_7_blob": "d51b122a0e37ab4cac105b7f48ef461c90dde0e1",
+      "equal": true
+    },
+    {
+      "path": "launcher_block.cpp",
+      "r36_blob": "6a1dbd2e95c0d7b532b76b9811782d0a234c3f75",
+      "release_1_7_blob": "6a1dbd2e95c0d7b532b76b9811782d0a234c3f75",
+      "equal": true
+    },
+    {
+      "path": "asset_extractor.hpp",
+      "r36_blob": "727f160848ece50869be41b5c73873ac5004f681",
+      "release_1_7_blob": "727f160848ece50869be41b5c73873ac5004f681",
+      "equal": true
+    },
+    {
+      "path": "runtime/src/platform_sdl.cpp",
+      "r36_blob": "2d5c041182bb480083d1dd7429f66eb4cb355735",
+      "release_1_7_blob": "65d78196ff4d3df73e4f2961946499b69b05b747",
+      "equal": false
+    },
+    {
+      "path": "runtime/src/gbrt_port.c",
+      "r36_blob": "53f73f4b4839e9f5b782a0c26bd367990008b657",
+      "release_1_7_blob": "53f73f4b4839e9f5b782a0c26bd367990008b657",
+      "equal": true
+    },
+    {
+      "path": "bash_release.sh",
+      "r36_blob": "d71c19f2ddb8a137cf96befb3a0d13bfcc78fc7b",
+      "release_1_7_blob": "d71c19f2ddb8a137cf96befb3a0d13bfcc78fc7b",
+      "equal": true
+    },
+    {
+      "path": "runtime/include/third_party/STB_LICENSE.txt",
+      "r36_blob": "a77ae91f3ec0abb0028c9d9bd8d34d880b454d38",
+      "release_1_7_blob": "a77ae91f3ec0abb0028c9d9bd8d34d880b454d38",
+      "equal": true
+    },
+    {
+      "path": "runtime/vendor/imgui/LICENSE.txt",
+      "r36_blob": "3282f5b5b105440af25c030c29bea5a24fddf496",
+      "release_1_7_blob": "3282f5b5b105440af25c030c29bea5a24fddf496",
+      "equal": true
+    },
+    {
+      "path": "runtime/src/gbrt.c",
+      "r36_blob": "29ca2c0ce946e00c9ad915f8d9feef088d422647",
+      "release_1_7_blob": "29ca2c0ce946e00c9ad915f8d9feef088d422647",
+      "equal": true
+    },
+    {
+      "path": "runtime/src/hd_pack_io.cpp",
+      "r36_blob": "38ad3c2e632a64348ea552f645d9246d2dbb5ca8",
+      "release_1_7_blob": "38ad3c2e632a64348ea552f645d9246d2dbb5ca8",
+      "equal": true
+    },
+    {
+      "path": "runtime/src/music_replace.cpp",
+      "r36_blob": "8ccc6507a319128eb6512206d930a3ef86e39db6",
+      "release_1_7_blob": "8ccc6507a319128eb6512206d930a3ef86e39db6",
+      "equal": true
+    },
+    {
+      "path": "tools/wl_sm3_dx_v12_patch.json",
+      "r36_blob": "577a9b962cbba4c6fba485788a4b7b1285530c28",
+      "release_1_7_blob": "577a9b962cbba4c6fba485788a4b7b1285530c28",
+      "equal": true
+    },
+    {
+      "path": "COMPILAR.md",
+      "r36_blob": "989c0e1c1ab26759b39f7454894cb74e47719c04",
+      "release_1_7_blob": "989c0e1c1ab26759b39f7454894cb74e47719c04",
+      "equal": true
+    },
+    {
+      "path": "runtime/src/android_bridge.cpp",
+      "r36_blob": "5333d820c16c8d8ea7ed21241a2c1ffeb833cbcf",
+      "release_1_7_blob": "5333d820c16c8d8ea7ed21241a2c1ffeb833cbcf",
+      "equal": true
+    },
+    {
+      "path": "runtime/include/android_bridge.h",
+      "r36_blob": "ecd2dee705b93f43ec194ac9481b807fc62a3aa9",
+      "release_1_7_blob": "ecd2dee705b93f43ec194ac9481b807fc62a3aa9",
+      "equal": true
+    },
+    {
+      "path": "wl_sm3_patch.hpp",
+      "r36_blob": "17354bdaf71f2835301b75e80a8af05fefac381b",
+      "release_1_7_blob": "17354bdaf71f2835301b75e80a8af05fefac381b",
+      "equal": true
+    },
+    {
+      "path": "mingw-toolchain.cmake",
+      "r36_blob": "c41a240a7c67f4bbe1f54281a58ff78fa2f01f72",
+      "release_1_7_blob": "c41a240a7c67f4bbe1f54281a58ff78fa2f01f72",
+      "equal": true
+    }
+  ],
+  "bigodao_changed_platform_consumer": {
+    "repository": "GABRIELNNK/Bigodao",
+    "commit": "21fe7b492857bfc758b03396e0e6a117f382a711",
+    "path": "runtime/src/platform_sdl.cpp",
+    "blob": "65d78196ff4d3df73e4f2961946499b69b05b747",
+    "sha256": "e98db55b4fa9b82f45176679b14451d560304419fcaaf5ab356bea4f30ee006a",
+    "bytes": 400572
+  },
+  "bigodao_source_interaction": "All 21 retained selected source consumers except platform_sdl.cpp have identical release/current blobs. The inspected platform_sdl delta removes current-only 3D resolution preference and profiling display controls; it does not change the selected storage paths, picker/main lifetime or patch contract. This is source comparison, not binary reproducibility. The packaged patch manifest equals the pinned source manifest.",
+  "evidence_limits": [
+    "No original ROM/IPS acquired or opened; no private input or save used.",
+    "No upstream helper, executable, game, compiler or native GUI ran.",
+    "PE ordinary import tables do not resolve runtime/delay/dynamic dependencies or establish minimum-host/ABI compatibility.",
+    "No source-to-binary reproducibility or generated-code build completeness claim.",
+    "No actual gameplay, save compatibility, installed Desktop, Linux or protected publication qualification.",
+    "Package member hashes authenticate observed bytes against the official archive digest; they do not add publisher authority or content permissions."
+  ],
+  "bigodao_patch_manifest_source": {
+    "repository": "GABRIELNNK/Bigodao",
+    "commit": "c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424",
+    "path": "tools/wl_sm3_dx_v12_patch.json",
+    "blob": "577a9b962cbba4c6fba485788a4b7b1285530c28",
+    "bytes": 984,
+    "sha256": "8cfceb4e270e462a6f942fc71c4cd88fe24a16f145b06be8e5ec0922400bb725",
+    "url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/tools/wl_sm3_dx_v12_patch.json"
+  }
+}

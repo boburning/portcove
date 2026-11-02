@@ -7,6 +7,10 @@ const ORGANIZATION_KEY: &str = "organization_by_library";
 pub struct LibraryOrganization {
     #[serde(default)]
     pub revision: u64,
+    /// Advisory implementation choice for an explicit original-game identity.
+    /// This never selects a release, installation, source edition or action grant.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub preferred_port_by_game: BTreeMap<String, String>,
     #[serde(default)]
     pub collections: BTreeMap<String, CollectionPreference>,
     #[serde(default)]
@@ -68,6 +72,10 @@ pub struct SetupConfirmation {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum OrganizationChange {
+    SetPreferredImplementation {
+        game_id: String,
+        port_id: Option<String>,
+    },
     SetFollowedProject {
         port_id: String,
         followed: bool,
@@ -139,6 +147,15 @@ impl HostPreferenceStore {
             ));
         }
         match change {
+            OrganizationChange::SetPreferredImplementation { game_id, port_id } => {
+                validate_id(&game_id)?;
+                if let Some(port_id) = port_id {
+                    validate_id(&port_id)?;
+                    record.preferred_port_by_game.insert(game_id, port_id);
+                } else {
+                    record.preferred_port_by_game.remove(&game_id);
+                }
+            }
             OrganizationChange::SetFollowedProject {
                 port_id,
                 followed,
@@ -281,6 +298,10 @@ fn organization_record(value: Option<&serde_json::Value>) -> Result<LibraryOrgan
         for port in &collection.port_ids {
             validate_id(port)?;
         }
+    }
+    for (game, port) in &record.preferred_port_by_game {
+        validate_id(game)?;
+        validate_id(port)?;
     }
     for id in &record.followed_port_ids {
         validate_id(id)?;

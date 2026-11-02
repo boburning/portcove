@@ -13,6 +13,7 @@ import {
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { GroupedDiscover, IdentityChips } from "../features/browsing/GroupedDiscover";
+import { GroupedLibrary } from "../features/browsing/GroupedLibrary";
 import { groupCatalog, groupCountLabel } from "../features/browsing/original-game";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
@@ -280,7 +281,12 @@ function usePortBrowser({
   const resultCount =
     view === "catalog"
       ? `${groupCountLabel(groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts))} · ${visiblePorts.length} matching ports`
-      : browserResultCount(view, visiblePorts.length);
+      : view === "library" &&
+          groupCatalog(catalogUniverse ?? ports, visiblePorts).some(
+            (group) => group.ports.length > 1,
+          )
+        ? `${groupCountLabel(groupCatalog(catalogUniverse ?? ports, visiblePorts))} · ${visiblePorts.length} matching implementations`
+        : browserResultCount(view, visiblePorts.length);
   const reset = () => {
     const owner = browserOwner.current;
     const origin = document.activeElement;
@@ -455,16 +461,19 @@ function PortBrowserView({
       {renderFavoritesFailure()}
       {model.unresolvedReadiness && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
-          Restored readiness “{model.libraryReadiness}” is not supported. Choose All to reset
-          readiness; declared filters remain active.
+          We couldn’t restore the status filter “{model.libraryReadiness}”. Choose All to reset it.
+          Your other filters will stay on.
         </p>
       )}
       {model.favoritesUnavailable && (
-        <p role="status">Favorites are unavailable; retained constraints need confirmed choices.</p>
+        <p role="status">
+          We couldn’t load your favorites, so we can’t show this filtered view yet.
+        </p>
       )}
       {model.unresolvedFilter && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
-          These filters are not supported. Reset filters to choose a supported query.
+          These saved filters aren’t supported by this version of Portcove. Reset them to search
+          again.
         </p>
       )}
       {
@@ -573,7 +582,7 @@ export function SteamBatchLibraryAction({
     <>
       <details className="collection-tools text-xs text-pc-muted-foreground" data-focus-group>
         <summary data-focusable className="cursor-pointer py-2">
-          Collection commands
+          Library tools
         </summary>
         <p>
           Choose from {ports.length} installed entries in this library, including any hidden by
@@ -672,24 +681,32 @@ function BrowserResults({
       aria-label={view === "library" ? "Library entries" : "Find games entries"}
       data-focus-group
     >
-      {ports.map((port) => (
-        <PortCard
-          layout={layout}
-          favorites={favorites}
-          onFavoriteToggle={onFavoriteToggle}
-          organization={organization}
-          restoreAfter={restoreAfter}
-          key={port.id}
-          port={port}
-          status={statuses.get(port.id)}
-          readiness={portReadiness(statuses.get(port.id))}
-          onSelect={onSelect}
-          onTask={onTask}
-          onLaunch={onLaunch}
-          nativeSourceDrag={nativeSourceDrag}
-          view="library"
-        />
-      ))}
+      <GroupedLibrary
+        layout={layout}
+        all={allCatalogPorts}
+        matching={ports}
+        statuses={statuses}
+        organization={organization}
+        onSelect={onSelect}
+        renderPort={(port) => (
+          <PortCard
+            layout={layout}
+            favorites={favorites}
+            onFavoriteToggle={onFavoriteToggle}
+            organization={organization}
+            restoreAfter={restoreAfter}
+            key={port.id}
+            port={port}
+            status={statuses.get(port.id)}
+            readiness={portReadiness(statuses.get(port.id))}
+            onSelect={onSelect}
+            onTask={onTask}
+            onLaunch={onLaunch}
+            nativeSourceDrag={nativeSourceDrag}
+            view="library"
+          />
+        )}
+      />
     </section>
   );
 }

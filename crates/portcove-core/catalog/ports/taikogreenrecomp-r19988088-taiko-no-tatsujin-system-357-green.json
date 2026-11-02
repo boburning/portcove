@@ -4,7 +4,7 @@
     "id": "taikogreenrecomp-r19988088-taiko-no-tatsujin-system-357-green",
     "name": "Taiko no Tatsujin (System 357 Green) — TaikoGreenRecomp (R19988088)",
     "original_game_title": "Taiko no Tatsujin (System 357 Green)",
-    "summary": "Research project. Upstream native initialization/real data/gameplay and cabinet security/I/O claims; USB camera NG/card unimplemented. Native Windows/Linux source targets described, not a Portcove cabinet or physical controller test. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. The project claims native initialization, original-data access, gameplay and cabinet security/I/O support. USB camera NG and card support are unimplemented. Windows and Linux source targets are documented; Portcove has not tested a cabinet or physical controller. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/R19988088/TaikoGreenRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own System357 SCEEXE001/S111 Green; exact dump/security version unknown."
+          "instruction": "Use your own System357 SCEEXE001/S111 Green; exact dump/security version unknown."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual developer build from own SCEEXE001/S111Green dump: pinned ps3recomp/SDL_GPU tools generate local ELF native runtime. Development Windows invocation through Wine is distinct from a native Linux build; standalone taiko_release embeds own process image and must remain local pending distribution review."
+          "instruction": "Build locally from your own SCEEXE001/S111Green dump with the pinned ps3recomp and SDL_GPU tools to generate an ELF native runtime. The development Windows command through Wine is separate from a native Linux build. The standalone taiko_release embeds your process image; keep it local while distribution permission remains under review."
         }
       ],
       "warnings": [
-        "Upstream native initialization/real data/gameplay and cabinet security/I/O claims; USB camera NG/card unimplemented. Native Windows/Linux source targets described, not a Portcove cabinet or physical controller test.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project claims native initialization, original-data access, gameplay and cabinet security/I/O support. USB camera NG and card support are unimplemented. Windows and Linux source targets are documented; Portcove has not tested a cabinet or physical controller.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/R19988088/TaikoGreenRecomp"
     },

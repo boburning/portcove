@@ -41,14 +41,10 @@ Existing Alpha 1 libraries can be carried forward with the documented
 
 ### For players
 
-- Browse a catalog of native ports and manage them as one library. Explicitly
-  check game-file availability for a selected route, platform and channel, then
-  combine current observations with catalog filters. Details explain the same
-  observation; setup and launch still use their ordinary reviews.
+- Browse a catalog of native ports and manage them as one library. Find ports that can use your game files, then check what each one needs.
 - Keep managed versions side by side so updates can be saved for later, installed,
   checked, or rolled back.
-- Install suitable upstream portable packages with the same managed update and
-  recovery lifecycle. Upstream software can handle its own first-launch setup;
+- Install supported downloads, keep older versions, and switch back when needed. Upstream software can handle its own first-launch setup;
   installation review explains who updates the runtime and where player data lives.
 - Get a recommended upstream release, package and download folder for simpler
   setup routes, or register an existing installation while keeping its files and
@@ -62,8 +58,7 @@ Existing Alpha 1 libraries can be carried forward with the documented
   requires separate authorization. Portcove checks known exact identities and
   records a local baseline to detect later changes.
 - Check downloaded files against the expected checksum before installing them.
-  Current hosted releases use provider digests or checksum sidecars; accepted
-  direct manifests pin exact artifacts. Catalog-curated acquisition is planned
+  Catalog-curated acquisition is planned
   under [#315](https://github.com/boburning/portcove/issues/315).
 - Keep the saved data declared for a port, such as its known save, settings, and
   mod locations, separately from installed versions; back up and restore that
@@ -153,7 +148,7 @@ app, **Review install** presents the plan inline, and the launch action is
 below and a separate installation-review dialog.
 
 1. Open **Portcove Desktop** and choose the local library you intend to use.
-2. Open **Port catalog**, choose a port, and read its game-file requirements and
+2. Open **Discover**, choose a port, and read its game-file requirements and
    recorded platform evidence. A catalog entry alone does not establish support.
 3. Choose your own required game files, or enter their local path. Portcove
    checks them locally when you continue installation. An unsupported or changed
@@ -195,9 +190,8 @@ ports; inspect every result. `reconcile` follows each saved update policy and
 can download or activate a release, while `check` only checks. Saving a policy
 does not execute it.
 
-Cancellation is a request. Downloads and hashing stop cooperatively; a current
-conversion or build step may need to settle, and an admitted publication can
-finish. Wait for the operation's terminal result and read any recovery guidance.
+Some steps can’t stop immediately. Wait for the task to finish cancelling and
+check any recovery instructions.
 See [safe cancellation](docs/CLI.md#cancel-work-safely) and
 [interrupted library transfers](docs/CLI.md#recover-an-interrupted-transfer).
 Desktop and CLI share library locks and recovery rules; close other clients
@@ -364,6 +358,22 @@ or **Why this port?** to inspect source editions, platform requirements, evidenc
 and limitations. A recommended starting point appears only when scoped evidence
 supports it; sparse and single-project cases do not imply “best.” Changing the
 comparison never changes an installed project, original files, saves or channels.
+
+Search by the original game's title or a project's name. For games with several
+implementations, **Use** saves your deliberate project choice in the current
+library. Discover and Library keep the other implementations available; each
+retains its own original-file requirements, releases and installation. Viewing an
+alternative does not change your choice. A single implementation or an entry
+without a reviewed game identity opens directly.
+
+Library offers the chosen implementation's existing actions, or the sole installed
+implementation when the choice is unambiguous. If several installed alternatives
+need a choice, select one deliberately. Filters match an actual implementation;
+a saved choice outside those filters stays saved. A removed choice asks you to
+choose again. Missing optional comparison information does not prevent an
+installed game's supported offline Play path. Choosing a project never transfers
+saves or replaces another installation.
+
 Explicitly follow independent projects for locally deduplicated release notices
 when refreshed; use the **Followed** filter to find them. There is no mandatory
 account, telemetry or background notification service. CLI users can run

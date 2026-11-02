@@ -78,7 +78,7 @@ export function pickInstallFolder(currentPath: string) {
 
 export function pickGameFileFolder(currentPath: string) {
   return open({
-    title: "Choose game-file folder",
+    title: "Choose game files folder",
     multiple: false,
     directory: true,
     ...(currentPath ? { defaultPath: currentPath } : {}),
@@ -123,7 +123,7 @@ export function pickHostToolExecutable(displayName: string, currentPath: string)
 
 export function pickMetadataExportPath() {
   return save({
-    title: "Export library metadata",
+    title: "Export library information",
     defaultPath: "portcove-library.json",
     filters: [{ name: "Portcove library metadata", extensions: ["json"] }],
   });

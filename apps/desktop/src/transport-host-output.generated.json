@@ -4603,6 +4603,13 @@
         "type": "array",
         "uniqueItems": true
       },
+      "preferred_port_by_game": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "Advisory implementation choice for an explicit original-game identity.\nThis never selects a release, installation, source edition or action grant.",
+        "type": "object"
+      },
       "revision": {
         "default": 0,
         "format": "uint64",

@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-skyward-sword-hd-sky-recomp",
     "name": "The Legend of Zelda: Skyward Sword HD (Sky Recomp)",
-    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Platforms: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Original data: OwnSkywardSwordHDv1.0.0withoutupdates,preparedgamefiles;launcherneitherdecryptsNSP/XCInoracceptskeys. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An experimental Skyward Sword HD desktop recompilation with documented Windows, Linux and macOS packages. The root diagram describes a precompiled sky game library while other text says no game code is included; exact selected-package/source contents remain unresolved. Supply your own version 1.0.0 prepared game files without updates. The launcher neither decrypts NSP/XCI nor accepts keys. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Skyward Sword HD",
     "project_url": "https://github.com/Apolinario-coder/SkyRecomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "the-legend-of-zelda-skyward-sword-hd",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2901
+    "issue_number": 2901,
+    "manual_setup": {
+      "help_url": "https://github.com/Apolinario-coder/SkyRecomp/blob/ad649b4fd319b7f7c309857b2d14353d2e5dcd79/README.md",
+      "steps": [
+        {
+          "title": "Complete supported game-file preparation",
+          "instruction": "Use your own already uncompressed Skyward Sword HD Switch v1.0.0 files without updates: exefs/main, sdk, subsdk0 and subsdk1, with the supported romfs.bin or romfs/ layout. Complete upstream Game Files setup and its local code generation/build before adding the player. The launcher does not import encrypted NSP/XCI or accept console keys. Link’s Awakening, another game version and its generated libraries are separate contracts."
+        },
+        {
+          "title": "Keep the complete experimental Windows player",
+          "instruction": "Use the complete SkyRecomp-v2.1.0-Windows.zip player folder and its existing prepared data. Retain skyrecomp.exe, libraries, skygen/compiler tools, resources and notices rather than selecting a generator as Play. The documented host is Windows 10/11 x64 with AVX2/FMA, Vulkan 1.3+, suitable drivers, memory and storage. Preserve original, runtime, font and optional visual-pack/ReShade rights separately; no permission for third-party packs or redistribution of private generated game code is implied."
+        },
+        {
+          "title": "Add the normal native player",
+          "instruction": "Select skyrecomp.exe, use its complete existing Sky Recomp folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its ordinary start-screen Play. The selected Windows runtime can restart itself while reserving guest address space. Portcove follows only the selected process and can show the activity finished while a successor continues; that does not prove the game has closed. Use upstream/game controls to quit continuing processes."
+        },
+        {
+          "title": "Preserve the actual data root and generated library",
+          "instruction": "Keep the full populated data root: normally the Windows executable directory, an existing working-directory extracted/ layout, or an existing LARECOMP_DATA_ROOT override. Retain save/, skyrecomp.ini, extracted originals, mods, caches, logs, backups and all other user data. Preserve existing SKYRECOMP_SETTINGS and LARECOMP_GAME_LIB overrides. The generated skygame.dll and its .id must match the runtime’s game-library ID/ABI; do not substitute a LAS Recomp library or bypass refusal. No original, save, mod or settings migration is performed by adding the program."
+        },
+        {
+          "title": "Keep experimental acceptance and maintenance separate",
+          "instruction": "This is an experimental source/runtime route, not a polished or full-game-stability qualification. Crashes, freezes, missing services and rendering differences can prevent progress; actual gameplay, controllers and real-save recovery remain unobserved. Close all actual game/helpers before upstream replacement, recompilation or recovery, even after Portcove’s activity ends. Upstream owns those operations. Removing the library reference preserves all external files; no managed install/update/backup/rollback or full-session tracking is offered."
+        }
+      ],
+      "warnings": [
+        "Experimental v1.0.0-only existing player: preserve the active data root, matching skygame.dll/.id, saves and settings. A startup successor can continue after Portcove’s activity ends. Close actual games/helpers before maintenance; full-game stability is not qualified."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

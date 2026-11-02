@@ -18,7 +18,7 @@
         },
         {
           "title": "Supply your own 2007 Xbox 360 original",
-          "instruction": "Place your own Pac-Man Championship Edition 2007 package in game/ beside pacman.exe, or supply default.xex with media/ and data/. The selected source recognizes Xbox 360 STFS LIVE/CON/PIRS packages and XEX execution-info title ID 58410877. This title-ID check is not a full original-content hash or an entitlement check; an exact accepted original digest is Unknown in this review. The supported SDK mounts a selected package read-only. Preserve your original dump; other Pac-Man editions are not equivalent."
+          "instruction": "Place your own Pac-Man Championship Edition 2007 package in game/ beside pacman.exe, or supply default.xex with media/ and data/. The selected source recognizes Xbox 360 STFS LIVE/CON/PIRS packages and XEX execution-info title ID 58410877. This title-ID check is not a full original-content hash or an entitlement check; the exact accepted original digest is not confirmed here. Check upstream’s requirements before setup. The supported SDK mounts a selected package read-only. Preserve your original dump; other Pac-Man editions are not equivalent."
         },
         {
           "title": "Add the prepared native player",
@@ -30,7 +30,7 @@
         }
       ],
       "warnings": [
-        "This is pinned source and provider-metadata evidence. Archive layout/integrity, installed-host prerequisites, native launch, graphics, gameplay and real-save restoration were not executed or certified."
+        "This guide follows the selected upstream source and release descriptions. Portcove has not checked the archive’s contents or checksum, installed prerequisites, or tested launch, graphics, gameplay or restoring real saves."
       ],
       "help_url": "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
     }

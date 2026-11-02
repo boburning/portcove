@@ -369,6 +369,13 @@
       ]
     },
     {
+      "file": "scripts/observer-checkpoint-artifact.test.mts",
+      "memberships": [
+        ["catalog-full", 1203],
+        ["repository-tools", 404]
+      ]
+    },
+    {
       "file": "scripts/provider-release-observation.test.mts",
       "memberships": [
         ["catalog-full", 1202],
@@ -684,6 +691,22 @@
         ["windows-storage-4", 400],
         ["frontend-full-4", 400],
         ["development-tools", 2200]
+      ]
+    },
+    {
+      "file": "scripts/desktop-runtime-exit-observation.test.mts",
+      "memberships": [
+        ["windows-storage-4", 298],
+        ["frontend-full-4", 298],
+        ["development-tools", 2098]
+      ]
+    },
+    {
+      "file": "scripts/desktop-game-first-installed-inputs.test.mts",
+      "memberships": [
+        ["windows-storage-4", 299],
+        ["frontend-full-4", 299],
+        ["development-tools", 2099]
       ]
     },
     {

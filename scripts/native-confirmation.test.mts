@@ -159,7 +159,7 @@ class PortcoveNativeWindows {
  static [bool]$fail=$false
  static [int]$actions=0
  static [IntPtr] GetFolderActionButton([IntPtr]$handle,[int]$process,[string]$action,[string]$title){
-  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or $title -cnotin @('Select Folder','Choose game-file folder')){throw 'wrong native action context'}
+  if($handle.ToInt32() -ne 7 -or $process -ne 42 -or $action -cne 'Cancel' -or $title -cnotin @('Select Folder','Choose game files folder')){throw 'wrong native action context'}
   [PortcoveNativeWindows]::actions++;return [IntPtr]20
  }
  static [object[]] InspectEdits([IntPtr]$handle,[int]$process,[string]$title){
@@ -201,7 +201,7 @@ $pane=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Au
 $controls=@($pane);$fields=@();$actionButton=@()
 . ([scriptblock]::Create($guard))
 if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 1){throw 'exact Pane fallback unavailable'}
-$ExpectedPickerTitle='Choose game-file folder';$observedWindow.Current.Name=$ExpectedPickerTitle
+$ExpectedPickerTitle='Choose game files folder';$observedWindow.Current.Name=$ExpectedPickerTitle
 . ([scriptblock]::Create($guard))
 if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 2){throw 'game-file Pane fallback unavailable'}
 foreach($case in @('duplicate-pane','foreign-pane','mixed-action','wrong-title')){
@@ -336,6 +336,36 @@ foreach ($call in $calls) {
   });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /identity-preserved/);
+});
+
+void test("native game-file picker titles match the actual application dialog", async () => {
+  const picker = await readFile("apps/desktop/src/file-picker.ts", "utf8");
+  const title = picker.match(/export function pickGameFileFolder\([\s\S]*?title: "([^"]+)"/u)?.[1];
+  assert.ok(title, "Application folder picker title must be captured");
+  for (const helper of [
+    "desktop-native-confirmation.mts",
+    "native-confirmation.ps1",
+    "native-window-discovery.ps1",
+    "native-linux-folder-picker.py",
+  ]) {
+    const source = await readFile(path.join("apps/desktop/scripts", helper), "utf8");
+    assert.ok(source.includes(title), `${helper} must recognize the actual application dialog`);
+  }
+});
+
+void test("game-first adoption confirms the actual native copy title and button", async () => {
+  const adoption = await readFile("apps/desktop/src-tauri/src/adoption.rs", "utf8");
+  const confirmation = adoption.match(
+    /confirm_destructive\(\s*&app,\s*"([^"]+)",\s*message,\s*"([^"]+)"/u,
+  );
+  assert.ok(confirmation, "Actual adoption confirmation must be captured");
+  const scenario = await readFile(
+    "apps/desktop/scripts/desktop-game-first-installed-test.mts",
+    "utf8",
+  );
+  const caller = scenario.match(/await confirmNative\(\s*"([^"]+)",\s*"([^"]+)",\s*portId,/u);
+  assert.ok(caller, "Game-first copy must retain exact port identity confirmation");
+  assert.deepEqual(caller.slice(1), confirmation.slice(1));
 });
 
 async function isolatedConsumer(t: TestContext, fixture: string) {
@@ -897,7 +927,7 @@ $ast=[Management.Automation.Language.Parser]::ParseFile('PRODUCTION',[ref]$null,
 $guard=$ast.Find({param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($PreparedRuntimeDirectory)') -and $node.Extent.Text.Contains('$expectedPreparedDirectory =')},$true).Extent.Text
 if(-not $guard){throw 'Actual picker preflight missing'}
 $ObservationPath=[IO.Path]::Combine('ROOT','fresh-observation.json')
-foreach($title in @('Select Folder','Choose game-file folder')){
+foreach($title in @('Select Folder','Choose game files folder')){
  $ExpectedPickerTitle=$title
  foreach($name in @('player-owned-runtime','real-prepared-runtime-dkc3-recomp','real-prepared-runtime-wave-race-64-racewave46','real-prepared-runtime-wave-race-64-recomp','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
   $PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT',$name);$rejected=$false
@@ -911,7 +941,7 @@ foreach($title in @('Select Folder','Choose game-file folder')){
 }
 Remove-Item -LiteralPath ([IO.Path]::Combine('ROOT','connected-folder-extra'))
 New-Item -ItemType Junction -Path ([IO.Path]::Combine('ROOT','connected-folder-extra')) -Target ([IO.Path]::Combine('ROOT','foreign')) | Out-Null
-$ExpectedPickerTitle='Choose game-file folder';$PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT','connected-folder-extra');$rejected=$false
+$ExpectedPickerTitle='Choose game files folder';$PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT','connected-folder-extra');$rejected=$false
 try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
 if(-not $rejected){throw 'Reparse fixture accepted'}
 'picker-preflight-contract-passed'

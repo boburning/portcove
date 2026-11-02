@@ -544,7 +544,7 @@ function PendingActions({
             setRemoving(true);
           }}
         >
-          Remove setup entry…
+          Remove setup reminder…
         </Button>
       </ActionRow>
       {removing && (
@@ -615,7 +615,7 @@ function DownloadOptions({
     (model.optionsOpen || !selected || !model.destination) && (
       <div id={model.optionsId} className="grid min-w-0 gap-3 pt-2">
         <ChoiceSelect
-          label="Release channel"
+          label="Update channel"
           value={model.channel}
           disabled={model.controlsBusy}
           options={[
@@ -686,7 +686,9 @@ function DownloadOptions({
             aria-expanded={model.showOther}
             onClick={() => model.setShowOther((value) => !value)}
           >
-            {model.showOther ? "Show recommended packages" : "Other and uncertain downloads"}
+            {model.showOther
+              ? "Show recommended packages"
+              : "Other downloads — compatibility not confirmed"}
           </Button>
         )}
         {selected && (

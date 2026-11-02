@@ -153,7 +153,7 @@ export function SourceIdentityPanel({
           data-focusable
           className="cursor-pointer py-3 font-medium text-pc-interactive-foreground"
         >
-          Full identity and evidence
+          File details and test results
         </summary>
         <div className="grid gap-4 [&_h4]:mt-3 [&_h4]:mb-2">
           <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
@@ -253,7 +253,7 @@ function ApplicationResult({
       </div>
       <MetadataGrid className="@max-[30rem]/source:grid-cols-[1fr]">
         <div className="flex min-w-0 items-center justify-between gap-3 rounded-pc-md bg-[var(--color-bg-inset)] p-2 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
-          <dt>Release applicability</dt>
+          <dt>Game version checked</dt>
           <dd>{applicability}</dd>
         </div>
       </MetadataGrid>
@@ -741,11 +741,13 @@ function applicabilityLabel(
 ) {
   if (contract === "unreviewed_for_release") return "Not reviewed for this release";
   const labels: Record<string, string> = {
-    artifact_bound: "Bound to this exact release artifact",
-    upstream_release_bound: "Bound to the reviewed upstream release",
-    not_rebound: "No release-specific binding is recorded",
+    artifact_bound: "Applies to this exact download",
+    upstream_release_bound: "Applies to the reviewed game version",
+    not_rebound: "No game version was recorded for these checks",
   };
-  return Object.hasOwn(labels, state) ? labels[state] : "Release applicability unavailable";
+  return Object.hasOwn(labels, state)
+    ? labels[state]
+    : "The game version for these checks is unknown";
 }
 
 function variantLabel(

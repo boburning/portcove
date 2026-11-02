@@ -3,7 +3,7 @@
   "listing": {
     "id": "gothic-ii-night-of-the-raven-opengothic",
     "name": "Gothic II: Night of the Raven (OpenGothic)",
-    "summary": "Upstream route: Main quest and addon completable according to upstream; desktop prerelease packages. Limits: Upstream says Gothic II plus Night of the Raven completable; Gothic I is not officially supported. Upstream platforms: Windows DX12/Vulkan, Linux Vulkan and macOS Metal package/build routes documented. Selected package CPU architectures unknown; Windows-only32-bit Union plugins are unsupported. Original data: Gothic I explicitly not officially supported; original Gothic II Night of the Raven files needed. Portcove setup/gameplay not verified.",
+    "summary": "Play Gothic II: Night of the Raven with your own original files and OpenGothic. Upstream reports the main quest and expansion are completable. Gothic I and 32-bit Union plugins are unsupported. Desktop prerelease routes use Windows DirectX 12/Vulkan, Linux Vulkan or macOS Metal; check the selected package’s CPU requirements. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Gothic II: Night of the Raven",
     "project_url": "https://github.com/Try/OpenGothic",
     "platforms": [],
@@ -31,16 +31,16 @@
         },
         {
           "title": "Check the working copy before registration",
-          "instruction": "Finish upstream setup and a normal start/quit using the intended copy before attaching it. Retain its exact native executable, working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attaching a copy does not certify the game, its original assets or its save compatibility."
+          "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its game files or save compatibility."
         },
         {
           "title": "Keep updates and removal under the existing owner",
-          "instruction": "Close all actual game instances before changing files. Keep the old creating runtime and every actual data/profile root recoverable, make deliberate compatible updates upstream, then review/relink a changed executable before the next Play. Upstream/player owns preparation, updates, writes, migration and recovery. Portcove supervises its selected process; this is not an exclusive instance lock or a sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed downloads, setup, updates, backup, rollback, migration or external-file deletion."
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every data and profile folder recoverable. Update it with the project’s tools, then review and select the changed executable in Portcove before choosing Play. You manage setup, updates, file changes, data migration and recovery. Portcove monitors the process you selected; it does not prevent other copies from running or restrict the game’s file access. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
         }
       ],
       "warnings": [
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-        "Preserve every actual external runtime and player-data location before upstream changes. Shared profiles are not isolated by choosing a different executable."
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
       ]
     }
   },

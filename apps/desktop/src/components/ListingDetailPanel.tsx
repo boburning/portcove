@@ -96,7 +96,7 @@ function renderListingRequirements(entry: CatalogEntry) {
         <dd>Upstream setup / external registration</dd>
       </div>
       <div>
-        <dt>Release channel</dt>
+        <dt>Update channel</dt>
         <dd>Managed by the upstream project</dd>
       </div>
     </dl>
@@ -117,10 +117,12 @@ export function ListingDetailPanel({
   organization,
   groupPorts,
   favoriteControl,
+  implementationControl,
 }: {
   entry: CatalogEntry;
   groupPorts?: readonly CatalogEntry[] | undefined;
   favoriteControl?: ReactNode;
+  implementationControl?: ReactNode;
   libraryRoot?: string | undefined;
   status?: PortStatus | undefined;
   generation: number;
@@ -162,18 +164,21 @@ export function ListingDetailPanel({
           backLabel={backLabel}
           port={entry}
           favoriteControl={
-            registered ? (
-              favoriteControl
-            ) : (
-              <>
-                <SaveGameButton
-                  port={entry}
-                  groupPorts={groupPorts ?? [entry]}
-                  organization={organization}
-                />
-                {organization && <ChoiceFailure organization={organization} />}
-              </>
-            )
+            <>
+              {implementationControl}
+              {registered ? (
+                favoriteControl
+              ) : (
+                <>
+                  <SaveGameButton
+                    port={entry}
+                    groupPorts={groupPorts ?? [entry]}
+                    organization={organization}
+                  />
+                  {organization && <ChoiceFailure organization={organization} />}
+                </>
+              )}
+            </>
           }
           projectUrl={listing?.project_url}
           openSupport={openSupport}

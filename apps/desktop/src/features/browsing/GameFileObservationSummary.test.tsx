@@ -53,7 +53,7 @@ it.each(["checking", "failed", "cancelled"] as const)(
         ? "Checking game files for this setup"
         : outcome === "failed"
           ? "latest check failed"
-          : "latest check was canceled",
+          : "latest check was cancelled",
     );
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Previous check");

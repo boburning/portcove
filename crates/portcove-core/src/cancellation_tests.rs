@@ -215,6 +215,171 @@ fn interrupted_requested_preparation_is_discarded_without_touching_user_data() {
         recovered.library().activities(1).unwrap()[0].status,
         ActivityStatus::Cancelled
     );
+    assert!(
+        recovered.library().activities(1).unwrap()[0]
+            .failure
+            .is_none()
+    );
+}
+
+#[test]
+fn interrupted_worker_retains_inspection_guidance_and_preserves_user_data() {
+    let (_temporary, service) = service();
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::Update,
+            ActivityTargetKind::Port,
+            Some("sample"),
+        )
+        .unwrap();
+    let staging = service.library().staging_dir().join(&activity.id);
+    fs::create_dir_all(&staging).unwrap();
+    fs::write(staging.join("partial"), b"private").unwrap();
+    let mut intent =
+        LifecycleOperation::new(&activity.id, LifecycleOperationKind::Install, "sample");
+    intent.paths.staging = Some(staging.clone());
+    OperationStore::new(service.library().clone())
+        .put(&mut intent)
+        .unwrap();
+    let save = service.library().user_dir("sample").join("save.dat");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"keep current data").unwrap();
+    drop(operation);
+
+    let recovered = PortcoveService::new(service.library().clone()).unwrap();
+    let record = recovered.library().activities(1).unwrap().remove(0);
+    assert_eq!(record.id, activity.id);
+    assert_eq!(record.status, ActivityStatus::Failed);
+    assert!(record.finished_at.is_some());
+    assert!(record.cancellation.is_none());
+    let failure = record.failure.unwrap();
+    assert_eq!(
+        failure.presentation.presentation_key,
+        "operation_interrupted"
+    );
+    assert_eq!(
+        failure.presentation.mutation_state,
+        crate::MutationState::Unknown
+    );
+    assert!(
+        failure
+            .presentation
+            .recovery_actions
+            .contains(&crate::RecoveryAction::ReviewCurrentState)
+    );
+    assert_eq!(fs::read(save).unwrap(), b"keep current data");
+    assert!(!staging.exists());
+    assert!(
+        OperationStore::new(recovered.library().clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn terminal_activity_replay_preserves_the_first_report_including_its_absence() {
+    let (_temporary, service) = service();
+    for first_report in [None, Some(PortcoveError::state("first report").report())] {
+        let activity = service
+            .library()
+            .begin_activity(
+                ActivityOperation::Update,
+                ActivityTargetKind::Port,
+                Some("sample"),
+            )
+            .unwrap();
+        service
+            .library()
+            .finish_activity_once_with_report(
+                &activity.id,
+                ActivityStatus::Failed,
+                "first message",
+                first_report.as_ref(),
+            )
+            .unwrap();
+        let replay = PortcoveError::state("different report").report();
+        service
+            .library()
+            .finish_activity_once_with_report(
+                &activity.id,
+                ActivityStatus::Failed,
+                "different message",
+                Some(&replay),
+            )
+            .unwrap();
+        assert_eq!(
+            service
+                .library()
+                .finish_activity_once(&activity.id, ActivityStatus::Cancelled, "conflict")
+                .unwrap_err()
+                .code,
+            ErrorCode::Conflict
+        );
+        let record = service
+            .library()
+            .activities(10)
+            .unwrap()
+            .into_iter()
+            .find(|record| record.id == activity.id)
+            .unwrap();
+        assert_eq!(record.status, ActivityStatus::Failed);
+        assert_eq!(record.message.as_deref(), Some("first message"));
+        assert_eq!(record.failure, first_report);
+    }
+}
+
+#[test]
+fn competing_terminal_recovery_reports_keep_one_complete_outcome() {
+    let (_temporary, service) = service();
+    for _ in 0..8 {
+        let activity = service
+            .library()
+            .begin_activity(
+                ActivityOperation::Update,
+                ActivityTargetKind::Port,
+                Some("sample"),
+            )
+            .unwrap();
+        let barrier = Arc::new(Barrier::new(2));
+        let workers: Vec<_> = ["first", "second"]
+            .into_iter()
+            .map(|message| {
+                let library = service.library().clone();
+                let id = activity.id.clone();
+                let barrier = barrier.clone();
+                thread::spawn(move || {
+                    let report = PortcoveError::state(message).report();
+                    barrier.wait();
+                    library
+                        .finish_activity_once_with_report(
+                            &id,
+                            ActivityStatus::Failed,
+                            message,
+                            Some(&report),
+                        )
+                        .unwrap();
+                })
+            })
+            .collect();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+        let record = service
+            .library()
+            .activities(100)
+            .unwrap()
+            .into_iter()
+            .find(|record| record.id == activity.id)
+            .unwrap();
+        assert_eq!(record.status, ActivityStatus::Failed);
+        let report = record.failure.unwrap();
+        assert!(matches!(
+            record.message.as_deref(),
+            Some("first" | "second")
+        ));
+        assert_eq!(record.message.as_deref(), Some(report.message.as_str()));
+    }
 }
 
 struct CancelAt {

@@ -264,7 +264,9 @@ describe("desktop components", () => {
     expect(html).toContain(
       "Metadata records installed versions, saved file locations and settings",
     );
-    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Export metadata<\/button>/u);
+    expect(html).toMatch(
+      /<button[^>]*data-variant="outline"[^>]*>Export library information<\/button>/u,
+    );
     expect(html).not.toContain("recovery-safe");
   });
 
@@ -377,7 +379,7 @@ describe("desktop components", () => {
       <SettingsView createSupportBundle={vi.fn()} refreshDiagnostics={vi.fn()} />,
     );
 
-    expect(html).toContain("Create support bundle");
+    expect(html).toContain("Create a support report");
     expect(html).toContain("Game-file contents and saved credentials are excluded");
     expect(html).toContain("paths, file names, and other metadata may remain");
     expect(html).toContain("Review the bundle before sharing it");
@@ -386,7 +388,7 @@ describe("desktop components", () => {
       /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the bundle before sharing it\.<\/p>\s*<details>/u,
     );
     expect(html).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*>Create support bundle<\/button>/u,
+      /<button[^>]*data-variant="outline"[^>]*>Create a support report<\/button>/u,
     );
     expect(html).toContain("Checking disc-tool availability");
     expect(html).toContain(
@@ -633,7 +635,7 @@ describe("desktop components", () => {
       profile_id: source.profile_id,
       health: "current",
       state_code: "recognized_exact",
-      summary: "The source matches one exact catalog identity.",
+      summary: "These files match a recognized edition.",
       next_action: "Review the dependent port requirements before setup.",
       registered: source,
       applications: [],
@@ -681,7 +683,7 @@ describe("desktop components", () => {
     expect(verified).toContain("Exact match");
     expect(verified).toContain("Sample cartridge");
     expect(verified).not.toContain("Saved game-file requirement unavailable");
-    expect(verified).toContain("Full identity and evidence");
+    expect(verified).toContain("File details and test results");
     expect(verified).toContain("D:/ROMs/sample.z64");
     expect(verified).toContain("Update file location");
     expect(verified).toMatch(
@@ -823,7 +825,7 @@ describe("desktop components", () => {
       "No ports in your library yet. File requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("No missing game-file requirements are recorded");
+    expect(complete).toContain("No missing original game files are currently listed");
     expect(complete).not.toContain("Required file locations are saved");
     expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("No game files or BIOS files have been added yet");

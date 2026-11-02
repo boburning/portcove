@@ -34,7 +34,7 @@
         },
         {
           "title": "Review Play and preserve external ownership",
-          "instruction": "Review and consent to the exact selected native executable, established working directory and literal arguments, then request Play separately. Core owns only this selected intent and registration. Upstream and you retain preparation, runtime replacement/recovery, originals, settings and external files. Removing registration preserves external files; no external update, backup, rollback, migration, conversion or deletion is offered."
+          "instruction": "Review and consent to the exact selected native executable, established working directory and literal arguments, then request Play separately. Portcove saves only the selected launch details and registration. Upstream and you retain preparation, runtime replacement/recovery, originals, settings and external files. Removing registration preserves external files; no external update, backup, rollback, migration, conversion or deletion is offered."
         },
         {
           "title": "Preserve the actual installation and every profile",
@@ -42,7 +42,7 @@
         },
         {
           "title": "Retain source, dependency and original-data limits",
-          "instruction": "The project BSD3 grant covers its applicable code separately from original game/TU/DLC, bundled upscaled texture material and dependency notices. The documented SDK generation/version fields are not an immutable published-binary SDK certificate. Preserve all applicable terms and use only actual components you are permitted to use; no broader package grant follows from a framework label. Upstream renderer, performance, controller and platform claims are not Portcove observations."
+          "instruction": "Keep the project’s BSD3 licence and all dependency notices. They apply separately from rights to the original game, title update, DLC and bundled upscaled textures. SDK version labels do not confirm which SDK built the published executable. Use only components you are independently permitted to use; a framework licence does not grant rights to every package component. Portcove has not confirmed upstream renderer, performance, controller or platform claims."
         },
         {
           "title": "Respect upstream startup maintenance",
@@ -50,8 +50,8 @@
         }
       ],
       "warnings": [
-        "Windows source documents AVX, Direct3D12/SM6 or Vulkan requirements and a complete owned-input installation. No package payload, PE/ABI, authentic game/source tuple or SDK-to-binary correspondence was inspected here.",
-        "No actual upstream program/helper/game, save, installed Desktop, controller, Supported or protected acceptance is established by this guide. Existing Planned placement remains; no direct Required-beta commitment is introduced."
+        "Upstream specifies AVX, Direct3D 12/SM6 or Vulkan, and a complete installation prepared from your own game files. Portcove has not inspected the package or checked the executable, original files or SDK correspondence.",
+        "Portcove has not run the setup tools or game, or tested saves, controllers or installed Desktop behavior."
       ]
     }
   }

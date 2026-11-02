@@ -70,7 +70,7 @@ export function ReleaseChannelControl({
     }
   };
   return (
-    <section aria-label="Game release channel">
+    <section aria-label="Game update channel">
       {!recognized ? (
         <div role="status">
           <p>
@@ -80,8 +80,8 @@ export function ReleaseChannelControl({
             {!savedChannel.known
               ? "This saved channel is not recognized in this version."
               : !offeredKnown
-                ? "Release channel information is unavailable in this version."
-                : "This saved channel is not offered by the current release channel information."}{" "}
+                ? "Update channel information is unavailable in this version."
+                : "This update channel is no longer listed."}{" "}
             Your saved choice has not changed.
           </p>
         </div>
@@ -92,7 +92,7 @@ export function ReleaseChannelControl({
       ) : (
         <div className="grid gap-2">
           <span id={labelId} className="text-sm text-pc-muted-foreground">
-            Release channel
+            Update channel
           </span>
           <Select
             open={open}
@@ -132,11 +132,17 @@ export function ReleaseChannelControl({
       {recognized && (
         <p>
           {channels.length === 1
-            ? "This game offers one release channel."
+            ? "This game offers one update channel."
             : "Changing channel selects releases for future checks and updates. Your installed version stays unchanged."}
         </p>
       )}
-      {pending && <p role="status">Changing release channel…</p>}
+      {recognized && (
+        <p className="text-sm text-pc-muted-foreground">
+          Stable: regular releases. Preview: early versions. Rolling: frequent development builds.
+          These names don’t guarantee bug-free gameplay.
+        </p>
+      )}
+      {pending && <p role="status">Changing update channel…</p>}
       {message && <p role="status">{message}</p>}
     </section>
   );

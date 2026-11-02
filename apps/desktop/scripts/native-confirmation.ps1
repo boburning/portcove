@@ -12,7 +12,7 @@ param(
     [Parameter(Mandatory, ParameterSetName='Observation')][ValidatePattern('^[0-9]+$')][string]$ExpectedDriverStartedFiletime,
     [Parameter(Mandatory, ParameterSetName='Observation')][string]$ObservationPath,
     [Parameter(ParameterSetName='Observation')][string]$PreparedRuntimeDirectory,
-    [Parameter(ParameterSetName='Observation')][ValidateSet('Select Folder', 'Choose game-file folder')][string]$ExpectedPickerTitle = 'Select Folder'
+    [Parameter(ParameterSetName='Observation')][ValidateSet('Select Folder', 'Choose game files folder')][string]$ExpectedPickerTitle = 'Select Folder'
 )
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
@@ -123,7 +123,7 @@ if ($ObservePicker) {
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
     if ($PreparedRuntimeDirectory) {
-        $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game-file folder') {
+        $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game files folder') {
             @('selected-setup-inputs', 'connected-folder-extra', 'connected-folder-replacement')
         } else { @('player-owned-runtime', 'real-prepared-runtime-dkc3-recomp', 'real-prepared-runtime-wave-race-64-racewave46') }
         $outputDirectory = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($ObservationPath))

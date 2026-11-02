@@ -34,11 +34,11 @@
           "instruction": "The normal startup check can offer Play or hand off to the upstream settings program for Update/Rebuild and end the game process. Finish pending preparation and replacements before registration. If you choose maintenance, let the selected game session end, complete upstream work, then revalidate the resulting native player before another Play. Portcove does not follow that successor, suppress the feature or own upstream repair."
         },
         {
-          "title": "Keep one runtime replacement and recovery owner",
+          "title": "Update and repair through the project’s tools",
           "instruction": "The upstream settings program owns journaled file updates and rebuilds; its setup publishes the generated game and DLLs through staged .new replacements. Keep recovery copies outside upstream update/build scratch locations. Portcove only registers the explicitly selected completed native copy; it does not acquire originals, build, update, roll back or delete external saves/runtime files. Requesting Play remains a separate consent action."
         },
         {
-          "title": "Preserve terms and qualification limits",
+          "title": "Keep required notices and check this guide’s limits",
           "instruction": "Retain GPL PS2Recomp/title notices, paraLLEl-GS LGPL and all other individual component notices. The title's name/logo and settings-app artwork are explicitly outside its project licence; fresh acquisition of a whole package needs applicable permission for those components. An independently permitted prepared copy does not establish broader distribution rights, source/output byte correspondence or save compatibility."
         }
       ],

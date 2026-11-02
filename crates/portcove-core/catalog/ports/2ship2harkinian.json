@@ -7,6 +7,34 @@
     "summary": "Native Majora's Mask port from HarbourMasters.",
     "project_url": "https://github.com/2ship2harkinian/2ship2harkinian",
     "original_game_title": "The Legend of Zelda: Majora's Mask",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-majoras-mask",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/README.md",
+        "https://github.com/HarbourMasters/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/docs/supportedHashes.json",
+        "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/54950a10408599d1d63802ee21cc2c4b05bfd378/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "majoras-mask-n64-usa-1-0",
+          "title": "The Legend of Zelda: Majora's Mask (Nintendo 64, USA 1.0)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/docs/supportedHashes.json",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/blob/54950a10408599d1d63802ee21cc2c4b05bfd378/README.md"
+          ]
+        },
+        {
+          "id": "majoras-mask-gamecube-usa",
+          "title": "The Legend of Zelda: Majora's Mask (GameCube USA re-release ROM)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/docs/supportedHashes.json"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 303033,
       "cover_id": 385536,

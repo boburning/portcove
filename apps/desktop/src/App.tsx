@@ -75,6 +75,7 @@ import {
 } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
+import { GameAlternatives } from "./features/browsing/GameAlternatives";
 import { PortBrowser, SteamBatchLibraryAction } from "./components/PortBrowser";
 import { ListingDetailPanel } from "./components/ListingDetailPanel";
 import { SelfServiceSetup } from "./components/SelfServiceSetup";
@@ -325,11 +326,11 @@ export function BootstrapRecovery({
         </p>
       )}
       <section
-        aria-label="Support bundle"
+        aria-label="Support report"
         className="grid min-w-0 gap-3 border-t border-pc-border pt-4"
         data-focus-group
       >
-        <h2>Create support bundle</h2>
+        <h2>Create support report</h2>
         <SupportBundleExport
           disabled={pending}
           createSupportBundle={desktopApi.createSupportBundle}
@@ -497,6 +498,7 @@ function useWorkspace(props: WorkspaceProps) {
     close: closePortDetails,
     invalidate: invalidatePortDetails,
     open: openPortDetails,
+    replace: switchPortDetails,
     opening: detailOpening,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   const [pendingToolId, setPendingToolId] = useState<string>();
@@ -686,6 +688,17 @@ function useWorkspace(props: WorkspaceProps) {
         </div>
       </Notice>
     );
+  const implementationControl = model.entry && (
+    <GameAlternatives
+      port={model.entry}
+      ports={model.entries.filter(
+        (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
+      )}
+      statuses={model.statusMap}
+      organization={organization}
+      onSelect={(portId) => switchPortDetails(portId)}
+    />
+  );
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
@@ -702,6 +715,7 @@ function useWorkspace(props: WorkspaceProps) {
         groupPorts={model.entries.filter(
           (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
         )}
+        implementationControl={implementationControl}
         favoriteControl={
           model.status?.external_runtime
             ? renderSelectedPortFavoriteControl({
@@ -722,6 +736,7 @@ function useWorkspace(props: WorkspaceProps) {
     ) : model.port ? (
       <>
         <SelectedPortPanel
+          implementationControl={implementationControl}
           backLabel={detailBackLabel}
           favorites={favorites}
           extraFiles={
@@ -1502,7 +1517,7 @@ function CurrentSettingsView({
       diagnosticFailure={data.diagnosticFailure?.error}
       refreshDiagnostics={data.refreshDiagnostics}
       createSupportBundle={() =>
-        operations.perform("support bundle", desktopApi.createSupportBundle, {
+        operations.perform("support report", desktopApi.createSupportBundle, {
           refresh: "none",
           invalidateDiagnostics: false,
         })
@@ -1620,6 +1635,7 @@ function renderSelectedPortFavoriteControl({
 }
 
 function SelectedPortPanel({
+  implementationControl,
   favorites,
   organization,
   openSupport,
@@ -1641,6 +1657,7 @@ function SelectedPortPanel({
   openLibraryStorage,
   close,
 }: {
+  implementationControl?: ReactNode;
   favorites: ReturnType<typeof useFavorites>;
   organization: ReturnType<typeof useOrganization>;
   openSupport: () => void;
@@ -1699,11 +1716,16 @@ function SelectedPortPanel({
   return (
     <DetailPanel
       backLabel={backLabel}
-      favoriteControl={renderSelectedPortFavoriteControl({
-        favorites,
-        favoritePortId,
-        displayPort: model.entry ?? model.port,
-      })}
+      favoriteControl={
+        <>
+          {implementationControl}
+          {renderSelectedPortFavoriteControl({
+            favorites,
+            favoritePortId,
+            displayPort: model.entry ?? model.port,
+          })}
+        </>
+      }
       organization={organization}
       openSupport={openSupport}
       extraFiles={extraFiles}

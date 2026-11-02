@@ -3,7 +3,7 @@
   "listing": {
     "id": "presidentraptor-ace-combat-04-pc-port",
     "name": "Ace Combat 04: Shattered Skies (Ace Combat 04: Shattered Skies - PC Port)",
-    "summary": "Upstream route: Upstream installer/local compile for Ace Combat 04: Shattered Skies - PC Port; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Explicit WIP beta, not complete remaster or validated campaign. Published installer does not establish game completion. WIP beta explicitly not complete remaster or fully validated campaign; Windows installer. Keep original main CPU recompile and hardware/runtime responsibilities distinct. Upstream platforms: Windows PS2 static-recompile installer and source-build route. Exact CPU architecture follows selected setup documentation. Original data: PS2 Ace Combat04 USA SLUS-20152 own executable/disc data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A work-in-progress Ace Combat 04 beta, rather than a complete remaster or confirmed campaign. The Windows installer and separate source route translate the PS2 main CPU and build locally from your own USA SLUS-20152 executable and disc data; hardware/runtime services remain separate responsibilities. Exact host CPU architecture follows the selected setup guide, while accepted revision/hashes and BIOS/firmware needs are unconfirmed here. You and the project manage installation and replacement. Portcove has not qualified the installer or confirmed setup or gameplay.",
     "original_game_title": "Ace Combat 04: Shattered Skies",
     "project_url": "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "ace-combat-04-shattered-skies",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2804
+    "issue_number": 2804,
+    "manual_setup": {
+      "help_url": "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port/blob/322ad0ea19fd1714c101d909bf8cdd9d0b0eb74f/README.md",
+      "steps": [
+        {
+          "title": "Finish the official Windows preparation",
+          "instruction": "Use the official v2.2.3-beta setup with your own unmodified Ace Combat 04: Shattered Skies USA PS2 ISO, SLUS-20152. The selected original executable SLUS_201.52 must be 3248756 bytes with SHA256 38ecebd6965c2f74ec8973f538781506bf3a2cfad86f908deb6c5d585d528301; this is not a whole-ISO hash. Complete setup into an empty chosen folder and retain your original independently. The release setup carries the runtime and needs .NET Framework 4.8, about 4 GB free and Vulkan 1.3; the separate developer source-build route is not required merely to install this package."
+        },
+        {
+          "title": "Keep the locally assembled game unit",
+          "instruction": "Retain the complete prepared folder: Ace Combat 04.exe, runtime/ac4.exe and its DLLs, shaders, generated local memory image, original disc data, settings and notices. The installer verifies the original executable and creates the memory image from the user’s disc; the download is not a ready-to-run substitute for that disc. Do not confuse the installer, runtime, graphics replay developer tool or another Ace Combat title."
+        },
+        {
+          "title": "Attach the waiting game launcher",
+          "instruction": "Select Ace Combat 04.exe in the prepared game folder, use that folder as working directory and pass the exact existing supported ISO or extracted disc directory as the first argument. Review the selected program, working folder and arguments and choose Play when ready. This avoids the launcher’s fallback of picking the first alphabetically sorted ISO when several are present. The selected launcher supplies runtime data, shader/save context and normal unbounded-play options to runtime/ac4.exe and waits for it to exit, draining its logs. Keep both processes in the ordinary session and close the game normally; do not select DIAGNOSTICS.bat or the setup program as Play."
+        },
+        {
+          "title": "Preserve this runtime’s card format and paths",
+          "instruction": "Keep the whole writable prepared root, saves/, runtime/ac4_settings.ini, runtime/ac4_pipelines.* where actually created, last-play.log, textures/mods, original disc and recovery copies. The launcher clears inherited PS2_* overrides and explicitly sets its own runtime/shaders and root/saves; a bare runtime launched in another context can select different paths. Its card format is this runtime’s, not PCSX2’s. Do not merge, convert or overwrite populated cards. Upstream updates use a new game folder; retain the old one and verify the intended save copy separately. No card copy, migration, restore or deletion is performed here."
+        },
+        {
+          "title": "Keep beta and upstream ownership boundaries",
+          "instruction": "The game’s main CPU functions are compiled to native code; the runtime separately implements console services, graphics/vector units, audio, movies, cards and input. Retain project and component notices; original assets and optional user-made texture packs are separate. Published setup and upstream reports do not establish a complete campaign, remaster, physical controller or real-save reload on this host. Quit normally before upstream replacement, retain recovery and review/relink changed bytes. No native/installed, Supported or managed install/update/rollback/backup/deletion acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the prepared Ace Combat 04.exe with the exact own disc path. Keep runtime/ and the runtime-specific saves together; do not use PCSX2 cards or infer full campaign acceptance from this beta."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

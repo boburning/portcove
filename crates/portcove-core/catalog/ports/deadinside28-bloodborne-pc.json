@@ -16,6 +16,34 @@
       "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
       "game_slug": "bloodborne",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/deadinside28/bloodborne_pc/blob/0fc2921c45f8ff3900f6bfa43a299e9a4f532af4/README.md",
+      "steps": [
+        {
+          "title": "Use the supported original and Windows package",
+          "instruction": "Use your own already decrypted Bloodborne PS4 CUSA03173 v1.09 game folder with its complete eboot.bin and data. Keep any authorized optional DLC separate. The selected Windows package is Bloodborne-bbport-0.7-windows-x64.zip; its Linux tar/AppImage assets are other host routes. This guide supplies no original, key, account, decryption or source-dump procedure. Upstream full-playthrough coverage remains unverified."
+        },
+        {
+          "title": "Retain the whole Windows bbport folder",
+          "instruction": "Keep Bloodborne.exe, bbport-run.exe, bin, libraries, scripts, resources and notices together. Windows 10/11 x86-64 with a Vulkan 1.3-capable GPU/current drivers is documented; the runtime also relies on supported host-memory sharing and original-game CPU requirements. This executes the original PS4 x86-64 game with replacement system services and GPU translation, not a wholly reimplemented game. Preserve GPL-2.0-or-later and each separate dependency, optional driver/model and original-game right."
+        },
+        {
+          "title": "Add the ordinary Windows WPF launcher",
+          "instruction": "Select Bloodborne.exe, use its complete extracted Windows package directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and select the supported game folder in upstream’s UI. Its Play control starts bbport-run.exe --play with the package context. The upstream Bloodborne.exe --play alternative can skip the UI after configuration; do not replace this with a bare probe, Python interpreter, GTK script or context-free runtime."
+        },
+        {
+          "title": "Preserve both runtime and launcher state",
+          "instruction": "Keep the package’s bbport.ini, user/ saves and shader caches, out/ prepared files, logs, mods and other user data as present. Also preserve %APPDATA%/bbport-launcher/settings.json, which the Windows launcher/runner reads separately. BB_DATA_DIR can relocate runtime configuration/data; preserve that existing choice and BB_USER_DIR or other user overrides. Another Bloodborne fork may use a similarly named preferences folder: do not reset, merge or assume compatible saves/settings merely to add this reference. Portcove performs no import, conversion, backup or restore."
+        },
+        {
+          "title": "Leave maintenance and acceptance upstream",
+          "instruction": "Optional online services, accounts, GPU-model imports, patches, DLC and telemetry are upstream choices and are not configured here. Only the selected program is observed; activity completion does not prove every game/helper has stopped. Quit actual processes before replacing or recovering the upstream runtime, keep the prior complete application/data and review/select the launcher after changes. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are not offered; native, controller, gameplay and real-save observations remain separate."
+        }
+      ],
+      "warnings": [
+        "Select the Windows package’s Bloodborne.exe with its complete folder and your own CUSA03173 v1.09. Preserve package data plus %APPDATA%/bbport-launcher/settings.json and existing overrides; Linux/GTK and other forks are separate routes."
+      ]
     }
   }
 }

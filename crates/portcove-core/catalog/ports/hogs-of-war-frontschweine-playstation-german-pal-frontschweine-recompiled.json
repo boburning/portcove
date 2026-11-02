@@ -15,15 +15,15 @@
       "steps": [
         {
           "title": "Prepare the exact German disc",
-          "instruction": "Use your independently permitted noncommercial copy and own Frontschweine German PAL disc (SLES-02767), with its CUE and all three BIN tracks. Keep the complete original set separate. Upstream identifies data Track 01 by size391706784, MD5a833706e9f28020cc665b9f1d5148f74 and SHA1ba85ec068293da37cdc261c2b77143dfb2057774; these do not identify the CUE or whole set and do not grant game-data rights."
+          "instruction": "Use your independently permitted noncommercial copy and own Frontschweine German PAL disc (SLES-02767), with its CUE and all three BIN tracks. Keep the complete original set separate. Upstream identifies data Track 01 by 391706784 bytes, MD5 a833706e9f28020cc665b9f1d5148f74 and SHA-1 ba85ec068293da37cdc261c2b77143dfb2057774; these do not identify the CUE or whole set and do not grant game-data rights."
         },
         {
           "title": "Complete upstream setup",
-          "instruction": "Use the matching v0.1.0 Windows setup kit or documented source recipe. Supply your own disc, Generate and rebuild outside Portcove; Windows uses Git and Python3.11 and the upstream toolchain setup. Its rebuild includes PGO training runs. Finish all preparation before registration. Bundled OpenBIOS replaces a retail BIOS. Preserve the exact title/framework/UI combination, staged mods, BIOS and runtime dependencies."
+          "instruction": "Use the matching v0.1.0 Windows setup kit or documented source recipe. Supply your own disc, Generate and rebuild outside Portcove; Windows uses Git and Python 3.11 and the upstream toolchain setup. Its rebuild includes PGO training runs. Finish all preparation before registration. Bundled OpenBIOS replaces a retail BIOS. Preserve the exact title/framework/UI combination, staged mods, BIOS and runtime dependencies."
         },
         {
           "title": "Select the completed game",
-          "instruction": "Select build/Frontschweine_Recompiled.exe, use its complete creating build directory as working directory and leave arguments empty. Do not register the root setup host, unfinished output, toolchain or rebuild process. The completed game-dispatch product keeps the normal launcher and game in its process; optional Generate/rebuild successors are outside this route. Saving launch details and requesting Play are separate actions requiring consent."
+          "instruction": "Select build/Frontschweine_Recompiled.exe, use its complete creating build directory as working directory and leave arguments empty. Do not register the root setup host, unfinished output, toolchain or rebuild process. The completed player runs its normal launcher and game in the selected process; optional Generate/rebuild successors are outside this route. Saving launch details and requesting Play are separate actions requiring consent."
         },
         {
           "title": "Back up effective data before startup",

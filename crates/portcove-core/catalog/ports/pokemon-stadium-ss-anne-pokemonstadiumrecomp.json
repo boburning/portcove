@@ -29,7 +29,7 @@
           "instruction": "Use an already permitted, working Windows x64 upstream-prepared v0.4.7-beta folder with PokemonStadiumRecomp.exe, all DLLs, assets and packaged GPL/component notices. This route registers an existing prepared folder; Portcove does not acquire or extract this package. Keep any archive or operating-system trust refusal in force; do not change protection settings to make the runtime pass. Select the actual PokemonStadiumRecomp.exe and its containing folder as working directory, then use its integrated SS Anne setup/PLAY screen. Keep all companions rather than selecting a helper or an isolated EXE."
         },
         {
-          "title": "Preserve runtime and separate cartridge coordinates",
+          "title": "Keep the runtime and cartridge-data paths",
           "instruction": "Preserve the complete executable/working folder: rom.cfg, launcher.cfg, the registered configuration/FlashRAM store, actual logs/crash reports and all other created files. launcher.cfg p1_rom/p1_save through p4_rom/p4_save resolve relative to the executable folder or as absolute paths. PSR_TRANSFER_PAK_P1_ROM/SAVE through P4 override them. Transfer Pak and GB Tower can write these separate cartridge saves during Play; keep complete original/safe writable copies, configured paths, creating runtimes and saves together. Registration/removal does not adopt, copy, migrate or delete these files; no save/state compatibility or managed backup is promised."
         },
         {

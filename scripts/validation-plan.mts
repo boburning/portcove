@@ -241,6 +241,13 @@ const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-artwork-observations.native.test.mts",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mts",
   "apps/desktop/scripts/desktop-artwork-correction-test.mts",
+  "apps/desktop/scripts/desktop-game-first-test.mts",
+  "apps/desktop/scripts/desktop-game-first-installed-test.mts",
+  "apps/desktop/scripts/desktop-game-first-installed-mm-test.mts",
+  "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
+  "scripts/desktop-runtime-exit-observation.test.mts",
+  "scripts/desktop-game-first-installed-inputs.mts",
+  "scripts/desktop-game-first-installed-inputs.test.mts",
   "apps/desktop/scripts/desktop-default-cover-test.mts",
   "apps/desktop/scripts/desktop-install-fixture.test.mts",
   "apps/desktop/scripts/desktop-install-fixture.native.test.mts",
@@ -1610,7 +1617,8 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
 // with a single environment string above MAX_ARG_STRLEN. Bound both transport
 // and inflation; compression never replaces plan/digest/source validation.
 const planJsonByteLimit = 1024 * 1024;
-const planEnvironmentByteLimit = 64 * 1024;
+// Leave 32 KiB below Linux’s 128 KiB per-string exec limit, including the key.
+const planEnvironmentByteLimit = 96 * 1024;
 export function encodeValidationPlanEnvironment(plan: ValidationPlan): string {
   validateValidationPlan(plan);
   const json = JSON.stringify(plan);

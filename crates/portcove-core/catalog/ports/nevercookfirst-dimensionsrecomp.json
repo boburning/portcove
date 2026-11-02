@@ -32,7 +32,7 @@
           "instruction": "Select legodimensions.exe, use its complete containing installation directory as working directory and leave arguments empty. Keep matching game/, update/, content/, mods/, tools and any update-mods/ companions produced by the installer. Do not select DimensionsRecompiled-Setup.exe, rexupdate.exe, modcli.exe or a tool script. The native window/game stays in the selected process. Saving launch details and Play are separate actions; driver changes and external Toy Pad setup remain upstream/user tasks."
         },
         {
-          "title": "Preserve state and paths before startup or relocation",
+          "title": "Keep existing states and paths before starting or moving",
           "instruction": "Back up the complete installation, legodimensions.toml, content/ (the configured user-data/save/profile/DLC root), game.log/logs, mods/ and update-mods/, plus custom user_data_root, metadata_root, cache_root, game_data_root, update_data_root and log paths recorded by your setup. Preserve external Toy Pad app settings and original sources separately. The startup relocation helper rewrites paths under an old missing install root to the new executable folder when its game/ exists; it changes configured path references rather than proving save migration. Preserve both locations before moving/starting. Before startup, separately back up both actual vanilla update_data_root and mods_update_root, including PATCH3.DAT/PATCH3.HDR and their .off variants, plus the old/new configuration and recovery copies outside both roots. Upstream applies the fern setting to both roots at startup, renames those files to/from .off and can remove an older .off when a live file exists. Its startup also forces present_effect fsr2/fsr3 to fsr and readback_memexport_batched to false; preserve prior settings without treating those compatibility changes as Portcove migration or feature control."
         },
         {
@@ -41,7 +41,7 @@
         }
       ],
       "warnings": [
-        "Only the exact supported Xbox360 disc and TU23 fit; a title-update filename alone is insufficient. Physical USB-pad driver changes and optional companions require upstream setup. Complete campaign, save/mod compatibility and successor continuation are not guaranteed by this guide."
+        "Use only the exact supported Xbox 360 disc and TU23; a title-update filename alone does not identify a compatible copy. Follow upstream setup for physical USB-pad drivers and optional companions. This guide does not guarantee complete campaign play, save/mod compatibility or continuation into a successor process."
       ],
       "help_url": "https://github.com/NeverCookFirst/DimensionsRecomp/blob/a56de4245dbe2ea7f0d7aa6fb7637ebc29a3bed7/README.md"
     },

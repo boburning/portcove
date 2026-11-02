@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { platforms } from "../../catalog-values.generated";
-import { platformLabel } from "../../view-model";
+import { platformLabel, releaseChannelPresentation } from "../../view-model";
 import { ChoiceSelect } from "../../components/ChoiceSelect";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
@@ -15,25 +15,25 @@ type Assessment = NonNullable<GameComparison["assessment"]>;
 type Reason = Assessment["candidates"][number]["reasons"][number];
 const reasons: Record<Reason, string> = {
   "different-game-or-edition":
-    "This is a different source edition, not an interchangeable alternative.",
-  "different-platform-or-environment": "The selected device context differs from this observation.",
+    "This port uses a different game edition. You may need different original files.",
+  "different-platform-or-environment": "This information is for a different platform or setup.",
   "source-not-selected": "The required original game files are not selected.",
-  "operation-unknown": "Existing operation readiness or optional evidence is not established.",
-  "operation-held": "An existing operation hold applies; a score cannot override it.",
-  "requirement-unknown": "A required capability has not been established for this exact build.",
-  "requirement-unsupported": "A required capability is not supported in the assessed scope.",
-  "invalid-evidence": "Some current evidence is invalid or has ambiguous identities.",
-  "conflicting-evidence": "Current evidence disagrees; no default is justified.",
-  "critical-regression":
-    "An accepted gameplay or save failure remains unresolved for this context.",
-  "insufficient-coverage": "There is not enough relevant evidence for a suggested default.",
-  "gameplay-unobserved": "Exact-build gameplay has not been established.",
-  "stability-unobserved": "Exact-build stability and save reliability have not been established.",
-  "gameplay-below-default-floor": "Observed gameplay has material limitations.",
-  "stability-below-default-floor":
-    "Observed stability or save reliability has material limitations.",
+  "operation-unknown":
+    "We couldn’t confirm whether this action is available. Open the game to check its status.",
+  "operation-held": "This action isn’t available right now.",
+  "requirement-unknown": "We couldn’t confirm a feature you need for this game version.",
+  "requirement-unsupported": "A feature you need is listed as unsupported for this version.",
+  "invalid-evidence": "Some information can’t be matched to an exact game version or setup.",
+  "conflicting-evidence": "The available reports disagree, so we can’t suggest one port.",
+  "critical-regression": "A reported gameplay or save problem is still unresolved for this setup.",
+  "insufficient-coverage": "We don’t have enough relevant information to suggest this port.",
+  "gameplay-unobserved": "Gameplay hasn’t been confirmed for this exact game version.",
+  "stability-unobserved":
+    "Stability and save reliability haven’t been confirmed for this exact game version.",
+  "gameplay-below-default-floor": "Gameplay limitations are reported.",
+  "stability-below-default-floor": "Stability or save problems are reported.",
   "materially-worse-playing-experience":
-    "Another eligible option has materially stronger playing evidence.",
+    "Another available port has stronger gameplay information.",
 };
 const dimensions = {
   gameplay: "Gameplay",
@@ -44,14 +44,15 @@ const dimensions = {
   maintenance: "Maintenance outlook",
 };
 const statuses: Record<Assessment["status"], string> = {
-  "recommended-starting-point": "A suggested starting point is supported in this selected context.",
+  "recommended-starting-point": "Suggested for the options you selected.",
   "comparable-alternatives":
-    "Comparable alternatives: the evidence does not justify choosing one over the others.",
-  "assessed-single-candidate": "One candidate assessed. This is not a best-port claim.",
+    "These options are worth considering; we don’t have enough information to prefer one.",
+  "assessed-single-candidate":
+    "Only one port has been assessed, so there isn’t enough information to compare it with the others.",
   "insufficient-evidence":
-    "Insufficient evidence for a suggested starting point. All projects remain available.",
+    "We don’t have enough information to suggest a port. You can still explore every project.",
   "no-suitable-candidate":
-    "No assessed candidate meets this context and its requirements. Existing operation rules are unchanged.",
+    "None of the assessed ports meets the options you selected. Open a project to check its setup and available actions.",
 };
 function time(value: number | null | undefined) {
   if (value === undefined || value === null) return "Not observed";
@@ -167,7 +168,7 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
                   value={context.environment || "current"}
                   description="Selecting a recorded environment inspects that context; it does not verify that your device matches."
                   options={[
-                    { value: "current", label: "Current device — not qualified" },
+                    { value: "current", label: "This device — test results unconfirmed" },
                     ...environments.map((environment) => ({
                       value: environment,
                       label: environment,
@@ -202,8 +203,9 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
             </fieldset>
 
             <p className="text-xs text-pc-muted-foreground">
-              Original-file matches and device readiness are separate. Release observations can use
-              cached results; following stays local and opt-in.
+              Recognized game files don’t confirm that a game works on your device. Update
+              information may be cached. Follow a project to show its update notices in this
+              library.
             </p>
           </details>
         </>
@@ -258,50 +260,18 @@ export function GameComparisonEvidence({
           {candidate ? "Why this port?" : "Evidence and updates"} — {port.name}
         </summary>
         <div className="mt-2 space-y-2 text-xs">
-          <p className="text-xs">
-            {port.offered_release
-              ? `Offered ${port.offered_release.version} · ${port.offered_release.channel} · artifact ${port.offered_release.artifact_sha256.slice(0, 12)}`
-              : "No exact offered artifact observed for this context."}
-          </p>
-          <p className="text-xs text-pc-muted-foreground">
-            {port.freshness.state === "catalog-pinned"
-              ? "Catalog-pinned identity; not a new upstream check."
-              : `Last successful provider resolution: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
-          </p>
-          {port.offered_release?.published_at && (
-            <p className="text-xs text-pc-muted-foreground">
-              Upstream publication time: {port.offered_release.published_at}
-            </p>
-          )}
-          {port.freshness.offered_identity_changed_at !== null && (
-            <p className="text-xs text-pc-muted-foreground">
-              Offered identity changed in local observations:{" "}
-              {time(port.freshness.offered_identity_changed_at)}
-            </p>
-          )}
-          <p className="text-xs">
-            Current library: {port.installed ? "installed or registered" : "not installed"};{" "}
-            {port.launch_ready
-              ? "launch-ready under existing library checks"
-              : "launch readiness not established"}
-            . This does not qualify the selected evidence environment.
-          </p>
-          <p className="text-xs">
-            Original-file status: {port.source_health ?? "not assessed"}. Required game files:{" "}
-            {port.source_profile_ids.join(", ") || "none declared"}.
-          </p>
-
           {port.limitations.map((limitation) => (
             <p key={limitation}>{limitation}</p>
           ))}
           {candidate ? (
             <>
-              <p>
-                Evidence coverage describes recorded facts, not the probability of successful play.
-                This policy is {report?.policy_version}.
-              </p>
+              <p>These reports and observations don’t predict successful play on your device.</p>
               {candidate.reasons.map((reason) => (
-                <p key={reason}>{reasons[reason]}</p>
+                <p key={reason}>
+                  {reason === "operation-held" && port.operation.kind === "held"
+                    ? `${reasons[reason]} ${port.operation.reason} Open the game to check the next step.`
+                    : reasons[reason]}
+                </p>
               ))}
               <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                 {candidate.dimensions.map((dimension) => (
@@ -309,7 +279,7 @@ export function GameComparisonEvidence({
                     <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
                     <dd>
                       {dimension.state === "known"
-                        ? "Scoped evidence available"
+                        ? "Information available"
                         : dimension.state.replaceAll("-", " ")}
                     </dd>
                   </div>
@@ -331,19 +301,61 @@ export function GameComparisonEvidence({
                     {record.evidence.scope.release_id}, {record.evidence.scope.platform},{" "}
                     {record.evidence.scope.environment_id}.
                   </p>
-                  <p>Artifact: {record.evidence.scope.artifact_id}</p>
-                  <ExternalLink href={record.evidence.source}>
-                    Attributable evidence source
-                  </ExternalLink>
+                  <details>
+                    <summary data-focusable className={controlFocus}>
+                      Technical details
+                    </summary>
+                    <p>Download identity: {record.evidence.scope.artifact_id}</p>
+                  </details>
+                  <ExternalLink href={record.evidence.source}>Read the source</ExternalLink>
                 </div>
               ))}
             </>
           ) : (
             <p>
-              No quality assessment is available for this edition/artifact. The project remains
-              listed.
+              No comparison is available for this edition and download. You can still explore the
+              project.
             </p>
           )}
+          <details>
+            <summary data-focusable className={controlFocus}>
+              Technical details
+            </summary>
+            <p className="text-xs">
+              {port.offered_release
+                ? `Offered ${port.offered_release.version} · ${releaseChannelPresentation(port.offered_release.channel).label} · SHA-256 ${port.offered_release.artifact_sha256.slice(0, 12)}`
+                : "We couldn’t confirm a download for this comparison."}
+            </p>
+            <p className="text-xs text-pc-muted-foreground">
+              {port.freshness.state === "catalog-pinned"
+                ? "Catalog-pinned identity; not a new upstream check."
+                : `Last checked successfully: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
+            </p>
+            {port.offered_release?.published_at && (
+              <p className="text-xs text-pc-muted-foreground">
+                Upstream publication time: {port.offered_release.published_at}
+              </p>
+            )}
+            {port.freshness.offered_identity_changed_at !== null && (
+              <p className="text-xs text-pc-muted-foreground">
+                Offered identity changed in local observations:{" "}
+                {time(port.freshness.offered_identity_changed_at)}
+              </p>
+            )}
+            <p className="text-xs">
+              Current library: {port.installed ? "installed or registered" : "not installed"};{" "}
+              {port.launch_ready
+                ? "launch-ready under existing library checks"
+                : "launch readiness not established"}
+              . This does not qualify the selected evidence environment.
+            </p>
+            <p className="text-xs">
+              Original-file status: {port.source_health ?? "not assessed"}. Required game files:{" "}
+              {port.source_profile_ids.join(", ") || "none declared"}.
+            </p>
+
+            <p>Comparison policy: {report?.policy_version}</p>
+          </details>
         </div>
       </details>
       {organization && (
@@ -368,9 +380,8 @@ export function GameComparisonEvidence({
           {port.update_notice && followed && (
             <div role="status" className="basis-full text-sm">
               <p>
-                New release identity observed: {port.update_notice.version} ·{" "}
-                {port.update_notice.artifact_sha256.slice(0, 12)}. This does not install or switch
-                anything.
+                New download noticed: {port.update_notice.version}. This doesn’t install it or
+                switch versions.
               </p>
               <Button
                 data-focusable
@@ -385,7 +396,7 @@ export function GameComparisonEvidence({
                   })
                 }
               >
-                Mark observed update as seen
+                Mark update notice as seen
               </Button>
             </div>
           )}

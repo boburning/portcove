@@ -4,7 +4,7 @@
     "id": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
     "name": "Dragon Ball Z: Budokai 2 — OpenKai2 (7v0biscuit)",
     "original_game_title": "Dragon Ball Z: Budokai 2",
-    "summary": "Windows guide: runtime reaches level selection; complete matches/performance/gameplay unvalidated. CPU renderer, stable60gameFPS unverified; ALL host audio output disabled including movies/menus/fights. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The Windows runtime reaches level selection. Complete matches, performance and gameplay have not been confirmed. It uses a CPU renderer; stable 60 FPS during play is unverified. All host audio is disabled, including movies, menus and fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/7v0biscuit/OpenKai2",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Original USA Budokai2 ISO, required every boot; supported executable SHA256431568221bb744a6affc47dc91144b24892839d4d1ab8236bee1e03d83e6b898. Whole-disc trusted hash not pinned; serial/revision remains to capture."
+          "instruction": "Use your own USA Budokai 2 ISO; it is required every time you play. The supported executable SHA-256 is 431568221bb744a6affc47dc91144b24892839d4d1ab8236bee1e03d83e6b898. This guide does not include a whole-disc hash or the exact serial number and revision; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Published OpenKai2.exe self-contained portable launcher, OpenKai2-windows-x64.zip, or OpenKai2-Setup.exe; no Python/Visual Studio needed for downloaded package; owns ISO cache. Source generation/compilation only for developer route."
+          "instruction": "Use the self-contained portable OpenKai2.exe launcher from OpenKai2-windows-x64.zip, or the OpenKai2-Setup.exe installer. The downloaded package does not require Python or Visual Studio and manages its own ISO cache. Generating and compiling source is a separate developer procedure."
         }
       ],
       "warnings": [
-        "Windows guide: runtime reaches level selection; complete matches/performance/gameplay unvalidated. CPU renderer, stable60gameFPS unverified; ALL host audio output disabled including movies/menus/fights.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The Windows runtime reaches level selection. Complete matches, performance and gameplay have not been confirmed. It uses a CPU renderer; stable 60 FPS during play is unverified. All host audio is disabled, including movies, menus and fights.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/7v0biscuit/OpenKai2"
     },

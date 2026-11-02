@@ -26,7 +26,7 @@
       "steps": [
         {
           "title": "Check the exact upstream permission condition",
-          "instruction": "The reviewed Windows v0.5.0 package fits the existing ready-archive lifecycle technically, but the upstream NOTICE excludes inherited src/, include/ and assets/ from its MIT license and the build links those sources. Fresh package acquisition is held pending an attributable grant or an explicitly reviewed basis for that exact operation. This is separate from original-file verification, optional gameplay observations and whether an executable can run."
+          "instruction": "New downloads of Windows v0.5.0 are paused because the upstream NOTICE excludes inherited src/, include/ and assets/ from its MIT licence, and the build uses that code. An attributable permission grant or reviewed basis for acquiring that exact package is still needed. Checking your original files or whether the executable runs does not resolve this separate permission requirement."
         },
         {
           "title": "Keep a permitted existing copy together",

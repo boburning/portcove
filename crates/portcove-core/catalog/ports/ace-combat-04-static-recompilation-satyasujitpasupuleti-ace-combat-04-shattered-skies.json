@@ -4,7 +4,7 @@
     "id": "ace-combat-04-static-recompilation-satyasujitpasupuleti-ace-combat-04-shattered-skies",
     "name": "Ace Combat 04: Shattered Skies — Ace-Combat-04-Static-Recompilation (SatyaSujitPasupuleti)",
     "original_game_title": "Ace Combat 04: Shattered Skies",
-    "summary": "Primary upstream Mission2 user-test claim; proof-of-concept, frame stalls/save-load and AltTab broader testing needed; campaign unverified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project reports a Mission 2 test for this proof of concept. Frame stalls, saving, loading and Alt+Tab need further testing; a complete campaign is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/SatyaSujitPasupuleti/Ace-Combat-04-Static-Recompilation",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS20152 ISO; exact local verifier hash not obtained in this focused gate. Existing PresidentRaptor hash must not be copied as this project verifier evidence."
+          "instruction": "Use your own USA SLUS-20152 ISO. This guide does not specify this project’s exact accepted file hash. A hash from the separate PresidentRaptor project does not establish a match for this build."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Windows source generation/build using build.cmd/build.ps1 + MSYS2; no game executable distributed."
+          "instruction": "Follow the project’s Windows source-generation and build instructions using build.cmd or build.ps1 with MSYS2. The project does not distribute a completed game executable."
         }
       ],
       "warnings": [
-        "Primary upstream Mission2 user-test claim; proof-of-concept, frame stalls/save-load and AltTab broader testing needed; campaign unverified.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports a Mission 2 test for this proof of concept. Frame stalls, saving, loading and Alt+Tab need further testing; a complete campaign is unconfirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/SatyaSujitPasupuleti/Ace-Combat-04-Static-Recompilation"
     },

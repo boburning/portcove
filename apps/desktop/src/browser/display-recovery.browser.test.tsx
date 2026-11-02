@@ -66,7 +66,7 @@ it.each([
     button.focus();
     await expect.element(reload).toHaveFocus();
     await userEvent.keyboard("{Tab}");
-    await expect.element(page.getByText("Display error details", { exact: true })).toHaveFocus();
+    await expect.element(page.getByText("Error details", { exact: true })).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     const diagnostics = recovery.querySelector<HTMLTextAreaElement>("textarea")!;
     expect(diagnostics.value).toBe(message);

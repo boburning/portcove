@@ -34,6 +34,7 @@ import {
 import type { ObserverConfig } from "./upstream-observer.mts";
 import { observedHealthRepositoryIdentity } from "./upstream-health-monitor.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import { observerSnapshotLimit } from "./observer-checkpoint-artifact.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -173,7 +174,9 @@ export async function runCatalogUpstreams(
     health = null;
   }
   const summaryByteLimit = config.budget.response_bytes;
-  const handoffByteLimit = config.budget.total_bytes - summaryByteLimit;
+  const handoffByteLimit = config.budget.total_bytes - summaryByteLimit - observerSnapshotLimit;
+  if (handoffByteLimit <= 0)
+    throw new ObservationFailure("budget", "Checkpoint, summary and handoff envelopes unavailable");
   const handoff = runtime.handoff ?? {
     directory: path.join(root, "work/upstream-observer-handoff", randomUUID()),
     sizes: new Map<string, number>(),

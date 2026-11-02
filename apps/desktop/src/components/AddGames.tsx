@@ -90,14 +90,14 @@ export function AddGames({
         <Button
           variant={mode === "files" ? "selected" : "outline"}
           className="add-route-choice"
-          aria-label="Choose a game or port"
+          aria-label="Choose a game"
           aria-describedby="add-game-description"
           aria-pressed={mode === "files"}
           onClick={() => setMode("files")}
         >
           <Icon glyph={Gamepad2} />
           <span>
-            <strong className="block">Choose a game or port</strong>
+            <strong className="block">Choose a game</strong>
             <span id="add-game-description" className="add-route-description">
               Find its requirements and choose your original files.
             </span>
@@ -162,14 +162,14 @@ export function AddGames({
         </div>
         <div className="add-existing-choice">
           <div>
-            <h3 className="text-base">Keep a folder you maintain</h3>
+            <h3 className="text-base">Use the game where it is</h3>
             <p className="max-w-[65ch] text-pc-muted-foreground">
-              Using a folder in place is supported only by some ports. Choose its game and port to
-              check the available route; other ports require a managed installation.
+              Some ports can use an installation where it is. Choose the game to check its setup
+              options. For this option, you’ll handle updates and backups.
             </p>
           </div>
           <Button variant="outline" onClick={() => setMode("files")}>
-            Choose its game and port
+            Choose a game
             <Icon glyph={ArrowRight} size="sm" />
           </Button>
         </div>
@@ -182,12 +182,12 @@ export function AddGames({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg">Choose the game and port</h2>
           <Button variant="link" onClick={onBrowseCatalog}>
-            Browse Find games
+            Open Discover
           </Button>
         </div>
         <p>
           File checks use the chosen port’s requirements. Folder search can recognize multiple
-          games; an unknown file or an ambiguous match stays unconfirmed.
+          games; Portcove will ask you to check files it can’t identify.
         </p>
         <SearchChoice
           label="Game and port"
@@ -205,7 +205,7 @@ export function AddGames({
         />
         {candidates.length === 0 && (
           <p role="status">
-            No game or port matches this search. Change the search or browse Find games.
+            No game or port matches this search. Change the search or open Discover.
           </p>
         )}
         {port && (
@@ -219,7 +219,7 @@ export function AddGames({
             </div>
             {!candidates.includes(port) && (
               <p className="text-sm text-pc-muted-foreground">
-                Selected game retained outside this search.
+                This game is still selected, even though it doesn’t match your search.
               </p>
             )}
             {profile ? (
@@ -234,8 +234,8 @@ export function AddGames({
               </Button>
             ) : (
               <p>
-                This port has no original-game-file requirement in the current catalog. Review its
-                available setup route.
+                No original game files are listed here. Check this game’s setup instructions before
+                continuing.
               </p>
             )}
             <p>

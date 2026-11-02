@@ -16,6 +16,34 @@
       "image_sha256": "ba5c8bcf0751d074c41c067ba347e42178039882f57d2bfe9e767be07bc279de",
       "game_slug": "ogre-battle-64-person-of-lordly-caliber",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/lfarroco/ogre-battle-64-recomp/blob/e338e4cad45fd43c0d9c2b8048d01f84b056404f/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact USA Rev A original",
+          "instruction": "Use your own Ogre Battle 64: Person of Lordly Caliber USA Rev A 40 MiB cartridge dump. The selected native mapping requires normalized big-endian XXH3-64 be6adaa5c3f8f7a9, internal name OgreBattle64, game ID ogrebattle64-us-rev1. Byte-swapped .n64 and native-order .z64 are representations of that original, not permission to substitute another region/revision. Finish ROM selection and settings in the supported upstream player before attachment."
+        },
+        {
+          "title": "Keep the complete independently permitted player",
+          "instruction": "Use the complete official v0.8.3 Windows x86-64 player that you are independently permitted to use, retaining ogrebattle64.exe, all accompanying libraries/resources and the upstream README. A source build has a separate ROM-derived generation step; a fresh source checkout is not a ready player. Original assets and optional HD backgrounds remain separate. No source-use, modification, copying or redistribution grant is supplied by this attachment guide; retain the applicable component terms."
+        },
+        {
+          "title": "Attach the ordinary integrated player",
+          "instruction": "Select ogrebattle64.exe, use its complete extracted player directory as working directory and leave arguments empty after setup. Review the selected program, working folder and arguments and choose Play when ready. The selected native main registers the ROM/save identity, runs the integrated launcher when needed and stays in the runtime’s event/game loop. Do not select a recompiler, null-renderer test, debug script or another Ogre Battle edition. Close the game normally."
+        },
+        {
+          "title": "Preserve the actual writable root and battery save",
+          "instruction": "The selected app normally uses its executable directory when writable, or SDL_GetPrefPath(\"\", \"ogrebattle64\") when it is read-only; an existing OGRE_PREF_DIR overrides that choice. Keep the whole actual resolved root, stored ROM, saves/ with the game-ID battery save, controls.cfg, settings.cfg, mods, configs, error logs, checkpoints and recovery. Checkpoints carry an executable fingerprint and are distinct from durable battery progress. Do not assume another N64 game’s Controller Pak, change the active root, merge saves or delete a historical copy."
+        },
+        {
+          "title": "Keep replacement and qualification boundaries",
+          "instruction": "Upstream/player owns preparation, runtime replacement and failed-start recovery. Finish maintenance outside a running session, preserve populated data and review/relink changed bytes. Keep original, RT64/runtime/SDL and any other component notices and restrictions distinct; a release download is not a blanket license. This is a non-owning existing-player route with no Portcove install, update, backup, rollback, migration or external-file deletion ownership. Native gameplay, complete campaign and real-save restore acceptance remain separate."
+        }
+      ],
+      "warnings": [
+        "Select the prepared ogrebattle64.exe and retain its actual writable root, stored ROM and battery progress. Source/redistribution permissions and managed lifecycle qualification are separate from attachment."
+      ]
     }
   }
 }

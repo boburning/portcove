@@ -2499,6 +2499,19 @@ networking or scanning. This is the Core preference foundation for #1552; Deskto
 toggles, filter composition, counts and navigation remain separate implementation
 and acceptance work under that issue.
 
+Game-first browsing uses existing explicit `original_game.id` relationships;
+unknown titles remain standalone port entries. Library organization stores an
+optional `preferred_port_by_game` map in the existing Core host preference store,
+scoped by canonical library identity and guarded by its acknowledged revision.
+The choice is advisory: source editions, registrations, release/channel selection,
+install records and action permission keep their independent owners. Known stale
+choices require deliberate reselection, filtered-out choices remain saved, and
+combined filters still require one actual matching implementation. An unambiguous
+installed implementation retains its existing supported offline action when
+optional preferences or comparison information cannot be read. Every alternative
+remains reachable through the existing stable port/install detail routes; no
+group selection transfers saves or replaces an installation.
+
 For a live desktop switch, the adapter makes its current state unavailable and drops its cached library/providers. Core then acquires an exclusive lease on the old root; an already-dispatched operation retains a shared lease and makes the switch fail, after which the adapter reopens the old state. Only a successfully opened target is persisted and published as current. A monotonically increasing bootstrap generation remounts React's library-owned state so results from the old workspace cannot populate the new one. This introduces no second library authority or database/catalog migration.
 
 ### Backups
@@ -3154,6 +3167,13 @@ client, never deletes these private archives; later Apply must freshly validate
 those changed facts and cannot resurrect a removed installation.
 
 ## Cooperative operation cancellation
+
+Restart recovery retains a structured Core failure for an unrequested interrupted
+worker, with unknown mutation state and an action to inspect the current result.
+The first terminal outcome, message and failure report remain authoritative on
+replay. Desktop offers read-only game review only for a resolved game target;
+setup review takes priority when offered. Neither review retries an operation or
+grants mutation authority, and unstructured legacy messages remain redacted.
 
 Cancellation belongs to core and uses the existing durable activity UUID. SQLite migration 10 adds optional preparation/finishing state, a request bit, and a service-owner identity to activity history. Each controlled activity holds an OS lock for its lifetime; another process may request cancellation but cannot mistake a live worker for an orphan. Source discovery, update checks, install, update, and reconcile opt in. The CLI signal handler targets only its own service's running and queued work; Tauri forwards a specific activity UUID. Presentation never declares an operation cancelled merely because a request was accepted or an IPC waiter disappeared.
 

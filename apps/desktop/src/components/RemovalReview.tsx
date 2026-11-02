@@ -124,9 +124,9 @@ export function RemovalReviewDialog({
             </p>
             <p className="[overflow-wrap:anywhere]">{preview.persistent_data_path}</p>
             <p className="[overflow-wrap:anywhere]">
-              Your saved data, backups, and game files are kept. Saved game-file locations and the
-              original folders used for copied installations are also kept. Other games are
-              unaffected.
+              Portcove keeps the saved data and backups listed here, and your original game files.
+              Saved game-file locations and the original folders used for copied installations are
+              also kept. Other games are unaffected.
             </p>
             <p className="[overflow-wrap:anywhere]">
               The game must be stopped. To use this port again, reinstall it or copy an existing

@@ -33,7 +33,11 @@ afterEach(async () => {
   delete document.documentElement.dataset.theme;
 });
 
-async function mount(theme = "dark", journey: "collection" | "collection-large" = "collection") {
+async function mount(
+  theme = "dark",
+  journey: "collection" | "collection-large" = "collection",
+  expectedLibraryEntries = journey === "collection-large" ? 60 : 12,
+) {
   localStorage.clear();
   const root = document.createElement("div");
   root.id = "root";
@@ -51,7 +55,7 @@ async function mount(theme = "dark", journey: "collection" | "collection-large" 
   );
   await expect
     .poll(() => document.querySelectorAll(".collection-entry").length)
-    .toBe(journey === "collection-large" ? 60 : 12);
+    .toBe(expectedLibraryEntries);
   document.documentElement.dataset.theme = theme;
 }
 
@@ -173,10 +177,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   expect(document.body.textContent).toContain("2 of 12 library entries");
   await page.getByRole("button", { name: "Manage collections", exact: true }).click();
-  const commands = page
-    .getByText("Collection commands", { exact: true })
-    .element()
-    .closest("details")!;
+  const commands = page.getByText("Library tools", { exact: true }).element().closest("details")!;
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
   expect(commands.textContent).toContain("hidden by filters");
@@ -223,7 +224,7 @@ it("plays the distinct duplicate port from details and returns to its filtered r
 it("names exact port choices from their visible identity and readiness inside grouped Discover", async () => {
   await page.viewport(1366, 768);
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
-  await mount();
+  await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   const group = discoverGroupForPort("collection-1");
   expect(JSON.parse(group.dataset.discoverPortIds!)).toEqual(["collection-0", "collection-1"]);
@@ -241,7 +242,15 @@ it("names exact port choices from their visible identity and readiness inside gr
   await expect
     .element(row)
     .toHaveAccessibleName(/Super Mario 64.*Mario modern port.*Ready to play/);
-  expect(row.textContent?.match(/Modern renderer/g)).toHaveLength(1);
+  expect(row.querySelectorAll("h3")).toHaveLength(1);
+  await expect
+    .element(row.querySelector("h3")!)
+    .toHaveTextContent("Mario modern port · Modern renderer");
+  await expect
+    .element(
+      dialog.getByRole("button", { name: "Use Mario modern port · Modern renderer", exact: true }),
+    )
+    .toBeEnabled();
   await expect.element(row).toMatchTextContent("Stable");
   choice.scrollIntoView({ block: "nearest" });
   expect(choice.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
@@ -319,8 +328,8 @@ it("keeps compatibility facts visible while disclosing project history on detail
   expect(disclosure.element().closest("details")?.open).toBe(false);
   await disclosure.click();
   await expect.element(page.getByText("Upstream project", { exact: true })).toBeVisible();
-  await page.getByText("Recorded checks", { exact: true }).click();
-  await expect.element(page.getByText(/^Recorded history, not a fresh check/)).toBeVisible();
+  await page.getByText("Test results", { exact: true }).click();
+  await expect.element(page.getByText(/^These are earlier test results\./)).toBeVisible();
   expect(document.body.textContent).not.toContain("No current check");
 });
 
@@ -514,7 +523,7 @@ for (const theme of ["dark", "light"]) {
   it(`keeps enlarged ${theme} grouped Discover artwork bounded and exact port identity reachable`, async () => {
     await page.viewport(1366, 768);
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
-    await mount(theme);
+    await mount(theme, "collection", 11);
     await page.getByRole("button", { name: "Discover", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
     const group = discoverGroupForPort("collection-1");
@@ -896,7 +905,7 @@ it("sorts actual Library entries by the selected title order without changing th
 it("keeps a grouped Discover Save unselected while pending and after a rejected write", async () => {
   await page.viewport(1024, 800);
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
-  await mount();
+  await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
   await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
   let rejectWrite!: (reason: Error) => void;

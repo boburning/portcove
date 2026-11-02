@@ -9,6 +9,15 @@ and limits without creating a new readiness, trust or recovery decision.
 
 ## Start with the player's task
 
+Lead with the situation, then its consequence and next action. Put paths, hashes,
+test environments and engineering evidence in named optional details unless they
+are needed to choose safely. “Why this port?” begins with gameplay, controls,
+setup and limitations; it is not a technical report. State a relevant uncertainty
+once, beside the decision it affects. A downloaded update, a prepared version,
+and the version used by Play are separate states. Hiding an update notice never
+means preventing the update. A library information export contains no games,
+saves or backups; never label it as a library backup.
+
 Name the object and next action before implementation detail. Use “game” for
 playing or managing saved data, “port” for an implementation or catalog entry,
 and the precise file or installation when its identity matters. Use **Game
@@ -223,6 +232,12 @@ those records. Stable docs describe shipped behavior; an explicitly labeled ADR
 can record a future decision without presenting it as an implemented command.
 
 ## Review a changed task path
+
+Review internal terms such as Core, artifact, baseline, admission, execution
+intent and operation hold when they appear in ordinary player copy. Translate
+the actual object and consequence; do not globally rename machine values,
+technical details, project names or historical evidence. Use the existing copy
+lint and ordinary review to catch recurrence; no separate approval is needed.
 
 Read the complete entry → review → result → recovery route in rendered form,
 including links and long values. Verify claims against the owning source and

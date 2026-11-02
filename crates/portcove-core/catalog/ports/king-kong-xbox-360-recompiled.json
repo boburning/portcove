@@ -16,6 +16,34 @@
       "image_sha256": "2a8e0488efda6141a852021a1c1c37eb4ec36b069a30cb03e7a36af893525b42",
       "game_slug": "peter-jacksons-king-kong-the-official-game-of-the-movie--2",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/TekRantGaming/king-kong-recompiled/blob/2a367f7326a21c3e0ff8b9070a18c7d9457682c2/README.md",
+      "steps": [
+        {
+          "title": "Finish the original-disc and player preparation",
+          "instruction": "Use your own original Xbox 360 King Kong USA/Europe multilingual disc, title 555307D3, game version 0.0.0.1. Upstream identifies the 7,834,892,288-byte ISO by SHA-1 075F43709E9C9A095E099AB5056CC04B768288D1. This is a disc-image identity, not a default.xex digest. The 2005 PC version and other-platform discs are different inputs. Finish upstream game import, shader/runtime preparation, renderer/settings changes and any startup/recovery notices independently before attachment."
+        },
+        {
+          "title": "Keep the full independently permitted Windows player",
+          "instruction": "Use the complete v2.0.10 Windows x64 KingKong folder with king_kong.exe, graphics plugins, DLLs, resources, launcher support and component notices. Do not select the separate easter-egg game as King Kong. Project MIT, SDK, graphics/upscaler, fonts, media and captured-shader rights are separate from your original game rights; attachment neither redistributes those components nor grants permission to use third-party packs. Use only an existing player and optional content you are independently permitted to use."
+        },
+        {
+          "title": "Use the upstream launcher or retain direct-game play",
+          "instruction": "Select king_kong.exe in the complete existing KingKong directory and use that directory as working directory. Leave arguments empty for its ordinary upstream launcher and full settings/start-mode choices. Review the selected program, folder and arguments, then choose Play when ready. The previously documented --kk_launcher=false option remains available for a prepared direct-game start; internal skip-once and diagnostic flags are not substitutes. Upstream can relaunch for settings, game or co-op handover. Portcove observes the selected process only, so its activity may finish while the actual game or a successor continues. Use upstream/game controls to quit continuing processes."
+        },
+        {
+          "title": "Preserve the actual portable or legacy user root",
+          "instruction": "Windows normally uses KingKong/userdata for saves, settings-owned content, mods, cache, downloads and crash/recovery evidence. Earlier Documents/king_kong may remain the active root if migration fails or the program folder is not writable. Preserve both roots, king_kong.toml, full-path installed.txt receipts and moving-from-documents.txt, cleaning-documents.txt and documents-done.txt witnesses; finish upstream recovery before attachment. Existing user_data_root/cache_root overrides take precedence and must be retained. Do not copy only an executable or replace populated saves/configuration with package defaults."
+        },
+        {
+          "title": "Leave maintenance and separate conditions upstream",
+          "instruction": "Upstream owns imports, shader packs, component updates, portable-folder moves, renderer restarts, online/co-op services and failed-start recovery. Close all actual games/helpers before these changes, even when Portcove’s activity has ended; then review/re-select the current player as needed. Full campaign, controller, multiplayer, captured-shader permission and real-save recovery are not established. No managed installation/update/backup/rollback/migration or external-file deletion is offered."
+        }
+      ],
+      "warnings": [
+        "Use king_kong.exe with empty arguments for its ordinary launcher, or retain --kk_launcher=false for the existing prepared direct-game choice. Preserve userdata, legacy Documents/king_kong and recovery witnesses. Portcove follows the selected process only; close actual games/helpers before maintenance."
+      ]
     }
   }
 }

@@ -34,7 +34,7 @@
           "instruction": "Choose build-release/BattleArenaToshinden_Recompiled.exe, with its containing completed product folder as the working directory. Do not choose the zip-root/setup-host executable: setup-host forwarding runs before argument parsing, so --no-launcher alone does not bypass it."
         },
         {
-          "title": "Preserve your established source and save coordinates",
+          "title": "Keep your existing original-file and save paths",
           "instruction": "For the ordinary direct route use three literal argument tokens: --no-launcher, --disc, and the absolute path to your supported USA CUE. Keep spaces inside the CUE path token. Preserve the working copy's existing BIOS choice, card/state/settings and custom locations. Do not add a new --memcard-dir merely to register: it clears explicit custom slot paths. Retain that override only if it was already part of your established working invocation, with its exact existing directory."
         },
         {

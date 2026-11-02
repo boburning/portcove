@@ -23,11 +23,11 @@
       "steps": [
         {
           "title": "Use a permitted installation and exact owned disc",
-          "instruction": "Use an independently permitted complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the5314478080-byte ISO SHA25667b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately; identity checks do not grant game-data rights. NOTICE defers the bundled cover and brand-art licence to its owner; the MIT code licence does not grant those components."
+          "instruction": "Use an independently permitted complete GT4Recomp v1.2.5 Windows installation and your own Gran Turismo 4 USA v2.00 SCUS-97328 plain ISO. Upstream pins the 5314478080-byte ISO with SHA-256 67b6c0075837f3ae1132d608acf2858bf13b2dd62d6eae83dff76df02e4e824f and verifies prepared CORE/ELF identities separately. Keep the original separately; identity checks do not grant game-data rights. NOTICE defers the bundled cover and brand-art licence to its owner; the MIT code licence does not grant those components."
         },
         {
           "title": "Finish official upstream setup",
-          "instruction": "Complete the official installer and launcher disc setup outside Portcove. The launcher copies the ISO, verifies preparation, installs the renderer and checks CPU/Vulkan requirements. Use supported Windowsx64, SSE4.1 CPU, Vulkan1.2 and WebView2; retain the complete matching installation and DLLs. This route uses the official launcher, not the internal gt4vulkan.exe with a guessed environment or another version's renderer."
+          "instruction": "Complete the official installer and launcher disc setup outside Portcove. The launcher copies the ISO, verifies preparation, installs the renderer and checks CPU/Vulkan requirements. Use supported Windows x64, SSE4.1 CPU, Vulkan 1.2 and WebView2; retain the complete matching installation and DLLs. This route uses the official launcher, not the internal gt4vulkan.exe with a guessed environment or another version's renderer."
         },
         {
           "title": "Back up all current and legacy roots before first startup",
@@ -43,7 +43,7 @@
         },
         {
           "title": "Preserve effective saves and recovery paths",
-          "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
+          "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
         },
         {
           "title": "Keep update and restart transitions upstream-owned",
@@ -51,7 +51,7 @@
         },
         {
           "title": "Retain component terms and known limits",
-          "instruction": "Preserve MIT code notices and the separately GPL GSdx/PCSX2 renderer notices/source alongside all other components. NOTICE specifically leaves branded cover/artwork permission unresolved; fresh wholepackage acquisition needs the applicable grant or an independently permitted complete copy. Upstream licensedemos/menu backgrounds, wheel support, long sessions and hardware coverage retain their stated limits. The offered launcher route is not a new observation of game execution, save compatibility or protected delivery."
+          "instruction": "Keep MIT code notices, the separately GPL-licensed GSdx/PCSX2 renderer notices and source, and all other component notices. NOTICE leaves branded cover and artwork permission unresolved; new downloads of the complete package require the applicable permission or an independently permitted complete copy. Check upstream’s limits for licence demos, menu backgrounds, wheels, long sessions and hardware. Portcove has not confirmed game execution or save compatibility with this launcher route."
         }
       ],
       "warnings": [

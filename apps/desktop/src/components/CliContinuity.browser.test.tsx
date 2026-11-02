@@ -91,7 +91,7 @@ it.each([false, true])(
     if (template)
       vi.mocked(desktopApi.cliCommandContext).mockResolvedValue({ ...context, executable: null });
     await root.rerender(<CliContinuity {...props} channel="beta" />);
-    expect(document.body.textContent).toContain("beta selects Preview");
+    expect(document.body.textContent).toContain("The command uses beta for the Preview channel");
     expect(document.body.textContent).toContain("preview input support has not been verified");
     await act(async () =>
       document
@@ -106,7 +106,9 @@ it.each([false, true])(
     );
     expect(JSON.parse(vi.mocked(clipboard.copyText).mock.calls.at(-1)![0])).toContain("beta");
     await root.rerender(<CliContinuity {...props} channel="stable" />);
-    expect(document.body.textContent).not.toContain("beta selects Preview");
+    expect(document.body.textContent).not.toContain(
+      "The command uses beta for the Preview channel",
+    );
     await root.rerender(
       <CliContinuity
         {...props}
@@ -114,7 +116,9 @@ it.each([false, true])(
         status={{ ...portStatus(), active: { id: "active" } } as PortStatus}
       />,
     );
-    expect(document.body.textContent).not.toContain("beta selects Preview");
+    expect(document.body.textContent).not.toContain(
+      "The command uses beta for the Preview channel",
+    );
   },
 );
 

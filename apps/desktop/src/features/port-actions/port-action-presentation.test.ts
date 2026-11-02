@@ -324,7 +324,7 @@ it.each([
   const status = { ...portStatus(), ...partial } as PortStatus;
   expect(portActionPresentation(status, "install")).toEqual({
     blocked: true,
-    reason: "Current setup availability is unavailable. Refresh the workspace to check again.",
+    reason: "Setup availability could not be confirmed. Refresh the workspace to check again.",
   });
 });
 

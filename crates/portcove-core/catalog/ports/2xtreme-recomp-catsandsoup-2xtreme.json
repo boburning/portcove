@@ -4,7 +4,7 @@
     "id": "2xtreme-recomp-catsandsoup-2xtreme",
     "name": "2Xtreme — 2Xtreme-recomp (catsandsoup)",
     "original_game_title": "2Xtreme",
-    "summary": "Research project. Early preview. First disc check/preparation/intro and keyboard pause-menu work; controller verification, fullspeed/settings/widescreen, original Options binding, rumble/player2/savestates and notarization remain future work. No full playthrough or Portcove runtime qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "This early preview has project-reported disc preparation, intro and keyboard pause-menu support. Controller testing, full-speed play, settings, widescreen, original Options bindings, rumble, player 2, save states and notarization remain unfinished. Full playthroughs are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/catsandsoup/2Xtreme-recomp",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own USA SCUS-94508 disc image. App copies disc into private ApplicationSupport/2Xtreme/disc and generates local native game code on first launch; bundled MIT OpenBIOS, no retailBIOS required."
+          "instruction": "Use your own USA SCUS-94508 CUE/BIN disc image. The app copies it into its private ApplicationSupport/2Xtreme/disc folder and generates native game code locally on first launch. MIT-licensed OpenBIOS is included; no retail BIOS is required."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Advertised early-preview2Xtreme.zip ->2Xtreme.app. User imports own USA CUE/BIN, first launch builds locally in about15seconds according to upstream. App not notarized; no Xcode/Homebrew/Python required for player kit. Source make_app.sh additionally needs Apple tools/Homebrew/pinned Zig. No package downloaded or verified."
+          "instruction": "Extract the project’s early-preview 2Xtreme.zip and open 2Xtreme.app to import your own USA CUE/BIN. The project says the first launch builds the game locally in about 15 seconds. The app is not notarized. The player package needs no Xcode, Homebrew or Python; building from source with make_app.sh additionally needs Apple tools, Homebrew and the pinned Zig version. Portcove has not inspected the downloaded package."
         }
       ],
       "warnings": [
-        "Early preview. First disc check/preparation/intro and keyboard pause-menu work; controller verification, fullspeed/settings/widescreen, original Options binding, rumble/player2/savestates and notarization remain future work. No full playthrough or Portcove runtime qualification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This early preview has project-reported disc preparation, intro and keyboard pause-menu support. Controller testing, full-speed play, settings, widescreen, original Options bindings, rumble, player 2, save states and notarization remain unfinished. Full playthroughs are unconfirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/catsandsoup/2Xtreme-recomp"
     },

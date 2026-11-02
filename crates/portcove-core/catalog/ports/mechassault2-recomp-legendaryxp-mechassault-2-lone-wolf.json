@@ -4,7 +4,7 @@
     "id": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
     "name": "MechAssault 2: Lone Wolf — MechAssault2 Recomp (LegendaryXP)",
     "original_game_title": "MechAssault 2: Lone Wolf",
-    "summary": "Native input/widescreen features described, gameplay maintainer tested; full campaign not claimed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project describes native input and widescreen features and maintainer gameplay tests. It does not claim a completed campaign. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LegendaryXP/Mechassault2-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own Xbox disc ISO/XISO or extracted folder with ma2.xbe; exact source revision/hash unknown in reviewed README."
+          "instruction": "Use your own Xbox disc as ISO, XISO or an extracted folder containing ma2.xbe. The reviewed README does not specify the exact supported revision or hash; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "First-run ma2.exe imports data and creates local native build; optional Quiver launcher; source VS2022/CMake/Python capstone + xboxrecomp."
+          "instruction": "Run ma2.exe to import your game data and create a native build locally. Quiver is an optional launcher. For a source build, follow the project’s VS2022, CMake, Python capstone and xboxrecomp instructions."
         }
       ],
       "warnings": [
-        "Native input/widescreen features described, gameplay maintainer tested; full campaign not claimed.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project describes native input and widescreen features and maintainer gameplay tests. It does not claim a completed campaign.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/LegendaryXP/Mechassault2-recomp"
     },

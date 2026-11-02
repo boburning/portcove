@@ -16,6 +16,34 @@
       "image_sha256": "ee653bd02fb37753186e0e25e04849eb87668e65ad0cff757578d3a4fe462cb8",
       "game_slug": "outpost-kaloki-x",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled/blob/3ab8fef1da00490e8d6d42f034b9771d39ed6e02/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact owned XBLA original",
+          "instruction": "Use the official v1.1.1 Windows x64 package and your own Outpost Kaloki X original: Xbox Live Arcade title 584107DB/content type 000D0000, package size 21557248 bytes, default.xex 0.0.1.1 (2005-11-04), size 3252224 bytes and CRC32 ccb0ace9; this CRC/size evidence is not a stronger cryptographic digest. Finish Install from package and settings in the supported integrated launcher before attachment. A different title update or original edition is not interchangeable."
+        },
+        {
+          "title": "Keep the complete prepared player",
+          "instruction": "Retain outpost_kaloki_x.exe, its graphics/runtime DLLs, game/ extracted from your own original, outpost_kaloki_x.toml, logs and all notices as one unit. The selected Windows route uses Direct3D 12; Linux/AppImage or other game/framework observations do not qualify this host. The release is a native player, while developer source builds/toolchains are separate. Images used by the launcher come from the owner’s original or first-play capture, not permission to redistribute original game assets."
+        },
+        {
+          "title": "Attach the normal in-process player",
+          "instruction": "Select outpost_kaloki_x.exe, use the complete player directory as working directory and leave arguments empty after upstream preparation. Review the selected program, working folder and arguments and choose Play when ready, then use the ordinary integrated Play if shown. The selected OutpostKalokiXApp resumes its own native runtime in the same application rather than using a detached launcher as normal Play. Finish any graphics changes that explicitly require restart, first-use preparation or updater relaunch upstream before attachment; those successor paths are not newly qualified by this guide. Quit the actual game normally."
+        },
+        {
+          "title": "Preserve the actual save and configuration roots",
+          "instruction": "Keep the whole prepared directory, game/, outpost_kaloki_x.toml, logs, original XBLA package and recovery. Use the integrated About page’s Open save folder to identify and preserve the actual existing user root, including saves/profile, achievements, art and shader caches; keep explicit existing game/user/cache/config overrides and historical copies. The selected title source passes the resolved SDK user root to this page; this guide does not guess its default from another ReXGlue build or create a replacement empty root. No migration, save conversion, real-save restore or deletion is performed."
+        },
+        {
+          "title": "Keep upstream maintenance and acceptance limits",
+          "instruction": "Upstream owns original checking/extraction, settings and runtime updates. Retain project, ReXGlue, launcher, library, shader and font notices; these do not license the original game or independent modifications. Close the game before upstream replacement, preserve populated user data and recovery, and review/relink changed bytes. Upstream performance, achievement, campaign, controller and multiplayer reports are not native observations here. No Supported, installed/native or managed install/update/rollback/backup/deletion acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the prepared outpost_kaloki_x.exe, retain game/ and the actual user root shown upstream. Complete setup, required restarts and updates separately; do not infer another game’s save location or qualification."
+      ]
     }
   }
 }
