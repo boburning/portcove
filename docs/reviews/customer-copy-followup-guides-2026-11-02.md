@@ -142,3 +142,21 @@ and three warnings, and the legacy projection restores every original instructio
 in its original order. This adds six bounded structural changes to the thirteen
 pickup proposals: nineteen guides changed in total. It does not widen the older
 inventory into an exhaustive editorial sign-off.
+
+## Current-target interaction: both ProjectR guides
+
+Target `9ec884c2cf1cc8b09ae69eed0ae1f0ef90255867` (PR #4210) added complete
+guides to the two existing ProjectR listings after the preceding review. Both
+were read in full. Their three actual setup actions remain unchanged; the shared
+profile/save and maintenance/version sections move verbatim to two references.
+Visible warnings preserve the shared runtime/profile owner, separate `--2049`
+and `--rtr` inputs, external backup/deletion limits, actual-game shutdown and
+separate permissions. No runtime, source, ownership or support field changes.
+
+The target delta has two reviewed new guides, ten original sections, six
+unchanged setup actions, four relocated references and no unreviewed guide.
+Each final guide has three actions, two references and four warnings; its legacy
+projection restores all original instructions in order. This brings the bounded
+pass to **21 changed guides in 24 complete contextual reviews** (three controls
+were kept). The broad pickup inventory and its unreviewed candidates remain
+bounded to their original source; this is not an exhaustive copy sign-off.
