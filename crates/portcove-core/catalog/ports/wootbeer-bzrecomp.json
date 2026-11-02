@@ -3,7 +3,7 @@
   "listing": {
     "id": "wootbeer-bzrecomp",
     "name": "Battlezone: Rise of the Black Dogs (BZRecomp)",
-    "summary": "Upstream route: Upstream runtime package for BZRecomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream modernization beta. Full-game/multiplayer coverage unverified here; N64 RiseOfBlackDogs is not arcade Battlezone. Windows/Linux beta packages; distinguish arcade Battlezone and existing source ports by N64 edition. Upstream platforms: Windows/Linux N64Recomp/RT64 beta. Exact OS minimums/CPU coverage beyond selected docs Unknown. Original data: N64 BattlezoneRiseBlackDogs USA own ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach the prepared Battlezone: Rise of the Black Dogs N64 Windows beta with your own exact USA Rev0 ROM. Preserve its controller-pak files and chosen portable or LocalAppData root; this is not the arcade Battlezone engine.",
     "original_game_title": "Battlezone: Rise of the Black Dogs",
     "project_url": "https://github.com/wootbeer/bzrecomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "battlezone-rise-of-the-black-dogs",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2828
+    "issue_number": 2828,
+    "manual_setup": {
+      "help_url": "https://github.com/wootbeer/bzrecomp/blob/89be9674c28c5a488addb2f8173efc5862ef0dd6/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact N64 original",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Battlezone: Rise of the Black Dogs USA Rev0 N64 ROM, internal name BATTLEZONE/game code NZOE. Upstream documents SHA1 cdd1d1dec9763ce6b7b1a70668effcead0a185a0 for its .n64 dump and 85b4febbe6fbd1ecfc883905e43e68e7188c44f9 for big-endian .z64. The selected native mapping gates normalized big-endian XXH3-64 f5f240b373301b9d, game ID bz.n64.us.1.0; filename extensions alone do not identify an original. Finish original selection/settings upstream. No ROM, converter, helper, compiler or game is executed here."
+        },
+        {
+          "title": "Keep the complete Windows beta player",
+          "instruction": "Use the official v0.1.0-beta Windows package and its complete prepared player/resources/notices, retaining the original independently. Do not substitute the arcade Battlezone game, a different N64 region or a Linux AppImage. The project uses its own title mappings and library patches; a shared N64 framework does not establish identical saves, input or compatibility. Multiplayer and hardware claims remain upstream evidence, not this host qualification."
+        },
+        {
+          "title": "Attach the normal integrated player",
+          "instruction": "Select BattlezoneRecompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. Its native main sets bzrecomp as the UI program ID and enters the integrated frontend/runtime. Finish missing-ROM/settings prompts upstream before retrying. Do not use a recompiler, an AppImage, test/probe options or another port’s runtime as normal Play."
+        },
+        {
+          "title": "Preserve controller paks and the selected data root",
+          "instruction": "Without an existing portable choice, the exact frontend base resolves Windows data under Known LocalAppData/bzrecomp. An already existing portable.txt in the working directory selects that directory instead; this guide creates/removes no marker. Keep the whole selected root, configs, retained ROM, mods and saves/ with every player’s .mpk Controller Pak, plus historical/external roots and recovery. Paks are standard 32 KiB, separate per player; swapping to a Rumble Pak is not a save conversion. SaveType::AllowAll in the source is not proof that the game uses every EEPROM/SRAM/Flash device. States remain separate from durable pak saves; no migration, restore or deletion is performed."
+        },
+        {
+          "title": "Keep component and replacement boundaries",
+          "instruction": "Keep project GPLv3 and runtime, RT64, Exo 2, Noto Emoji, PromptFont, shader and compiler notices. RecompFrontend is the exact official b1a1477c6556aeb7ed45defbfb5924f721efebc1 base covered by the retained unchanged-base GPL grant; this title’s direct-RDP patch and font-specific terms remain distinct, and the grant does not license originals. Quit the actual game normally before upstream replacement, retain recovery and review/relink changed bytes. No native/installed, campaign, physical multiplayer/controller, real-save restore, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Use the N64 USA Rev0 original and preserve all per-player Controller Paks. Keep the existing portable/LocalAppData choice; no save or hardware compatibility is inferred from another port."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
