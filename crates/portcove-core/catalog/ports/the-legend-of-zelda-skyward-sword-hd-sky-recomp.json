@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-skyward-sword-hd-sky-recomp",
     "name": "The Legend of Zelda: Skyward Sword HD (Sky Recomp)",
-    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Platforms: Desktopnativeportclaim;Windows/Linux/macOSofficialpackages documented. Rootdiagramprecompiledskygamelibrary vs no-game-codeclaim requires exactselectedasset/sourcecontract before asserting what code ships. Original data: OwnSkywardSwordHDv1.0.0withoutupdates,preparedgamefiles;launcherneitherdecryptsNSP/XCInoracceptskeys. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An experimental Skyward Sword HD desktop recompilation with documented Windows, Linux and macOS packages. The root diagram describes a precompiled sky game library while other text says no game code is included; exact selected-package/source contents remain unresolved. Supply your own version 1.0.0 prepared game files without updates. The launcher neither decrypts NSP/XCI nor accepts keys. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Skyward Sword HD",
     "project_url": "https://github.com/Apolinario-coder/SkyRecomp",
     "platforms": [],

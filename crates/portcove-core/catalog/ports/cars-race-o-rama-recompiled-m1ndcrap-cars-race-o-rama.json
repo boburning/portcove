@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Provide your own Cars Race-O-Rama Xbox 360 disc ISO or extracted full disc files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+          "instruction": "Provide your own Cars Race-O-Rama Xbox 360 disc ISO or extracted full disc files. This guide does not specify the exact supported region, revision or file hash. Check the project’s original-file requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Download carsror.exe and put own extracted CarsRaceORama ISO files in assets beside it."
+          "instruction": "Download the project’s carsror.exe and place your own extracted Cars Race-O-Rama ISO files in assets beside it."
         }
       ],
       "warnings": [
         "Start-to-finish claimed; slowdowns and bright lighting defects remain.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"
     },

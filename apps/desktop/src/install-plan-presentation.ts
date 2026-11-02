@@ -4,7 +4,7 @@ export function installPlanActionLabel(action: InstallPlan["action"]) {
   const labels: Record<InstallPlan["action"], string> = {
     already_active: "Already installed",
     use_staged: "Use saved version",
-    reuse_retained: "Use previous version",
+    reuse_retained: "Use checked local version",
     blocked_unverified: "Local copy needs checking",
     download: "Download release",
   };

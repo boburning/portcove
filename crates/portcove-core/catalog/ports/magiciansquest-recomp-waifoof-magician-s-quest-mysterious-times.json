@@ -4,7 +4,7 @@
     "id": "magiciansquest-recomp-waifoof-magician-s-quest-mysterious-times",
     "name": "Magician's Quest: Mysterious Times — MagiciansQuest-Recomp (waifoof)",
     "original_game_title": "Magician's Quest: Mysterious Times",
-    "summary": "Early alpha reaches creation/dormitory and first school day with control/sound/touch; broad campaign and multiplayer remain upstream claims. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "This early alpha reaches character creation, the dormitory and the first school day with controls, sound and touch input. Broader campaign and multiplayer claims have not been confirmed by Portcove. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/waifoof/MagiciansQuest-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA YNNE NDS ROM SHA1 ab2e495f6206b5c9b69043f8b4114d760f7298b2; Europe EnchantedFolk unsupported"
+          "instruction": "Use your own USA YNNE Nintendo DS ROM, SHA-1 ab2e495f6206b5c9b69043f8b4114d760f7298b2. The European Enchanted Folk edition is unsupported."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README rolling latest pre-release ZIP with MagiciansQuest.exe and compiler. Choose owned ROM; compile once locally. Developer source route exists; Windows bootstrap may install tools machine-wide and is not implicitly approved."
+          "instruction": "Follow the README for the rolling latest prerelease ZIP containing MagiciansQuest.exe and its compiler. Choose your own ROM and compile once locally. A developer source route also exists; its Windows bootstrap may install tools machine-wide, so review those changes before running it."
         }
       ],
       "warnings": [
-        "Early alpha reaches creation/dormitory and first school day with control/sound/touch; broad campaign and multiplayer remain upstream claims.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This early alpha reaches character creation, the dormitory and the first school day with controls, sound and touch input. Broader campaign and multiplayer claims have not been confirmed by Portcove.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/waifoof/MagiciansQuest-Recomp"
     },

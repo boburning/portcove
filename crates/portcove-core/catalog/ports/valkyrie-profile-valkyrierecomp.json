@@ -16,6 +16,34 @@
       "image_sha256": "e9453314a3e19807fa7ee8b6d174bcc7373e0a878978b93797a50c51a6139491",
       "game_slug": "valkyrie-profile",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/Ed1z19/ValkyrieRecomp/blob/200a7a15c4718740c2a573e44535657f662d004b/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported USA two-disc original",
+          "instruction": "Use your own Valkyrie Profile USA discs, Disc 1 SLUS-01156 and Disc 2 SLUS-01179, as complete CUE/BIN sets. The selected game.toml identifies Disc 1 data Track 01 by size 730448880 bytes and SHA1 fa13cbde448a47fa87b6c7829df1c5e6215f5f66; this is not a Disc 2 or whole-set fingerprint. The source lists both discs in a roster and boots the first program. Complete original selection, local generation/build, firmware selection and settings through the official v1.0.1 upstream setup before attachment."
+        },
+        {
+          "title": "Keep the completed product and setup tree",
+          "instruction": "The selected setup configuration generates BIOS/game C from the owner’s inputs and builds the product under build-release/ by default. Keep the complete source/setup tree, toolchain, originals, generated output and the product’s BIOS/mods/assets/settings together. Existing project/build-root overrides remain upstream choices. Do not confuse the initial package’s ValkyrieRecomp.exe with the completed native game of the same name: the setup host starts the product as a successor and exits."
+        },
+        {
+          "title": "Attach the native product directly",
+          "instruction": "Select the actual completed build-release/ValkyrieRecomp.exe, or the product at the installation’s already chosen build-root override. Use its complete product directory as working directory and leave arguments empty after upstream configuration. Review the selected program, working folder and arguments and choose Play when ready. The selected shared setup consumer disables forwarding in a full game binary with game dispatch; direct product selection retains the actual native session. Do not select the initial forwarding setup host, recompiler or diagnostic mode. Finish rebuilds outside a running session and quit the actual game normally."
+        },
+        {
+          "title": "Preserve both discs, roster and memory cards",
+          "instruction": "Keep the full prepared tree, both original CUE/BIN sets, game.toml disc roster, remembered disc index/selection, settings.toml, BIOS/disc sidecars, input/mod configuration and all active saves/card1.mcd and card2.mcd or explicit slot/root overrides. Relative Windows paths anchor to the native executable directory. Upstream supports disc selection between runs; mid-session swapping is not established and is explicitly unfinished in the selected game configuration. Do not claim a complete multi-disc playthrough, merge cards or replace a populated product root with fresh setup files. No card migration, restore or deletion is performed."
+        },
+        {
+          "title": "Keep component and ownership limits",
+          "instruction": "Retain exact psxrecomp PolyForm Noncommercial 1.0.0, recomp-ui MIT, chosen BIOS, font, compiler and all other component notices; these do not license the original game or artwork. Only use a complete independently permitted player/component set. Upstream/player owns generation, rebuilds and replacement: preserve data/recovery and review/relink changed bytes after maintenance. Work-in-progress compatibility and hardware claims remain distinct from this attachment route. No native/installed, real-save restore, full campaign/disc-swap, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Attach the completed product EXE, not its forwarding setup host. Preserve both original discs and actual cards; between-run disc selection does not establish mid-session swaps or a full multi-disc playthrough."
+      ]
     }
   }
 }

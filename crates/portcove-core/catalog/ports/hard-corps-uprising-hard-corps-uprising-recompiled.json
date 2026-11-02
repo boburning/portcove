@@ -38,7 +38,7 @@
         }
       ],
       "warnings": [
-        "Public release metadata and pinned source establish this guide, not archive-byte inspection, native gameplay, real-save acceptance or executed updater behavior. Experimental native Linux/AppImage is a separate route."
+        "This guidance follows upstream release descriptions and source. Portcove has not inspected the archive or tested gameplay, saving or updates. The experimental native Linux AppImage is a separate route."
       ],
       "help_url": "https://github.com/saulob/hard-corps-uprising-recompiled#readme"
     },

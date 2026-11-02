@@ -3147,6 +3147,13 @@ those changed facts and cannot resurrect a removed installation.
 
 ## Cooperative operation cancellation
 
+Restart recovery retains a structured Core failure for an unrequested interrupted
+worker, with unknown mutation state and an action to inspect the current result.
+The first terminal outcome, message and failure report remain authoritative on
+replay. Desktop offers read-only game review only for a resolved game target;
+setup review takes priority when offered. Neither review retries an operation or
+grants mutation authority, and unstructured legacy messages remain redacted.
+
 Cancellation belongs to core and uses the existing durable activity UUID. SQLite migration 10 adds optional preparation/finishing state, a request bit, and a service-owner identity to activity history. Each controlled activity holds an OS lock for its lifetime; another process may request cancellation but cannot mistake a live worker for an orphan. Source discovery, update checks, install, update, and reconcile opt in. The CLI signal handler targets only its own service's running and queued work; Tauri forwards a specific activity UUID. Presentation never declares an operation cancelled merely because a request was accepted or an IPC waiter disappeared.
 
 A conditional SQLite write serializes cancellation against the end of preparation. Requests accepted before that boundary stop at cooperative checkpoints. Network waits, download reads, source/download hashing, archive preflight, and archive entry writes check between bounded steps. The awaited blocking archive worker stops before cancellation cleanup can remove its private tree or report completion; conversion, setup, and managed builder workers still finish atomically before their next checkpoint and are never abandoned. Install closes cancellation before recording the recoverable `prepared` intent. Retained/staged activation closes it before collecting data or changing pointers. Launch uses the same activity UUID and closes cancellation as its final pre-spawn action; hashing checks incrementally, and conversion, setup, mutable-data synchronization, manifest refresh, and source revalidation each check before the child boundary. A CLI signal before that boundary requests durable cancellation; after it, the signal is forwarded to the child process group. Publication, restore, migration, and library transfers remain outside the cancellable region.

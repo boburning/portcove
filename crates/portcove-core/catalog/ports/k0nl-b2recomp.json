@@ -3,7 +3,7 @@
   "listing": {
     "id": "k0nl-b2recomp",
     "name": "Bayonetta 2 (B2recomp)",
-    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Platforms: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Original data: OwnBayonetta2v1.2/updatev131072alreadydecryptedExeFS/RomFS;encryptedpackages/keysrefused. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An experimental Bayonetta 2 static recompilation. Its Builder ZIP contains tools, source and a compiler rather than a prebuilt game; it generates C and a game DLL locally, with rebuilding through the project’s Builder for updates. Windows x64 requires Vulkan 1.3; Linux Builder testing is separate. Use your own Bayonetta 2 v1.2/update v131072 already-decrypted ExeFS/RomFS. Encrypted packages and keys are refused. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Bayonetta 2",
     "project_url": "https://github.com/K0NL/B2recomp",
     "platforms": [],
@@ -17,6 +17,34 @@
       "image_sha256": "14c7b600fd0d0e2b298951f6ce8fb6a173b4b9d28b5c5f81af1978f950dd178a",
       "game_slug": "bayonetta-2--1",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/K0NL/B2recomp/blob/26c45d71ee43ce116f82f329be5bb863cfec211e/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own exact updated Switch data",
+          "instruction": "Use your own Bayonetta 2 version 1.2 with update v131072 already applied, as plain exefs/ and romfs/ files. The supported builder does not decrypt encrypted packages or accept console keys. Keep the original dump in its existing location. Complete the upstream build and settings in the official v0.3.3 B2recomp-builder-26c45d7.zip before attachment; it contains tools/source, not a prebuilt game.dll or game_native.exe."
+        },
+        {
+          "title": "Retain the whole local build and toolchain",
+          "instruction": "Keep B2recomp.exe, config/, deps/, scripts/, generated targets/ and build/ as one prepared writable tree, with all component notices. The supported Windows x64/Vulkan 1.3 route recompiles the owner’s AArch64 game code locally and supplies a separate NVN/graphics runtime. Do not register a compiler, game.dll, a different Bayonetta edition or an unbuilt package as Play. Upstream full-game/performance claims and other-platform experiments are not qualification here."
+        },
+        {
+          "title": "Attach the launcher that supplies the play context",
+          "instruction": "Select B2recomp.exe, use its full prepared B2recomp directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready, then press upstream Play. The selected launcher retains the child handle and polls for its exit, supplying the local ELF, RomFS, graphics/audio/font context and selected userdata. Keep the launcher open while the game runs, close the actual game first, then the launcher. A bare game_native.exe invocation would omit that context; terminal/debug/profiling modes are separate."
+        },
+        {
+          "title": "Preserve live saves and all existing configuration",
+          "instruction": "Keep the full prepared tree, especially build/play/userdata, build/play/stdout.txt, config/ settings and mod switches, generated game build, targets and original dump. Preserve any existing build/saves/after-prologue seed separately: the launcher only copies it when the live save is absent, and it is not a reason to replace a populated profile. Optional system-font inputs remain the user’s separate files; none is supplied or accessed here. Do not merge profiles, overwrite live saves, delete local build output or move the original dump merely to attach it."
+        },
+        {
+          "title": "Let upstream own rebuilds and replacement",
+          "instruction": "The upstream builder owns source/toolchain checks, local generation, mod-triggered rebuilds and updates. Retain project GPLv3, compiler/runtime/library and other component notices; these do not license the original game, system content or independent mods. Close both game and launcher before an upstream replacement/rebuild, retain data and recovery, then review/relink changed bytes. No key operations, installed/native, real-save restore, campaign, physical-controller, Supported or managed install/update/rollback/backup/deletion acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Use the prepared B2recomp.exe and keep it open through the game session. Preserve the full builder/output tree, actual play userdata and owned dump; no encrypted-input or console-key route is offered."
+      ]
     }
   },
   "upstream_lineage": {

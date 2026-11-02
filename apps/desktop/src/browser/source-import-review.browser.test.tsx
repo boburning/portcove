@@ -126,7 +126,7 @@ it.each(["light", "dark"])(
       await expect
         .element(review)
         .toMatchTextContent(
-          containsText(`Additional file data planned: ${mode === "copy" ? "64 B" : "0 B"}`),
+          containsText(`Additional space needed: ${mode === "copy" ? "64 B" : "0 B"}`),
         );
       const present =
         mode === "move"

@@ -325,11 +325,11 @@ export function BootstrapRecovery({
         </p>
       )}
       <section
-        aria-label="Support bundle"
+        aria-label="Support report"
         className="grid min-w-0 gap-3 border-t border-pc-border pt-4"
         data-focus-group
       >
-        <h2>Create support bundle</h2>
+        <h2>Create support report</h2>
         <SupportBundleExport
           disabled={pending}
           createSupportBundle={desktopApi.createSupportBundle}
@@ -1511,7 +1511,7 @@ function CurrentSettingsView({
       diagnosticFailure={data.diagnosticFailure?.error}
       refreshDiagnostics={data.refreshDiagnostics}
       createSupportBundle={() =>
-        operations.perform("support bundle", desktopApi.createSupportBundle, {
+        operations.perform("support report", desktopApi.createSupportBundle, {
           refresh: "none",
           invalidateDiagnostics: false,
         })

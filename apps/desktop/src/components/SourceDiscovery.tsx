@@ -393,7 +393,7 @@ function DiscoveryResults({
                 void reviewImport(candidate, "use_current_location");
               }}
             >
-              Review current location
+              Use files here…
             </Button>
           </div>
         </div>
@@ -463,7 +463,7 @@ export function SourceImportReview({
               An existing Portcove copy will be checked and reused. No new file copy is planned.
             </p>
           )}
-          <p>Additional file data planned: {formatBytes(plan.required_bytes)}.</p>
+          <p>Additional space needed: {formatBytes(plan.required_bytes)}.</p>
         </>
       )}
       {plan.existing_registration && (

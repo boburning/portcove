@@ -4,7 +4,7 @@
     "id": "halogen-0xjjjjjj-champions-of-norrath",
     "name": "Champions of Norrath — halogen (0xjjjjjj)",
     "original_game_title": "Champions of Norrath",
-    "summary": "Native engine boot/front-end main-menu reached upstream; menu asset lumpFind defects block actual game output. PCSX2 town dump replay is reference evidence, not rendered gameplay from game. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports engine startup and the main menu, but lumpFind menu-asset defects block actual game output. Replaying a PCSX2 town dump does not establish gameplay rendered by this port. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/0xjjjjjj/halogen",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS-20565 own extracted disc/ELF"
+          "instruction": "Use your own USA SLUS-20565 disc and extracted ELF."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Ubuntu24.04x86_64 local generation + post-regeneration patches + CMake halogen-headless; live Vulkan presentation planned."
+          "instruction": "Generate code locally on Ubuntu 24.04 x86-64, apply upstream’s required patches after regeneration, then build halogen-headless with CMake. Live Vulkan presentation is planned."
         }
       ],
       "warnings": [
-        "Native engine boot/front-end main-menu reached upstream; menu asset lumpFind defects block actual game output. PCSX2 town dump replay is reference evidence, not rendered gameplay from game.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports engine startup and the main menu, but lumpFind menu-asset defects block actual game output. Replaying a PCSX2 town dump does not establish gameplay rendered by this port.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/0xjjjjjj/halogen"
     },

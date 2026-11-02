@@ -243,7 +243,7 @@ it("connects a registered preliminary selection to truthful port guidance and bo
   expect(desktopApi.importSource).not.toHaveBeenCalled();
   await render([]);
   expect(button("Review Preliminary port setup").disabled).toBe(true);
-  expect(button("Review preliminary selection").disabled).toBe(false);
+  expect(button("Check these files").disabled).toBe(false);
 });
 
 it("returns preliminary review cancellation to its opener or the heading when that control is unavailable", async () => {
@@ -280,15 +280,15 @@ it("returns preliminary review cancellation to its opener or the heading when th
     root.rerender(<GameFileLibraries generation={1} ports={[]} profiles={profiles} />);
   await render();
   await click("Refresh folders");
-  await click("Review preliminary selection");
+  await click("Check these files");
   expect(document.activeElement).toBe(button("Cancel review"));
   expect(document.body.textContent).toContain("Structural checks");
   await click("Cancel review");
-  expect(document.activeElement).toBe(button("Review preliminary selection"));
-  await click("Review preliminary selection");
+  expect(document.activeElement).toBe(button("Check these files"));
+  await click("Check these files");
   await render([]);
   await click("Cancel review");
-  expect(button("Review preliminary selection").disabled).toBe(true);
+  expect(button("Check these files").disabled).toBe(true);
   expect(document.activeElement).toBe(document.getElementById("game-file-libraries-heading"));
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
@@ -914,7 +914,7 @@ it("reviews a streamed match through a fresh core plan before the scan completes
   expect(document.body.textContent).toContain("Scanning selected folders…");
   expect(button("Cancel scan")).toBeDefined();
   expect(button("Scan saved folders").disabled).toBe(true);
-  expect(button("Relink").disabled).toBe(true);
+  expect(button("Update folder location").disabled).toBe(true);
   expect(desktopApi.importSource).not.toHaveBeenCalled();
   await click("Cancel review");
   expect(document.activeElement).toBe(button("Review game files now"));
@@ -1070,7 +1070,7 @@ it("reports cancelled source addition while keeping its review and completed sca
   await click("Review game files");
   const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
   expect(renderedReview?.textContent).toContain("Source check: Exact identity");
-  expect(renderedReview?.textContent).toContain("Additional file data planned: 0 B");
+  expect(renderedReview?.textContent).toContain("Additional space needed: 0 B");
   vi.mocked(desktopApi.importSource).mockRejectedValueOnce({ code: "cancelled" });
   await click("Use current location");
   expect(document.body.textContent).toContain(
@@ -1469,10 +1469,10 @@ it("preserves a saved root until removal is confirmed", async () => {
   await click("Remove");
   expect(remove).not.toHaveBeenCalled();
   await captureParityState("game-files-remove-root-reviewed-fixture");
-  await click("Keep folder");
+  await click("Keep scanning this folder");
   expect(remove).not.toHaveBeenCalled();
   await click("Remove");
-  await click("Remove saved folder");
+  await click("Stop scanning this folder");
   expect(remove).toHaveBeenCalledWith(saved.id, 1);
 });
 
@@ -1521,7 +1521,7 @@ it.each([
       return { ...saved, path: "E:/More Games" };
     });
     notice = "Saved folder location updated.";
-    await click("Relink");
+    await click("Update folder location");
   } else {
     mutation = vi.spyOn(desktopApi, "removeGameFileRoot").mockImplementation(async () => {
       failRead();
@@ -1529,7 +1529,7 @@ it.each([
     });
     notice = "Saved folder removed. The game files were kept.";
     await click("Remove");
-    await click("Remove saved folder");
+    await click("Stop scanning this folder");
   }
   expect(document.body.textContent).toContain(notice);
   expect(document.body.textContent).toContain("Use Refresh folders");
@@ -1563,7 +1563,7 @@ it.each([
 it("does not describe an already absent root as a new removal", async () => {
   vi.spyOn(desktopApi, "removeGameFileRoot").mockResolvedValue(false);
   await click("Remove");
-  await click("Remove saved folder");
+  await click("Stop scanning this folder");
   expect(document.body.textContent).toContain("The folder was already absent from saved folders.");
   expect(document.body.textContent).not.toContain("Saved folder removed.");
 });
@@ -1595,7 +1595,7 @@ it.each(["success", "failure"] as const)(
       vi.mocked(desktopApi.gameFileRoots).mockRejectedValue(new Error("read unavailable"));
       return replacement;
     });
-    await click("Relink");
+    await click("Update folder location");
     expect(button("Review game files").disabled).toBe(true);
     vi.mocked(desktopApi.gameFileRoots).mockResolvedValue([replacement]);
     vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
@@ -1630,7 +1630,7 @@ it.each(["failure", "cancellation"] as const)(
       outcome === "failure" ? new Error("removal refused") : { code: "cancelled" },
     );
     await click("Remove");
-    await click("Remove saved folder");
+    await click("Stop scanning this folder");
     expect(document.body.textContent).toContain(
       outcome === "failure" ? "removal refused" : "Action cancelled.",
     );
@@ -1652,7 +1652,7 @@ it("uses core root mutations for chosen folders and relinks the same root identi
   });
   await click("Add folder");
   expect(add).toHaveBeenCalledWith("E:/More Games", 1);
-  await click("Relink");
+  await click("Update folder location");
   expect(relink).toHaveBeenCalledWith(saved.id, "E:/More Games", 1);
   await captureParityState("game-files-root-relinked-fixture");
 });
@@ -1900,7 +1900,7 @@ it("discards a relink picker after the originating library is replaced", async (
         release = resolve;
       }),
   );
-  await click("Relink");
+  await click("Update folder location");
   await root.rerender(
     <GameFileLibraries generation={2} key="new-library" ports={[]} profiles={[]} />,
   );

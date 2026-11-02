@@ -21,7 +21,7 @@
         },
         {
           "title": "Preserve the archived implementation identity",
-          "instruction": "Both games share one archived source repository but remain distinct catalog identities and canonical owners. This guide records conditional existing-copy use; it does not offer a new binary, claim an accepted code license or repair/build this archived engine."
+          "instruction": "Grand Theft Auto III and Vice City share an archived source repository but use separate players and game data. These instructions cover an existing copy you are permitted to use. Portcove does not supply a new binary, establish a code-licence grant or build and repair this archived engine."
         }
       ],
       "warnings": [],

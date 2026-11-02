@@ -3,7 +3,7 @@
   "listing": {
     "id": "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp",
     "name": "Quake 4 (Xbox 360 edition) (Xbox 360 Quake 4 decomp/recomp)",
-    "summary": "Upstream route: Windows setup EXE builds game from user's ISO/default.xex, not a prebuilt playable game binary. Limits: Only early levels tested upstream; later levels rough and audio lightly tested. Setup/build route is substantial. Upstream platforms: Windows setup EXE/local compiler route; selected host CPU unknown in frozen evidence. D3D11 native renderer variant and legacy executable remain distinct outputs. Original data: User-owned Xbox 360 Quake 4 ISO; code generated locally. Portcove setup/gameplay not verified.",
+    "summary": "An Xbox 360 Quake 4 development route that builds locally from your own ISO/default.xex. The Windows setup EXE is not a prebuilt playable game. The project has tested only early levels; later levels are rough and audio testing is limited. The native Direct3D 11 renderer and legacy executable are separate outputs. Exact Windows host CPU architecture is unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Quake 4 (Xbox 360 edition)",
     "project_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "quake-4",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2699
+    "issue_number": 2699,
+    "manual_setup": {
+      "help_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/3363d5339af52f228a95f2a9f28a95d466e5c520/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own Xbox 360 Quake 4 files",
+          "instruction": "Use your own Xbox 360 Quake 4 ISO, or complete matching extracted files including default.xex and the game’s PK4 data. PC Quake 4/openQ4 files are not interchangeable. Complete the supported upstream setup/build and original selection before attachment. The selected v0.2.0 source documents ReXGlue SDK v0.10.0 plus this title’s patches, generation from the owner’s XEX and a completed Windows native player; the observed setup EXE is a preparation program, not the locally generated game."
+        },
+        {
+          "title": "Keep the actual completed native-renderer unit",
+          "instruction": "Use the completed q4hle.exe from the upstream player or documented Q4_HLE-enabled build, retaining all matching runtime/rendering DLLs, settings/resources and original files. Its selected Q4HleApp is the normal q4 application with a title-specific native Direct3D 11 renderer; the SDK/Xenos q4.exe and legacy-runtime builds are distinct variants, not interchangeable qualification. Do not register Quake4-Setup-0.2.0.exe, a compiler, profiler or renderer-shadow test as normal Play."
+        },
+        {
+          "title": "Attach the in-process game",
+          "instruction": "Select the completed q4hle.exe, use its complete player/build-output directory as working directory and leave arguments empty after upstream original/settings preparation. Review the selected program, working folder and arguments and choose Play when ready. The native entry inherits the q4 application’s ordinary path selection and runtime loop; it remembers the existing game location in q4.toml and can request a valid own ISO or extracted default.xex when missing. Finish those prompts upstream before retrying. Keep Q4_HLE_NATIVE/shadow/debug choices at the installation’s intended ordinary settings and close the actual game normally."
+        },
+        {
+          "title": "Preserve q4 settings, original location and user data",
+          "instruction": "Keep q4.toml beside the executable, the original ISO or complete extracted game tree at its configured location, and the full active user/cache/data roots. The pinned SDK’s Windows default user root is Known Documents/q4, including relocated Documents folders; existing user_data_root/cache_root flags or configuration override it. This title’s inspected SDK patch allows an ISO file as game_data_root and does not replace that user-root selection. Preserve saves, profile/settings, caches, logs, historical variants and recovery separately; do not merge legacy, PC openQ4 and Xbox-runtime saves or create a fresh replacement root."
+        },
+        {
+          "title": "Keep renderer, compatibility and maintenance limits",
+          "instruction": "Retain title, patched ReXGlue SDK, compiler, shader/audio/library and all other component notices, separately from the original game. The initial-level/menu observations and native-renderer claims are upstream evidence, not full campaign, physical-controller or real-save restore qualification here. Upstream/player owns preparation and replacement: quit normally, preserve data/recovery and review/relink changed bytes after updates. This existing-player route grants no source/distribution rights and supplies no Portcove managed install/update/backup/rollback/migration/external deletion."
+        }
+      ],
+      "warnings": [
+        "Select the actual completed q4hle.exe and preserve q4.toml, the original location and existing q4 data root. PC openQ4, the SDK renderer and legacy builds have separate compatibility and maintenance scope."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

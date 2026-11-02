@@ -34,8 +34,8 @@
           "instruction": "Select the prepared ZIP’s TenchuSARecomp native apphost with its established package directory as working directory and no arguments. Keep its complete matching resources and actual disc/profile selections. Do not select the source project, compiler, publish script or an unverified Windows build. A separate AppImage extraction/setup helper is not part of this attachment."
         },
         {
-          "title": "Review the native attachment and choose Play separately",
-          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation, runtime replacement and recovery stay with upstream and the player. Core offers no external update, backup, rollback, conversion, migration or deletion. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement; retain the old working copy and data, then review and relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
         },
         {
           "title": "Preserve the effective upstream profile and working runtime",
@@ -47,7 +47,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, original inputs and every effective profile, mod, generated-code/cache and custom root before maintenance; another selected executable can share data."
+        "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
       ]
     },
     "download_block_reason": "The selected Tenchu title source and published Linux ZIP provide no applicable grant for separately authored title and RecompOne-fork modifications; the project references that separate fork without a public pinned source/grant. The original engine’s MIT licence does not settle this scope. Fresh acquisition stays held until attributable applicable permission/source correspondence or a reviewed permitted replacement resolves it. A separately permitted self-contained copy remains a distinct case; no permission is granted by this guide."

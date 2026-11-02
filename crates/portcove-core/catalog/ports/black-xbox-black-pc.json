@@ -3,13 +3,41 @@
   "listing": {
     "id": "black-xbox-black-pc",
     "name": "BLACK (Xbox) (black-pc)",
-    "summary": "Research listing. Upstream route: Windows x86 compatibility/native execution package Limits: Direct original Xbox x86 execution through compatibility services; upstream says fully playable, Linux uses Wine. Upstream platforms: Windows x86/32-bit compatibility runtime, runs on64-bit Windows. Linux route uses Wine with native DXVK libraries, not a native Linux game package. Original data: Own BLACK original Xbox NTSC-U or PAL Europe full extracted disc data in game/. Required default.xbe SHA-256: NTSC-U DF2739C372D254A90AEECCF5971D12097F22D89FBB90DB021FDA96DD4DEB68F6; PAL Europe 67F35121CCF622E7A293C402219596FE6456CA4C3D27E6F8139E449264DA30F0. Other builds are unsupported; original x86 code runs directly via compatibility services. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared BLACK Windows installation using Spark198rus’s title-specific original-x86 compatibility runtime. This is direct Xbox-code execution with replacement services, not static recompilation; Linux uses Wine rather than a native Linux player.",
     "original_game_title": "BLACK (Xbox)",
     "project_url": "https://github.com/Spark198rus/black-pc",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Spark198rus/black-pc",
-    "issue_number": 2877
+    "issue_number": 2877,
+    "manual_setup": {
+      "help_url": "https://github.com/Spark198rus/black-pc/blob/b826153997907272dd555b8ec63b6a54fcde0600/README.md",
+      "steps": [
+        {
+          "title": "Prepare one of the exact owned Xbox builds",
+          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.3.0 source accepts original Xbox BLACK NTSC-U or PAL Europe full extracted disc data. The default.xbe SHA256 must be DF2739C372D254A90AEECCF5971D12097F22D89FBB90DB021FDA96DD4DEB68F6 (NTSC-U) or67F35121CCF622E7A293C402219596FE6456CA4C3D27E6F8139E449264DA30F0 (PAL). Other builds are outside this route; do not use --force to substitute one. Complete upstream extraction/setup outside Portcove, retaining the original disc/image. No original, extractor, DLL, helper or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the original layout and matching runtime DLL",
+          "instruction": "The inspected black-pc-0.3.0-win32.zip contains port/black.exe and blackrt.dll with instructions/notices. black.exe is an x86/32-bit address-space stub; its imported blackrt.dll loads the original XBE into that same process. This is a title-specific native-x86 compatibility layer with replacement Xbox services, not a static recompiler or a generic console-emulator package. Keep the complete parent layout: BLACK/game/default.xbe and all game data beside BLACK/port/black.exe and blackrt.dll. Windows 10/11 x64 host compatibility and Direct3D9 are upstream requirements, not observed passes."
+        },
+        {
+          "title": "Select the ordinary Windows launch intent",
+          "instruction": "Select port/black.exe, set the common BLACK parent directory containing both game and port as working directory, and leave arguments empty. Review the exact selected intent, then request Play separately. The default game/default.xbe path resolves in that layout; the DLL and original game execute within the selected stub process. Do not select blackrt.dll, default.xbe or a Wine launcher. Source/header inspection does not establish native play, dynamic imports, GPU compatibility or shutdown behavior."
+        },
+        {
+          "title": "Preserve the port-local hard disk and all originals",
+          "instruction": "Keep port/savedata (the virtual Xbox hard disk, saves and game settings), port/black.ini, port/black.log and port/cache/menus, plus the complete original game folder and source disc/image. Already established --hdd, --log, game-path or other custom selections can point outside that layout; retain every effective root without adding an override here. Shared filenames do not establish compatibility with another BLACK implementation, region, runtime or console save. This guide performs no migration, backup, import or deletion."
+        },
+        {
+          "title": "Retain ownership, rights and platform limits",
+          "instruction": "Quit the actual game normally before upstream replacement or repair, preserve independent recovery copies and review/relink changed executable/DLL bytes. Keep GPLv2 and all component notices; those grants do not grant rights in BLACK’s original code or assets. Upstream full-playability statements remain upstream claims. Its60FPS physics caveat, approximate reverb and missing subwoofer channel remain; Linux’s Wine/DXVK route is a separate compatibility stack. No Portcove gameplay, save/reload, installed-app or Supported acceptance is claimed. Removing registration preserves all external files; managed install/update/rollback/backup/removal are unavailable."
+        }
+      ],
+      "warnings": [
+        "Use one of the exact NTSC-U/PAL XBE hashes, keep blackrt.dll with the x86 stub, and preserve the virtual hard disk before upstream replacement."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

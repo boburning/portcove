@@ -4,7 +4,7 @@
     "id": "hp1recomp-l0rd92-harry-potter-and-the-sorcerer-s-stone",
     "name": "Harry Potter and the Sorcerer's Stone — HP1Recomp (l0rd92)",
     "original_game_title": "Harry Potter and the Sorcerer's Stone",
-    "summary": "Boot/movement/pause/conversationsverifiedupstream; streamed audiotimingissue; nofullplaythrough Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports startup, movement, pausing and conversations. Streamed audio has timing problems, and a full playthrough is unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/l0rd92/HP1Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS01415 own disc SLUS_014.15+US.GAM"
+          "instruction": "Use your own USA SLUS01415 disc, including SLUS_014.15 and US.GAM."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source/release owneddisc runtime"
+          "instruction": "Follow upstream’s release or source-build instructions with your own disc; keep its files available to the player."
         }
       ],
       "warnings": [
-        "Boot/movement/pause/conversationsverifiedupstream; streamed audiotimingissue; nofullplaythrough",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports startup, movement, pausing and conversations. Streamed audio has timing problems, and a full playthrough is unconfirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/l0rd92/HP1Recomp"
     },

@@ -4,7 +4,7 @@
     "id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
     "name": "Jet Force Gemini — JetForceGemini-Recomp (VibinToast)",
     "original_game_title": "Jet Force Gemini",
-    "summary": "Claims100% playable, modern controls and texture packs; upstream claim only, no Portcove playthrough. Different repo ID than existing TK22 owner and own DKR-derived runtime needs final lineage reconciliation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream claims full playability, modern controls and texture-pack support. Portcove has not completed a playthrough. This repository differs from the TK22 project and uses a DKR-derived runtime; their relationship and compatibility are not fully confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/VibinToast/JetForceGemini-Recomp",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA z64 ROM SHA1 493ced9008dbe932d6e91179b68e8630cf23a023"
+          "instruction": "Use your own USA z64 ROM, SHA-1 493ced9008dbe932d6e91179b68e8630cf23a023."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README Windows/Linux archives/AppImage or source local build. Runtime selects own ROM; saves separate per package."
+          "instruction": "Follow the README for Windows or Linux archives, a Linux AppImage or a local source build. Select your own ROM in the player and keep saves for each package separately."
         }
       ],
       "warnings": [
-        "Claims100% playable, modern controls and texture packs; upstream claim only, no Portcove playthrough. Different repo ID than existing TK22 owner and own DKR-derived runtime needs final lineage reconciliation.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream claims full playability, modern controls and texture-pack support. Portcove has not completed a playthrough. This repository differs from the TK22 project and uses a DKR-derived runtime; their relationship and compatibility are not fully confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/VibinToast/JetForceGemini-Recomp"
     },

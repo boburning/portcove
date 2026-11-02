@@ -39,7 +39,7 @@
           "instruction": "Select FFTARecomp.exe with its complete creating package directory as working directory and no extra arguments for the normal in-process launch screen. The inspected title runs that screen and game in the same process; it does not hand the game to a detached launcher. Retain only the supported literal arguments your working setup actually requires, including existing --save/--save-path and --state-dir choices. Do not select a tool or start a separate compiler/helper."
         },
         {
-          "title": "Review the attachment and choose Play separately",
+          "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to this exact native executable, working directory and literal arguments, then choose Play separately. Upstream and you own preparation, replacement and recovery of external files. Removing registration preserves every external file. Close the actual player before upstream maintenance; retain old runtime/data and review/relink changed selected bytes."
         },
         {
@@ -49,7 +49,7 @@
       ],
       "warnings": [
         "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
-        "Experimental upstream preview. Exact title/framework source and package metadata/static inspection are not proof of package-to-source correspondence, native gameplay, clean shutdown, real saves, installed Desktop, protected delivery or other-platform qualification."
+        "This upstream preview is experimental. Source and package descriptions and static checks do not confirm that the package matches the source or that gameplay, normal shutdown, saves or installed Desktop behavior work. Other platforms have separate requirements."
       ]
     }
   },

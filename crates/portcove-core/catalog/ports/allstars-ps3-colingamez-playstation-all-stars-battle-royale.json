@@ -4,7 +4,7 @@
     "id": "allstars-ps3-colingamez-playstation-all-stars-battle-royale",
     "name": "PlayStation All-Stars Battle Royale — allstars-ps3 (ColinGamez)",
     "original_game_title": "PlayStation All-Stars Battle Royale",
-    "summary": "Research project. BootthroughFIOS/D3D12; stalls invalidworkercondition Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project reports startup reaching FIOS and Direct3D 12, then stalling on an invalid worker condition. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/ColinGamez/allstars-ps3",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA BCUS98472 owneddisc+own.dkey; decryptedEBOOT/PS3_GAMEVFS"
+          "instruction": "Use your own USA BCUS98472 disc and its matching .dkey to prepare a decrypted EBOOT and PS3_GAME virtual file system."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source PPUSPUlift + CMake/Ninja/VS/LLVM"
+          "instruction": "Follow the project’s source-build instructions for PPU/SPU code translation with CMake, Ninja, Visual Studio and LLVM. This is a development route; a game startup currently stalls on an invalid worker condition."
         }
       ],
       "warnings": [
-        "BootthroughFIOS/D3D12; stalls invalidworkercondition",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports startup reaching FIOS and Direct3D 12, then stalling on an invalid worker condition.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/ColinGamez/allstars-ps3"
     },

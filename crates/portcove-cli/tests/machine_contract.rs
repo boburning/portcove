@@ -379,7 +379,7 @@ fn first_use_help_identifies_player_and_external_client_routes() {
     for (args, phrase) in [
         (
             &["source", "remove", "--help"][..],
-            "without deleting its file",
+            "without deleting the original files",
         ),
         (
             &["install", "--help"][..],
@@ -2498,7 +2498,7 @@ fn doctor_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let doctor = human_stdout(&portcove(root.path(), &["doctor"])).to_owned();
     assert!(doctor.starts_with("Portcove doctor\nPlatform:"));
-    assert!(doctor.contains("\nRepair review: no repairs needed."));
+    assert!(doctor.contains("\nRepair review: no repair items were recorded."));
 }
 
 #[test]

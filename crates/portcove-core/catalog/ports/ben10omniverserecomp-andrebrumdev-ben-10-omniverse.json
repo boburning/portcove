@@ -4,7 +4,7 @@
     "id": "ben10omniverserecomp-andrebrumdev-ben-10-omniverse",
     "name": "Ben 10: Omniverse — Ben10OmniverseRecomp (andrebrumdev)",
     "original_game_title": "Ben 10: Omniverse",
-    "summary": "Boot/logos/video and27-59fpsmeasuredM5Air; exactmissioncoverage toresolve Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project reports startup, logos and video, with 27–59 FPS measured on an M5 Air. Exact mission coverage is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USABLUS31017 disc01.00 ownedgame/decryptedEBOOT/assets"
+          "instruction": "Use your own USA BLUS31017 version 01.00 disc, decrypted EBOOT and assets."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source build_macos.sh/run_ben10.sh localgeneratedcode"
+          "instruction": "Follow build_macos.sh and run_ben10.sh to generate and build the game code locally."
         }
       ],
       "warnings": [
-        "Boot/logos/video and27-59fpsmeasuredM5Air; exactmissioncoverage toresolve",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports startup, logos and video, with 27–59 FPS measured on an M5 Air. Exact mission coverage is unconfirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp"
     },

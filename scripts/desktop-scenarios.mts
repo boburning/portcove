@@ -945,9 +945,10 @@ export function desktopHarnessDeadlineMs(
 ) {
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
     return gameFirstMMHarnessDeadlineMs;
-  // Private-input custody, real copy review, managed game close and owned restart.
-  // This outer harness budget does not change any product deadline or retry policy.
-  if (selection.selected_scenarios.includes("native-game-first-installed-picori")) return 1_200_000;
+  // Picori generates thousands of retained assets. Allow two finite 30-minute
+  // collection observations, two five-minute operator exit observations, and
+  // five minutes for custody, setup and cleanup. No product deadline or retry changes.
+  if (selection.selected_scenarios.includes("native-game-first-installed-picori")) return 4_500_000;
   // The retained 2026-11-01 A1 attempt exhausted 180s verifying immutable
   // inputs before App launch. Allow finite room for custody, captures and restart;
   // keep every inner wait, identity check and cleanup unchanged.

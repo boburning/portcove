@@ -4,7 +4,7 @@
     "id": "kirby-amazing-mirror-recomp-felipe-gomes-amorim-kirby-the-amazing-mirror",
     "name": "Kirby & The Amazing Mirror — kirby-amazing-mirror-recomp (Felipe-Gomes-Amorim)",
     "original_game_title": "Kirby & The Amazing Mirror",
-    "summary": "Research project. Firstarea/8000frames only; deeperlevels/bosses/abilities untested, timingapproximate. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream’s reported test covers only the first area and 8,000 frames. Deeper levels, bosses and abilities remain untested, and timing is approximate. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA B8KE KirbyAmazingMirror own ROM. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own USA B8KE Kirby: The Amazing Mirror ROM. Keep your original separately."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Advertised compiler/runtimeZIP import ownROM; first play interpreter while backgroundAOT, nextlaunch compiled; onlinealwaysinterpreter. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Follow upstream’s compiler/runtime ZIP instructions to import your own ROM. The first game session uses an interpreter while compilation runs in the background; the next launch uses compiled code. Online play always uses the interpreter. Portcove does not install or prepare this project automatically."
         }
       ],
       "warnings": [
-        "Firstarea/8000frames only; deeperlevels/bosses/abilities untested, timingapproximate. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream’s reported test covers only the first area and 8,000 frames. Deeper levels, bosses and abilities remain untested, and timing is approximate. Portcove has not confirmed runtime behavior or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp"
     },

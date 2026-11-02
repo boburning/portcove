@@ -1201,18 +1201,31 @@ impl Library {
         status: ActivityStatus,
         message: &str,
     ) -> Result<()> {
-        let recorded: String = self.connection()?.query_row(
+        self.finish_activity_once_with_report(id, status, message, None)
+    }
+
+    pub(crate) fn finish_activity_once_with_report(
+        &self,
+        id: &str,
+        status: ActivityStatus,
+        message: &str,
+        failure: Option<&crate::FailureReport>,
+    ) -> Result<()> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let recorded: String = transaction.query_row(
             "SELECT status FROM activity_history WHERE id=?1",
             [id],
             |row| row.get(0),
         )?;
         if recorded == "running" {
-            self.finish_activity(id, status, Some(message))?;
+            Self::finish_activity_report_on(&transaction, id, status, Some(message), failure)?;
         } else if recorded != status.to_string() {
             return Err(PortcoveError::conflict(
                 "activity has a conflicting terminal outcome",
             ));
         }
+        transaction.commit()?;
         Ok(())
     }
 

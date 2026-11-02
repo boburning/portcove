@@ -3,7 +3,7 @@
   "listing": {
     "id": "dyotson-forzahorizon1-reimagined",
     "name": "Forza Horizon (Forza Horizon 1: ReImagined)",
-    "summary": "Upstream route: Upstream launcher installer/Flatpak/tar.gz downloads build tools and compiles game locally from own game files; launcher owns game setup/self-update. macOS is source-build experiment, not a player download. Limits: Upstream only: Upstream advertises racing/free roam/co-op. macOS opening drives render; full races, save reloads and physical controllers remain unvalidated. Upstream launcher owns setup and self-update. macOS source experiment has no launcher/download and races/save reload/controllers unvalidated; preserve independent implementation identity. Upstream platforms: Windows installer; Linux Flatpak/tar.gz. macOS is a source experiment without launcher/download. Exact PC architecture needs selected-package documentation. Original data: Xbox 360 Forza Horizon 2012 own disc/GOD/extracted game; TU4 optional for Rally/1000 Club. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "An independent Forza Horizon 1: ReImagined implementation with project-reported racing, free roam and co-op. The Windows installer or Linux Flatpak/tar.gz launcher downloads tools and builds locally from your own 2012 Xbox 360 disc, GOD or extracted game. TU4 is optional for Rally and 1000 Club. The launcher manages setup and updates. macOS is a source experiment without a launcher download: opening drives render, but full races, save/reload and physical controllers remain unconfirmed. Exact PC package architecture, original revision/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Forza Horizon",
     "project_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "forza-horizon",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2726
+    "issue_number": 2726,
+    "manual_setup": {
+      "help_url": "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined/blob/c44f31461566a95cf050d32ccde6db389c305b78/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own Xbox 360 original upstream",
+          "instruction": "Use the official v0.2.4 Windows setup and complete its supported original-file selection, game-code build and graphics/settings preparation. Inputs are your own Forza Horizon Xbox 360 disc image, Games on Demand package or complete extracted folder, title ID 4D5309C9. The selected base manifest identifies XEX module hash D48ABF1704CE5C4A; optional Title Update 4 uses version 0.0.4.12/module hash 336A44DC03EC8782. These module identifiers are not whole-disc cryptographic hashes. Retain owned update/DLC inputs separately."
+        },
+        {
+          "title": "Select the installed waiting launcher",
+          "instruction": "After setup succeeds, select the actual installed forza-launcher.exe, use its complete installed directory as working directory and leave arguments empty. Keep its bundled files intact. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary Play. The selected GUI creates a game Session, polls its child until exit and waits for that child when closing. Keep the launcher open while the game runs, then close both normally. Do not select ForzaHorizon1-ReImagined-Setup-0.2.4.exe, an update helper, bare forza.exe, server or command-line build/extract mode."
+        },
+        {
+          "title": "Keep the exact launch context",
+          "instruction": "The launcher passes the actual game-data root and selected user/cache/profile paths, writes the game configuration and supplies graphics/session environment. It also handles save preparation and post-session processing. Directly starting forza.exe with default paths would instead risk selecting Documents/forza and omit that context. Keep the already selected local or Xenia-derived profile, original/base or TU4 build, DLC and graphics configuration; do not switch them merely to attach the player. Optional online, public sharing, haptics, VR, account or token operations remain upstream/user choices and are not performed here."
+        },
+        {
+          "title": "Preserve both settings and game-data roots",
+          "instruction": "Keep %APPDATA%/ForzaReImagined with launcher.json, settings/logs and private profile information, plus the actual game-data root. New Windows data normally uses %LOCALAPPDATA%/ForzaReImagined; an existing Documents/forza install can remain active, and configured data roots or a failed legacy carry can retain another actual root. Preserve originals, saves, profile/Xenia copies, DLC, photos, backups, cache and both historical/active roots. Upstream carry operations copy without deleting the source and do not justify merging or deleting existing profiles. No data relocation, save editing, migration, restore or deletion is performed here."
+        },
+        {
+          "title": "Keep upstream ownership and qualification limits",
+          "instruction": "The upstream launcher owns compiler/source staging, preparation, self-update and failed-build recovery. Retain project GPLv3-or-later, ReIGlue/ReXGlue, compiler, bundled libraries and component notices; they do not license the original game, DLC, mods or shared content. Finish updates outside a game session, preserve recovery and review/relink changed bytes. The observed setup EXE header is the installer, not proof of the compiled game’s architecture or behavior. No native/installed, online/multiplayer, full campaign, real-save restore, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the installed forza-launcher.exe after upstream preparation. Its waiting session preserves the actual data/profile context; keep both launcher settings and all active/historical game roots."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

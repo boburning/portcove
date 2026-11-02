@@ -4,7 +4,7 @@
     "id": "toystoryracerrecomp-irafunesto-toy-story-racer",
     "name": "Toy Story Racer — ToyStoryRacerRecomp (IraFunesto)",
     "original_game_title": "Toy Story Racer",
-    "summary": "Research project. Upstream native racer preview with native track renderer/widescreen and title-specific scene fixes. No full playthrough or every track/render enhancement is Portcove-verified. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. The project describes a native racer preview with a native track renderer, widescreen and game-specific scene fixes. Portcove has not confirmed a full playthrough or every track and rendering enhancement. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own PS1 ToyStoryRacer PAL SLES-03398 Spanish/Italian/Dutch CUE/BIN; two known dump variants and guarded corrupt-track fixes are described upstream. First run creates local tsr_data; never redistribute it."
+          "instruction": "Use your own PS1 ToyStoryRacer PAL SLES-03398 Spanish/Italian/Dutch CUE/BIN; two known dump variants and guarded corrupt-track fixes are described upstream. First run creates local tsr_data; never redistribute it."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Upstream describes a standalone release ZIP and owned-disc first-start extraction into tsr_data, plus PSXRecomp/launcher source route. No package integrity was checked here; game-derived/runtime distribution review remains separate."
+          "instruction": "The project describes a standalone release ZIP that extracts your own disc into tsr_data on first start, plus a PSXRecomp and launcher source build. The recorded review did not check package integrity. Permission to distribute the runtime and derived game code remains separate."
         }
       ],
       "warnings": [
-        "Upstream native racer preview with native track renderer/widescreen and title-specific scene fixes. No full playthrough or every track/render enhancement is Portcove-verified.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project describes a native racer preview with a native track renderer, widescreen and game-specific scene fixes. Portcove has not confirmed a full playthrough or every track and rendering enhancement.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp"
     },

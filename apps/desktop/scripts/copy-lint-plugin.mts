@@ -26,6 +26,13 @@ const rules = [
     message: "Use complete count-aware wording instead of a parenthetical plural.",
   },
   {
+    id: "engineering-handoff",
+    pattern:
+      /\b(?:execution intent|operation hold|source_identity_facts|current Core snapshot|retained declarations)\b/iu,
+    message:
+      "Explain the player's situation and next action; keep engineering evidence in technical details.",
+  },
+  {
     id: "generic-verified",
     pattern: /^verified[.!]?$/iu,
     message: "Name what was checked instead of a generic Verified label.",
@@ -75,7 +82,9 @@ function technicalDisclosure(node: Node) {
       .filter((child) => child.type === "JSXText")
       .map((child) => decodeJsxEntities(child.value))
       .join(" ") ?? "";
-  return /^(?:view )?technical details$|^full identity and evidence$/iu.test(label.trim());
+  return /^(?:view )?technical details$|^full identity and evidence$|^file details and test results$/iu.test(
+    label.trim(),
+  );
 }
 
 function codeLiteral(node: Node, parent: Node | null | undefined) {

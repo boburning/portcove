@@ -307,7 +307,7 @@ export function LibraryCopySummary({
       {plan.metadata.application_versions.length > 0 ? (
         <>
           <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-            Current, previous, and saved-for-later versions keep their identities. These
+            Your current, previous, and prepared game versions will all be copied. These
             installation paths are relative to the library folder.
           </p>
           <ul className="ps-5">
@@ -359,8 +359,8 @@ export function LibraryCopySummary({
         </details>
       )}
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-        Copying Portcove game-file folder contents does not redirect these saved locations. Keep the
-        original game files available until you explicitly add another location.
+        Copying these files does not update their saved locations. Keep the originals until you
+        choose the new locations.
       </p>
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         Original game files, saves, backups and artwork remain in place. Later saves and settings

@@ -4,7 +4,7 @@
     "id": "ratchet-clank-pc-btsouth-ratchet-clank-2016",
     "name": "Ratchet & Clank (2016) — ratchet-clank-pc (btsouth)",
     "original_game_title": "Ratchet & Clank (2016)",
-    "summary": "Preview 0.1: every planet loads/plays at 60 FPS preset with cutscenes, sound, controller and saves. No start-to-finish completion. Shadow flicker, first-visit shader stutter and unstable higher frame rates remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Preview 0.1: every planet loads/plays at 60 FPS preset with cutscenes, sound, controller and saves. No start-to-finish completion. Shadow flicker, first-visit shader stutter and unstable higher frame rates remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/btsouth/ratchet-clank-pc",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own base 01.00 decrypted CUSA01073 directory with eboot.bin, sce_module and sce_sys; no update merged. Extract owned PKG using a recent extractor. Game files remain required at runtime."
+          "instruction": "Use your own base 01.00 decrypted CUSA01073 directory with eboot.bin, sce_module and sce_sys; no update merged. Extract owned PKG using a recent extractor. Game files remain required at runtime."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README recommends Ratchet-Clank-port-x86_64.AppImage and adjacent sha256 file. Launcher selects game folder; first start prepares image and shader caches. Source alternative uses build.sh and optional GTK4 launcher. Saves/cache in ~/.local/share/ratchet-port; one running copy due to /tmp/.racS link."
+          "instruction": "Use the README’s recommended Ratchet-Clank-port-x86_64.AppImage and its adjacent sha256 file. Select your game folder in the launcher; the first start prepares an image and shader caches. Alternatively, build with build.sh and the optional GTK4 launcher. Preserve ~/.local/share/ratchet-port for saves and cache. Only one copy can run at once because they share /tmp/.racS."
         }
       ],
       "warnings": [
         "Preview 0.1: every planet loads/plays at 60 FPS preset with cutscenes, sound, controller and saves. No start-to-finish completion. Shadow flicker, first-visit shader stutter and unstable higher frame rates remain.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/btsouth/ratchet-clank-pc"
     },

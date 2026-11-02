@@ -3,7 +3,7 @@
   "listing": {
     "id": "amped-2-amped2-recomp",
     "name": "Amped 2 (Amped2-Recomp)",
-    "summary": "Upstream route: Linux package; Windows route held Limits: Experimental Linux route; Windows explicitly unplayable, very slow and observed only through Wine/Proton. Upstream platforms: Linux x86-64 package is primary route. Windows preview exists but is explicitly unplayable/very slow and tested only under Wine/Proton; do not offer as playable Windows. Original data: Own PAL/EU Amped 2 original Xbox disc, title 4D530041, XDK 5558, default.xbe SHA-1 38e63cd016bf084d999e0a911933a52191bfc378. Full Redump ISO, game-partition XISO or extracted folder is supported. Keep all disc files in game_files/, with default.xbe directly at its root; other versions are untested. Portcove setup/gameplay not verified.",
+    "summary": "An experimental Linux x86-64 Amped 2 port. The Windows preview is explicitly unplayable and very slow, with only Wine/Proton testing. Use your own PAL/Europe original-Xbox disc: title 4D530041, XDK 5558, default.xbe SHA-1 38e63cd016bf084d999e0a911933a52191bfc378. The project supports a full Redump ISO, game-partition XISO or extracted folder. Keep every disc file in game_files/, with default.xbe directly at its root; other versions are untested. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Amped 2",
     "project_url": "https://github.com/bertibertig/Amped2-Recomp",
     "platforms": [],

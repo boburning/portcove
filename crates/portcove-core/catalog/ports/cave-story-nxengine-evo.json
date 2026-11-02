@@ -3,7 +3,7 @@
   "listing": {
     "id": "cave-story-nxengine-evo",
     "name": "Cave Story (NXEngine-evo)",
-    "summary": "Upstream route: Upgraded native engine with Windows/Linux/macOS releases. Limits: Separate from doukutsu-rs already tracked; check freeware-data packaging and supported translations. Upstream platforms: Windows/Linux/macOS runtime packages; exact selected package CPU architectures unknown in frozen research. Original data: Cave Story freeware data/preparation contract is Unknown in the retained NXEngine-evo README. Establish which original freeware release/localization and asset directory or separate data pack the chosen package needs, and whether those assets are already included. The README says its built-in data extractor was removed; do not infer that Cave Story+ data or another engine package is accepted. Portcove setup/gameplay not verified.",
+    "summary": "Use a complete permitted NXEngine-evo player for freeware Cave Story, keeping its prepared data, translations and profile together. Cave Story+ is a separate input. You and the project manage this external copy; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Cave Story",
     "project_url": "https://github.com/nxengine/nxengine-evo",
     "platforms": [],
@@ -26,7 +26,7 @@
           "instruction": "Preserve the entire creating runtime/data/mods/translations and actual SDL nxengine preference directory, normally under the current account’s AppData. It holds settings.dat, profile.dat/profile2.dat and other slots, debug.log and mod-specific progress; overlays can change the data selected. If preference lookup fails paths can fall back to the working directory. Preserve both effective locations before updates; a second executable may share profiles. The current Windows release lacks an independently published accepted digest for managed install; a freshly computed hash would not authenticate it."
         },
         {
-          "title": "Review the prepared executable and intent",
+          "title": "Review launch details, then choose Play",
           "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
         },
         {

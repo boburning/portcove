@@ -3195,7 +3195,7 @@ void test("installed Picori is explicit, standalone and excludes inert fixture a
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
   assert.deepEqual(selection.prerequisites, ["desktop"]);
   assert.deepEqual(selection.setup_scenarios, []);
-  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 4_500_000);
   assert.throws(
     () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
     /standalone/u,

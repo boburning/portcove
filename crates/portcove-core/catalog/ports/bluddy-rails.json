@@ -30,7 +30,7 @@
           "instruction": "The inspected source writes save slots game0.sav through game9.sav relative to the working directory, with transient .tmp files during replacement. These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root. Original-data search can use --data-dir/RAILS_DATA_DIR, working-directory/executable data/ or %APPDATA%/Rails/data; asset search also honors RAILS_ASSETS_DIR and component directories. Do not assume all assets or originals live beside rails.exe."
         },
         {
-          "title": "Keep upstream maintenance and compatibility ownership",
+          "title": "Keep a working copy before updating",
           "instruction": "Upstream and you own preparation, runtime replacement, recovery and external files. Close the actual player before maintenance, retain the old runtime and all effective data, then review/relink changed selected bytes. Removing registration preserves external files. MIT applies to original project code separately from original-game assets and dependency notices; no title/source label supplies rights to DOS data. No external update, backup, rollback, migration, deletion, full simulation parity or actual gameplay/save qualification is offered."
         }
       ],

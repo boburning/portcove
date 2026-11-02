@@ -1045,6 +1045,14 @@ completed. Current prepared routes supply them separately from the retained `man
 compatibility and technical notes. Older definitions keep their prose fallback.
 Clients keep warnings visible, show numbered steps, and disclose the longer notes
 without parsing free-form prose or changing file/operation authority.
+Write each player step around one action: what to download, which original files
+are needed, what to select, and what happens next. Follow
+[content design](CONTENT-DESIGN.md#start-with-the-players-task). Keep exact editions,
+filenames, sidecars, commands, save locations and permission warnings. Put dated
+inspection evidence in compatibility/technical notes where the schema offers
+them. Missing edition or hash information is a limitation to explain, not an
+instruction to inspect internal research fields. Review the complete guide in
+context; a shared paragraph rewrite does not qualify every game's instructions.
 A platform-specific prepared spec may opt into `library_user_data: true` for
 `staged-source-portable`, with a safe `user_data_environment` name on the port.
 After retained-package and original-source revalidation, Core creates only the

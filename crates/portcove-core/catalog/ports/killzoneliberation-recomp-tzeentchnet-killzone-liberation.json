@@ -4,7 +4,7 @@
     "id": "killzoneliberation-recomp-tzeentchnet-killzone-liberation",
     "name": "Killzone: Liberation — KillzoneLiberation-Recomp (Tzeentchnet)",
     "original_game_title": "Killzone: Liberation",
-    "summary": "Research project. Chapter1/tutorial/Mission1 completed upstream; save/fullgame validation ongoing, ad-hoc absent. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports completing Chapter 1, the tutorial and Mission 1. Saving and full-game testing continue; ad hoc networking is absent. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA UCUS98646 KillzoneLiberationv1.20 own exact supportedISO. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own exact supported USA UCUS98646 Killzone: Liberation v1.20 ISO. Keep your original separately."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source-only extract/translate ownISO, VSclang-cl/SDK/CMake build kzl.exe and reuse sameISO. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Follow the source-only instructions to extract and translate your own ISO. Build kzl.exe with Visual Studio, clang-cl, the required SDK and CMake, then keep the same ISO available while playing. Portcove does not install or prepare this source project automatically."
         }
       ],
       "warnings": [
-        "Chapter1/tutorial/Mission1 completed upstream; save/fullgame validation ongoing, ad-hoc absent. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports completing Chapter 1, the tutorial and Mission 1. Saving and full-game testing continue; ad hoc networking is absent. Portcove has not confirmed runtime behavior or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Tzeentchnet/KillzoneLiberation-Recomp"
     },

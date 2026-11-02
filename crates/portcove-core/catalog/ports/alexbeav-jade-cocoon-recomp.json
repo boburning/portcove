@@ -3,7 +3,7 @@
   "listing": {
     "id": "alexbeav-jade-cocoon-recomp",
     "name": "Jade Cocoon: Story of the Tamamayu / Alexbeav PSXRecomp",
-    "summary": "Upstream PlayStation setup package using your own matching disc and any required BIOS. Finish generation with upstream; that external copy keeps its own runtime updates and player data.",
+    "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp",
     "issue_number": 1599,
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Download the upstream setup package",
-          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. This is a setup package: its launcher prepares the game from your own matching disc through upstream generation/build. On Linux, follow the selected version\u2019s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not run a launcher, compiler or game. Native setup and gameplay remain unqualified by this handoff."
+          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. Its launcher builds the game using your own matching disc. On Linux, follow that version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not start setup or the game. Portcove has not confirmed setup or gameplay for this package."
         },
         {
           "title": "Supply the matching original files",
@@ -29,7 +29,7 @@
         },
         {
           "title": "Finish upstream setup, then add the player",
-          "instruction": "Deliberately open the supported upstream launcher when you are ready to generate/build from your own files. Follow that version\u2019s completed-player instructions and keep its runtime/compiler companions together. In Portcove choose the resulting native game executable or supported upstream launcher with its supplied working folder. If setup created it elsewhere, select that location. Saving launch details and Play are separate Portcove actions. You or upstream manage runtime updates, original files, saves and settings; these external files are outside Portcove-managed backups. Keep a working copy and its data before changing versions."
+          "instruction": "Open the project’s launcher to build the game from your own files. Follow the instructions for that version and keep the completed game with its required runtime and compiler files. In Portcove, select the completed game executable or supported launcher and its working folder. If setup created the game elsewhere, select that location. Save the launch details, then choose Play when you are ready. You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions."
         }
       ],
       "warnings": [],

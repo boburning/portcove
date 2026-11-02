@@ -135,7 +135,9 @@ export function SelfServiceSetup({
           </Button>
         ) : null}
         {!registered && entry.listing?.setup_url && (
-          <ExternalLink href={entry.listing.setup_url}>Upstream setup instructions</ExternalLink>
+          <ExternalLink href={entry.listing.setup_url}>
+            Setup guide on the project’s website
+          </ExternalLink>
         )}
       </ActionRow>
       {pending && (
@@ -176,11 +178,11 @@ export function SelfServiceSetup({
       {registered && entry.listing && (
         <div className="grid gap-2 text-sm">
           <p>
-            Registered installation. You or upstream manage updates; the downloaded release does not
-            establish the currently installed version.
+            Registered installation. You or upstream manage updates; the version you downloaded may
+            not be the version Portcove currently launches.
           </p>
           <ExternalLink href={entry.listing.release_url || entry.listing.project_url}>
-            Upstream releases and updates
+            Versions and updates on the project’s website
           </ExternalLink>
         </div>
       )}

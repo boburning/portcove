@@ -4,7 +4,7 @@
     "id": "conrecomp-sandroct-champions-of-norrath-realms-of-everquest",
     "name": "Champions of Norrath: Realms of EverQuest — CoNRecomp (sandroct)",
     "original_game_title": "Champions of Norrath: Realms of EverQuest",
-    "summary": "README stage5 initial con.exe compiling ~15%; first boot explicitly planned. Honest source/WIP visibility only, no playable claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project’s stage 5 report shows the initial con.exe build about 15% complete. First startup remains planned; no playable build is established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/sandroct/CoNRecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS-20565 own disc; runtime README identifies BIOS/IRX owner-supplied, exact BIOS version not established."
+          "instruction": "Use your own USA SLUS-20565 disc. The player README also requires BIOS and IRX files supplied by you; this guide does not establish an exact BIOS version."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Windows10/11 x64 local Python generate + MSVC2022 C++/CMake build. No release asserted."
+          "instruction": "Follow the Windows 10/11 x64 source route with local Python generation, MSVC2022 C++ and CMake. This guide does not identify a completed release."
         }
       ],
       "warnings": [
-        "README stage5 initial con.exe compiling ~15%; first boot explicitly planned. Honest source/WIP visibility only, no playable claim.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project’s stage 5 report shows the initial con.exe build about 15% complete. First startup remains planned; no playable build is established.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/sandroct/CoNRecomp"
     },

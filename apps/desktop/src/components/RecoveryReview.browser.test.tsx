@@ -328,7 +328,7 @@ it("shows malformed journal observations without offering operation controls", a
         />,
       ),
     );
-    expect(host.textContent).toContain("Retained operation requires review");
+    expect(host.textContent).toContain("Unfinished operation needs review");
     expect(host.textContent).toContain("assessments are incomplete");
     expect(host.textContent).toContain("missing or foreign family payload");
     expect(host.textContent).toContain("rowid:42");

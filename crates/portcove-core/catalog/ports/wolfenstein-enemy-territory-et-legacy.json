@@ -34,7 +34,7 @@
           "instruction": "Normal Windows home is Documents/ETLegacy, with profile/mod settings, etconfig.cfg, downloads, screenshots and demos below the actual game/home roots. Keep explicit overrides and all original etmain, legacy/mod, configuration, custom and unknown files. The current source requires different base and home paths; preserve the existing working setup rather than guessing another root. Upstream/player owns updates and profile migration; multiplayer/network and installed-platform behavior are unqualified."
         },
         {
-          "title": "Review the completed player and intent",
+          "title": "Review the prepared player and launch details",
           "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
         },
         {

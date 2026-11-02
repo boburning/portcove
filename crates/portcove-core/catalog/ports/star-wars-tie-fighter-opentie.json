@@ -26,7 +26,7 @@
         },
         {
           "title": "Finish original-data and pilot setup upstream",
-          "instruction": "Use your own complete 1995 Collector\u2019s CD-ROM TIE95 and/or 1998 Windows TIE98 installation; finish the normal upstream folder picker and its validation before registration. It remembers those folders and imports compatible pilot files. Preserve both originals and every existing pilot/profile before setup: source-reviewed import/config conversion is not a Portcove save-compatibility test. Older DOS editions, other revisions and optional SC-55 ROMs are not silently included."
+          "instruction": "Use your own complete 1995 Collector’s CD-ROM TIE95 and/or 1998 Windows TIE98 installation; finish the normal upstream folder picker and its validation before registration. It remembers those folders and imports compatible pilot files. Preserve both originals and every existing pilot/profile before setup: source-reviewed import/config conversion is not a Portcove save-compatibility test. Older DOS editions, other revisions and optional SC-55 ROMs are not silently included."
         },
         {
           "title": "Select the normal native player",
@@ -37,7 +37,7 @@
           "instruction": "Preserve the whole external installation/resources, both complete selected originals, original pilot files and the actual Aeron/SDL user root for organization TotallyOpen and application OpenTIE, including config.yaml, pilots, progress, records, recordings, temporary files, optional music/model resources and unknown files. The user-root location is resolved by the creating runtime; keep any redirected or fallback location separately. Its temporary root defaults to the same user root. Upstream config loading can migrate keyboard bindings and reset older controller bindings; close every instance and retain the pre-change copy before upstream updates. Core does not relocate or migrate these files."
         },
         {
-          "title": "Review intent and leave replacement upstream",
+          "title": "Review launch details and use the project’s updates",
           "instruction": "Consent to the exact executable, working directory and literal arguments, then choose Play separately. Core observes the selected native process; it is not an exclusive session or sandbox. Complete upstream maintenance outside Core, close all real instances, keep the old runtime and data together and relink changed executables for fresh intent review. Registration-only removal preserves every external byte; no managed acquisition, update, backup, rollback or deletion is offered."
         }
       ],

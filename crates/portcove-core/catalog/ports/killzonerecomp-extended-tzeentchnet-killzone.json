@@ -4,7 +4,7 @@
     "id": "killzonerecomp-extended-tzeentchnet-killzone",
     "name": "Killzone — KillzoneRecomp-Extended (Tzeentchnet)",
     "original_game_title": "Killzone",
-    "summary": "Test build. Upstream reports boot, movies, profile selection, first-mission gameplay, Quit/Continue/load and timing/input checks. Later 14/14 ISO-free checks concern harness coverage, not campaign completion. Intermittent combat effects/dialogue truncation remains AUDIO-01. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports startup, movies, profile selection, first-mission gameplay, Quit/Continue/load, and timing/input checks. Later 14/14 checks without an ISO test the harness rather than campaign completion. Intermittently cut-off combat effects and dialogue remain tracked as AUDIO-01. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Tzeentchnet/KillzoneRecomp-Extended",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own NTSC-U Killzone disc ISO, serial SCUS-97402; local generation additionally requires extracted SCUS_974.02 ELF. Exact accepted ELF/ISO hash and revision are Unknown in this narrow retained README review."
+          "instruction": "Use your own NTSC-U Killzone SCUS-97402 ISO. Local code generation also requires the extracted SCUS_974.02 ELF. The exact accepted ISO/ELF hash and revision are unknown here; check upstream before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Documented Windows source route: provision locked dependencies, generate code from own ELF, build own runtime and package a player folder. README calls it a test build; public prebuilt release availability was not queried."
+          "instruction": "Follow the Windows source-build instructions to install the locked dependencies, generate code from your own ELF, build the runtime and package a player folder. The README calls this a test build; public ready-built release availability is not confirmed."
         }
       ],
       "warnings": [
-        "Test build. Upstream reports boot, movies, profile selection, first-mission gameplay, Quit/Continue/load and timing/input checks. Later 14/14 ISO-free checks concern harness coverage, not campaign completion. Intermittent combat effects/dialogue truncation remains AUDIO-01.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports startup, movies, profile selection, first-mission gameplay, Quit/Continue/load, and timing/input checks. Later 14/14 checks without an ISO test the harness rather than campaign completion. Intermittently cut-off combat effects and dialogue remain tracked as AUDIO-01.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Tzeentchnet/KillzoneRecomp-Extended"
     },

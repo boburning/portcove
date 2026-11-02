@@ -546,7 +546,7 @@ it("identifies retained rows after a failed refresh and retries only the invento
   await click("Refresh backup history");
   expect(container.querySelectorAll(".backup-row")).toHaveLength(2);
   expect(container.textContent).toContain("last loaded backup list");
-  expect(container.textContent).not.toContain("2 verified backups");
+  expect(container.textContent).not.toContain("2 backups");
   await captureParityState("backup-history-retained-failed-refresh-fixture");
   await click("Retry backup history");
   expect(container.querySelectorAll(".backup-row")).toHaveLength(0);
@@ -599,7 +599,7 @@ it("keeps read retry focused and disables repeated clicks while a read is pendin
   );
   expect(retry.disabled).toBe(false);
   expect(document.activeElement).toBe(retry);
-  expect(container.textContent).toContain("2 verified backups");
+  expect(container.textContent).toContain("2 backups");
 });
 
 function DetailReadHistory({
@@ -673,7 +673,9 @@ it.each(
   expect(button?.disabled).toBe(true);
   await act(async () => button?.click());
   expect(create).not.toHaveBeenCalled();
-  expect(document.body.textContent).toContain("Current backup availability is unavailable");
+  expect(document.body.textContent).toContain(
+    "Backup availability could not be confirmed. Refresh the backup inventory to check again.",
+  );
 });
 
 it("projects restore-only recovery separately from deletion and refuses stale eligibility after a failed read", async () => {

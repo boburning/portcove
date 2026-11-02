@@ -4,7 +4,7 @@
     "id": "dotr-recomp-glasena-yu-gi-oh-the-duelists-of-the-roses",
     "name": "Yu-Gi-Oh! The Duelists of the Roses — dotr-recomp (Glasena)",
     "original_game_title": "Yu-Gi-Oh! The Duelists of the Roses",
-    "summary": "Early playable upstream claim includes movie/story/duels/map; only USA disc/Linux built and tested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Build this early Yu-Gi-Oh! The Duelists of the Roses port locally on Linux using your USA disc. Upstream describes movie, story, duel and map support. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Glasena/dotr-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA NTSC-U SLUS20515 ISO; extract SLUS_205.15/SYSTEM.CNF and recompile overlays DATA/*MODULE.MRG locally."
+          "instruction": "Use your own USA NTSC-U SLUS20515 ISO. Extract SLUS_205.15 and SYSTEM.CNF, then recompile the DATA/*MODULE.MRG overlays locally using the upstream instructions."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Explicitly no release build; local Linux CMake/Ghidra/extraction/recompile route from owned disc."
+          "instruction": "No ready-to-use release is offered. Follow the local Linux build instructions with CMake, Ghidra and files extracted from your own disc."
         }
       ],
       "warnings": [
-        "Early playable upstream claim includes movie/story/duels/map; only USA disc/Linux built and tested.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream describes early movie, story, duel and map support. Its build and testing cover only the USA disc on Linux; Portcove has not confirmed gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Glasena/dotr-recomp"
     },

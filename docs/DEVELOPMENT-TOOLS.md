@@ -350,10 +350,14 @@ tooling; and `apps/desktop/public` checks the raw theme bootstrap. Keep new file
 inside the appropriate includes and verify them through `pnpm check` (the
 existing Vite+ static workflow).
 
-CI keeps the complete validation plan and digest as workflow outputs. Child
+CI keeps the exact validation plan in an attempt-specific artifact and publishes
+its digest and compressed form as workflow outputs. The redundant uncompressed
+job output is omitted to stay within GitHub’s 1 MiB UTF-16 output quota. Child
 processes receive the same plan through `PORTCOVE_PLAN_GZIP_BASE64`, bounded to
-64 KiB before environment propagation and 1 MiB after inflation. This avoids
-Linux's per-environment-string execution limit on repository-wide changes.
+96 KiB before environment propagation and 1 MiB after inflation. The transport
+leaves 32 KiB below Linux’s per-string execution limit, including the variable
+name. This accommodates catalog-wide changes without oversized environment
+strings.
 Consumers still validate the plan, digest and source bindings; compression is
 only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
 ambiguous transports, corrupt data and excessive inflation are rejected.
@@ -1990,8 +1994,16 @@ preservation receives credit. That branch verifies another installed Play and
 retains its own launch/closure artifacts; local refusal without that evidence
 stays held. Cleanup restores the application environment and closes the proxy.
 This does not deny definition transports or establish total-network offline.
-Its finite 1200-second outer harness budget includes input custody and real copy
-review; product deadlines remain unchanged. Actual runtime pixels require a
+Picori's generated asset directories can contain thousands of retained files.
+After game exit, the harness allows up to 1800 seconds for each authoritative
+collection result, polling every two seconds. Both normal and provider-unavailable
+launches must still finish successfully with exit code zero and positive process
+cleanup. Its finite 4500-second outer budget includes both collection observations,
+the two 300-second operator exit observations, input custody and cleanup. These are
+harness limits; product deadlines and zero automatic retries remain unchanged.
+Keep the original 30-second collection failure and 600-second recovery timeout
+as failed evidence, separately from any result under the calibrated limits.
+Actual runtime pixels require a
 separately bound game-window observation. Desktop screenshots, process liveness
 and accessibility reports do not establish rendering, gameplay, real saves,
 screen-reader use, total network offline or installed multi-implementation behavior.

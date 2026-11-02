@@ -29,26 +29,26 @@
           "instruction": "Use your own legitimate Xbox 360 Sega Superstars Tennis original and complete upstream preparation outside Portcove. The packaged instructions require the original files in assets/ beside sst_rematch.exe, including its own default.xex. Do not substitute another platform/title. No additional title-update prerequisite was established by this inspected source."
         },
         {
-          "title": "Attach the completed native Windows player",
+          "title": "Add the completed Windows game player",
           "instruction": "Select sst_rematch.exe in the complete prepared Windows package with its matching rexgpu-sst.dll and runtime dependencies. Use that folder as working directory and no extra arguments for the normal player. The inspected title defaults original data to its adjacent assets/ and native GPU plugin to sst; retain supported literal custom-root arguments only when the working setup already needs them."
         },
         {
-          "title": "Review the attachment and choose Play separately",
-          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
         },
         {
           "title": "Keep upstream maintenance outside the attached session",
           "instruction": "Upstream owns preparation and replacement. In-game VIDEO restart can create a successor; perform deliberate restart/replacement outside the attached session, close actual game/companions and review changed selected bytes before new Play. Do not automatically adopt a successor."
         },
         {
-          "title": "Preserve the creating copy and every effective data root",
+          "title": "Keep your working game and every data folder it uses",
           "instruction": "Packaged instructions say settings, saves, logs/ and cache/ stay in the creating folder; preserve sst_settings.ini, sst_keys.ini, sst_crash.txt, shader/cache resources, originals, profiles, achievements, mods, backups and every effective custom root. An explicit data argument can override adjacent assets/. Keep the creating runtime and do not assume cross-version save compatibility."
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "Public attributable release/source; complete tree has separate thirdparty/xenosrecomp/LICENSE.md and no root project LICENSE. Neither absence nor another component license grants whole-title rights. Use only an independently permitted complete player/original copy.",
-        "Windows10/11x64,D3D12; package README confirms direct double-click native player. ONLINE PLAY remains disabled upstream. No native execution, instrument/device/network, real save or full dependency qualification."
+        "The package README documents a native Windows 10/11 x64 D3D12 player started by double-clicking. ONLINE PLAY remains disabled. This review did not run the player or confirm devices, networking, real saves or complete dependency installation."
       ]
     }
   }

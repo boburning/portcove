@@ -4,7 +4,7 @@
     "id": "kon-houkago-live-recompiled-edgx73-k-on-houkago-live",
     "name": "K-On! Houkago Live!! — KOn-Houkago-Live-Recompiled (EDGX73)",
     "original_game_title": "K-On! Houkago Live!!",
-    "summary": "Nativeplayer/releasefirstbuild, no broadfullgamequalification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "This is an early native-player release. Full-game compatibility has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan ULJM05709 orspecifiedEnglishfantranslationownISO"
+          "instruction": "Use your own Japanese ULJM05709 ISO, or the exact English fan translation specified by upstream and independently permitted for your use."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Releasezip EXE asksownISO/generates locally; Englishtranslationpreciseversionhashmustbevalidated."
+          "instruction": "Extract the release ZIP and use its executable to select your own ISO and generate the game locally. The precise English-translation version and hash are unconfirmed here; check upstream before using it."
         }
       ],
       "warnings": [
-        "Nativeplayer/releasefirstbuild, no broadfullgamequalification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This is an early native-player release. Full-game compatibility has not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled"
     },

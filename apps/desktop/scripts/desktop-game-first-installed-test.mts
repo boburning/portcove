@@ -947,12 +947,17 @@ export async function launchInstalledManagedGame({
         write: writeFile,
       });
     }
-    const terminal = await browser.wait(() => {
-      const value = required(
-        transportValue("launch_request", core(["launch", "show", session.id])),
-      );
-      return value.outcome !== null && value.finished_at ? value : false;
-    }, 30_000);
+    const terminal = await browser.wait(
+      () => {
+        const value = required(
+          transportValue("launch_request", core(["launch", "show", session.id])),
+        );
+        return value.outcome !== null && value.finished_at ? value : false;
+      },
+      expectedPortId === "project-picori" ? 1_800_000 : 30_000,
+      undefined,
+      2_000,
+    );
     assert.ok(terminal);
     route.terminal = terminal;
     assert.equal(terminal.outcome, "succeeded");

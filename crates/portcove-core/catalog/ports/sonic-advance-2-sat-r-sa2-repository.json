@@ -25,7 +25,7 @@
         },
         {
           "title": "Keep your files and update through upstream",
-          "instruction": "Use a separate folder you control and retain your working copy. An existing native player can use Portcove’s non-owning registration after the read-only executable review; choose Play separately. You or upstream keep runtime updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external runtime. Follow the selected upstream version’s instructions when changing it."
+          "instruction": "Keep the game in a separate folder you control, and retain a working copy. Review its executable in Portcove, then add it without changing its files. Choose Play separately when you are ready. You manage updates, original files, generated data, saves and settings. Portcove does not replace, back up or roll back this external copy. Follow the project’s instructions for the version you use when changing it."
         }
       ],
       "warnings": [],

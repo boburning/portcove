@@ -4,7 +4,7 @@
     "id": "fm-recomp-techx1320-yu-gi-oh-forbidden-memories",
     "name": "Yu-Gi-Oh! Forbidden Memories — FM-Recomp (TechX1320)",
     "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
-    "summary": "Research project. Full NPCduel in v0.1.10; startup APv2 bypass, missing-dispatch fail-fast; SPU unit tests not broad gameplay audio. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports a complete NPC duel in v0.1.10. Startup uses its documented APv2 bypass, and missing dispatch entries stop execution. SPU unit tests do not establish working audio throughout gameplay. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TechX1320/FM-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS-01411 exact owned disc/CUE plus exact SCPH1001 BIOS; README full hashes. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own exact USA SLUS-01411 disc and CUE, plus your own SCPH1001 BIOS. Compare both with the full hashes in the upstream README."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "MSYS2 own-input verification/extraction/regeneration builds local ForbiddenMemories.exe; RUN_FM_APV2_BYPASS.cmd established route. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Follow the MSYS2 instructions to check, extract and regenerate code from your own inputs, then build ForbiddenMemories.exe locally. Upstream documents RUN_FM_APV2_BYPASS.cmd for startup. Portcove does not install or prepare this source project automatically."
         }
       ],
       "warnings": [
-        "Full NPCduel in v0.1.10; startup APv2 bypass, missing-dispatch fail-fast; SPU unit tests not broad gameplay audio. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports a complete NPC duel in v0.1.10. Startup uses its documented APv2 bypass, and missing dispatch entries stop execution. SPU unit tests do not establish working audio throughout gameplay. Portcove has not confirmed runtime behavior or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/TechX1320/FM-Recomp"
     },

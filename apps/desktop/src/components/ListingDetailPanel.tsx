@@ -96,7 +96,7 @@ function renderListingRequirements(entry: CatalogEntry) {
         <dd>Upstream setup / external registration</dd>
       </div>
       <div>
-        <dt>Release channel</dt>
+        <dt>Update channel</dt>
         <dd>Managed by the upstream project</dd>
       </div>
     </dl>
