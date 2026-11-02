@@ -1417,6 +1417,11 @@ provided the UI and documentation represent that state honestly.
 
 Legacy `support_tier` values remain compatibility metadata, separate from release-channel choices. Neither a channel label nor a tier name supplies artifact/platform/operation testing evidence or removes a concrete compatibility limitation.
 
+Source inspection ambiguity counts possible identity matches, not distinct game
+editions: multiple file representations can match the same edition. Player
+guidance must preserve that distinction and direct the player to check both the
+required edition and file format before choosing originals again.
+
 Schema 2 stores new source qualification in `source_catalog.qualification`.
 Each record binds the port, platform, release artifact SHA-256, upstream ref,
 source contract, exact variant and representation, check-contract version,

@@ -141,6 +141,7 @@ export async function sourceIntakeNativeBoundaries({
       success(await invoke("inspect_source_intake", { profileId, paths: [owned.gamePath] })),
     );
     assert.equal(valid.state_code, "recognized_exact");
+    observed.valid = valid;
     await browser.wait(until.elementLocated(button("Use current location")), 15000);
     await click(button("Use current location"));
     await browser.wait(until.elementLocated(By.css('[aria-label="Source import review"]')), 15000);
