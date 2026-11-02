@@ -3,7 +3,7 @@
   "listing": {
     "id": "tekrantgaming-simpsons-wrestling-recompiled",
     "name": "The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming)",
-    "summary": "Explore The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach The Simpsons Wrestling USA prepared Windows runtime directly after upstream launcher setup. Keep the game subfolder, existing launcher-written controls/settings and executable-relative memory cards; the top-level launcher detaches.",
     "project_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
     "issue_number": 1883,
     "platforms": [],
@@ -16,6 +16,34 @@
       "image_sha256": "12dcf8e3762a1ce9d2b944543cd0ffe46e167dc6a3c397f4a794c5f5fe0bad3f",
       "game_slug": "the-simpsons-wrestling",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact USA PlayStation original",
+          "instruction": "Use your own The Simpsons Wrestling USA SLUS-01227 CUE with every referenced BIN. The selected game.toml identifies data Track 01 by size 506830128 bytes and SHA1 38602a1b9482670dbbd8ab25aa4a8bb520b5bebe, boot SLUS_012.27; this is not a whole-CUE or arbitrary-region fingerprint. Complete disc selection, controls and settings in the official v1.0.0 Windows player’s top-level SimpsonsWrestling.exe first. Keep your original at that remembered location. No disc, helper, compiler or game is accessed or executed here."
+        },
+        {
+          "title": "Keep the launcher and private game folder together",
+          "instruction": "Retain the complete official package, including top-level SimpsonsWrestling.exe and game/SimpsonsWrestling_Recompiled.exe, runtime resources, OpenBIOS, generated mods, configuration and notices. The top-level TRG launcher writes the runtime settings and input files, then starts a child and exits; it is a preparation interface rather than the process to register for a supervised game session. A shared PSX framework does not qualify another title or edition."
+        },
+        {
+          "title": "Attach the actual native game with its disc",
+          "instruction": "Select game/SimpsonsWrestling_Recompiled.exe, set working directory to that complete game/ directory and use --no-launcher --disc \"the exact already selected USA CUE path\". Review the exact paths and intent and request Play separately. This reproduces the selected top-level launcher’s native target, CWD and literal argument contract while retaining direct supervision of the actual game. Keep the settings/control files it already wrote; finish future launcher configuration or updates upstream before the next reviewed attachment. Do not register the detaching launcher, updater, setup/compiler or a diagnostic mode as Play."
+        },
+        {
+          "title": "Preserve cards and launcher-written settings",
+          "instruction": "Keep the whole package, especially game/launcher.txt, game/settings.toml, game/input.ini and binding files, disc/config sidecars, mods, game/saves/card1.mcd and card2.mcd or the actual existing slot paths, plus states/cache, originals and recovery. The selected Windows runtime anchors relative paths to its own executable directory. Preserve explicit memory-card directory/slot overrides and historical copies; do not add --memcard-dir to create a new profile. Launcher-only gameplay choices are read by this title’s plugin too. No card move, merge, import, restore or deletion is performed."
+        },
+        {
+          "title": "Keep component and acceptance limits",
+          "instruction": "The exact psxrecomp fork revision retains PolyForm Noncommercial 1.0.0; keep those restrictions distinct from title/launcher, OpenBIOS, fonts and other library notices. Original game artwork, text and audio remain separate content rights, even when the launcher reads them from your own disc. Upstream owns configuration, replacement and recovery; close the actual game, preserve populated data and review/relink changed bytes. Upstream campaign, controller and two-player claims are not observations here. No installed/native, real-save restore, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Register the native game inside game/ after upstream configuration, with the exact own CUE. The top-level launcher detaches; preserve all launcher-written settings, per-player cards and noncommercial framework terms."
+      ]
     }
   }
 }
