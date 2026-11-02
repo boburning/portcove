@@ -284,6 +284,19 @@ does not erase the earlier cache or original failures. A later real scheduled
 run must demonstrate continued source/page/Core progress separately from fixture
 tests and an individual batch's `made_progress` field.
 
+Discovery reads scheduled history in ten-record pages through the relevant age
+boundary, retaining the existing hundred-record ceiling. Every fetched page must
+match its declared count; totals, unique identities and descending creation order
+must remain consistent across pages. A bounded prefix that cannot establish the
+required history stays unknown rather than initializing a clean baseline.
+Ancestry reads use the comparison endpoint's second page: GitHub's file patches
+occur only on page one, while global status and merge-base identity still describe
+the same exact source comparison. No commit or file inventory is inferred from
+that partial page. Metadata logs retain the controlled route, response bytes,
+cumulative charged bytes and request count before the aggregate limit is checked.
+This reduces unrelated data transfer without raising the four-MiB metadata budget,
+relaxing ancestry or permitting missing post-cutover checkpoints to be ignored.
+
 Only checkpoint/report files enter the observation cache, scoped by config and
 ref; interrupted locks and temporary files do not. Reports have seven-day
 artifact retention. GitHub manages cache quotas and evicts unused cache entries;

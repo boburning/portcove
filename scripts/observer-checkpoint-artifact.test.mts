@@ -166,6 +166,201 @@ void test("fresh cache loss restores an exact failed scheduled producer and pres
   assert.equal(cache.origin, "cache");
 });
 
+void test("live-shaped discovery pages history and excludes comparison patches within the original metadata envelope", async (t) => {
+  const root = await directory(t),
+    f = transport(),
+    original = f.api.request;
+  f.publisher();
+  const repoMetadata = Object.fromEntries(
+    [
+      "forks",
+      "keys",
+      "collaborators",
+      "teams",
+      "hooks",
+      "issue_events",
+      "events",
+      "assignees",
+      "branches",
+      "tags",
+      "blobs",
+      "git_tags",
+      "git_refs",
+      "trees",
+      "statuses",
+      "languages",
+      "stargazers",
+      "contributors",
+      "subscribers",
+      "subscription",
+      "commits",
+      "git_commits",
+      "comments",
+      "issue_comment",
+      "contents",
+      "compare",
+      "merges",
+      "archive",
+      "downloads",
+      "issues",
+      "pulls",
+      "milestones",
+      "notifications",
+      "labels",
+      "releases",
+      "deployments",
+    ].map((key) => [
+      `${key}_url`,
+      `https://api.github.com/repos/boburning/portcove/${key}{/number}`,
+    ]),
+  );
+  const runs = Array.from({ length: 188 }, (_, i) => ({
+    ...f.run,
+    id: i === 0 ? 1000 : i === 11 ? source.run : 999 - i,
+    head_sha: i === 11 ? source.source : "c".repeat(40),
+    status: i === 0 ? "in_progress" : "completed",
+    created_at: new Date(
+      Date.now() - (i <= 11 ? i * 30 * 60000 : (25 + i - 12) * 3600000),
+    ).toISOString(),
+    repository: { ...repoMetadata, id: 1354613114 },
+    head_repository: { ...repoMetadata, id: 1354613114 },
+  }));
+  const measured: {
+    route: string;
+    response_bytes: number;
+    total_bytes: number;
+    requests: number;
+  }[] = [];
+  f.api.request = (...args) => {
+    const endpoint = args[1],
+      response = original(...args);
+    let body = response.body;
+    if (endpoint.includes("/actions/workflows/")) {
+      const query = new URL(`https://api.github.com/${endpoint}`).searchParams,
+        size = Number(query.get("per_page")),
+        page = Number(query.get("page") ?? 1);
+      body = {
+        total_count: runs.length,
+        workflow_runs: runs.slice((page - 1) * size, page * size),
+      };
+    } else if (endpoint.includes("/compare/")) {
+      const base = endpoint.match(/compare\/([a-f0-9]{40})\.\.\./u)?.[1];
+      body = {
+        status: "ahead",
+        merge_base_commit: { sha: base },
+        commits: [
+          { sha: "d".repeat(40), commit: { message: "public commit metadata\n".repeat(700) } },
+        ],
+        ...(!endpoint.includes("page=2")
+          ? {
+              files: Array.from({ length: 152 }, (_, i) => ({
+                filename: `crates/portcove-core/catalog/ports/fixture-${i}.json`,
+                patch: "@@ -1 +1 @@\n-old catalog input\n+new catalog input\n".repeat(180),
+              })),
+            }
+          : {}),
+      };
+    } else if (endpoint.includes("/artifacts?") && !endpoint.includes(`/runs/${source.run}/`))
+      body = { total_count: 0, artifacts: [] };
+    return { ...response, body, bodyBytes: Buffer.byteLength(JSON.stringify(body)) };
+  };
+  const result = await recoverObserverCheckpoint({
+    root,
+    config,
+    current: { ...current, run: 1000 },
+    deadline: Date.now() + 60000,
+    api: f.api,
+    download: f.download,
+    log: (event) => measured.push(event),
+  });
+  assert.equal(result.origin, "artifact");
+  assert.equal(f.count(), 1);
+  const pages = measured.filter((event) => event.route.includes("actions/workflows/"));
+  assert.equal(pages.length, 2);
+  assert.ok(pages.every((event) => event.route.includes("per_page=10")));
+  assert.ok(
+    measured
+      .filter((event) => event.route.startsWith("compare/"))
+      .every((event) => event.route.endsWith("per_page=1&page=2")),
+  );
+  assert.ok(measured.at(-1)!.total_bytes < observerSnapshotLimit);
+  console.log(
+    JSON.stringify({
+      fixture: "live-shaped-discovery",
+      run_pages: pages.length,
+      metadata_requests: measured.length,
+      metadata_bytes: measured.at(-1)!.total_bytes,
+      byte_limit: observerSnapshotLimit,
+    }),
+  );
+});
+
+void test("history pagination refuses changed totals, missing rows, duplicate identities and order drift", async (t) => {
+  for (const defect of ["total", "missing", "duplicate", "order"]) {
+    const root = await directory(t),
+      f = transport(),
+      original = f.api.request;
+    f.api.request = (...args) => {
+      const result = original(...args);
+      if (!args[1].includes("/actions/workflows/")) return result;
+      const first = Array.from({ length: 10 }, (_, i) => ({
+        ...f.run,
+        id: 201 + i,
+        created_at: new Date(Date.now() - i * 10000).toISOString(),
+      }));
+      const second = {
+        ...f.run,
+        id: defect === "duplicate" ? 201 : 211,
+        created_at: new Date(Date.now() - (defect === "order" ? 0 : 100000)).toISOString(),
+      };
+      const page2 = args[1].includes("page=2");
+      const body = {
+        total_count: page2 && defect === "total" ? 12 : 11,
+        workflow_runs: page2 ? (defect === "missing" ? [] : [second]) : first,
+      };
+      return { ...result, body, bodyBytes: Buffer.byteLength(JSON.stringify(body)) };
+    };
+    await assert.rejects(
+      recoverObserverCheckpoint({
+        root,
+        config,
+        current,
+        deadline: Date.now() + 60000,
+        api: f.api,
+        download: f.download,
+      }),
+      /inventory|omitted/,
+    );
+    assert.equal(f.count(), 0);
+  }
+});
+
+void test("identical source ancestry uses global comparison facts when page two contains no commits", async (t) => {
+  const root = await directory(t),
+    f = transport(),
+    original = f.api.request;
+  f.api.request = (...args) => {
+    const result = original(...args);
+    if (!args[1].includes("/compare/")) return result;
+    assert.ok(args[1].endsWith("per_page=1&page=2"));
+    const body = { status: "identical", merge_base_commit: { sha: source.source }, commits: [] };
+    return { ...result, body, bodyBytes: Buffer.byteLength(JSON.stringify(body)) };
+  };
+  assert.equal(
+    (
+      await recoverObserverCheckpoint({
+        root,
+        config,
+        current: { ...current, source: source.source },
+        deadline: Date.now() + 60000,
+        api: f.api,
+        download: f.download,
+      })
+    ).origin,
+    "artifact",
+  );
+});
+
 void test("first cutover is explicit but missing history from an earlier deployed publisher refuses even after expiry", async (t) => {
   for (const old of [false, true]) {
     const root = await directory(t),

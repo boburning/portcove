@@ -383,7 +383,66 @@ type RecoveryOptions = {
   api: GitHubRestReader;
   download?: typeof readGitHubArtifactArchive;
   now?: () => number;
+  log?: (event: {
+    route: string;
+    response_bytes: number;
+    total_bytes: number;
+    requests: number;
+  }) => void;
 };
+
+/** Complete ordered prefix through the retention boundary, not an all-history
+ * inventory. Keep the existing hundred-record ceiling without eagerly fetching
+ * a hundred large GitHub run records for a six-hour scheduled consumer. */
+function scheduledRunWindow(read: (route: string) => unknown, currentRun: number, now: number) {
+  const runs: Record<string, unknown>[] = [],
+    seen = new Set<number>();
+  let total: number | undefined,
+    previousCreated = Infinity;
+  for (let page = 1; page <= 10; page++) {
+    const raw = read(
+      `actions/workflows/${workflowId}/runs?branch=main&event=schedule&per_page=10&page=${page}`,
+    );
+    requireValue(
+      isRecord(raw) &&
+        Array.isArray(raw.workflow_runs) &&
+        Number.isSafeInteger(raw.total_count) &&
+        Number(raw.total_count) >= 0,
+      "recent scheduled run inventory incomplete",
+    );
+    total ??= Number(raw.total_count);
+    requireValue(
+      raw.total_count === total &&
+        raw.workflow_runs.length === Math.min(10, Math.max(0, total - runs.length)),
+      "scheduled run inventory changed or omitted records",
+    );
+    for (const value of raw.workflow_runs) {
+      requireValue(
+        isRecord(value) &&
+          Number.isSafeInteger(value.id) &&
+          Number(value.id) > 0 &&
+          !seen.has(Number(value.id)) &&
+          typeof value.created_at === "string" &&
+          Number.isFinite(Date.parse(value.created_at)) &&
+          Date.parse(value.created_at) <= previousCreated,
+        "run inventory invalid or unordered",
+      );
+      seen.add(Number(value.id));
+      previousCreated = Date.parse(value.created_at);
+      runs.push(value);
+    }
+    const boundary = runs.some(
+      (value) =>
+        value.id !== currentRun &&
+        value.status === "completed" &&
+        ["success", "failure"].includes(String(value.conclusion)) &&
+        typeof value.created_at === "string" &&
+        now - Date.parse(value.created_at) > maximumAge,
+    );
+    if (runs.length === total || boundary) return { runs, complete: runs.length === total };
+  }
+  return { runs, complete: runs.length === total };
+}
 /** Public metadata locates inert bytes; no untrusted run chooses code to execute. */
 export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   const { root, config, current, deadline, api } = options,
@@ -425,6 +484,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       "bounded metadata unavailable",
     );
     bytes += response.bodyBytes;
+    options.log?.({ route, response_bytes: response.bodyBytes, total_bytes: bytes, requests });
     requireValue(bytes <= observerSnapshotLimit, "recovery metadata byte envelope exhausted");
     const rate = rateLimitFromResponse(response);
     if (rate.remaining !== null && rate.limit !== null && rate.remaining <= rate.limit) {
@@ -491,36 +551,10 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   } catch (error) {
     if (errorCode(error) !== "ENOENT") throw error;
   }
-  const inventory = read(
-    `actions/workflows/${workflowId}/runs?branch=main&event=schedule&per_page=100`,
-  );
-  requireValue(
-    isRecord(inventory) &&
-      Array.isArray(inventory.workflow_runs) &&
-      Number.isSafeInteger(inventory.total_count) &&
-      Number(inventory.total_count) >= 0 &&
-      Math.min(Number(inventory.total_count), 100) === inventory.workflow_runs.length,
-    "recent scheduled run inventory incomplete",
-  );
-  let previousCreated = Infinity;
-  const seenRuns = new Set<number>();
-  for (const raw of inventory.workflow_runs) {
-    requireValue(
-      isRecord(raw) &&
-        Number.isSafeInteger(raw.id) &&
-        Number(raw.id) > 0 &&
-        !seenRuns.has(Number(raw.id)) &&
-        typeof raw.created_at === "string" &&
-        Number.isFinite(Date.parse(raw.created_at)) &&
-        Date.parse(raw.created_at) <= previousCreated,
-      "run inventory invalid or unordered",
-    );
-    seenRuns.add(Number(raw.id));
-    previousCreated = Date.parse(raw.created_at);
-  }
+  const inventory = scheduledRunWindow(read, current.run, now());
   let expectedHistory = false;
   let reachedAgeBoundary = false;
-  for (const raw of inventory.workflow_runs) {
+  for (const raw of inventory.runs) {
     requireValue(isRecord(raw), "run inventory invalid");
     if (raw.id === current.run || raw.status !== "completed") continue;
     requireValue(
@@ -547,7 +581,10 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       source: String(raw.head_sha),
     };
     producer(source);
-    const comparison = read(`compare/${source.source}...${current.source}?per_page=1`);
+    // GitHub includes file patches only on comparison page one. Global status
+    // and merge-base identity remain present on page two, even with no commits.
+    // No commit/file inventory is claimed or needed for this ancestry predicate.
+    const comparison = read(`compare/${source.source}...${current.source}?per_page=1&page=2`);
     requireValue(
       isRecord(comparison) &&
         ["ahead", "identical"].includes(String(comparison.status)) &&
@@ -666,7 +703,11 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     };
   }
   requireValue(
-    !expectedHistory && (Number(inventory.total_count) <= 100 || reachedAgeBoundary),
+    inventory.complete || reachedAgeBoundary,
+    "scheduled history coverage incomplete; preserve evidence",
+  );
+  requireValue(
+    !expectedHistory,
     "checkpoint history missing after cutover; explicit recovery required",
   );
   return {
@@ -706,7 +747,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         })(args, input),
       );
       console.log(
-        JSON.stringify(await recoverObserverCheckpoint({ root, config, current, deadline, api })),
+        JSON.stringify(
+          await recoverObserverCheckpoint({
+            root,
+            config,
+            current,
+            deadline,
+            api,
+            log: (event) =>
+              console.log(JSON.stringify({ kind: "observer-recovery-metadata", ...event })),
+          }),
+        ),
       );
     } else if (process.argv[2] === "export" && process.argv.length === 3) {
       const deadline = Math.min(
