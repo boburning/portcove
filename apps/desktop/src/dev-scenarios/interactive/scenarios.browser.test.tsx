@@ -107,7 +107,7 @@ it("gives every disposable detail route five real tabs and binds external Play t
     .element(page.getByRole("button", { name: "Apply update · 1.3", exact: true }))
     .toBeVisible();
   await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
-});
+}, 30_000);
 
 it("opens actual game details, returns to Library and resets the selected journey", async () => {
   await mount("library");

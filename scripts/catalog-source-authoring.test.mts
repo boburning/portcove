@@ -7,6 +7,7 @@ import {
   readCatalogSource,
   assembleCatalogRecords,
   checkedAuthoredPort,
+  checkedCurrentCatalog,
   parseCatalogSource,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
@@ -20,6 +21,79 @@ import {
   record as fixtureRecord,
   records as fixtureRecords,
 } from "./fixtures/catalog-generator-fixtures.mts";
+
+const schema2Fixture = fixtureJson(
+  readFileSync(join(catalogRoot, "catalog-schema2-migration-fixture.json")),
+);
+const schema3Fixture = fixtureJson(
+  readFileSync(join(catalogRoot, "catalog-current-authoring.json")),
+);
+
+void test("current catalog schema accepts numeric 2 without guide references", () => {
+  assert.equal(schema2Fixture.schema_version, 2);
+  assert.doesNotThrow(() => checkedCurrentCatalog(structuredClone(schema2Fixture)));
+});
+
+void test("current catalog schema accepts numeric 3 with guide references", () => {
+  assert.equal(schema3Fixture.schema_version, 3);
+  assert.ok(
+    fixtureRecords(schema3Fixture.ports).some((port) => {
+      const presentation = fixtureRecord(port.presentation ?? {});
+      const guide = fixtureRecord(presentation.manual_setup ?? {});
+      return Array.isArray(guide.references) && guide.references.length > 0;
+    }),
+  );
+  assert.doesNotThrow(() => checkedCurrentCatalog(structuredClone(schema3Fixture)));
+});
+
+void test("current catalog schema 2 still rejects nonempty guide references", () => {
+  const catalog = structuredClone(schema3Fixture);
+  catalog.schema_version = 2;
+  assert.throws(() => checkedCurrentCatalog(catalog), {
+    message: "setup references require catalog schema 3",
+  });
+});
+
+for (const [label, version] of [
+  ["string 2", "2"],
+  ["string 3", "3"],
+  ["array 2", [2]],
+  ["array 3", [3]],
+  ["missing version", undefined],
+  ["null", null],
+  ["false", false],
+  ["true", true],
+  ["object", {}],
+  ["object with a version value", { value: 2 }],
+  ["unsupported zero", 0],
+  ["unsupported schema 1", 1],
+  ["unsupported schema 4", 4],
+  ["fractional version", 2.5],
+  ["NaN", Number.NaN],
+  ["infinite version", Number.POSITIVE_INFINITY],
+] as const) {
+  void test(`current catalog schema rejects ${label}`, () => {
+    const catalog = structuredClone(schema2Fixture);
+    if (version === undefined) delete catalog.schema_version;
+    else catalog.schema_version = structuredClone(version);
+    assert.throws(() => checkedCurrentCatalog(catalog), {
+      message: "current catalog source is not schema 2 or 3",
+    });
+  });
+}
+
+for (const [label, version] of [
+  ["string 2", "2"],
+  ["array 2", [2]],
+] as const) {
+  void test(`current catalog schema rejects ${label} even with guide references`, () => {
+    const catalog = structuredClone(schema3Fixture);
+    catalog.schema_version = structuredClone(version);
+    assert.throws(() => checkedCurrentCatalog(catalog), {
+      message: "current catalog source is not schema 2 or 3",
+    });
+  });
+}
 
 void test("current authored operational routes remain valid read-only health inventory inputs", () => {
   // Core-readable prepared routes still need canonical explicit repository

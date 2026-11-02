@@ -56,7 +56,7 @@ jobs:
       (github.event.issue.number == 177 &&
       startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->')))
     runs-on: ubuntu-latest
-    # At most three joined 31-minute workers, each with its existing 30-minute budget.
+    # Progress-aware worker passes share a 90-minute deadline inside this outer limit.
     timeout-minutes: 100
     permissions:
       contents: read
@@ -87,7 +87,8 @@ jobs:
           node --input-type=module - <<'JS'
           import { existsSync, readdirSync, readFileSync } from 'node:fs';
           const root = 'work/hosted-discovery-intake';
-          for (const directory of [root, ...[1, 2, 3].map(pass => `${root}/pass-${pass}`)]) {
+          const passes = existsSync(root) ? readdirSync(root).filter(name => /^pass-[1-9]\d?$/.test(name)) : [];
+          for (const directory of [root, ...passes.map(name => `${root}/${name}`)]) {
           if (existsSync(directory)) for (const name of readdirSync(directory)) {
             if (!/^(?:summary|inventory-recollection|write-probe|write-proof-\d+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
             const bytes = readFileSync(`${directory}/${name}`);

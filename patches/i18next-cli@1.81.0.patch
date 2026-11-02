@@ -1,0 +1,32 @@
+diff --git a/dist/esm/linter.js b/dist/esm/linter.js
+--- a/dist/esm/linter.js
++++ b/dist/esm/linter.js
+@@ -39,7 +39,11 @@
+         candidatePaths.push(output.replace(/\{\{language\}\}/g, primaryLang));
+     }
+     else {
+-        for (const ns of ['translation', 'common', 'default']) {
++        const configuredNS = config.extract?.defaultNS;
++        const namespaces = typeof configuredNS === "string"
++          ? [configuredNS, 'translation', 'common', 'default']
++          : ['translation', 'common', 'default'];
++        for (const ns of namespaces) {
+             candidatePaths.push(output
+                 .replace(/\{\{language\}\}/g, primaryLang)
+                 .replace(/\{\{namespace\}\}/g, ns));
+diff --git a/dist/cjs/linter.js b/dist/cjs/linter.js
+--- a/dist/cjs/linter.js
++++ b/dist/cjs/linter.js
+@@ -41,7 +41,11 @@
+         candidatePaths.push(output.replace(/\{\{language\}\}/g, primaryLang));
+     }
+     else {
+-        for (const ns of ['translation', 'common', 'default']) {
++        const configuredNS = config.extract?.defaultNS;
++        const namespaces = typeof configuredNS === "string"
++          ? [configuredNS, 'translation', 'common', 'default']
++          : ['translation', 'common', 'default'];
++        for (const ns of namespaces) {
+             candidatePaths.push(output
+                 .replace(/\{\{language\}\}/g, primaryLang)
+                 .replace(/\{\{namespace\}\}/g, ns));

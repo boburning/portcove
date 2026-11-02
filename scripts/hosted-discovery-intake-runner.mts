@@ -10,6 +10,8 @@ interface Outcome {
   continuation: "inventory_changed" | "budget_exhausted" | null;
   progress: string | null;
 }
+export const hostedIntakeMaxPasses = 12;
+const hostedIntakeDeadlineMs = 90 * 60000;
 export function readHostedOutcomes(raw: unknown): Outcome[] {
   if (
     !isRecord(raw) ||
@@ -45,21 +47,39 @@ export function readHostedOutcomes(raw: unknown): Outcome[] {
 
 /** Existing receipts remain the only durable queue. These are finite job passes,
  * not a scheduler, HTTP retry loop or alternative planning authority. */
-export function runHostedIntakePasses(run: (pass: number, requests: number[] | null) => unknown) {
+export function runHostedIntakePasses(
+  run: (pass: number, requests: number[] | null, remainingMs: number) => unknown,
+  now = Date.now,
+) {
   const retained = new Map<number, Outcome>();
+  const stalls = new Map<number, number>();
+  const deadline = now() + hostedIntakeDeadlineMs;
   let requests: number[] | null = null;
   let queuePending = false;
-  for (let pass = 1; pass <= 3; pass++) {
-    const report = run(pass, requests);
-    queuePending = isRecord(report) && report.queue_continuation === "inventory_changed";
-    if (isRecord(report) && report.queue_continuation === "inventory_changed") {
+  let queueMovements = 0;
+  let stopReason = "pass_limit";
+  for (let pass = 1; pass <= hostedIntakeMaxPasses; pass++) {
+    const remainingMs = deadline - now();
+    if (remainingMs <= 0) {
+      stopReason = "deadline";
+      break;
+    }
+    const report = run(pass, requests, remainingMs);
+    queuePending = isRecord(report) && report.queue_continuation !== undefined;
+    if (isRecord(report) && queuePending) {
       if (
+        typeof report.queue_continuation !== "string" ||
+        !["inventory_changed", "budget_exhausted"].includes(report.queue_continuation) ||
         report.status !== "incomplete" ||
         report.requests !== 0 ||
         !Array.isArray(report.outcomes) ||
         report.outcomes.length
       )
         throw new Error("Malformed queue continuation");
+      if (++queueMovements >= 3) {
+        stopReason = "stalled";
+        break;
+      }
       continue;
     }
     const outcomes = readHostedOutcomes(report);
@@ -73,23 +93,34 @@ export function runHostedIntakePasses(run: (pass: number, requests: number[] | n
       const previous = retained.get(outcome.request);
       // A fresh envelope cannot fix work whose replay consumed the whole next
       // envelope without advancing. Preserve the actual pending result.
-      const stalled =
-        outcome.continuation === "budget_exhausted" &&
-        previous?.continuation === "budget_exhausted" &&
+      const unchanged =
+        outcome.continuation &&
+        previous?.continuation === outcome.continuation &&
         previous.progress === outcome.progress;
+      const count = unchanged ? (stalls.get(outcome.request) ?? 0) + 1 : 0;
+      stalls.set(outcome.request, count);
+      const stalled = count >= (outcome.continuation === "budget_exhausted" ? 1 : 2);
       retained.set(outcome.request, outcome);
       if (outcome.continuation && !stalled) next.push(outcome.request);
     }
-    if (!next.length || pass === 3) break;
+    if (!next.length) {
+      stopReason = outcomes.every((o) => o.status === "complete")
+        ? "complete"
+        : "blocked_or_stalled";
+      break;
+    }
     // Give requests at the exhausted tail first access to the next envelope.
     requests = next.reverse();
   }
   const outcomes = [...retained.values()];
   return {
     status:
-      !queuePending && outcomes.every((o) => o.status === "complete") ? "passed" : "incomplete",
+      stopReason === "complete" && !queuePending && outcomes.every((o) => o.status === "complete")
+        ? "passed"
+        : "incomplete",
     outcomes,
     queue_pending: queuePending,
+    stop_reason: stopReason,
   };
 }
 
@@ -98,6 +129,7 @@ export function runHostedIntakeWorker(
   directory: string,
   pass: number,
   requests: number[] | null,
+  remainingMs = hostedIntakeDeadlineMs,
 ) {
   const summary = path.join(directory, `pass-${pass}`, "summary.json");
   // A stale file must never stand in for a worker that crashed or was killed.
@@ -108,7 +140,7 @@ export function runHostedIntakeWorker(
     {
       cwd: root,
       stdio: "inherit",
-      timeout: 31 * 60000,
+      timeout: Math.min(31 * 60000, remainingMs),
       killSignal: "SIGKILL",
       env: {
         ...process.env,
@@ -137,8 +169,8 @@ function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
   mkdirSync(directory, { recursive: true });
-  const result = runHostedIntakePasses((pass, requests) =>
-    runHostedIntakeWorker(root, directory, pass, requests),
+  const result = runHostedIntakePasses((pass, requests, remainingMs) =>
+    runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
   );
   writeFileSync(path.join(directory, "summary.json"), JSON.stringify(result, null, 2));
   if (result.status !== "passed") process.exitCode = 1;

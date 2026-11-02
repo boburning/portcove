@@ -102,6 +102,7 @@ import {
   diagnosticText,
   fieldValue,
 } from "./roadmap-issue.mts";
+import { readCatalogSource } from "./catalog-authoring.mts";
 import type { RoadmapIssueItem, RoadmapFieldValue } from "./roadmap-issue.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import {
@@ -3286,6 +3287,7 @@ export class RoadmapClient {
     onIssueCreated = () => {},
     inventory,
     body: suppliedBody,
+    repositoryIdentity,
   }: {
     title: string;
     upstream: string;
@@ -3294,6 +3296,7 @@ export class RoadmapClient {
     onIssueCreated?: (issue: RepositoryIssueObservation) => void;
     inventory?: RoadmapInventory;
     body?: string;
+    repositoryIdentity?: { id: number; game: string };
   }) {
     const issueTitle = `[Port] ${title}`;
     const issues = inventory
@@ -3304,6 +3307,12 @@ export class RoadmapClient {
       upstream,
       catalogId,
       portKey,
+      repositoryIdentity,
+      catalogRecords: repositoryIdentity
+        ? readCatalogSource(
+            fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+          ).records
+        : undefined,
     });
     if (duplicates.length) {
       throw new Error(
@@ -3338,10 +3347,12 @@ export class RoadmapClient {
     number,
     catalog,
     inventory,
+    repositoryIdentity,
   }: {
     number: number;
     catalog: QualificationCatalogObservation;
     inventory?: RoadmapInventory;
+    repositoryIdentity?: { id: number; game: string };
   }) {
     const issue = this.repositoryIssue(number);
     const issueBody = issue.body ?? "";
@@ -3393,6 +3404,12 @@ export class RoadmapClient {
         upstream: form.upstream,
         catalogId,
         portKey: form.portKey,
+        repositoryIdentity,
+        catalogRecords: repositoryIdentity
+          ? readCatalogSource(
+              fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+            ).records
+          : undefined,
       },
     );
     if (duplicates.length) {
