@@ -9,7 +9,35 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/TGP482/SCDA-XBERecomp",
-    "issue_number": 2832
+    "issue_number": 2832,
+    "manual_setup": {
+      "help_url": "https://github.com/TGP482/SCDA-XBERecomp/blob/ee5b44027bb99cdc11692b466f01d7930912240d/README.md",
+      "steps": [
+        {
+          "title": "Prepare the original Xbox edition",
+          "instruction": "Use your own original Xbox Splinter Cell: Double Agent files, distinct from the PC, PS2 and Xbox 360 releases. Finish the official Windows player’s first-start game-file selection and local compilation before adding it. Playing accepts its supported ISO or extracted-data route; the separate source-build instructions require extracted assets with default.xbe, sc4_adv.xbe and the Default, Media and adv folders. Source revision/fingerprints beyond the documented upstream checks remain unknown; do not bypass an input rejection or treat another edition as equivalent."
+        },
+        {
+          "title": "Keep the full Windows package",
+          "instruction": "Retain the complete official V3 SCDA-XBERecomp Windows unit, including SCDA.exe, SCDA_Versus.exe, compiler tools, required libraries/resources, installed originals and notices. It is a 64-bit Windows Direct3D 12/XAudio2 route; native Linux/macOS are not established here. Complete upstream preparation independently. Preserve project/runtime/compiler terms separately from original game rights; a static package check does not authorize redistributing original data or generated game code."
+        },
+        {
+          "title": "Add the ordinary native game entry",
+          "instruction": "Select SCDA.exe, use its complete package directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Use its ordinary frontend and edition/mode controls. Upstream can start a successor executable during mission/frontend handoff: Portcove observes the selected program only and may show its activity as finished while the successor game continues. That result does not mean the whole game has closed or that its files are safe to replace."
+        },
+        {
+          "title": "Preserve settings and every active profile",
+          "instruction": "Keep scda.toml beside the executable, the original-data paths it uses, hdd/ and any hdd2/, hdd3/ or other instance-specific roots, plus all saves, settings, compiled outputs, shader caches, logs and backups. The runtime anchors these hard-drive roots to its executable directory; another instance can select a separate root. Retain existing overrides and do not replace populated configuration or saves with package defaults. No console-save conversion, profile merge, migration, backup or restore is performed by adding the program."
+        },
+        {
+          "title": "Leave game and network management upstream",
+          "instruction": "Close all actual game/frontend helpers before upstream update, repair, recovery or profile changes, even after Portcove’s activity finishes. Multiplayer requires upstream’s matching-version, host networking/router/firewall and controller setup; no network credentials, port forwarding or multiplayer qualification is supplied by this guide. Use upstream controls to stop continuing games. Removing the library reference leaves every external file intact. Full-game/session, controller and real-save behavior remain unobserved; no managed install/update/backup/rollback/removal is offered."
+        }
+      ],
+      "warnings": [
+        "Use the complete original-Xbox Windows SCDA player and preserve scda.toml plus all hdd/profile roots. Portcove tracks the selected program only; a mission handoff can continue after its activity ends. Close actual games/helpers before upstream maintenance."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
