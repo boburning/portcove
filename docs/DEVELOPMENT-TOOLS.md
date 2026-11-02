@@ -17,6 +17,16 @@ entrypoints carry the same patch; successful registration and native unlisten
 retain upstream behavior. The maintained adapter regression uses the actual API
 package with an emulated transport. Review the patch and regression when updating
 that dependency; remove the patch only after equivalent upstream cleanup is proven.
+The version-bound `i18next-cli@1.81.0` patch makes both published ESM and
+CommonJS primary-translation loaders try the configured string `extract.defaultNS`
+before their existing namespace fallbacks. Upstream 1.81.0 otherwise misses
+Portcove's `settings.json`, so its nested-resource interpolation check can accept
+missing arguments. Unset/false defaults retain the existing fallbacks; this is
+not general multi-namespace discovery. The separate missing/provided nested-key
+fixtures exercise the actual CLI without inline defaults. Remove the patch only
+after a mature upstream release handles the configured namespace and passes those
+controls; 1.82.0's default-variable feature does not repair this loader.
+
 Root pnpm `patches/*.patch` changes, including removal, select the complete UI
 suite. Their bytes also invalidate format, UI and release evidence fingerprints; unrelated
 files in that directory remain subject to unknown-input refusal.
