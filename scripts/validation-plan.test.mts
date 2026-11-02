@@ -1,4 +1,5 @@
 import { gzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { errorCode } from "./runtime-values.mts";
 import type { ValidationChangeInput, ValidationPlan, ValidationGroup } from "./validation-plan.mts";
@@ -551,6 +552,35 @@ void test("large plans cross native process environments without losing paths, d
   }
 });
 
+void test("a catalog-wide plan retains every identity through the bounded environment transport", () => {
+  const changes = Array.from({ length: 1100 }, (_, index) => {
+    const name = createHash("sha256").update(String(index)).digest("hex").slice(0, 32);
+    return change(`crates/portcove-core/catalog/ports/${name}.json`);
+  });
+  const expected = plan(changes);
+  const encoded = encodeValidationPlanEnvironment(expected);
+  assert.ok(encoded.length > 64 * 1024, "reproduce the catalog-wide transport overflow");
+  assert.ok(encoded.length < 96 * 1024, "retain headroom below the native exec limit");
+  const script = `import { readValidationPlanInput, validateValidationPlan } from ${JSON.stringify(new URL("./validation-plan.mts", import.meta.url).href)}; console.log(JSON.stringify(validateValidationPlan(readValidationPlanInput())));`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    env: { ...process.env, PORTCOVE_PLAN_JSON: undefined, PORTCOVE_PLAN_GZIP_BASE64: encoded },
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 30_000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(validateValidationPlan(JSON.parse(result.stdout)), expected);
+  assert.throws(
+    () =>
+      encodeValidationPlanEnvironment(
+        plan([...changes, ...changes.map((entry) => change(entry.newPath + ".extra"))]),
+      ),
+    /transport limit|JSON byte limit/,
+  );
+});
+
 void test("plan environment transport rejects ambiguity, corrupt encoding and bounded inflation before validation", () => {
   const expected = plan([change("apps/desktop/src/App.tsx")]);
   const encoded = encodeValidationPlanEnvironment(expected);
@@ -562,7 +592,7 @@ void test("plan environment transport rejects ambiguity, corrupt encoding and bo
       }),
     /ambiguous/,
   );
-  for (const value of ["", "?", "AAAA", "AA=A", "A".repeat(64 * 1024 + 4)])
+  for (const value of ["", "?", "AAAA", "AA=A", "A".repeat(96 * 1024 + 4)])
     assert.throws(() => readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: value }));
   for (const bytes of [Buffer.from([0xff]), Buffer.from("{invalid")])
     assert.throws(() =>

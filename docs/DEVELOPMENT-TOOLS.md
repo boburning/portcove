@@ -352,8 +352,10 @@ existing Vite+ static workflow).
 
 CI keeps the complete validation plan and digest as workflow outputs. Child
 processes receive the same plan through `PORTCOVE_PLAN_GZIP_BASE64`, bounded to
-64 KiB before environment propagation and 1 MiB after inflation. This avoids
-Linux's per-environment-string execution limit on repository-wide changes.
+96 KiB before environment propagation and 1 MiB after inflation. The transport
+leaves 32 KiB below Linux’s per-string execution limit, including the variable
+name. This accommodates catalog-wide changes and avoids
+oversized environment strings on repository-wide changes.
 Consumers still validate the plan, digest and source bindings; compression is
 only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
 ambiguous transports, corrupt data and excessive inflation are rejected.
