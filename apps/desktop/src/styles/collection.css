@@ -661,11 +661,11 @@
     color: var(--color-interactive-text-strong);
   }
   .library-empty-result h2 {
-    font-size: 1.55rem;
+    font-size: 1.375rem;
   }
   .library-empty-result p {
     max-inline-size: 400px;
-    font-size: 0.82rem;
+    font-size: 0.875rem;
   }
   @container library-query (max-width: 47.5rem) {
     .library-empty-result .empty-state {
