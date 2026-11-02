@@ -1659,7 +1659,7 @@ crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/0
 crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/0/instruction,de5cce9b3841462f165280c98fa94abfff69a6f1de85a2632e1ab4a0302f1aa3,reviewed-no-change
 crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/1/title,4ab302373f3cb4fefeb443119ca2f204729f20ba6d24532d97166379288c03ef,reviewed-no-change
 crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/1/instruction,281dda085125ae8fee182c36d0a98a6fdcbec9a59b2c30c3c1e485be7738b931,reviewed-no-change
-crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/2/title,e24a8298c490361306233a61d7fadac825eadf4cd2637c16cb207a6945652e47,reviewed-no-change
+crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/2/title,cd6c4817e8b62487edec93c87608a02d30d5e124d58a1d065589f26da49a9c1d,reviewed-no-change
 crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/2/instruction,e8014b7baba8d8e3bccb3a39353fd9fa9422936ea81bd7761f451b4fb306ffa3,reviewed-no-change
 crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/3/title,e8d0c08efc645f5e0e5801011521c69970b9ec50077298ec330a1cf83b69a650,reviewed-no-change
 crates/portcove-core/catalog/ports/blood-raze.json,/listing/manual_setup/steps/3/instruction,4980be7e9405235cd2898fd3dc86b600ca5911fbbdb1292834976464e94e6e36,reviewed-no-change
@@ -3608,7 +3608,7 @@ crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup
 crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/0/instruction,30c7c0f803df4c739358d7d4b3b1302baccf7062d1cbb2c83ada087c9c6ac26a,reviewed-no-change
 crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/1/title,4ab302373f3cb4fefeb443119ca2f204729f20ba6d24532d97166379288c03ef,reviewed-no-change
 crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/1/instruction,d96cfac3343cf3c8e980908eba945c3319c35e90e037dd166bfecc7ebb1c770f,reviewed-no-change
-crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/2/title,e24a8298c490361306233a61d7fadac825eadf4cd2637c16cb207a6945652e47,reviewed-no-change
+crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/2/title,cd6c4817e8b62487edec93c87608a02d30d5e124d58a1d065589f26da49a9c1d,reviewed-no-change
 crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/2/instruction,e8014b7baba8d8e3bccb3a39353fd9fa9422936ea81bd7761f451b4fb306ffa3,reviewed-no-change
 crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/3/title,e8d0c08efc645f5e0e5801011521c69970b9ec50077298ec330a1cf83b69a650,reviewed-no-change
 crates/portcove-core/catalog/ports/duke-nukem-3d-raze.json,/listing/manual_setup/steps/3/instruction,4980be7e9405235cd2898fd3dc86b600ca5911fbbdb1292834976464e94e6e36,reviewed-no-change
