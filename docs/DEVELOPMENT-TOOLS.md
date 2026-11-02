@@ -2018,6 +2018,9 @@ as failed evidence, separately from any result under the calibrated limits.
 The owned data inventory allows 8192 entries per directory for Picori's observed
 5712-entry generated palette directory. Its 32768-file total, 256 MiB aggregate,
 64 MiB member, depth, link and file-hash checks remain unchanged.
+When comparing the runtime's retained data, select the required top-level retained
+roots before content inventory. Unrelated executable content is checked through its
+separate exact runtime identity; it does not widen the retained-data member limit.
 
 Game-first native readback compares independently issued status and workspace reads.
 A source import can commit after an internally consistent workspace snapshot returns.

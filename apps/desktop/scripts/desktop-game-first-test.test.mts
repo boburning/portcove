@@ -447,3 +447,34 @@ test("capture waits for pending optional comparison but permits its failed resul
   );
   assert.deepEqual(Array.from(failed.alerts as unknown[]), ["Optional comparison is unavailable."]);
 });
+
+test("retained runtime inventory selects before reading executable content and preserves data guards", async () => {
+  const { userDataInventory } = await import("./desktop-game-first-installed-test.mts");
+  const { mkdtemp, mkdir, writeFile, open, rm, symlink } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const root = await mkdtemp(path.join(tmpdir(), "pcv-retained-selection-"));
+  try {
+    await mkdir(path.join(root, "assets"));
+    await writeFile(path.join(root, "assets", "save.bin"), "inert retained bytes");
+    const executable = await open(path.join(root, "tmc_pc.exe"), "wx");
+    await executable.truncate(64 * 1024 ** 2 + 1);
+    await executable.close();
+    await assert.rejects(userDataInventory(root));
+    const selected = await userDataInventory(root, ["assets"]);
+    assert.equal(selected.length, 1);
+    assert.equal(selected[0]?.name, path.join("assets", "save.bin"));
+    assert.equal(selected[0]?.bytes, Buffer.byteLength("inert retained bytes"));
+    for (const names of [[], ["missing"], ["assets", "assets"], ["../assets"], ["assets/save.bin"]])
+      await assert.rejects(userDataInventory(root, names));
+    const tooLarge = await open(path.join(root, "assets", "large.dat"), "wx");
+    await tooLarge.truncate(64 * 1024 ** 2 + 1);
+    await tooLarge.close();
+    await assert.rejects(userDataInventory(root, ["assets"]));
+    await rm(path.join(root, "assets", "large.dat"));
+    await symlink(path.join(root, "tmc_pc.exe"), path.join(root, "assets", "linked.dat"));
+    await assert.rejects(userDataInventory(root, ["assets"]));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

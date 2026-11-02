@@ -118,7 +118,13 @@ function sessionIds(library: string, selectedPortId: InstalledManagedPortId = po
     database.close();
   }
 }
-export async function userDataInventory(root: string) {
+export async function userDataInventory(root: string, includedTopLevelNames?: readonly string[]) {
+  const included = includedTopLevelNames ? new Set(includedTopLevelNames) : undefined;
+  if (included) {
+    assert.ok(included.size > 0 && included.size === includedTopLevelNames?.length);
+    for (const name of included)
+      assert.ok(name && name !== "." && name !== ".." && !/[\\/\0]/u.test(name));
+  }
   const files: { name: string; bytes: number; sha256: string }[] = [];
   let total = 0;
   async function visit(directory: string, depth: number) {
@@ -126,7 +132,14 @@ export async function userDataInventory(root: string) {
     const entries = await readdir(directory, { withFileTypes: true });
     // The observed Picori palette directory contains 5,712 generated entries.
     assert.ok(entries.length <= 8_192 && files.length + entries.length <= 32_768);
+    if (depth === 0 && included)
+      for (const name of included)
+        assert.ok(
+          entries.some((entry) => entry.name === name),
+          "Required retained runtime root is missing",
+        );
     for (const entry of entries) {
+      if (depth === 0 && included && !included.has(entry.name)) continue;
       const file = path.join(directory, entry.name);
       const metadata = await lstat(file);
       assert.ok(!metadata.isSymbolicLink(), "Owned Picori data must not traverse links");
