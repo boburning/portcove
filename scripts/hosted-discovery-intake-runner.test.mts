@@ -19,6 +19,37 @@ const report = (...outcomes: ReturnType<typeof outcome>[]) => ({
   requests: outcomes.length,
   outcomes,
 });
+void test("a progressing logical batch finishes beyond three inventory windows without operator reruns", () => {
+  let passes = 0;
+  const result = runHostedIntakePasses(() => {
+    passes++;
+    return report(outcome(17, passes < 6 ? "inventory_changed" : null, String(passes).repeat(64)));
+  });
+  assert.equal(result.status, "passed");
+  assert.equal(passes, 6);
+});
+void test("the wall deadline and pass ceiling stop even continuously progressing workers", () => {
+  let now = 0,
+    calls = 0;
+  const timed = runHostedIntakePasses(
+    (_pass, _requests, remaining) => {
+      assert(remaining <= 90 * 60000);
+      calls++;
+      now += 31 * 60000;
+      return report(outcome(1, "inventory_changed", String(calls).padStart(64, "0")));
+    },
+    () => now,
+  );
+  assert.equal(timed.status, "incomplete");
+  assert.equal(timed.stop_reason, "deadline");
+  assert.equal(calls, 3);
+  calls = 0;
+  const capped = runHostedIntakePasses(() =>
+    report(outcome(1, "inventory_changed", String(++calls).padStart(64, "0"))),
+  );
+  assert.equal(capped.stop_reason, "pass_limit");
+  assert.equal(calls, 12);
+});
 void test("fresh passes drain transient holds and give the exhausted tail priority", () => {
   const calls: unknown[] = [];
   const result = runHostedIntakePasses((pass, requests) => {

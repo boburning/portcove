@@ -41,7 +41,7 @@ export function reviewedDiscoveryFamilyAliases(body: string) {
 /** Additional duplicate protection only. Fresh complete issue coverage remains
  * mandatory at the caller; local lineage/cache observations cannot prove absence.
  */
-export function assertDiscoveryIntakeIdentity(
+export function reconcileDiscoveryIntakeIdentity(
   candidate: ReviewedDiscoveryIdentity,
   issues: readonly RoadmapIssueItem[],
   records: readonly AuthoredPort[],
@@ -121,6 +121,23 @@ export function assertDiscoveryIntakeIdentity(
     }
   }
   const result = reconcileDiscoveryIdentity(candidate, canonical);
+  return {
+    ...result,
+    game_scope_known: canonical
+      .filter((row) => result.issues.includes(row.issue))
+      .every((row) => row.game_key !== undefined),
+    repository_identity_known: canonical
+      .filter((row) => result.issues.includes(row.issue))
+      .some((row) => row.repository_id === candidate.repository_id),
+  };
+}
+export function assertDiscoveryIntakeIdentity(
+  candidate: ReviewedDiscoveryIdentity,
+  issues: readonly RoadmapIssueItem[],
+  records: readonly AuthoredPort[],
+  leads: readonly DiscoveryLead[],
+) {
+  const result = reconcileDiscoveryIntakeIdentity(candidate, issues, records, leads);
   if (result.disposition !== "New canonical intake")
     throw new Error(
       `Canonical discovery identity held: ${result.disposition}; issues ${result.issues.join(", ") || "none"}; ${result.reason}`,

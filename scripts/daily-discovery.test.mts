@@ -1098,7 +1098,8 @@ function quotaRefreshFixture(t: TestContext, mode = "valid") {
     let status=200,text='{}',resource=p.url.endsWith('/graphql')?'graphql':'core';
     let reset=Math.floor((at+3600000)/1000),remaining=p.token==='repo-token'?7:4700;
     if(p.url.endsWith('/rate_limit')){
-      const row=(n)=>({limit:5000,remaining:n,reset:mode==='stale'?Math.floor(at/1000):reset});
+      const boundary=mode==='boundary'&&(readFileSync(calls,'utf8').match(/rate_limit/g)||[]).length===1;
+      const row=(n)=>({limit:5000,remaining:n,reset:mode==='stale'||boundary?Math.floor(at/1000):reset});
       text=JSON.stringify({resources:{core:row(mode==='zero'&&p.token==='repo-token'?0:remaining),graphql:row(p.token==='repo-token'?0:4700),search:row(30)}});
       if(mode==='missing')text='{"resources":{}}';
       if(mode==='denied')status=403;
@@ -1167,6 +1168,20 @@ void test("expired quota refresh preserves one budget and precedes a normal POST
   assert.equal(f.budget.limits.bytes, 64 * 1024 * 1024);
   assert.equal(f.budget.limits.milliseconds, 30 * 60000);
 });
+void test("a successful quota observation crossing the reset boundary is refreshed before any POST", (t) => {
+  const f = quotaRefreshFixture(t, "boundary");
+  writeFileSync(f.clockFile, String(f.now + 2000));
+  f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
+  assert.deepEqual(
+    f.calls().map((c) => [c.method, new URL(c.url).pathname]),
+    [
+      ["GET", "/rate_limit"],
+      ["GET", "/rate_limit"],
+      ["POST", "/repos/o/r/issues"],
+    ],
+  );
+  assert.equal(f.budget.usage.requests, 342);
+});
 void test("successful admitted POST survives a quota reset during its response", (t) => {
   const f = quotaRefreshFixture(t, "cross");
   const first = f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
@@ -1217,8 +1232,8 @@ void test("denied malformed stale or unknown quota refresh cannot retry or autho
         () => f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}"),
         /cannot be retried/u,
       );
-      assert.equal(f.calls().length, 1);
-      assert.equal(f.budget.usage.requests, 340);
+      assert.equal(f.calls().length, mode === "stale" ? 2 : 1);
+      assert.equal(f.budget.usage.requests, mode === "stale" ? 341 : 340);
       assert(f.budget.usage.bytes > 18743487);
     });
 });
