@@ -7250,29 +7250,28 @@ mod tests {
         let mut absent = catalog.authoritative_document();
         absent.source_catalog = None;
         assert!(Catalog::from_document(absent).is_err());
-        for version in [2] {
-            let exported = catalog.export_document(version).unwrap();
-            let parsed = Catalog::from_document(exported).unwrap();
-            let guide = parsed
-                .port("render96ex")
+        let version = 2;
+        let exported = catalog.export_document(version).unwrap();
+        let parsed = Catalog::from_document(exported).unwrap();
+        let guide = parsed
+            .port("render96ex")
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap();
+        assert_eq!(guide.steps, current.legacy().steps);
+        assert_eq!(guide.warnings, current.warnings);
+        assert!(guide.references.is_empty());
+        assert!(
+            !serde_json::to_value(guide)
                 .unwrap()
-                .presentation
-                .as_ref()
+                .as_object()
                 .unwrap()
-                .manual_setup
-                .as_ref()
-                .unwrap();
-            assert_eq!(guide.steps, current.legacy().steps);
-            assert_eq!(guide.warnings, current.warnings);
-            assert!(guide.references.is_empty());
-            assert!(
-                !serde_json::to_value(guide)
-                    .unwrap()
-                    .as_object()
-                    .unwrap()
-                    .contains_key("references")
-            );
-        }
+                .contains_key("references")
+        );
         let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
         let guide = &mut invalid["ports"]
             .as_array_mut()

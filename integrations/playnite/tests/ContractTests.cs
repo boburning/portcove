@@ -1119,6 +1119,13 @@ internal static class ContractTests
             "installed guide comes from the retained setup contract, not newer catalog rules");
         Check(SetupInstructions.ForRuntime(Json.Parse("{\"active\":{},\"readiness\":{}}"), instructions) == null,
             "missing retained guide is not replaced with current installation instructions");
+        Json.Object(Json.Field(Json.Field(retainedGuideStatus, "readiness"), "setup_contract"))["manual_setup"] = Json.Parse("{\"steps\":[{\"title\":\"Use the retained guide\",\"instruction\":\"Keep its files.\"}],\"warnings\":[],\"help_url\":\"https://example.com/retained-guide\"}");
+        var differentGuide = Json.Parse("{\"presentation\":{\"manual_setup\":{\"steps\":[{\"title\":\"Current guide\",\"instruction\":\"Different version.\"}],\"warnings\":[],\"help_url\":\"https://example.com/current-guide\"}}}");
+        Check(SetupInstructions.HelpUrl(SetupInstructions.ForRuntime(retainedGuideStatus, differentGuide)) == "https://example.com/retained-guide",
+            "installed explanation and help opener select the same retained guide instead of the current URL");
+        Json.Object(Json.Field(Json.Field(differentGuide, "presentation"), "manual_setup")).Remove("help_url");
+        Check(SetupInstructions.HelpUrl(SetupInstructions.ForRuntime(retainedGuideStatus, differentGuide)) == "https://example.com/retained-guide",
+            "a retained-only help URL remains available when the current catalog has none");
         var referenced = Json.Parse("{\"manual_setup\":{\"steps\":[{\"title\":\"Add the program\",\"instruction\":\"Choose Play separately.\"}],\"warnings\":[\"Separate programs can share saves.\"],\"references\":[{\"title\":\"Inspected version\",\"instruction\":\"The older test used profile/save.bin.\"}]}}");
         Check(SetupInstructions.Summary(referenced).Contains("1. Add the program") &&
             SetupInstructions.Summary(referenced).Contains("Separate programs can share saves.") &&

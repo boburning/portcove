@@ -308,39 +308,38 @@ fn setup_references_reach_human_current_and_explicit_legacy_consumers() {
             .len(),
         3
     );
-    for schema in ["2"] {
-        let output = invoke(
-            temporary.path(),
-            &["--json", "catalog", "export", "--schema-version", schema],
-        );
-        assert!(output.status.success(), "{output:?}");
-        let output: Value = serde_json::from_slice(&output.stdout).unwrap();
-        let data = &output["data"];
-        assert_eq!(data["schema_version"].as_u64().unwrap().to_string(), schema);
-        let port = data["ports"]
-            .as_array()
+    let schema = "2";
+    let output = invoke(
+        temporary.path(),
+        &["--json", "catalog", "export", "--schema-version", schema],
+    );
+    assert!(output.status.success(), "{output:?}");
+    let output: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let data = &output["data"];
+    assert_eq!(data["schema_version"].as_u64().unwrap().to_string(), schema);
+    let port = data["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == "render96ex")
+        .unwrap();
+    let guide = &port["presentation"]["manual_setup"];
+    assert!(guide.get("references").is_none());
+    assert_eq!(guide["steps"].as_array().unwrap().len(), 5);
+    let loaded = portcove_core::Catalog::from_json(&data.to_string()).unwrap();
+    assert!(
+        loaded
+            .port("render96ex")
             .unwrap()
-            .iter()
-            .find(|port| port["id"] == "render96ex")
-            .unwrap();
-        let guide = &port["presentation"]["manual_setup"];
-        assert!(guide.get("references").is_none());
-        assert_eq!(guide["steps"].as_array().unwrap().len(), 5);
-        let loaded = portcove_core::Catalog::from_json(&data.to_string()).unwrap();
-        assert!(
-            loaded
-                .port("render96ex")
-                .unwrap()
-                .presentation
-                .as_ref()
-                .unwrap()
-                .manual_setup
-                .as_ref()
-                .unwrap()
-                .references
-                .is_empty()
-        );
-    }
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap()
+            .references
+            .is_empty()
+    );
     let legacy = invoke(
         temporary.path(),
         &["--json", "catalog", "listings", "--format-version", "5"],
