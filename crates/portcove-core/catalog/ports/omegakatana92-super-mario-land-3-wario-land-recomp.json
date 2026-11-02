@@ -16,6 +16,34 @@
       "image_sha256": "5873adbc749035989cbc2d03e7f5571859f2b29d1a05d964b741a089aac0ab83",
       "game_slug": "wario-land-super-mario-land-3",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-/blob/47eb0a67fe54e6a7966d5e949c51292b82e1e573/README.md",
+      "steps": [
+        {
+          "title": "Use your own matching Game Boy ROM",
+          "instruction": "Use your own legally obtained Super Mario Land 3: Wario Land Game Boy ROM with the selected upstream Windows player. Its generated player is named for USA; other regions and revisions are not automatically interchangeable. Exact accepted ROM fingerprints are not established by the inspected instructions, and Portcove does not supply, convert, authenticate or prepare an original. This is an existing-player route, not an emulator download or proof that every execution path is statically recompiled."
+        },
+        {
+          "title": "Keep the complete selected Windows package",
+          "instruction": "The inspected package is Super.Mario.Land.3.Wario.Land.1.2.zip; unpack it as one complete unit into a writable folder you control. Keep Super_Mario_Land_3___Wario_Land__USA_.exe, SDL2.dll, libc++.dll, libunwind.dll and libwinpthread-1.dll together in Super Mario Land 3 Wario Land 1.2. The selected files are Windows x86-64; experimental Wine/Proton or proposed Switch support does not qualify a native Linux, Deck or Switch route. The published repository snapshot is not a complete rebuildable source kit; do not treat placeholder CMake examples or packaged build objects as a working source-build recipe."
+        },
+        {
+          "title": "Add the ordinary native player",
+          "instruction": "Select Super_Mario_Land_3___Wario_Land__USA_.exe inside that complete package folder, use the same folder as working directory and leave arguments empty for the normal ROM picker. Review the selected program, folder and arguments, then choose Play separately and select your own existing ROM in the upstream dialog. Keep any already working --rom, --save-dir or other supported literal arguments when your existing setup uses them; do not add diagnostic, headless, differential or test modes to normal Play. A compiler-identification a.exe below CMakeFiles is not the game."
+        },
+        {
+          "title": "Preserve game data and shared runtime preferences",
+          "instruction": "Preserve the complete existing player folder and any title/save-ID .sav, .rtc and .stateN files that are present. Normal persistent paths are based on the executable folder; an already established --save-dir redirects them to its existing directory, so preserve that path and argument rather than choosing a new empty folder. Runtime preferences use %APPDATA%/gbrecompiled/runtime/runtime_prefs.ini through SDL, with a working-directory fallback when the SDL preference path is unavailable. That profile can be shared with another gbrecompiled title. Keep its controls/settings and any imgui.ini; do not reset the shared profile merely to add this reference."
+        },
+        {
+          "title": "Keep upstream maintenance and qualification separate",
+          "instruction": "Close the actual player before upstream replacement or manual recovery. Keep its creating runtime, original ROM, complete save/state folder and shared settings together in your own recovery copies; state compatibility or a save-rewind guarantee is not supplied. Preserve original-game, project and separate runtime/library terms; a repository license or package hash is not a blanket content grant. Only the selected program is observed. Removing the reference preserves external files; managed acquisition, update, backup, rollback and Supported qualification are not added. Static inspection supplies no native gameplay, controller, audio or save/reload observation."
+        }
+      ],
+      "warnings": [
+        "Use the complete selected Windows player with your own matching Game Boy ROM. Preserve any existing --save-dir, game saves/states and the shared gbrecompiled/runtime preferences; no cross-build state compatibility or native gameplay is established."
+      ]
     }
   }
 }

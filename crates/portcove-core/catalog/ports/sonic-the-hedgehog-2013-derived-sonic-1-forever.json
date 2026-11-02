@@ -16,6 +16,34 @@
       "image_sha256": "b49adaa12478047466365aa4e5d27e2c2d262335e3f4c48fef99c6a0f540ba91",
       "game_slug": "sonic-the-hedgehog--14",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://teamforeveronline.wixsite.com/home/sonic-1-forever",
+      "steps": [
+        {
+          "title": "Use your own Sonic 1 Classic mobile data",
+          "instruction": "This is Team Forever’s enhanced Sonic the Hedgehog 2013 mobile-derived implementation, not the Genesis recompilation or an interchangeable vanilla RSDKv4 installation. The official Windows 1.5.1 instructions use your own Data.rsdk.xmf from the Sonic the Hedgehog Classic app. Obtain and prepare that file through your own authorized copy before registration and keep it private; no APK, game data, account access or extraction is supplied here. Original mobile-data variants are not authenticated by Portcove, and another game or a Genesis ROM is not a substitute."
+        },
+        {
+          "title": "Keep the complete current Windows folder",
+          "instruction": "Use an independently permitted complete Sonic Forever 1.5.1 Windows copy in a writable folder, with SonicForever.exe, matching SDL2.dll and glew32.dll, Mods and configuration together. The inspected Windows programs are 32-bit PE files, not an observed native x64 build; keep the matching companions. Add your own Data.rsdk.xmf to the resulting game folder as upstream documents. Current 1.5.1 uses the native program directly, so do not invent or rerun an older S1F Setup.bat route. The selected release’s mod.ini still labels its mod component 1.5.0; retain the complete package instead of mixing files or silently relabeling that component."
+        },
+        {
+          "title": "Add the ordinary native player",
+          "instruction": "Select SonicForever.exe in the complete game folder, set that same folder as working directory and leave arguments empty for normal play. Preserve a different already working directory or supported literal arguments only when they belong to your actual working setup. Review the program, folder and arguments, then choose Play separately when ready. Do not select the Android APK, Switch executable, SonLVL editor, DLL, old setup script or an engine from another Sonic implementation."
+        },
+        {
+          "title": "Preserve Forever’s saves and mod configuration",
+          "instruction": "Keep this installation’s SData.bin, settings.ini, Forever.ini, Mods/modconfig.ini, complete Mods tree and other existing user files, alongside a retained copy of the complete working runtime and your original mobile data. Additional mods keep their own data and permissions. Forever and the vanilla decompilation use different SaveRAM slots; do not automatically copy another game’s or base-engine saves into this installation. Upstream describes a separate optional import action; Portcove performs no save conversion, import or rewind."
+        },
+        {
+          "title": "Use the upstream version-specific transition",
+          "instruction": "When moving an older Forever installation to 1.5.1, upstream directs players to prepare a separate new folder first and then copy their own Forever SData.bin and settings.ini. Preserve the original working folder and independent recovery copies before following that transition; it is not a general promise about every future update or another RSDK game. Close the actual program before upstream replacement or recovery, then review the native selection again. Preserve the project’s noncommercial/credit conditions and separate engine, mod, artist and original-game rights. No publisher checksum was established for the inspected package; its computed hash alone is not authentication. This route adds no managed install, update, backup, rollback, Supported, native/gameplay or save/reload qualification. Removing the reference preserves external files."
+        }
+      ],
+      "warnings": [
+        "Use your own Sonic 1 Classic mobile data with a complete, independently permitted Forever copy. Keep Forever’s SData.bin/settings.ini and Mods separate from vanilla or Genesis-engine saves; the 1.5.1 new-folder transition and 32-bit Windows package have their own limits."
+      ]
     }
   }
 }
