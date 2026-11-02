@@ -3,7 +3,7 @@
   "listing": {
     "id": "king-kong-xbox-360-recompiled",
     "name": "Peter Jackson's King Kong Recompiled",
-    "summary": "Explore Peter Jackson's King Kong Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach the prepared King Kong Xbox 360 Windows player using its supported direct-game option. Preserve the complete portable userdata and any unfinished Documents migration; setup, renderer changes, online/co-op and replacement remain upstream-owned.",
     "project_url": "https://github.com/TekRantGaming/king-kong-recompiled",
     "issue_number": 1577,
     "platforms": [],
@@ -16,6 +16,34 @@
       "image_sha256": "2a8e0488efda6141a852021a1c1c37eb4ec36b069a30cb03e7a36af893525b42",
       "game_slug": "peter-jacksons-king-kong-the-official-game-of-the-movie--2",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/TekRantGaming/king-kong-recompiled/blob/2a367f7326a21c3e0ff8b9070a18c7d9457682c2/README.md",
+      "steps": [
+        {
+          "title": "Finish the original-disc and player preparation",
+          "instruction": "Use your own original Xbox 360 King Kong USA/Europe multilingual disc, title 555307D3, game version 0.0.0.1. Upstream identifies the 7,834,892,288-byte ISO by SHA-1 075F43709E9C9A095E099AB5056CC04B768288D1. This is a disc-image identity, not a default.xex digest. The 2005 PC version and other-platform discs are different inputs. Finish upstream game import, shader/runtime preparation, renderer/settings changes and any startup/recovery notices independently before attachment."
+        },
+        {
+          "title": "Keep the full independently permitted Windows player",
+          "instruction": "Use the complete v2.0.10 Windows x64 KingKong folder with king_kong.exe, graphics plugins, DLLs, resources, launcher support and component notices. Do not select the separate easter-egg game as King Kong. Project MIT, SDK, graphics/upscaler, fonts, media and captured-shader rights are separate from your original game rights; attachment neither redistributes those components nor grants permission to use third-party packs. Use only an existing player and optional content you are independently permitted to use."
+        },
+        {
+          "title": "Attach the normal direct-game entry",
+          "instruction": "Select king_kong.exe, use its complete KingKong directory as working directory and set arguments to --kk_launcher=false. Review that exact intent and request Play separately. This is the normal show-launcher option, not the internal skip-once, benchmark or diagnostic flags. With prepared game files and resolved startup notices it enters the game in the same native process using its current settings. Do not change renderer/restart settings, start co-op handovers or return through a launcher relaunch while attached; close the game normally and perform those operations independently outside the session."
+        },
+        {
+          "title": "Preserve the actual portable or legacy user root",
+          "instruction": "Windows normally uses KingKong/userdata for saves, settings-owned content, mods, cache, downloads and crash/recovery evidence. Earlier Documents/king_kong may remain the active root if migration fails or the program folder is not writable. Preserve both roots, king_kong.toml, full-path installed.txt receipts and moving-from-documents.txt, cleaning-documents.txt and documents-done.txt witnesses; finish upstream recovery before attachment. Existing user_data_root/cache_root overrides take precedence and must be retained. Do not copy only an executable or replace populated saves/configuration with package defaults."
+        },
+        {
+          "title": "Leave maintenance and extended modes upstream",
+          "instruction": "Upstream owns imports, shader packs, component updates, portable-folder moves, settings-triggered restarts, online/co-op services and failure recovery. Complete them outside a game session, preserve player data and review/relink changed bytes. The direct existing-player route does not establish full campaign, native controller, multiplayer, captured-shader permission or real-save recovery acceptance. Portcove provides no managed installation, update, backup, rollback, migration or deletion of this external unit."
+        }
+      ],
+      "warnings": [
+        "Prepare and resolve upstream setup/recovery first, then attach king_kong.exe with --kk_launcher=false. Keep userdata, legacy Documents/king_kong and all move/recovery witnesses. Launcher and co-op relaunches are outside this direct-game route."
+      ]
     }
   }
 }
