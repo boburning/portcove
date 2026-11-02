@@ -4,7 +4,7 @@
     "id": "the-3rd-birthday-recomp-basedyuki-the-3rd-birthday",
     "name": "The 3rd Birthday — The 3rd Birthday Recomp (BasedYuki)",
     "original_game_title": "The 3rd Birthday",
-    "summary": "Released launcher builds game locally; all111 scenes claimed loaded; few complete player runs, no broad hardware guarantee. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The released launcher builds the game locally. All 111 scenes are reported to load, but few complete player runs have been performed. Broad hardware compatibility is not guaranteed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BasedYuki/the-3rd-birthday-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA ULUS10567 plain ISO; other regions unsupported."
+          "instruction": "Use your own USA ULUS10567 plain ISO. Other regions are unsupported."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release launcher/runtime tools; Prepare Game builds local game from owned plain USA ISO once, then Play; local source route separately documented."
+          "instruction": "In the release launcher, choose Prepare Game with your own plain USA ISO to build the game locally once, then choose Play. Source-build instructions are documented separately."
         }
       ],
       "warnings": [
-        "Released launcher builds game locally; all111 scenes claimed loaded; few complete player runs, no broad hardware guarantee.",
+        "The released launcher builds the game locally. All 111 scenes are reported to load, but few complete player runs have been performed. Broad hardware compatibility is not guaranteed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/BasedYuki/the-3rd-birthday-recomp"

@@ -4,7 +4,7 @@
     "id": "mhnwis-nx-adumah-monster-high-new-ghoul-in-school",
     "name": "Monster High: New Ghoul in School — mhnwis-nx (adumah)",
     "original_game_title": "Monster High: New Ghoul in School",
-    "summary": "Linux boot/movies/gameplay/save-load reported near60 FPS on Steam Deck. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports Linux boot, movies, gameplay and save/load near 60 FPS on Steam Deck. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/adumah/mhnwis-nx",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Linux boot/movies/gameplay/save-load reported near60 FPS on Steam Deck.",
+        "The project reports Linux boot, movies, gameplay and save/load near 60 FPS on Steam Deck.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/adumah/mhnwis-nx"

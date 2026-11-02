@@ -4,7 +4,7 @@
     "id": "wwe-smackdown-vs-raw-2007-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2007",
     "name": "WWE SmackDown vs. Raw 2007 — WWE SmackDown vs. Raw 2007 — native PC, Linux & Steam Deck (nefariousjosiah)",
     "original_game_title": "WWE SmackDown vs. Raw 2007",
-    "summary": "Gameplay described; keyboard/wide-screen behavior is incompletely tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes gameplay. Keyboard and widescreen behaviour have incomplete testing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nefariousjosiah/WWE-SVR2007-RECOMP",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Gameplay described; keyboard/wide-screen behavior is incompletely tested.",
+        "The project describes gameplay. Keyboard and widescreen behaviour have incomplete testing.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/nefariousjosiah/WWE-SVR2007-RECOMP"

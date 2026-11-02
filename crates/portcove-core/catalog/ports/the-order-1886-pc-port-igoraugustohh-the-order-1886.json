@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own PS4 The Order: 1886 CUSA00785 base dump with owned update1.02 already merged (version01.02), including eboot.bin and original game files. TOport checks declared title/version and refuses others; exact executable/asset digests are not established by this README. Upstream says no original executable, data, shaders or extracted artwork are distributed; shader cache is generated locally."
+          "instruction": "Use your own PS4 The Order: 1886 CUSA00785 base dump with your own update 1.02 already merged as version 01.02, including eboot.bin and all original game files. TOport checks the title and version and rejects others. The README does not establish exact executable or asset hashes. Upstream says original executables, data, shaders and extracted artwork are not distributed; the shader cache is generated locally."
         },
         {
           "title": "Follow upstream setup",

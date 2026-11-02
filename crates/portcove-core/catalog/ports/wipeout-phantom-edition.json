@@ -28,7 +28,7 @@
           "instruction": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
         },
         {
-          "title": "Preserve the actual runtime and player data",
+          "title": "Keep the game version and data you use",
           "instruction": "Preserve the whole working wipeout folder, generated game/music data, configuration and progress files, plus the actual existing external profile if this installation uses one. The published source repository provides documentation and images rather than the player implementation, so a complete writer map is not established here. Keep the creating runtime and originals; do not delete source tracks just because upstream no longer needs them after extraction, transplant progress, or assume that replacing an executable preserves compatibility."
         },
         {

@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Europe title4D530003 PALv5 XBE SHA1 4878c3bdbd44663b64ce64986b313e8c6b7f8917; other releases not accepted"
+          "instruction": "Use your own European title 4D530003 PALv5 game with XBE SHA1 4878c3bdbd44663b64ce64986b313e8c6b7f8917. Other releases are not accepted."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README PGR1Launcher.exe imports own disc, obtains portable toolchain and compiles locally; tool licenses need supported user acceptance."
+          "instruction": "Run PGR1Launcher.exe with your own disc as described in the README. It downloads a portable toolchain and compiles locally. Review and accept the tool licences through the supported setup process."
         }
       ],
       "warnings": [

@@ -29,7 +29,7 @@
           "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
         },
         {
-          "title": "Preserve the actual player data",
+          "title": "Keep your existing game data",
           "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
         },
         {

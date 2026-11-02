@@ -25,11 +25,11 @@
           "instruction": "Complete the supported upstream setup from your own USA SLUS-01105 CUE and every associated BIN before attachment. The release-root Street_Fighter_EX2_Plus.exe is a setup host; it generates and builds the completed game in build-release. Keep the whole creating project and output together. Portcove does not run that preparation or distribute its private generated game code."
         },
         {
-          "title": "Keep the exact original and preparation boundary",
+          "title": "Use the matching original and setup procedure",
           "instruction": "Provide your own USA SCPH1001 retail BIOS: this title requires the 512 KiB image identified upstream by CRC32 37157331 and sets openbios=false. The generic packaged README-SETUP description of optional BIOS/OpenBIOS does not override this title requirement. Complete the title-specific BIOS setup upstream."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "Select the completed build-release/Street_Fighter_EX2_Plus.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
         },
         {

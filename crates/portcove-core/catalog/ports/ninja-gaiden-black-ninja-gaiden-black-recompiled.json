@@ -30,7 +30,7 @@
           "instruction": "The inspected official 0.9.52 ZIP contains AMD64 NinjaGaidenBlack/NinjaGaidenBlack.exe plus matching libraries and NinjaTrilogy.exe/NinjaTomoe.exe companions. Keep the complete folder and notices. Upstream identifies those companions as the separate 1988 arcade programs from the supported Xbox title’s disc/region, not an unrelated NES trilogy admission. Their presence is not independent gameplay or source acceptance for another title or region."
         },
         {
-          "title": "Attach the main prepared player",
+          "title": "Add the main prepared player",
           "instruction": "Select NinjaGaidenBlack.exe, use the full extracted NinjaGaidenBlack directory as working directory and leave arguments empty. Review the exact intent and request Play separately, using the already installed data/settings. The normal main game runs through the linked Xbox-compatible runtime. Complete missing original/setup prompts outside the attached attempt. The arcade menu/cabinet and return path hand off to companion programs; their process/lifetime behavior is not qualified by this main-player attachment. Finish such transitions outside its claimed journey instead of assuming successor tracking."
         },
         {

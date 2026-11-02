@@ -4,7 +4,7 @@
     "id": "vigilante-8-arcade-xbox-360-2008-static-recompilation-sp00nznet-vigilante-8-arcade",
     "name": "Vigilante 8 Arcade — Vigilante 8 Arcade (Xbox 360, 2008) — Static Recompilation (sp00nznet)",
     "original_game_title": "Vigilante 8 Arcade",
-    "summary": "0.10 boot/audio/input reported; modes/split-screen/relay not revalidated from older build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports boot, audio and input in 0.10. Modes, split-screen and relay behaviour have not been rechecked against the older build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/vig8",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Setup.cmd obtains compiler/SDK and generates/builds Windows runtime from own Vigilante8 package."
+          "instruction": "Run Setup.cmd with your own Vigilante 8 package. It downloads the compiler and SDK, then generates and builds the Windows runtime locally."
         }
       ],
       "warnings": [
-        "0.10 boot/audio/input reported; modes/split-screen/relay not revalidated from older build.",
+        "The project reports boot, audio and input in 0.10. Modes, split-screen and relay behaviour have not been rechecked against the older build.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/sp00nznet/vig8"

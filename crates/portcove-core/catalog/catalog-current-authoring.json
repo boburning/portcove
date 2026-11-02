@@ -13131,7 +13131,7 @@
           {
             "role": "game",
             "profile_id": "ocarina-of-time",
-            "label": "The Legend of Zelda: Ocarina of Time game files",
+            "label": "The Legend of Zelda: Ocarina of Time source",
             "verification": "catalog-rules"
           }
         ],
@@ -13261,7 +13261,7 @@
           {
             "role": "game",
             "profile_id": "majoras-mask",
-            "label": "The Legend of Zelda: Majora's Mask game files",
+            "label": "The Legend of Zelda: Majora's Mask source",
             "verification": "catalog-rules"
           }
         ],
@@ -13363,7 +13363,7 @@
           {
             "role": "game",
             "profile_id": "mario-kart-64",
-            "label": "Mario Kart 64 game files",
+            "label": "Mario Kart 64 source",
             "verification": "catalog-identity"
           }
         ],
@@ -13441,7 +13441,7 @@
           {
             "role": "game",
             "profile_id": "ghostship-source",
-            "label": "Super Mario 64 (US) game files",
+            "label": "Super Mario 64 (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -13523,7 +13523,7 @@
           {
             "role": "game",
             "profile_id": "paperboat-paper-mario-us",
-            "label": "Paper Mario (North America) game files",
+            "label": "Paper Mario (North America) source",
             "verification": "catalog-identity"
           }
         ],
@@ -13584,7 +13584,7 @@
           {
             "role": "game",
             "profile_id": "star-fox-64",
-            "label": "Star Fox 64 game files",
+            "label": "Star Fox 64 source",
             "verification": "catalog-rules"
           }
         ],
@@ -13655,7 +13655,7 @@
           {
             "role": "game",
             "profile_id": "banjo-kazooie",
-            "label": "Banjo-Kazooie (US 1.0) game files",
+            "label": "Banjo-Kazooie (US 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -13806,7 +13806,7 @@
           {
             "role": "game",
             "profile_id": "majoras-mask",
-            "label": "The Legend of Zelda: Majora's Mask game files",
+            "label": "The Legend of Zelda: Majora's Mask source",
             "verification": "catalog-rules"
           }
         ],
@@ -13890,7 +13890,7 @@
           {
             "role": "game",
             "profile_id": "banjo-kazooie",
-            "label": "Banjo-Kazooie (US 1.0) game files",
+            "label": "Banjo-Kazooie (US 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -13966,7 +13966,7 @@
           {
             "role": "game",
             "profile_id": "bomberman-64",
-            "label": "Bomberman 64 (US 1.0) game files",
+            "label": "Bomberman 64 (US 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -14050,7 +14050,7 @@
           {
             "role": "game",
             "profile_id": "harvest-moon-64",
-            "label": "Harvest Moon 64 (US) game files",
+            "label": "Harvest Moon 64 (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -14122,7 +14122,7 @@
           {
             "role": "game",
             "profile_id": "dinosaur-planet",
-            "label": "Dinosaur Planet December 2000 prototype game files",
+            "label": "Dinosaur Planet December 2000 prototype source",
             "verification": "catalog-identity"
           }
         ],
@@ -14251,7 +14251,7 @@
           {
             "role": "game",
             "profile_id": "donkey-kong-64",
-            "label": "Donkey Kong 64 (US 1.0) game files",
+            "label": "Donkey Kong 64 (US 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -14326,7 +14326,7 @@
           {
             "role": "game",
             "profile_id": "automobili-lamborghini",
-            "label": "Automobili Lamborghini (US) game files",
+            "label": "Automobili Lamborghini (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -14398,7 +14398,7 @@
           {
             "role": "game",
             "profile_id": "aerogauge",
-            "label": "AeroGauge (US) game files",
+            "label": "AeroGauge (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -14493,7 +14493,7 @@
           {
             "role": "game",
             "profile_id": "extreme-g",
-            "label": "Extreme-G (North America 1.0) game files",
+            "label": "Extreme-G (North America 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16041,7 +16041,7 @@
           {
             "role": "game",
             "profile_id": "beetle-adventure-racing",
-            "label": "Beetle Adventure Racing (US) game files",
+            "label": "Beetle Adventure Racing (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16130,7 +16130,7 @@
           {
             "role": "game",
             "profile_id": "quest-64",
-            "label": "Quest 64 (US 1.0) game files",
+            "label": "Quest 64 (US 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16203,7 +16203,7 @@
           {
             "role": "game",
             "profile_id": "wcw-world-tour",
-            "label": "WCW vs. nWo World Tour (US 1.0) game files",
+            "label": "WCW vs. nWo World Tour (US 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16276,7 +16276,7 @@
           {
             "role": "game",
             "profile_id": "vpw64",
-            "label": "Virtual Pro Wrestling 64 (Japan) game files",
+            "label": "Virtual Pro Wrestling 64 (Japan) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16349,7 +16349,7 @@
           {
             "role": "game",
             "profile_id": "wcw-nwo-revenge",
-            "label": "WCW/nWo Revenge (US) game files",
+            "label": "WCW/nWo Revenge (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16422,7 +16422,7 @@
           {
             "role": "game",
             "profile_id": "wwf-wrestlemania-2000",
-            "label": "WWF WrestleMania 2000 (US V1.2) game files",
+            "label": "WWF WrestleMania 2000 (US V1.2) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16489,7 +16489,7 @@
           {
             "role": "game",
             "profile_id": "vpw2",
-            "label": "Virtual Pro Wrestling 2 (Japan) game files",
+            "label": "Virtual Pro Wrestling 2 (Japan) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16562,7 +16562,7 @@
           {
             "role": "game",
             "profile_id": "wwf-no-mercy",
-            "label": "WWF No Mercy (US Rev 1) game files",
+            "label": "WWF No Mercy (US Rev 1) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16641,7 +16641,7 @@
           {
             "role": "game",
             "profile_id": "mega-man-64",
-            "label": "Mega Man 64 (US) game files",
+            "label": "Mega Man 64 (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16716,7 +16716,7 @@
           {
             "role": "game",
             "profile_id": "dr-mario-64",
-            "label": "Dr. Mario 64 game files",
+            "label": "Dr. Mario 64 source",
             "verification": "catalog-identity"
           }
         ],
@@ -16802,7 +16802,7 @@
           {
             "role": "game",
             "profile_id": "pokemon-gen-1",
-            "label": "Pokémon Red (US) game files",
+            "label": "Pokémon Red (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16887,7 +16887,7 @@
           {
             "role": "game",
             "profile_id": "pokemon-gold",
-            "label": "Pokémon Gold (US) game files",
+            "label": "Pokémon Gold (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -16968,7 +16968,7 @@
           {
             "role": "game",
             "profile_id": "pokemon-silver",
-            "label": "Pokémon Silver (US) game files",
+            "label": "Pokémon Silver (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17049,7 +17049,7 @@
           {
             "role": "game",
             "profile_id": "pokemon-crystal",
-            "label": "Pokémon Crystal (US) game files",
+            "label": "Pokémon Crystal (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17211,7 +17211,7 @@
               "instruction": "Finish any pending upstream update or recovery and a normal upstream start/quit before registration. Do not delete or ignore .update staging, ready markers, replaced-file or recovery history as a workaround: startup can apply a staged update and relaunch before the update-check setting is read. Turn the normal upstream startup update/content check off for this route. A new download, update, repair or backend/warm reboot must be completed externally before the next reviewed Play; Core does not adopt its successor."
             },
             {
-              "title": "Select the installed entry with exact explicit coordinates",
+              "title": "Select the installed player and its exact paths",
               "instruction": "Select root/reblue.exe with the actual installed-root working directory and one literal --game_data_root=<absolute prepared game-data directory> argument (ordinarily root/game containing default.xex for this upstream installer), --profile=<actual existing profile name>, and --no-bd_update_check. Keep spaces inside each single token; these are arguments, not a shell command. The game-data directory must belong directly beneath that same creating installation root: its parent becomes the profile/cache root and must match the installed executable directory. Preserve an established supported custom direct-child tree rather than rename it or select an unrelated external directory. Explicit game_data_root selects that installation independently of shared install lookup; default.xex presence alone is not full original or private-output validation. The bound normal Windows entry runs its application/message loop in process. Keep any other supported working flags exactly; generic SDK user_data_root/cache_root flags do not override the title’s profile/cache routing."
             },
             {
@@ -17219,7 +17219,7 @@
               "instruction": "Keep the whole external install, complete originals/private output, game-data tree, mods, installed DLC/content, logs, root/cache, profiles/<actual name>/reblue.toml, profile saves/achievements/content and unknown files, plus all legacy roots and existing shared HKCU installation registration. Preserve actual bd_saves_path and bd_cache_path overrides separately. The title uses the selected installation’s profiles/name as its user root; save/cache overrides and prior layouts are distinct. Do not reset profile/configuration, repoint shared registration or regenerate a private copy merely to register. Core neither backs up these roots nor claims safe save/profile migration or rollback."
             },
             {
-              "title": "Review native intent and keep ownership separate",
+              "title": "Review launch details and manage your copy",
               "instruction": "Consent to the exact native executable, working directory and literal arguments, then choose Play separately. A current library-owned installation or active registration/launch cannot be bypassed by this alternative. Existing managed/source contracts remain unchanged; selecting an external copy grants no managed generation, immutable private-output certification or source admission. The program can make normal profile/DLC/cache writes, and its UI can reenable checks; this is not a sandbox or an all-network-off promise. Normal ordered shutdown has a default1.5second forced-exit watchdog, so process exit is not clean-save certification. Close all real instances before upstream changes, retain the old creating runtime/data together and relink changed executables. Registration-only removal preserves all external files."
             }
           ],
@@ -17298,7 +17298,7 @@
           {
             "role": "game",
             "profile_id": "bomberman-hero",
-            "label": "Bomberman Hero (US) game files",
+            "label": "Bomberman Hero (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17377,7 +17377,7 @@
           {
             "role": "game",
             "profile_id": "snowboard-kids-2",
-            "label": "Snowboard Kids 2 (US) game files",
+            "label": "Snowboard Kids 2 (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17451,7 +17451,7 @@
           {
             "role": "game",
             "profile_id": "trouble-makers",
-            "label": "Mischief Makers (US 1.1) game files",
+            "label": "Mischief Makers (US 1.1) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17527,7 +17527,7 @@
           {
             "role": "game",
             "profile_id": "goemon-64",
-            "label": "Mystical Ninja Starring Goemon (US) game files",
+            "label": "Mystical Ninja Starring Goemon (US) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17603,7 +17603,7 @@
           {
             "role": "game",
             "profile_id": "perfect-dark",
-            "label": "Perfect Dark (US Rev 1) game files",
+            "label": "Perfect Dark (US Rev 1) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17697,7 +17697,7 @@
           {
             "role": "game",
             "profile_id": "space-station-silicon-valley",
-            "label": "Space Station Silicon Valley (USA 1.0) game files",
+            "label": "Space Station Silicon Valley (USA 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -17871,7 +17871,7 @@
           {
             "role": "game",
             "profile_id": "minish-cap-gba",
-            "label": "The Legend of Zelda: The Minish Cap game files",
+            "label": "The Legend of Zelda: The Minish Cap source",
             "verification": "catalog-identity"
           }
         ],
@@ -17945,7 +17945,7 @@
           {
             "role": "game",
             "profile_id": "super-smash-bros-64",
-            "label": "Super Smash Bros. 64 (USA 1.0) game files",
+            "label": "Super Smash Bros. 64 (USA 1.0) source",
             "verification": "catalog-identity"
           }
         ],
@@ -18286,7 +18286,7 @@
           {
             "role": "game",
             "profile_id": "spyro-dragon-openpete",
-            "label": "Spyro the Dragon (NTSC-U SCUS-94228) game files",
+            "label": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source",
             "verification": "catalog-identity"
           }
         ],
@@ -18826,7 +18826,7 @@
           {
             "role": "game",
             "profile_id": "paper-mario-us",
-            "label": "Paper Mario (North America) game files",
+            "label": "Paper Mario (North America) source",
             "verification": "catalog-identity"
           }
         ],
@@ -18900,7 +18900,7 @@
           {
             "role": "game",
             "profile_id": "pokemon-snap",
-            "label": "Pokémon Snap (USA) game files",
+            "label": "Pokemon Snap (USA) source",
             "verification": "catalog-identity"
           }
         ],
@@ -18984,7 +18984,7 @@
           {
             "role": "game",
             "profile_id": "castlevania-legacy-of-darkness",
-            "label": "Castlevania: Legacy of Darkness (North America) game files",
+            "label": "Castlevania: Legacy of Darkness (North America) source",
             "verification": "catalog-identity"
           }
         ],
@@ -19060,7 +19060,7 @@
           {
             "role": "game",
             "profile_id": "diddy-kong-racing-golden-balloon",
-            "label": "Diddy Kong Racing Rev 1 game files for Golden Balloon",
+            "label": "Diddy Kong Racing Rev 1 source for Golden Balloon",
             "verification": "catalog-identity"
           }
         ],
@@ -19168,7 +19168,7 @@
           {
             "role": "game",
             "profile_id": "star-fox-enhanced-usa-v1-0",
-            "label": "Star Fox (USA) v1.0 game files for Star Fox Enhanced",
+            "label": "Star Fox (USA) v1.0 source for Star Fox Enhanced",
             "verification": "catalog-identity"
           }
         ],
@@ -19240,7 +19240,7 @@
           {
             "role": "game",
             "profile_id": "duke-nukem-zero-hour",
-            "label": "Duke Nukem: Zero Hour (USA) game files",
+            "label": "Duke Nukem: Zero Hour (USA) source",
             "verification": "catalog-identity"
           }
         ],
@@ -19656,7 +19656,7 @@
           {
             "role": "game",
             "profile_id": "wave-race-64",
-            "label": "Wave Race 64 (USA Rev A) game files",
+            "label": "Wave Race 64 (USA Rev A) source",
             "verification": "catalog-identity"
           }
         ],
@@ -19723,7 +19723,7 @@
           {
             "role": "game",
             "profile_id": "f-zero-snes-usa",
-            "label": "F-Zero (USA) headerless SNES game files",
+            "label": "F-Zero (USA) headerless SNES source",
             "verification": "catalog-identity"
           }
         ],
@@ -19937,7 +19937,7 @@
           {
             "role": "game",
             "profile_id": "dkc3-na-en-fr",
-            "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES game files",
+            "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
             "verification": "catalog-identity"
           }
         ],
@@ -21440,7 +21440,7 @@
           {
             "role": "game",
             "profile_id": "super-mario-world-snes-usa",
-            "label": "Super Mario World (USA) stock headerless SNES game files",
+            "label": "Super Mario World (USA) stock headerless SNES source",
             "verification": "catalog-identity"
           }
         ],
@@ -21529,7 +21529,7 @@
           {
             "role": "game",
             "profile_id": "a-link-to-the-past-snes-usa",
-            "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES game files",
+            "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
             "verification": "catalog-identity"
           }
         ],
@@ -21621,7 +21621,7 @@
           {
             "role": "game",
             "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
-            "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis game files",
+            "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
             "verification": "catalog-identity"
           }
         ],
@@ -22607,13 +22607,13 @@
               "instruction": "Ordinary upstream data anchors beside the executable in this writable copy. Preserve the whole new folder, its original copy, configuration, SRAM, states, screenshots, mods manifests and logs/replay sidecars with all game copies closed. Do not copy old states, save folders or profiles into it, share data folders with the old runtime, or point --config at retained data. A separate Preview download or changed launch argument does not prove old/new state compatibility or migrate progress. Keep the creating runtime for every existing state."
             },
             {
-              "title": "Use explicit Play and upstream ownership",
+              "title": "Choose Play and manage updates through the project",
               "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process’s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
             }
           ],
           "warnings": [
             "This guide is bounded to the linked upstream v0.3.16 Preview. The existing managed package policy remains unchanged. Other builds need their own source, setup, data and lifetime assessment.",
-            "Snapshot identity/preflight rejection is not old-state compatibility, populated-data adoption or a complete managed lifetime. Preserve older runtimes and all data."
+            "Snapshot identity checks and rejection before launch do not establish compatibility with old states, adoption of populated data or complete managed maintenance. Preserve older runtimes and all their data."
           ],
           "help_url": "https://github.com/mstan/SuperMetroidRecomp/releases/tag/v0.3.16"
         },
@@ -23051,7 +23051,7 @@
           {
             "role": "game",
             "profile_id": "super-bomberman-snes-usa",
-            "label": "Super Bomberman (USA) stock headerless SNES game files",
+            "label": "Super Bomberman (USA) stock headerless SNES source",
             "verification": "catalog-identity"
           }
         ],
@@ -24083,7 +24083,7 @@
           {
             "role": "game",
             "profile_id": "bstone-aliens-of-gold-originals",
-            "label": "Complete original Blake Stone: Aliens of Gold files",
+            "label": "Blake Stone aliens-of-gold complete original files",
             "verification": "catalog-identity"
           }
         ],
@@ -24260,7 +24260,7 @@
           {
             "role": "game",
             "profile_id": "bstone-planet-strike-originals",
-            "label": "Complete original Blake Stone: Planet Strike files",
+            "label": "Blake Stone planet-strike complete original files",
             "verification": "catalog-identity"
           }
         ],
@@ -26643,7 +26643,7 @@
           {
             "role": "game",
             "profile_id": "diablo-devilutionx-retail-originals",
-            "label": "Required retail Diablo MPQ files",
+            "label": "Diablo reviewed retail MPQ set",
             "verification": "catalog-identity"
           }
         ],
@@ -26764,7 +26764,7 @@
           {
             "role": "game",
             "profile_id": "diablo-hellfire-devilutionx-originals",
-            "label": "Required Diablo and Hellfire MPQ files",
+            "label": "Diablo and Hellfire reviewed MPQ set",
             "verification": "catalog-identity"
           }
         ],
@@ -30221,7 +30221,7 @@
               "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
             },
             {
@@ -30282,7 +30282,7 @@
               "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
             },
             {
@@ -30351,7 +30351,7 @@
               "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
             },
             {
@@ -30465,7 +30465,7 @@
               "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
             },
             {
-              "title": "Keep useful alternatives and recovery limits",
+              "title": "Check the alternatives and recovery limits",
               "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
             }
           ],
@@ -31536,7 +31536,7 @@
               "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
             },
             {
@@ -31607,7 +31607,7 @@
               "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
             },
             {
@@ -31670,7 +31670,7 @@
               "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
             },
             {
-              "title": "Keep the actual original and player data",
+              "title": "Keep your originals and game data",
               "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
             },
             {
@@ -31805,7 +31805,7 @@
               "instruction": "Open the linked official v0.1.3 release and extract its complete EmeraldRecomp-windows-x64-v0.1.3.zip package into a separate writable folder for this exact game. Keep EmeraldRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working EmeraldRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
-              "title": "Preserve the actual data and compiler coordinates",
+              "title": "Keep the data and compiler paths",
               "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
             },
             {
@@ -31886,7 +31886,7 @@
             }
           ],
           "warnings": [
-            "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+            "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
             "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
           ],
           "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
@@ -31949,7 +31949,7 @@
               "instruction": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
-              "title": "Preserve the actual data and compiler coordinates",
+              "title": "Keep the data and compiler paths",
               "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
             },
             {
@@ -32030,7 +32030,7 @@
             }
           ],
           "warnings": [
-            "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+            "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
             "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
           ],
           "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
@@ -32093,7 +32093,7 @@
               "instruction": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
-              "title": "Preserve the actual data and compiler coordinates",
+              "title": "Keep the data and compiler paths",
               "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config.ini/keybinds.ini and BIOS/ROM path caches; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
             },
             {
@@ -32174,7 +32174,7 @@
             }
           ],
           "warnings": [
-            "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+            "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
             "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
           ],
           "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
@@ -32246,7 +32246,7 @@
             }
           ],
           "warnings": [
-            "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+            "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
             "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
           ],
           "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
@@ -32309,7 +32309,7 @@
               "instruction": "Open the linked official v0.0.7 release and extract its complete RubyRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep RubyRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working RubyRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
-              "title": "Preserve the actual data and compiler coordinates",
+              "title": "Keep the data and compiler paths",
               "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_ruby.ini, keybinds_ruby.ini, rom_ruby.cfg and bios_ruby.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
             },
             {
@@ -32390,7 +32390,7 @@
             }
           ],
           "warnings": [
-            "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+            "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
             "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
           ],
           "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
@@ -32453,7 +32453,7 @@
               "instruction": "Open the linked official v0.0.7 release and extract its complete SapphireRecomp-windows-x64-v0.0.7.zip package into a separate writable folder for this exact game. Keep SapphireRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working SapphireRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
             },
             {
-              "title": "Preserve the actual data and compiler coordinates",
+              "title": "Keep the data and compiler paths",
               "instruction": "Before explicit Play, preserve the complete creating runtime and its actual data locations. The launcher writes config_sapphire.ini, keybinds_sapphire.ini, rom_sapphire.cfg and bios_sapphire.cfg, plus any generic cache fallback; the runtime also has bios.cfg/rom.cfg sidecars. Default battery data sits beside the selected ROM as .sav, with .sav.tmp and .sav.prev-size.bak witnesses; save states use .state<N>, .suspend.state and .suspend.pending beside that ROM. Existing --save or --state-dir arguments change those coordinates: preserve their actual destinations and do not rewrite them through this guide. Generated reports and recomp_cache/JIT executable output belong to upstream; keep the full working player folder and actual ROM/data folder, not just the EXE or one save file. Close every game/compiler process before copying or replacing files. Do not share these folders between titles, transplant emulator/PokePort/another engine saves or states, or infer compatibility between builds."
             },
             {
@@ -32525,7 +32525,7 @@
               "instruction": "Use an already permitted, working Windows x64 upstream-prepared v0.4.7-beta folder with PokemonStadiumRecomp.exe, all DLLs, assets and packaged GPL/component notices. This route registers an existing prepared folder; Portcove does not acquire or extract this package. Keep any archive or operating-system trust refusal in force; do not change protection settings to make the runtime pass. Select the actual PokemonStadiumRecomp.exe and its containing folder as working directory, then use its integrated SS Anne setup/PLAY screen. Keep all companions rather than selecting a helper or an isolated EXE."
             },
             {
-              "title": "Preserve runtime and separate cartridge coordinates",
+              "title": "Keep the runtime and cartridge-data paths",
               "instruction": "Preserve the complete executable/working folder: rom.cfg, launcher.cfg, the registered configuration/FlashRAM store, actual logs/crash reports and all other created files. launcher.cfg p1_rom/p1_save through p4_rom/p4_save resolve relative to the executable folder or as absolute paths. PSR_TRANSFER_PAK_P1_ROM/SAVE through P4 override them. Transfer Pak and GB Tower can write these separate cartridge saves during Play; keep complete original/safe writable copies, configured paths, creating runtimes and saves together. Registration/removal does not adopt, copy, migrate or delete these files; no save/state compatibility or managed backup is promised."
             },
             {
@@ -32661,7 +32661,7 @@
               "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
             },
             {
@@ -32732,7 +32732,7 @@
               "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
             },
             {
@@ -32803,7 +32803,7 @@
               "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
             },
             {
@@ -33096,7 +33096,7 @@
               "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
             },
             {
@@ -33167,7 +33167,7 @@
               "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
             },
             {
@@ -33297,7 +33297,7 @@
               "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
             },
             {
@@ -33366,7 +33366,7 @@
               "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
             },
             {
@@ -33435,7 +33435,7 @@
               "instruction": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
             },
             {
-              "title": "Preserve the actual runtime and player data",
+              "title": "Keep the game version and data you use",
               "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
             },
             {
@@ -33959,7 +33959,7 @@
               "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed."
             },
             {
@@ -34022,7 +34022,7 @@
               "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations."
             },
             {
@@ -34365,7 +34365,7 @@
               "instruction": "Play opens crispy-strife-setup.exe. Configure controls and use F2 Warp for single-player launch; choose the matching detected IWAD there. The main-menu launch command forwards its existing arguments. The PWAD/mod browser is not an original-IWAD browser. Keep different title entries separate. Do not switch this entry’s original edition in place: its retained runtime versions share data. Use a separate Portcove library or independently owned upstream copy for another source variant. No automatic switching or cross-variant save compatibility is established. An upstream setup exit does not establish that the game loaded or ran successfully."
             },
             {
-              "title": "Keep the declared private data scope",
+              "title": "Keep the game’s listed local data",
               "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
             },
             {
@@ -34804,7 +34804,7 @@
               "instruction": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
             },
             {
-              "title": "Preserve the actual runtime and player data",
+              "title": "Keep the game version and data you use",
               "instruction": "Before explicit Play, preserve the actual existing user profile and creating runtime. On Windows the upstream default checks %APPDATA%/sm64coopdx and can instead reuse a populated %APPDATA%/sm64ex-coop folder; an existing --savepath override changes that selection. Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files."
             },
             {
@@ -34876,7 +34876,7 @@
               "instruction": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
             },
             {
-              "title": "Preserve the actual runtime and player data",
+              "title": "Keep the game version and data you use",
               "instruction": "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state. The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state."
             },
             {
@@ -35763,7 +35763,7 @@
               "instruction": "The official Windows EXE is an installer, not the game to register. Complete upstream setup, run the OpenMW wizard/launcher deliberately to locate Morrowind.ini and Data Files, and choose the desired content/mod order. Then register the installed openmw.exe with its installation folder as working directory. Keep openmw-launcher.exe for setup and mod/profile choices; discovery does not run that wizard automatically."
             },
             {
-              "title": "Keep the actual original and player data",
+              "title": "Keep your originals and game data",
               "instruction": "Windows normally keeps OpenMW configuration, logs, saves and screenshots under the actual Documents/My Games/OpenMW folder. Custom configuration/user-data paths and external mod/data directories remain part of your setup. Preserve those actual locations, selected originals and load order with the player closed before upstream updates. OpenMW saves and original-engine saves are separate formats; keep their creating runtime rather than assuming conversion."
             },
             {
@@ -35832,7 +35832,7 @@
               "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
             },
             {
-              "title": "Keep the actual original and player data",
+              "title": "Keep your originals and game data",
               "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
             },
             {
@@ -35893,7 +35893,7 @@
               "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
             },
             {
-              "title": "Keep the actual original and player data",
+              "title": "Keep your originals and game data",
               "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
             },
             {
@@ -35954,7 +35954,7 @@
               "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
             },
             {
-              "title": "Keep the actual original and player data",
+              "title": "Keep your originals and game data",
               "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
             },
             {
@@ -36139,7 +36139,7 @@
               "instruction": "The accepted upstream folder becomes the game working directory. Preserve the whole original tree, including SAVEGAME.WLD, unknown/custom files and any previous compatible runtime. Registry emulation also writes wc1-modern.cfg under the actual SDL preference directory for Origin Systems/WC Kilrathi Saga. These shared/external original, save and profile paths remain player-owned and outside Portcove-managed backups, restore and removal. A different engine folder does not isolate them; close all actual users before changing shared state."
             },
             {
-              "title": "Keep the existing-copy launch coordinates",
+              "title": "Keep this copy’s launch settings",
               "instruction": "For an attached working copy retain its actual prepared working directory and established supported literal arguments. Starting without arguments opens the graphical launcher; existing direct arguments use the creating working directory unless --gui is included. Keep that choice truthful rather than starting a new engine folder with direct-game flags and no original data. Review exact intent/consent and choose Play separately. Do not substitute --check, a compiler, installer or historical reproduction binary for normal play."
             },
             {
@@ -36202,7 +36202,7 @@
               "instruction": "Use the official v1.2.256 Windows x64 ZIP and keep its complete wipeout folder. Follow the packaged README: provide matching original image copies in diskimages for upstream extraction, or the matching complete loose set in wipeoutgame with optional correctly named music in music. Finish normal upstream setup successfully before registration. The upstream player performs extraction during startup; this is not Portcove disc preparation or source authentication. Register wipeout.exe from the wipeout folder, not an extraction helper. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
             },
             {
-              "title": "Preserve the actual runtime and player data",
+              "title": "Keep the game version and data you use",
               "instruction": "Preserve the whole working wipeout folder, generated game/music data, configuration and progress files, plus the actual existing external profile if this installation uses one. The published source repository provides documentation and images rather than the player implementation, so a complete writer map is not established here. Keep the creating runtime and originals; do not delete source tracks just because upstream no longer needs them after extraction, transplant progress, or assume that replacing an executable preserves compatibility."
             },
             {
@@ -36540,7 +36540,7 @@
               "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Choose a build that documents TFTD support; an old UFO-only release is insufficient. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
             },
             {
-              "title": "Keep the actual original and player data",
+              "title": "Keep your originals and game data",
               "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
             },
             {
@@ -36609,7 +36609,7 @@
               "instruction": "Use only an already working upstream Windows zelda3.exe with its matching generated zelda3_assets.dat, SDL2.dll, zelda3.ini and companions. If setup is incomplete, follow the linked upstream source-build and asset-extraction instructions with your matching USA original before registration. The selected v0.3 release has a BPS asset, while its tagged source loader requires DAT; these instructions do not claim that placing a ROM beside that package completes setup. Do not mix generated assets between source revisions or select a launcher, extraction batch file or compiler as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
             },
             {
-              "title": "Preserve the actual runtime and player data",
+              "title": "Keep the game version and data you use",
               "instruction": "Preserve the entire working player folder and its actual data, including zelda3.ini, saves/sram.dat and its backup, snapshots, replays, shaders and any optional audio. Keep the creating runtime for retained SRAM, snapshots and replays; do not copy them to another runtime or infer compatibility from a matching title or RAM-comparison feature."
             },
             {
@@ -36681,7 +36681,7 @@
               "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
             },
             {
-              "title": "Preserve the actual player data",
+              "title": "Keep your existing game data",
               "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
             },
             {

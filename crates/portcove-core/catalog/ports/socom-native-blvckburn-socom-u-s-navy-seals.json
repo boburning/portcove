@@ -4,7 +4,7 @@
     "id": "socom-native-blvckburn-socom-u-s-navy-seals",
     "name": "SOCOM: U.S. Navy SEALs — socom-native (BLVCKBURN)",
     "original_game_title": "SOCOM: U.S. Navy SEALs",
-    "summary": "Native initialization/checkpoint only; game-specific runtime exists, not gameplay guarantee. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Only native initialization and a checkpoint are established. A game-specific runtime exists, but working gameplay is not guaranteed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BLVCKBURN/socom-native",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SCUS97134 own disc/ELF"
+          "instruction": "Use your own USA SCUS97134 disc and ELF."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local generated C++ build; exact desktop rendering/player route unknown."
+          "instruction": "Generate C++ and build locally using the project’s instructions. This guide does not establish the desktop rendering or player-launch procedure."
         }
       ],
       "warnings": [
-        "Native initialization/checkpoint only; game-specific runtime exists, not gameplay guarantee.",
+        "Only native initialization and a checkpoint are established. A game-specific runtime exists, but working gameplay is not guaranteed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/BLVCKBURN/socom-native"

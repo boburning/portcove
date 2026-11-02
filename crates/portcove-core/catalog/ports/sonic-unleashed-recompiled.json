@@ -29,7 +29,7 @@
           "instruction": "Use the completed UnleashedRecomp.exe with its installation directory as the established working directory. The selected source defaults game content to the current working directory, so an arbitrary working directory is not equivalent. Preserve the existing package and completed installer outputs. The reviewed v1.0.3 Windows asset has no published GitHub digest: this guide does not authenticate or enroll a fresh managed download."
         },
         {
-          "title": "Attach the completed native player and choose Play separately",
+          "title": "Add the completed native player, then choose Play",
           "instruction": "Finish setup with the project’s tools, then select the Windows game executable, working folder and supported launch arguments in Portcove. Review and agree to those details, then choose Play separately. Keep the complete package together and close the game and companion programs before changing files. You manage this external copy; Portcove does not replace it or back up, convert, migrate or delete its data. Removing its registration leaves those files in place. Source review and automated registration checks do not confirm an installed game session, successful forced exit, gameplay or save compatibility."
         },
         {

@@ -4,7 +4,7 @@
     "id": "ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4",
     "name": "EA Sports UFC 4 — UFC4-PC-Port (schans-arg) (schans-arg)",
     "original_game_title": "EA Sports UFC 4",
-    "summary": "0.0.11 offline KO and career create/fight/save/reload claimed; full career/DLC/longsessions unknown See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports offline KO and career creation, fighting, saving and reloading in 0.0.11. Full career, DLC and long sessions remain untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/schans-arg/UFC4-PC-Port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "CUSA14209 v28.00 merged owned base+update eboot"
+          "instruction": "Use your own CUSA14209 base game and update merged as v28.00, including eboot."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "0.0.11 offline KO and career create/fight/save/reload claimed; full career/DLC/longsessions unknown",
+        "The project reports offline KO and career creation, fighting, saving and reloading in 0.0.11. Full career, DLC and long sessions remain untested.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/schans-arg/UFC4-PC-Port"

@@ -4,7 +4,7 @@
     "id": "project-glintburn-ac4-port-sulphurs16-armored-core-4",
     "name": "Armored Core 4 — Project Glintburn AC4-Port (SulphurS16)",
     "original_game_title": "Armored Core 4",
-    "summary": "Upstream presents missions/settings/play route; SPU interpreter safety net; no Portcove gameplay test See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes missions, settings and play, with an SPU interpreter fallback. Portcove has not tested gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/SulphurS16/AC4-Port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA BLUS30027 disc folder PS3_GAME; own firmware 4.93 PUP and RPCS3 for one-time decryption; exact disc revision unspecified"
+          "instruction": "Use your own USA BLUS30027 disc folder containing PS3_GAME. Supply your own firmware 4.93 PUP and use RPCS3 for one-time decryption. This guide does not specify the exact supported disc revision; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release launcher downloads compiler (~250MB) and compiles user dump locally"
+          "instruction": "Run the release launcher with your own dump. It downloads a compiler of approximately 250 MB and compiles the game locally."
         }
       ],
       "warnings": [
-        "Upstream presents missions/settings/play route; SPU interpreter safety net; no Portcove gameplay test",
+        "The project describes missions, settings and play, with an SPU interpreter fallback. Portcove has not tested gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/SulphurS16/AC4-Port"

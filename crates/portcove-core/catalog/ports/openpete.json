@@ -67,7 +67,7 @@
         {
           "role": "game",
           "profile_id": "spyro-dragon-openpete",
-          "label": "Spyro the Dragon (NTSC-U SCUS-94228) game files",
+          "label": "Spyro the Dragon (NTSC-U SCUS-94228) OpenPete source",
           "verification": "catalog-identity"
         }
       ],

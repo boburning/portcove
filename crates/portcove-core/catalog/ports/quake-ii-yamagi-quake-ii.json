@@ -26,7 +26,7 @@
           "instruction": "The Reckoning/xatrix and Ground Zero/rogue each need their own original pak/video and matching addon code; do not infer those from base-game setup. QuakeII Remaster uses a separate Yamagi project/data contract and is not a substitute for classic assets. Keep complete original and prepared sets plus each compatible addon/runtime tuple recoverable. Engine/component terms do not grant rights to originals, music, mods or sibling renderer packages."
         },
         {
-          "title": "Retain actual working, data and profile choices",
+          "title": "Keep your working folder, data and profile choices",
           "instruction": "Use the actual prepared runtime directory as working directory and retain established supported literal arguments, including actual -datadir, -cfgdir and -portable choices. The default Windows user root is actual Documents/YamagiQ2; -cfgdir changes its selected subdirectory and -portable omits that home-profile search. Do not force portable mode or rewrite a host root during registration. Preserve complete runtime/DLLs, baseq2 and other selected game directories, actual config/saves/screenshots/demos/music/mods/custom/legacy roots and unknowns. Finish upstream normal start/quit, review intent/consent and choose Play separately. No actual backward-save or addon compatibility is certified."
         },
         {

@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Europe UCES01059 ISO, the executable is checked against the expected SHA-256"
+          "instruction": "Use your own European UCES01059 ISO. The executable is checked against the expected SHA-256."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "a released native macOS app in a DMG; no tools/recompilation for the player; a private 40-minute source build for developers only."
+          "instruction": "Use the released native macOS app from its DMG. Players do not need development tools or recompilation. The separate private source build takes approximately 40 minutes and is intended for developers."
         }
       ],
       "warnings": [

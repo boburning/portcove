@@ -46,7 +46,7 @@
         {
           "role": "game",
           "profile_id": "sonic-the-hedgehog-genesis-jue-rev00",
-          "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis game files",
+          "label": "Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source",
           "verification": "catalog-identity"
         }
       ],

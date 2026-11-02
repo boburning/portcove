@@ -4,7 +4,7 @@
     "id": "rampagere-jjmhalew-rampage-total-destruction",
     "name": "Rampage: Total Destruction — RampageRE (jjmhalew)",
     "original_game_title": "Rampage: Total Destruction",
-    "summary": "Native static game runtime and separate native-engine viewer; claimed Windows play, portable targets not physical evidence. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This has a statically translated native game runtime and a separate native-engine viewer. Windows play is claimed; portable build targets do not establish tested physical platforms. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jjmhalew/RampageRE",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source-built own-disc route; separate engine-viewer coverage from full game execution."
+          "instruction": "Build from source using your own disc. An engine viewer working does not establish that the full game runs."
         }
       ],
       "warnings": [
-        "Native static game runtime and separate native-engine viewer; claimed Windows play, portable targets not physical evidence.",
+        "This has a statically translated native game runtime and a separate native-engine viewer. Windows play is claimed; portable build targets do not establish tested physical platforms.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/jjmhalew/RampageRE"

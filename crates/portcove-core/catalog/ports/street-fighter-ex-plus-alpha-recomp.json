@@ -25,11 +25,11 @@
           "instruction": "Use the upstream PlusAlphaProject preparation for your own USA SLUS-00548 CUE/BIN, keeping its raw MODE2/2352 single data track unchanged. The documented BIN is 528049872 bytes with SHA-256 e1050b3b8a3d26e04d4bbe196a7ded17cd0ff1e7de944d0fd7e161c48d60f9ca. Finish generation/build upstream before attachment; do not reuse older generated output with a different ABI. Portcove does not run generators or acquire originals."
         },
         {
-          "title": "Keep the exact original and preparation boundary",
+          "title": "Use the matching original and setup procedure",
           "instruction": "This port requires your own SCPH1001.BIN, 524288 bytes, SHA-256 71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3. Its configuration disables OpenBIOS fallback. Select the BIOS through the upstream chooser, or retain a supported literal --bios argument for your actual path. Neither the disc nor BIOS is licensed by framework terms."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "Select the completed build-online-static/exPlusAlpha.exe, its executable directory as working directory and --launcher as the literal argument. Do not attach the root setup host, compiler or generator. The completed game-dispatch product bypasses setup forwarding and keeps launcher/game execution in the native process."
         },
         {

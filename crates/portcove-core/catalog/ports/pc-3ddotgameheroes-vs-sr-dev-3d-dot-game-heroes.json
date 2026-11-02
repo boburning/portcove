@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PS3 Europe BLES00875 your own 3D Dot Game Heroes disc/EBOOT plus user keyfile; exactrevision frommanifest. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own European PS3 BLES00875 3D Dot Game Heroes disc and EBOOT, plus your own keyfile. Check the project’s manifest for the exact revision. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "OwnISO extract/decrypt, the declared flash replacement, ps3kit staticemit/CMake then local ps3boot. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Extract and decrypt your own ISO, prepare the documented flash replacement, and follow the ps3kit staticemit and CMake instructions. Start the resulting local ps3boot player. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Fourlogos/firstflip then blackscreen lookingforsave; no menu/gameplay established; concrete early native title runtime. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports four logos and the first flip, followed by a black screen while looking for a save. Menus and gameplay have not been established. This is an early native runtime; Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-3ddotgameheroes"

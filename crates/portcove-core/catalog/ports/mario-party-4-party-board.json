@@ -30,7 +30,7 @@
           "instruction": "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. These instructions do not repair those issues. Portcove has not confirmed full-game compatibility, physical-controller support or completed saves."
         },
         {
-          "title": "Attach the actual native player",
+          "title": "Add the native game player",
           "instruction": "Select partyboard.exe and its complete creating package directory as working directory, with no extra arguments for the normal in-process startup. The source can browse an original each time; the documented GMPE01_00.iso or GMPE01_00.rvz beside the executable avoids that repeated pick. Keep the actual original, extracted GMPE01_00 tree and matching runtime/resources. Do not substitute a different revision, architecture or decompilation build."
         },
         {

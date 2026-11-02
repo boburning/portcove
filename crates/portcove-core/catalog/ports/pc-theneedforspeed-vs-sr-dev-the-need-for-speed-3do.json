@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "3DO TheNeedforSpeed own originaldisc,LaunchMe/frontovl/LMADM/FORMAT. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own 3DO The Need for Speed disc with LaunchMe, frontovl, LMADM and FORMAT. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Own-disc extraction/ARMstatic generation/CMake pfboot; blank NVRAM formatted by your own FORMAT, --window. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Extract your own disc, generate static ARM code and build pfboot with CMake. Follow the project’s instructions to format blank NVRAM using your own FORMAT, then start with --window. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [

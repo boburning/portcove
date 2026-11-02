@@ -38,11 +38,11 @@
           "instruction": "The normal Windows user-data folder is %APPDATA%/YKnytt. An already present Documents/yknytt_data directory takes precedence in the selected source, and an established --data path takes precedence over both; relative --data paths are based on the executable directory. Keep the complete effective directory with Saves, Worlds, settings.ini, input.ini, worlds metadata and cache. Separately configured SavesDirectory or WorldsDirectory can add external roots. Preserve legacy Godot user-data directories too: first migration can move old settings, saves and worlds. This attachment adds no --data option and performs no migration or deletion."
         },
         {
-          "title": "Keep network and maintenance actions with their owner",
+          "title": "Use the project’s network and maintenance tools",
           "instruction": "YKnytt offers a Level Downloader and a complain action that upstream documents as sending the latest save to its server. Use those only through the upstream interface with the intended world/save; this registration does not download a world, submit a report or authorize upload of private data. Finish upstream migration, data-location changes, world repair and runtime replacement outside an attached session, close the actual player, retain independent recovery copies and review/relink changed executable bytes."
         },
         {
-          "title": "Keep acceptance at its actual scope",
+          "title": "Check what has been tested",
           "instruction": "YKnytt remains a beta implementation with per-level compatibility limits; a built-in world or one successful level does not qualify the whole community corpus. Quit normally; forced termination is not a save-flush guarantee. Upstream Windows/Linux/macOS/Android/ARM-handheld claims remain distinct and no Portcove gameplay, save/reload, physical-device, installed-app or Supported acceptance is asserted. Removing registration preserves all external data. Managed install/update/rollback/backup/removal are not offered."
         }
       ],

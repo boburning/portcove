@@ -4,7 +4,7 @@
     "id": "tsapz-swapforcerecomp-tsapz-skylanders-swap-force",
     "name": "Skylanders: Swap Force — tsapZ SwapForceRecomp (tsapZ)",
     "original_game_title": "Skylanders: Swap Force",
-    "summary": "Tutorial/Woodburrowplays withswappers; later parts of the game have not been played;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The tutorial and Woodburrow are reported to work with swappers. Later sections and installation on a clean machine have not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/SwapForceRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360PAL En/DeISO/extractedfolder; title415608E9; accepted executable fingerprints: dc58d3851bbd89935e9ecf2ee84b158ec400f049da46c937a4713477a50c79d7 default.xex"
+          "instruction": "Use your own PAL English/German Xbox 360 ISO or extracted folder for title 415608E9. The accepted default.xex fingerprint is dc58d3851bbd89935e9ecf2ee84b158ec400f049da46c937a4713477a50c79d7."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Tutorial/Woodburrowplays withswappers; later parts of the game have not been played;installation on a clean machine has not been tested.",
+        "The tutorial and Woodburrow are reported to work with swappers. Later sections and installation on a clean machine have not been tested.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/tsapZ/SwapForceRecomp"

@@ -34,7 +34,7 @@
           "instruction": "Keep the entire creating game directory, original fedata/gamedata, replay and custom/unknown files, plus the effective current account AppData/.nfs2se directory: config, save, stats including stats/prh, tmptrk and nfs2se.conf. The source copies the template on first use; only a usable profile config activates remapping of those original Win32 paths. Without it, writes can remain in the creating game paths. Preserve both effective locations and compatible old engine before changes; exact language/patch and real-save compatibility remain unobserved."
         },
         {
-          "title": "Review the completed player and intent",
+          "title": "Review the prepared player and launch details",
           "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
         {

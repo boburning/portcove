@@ -4,7 +4,7 @@
     "id": "saints-row-xbox-360-2006-static-recompilation-sp00nznet-saints-row-2006",
     "name": "Saints Row (2006) — Saints Row (Xbox 360, 2006) — Static Recompilation (sp00nznet)",
     "original_game_title": "Saints Row (2006)",
-    "summary": "Alpha: menu/NewGame work; first mission/combat/vehicles not tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The alpha reaches the menu and New Game. The first mission, combat and vehicles remain untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/saintsrow",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Setup.cmd builds tools/SDK then game code from own NTSC-U SaintsRow disc; no release yet."
+          "instruction": "Run Setup.cmd with your own NTSC-U Saints Row disc to build the tools, SDK and game code. A ready-to-run release is not available through this guide."
         }
       ],
       "warnings": [
-        "Alpha: menu/NewGame work; first mission/combat/vehicles not tested.",
+        "The alpha reaches the menu and New Game. The first mission, combat and vehicles remain untested.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/sp00nznet/saintsrow"

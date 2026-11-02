@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own PS4 WipEout Omega Collection dump: README declares CUSA07671 US base01.00+update01.07 as development target and CUSA05670 EU with version unspecified. Merge owned base/update files or supply GOW3_PATCH_DIR; GoldHEN folder dumps are also documented. Runtime reads owned eboot.bin and game files and links own libc/Fios2/NpToolkit2. One executable serves 2048/HD/Fury; no separate implementation per component. Exact accepted executable/asset fingerprints remain Unknown."
+          "instruction": "Use your own PS4 WipEout Omega Collection dump. The README names USA CUSA07671 base 01.00 with update 01.07 as its development target; it also names European CUSA05670 without specifying a version. Merge your own base and update files or supply GOW3_PATCH_DIR as documented. GoldHEN folder dumps are also supported by the instructions. The runtime reads your eboot.bin and game files and links your libc, Fios2 and NpToolkit2. One executable serves 2048, HD and Fury. Exact supported executable and asset fingerprints are not established."
         },
         {
           "title": "Follow upstream setup",

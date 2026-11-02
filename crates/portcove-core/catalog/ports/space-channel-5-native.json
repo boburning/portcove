@@ -25,11 +25,11 @@
           "instruction": "Keep the complete upstream Windows package and use its supported import/preparation with your own original USA GDI and every adjacent track. Keep the originals together and read-only. The release needs no separately installed Python, Git or compiler for normal import. Portcove does not import the disc or build a Dreamcast runtime."
         },
         {
-          "title": "Keep the exact original and preparation boundary",
+          "title": "Use the matching original and setup procedure",
           "instruction": "Use the exact upstream importer’s supported USA layout: a data track at LBA 45000 in Mode1/2352 and its conjunctive extracted-executable identity checks. Those checks concern the imported executable and do not establish a whole-track-set cryptographic certificate. Keep matched extracted assets and native modules; do not substitute another region or partially copied track set."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "After upstream preparation completes, select build/sc5-native-dev.exe with the package root as working directory and the supported literal arguments --gdi followed by your absolute original GDI path. This documented native entry keeps the game harness in-process. Keep the matching build/native-diff modules and support files; do not attach an importer or an arbitrary helper."
         },
         {

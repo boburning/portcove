@@ -123,7 +123,7 @@
         {
           "role": "game",
           "profile_id": "diablo-hellfire-devilutionx-originals",
-          "label": "Required Diablo and Hellfire MPQ files",
+          "label": "Diablo and Hellfire reviewed MPQ set",
           "verification": "catalog-identity"
         }
       ],

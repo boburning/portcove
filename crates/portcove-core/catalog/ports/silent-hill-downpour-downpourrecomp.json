@@ -33,7 +33,7 @@
           "instruction": "Use your own legitimate Xbox 360 Silent Hill: Downpour original accepted by upstream, keeping its complete assets and required Title Update 1/default.xexp. Complete upstream’s ISO/extracted-tree and title-update preparation outside the attached session. Portcove obtains no original, title update or extraction tool and does not run the installer environment switches."
         },
         {
-          "title": "Attach the completed native Windows player",
+          "title": "Add the completed Windows game player",
           "instruction": "Select the completed native downpour.exe in its full prepared directory with the established downpour.toml and matching runtime DLLs, including amd_fidelityfx_dx12drel.dll. Keep its established supported literal arguments and effective assets path. Do not select PlayDownpour.exe as a substitute lifetime root, or attach an installer/helper. Normal packaged configuration sets game_data_root=./assets; retain actual working settings."
         },
         {
@@ -45,14 +45,14 @@
           "instruction": "PlayDownpour.exe offers user-requested upstream updates and temporary backup behavior. Keep updates and replacement outside the attached session; retain the full old working copy and all data and review/relink changed selected bytes. No Portcove backup or recovery guarantee is inferred."
         },
         {
-          "title": "Preserve the creating copy and every effective data root",
+          "title": "Keep your working game and every data folder it uses",
           "instruction": "The inspected title puts default user data in user/ and default cache in cache/ beside the executable; explicit user/cache overrides remain effective. Keep downpour.toml, original assets/default.xex, title update, profiles, saves, achievements, shader caches, logs, mods, backups, temporary files and every external custom root with the creating runtime."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "BSD-3-Clause host source explicitly excludes generated original-derived code. README also says do not distribute game executable/data or any binary linking game data. This guide is conditional on an independently permitted prepared copy; that source grant does not authorize fresh acquisition/distribution of excluded generated content. Permission scope for that exact operation remains with upstream/rightsholder.",
-        "v1.1.8 publisher hotfix removes the missing Agility dependency of1.1.7; matching bytes and source were inspected, not run. Native device/gameplay/save acceptance remains unexecuted."
+        "The publisher’s v1.1.8 hotfix removes the missing Agility dependency in 1.1.7. Matching package bytes and source were inspected but not run. Native-device, gameplay and save behaviour have not been tested by this review."
       ]
     },
     "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."

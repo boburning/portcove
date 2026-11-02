@@ -412,7 +412,7 @@ function PreparationCleanupDetails({
       readOnly ? "Original installation" : "Original installation preserved",
       preview.original_install_path,
     ],
-    [readOnly ? "Saved game files" : "Saved game files preserved", preview.source_path],
+    [readOnly ? "Original game files" : "Original game files preserved", preview.source_path],
     [readOnly ? "Saved data" : "Saved data preserved", preview.persistent_data_path],
     [readOnly ? "Backups" : "Backups preserved", preview.backup_path],
     [readOnly ? "Logs" : "Logs preserved", preview.logs_path],

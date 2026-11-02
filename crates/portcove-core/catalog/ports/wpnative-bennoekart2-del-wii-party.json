@@ -4,7 +4,7 @@
     "id": "wpnative-bennoekart2-del-wii-party",
     "name": "Wii Party — WPnative (bennoekart2-del)",
     "original_game_title": "Wii Party",
-    "summary": "Board/minigames/saves/Miis and online claimed; full playthrough evidence not bounded See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project claims board, minigame, save, Mii and online support. The scope of full-playthrough evidence is not established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/bennoekart2-del/WPnative",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PAL SUPP01 HLE mapping; own decrypted disc folder sys/files; serial/revision exact guard to confirm"
+          "instruction": "Use your own decrypted PAL SUPP01 disc folder containing sys/files for the documented HLE mapping. This guide does not confirm the exact serial-number and revision checks; check the project’s input requirements before setup."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Board/minigames/saves/Miis and online claimed; full playthrough evidence not bounded",
+        "The project claims board, minigame, save, Mii and online support. The scope of full-playthrough evidence is not established.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/bennoekart2-del/WPnative"

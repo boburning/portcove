@@ -4,7 +4,7 @@
     "id": "ratchet-and-clank-3-ratchet-clank-up-your-arsenal-recopile-maselko-95-ratchet-clank-up-your-arsenal",
     "name": "Ratchet & Clank: Up Your Arsenal — ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile (MASELKO-95)",
     "original_game_title": "Ratchet & Clank: Up Your Arsenal",
-    "summary": "Intro/title/incomplete menu; NewGame unfinished; gameplay unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reaches the intro, title screen and an incomplete menu. New Game is unfinished, and gameplay is unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PAL SCES52456 own disc"
+          "instruction": "Use your own PAL SCES52456 disc."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Development source release; keep separate from OpenRAC US matching decomp target and OpenRatchet RAC1."
+          "instruction": "Follow this project’s development source release. Keep it separate from OpenRAC’s USA decompilation target and OpenRatchet’s RAC1 implementation."
         }
       ],
       "warnings": [
-        "Intro/title/incomplete menu; NewGame unfinished; gameplay unverified.",
+        "The project reaches the intro, title screen and an incomplete menu. New Game is unfinished, and gameplay is unverified.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile"

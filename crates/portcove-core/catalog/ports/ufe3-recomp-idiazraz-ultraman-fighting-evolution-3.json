@@ -17,7 +17,7 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "setup.sh pins/clones/builds PS2Recomp; rebuild.sh regenerates game ELF and builds native Linux runner from own Japanese disc."
+          "instruction": "Run setup.sh to obtain and build the pinned PS2Recomp version. Use rebuild.sh with your own Japanese disc to regenerate the game ELF and build the native Linux runner."
         }
       ],
       "warnings": [

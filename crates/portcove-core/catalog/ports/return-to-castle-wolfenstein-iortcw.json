@@ -30,7 +30,7 @@
           "instruction": "Finish upstream single-player setup with your own supported RTCW Main data, including pak0.pk3 and applicable sp_pak1/sp_pak2/sp_pak3 and patch-data-141/locale files. Use the upstream instructions matching the actual edition/language; keep compatible code/data together in a separate recoverable working copy. Multiplayer requires its own data/code and is outside this SP route. Core neither downloads patches nor imports/authenticates original PK3s or runs a setup script."
         },
         {
-          "title": "Keep actual launch and profile coordinates",
+          "title": "Keep your launch settings and profile paths",
           "instruction": "Use the actual prepared working directory and same supported literal arguments. Preserve established fs_basepath/fs_homepath/fs_game choices and absolute custom roots as actually configured. Review exact intent/consent, then choose Play separately. Do not override the host profile root or force an unrelated empty profile to attach the player."
         },
         {

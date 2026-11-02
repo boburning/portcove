@@ -31,7 +31,7 @@
         },
         {
           "title": "Preserve the complete creating copy and player data",
-          "instruction": "Keep the whole actual runtime, shipped pc support and extracted fe/rchars/rtarget/scr/sound/tim/xc roots and other extracted files, your original/discimage, userfiles including jcsSAVE*.sav, jcsAUTOSAVE.sav and game.ini, ~mods including mods.ini and exported assets, any minidumps/rechan-crash reports, rechan.log when present and every unknown/custom path. Preserve existing external updater/recovery evidence under its upstream ownership. Do not delete the original merely because upstream permits removing an extracted image. No old/new save-format or mod compatibility is established here. Removing registration removes only Portcove metadata and preserves all external bytes."
+          "instruction": "Keep the whole actual runtime, shipped pc support and extracted fe/rchars/rtarget/scr/sound/tim/xc roots and other extracted files, your original disc image, user files including jcsSAVE*.sav, jcsAUTOSAVE.sav and game.ini, ~mods including mods.ini and exported assets, any minidumps/rechan-crash reports, rechan.log when present and every unknown/custom path. Preserve existing external updater/recovery evidence under its upstream ownership. Do not delete the original merely because upstream permits removing an extracted image. No old/new save-format or mod compatibility is established here. Removing registration removes only Portcove metadata and preserves all external bytes."
         }
       ],
       "warnings": [

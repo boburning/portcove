@@ -52,7 +52,7 @@
         {
           "role": "game",
           "profile_id": "aerogauge",
-          "label": "AeroGauge (US) game files",
+          "label": "AeroGauge (US) source",
           "verification": "catalog-identity"
         }
       ],

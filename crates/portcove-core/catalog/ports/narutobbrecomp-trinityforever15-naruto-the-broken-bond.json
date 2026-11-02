@@ -4,7 +4,7 @@
     "id": "narutobbrecomp-trinityforever15-naruto-the-broken-bond",
     "name": "Naruto: The Broken Bond — NarutoBBRecomp (TrinityForever15)",
     "original_game_title": "Naruto: The Broken Bond",
-    "summary": "Experimental project. Maintainer-run Windows x64 D3D12 reaches portions of gameplay; explicitly not validated playable or complete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The maintainer’s Windows x64 D3D12 tests reach portions of gameplay. The project explicitly does not describe the game as confirmed playable or complete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TrinityForever15/NarutoBBRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Maintainer-run Windows x64 D3D12 reaches portions of gameplay; explicitly not validated playable or complete.",
+        "The maintainer’s Windows x64 D3D12 tests reach portions of gameplay. The project explicitly does not describe the game as confirmed playable or complete.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/TrinityForever15/NarutoBBRecomp"

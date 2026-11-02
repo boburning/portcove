@@ -64,7 +64,7 @@
         {
           "role": "game",
           "profile_id": "pokemon-crystal",
-          "label": "Pokémon Crystal (US) game files",
+          "label": "Pokémon Crystal (US) source",
           "verification": "catalog-identity"
         }
       ],

@@ -4,7 +4,7 @@
     "id": "ncaa-football-14-recompiled-legendarydoors-ncaa-football-14",
     "name": "NCAA Football 14 — NCAA Football 14 Recompiled (LegendaryDoors)",
     "original_game_title": "NCAA Football 14",
-    "summary": "Native player release offered; full dynasty/match scope unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "A native player release is offered. Complete dynasty and match coverage have not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Native player release offered; full dynasty/match scope unknown.",
+        "A native player release is offered. Complete dynasty and match coverage have not been established.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/LegendaryDoors/NCAAFootball14Recomp"

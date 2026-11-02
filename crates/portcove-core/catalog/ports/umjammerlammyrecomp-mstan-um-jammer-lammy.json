@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SCUS-94448 own CUE/BIN. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own USA SCUS-94448 CUE/BIN. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Advertised v0.1.0 ZIP, select own CUE; private resource cache generated first launch, OpenBIOS from framework. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Use the advertised v0.1.0 ZIP and select your own CUE. First launch generates a private resource cache and uses OpenBIOS from the framework. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Initial Windows controller gameplay; Linux build/launch checks only; full stages, duets, PaRappa and wide scenes unverified. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports initial Windows controller gameplay and Linux build/launch checks only. Full stages, duets, PaRappa and wide scenes are unverified. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/mstan/UmJammerLammyRecomp"

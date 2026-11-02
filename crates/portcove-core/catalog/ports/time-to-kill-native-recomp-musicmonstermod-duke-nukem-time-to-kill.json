@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS00583 own CUE/BIN/CloneCD; Europe SLES01515 refused"
+          "instruction": "Use your own USA SLUS00583 CUE/BIN or CloneCD image. European SLES01515 is rejected."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source localbuild with owneddisc; Modernized is the default/Vanillaflag"
+          "instruction": "Build locally from source with your own disc. Modernized mode is the default; use the documented Vanilla flag for the alternate mode."
         }
       ],
       "warnings": [

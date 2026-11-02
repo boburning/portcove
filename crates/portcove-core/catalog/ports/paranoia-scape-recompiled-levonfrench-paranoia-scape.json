@@ -4,7 +4,7 @@
     "id": "paranoia-scape-recompiled-levonfrench-paranoia-scape",
     "name": "Paranoia Scape — Paranoia Scape Recompiled (LevonFrench)",
     "original_game_title": "Paranoia Scape",
-    "summary": "early work in progress boot/gameplayworking; coverage of the full game is unknown See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This early build is reported to boot and reach gameplay. Full-game compatibility is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LevonFrench/Paranoiascape-Recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan SLPS01375 your own BIN/CUE with all 13 tracks; an optional Aeon Genesis English patch you are permitted to use"
+          "instruction": "Use your own Japanese SLPS01375 BIN/CUE with all 13 tracks. Apply the optional Aeon Genesis English patch only if you are permitted to use it."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Releaseexe local first-time setup with a portable compiler; OpenBIOS"
+          "instruction": "Run the release executable to complete first-time setup locally with its portable compiler and OpenBIOS."
         }
       ],
       "warnings": [
-        "early work in progress boot/gameplayworking; coverage of the full game is unknown",
+        "This early build is reported to boot and reach gameplay. Full-game compatibility is unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/LevonFrench/Paranoiascape-Recompiled"

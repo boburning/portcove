@@ -4,7 +4,7 @@
     "id": "opentennis-fizl0-hot-shots-tennis",
     "name": "Hot Shots Tennis — OpenTennis (FIZL0)",
     "original_game_title": "Hot Shots Tennis",
-    "summary": "Released native runtime; gameplay claimed, second match camera/Set Handicap/Offbeat Rules missing and let serves not proven. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The released native runtime is reported to support gameplay. The second-match camera, Set Handicap and Offbeat Rules remain missing; let serves have not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/FIZL0/opentennis",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA v1.00 SCUS-97610 ISO required at runtime; other regions rejected; no BIOS."
+          "instruction": "Use your own USA v1.00 SCUS-97610 ISO and keep it available while playing. Other regions are rejected. No BIOS is required."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Official Releases native runtimes for named hosts; first-run ISO picker, original ISO read at runtime; browser player is separate delivery target of same rewrite."
+          "instruction": "Use the project’s native runtime from Releases for your host. Select your own ISO in the first-run picker and keep it available; the runtime reads it during play. The browser player is a separate delivery option for the same rewrite."
         }
       ],
       "warnings": [
-        "Released native runtime; gameplay claimed, second match camera/Set Handicap/Offbeat Rules missing and let serves not proven.",
+        "The released native runtime is reported to support gameplay. The second-match camera, Set Handicap and Offbeat Rules remain missing; let serves have not been confirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/FIZL0/opentennis"

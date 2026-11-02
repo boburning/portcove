@@ -42,7 +42,7 @@
         }
       ],
       "warnings": [
-        "Upstream marks GBA FireRed/LeafGreen/Ruby/Sapphire/Emerald support beta. This game has no inherited Red Windows, gameplay or save acceptance.",
+        "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
         "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
       ],
       "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"

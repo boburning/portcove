@@ -4,7 +4,7 @@
     "id": "poke-francl35-monster-hunter-portable-2nd-g-optional-fucomplete-mod",
     "name": "Monster Hunter Portable 2nd G (optional FUComplete mod) — Poke (francl35)",
     "original_game_title": "Monster Hunter Portable 2nd G (optional FUComplete mod)",
-    "summary": "WIP, not general release; village/gameplay/quest/combat/zone testing claimed but edge cases. Some code falls back to interpreter. Overlay generation not yet a verified standalone documented workflow; macOS hydration incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This is a work in progress rather than a general release. The project reports village, quest, combat and zone tests, with remaining edge cases and interpreter fallback for some code. Standalone overlay generation is not yet a confirmed documented procedure, and macOS hydration is incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/francl35/Poke",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local CMake/SDL3/Vulkan build, generate main C++ from own decrypted EBOOT.ELF, build game; overlay libraries separate. No precompiled-player release inferred."
+          "instruction": "Generate the main C++ code from your own decrypted EBOOT.ELF and build locally with CMake, SDL3 and Vulkan. Overlay libraries are separate. These instructions do not establish a precompiled player release."
         }
       ],
       "warnings": [
-        "WIP, not general release; village/gameplay/quest/combat/zone testing claimed but edge cases. Some code falls back to interpreter. Overlay generation not yet a verified standalone documented workflow; macOS hydration incomplete.",
+        "This is a work in progress rather than a general release. The project reports village, quest, combat and zone tests, with remaining edge cases and interpreter fallback for some code. Standalone overlay generation is not yet a confirmed documented procedure, and macOS hydration is incomplete.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/francl35/Poke"

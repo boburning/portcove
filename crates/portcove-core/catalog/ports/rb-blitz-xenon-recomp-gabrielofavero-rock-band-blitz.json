@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360 RockBandBlitz package or extracted contents; local build needs game/default.xex. Exact region/revision and executable digest not established. Optional Ultimate mod is not required; PS3 assets only for an unimplemented optional button scheme."
+          "instruction": "Use your own Xbox 360 Rock Band Blitz package or complete extracted contents. A local build requires game/default.xex. This guide does not establish the exact supported region, revision or executable hash. The Ultimate mod is optional. PS3 assets are only for an optional button scheme that is not implemented."
         },
         {
           "title": "Follow upstream setup",

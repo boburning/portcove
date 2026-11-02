@@ -4,7 +4,7 @@
     "id": "whiteknightchronicles2recomp-wk2d-white-knight-chronicles-i-included-in-ii-edition",
     "name": "White Knight Chronicles I (included in II edition) — WhiteKnightChronicles2Recomp (WK2D)",
     "original_game_title": "White Knight Chronicles I (included in II edition)",
-    "summary": "WKC I’s starting town at 30 FPS/shortmovement/pause/save/Continue/a short transition to Balastor Plain; sustained combat has not been confirmed See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports WKC I’s starting town at 30 FPS, short movement, pause, saving, Continue and a short transition to Balastor Plain. Sustained combat has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "local source build and nativeplay route"
+          "instruction": "Build locally from source and follow the project’s native-player launch instructions."
         }
       ],
       "warnings": [
-        "WKC I’s starting town at 30 FPS/shortmovement/pause/save/Continue/a short transition to Balastor Plain; sustained combat has not been confirmed",
+        "The project reports WKC I’s starting town at 30 FPS, short movement, pause, saving, Continue and a short transition to Balastor Plain. Sustained combat has not been confirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp"

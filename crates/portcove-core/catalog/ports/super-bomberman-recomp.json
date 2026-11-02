@@ -41,7 +41,7 @@
         {
           "role": "game",
           "profile_id": "super-bomberman-snes-usa",
-          "label": "Super Bomberman (USA) stock headerless SNES game files",
+          "label": "Super Bomberman (USA) stock headerless SNES source",
           "verification": "catalog-identity"
         }
       ],

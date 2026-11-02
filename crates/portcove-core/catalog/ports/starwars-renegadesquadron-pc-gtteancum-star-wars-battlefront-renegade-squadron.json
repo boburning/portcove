@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA ULUS10292 extracted PSP_GAME; BOOT.BIN SHA256 checked"
+          "instruction": "Use your own extracted USA ULUS10292 PSP_GAME folder. BOOT.BIN is checked against its expected SHA256."
         },
         {
           "title": "Follow upstream setup",

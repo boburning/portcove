@@ -4,7 +4,7 @@
     "id": "rumble-roses-xx-pc-recomp-unofficial-jesustaylo-rumble-roses-xx",
     "name": "Rumble Roses XX — Rumble Roses XX — PC recomp (unofficial) (JesusTaylo)",
     "original_game_title": "Rumble Roses XX",
-    "summary": "Alpha: full matches on one IntelUHD PC; GPU-TDR/crash concerns remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The alpha reaches full matches on one IntelUHD PC. GPU-TDR and crash concerns remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Alpha: full matches on one IntelUHD PC; GPU-TDR/crash concerns remain.",
+        "The alpha reaches full matches on one IntelUHD PC. GPU-TDR and crash concerns remain.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp"

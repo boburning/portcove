@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Europe SCES-00163 own CUE plus all28 BIN tracks. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own European SCES-00163 CUE with all 28 referenced BIN tracks. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Recomp Build Studio validates owned folder, prepares OpenBIOS/game and builds local package; RUN_GAME.bat/RUN_GAME.sh. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Use Recomp Build Studio to check your game folder, prepare OpenBIOS and the game, and build a local package. Start it with RUN_GAME.bat or RUN_GAME.sh. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [

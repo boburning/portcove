@@ -28,7 +28,7 @@
           "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Choose a build that documents TFTD support; an old UFO-only release is insufficient. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
         },
         {
-          "title": "Keep the actual original and player data",
+          "title": "Keep your originals and game data",
           "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
         },
         {

@@ -34,7 +34,7 @@
           "instruction": "Before the first start or changes, retain original userdata and the complete creating runtime, registry settings, actual per-user AppData/ZumaPortable including gamefolder.txt, ProgramData/PopCap Games/Zuma-related storage where used, installation-relative userdata, profiles, saves, captures and custom roots. The selected Windows startup can discover installed original-data locations and automatically copy an existing userdata tree into its new profile when the destination is absent. That is upstream behavior, not Portcove-managed migration or proof of backward save compatibility. Preserve every actual source and destination; no external backup or sandbox is supplied."
         },
         {
-          "title": "Review the completed player and intent",
+          "title": "Review the prepared player and launch details",
           "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
         },
         {

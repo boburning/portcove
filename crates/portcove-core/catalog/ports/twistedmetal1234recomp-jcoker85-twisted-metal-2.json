@@ -4,7 +4,7 @@
     "id": "twistedmetal1234recomp-jcoker85-twisted-metal-2",
     "name": "Twisted Metal 2 — TwistedMetal1234Recomp (jcoker85)",
     "original_game_title": "Twisted Metal 2",
-    "summary": "Experimental project. Upstream native Windows TM2 profile within four-title kit; full TM2 playthrough not independently established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. This is the native Windows TM2 profile within the four-title kit. A complete TM2 playthrough has not been independently established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual shared Windows launcher/tools/generate.sh route, select tm2 and own SCUS94306. Shared launcher/runtime does not create another implementation."
+          "instruction": "Follow the shared Windows launcher and tools/generate.sh setup, selecting tm2 with your own SCUS94306 disc. The shared launcher and runtime belong to the same implementation."
         }
       ],
       "warnings": [
-        "Upstream native Windows TM2 profile within four-title kit; full TM2 playthrough not independently established.",
+        "This is the native Windows TM2 profile within the four-title kit. A complete TM2 playthrough has not been independently established.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/jcoker85/TwistedMetal1234Recomp"

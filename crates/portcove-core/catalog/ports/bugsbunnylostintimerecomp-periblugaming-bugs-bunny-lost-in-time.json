@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own PS1 USA BugsBunnyLostinTime SLUS00838 disc, retained at runtime; retailBIOS not redistributed, bundled OpenBIOS default."
+          "instruction": "Use your own USA PlayStation Bugs Bunny: Lost in Time (SLUS00838) disc. Keep it available during play. OpenBIOS is bundled and used by default; a retail BIOS is not included."
         },
         {
           "title": "Follow upstream setup",

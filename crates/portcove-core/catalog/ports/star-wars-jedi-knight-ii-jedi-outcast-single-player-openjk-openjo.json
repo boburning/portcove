@@ -25,7 +25,7 @@
           "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
         },
         {
-          "title": "Preserve the actual player data",
+          "title": "Keep your existing game data",
           "instruction": "Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed."
         },
         {

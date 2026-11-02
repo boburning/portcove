@@ -4,7 +4,7 @@
     "id": "split2-recomp-phobos665-timesplitters-2",
     "name": "TimeSplitters 2 — split2-recomp (phobos665)",
     "original_game_title": "TimeSplitters 2",
-    "summary": "Frontend/story/System Link deathmatch played; Challenge/MapMaker little tested; SystemLink only Windows. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports frontend, story and System Link deathmatch play. Challenge and MapMaker have had little testing. System Link is Windows-only. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/phobos665/split2-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local x86-to-C generated build against DirectXbox-Recomp. VS2022/2019Windows; macApple Silicon/Linux source."
+          "instruction": "Generate C from x86 code and build against DirectXbox-Recomp using the project’s instructions. Windows uses VS2022 or VS2019. Apple Silicon macOS and Linux have source-build instructions."
         }
       ],
       "warnings": [
-        "Frontend/story/System Link deathmatch played; Challenge/MapMaker little tested; SystemLink only Windows.",
+        "The project reports frontend, story and System Link deathmatch play. Challenge and MapMaker have had little testing. System Link is Windows-only.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/phobos665/split2-recomp"

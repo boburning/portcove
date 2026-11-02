@@ -41,7 +41,7 @@
         }
       ],
       "warnings": [
-        "Release ZIPs are setup kits, not generated game builds. Keep the complete own12-track disc and supplied OpenBIOS; controller and enhancement support varies. Back up cards/settings/mods before rebuilding; the pinned framework permits noncommercial use only."
+        "Release ZIPs are setup kits rather than generated game builds. Keep your complete 12-track disc and the supplied OpenBIOS. Controller and enhancement support varies. Back up cards, settings and mods before rebuilding; the pinned framework allows noncommercial use only."
       ],
       "help_url": "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
     }

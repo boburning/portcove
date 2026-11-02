@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360PAL Es/ItISO/extractedfolder; title41560930; accepted executable fingerprints: 4298c4f6fb1684bed34dd8d2292b508782b37e3709ba1ed58b08ec334a9f7029 default.xex"
+          "instruction": "Use your own PAL Spanish/Italian Xbox 360 ISO or extracted folder for title 41560930. The accepted default.xex fingerprint is 4298c4f6fb1684bed34dd8d2292b508782b37e3709ba1ed58b08ec334a9f7029."
         },
         {
           "title": "Follow upstream setup",

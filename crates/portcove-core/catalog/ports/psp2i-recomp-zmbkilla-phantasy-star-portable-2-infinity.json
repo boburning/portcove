@@ -4,7 +4,7 @@
     "id": "psp2i-recomp-zmbkilla-phantasy-star-portable-2-infinity",
     "name": "Phantasy Star Portable 2 Infinity — PSP2I_Recomp (zmbkilla)",
     "original_game_title": "Phantasy Star Portable 2 Infinity",
-    "summary": "Native runtime build instructions; no fullplayability inferred. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Native-runtime build instructions are available. They do not establish full playability. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/zmbkilla/PSP2I_Recomp",
     "platforms": [],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Native runtime build instructions; no fullplayability inferred.",
+        "Native-runtime build instructions are available. They do not establish full playability.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/zmbkilla/PSP2I_Recomp"

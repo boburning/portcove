@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PS3 Japan BLJS10188 own EBOOT and ownPUP4.93; pinned executable/libsre hashes. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own Japanese PS3 BLJS10188 EBOOT and PUP4.93. Check the executable and libsre against the pinned hashes. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Title/opening scenes picture/sound on Mac; an attract-movie placeholder, physical gamepad testing on Mac and full playthrough absent. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports title and opening scenes with picture and sound on Mac. The note also mentions an attract-movie placeholder; physical gamepad testing on Mac and a full playthrough have not been recorded. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/yuias/TOX2-recomp"

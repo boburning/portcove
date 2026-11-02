@@ -16,24 +16,24 @@ type Reason = Assessment["candidates"][number]["reasons"][number];
 const reasons: Record<Reason, string> = {
   "different-game-or-edition":
     "This port uses a different game edition. You may need different original files.",
-  "different-platform-or-environment": "These tests used a different platform or setup.",
+  "different-platform-or-environment": "This information is for a different platform or setup.",
   "source-not-selected": "The required original game files are not selected.",
   "operation-unknown":
     "We couldn’t confirm whether this action is available. Open the game to check its status.",
   "operation-held": "This action isn’t available right now.",
   "requirement-unknown": "We couldn’t confirm a feature you need for this game version.",
-  "requirement-unsupported": "This tested version doesn’t support a feature you need.",
-  "invalid-evidence": "Some test results can’t be matched to an exact game version or setup.",
-  "conflicting-evidence": "The test results disagree, so we can’t suggest one port.",
+  "requirement-unsupported": "A feature you need is listed as unsupported for this version.",
+  "invalid-evidence": "Some information can’t be matched to an exact game version or setup.",
+  "conflicting-evidence": "The available reports disagree, so we can’t suggest one port.",
   "critical-regression": "A reported gameplay or save problem is still unresolved for this setup.",
-  "insufficient-coverage": "We don’t have enough relevant test results to suggest this port.",
+  "insufficient-coverage": "We don’t have enough relevant information to suggest this port.",
   "gameplay-unobserved": "Gameplay hasn’t been confirmed for this exact game version.",
   "stability-unobserved":
     "Stability and save reliability haven’t been confirmed for this exact game version.",
-  "gameplay-below-default-floor": "Tests found gameplay limitations.",
-  "stability-below-default-floor": "Tests found stability or save problems.",
+  "gameplay-below-default-floor": "Gameplay limitations are reported.",
+  "stability-below-default-floor": "Stability or save problems are reported.",
   "materially-worse-playing-experience":
-    "Another available port has stronger gameplay test results.",
+    "Another available port has stronger gameplay information.",
 };
 const dimensions = {
   gameplay: "Gameplay",
@@ -265,10 +265,7 @@ export function GameComparisonEvidence({
           ))}
           {candidate ? (
             <>
-              <p>
-                These results describe earlier tests. They don’t predict successful play on your
-                device.
-              </p>
+              <p>These reports and observations don’t predict successful play on your device.</p>
               {candidate.reasons.map((reason) => (
                 <p key={reason}>
                   {reason === "operation-held" && port.operation.kind === "held"
@@ -282,7 +279,7 @@ export function GameComparisonEvidence({
                     <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
                     <dd>
                       {dimension.state === "known"
-                        ? "Test results available"
+                        ? "Information available"
                         : dimension.state.replaceAll("-", " ")}
                     </dd>
                   </div>

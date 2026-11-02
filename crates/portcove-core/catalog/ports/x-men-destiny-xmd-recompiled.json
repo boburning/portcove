@@ -29,7 +29,7 @@
           "instruction": "Use your own legally obtained Xbox 360 X-Men: Destiny original. Complete upstream’s supported installation/preparation outside Portcove and retain game/default.xex plus all original textures, audio, modules and other files in their relative layout. The published installer extracts the user-selected ISO; Portcove neither runs it nor an extraction helper. No additional title-update requirement was established by this inspected source."
         },
         {
-          "title": "Attach the completed native Windows player",
+          "title": "Add the completed Windows game player",
           "instruction": "Select the already-installed native xmd.exe, not xmd_installer.exe or xmd_launcher.exe. Use the actual installed directory as working directory and preserve the supported literal arguments established by the launcher: --gpu_plugin xenos, --game_data_root <actual installed game directory> and --user_data_root <actual user_data directory>, plus existing log/debug choices if needed. Enter each path as one literal argument. The inspected launcher spawns xmd.exe and exits, so it is not a substitute lifetime root."
         },
         {
@@ -41,14 +41,14 @@
           "instruction": "Upstream launcher/installer retain installation and updater ownership; Portcove attaches only an independently permitted completed native output. Close actual native player and companions before upstream replacement, retain old runtime/data and review/relink changed selected bytes."
         },
         {
-          "title": "Preserve the creating copy and every effective data root",
+          "title": "Keep your working game and every data folder it uses",
           "instruction": "Keep the full creating installed directory, game/, user_data/, xmd.toml, effective logs, saves, profiles, mods, caches, backups and every custom root. Source installer uninstall explicitly deletes user_data; this guide offers no uninstall or deletion. Retain the installed copy and data before upstream maintenance and do not invoke that destructive uninstall as registration removal."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "Public attributable upstream release; README assigns BSD-3-Clause to ReXGlue SDK, not a blanket grant for all scaffolding/original-derived output. Original game assets are excluded. Root license absence alone establishes no new prohibition; use an independently permitted installed copy.",
-        "Source/official metadata boundary only for the installed output: published installer and resulting installed xmd.exe bytes/dependencies not downloaded/inspected/executed here. Windows x64 D3D12 is upstream/source contract, not native acceptance."
+        "This review checked source and official metadata only. It did not download, inspect or run the published installer or resulting xmd.exe and dependencies. Windows x64 D3D12 is the documented upstream target, not a confirmed native run."
       ]
     }
   }

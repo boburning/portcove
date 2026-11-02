@@ -4,7 +4,7 @@
     "id": "stunt-double-reignition-giangra-stuntman-ignition",
     "name": "Stuntman: Ignition — Stunt Double: Reignition (giangra)",
     "original_game_title": "Stuntman: Ignition",
-    "summary": "Early development; menus/career/races play with bugs expected. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This early build reaches menus, career and races. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/giangra/stuntdouble-reignition",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Early development; menus/career/races play with bugs expected.",
+        "This early build reaches menus, career and races. Expect bugs.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/giangra/stuntdouble-reignition"

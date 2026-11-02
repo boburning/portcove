@@ -33,7 +33,7 @@
           "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
         },
         {
-          "title": "Preserve the actual player data",
+          "title": "Keep your existing game data",
           "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
         },
         {

@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360North AmericanregionfreeexecutableISO/extractedfolder; title415608DA; accepted executable fingerprints: 12d1e29e4f07fbc559bc1a4988dd6bf346c3d16e30cbf862e2683e862f9fc09e default.xex"
+          "instruction": "Use your own North American Xbox 360 ISO or extracted folder with the region-free executable for title 415608DA. The accepted default.xex fingerprint is 12d1e29e4f07fbc559bc1a4988dd6bf346c3d16e30cbf862e2683e862f9fc09e."
         },
         {
           "title": "Follow upstream setup",

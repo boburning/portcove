@@ -4,7 +4,7 @@
     "id": "splosion-man-linux-windows-recompilation-thefixinhixon-splosion-man",
     "name": "'Splosion Man — 'Splosion Man — Linux & Windows Recompilation (thefixinhixon)",
     "original_game_title": "'Splosion Man",
-    "summary": "Linux fully playable claimed; crashes may leak shared-memory files/poison shader cache. Windows test package was built by CI and verified end-to-end through Proton; native Windows validation remains unreported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes Linux as fully playable, but crashes can leave shared-memory files and damage the shader cache. CI built a Windows test package that was checked end-to-end through Proton. Native Windows testing has not been reported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/SplosionManRecomp",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Linux release imports own 'SplosionMan data; Windows is a test build only."
+          "instruction": "Use the Linux release to import your own ’Splosion Man data. The Windows package is a test build only."
         }
       ],
       "warnings": [
-        "Linux fully playable claimed; crashes may leak shared-memory files/poison shader cache. Windows test package was built by CI and verified end-to-end through Proton; native Windows validation remains unreported.",
+        "The project describes Linux as fully playable, but crashes can leave shared-memory files and damage the shader cache. CI built a Windows test package that was checked end-to-end through Proton. Native Windows testing has not been reported.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/thefixinhixon/SplosionManRecomp"

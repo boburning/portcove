@@ -4,7 +4,7 @@
     "id": "nhl-14-recomp-tpalko420-tech-nhl-14",
     "name": "NHL 14 — NHL 14 Recomp (tpalko420-tech)",
     "original_game_title": "NHL 14",
-    "summary": "Full on-ice games reported; audio polish/gameplay fidelity incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports full on-ice games. Audio polish and gameplay accuracy remain incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tpalko420-tech/nhl14-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Generate C++ from own NHL14 dump and build selected renderer; launcher packaging separate."
+          "instruction": "Generate C++ from your own NHL 14 dump and build the selected renderer. Follow the separate launcher-packaging instructions if needed."
         }
       ],
       "warnings": [
-        "Full on-ice games reported; audio polish/gameplay fidelity incomplete.",
+        "The project reports full on-ice games. Audio polish and gameplay accuracy remain incomplete.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/tpalko420-tech/nhl14-recomp"

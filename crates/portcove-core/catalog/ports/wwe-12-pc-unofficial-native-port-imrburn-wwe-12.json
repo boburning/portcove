@@ -4,7 +4,7 @@
     "id": "wwe-12-pc-unofficial-native-port-imrburn-wwe-12",
     "name": "WWE '12 — WWE '12 PC — unofficial native port (iMrBurn)",
     "original_game_title": "WWE '12",
-    "summary": "0.9.0-beta; coloured blocks affect some Intel/AMD GPUs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/iMrBurn/wwe12-pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "0.9.0-beta; coloured blocks affect some Intel/AMD GPUs.",
+        "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/iMrBurn/wwe12-pc"

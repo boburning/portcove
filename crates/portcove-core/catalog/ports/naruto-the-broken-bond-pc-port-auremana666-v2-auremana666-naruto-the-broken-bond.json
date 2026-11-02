@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360 disc ISO or supported extracted files. Inherited jorjbarbosa native base documents title55530825/media09FFE047/XEX0.0.0.3/SHA2568f70e79443e36b38e44b6a105dad51fb8909fb615d982753cabaac9b15f0d576. Parent source identity must be checked against this fork's current importer before offering operational acquisition; no broader revision support inferred."
+          "instruction": "Use your own Xbox 360 disc ISO or supported extracted files. The parent implementation documents title ID 55530825, media ID 09FFE047, XEX version 0.0.0.3 and SHA256 8f70e79443e36b38e44b6a105dad51fb8909fb615d982753cabaac9b15f0d576. This fork’s current importer must be checked before treating that parent profile as supported. Other revisions are not established."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Upstream offers a release ZIP: supply own ISO and launch Naruto The Broken Bond PC.exe. Source alternative builds patched SDK, generates C++ from own default.xex and compiles the fork's native target. Release availability/content was not queried in this narrow review."
+          "instruction": "The project describes a release ZIP: supply your own ISO and start Naruto The Broken Bond PC.exe. Alternatively, build the patched SDK, generate C++ from your own default.xex and compile this fork’s native target. The recorded review did not check release availability or contents."
         }
       ],
       "warnings": [

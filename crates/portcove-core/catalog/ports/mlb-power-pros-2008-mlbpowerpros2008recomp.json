@@ -30,7 +30,7 @@
           "instruction": "The inspected official 0.1.5 Windows ZIP has 18,280 indexed entries and AMD64 MLBPowerPros2008-Setup.exe/nodtool.exe. Inspection selected those preparation entries and notices; the hundreds of bundled compiler/tool aliases were not all streamed or ABI-qualified. This kit generates the game locally. The selected producer installs Game/MLBPowerPros2008.exe with matching libraries/resources and a separate Data/ tree; its shortcut selects that EXE and Game/ as CWD. Attach only the already completed native installation, not the Setup, nodtool, another tool or a source-checkout path."
         },
         {
-          "title": "Attach the already configured normal game",
+          "title": "Add your configured game",
           "instruction": "After completing upstream setup and restart-required graphics choices, turn Show launcher at startup off upstream if you want direct play. Select the generated Game/MLBPowerPros2008.exe, use that complete Game directory as working directory and leave arguments empty. Review the intent and request Play separately. The integrated pre-boot launcher normally continues into the linked runtime in process, but settings requiring a fresh renderer can spawn a replacement; finish them outside the attached attempt. Do not assume successor tracking across a settings restart."
         },
         {

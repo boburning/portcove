@@ -4,7 +4,7 @@
     "id": "skullburglar-nlwstein-50-cent-blood-on-the-sand",
     "name": "50 Cent: Blood on the Sand — Skullburglar (nlwstein)",
     "original_game_title": "50 Cent: Blood on the Sand",
-    "summary": "Upstream the entire 9-mission story playable on all four platforms and a bounded 36-minute run claims; no Portcove confirmation. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project claims all nine story missions are playable on all four platforms and reports a limited 36-minute run. Portcove has not confirmed these results. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nlwstein/skullburglar",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Upstream external skullburglar.stz.sh launcher/downloads is player route; GitHub issue-12-test-build is test asset, not stable player channel. macOS on Apple Silicon, LinuxDeck, Windows native."
+          "instruction": "Use the project’s skullburglar.stz.sh launcher and downloads for the player. The GitHub issue-12-test-build asset is a test build, not a stable release channel. The documented players target Apple Silicon macOS, Linux/Steam Deck and native Windows."
         }
       ],
       "warnings": [
-        "Upstream the entire 9-mission story playable on all four platforms and a bounded 36-minute run claims; no Portcove confirmation.",
+        "The project claims all nine story missions are playable on all four platforms and reports a limited 36-minute run. Portcove has not confirmed these results.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/nlwstein/skullburglar"

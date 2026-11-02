@@ -4,7 +4,7 @@
     "id": "tsapz-ssarecomp-tsapz-skylanders-spyro-s-adventure",
     "name": "Skylanders: Spyro's Adventure — tsapZ SSARecomp (tsapZ)",
     "original_game_title": "Skylanders: Spyro's Adventure",
-    "summary": "Chapter 1 plays; later parts of the game have not been played;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Chapter 1 is reported to work. Later sections and installation on a clean machine have not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/SSARecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360regionfree10languageexecutableISO/extractedfolder; title415608AB; accepted executable fingerprints: e195f5130c1e23fb4654baf7c383ef97d02c89aeb7d4389705ae31235646ef7b default.xex"
+          "instruction": "Use your own Xbox 360 ISO or extracted folder with the region-free 10-language executable for title 415608AB. The accepted default.xex fingerprint is e195f5130c1e23fb4654baf7c383ef97d02c89aeb7d4389705ae31235646ef7b."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Chapter 1 plays; later parts of the game have not been played;installation on a clean machine has not been tested.",
+        "Chapter 1 is reported to work. Later sections and installation on a clean machine have not been tested.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/tsapZ/SSARecomp"

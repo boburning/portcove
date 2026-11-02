@@ -30,7 +30,7 @@
           "instruction": "The inspected official 1.4.1 Windows ZIP contains AMD64 Urban Reign.exe and game/urban.exe with the matching PS2Recomp/PCSX2 renderer and runtime libraries, resources and notices. Keep the entire UrbanReignPC-1.4.1 package. The outer launcher and native game have distinct roles; Linux .deb/tar and their GTK/WebKit route are separate artifacts, not qualified by this Windows inspection."
         },
         {
-          "title": "Attach the explicit native game command",
+          "title": "Add the exact game command",
           "instruction": "Select game/urban.exe and use its complete game/ directory as working directory. Set --iso followed by the quoted absolute path to your already prepared supported ISO. Use the actual original path, not a literal placeholder, and keep that file in place. Review the intent and request Play separately. Source mounts and verifies that ISO, prepares its local game_data cache and runs the linked native game in the selected process. Do not attach the outer browser launcher and assume its child lifetime, add --write-settings as Play or substitute a generated ELF/module DLL."
         },
         {

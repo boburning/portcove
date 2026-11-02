@@ -28,7 +28,7 @@
           "instruction": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
         },
         {
-          "title": "Preserve the actual runtime and player data",
+          "title": "Keep the game version and data you use",
           "instruction": "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state. The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state."
         },
         {

@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "WiiU Europe TekkenTag2 edition update16 own RPX/data. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own European Wii U Tekken Tag Tournament 2 edition RPX and data with update 16. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Boot through arcade mode claimed; GamePad screen/speaker, online, softwarekeyboard/errors and unused audio effects missing. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports boot through arcade mode. GamePad screen and speaker, online play, software keyboard and errors, and unused audio effects remain missing. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition"

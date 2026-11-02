@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PAL Europe SLES-03181 own CUE/BIN. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own European PAL SLES-03181 CUE/BIN. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Advertised ZIP, Python3 and TomJerry_Recompiled.exe Generate & rebuild wizard compiles owned disc locally. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Use the advertised ZIP with Python3 and open TomJerry_Recompiled.exe. Choose Generate & rebuild to compile your own disc locally. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Title widescreen/split-screen/HUD/timing/loading fixes; no full completion proof. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports game-specific widescreen, split-screen, HUD, timing and loading fixes. Full completion has not been established. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/IraFunesto/TomJerryRecomp"

@@ -4,7 +4,7 @@
     "id": "mtr-pgr4-missingthepixel-project-gotham-racing-4",
     "name": "Project Gotham Racing 4 — MTR-PGR4 (MissingThePixel)",
     "original_game_title": "Project Gotham Racing 4",
-    "summary": "Player package exists; broad race/progression scope unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "A player package is available. The extent of working races and progression has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/MissingThePixel/MTR-PGR4",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Player package exists; broad race/progression scope unknown.",
+        "A player package is available. The extent of working races and progression has not been confirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/MissingThePixel/MTR-PGR4"

@@ -33,7 +33,7 @@
           "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
         },
         {
-          "title": "Preserve the actual player data",
+          "title": "Keep your existing game data",
           "instruction": "Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
         },
         {

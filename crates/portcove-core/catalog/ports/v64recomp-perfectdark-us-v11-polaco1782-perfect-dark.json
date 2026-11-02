@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "CarringtonInstitute screenshot; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project provides a Carrington Institute screenshot. A complete playthrough has not been confirmed, and results from another game do not establish that this one works. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/polaco1782/v64recomp"

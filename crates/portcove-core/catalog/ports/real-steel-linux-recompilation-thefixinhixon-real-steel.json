@@ -4,7 +4,7 @@
     "id": "real-steel-linux-recompilation-thefixinhixon-real-steel",
     "name": "Real Steel — Real Steel — Linux Recompilation (thefixinhixon)",
     "original_game_title": "Real Steel",
-    "summary": "Linux boot/menus/robot builder/gameplay reported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports Linux boot, menus, robot builder and gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/RealSteelRecomp",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Linux boot/menus/robot builder/gameplay reported.",
+        "The project reports Linux boot, menus, robot builder and gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/thefixinhixon/RealSteelRecomp"

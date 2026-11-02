@@ -34,7 +34,7 @@
           "instruction": "Retain Save/, autoexec.cfg, launcher.ini, nolfcmds.txt, logs including modern.log/nolfsrc.log, captures, custom files and the complete old installation. Upstream says each new archive is a whole installation, not an overlay patch; preserve the old copy and deliberately copy compatible saves into a separately completed new copy before relinking. Monolith/GameSpy, OpenMiles GPL, Bink/FFmpeg LGPL and DirectMusic have distinct terms; the upstream license notes retain distribution-compatibility questions. A public download or engine-code license is not a whole-package/IP grant, and this guide does not infer a blanket ban on an independently permitted copy."
         },
         {
-          "title": "Review the completed player and intent",
+          "title": "Review the prepared player and launch details",
           "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
         {

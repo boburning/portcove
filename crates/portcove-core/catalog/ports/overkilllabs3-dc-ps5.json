@@ -30,11 +30,11 @@
           "instruction": "The inspected official Windows ZIP contains the AMD64 deadcells.exe launcher, tools/relinker.exe and matching libraries. The launcher is not by itself the complete game: upstream derives a separate Windows game executable from your own original x86-64 program. Keep that prepared output and all matching libraries beside the launcher. This is title-specific native relinking with reimplemented console services and Vulkan shaders, not a static translation of a different CPU or a generic PS5 emulator integration."
         },
         {
-          "title": "Attach the waiting launcher",
+          "title": "Add the launcher that waits for the game",
           "instruction": "Select deadcells.exe, set its complete prepared package folder as working directory and leave arguments empty. Review the exact selected intent and request Play separately; use the upstream settings window/Play if shown. The selected launcher starts the prepared game child and waits for its normal exit. It can reprepare when originals, tools or preparation stamps change: finish such work outside the attached attempt first. Do not select a generated internal executable or relinker to bypass the supported entry. Normal waiting does not establish forced-stop quiescence or save flushing."
         },
         {
-          "title": "Preserve actual player data and preparation",
+          "title": "Keep your prepared game and player data",
           "instruction": "Keep the complete _sd save folder beside deadcells.exe, original game files, dc_runtime.exe and its matching generated metadata, shader caches, logs, configuration and any existing external paths. The original executable must remain available even after preparation. This guide performs no save conversion, migration, cleanup or backup; keep independent recovery copies."
         },
         {
@@ -42,7 +42,7 @@
           "instruction": "Retain the project GPLv2 notice, AnyPS5 and all library/component notices. These do not grant rights to the original Dead Cells: Return to Castlevania Edition executable, shaders or assets; use only a complete copy you are independently permitted to use. No other PS5 game or original PC edition is admitted by this title-specific route."
         },
         {
-          "title": "Maintain outside the attachment",
+          "title": "Close the game before maintenance",
           "instruction": "Quit the actual game normally and wait for the launcher to return before upstream replacement or data operations. Preserve independent recovery copies and review/relink changed executable bytes. Requirements and limits include Vulkan 1.1 with the documented depth-clip, BC texture and buffer-device-address features; upstream RTX 5070 Ti reports do not qualify other hardware. These remain upstream claims; no native gameplay, complete-game, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable."
         }
       ],

@@ -4,7 +4,7 @@
     "id": "sonic-ultimate-rivals-jackypendrag0n-sonic-rivals-2",
     "name": "Sonic Rivals 2 — Sonic-Ultimate-Rivals (JackyPendrag0n)",
     "original_game_title": "Sonic Rivals 2",
-    "summary": "Native runtime with high-frame-rate,split-screen/mod features claimed; full race/story/multiplayer coverage unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project claims a native runtime with high frame rates, split-screen and mods. Full race, story and multiplayer coverage remain unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/JackyPendrag0n/Sonic-Ultimate-Rivals",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA ULUS10323 plaintext BOOT.BIN in own plain ISO515866624bytes typical; CSO/ZSO/CHD convert first"
+          "instruction": "Use your own USA ULUS10323 plain ISO containing unencrypted BOOT.BIN; a typical image is 515866624 bytes. Convert CSO, ZSO or CHD before setup."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Native runtime with high-frame-rate,split-screen/mod features claimed; full race/story/multiplayer coverage unverified.",
+        "The project claims a native runtime with high frame rates, split-screen and mods. Full race, story and multiplayer coverage remain unverified.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/JackyPendrag0n/Sonic-Ultimate-Rivals"

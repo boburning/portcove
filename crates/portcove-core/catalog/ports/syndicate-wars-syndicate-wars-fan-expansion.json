@@ -18,7 +18,7 @@
           "instruction": "Use a permitted complete Windows Syndicate Wars Fan Expansion/Port copy with your own supported PC CD/digital data and required upstream graphics, sound and level packages. The reviewed setup distinguishes the tested European multilingual/US data, German-language disc requirements and unsupported Asian fonts; retain the chosen language and edition. Windows installer/setup archives and patch archives are different. Finish all upstream original-data installation, dependencies and preparation first; no installer, helper or original-data fetch is run here."
         },
         {
-          "title": "Select the player and established launch coordinates",
+          "title": "Select the player with its existing launch settings",
           "instruction": "Select the actual native Windows swars.exe with its completed runtime/data directory and supported established arguments; /g is the documented Windows-style normal-start option and is no longer mandatory. Do not select an installer or setup archive. Keep the actual 32-bit SDL/OpenAL/render dependencies for that copy; a 64-bit OS alone does not replace those components."
         },
         {
@@ -26,7 +26,7 @@
           "instruction": "Keep the whole creating runtime/data/CD setup, config.ini, conf/, qdata/savegame, qdata/screenshots, all user/profile INI files, saves, replays, custom and unknown files. Source resolves installation data from the actual registry-backed setup or working-directory fallback. On Windows it uses AppData/Syndicate Wars for user paths only when that installation lookup and AppData succeed; otherwise it falls back to the working directory. The mapped save/screenshot roots follow that choice. Preserve every actual effective root and compatible old runtime before upstream changes; no profile/registry migration or backward-save qualification is offered."
         },
         {
-          "title": "Review the completed player and intent",
+          "title": "Review the prepared player and launch details",
           "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
         {

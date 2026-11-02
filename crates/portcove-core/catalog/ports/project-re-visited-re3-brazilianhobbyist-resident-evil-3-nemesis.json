@@ -4,7 +4,7 @@
     "id": "project-re-visited-re3-brazilianhobbyist-resident-evil-3-nemesis",
     "name": "Resident Evil 3: Nemesis — Project-RE-Visited-RE3 (BrazilianHobbyist)",
     "original_game_title": "Resident Evil 3: Nemesis",
-    "summary": "Experimental project. Upstream experimental RE3; prior allstatic/60 FPS claims corrected. Measured older cache interpretation 0.03–0.15% over 20 minutes/foursessions is bounded historical evidence, not universal nofallback/full game proof. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. This is experimental RE3 work. Earlier claims of fully static translation and 60 FPS were corrected. An older cache used interpretation for a measured 0.03–0.15% over four sessions totalling 20 minutes. That historical result does not establish no fallback or full-game compatibility. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual own-disc source build.ps1 -Regen -DiscPath then launcher build.ps1; upstream ZIP launcher also describes InstallGame/own CUE. v1.7 cache generated from disc, fallback/background toolchain scope explicit; no artifact accepted here."
+          "instruction": "For a source build, follow the project’s build.ps1 -Regen -DiscPath instructions with your own disc, then its launcher build.ps1 instructions. The ZIP launcher also documents InstallGame with your own CUE. Version v1.7 generates its cache from the disc and documents fallback and background toolchain use. This guide does not establish an accepted package."
         }
       ],
       "warnings": [
-        "Upstream experimental RE3; prior allstatic/60 FPS claims corrected. Measured older cache interpretation 0.03–0.15% over 20 minutes/foursessions is bounded historical evidence, not universal nofallback/full game proof.",
+        "This is experimental RE3 work. Earlier claims of fully static translation and 60 FPS were corrected. An older cache used interpretation for a measured 0.03–0.15% over four sessions totalling 20 minutes. That historical result does not establish no fallback or full-game compatibility.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3"

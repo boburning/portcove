@@ -4,7 +4,7 @@
     "id": "recomp-domination-lngadesupport-lngadesupport-downhill-domination",
     "name": "Downhill Domination — Recomp Domination (lngadesupport) (lngadesupport)",
     "original_game_title": "Downhill Domination",
-    "summary": "Experimental project. Native runner builds via bootstrap; game gameplay not established by successful build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The native runner builds through the setup process. A successful build does not establish working gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/lngadesupport/Recomp-Domination",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "NTSC-U SCUS-97177 extracted disc folder."
+          "instruction": "Use your own extracted NTSC-U SCUS-97177 disc folder."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "BUILD_DOWNHILL.cmd bootstrap compiles Windows x64 native runner from owned SCUS_971.77/disc files. No playable package inferred."
+          "instruction": "Run BUILD_DOWNHILL.cmd to prepare the tools and compile the Windows x64 native runner from your own SCUS_971.77 and disc files. This does not establish a playable package."
         }
       ],
       "warnings": [
-        "Native runner builds via bootstrap; game gameplay not established by successful build.",
+        "The native runner builds through the setup process. A successful build does not establish working gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/lngadesupport/Recomp-Domination"

@@ -4,7 +4,7 @@
     "id": "oceancrab-santiagoarce-rgb-spongebob-truth-or-square",
     "name": "SpongeBob: Truth or Square — OceanCrab (santiagoarce-rgb)",
     "original_game_title": "SpongeBob: Truth or Square",
-    "summary": "Boot/mainloop/render/audio claimed; input and rendering improvements remain planned, interactive gameplay is not available yet. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports boot, main-loop, rendering and audio work. Input and rendering improvements are still planned; interactive gameplay is not yet available. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/santiagoarce-rgb/OceanCrab",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA ULUS10478 your own decrypted PSP executable/assets"
+          "instruction": "Use your own decrypted USA ULUS10478 PSP executable and assets."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Boot/mainloop/render/audio claimed; input and rendering improvements remain planned, interactive gameplay is not available yet.",
+        "The project reports boot, main-loop, rendering and audio work. Input and rendering improvements are still planned; interactive gameplay is not yet available.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/santiagoarce-rgb/OceanCrab"

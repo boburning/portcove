@@ -26,7 +26,7 @@
           "instruction": "Preserve the whole creating runtime, all LBX originals, CONFIG.MOO and every SAVE*.GAM or 1oom_save*.bin slot in the actual user root. Selected Windows source defaults that root to the working directory, not an invented literal User subfolder; -user can redirect it. Original-format saves are enabled by default and use the original MOO slot names, so running inside the original installation can overwrite those existing slots. Keep an independent recoverable copy before running/changing engines. Source support for a format is not observed backward compatibility or permission to migrate saves."
         },
         {
-          "title": "Review the completed player and intent",
+          "title": "Review the prepared player and launch details",
           "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
         {

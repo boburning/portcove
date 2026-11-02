@@ -29,7 +29,7 @@
           "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
         },
         {
-          "title": "Preserve the actual player data",
+          "title": "Keep your existing game data",
           "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
         },
         {

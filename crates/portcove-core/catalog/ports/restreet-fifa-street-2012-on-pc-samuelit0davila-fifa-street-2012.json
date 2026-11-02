@@ -4,7 +4,7 @@
     "id": "restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012",
     "name": "FIFA Street (2012) — ReStreet — FIFA Street (2012) on PC (samuelit0davila)",
     "original_game_title": "FIFA Street (2012)",
-    "summary": "2.0.8 fixes match/sign-in/save defects; complete progression not established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Version 2.0.8 fixes match, sign-in and save defects. Complete progression has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/samuelit0davila/fifa-street-pc-port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "2.0.8 fixes match/sign-in/save defects; complete progression not established.",
+        "Version 2.0.8 fixes match, sign-in and save defects. Complete progression has not been established.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/samuelit0davila/fifa-street-pc-port"

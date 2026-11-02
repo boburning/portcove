@@ -4,7 +4,7 @@
     "id": "viva-pin-ata-recomp-crabinacrabic-viva-pinata",
     "name": "Viva Pinata — Viva Piñata Recomp (crabinacrabic)",
     "original_game_title": "Viva Pinata",
-    "summary": "Garden/save-load work; rare title-idle crash and no full playthrough. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports garden play and save/load. A rare crash while idle at the title remains, and a full playthrough has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/crabinacrabic/VivaPinataRecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Garden/save-load work; rare title-idle crash and no full playthrough.",
+        "The project reports garden play and save/load. A rare crash while idle at the title remains, and a full playthrough has not been established.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/crabinacrabic/VivaPinataRecomp"

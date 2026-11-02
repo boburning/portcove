@@ -4,7 +4,7 @@
     "id": "mc3r-cloudalister-midnight-club-3-dub-edition-remix",
     "name": "Midnight Club 3: DUB Edition Remix — mc3r (cloudalister)",
     "original_game_title": "Midnight Club 3: DUB Edition Remix",
-    "summary": "Recompiled build boots to PRESS START; not game completion. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The recompiled build reaches PRESS START. This does not establish that the complete game works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/cloudalister/mc3r",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS21355 own extracted disc"
+          "instruction": "Use your own extracted USA SLUS21355 disc files."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local own-ELF recompile/build; no game files or translated sources distributed."
+          "instruction": "Recompile and build locally from your own ELF using the project’s instructions. Game files and translated sources are not distributed."
         }
       ],
       "warnings": [
-        "Recompiled build boots to PRESS START; not game completion.",
+        "The recompiled build reaches PRESS START. This does not establish that the complete game works.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/cloudalister/mc3r"

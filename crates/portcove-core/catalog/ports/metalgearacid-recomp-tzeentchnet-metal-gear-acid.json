@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA ULUS10006 v1.00 MGA own ISO/plaintextPRX. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own USA ULUS10006 v1.00 Metal Gear Acid ISO or unencrypted PRX. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Own-ISO guided installer retrieves pinned toolkit, extracts/generates/builds; Launch Metal Gear Acid.bat hardware/GDI options. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Use the guided installer with your own ISO. It downloads the pinned toolkit, extracts the files, generates code and builds locally. Start Launch Metal Gear Acid.bat with the project’s documented hardware or GDI options. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Experimental source-only runtime with conservative fallback cap; no ready game package/completion. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "This experimental source-only runtime keeps a conservative fallback cap. A ready-to-run game package and completed playthrough have not been established. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Tzeentchnet/MetalGearAcid-Recomp"

@@ -25,11 +25,11 @@
           "instruction": "Use only an already completed native copy and components you are independently permitted to use. This route does not recommend fresh bundled-package acquisition: its MIT grant covers the PC layer, explicitly excludes the upstream decompilation and Konami game/data, and the package explicitly bundles European translation texts. Those named component permissions cannot be inherited from MIT. Keep applicable notices and original-game rights separate."
         },
         {
-          "title": "Keep the exact original and preparation boundary",
+          "title": "Use the matching original and setup procedure",
           "instruction": "Provide your own Forbidden Memories USA SLUS-01411 raw MODE2/2352 BIN from a CUE/BIN pair. Select the BIN in the upstream Choose ROM screen, not the CUE. ISO, CHD and other regions are unsupported. No BIOS is needed; the ROM stays at its chosen location. Portcove does not acquire, copy or authenticate it through registration."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "Select the existing package’s memories-pc.exe, its package root as working directory and no arguments. The inspected Windows player is a 32-bit I386 executable; the AMD64 SDK emitter is not the player. Keep the whole matching runtime and do not select FM Editor, a mod builder or another repository’s Forbidden Memories player."
         },
         {

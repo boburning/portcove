@@ -4,7 +4,7 @@
     "id": "twistedmetal1234recomp-jcoker85-twisted-metal-4",
     "name": "Twisted Metal 4 — TwistedMetal1234Recomp (jcoker85)",
     "original_game_title": "Twisted Metal 4",
-    "summary": "Experimental project. Upstream native TM4 program in shared kit; no Portcove full game or alternate-revision validation. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. This is the native TM4 program in the shared kit. Portcove has not confirmed the full game or alternate revisions. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jcoker85/TwistedMetal1234Recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual shared Windows launcher/tools/generate.sh route, select tm4 and owned Rev1 disc, retaining runtime/disc at play."
+          "instruction": "Follow the shared Windows launcher and tools/generate.sh setup, selecting tm4 with your own Rev1 disc. Keep both the runtime and disc available during play."
         }
       ],
       "warnings": [
-        "Upstream native TM4 program in shared kit; no Portcove full game or alternate-revision validation.",
+        "This is the native TM4 program in the shared kit. Portcove has not confirmed the full game or alternate revisions.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/jcoker85/TwistedMetal1234Recomp"

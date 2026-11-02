@@ -4,7 +4,7 @@
     "id": "unicorn-overlord-pc-hachi23-hachi23-unicorn-overlord",
     "name": "Unicorn Overlord — Unicorn Overlord PC (hachi23) (hachi23)",
     "original_game_title": "Unicorn Overlord",
-    "summary": "Prologue/chapter1/first battle and save/load claimed; full game not verified See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project claims the prologue, chapter 1, first battle and save/load. The full game has not been verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/hachi23/unicorn_overlord_pc",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Asia CUSA36381 app01.04 base+English1.04 update owned dump"
+          "instruction": "Use your own Asian CUSA36381 base game with the English 1.04 update, producing app version 01.04."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "v1.0.0 AppImage/Windows ZIP; local launch prepares owned inputs; latest prerelease untested"
+          "instruction": "Use the v1.0.0 AppImage or Windows ZIP. Launch it to prepare your own inputs locally. The latest prerelease has not been tested."
         }
       ],
       "warnings": [
-        "Prologue/chapter1/first battle and save/load claimed; full game not verified",
+        "The project claims the prologue, chapter 1, first battle and save/load. The full game has not been verified.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/hachi23/unicorn_overlord_pc"

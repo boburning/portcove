@@ -4,7 +4,7 @@
     "id": "tag-force-recomp-artknighty-yu-gi-oh-gx-tag-force",
     "name": "Yu-Gi-Oh! GX Tag Force — Tag Force Recomp (Artknighty)",
     "original_game_title": "Yu-Gi-Oh! GX Tag Force",
-    "summary": "Early publicpreview. Upstream claims end-to-end play on mainly one machine/version/save, Story/field/dialogue/duels/DeckEdit/shop/saves/audio/video. No network/ad-hoc; game logic runs at 30 FPS, presentation at 60/120interpolationexperimental; APIs/formats/settings/folders maychange. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This is an early public preview. The project claims start-to-finish story, field, dialogue, duels, DeckEdit, shop, saves, audio and video, mainly on one machine, version and save. Network and ad-hoc play are unavailable. Game logic runs at 30 FPS; 60/120 FPS presentation interpolation is experimental. APIs, formats, settings and folders may change. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Artknighty/tagforcerecomp-preview",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Early publicpreview. Upstream claims end-to-end play on mainly one machine/version/save, Story/field/dialogue/duels/DeckEdit/shop/saves/audio/video. No network/ad-hoc; game logic runs at 30 FPS, presentation at 60/120interpolationexperimental; APIs/formats/settings/folders maychange.",
+        "This is an early public preview. The project claims start-to-finish story, field, dialogue, duels, DeckEdit, shop, saves, audio and video, mainly on one machine, version and save. Network and ad-hoc play are unavailable. Game logic runs at 30 FPS; 60/120 FPS presentation interpolation is experimental. APIs, formats, settings and folders may change.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Artknighty/tagforcerecomp-preview"

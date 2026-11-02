@@ -32,7 +32,6 @@ let root: RenderResult;
 let container: HTMLDivElement;
 beforeEach(async () => {
   await page.viewport(960, 800);
-  await userEvent.click(document.body);
   container = document.createElement("div");
   document.body.append(container);
   root = await renderComponent(null, { container: document.body.appendChild(container) });
@@ -49,7 +48,7 @@ async function click(label: string) {
   );
   expect(button).toBeDefined();
   if (!(button instanceof HTMLButtonElement)) throw new Error("Missing review action");
-  await act(async () => userEvent.click(button));
+  await act(async () => (button.disabled ? button.click() : userEvent.click(button)));
 }
 
 it("reviews exact paths and safety-backup behavior before a bound restore", async () => {

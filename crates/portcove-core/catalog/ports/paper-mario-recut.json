@@ -45,7 +45,7 @@
         {
           "role": "game",
           "profile_id": "paper-mario-us",
-          "label": "Paper Mario (North America) game files",
+          "label": "Paper Mario (North America) source",
           "verification": "catalog-identity"
         }
       ],

@@ -4,7 +4,7 @@
     "id": "psp-web-recomp-snuri00-god-of-war-ghost-of-sparta",
     "name": "God of War: Ghost of Sparta — PSP Web Recomp (snuri00)",
     "original_game_title": "God of War: Ghost of Sparta",
-    "summary": "Two Ready at Dawn titles brought through combat; movies skipped; browser saves not directly interoperable with PSP encrypted saves. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports reaching combat in two Ready at Dawn titles while skipping movies. Browser saves are not directly compatible with encrypted PSP saves. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/snuri00/psp-web-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local Linux setup.sh/port.sh/serve.sh compiles generated C++ to WASM from owned input and externally decrypted EBOOT; served browser player uses original disc data over HTTP Range. Native flag creates headless diagnostic runner."
+          "instruction": "On Linux, follow setup.sh, port.sh and serve.sh to compile generated C++ into WASM from your own input and separately decrypted EBOOT. The browser player reads original disc data over HTTP Range. The native flag creates a headless diagnostic tool rather than the normal player."
         }
       ],
       "warnings": [
-        "Two Ready at Dawn titles brought through combat; movies skipped; browser saves not directly interoperable with PSP encrypted saves.",
+        "The project reports reaching combat in two Ready at Dawn titles while skipping movies. Browser saves are not directly compatible with encrypted PSP saves.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/snuri00/psp-web-recomp"

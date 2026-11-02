@@ -22,7 +22,7 @@
           "instruction": "Use your own compatible classic or rerelease Quake data and finish upstream discovery/picker/configuration plus a normal start/quit before registration. Preserve the selected original/rerelease flavor and actual base/id1/expansion/mod set. Do not point at another edition, relabel data or replace your only creating copy to make a registration succeed. Core does not acquire, validate original PAK identities or prepare the game."
         },
         {
-          "title": "Keep the working player coordinates",
+          "title": "Keep the player’s existing launch settings",
           "instruction": "Use the actual prepared runtime working directory and established supported literal arguments/data/edition choices. Preserve existing absolute -basedir and custom game/root choices where used. Review exact intent and consent, then choose Play separately. No Core environment rewrite or forced portable mode is supplied."
         },
         {

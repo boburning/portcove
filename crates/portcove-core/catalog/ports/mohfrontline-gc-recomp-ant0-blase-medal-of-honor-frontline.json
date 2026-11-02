@@ -4,7 +4,7 @@
     "id": "mohfrontline-gc-recomp-ant0-blase-medal-of-honor-frontline",
     "name": "Medal of Honor: Frontline — MOHFrontline-GC-RECOMP (ant0-blase)",
     "original_game_title": "Medal of Honor: Frontline",
-    "summary": "Experimental project. Upstream experimental Linux native Frontline with enhanced rendering claims; optional PS3 assets alter presentation, not source game architecture or PS3 executable identity. No Portcove gameplay comparison. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project describes an experimental native Linux Frontline player with enhanced rendering. Optional PS3 assets change presentation; they do not turn it into the PS3 game or establish PS3 executable compatibility. Portcove has not compared gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ant0-blase/MOHFrontline-GC-RECOMP",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual GMFE69 GameCube source/native runtime route from README build and launcher sections. Optional PS3 remaster data requires a separately owned PS3_FILES tree or finalized retail PKG; no PS3 assets are included."
+          "instruction": "Follow the README’s GameCube source-build and native launcher instructions using your own GMFE69 game data. Optional PS3 remaster data requires your own PS3_FILES tree or finalized retail PKG; PS3 assets are not included."
         }
       ],
       "warnings": [
-        "Upstream experimental Linux native Frontline with enhanced rendering claims; optional PS3 assets alter presentation, not source game architecture or PS3 executable identity. No Portcove gameplay comparison.",
+        "The project describes an experimental native Linux Frontline player with enhanced rendering. Optional PS3 assets change presentation; they do not turn it into the PS3 game or establish PS3 executable compatibility. Portcove has not compared gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/ant0-blase/MOHFrontline-GC-RECOMP"

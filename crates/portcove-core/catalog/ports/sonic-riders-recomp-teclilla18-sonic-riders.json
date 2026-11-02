@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA GXEE8P full1.4GB ISO"
+          "instruction": "Use your own USA GXEE8P full 1.4 GB ISO."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README SonicRiders-PC-Setup-<version>.zip or Switch setup, own disc first local build10–30min. Generated binaries contain game-derived code and remain private."
+          "instruction": "Follow the README’s SonicRiders-PC-Setup-<version>.zip or Switch setup with your own disc. The first local build takes approximately 10–30 minutes. Keep generated binaries private because they contain game-derived code."
         }
       ],
       "warnings": [

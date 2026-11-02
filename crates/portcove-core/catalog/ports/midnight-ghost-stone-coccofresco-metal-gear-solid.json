@@ -4,7 +4,7 @@
     "id": "midnight-ghost-stone-coccofresco-metal-gear-solid",
     "name": "Metal Gear Solid — Midnight Ghost Stone (coccofresco)",
     "original_game_title": "Metal Gear Solid",
-    "summary": "Experimental project. Upstream alpha.1 is UNTESTED for gameplay/platform; most logic is static MIPS-to-native with selected adapted decompiled routines. No continuous playthrough certified; preserve Codec saves/backups. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project marks alpha.1 as UNTESTED for gameplay and platform compatibility. Most logic uses static MIPS-to-native translation with selected adapted decompiled routines. A continuous playthrough has not been confirmed. Preserve Codec saves and backups. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/coccofresco/mgsone-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual experimental alpha.1 Linux/Windows archives or documented source build from own USA discs; releases expressly unqualified. Do not treat alpha downloads as campaign/platform acceptance."
+          "instruction": "Use the experimental alpha.1 Linux or Windows archive, or follow the documented source build with your own USA discs. These releases have not been confirmed to complete the campaign or work across the stated platforms."
         }
       ],
       "warnings": [
-        "Upstream alpha.1 is UNTESTED for gameplay/platform; most logic is static MIPS-to-native with selected adapted decompiled routines. No continuous playthrough certified; preserve Codec saves/backups.",
+        "The project marks alpha.1 as UNTESTED for gameplay and platform compatibility. Most logic uses static MIPS-to-native translation with selected adapted decompiled routines. A continuous playthrough has not been confirmed. Preserve Codec saves and backups.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/coccofresco/mgsone-recomp"

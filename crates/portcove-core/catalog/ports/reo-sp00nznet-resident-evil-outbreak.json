@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "NTSC-U SLUS20765 owned disc/files SLUS_207.65 and BIN/"
+          "instruction": "Use your own NTSC-U SLUS20765 disc files, including SLUS_207.65 and BIN/."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "No tagged release; Setup.cmd checks local prerequisites and builds from own disc; File2 not a player listing."
+          "instruction": "Run Setup.cmd to check local prerequisites and build from your own disc. No tagged release is available through this guide. File2 is not an offered player target."
         }
       ],
       "warnings": [

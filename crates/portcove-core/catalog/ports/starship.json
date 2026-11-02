@@ -39,7 +39,7 @@
         {
           "role": "game",
           "profile_id": "star-fox-64",
-          "label": "Star Fox 64 game files",
+          "label": "Star Fox 64 source",
           "verification": "catalog-rules"
         }
       ],

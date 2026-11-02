@@ -183,8 +183,8 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
             is created.
           </p>
           <p>
-            An interrupted deletion may finish when you reopen this library. An interrupted deletion
-            may finish; it is not a reversible cancellation.
+            An interrupted deletion may finish when you reopen this library. Cancellation does not
+            restore a deleted backup.
           </p>
         </>
       )}

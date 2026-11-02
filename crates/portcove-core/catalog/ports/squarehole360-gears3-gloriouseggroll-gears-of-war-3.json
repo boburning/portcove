@@ -4,7 +4,7 @@
     "id": "squarehole360-gears3-gloriouseggroll-gears-of-war-3",
     "name": "Gears of War 3 — squarehole360 Gears3 (GloriousEggroll)",
     "original_game_title": "Gears of War 3",
-    "summary": "Upstream Linuxplayable/benchmarks of specific scenes; Windowsbinary route documented but not Portcovetested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports playable Linux results and benchmarks for specific scenes. A Windows binary procedure is documented, but Portcove has not tested it. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GloriousEggroll/squarehole360",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source Linux code generation and build; Windows cross-compiled usingxwin; Vulkan1.3native Wayland HDR/VRR with X11 fallback. No releases observed."
+          "instruction": "Generate code and build from source on Linux, or cross-compile for Windows with xwin. The runtime uses Vulkan1.3 with native Wayland HDR/VRR and an X11 fallback. The recorded review did not find release packages."
         }
       ],
       "warnings": [
-        "Upstream Linuxplayable/benchmarks of specific scenes; Windowsbinary route documented but not Portcovetested.",
+        "The project reports playable Linux results and benchmarks for specific scenes. A Windows binary procedure is documented, but Portcove has not tested it.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/GloriousEggroll/squarehole360"

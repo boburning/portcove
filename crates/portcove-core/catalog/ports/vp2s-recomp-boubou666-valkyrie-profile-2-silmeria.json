@@ -4,7 +4,7 @@
     "id": "vp2s-recomp-boubou666-valkyrie-profile-2-silmeria",
     "name": "Valkyrie Profile 2: Silmeria — VP2S_Recomp (boubou666)",
     "original_game_title": "Valkyrie Profile 2: Silmeria",
-    "summary": "Title/music/opening movie/first field cutscene; corrupted field rendering at 25–35 VSync/s; not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/boubou666/VP2S_Recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PAL SLES54645 ELF SHA1541fa8d563b2834350fd0a635a4d3631574ad778 + own overlays/disc"
+          "instruction": "Use your own PAL SLES54645 ELF with SHA1 541fa8d563b2834350fd0a635a4d3631574ad778, plus the matching overlays and disc data."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Title/music/opening movie/first field cutscene; corrupted field rendering at 25–35 VSync/s; not playable.",
+        "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/boubou666/VP2S_Recomp"

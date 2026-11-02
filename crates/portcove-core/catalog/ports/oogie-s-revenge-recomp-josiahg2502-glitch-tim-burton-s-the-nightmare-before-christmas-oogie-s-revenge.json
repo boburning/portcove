@@ -4,7 +4,7 @@
     "id": "oogie-s-revenge-recomp-josiahg2502-glitch-tim-burton-s-the-nightmare-before-christmas-oogie-s-revenge",
     "name": "Tim Burton's The Nightmare Before Christmas: Oogie's Revenge — Oogie's Revenge Recomp (josiahg2502-glitch)",
     "original_game_title": "Tim Burton's The Nightmare Before Christmas: Oogie's Revenge",
-    "summary": "Playable opening at60 FPS/4K; whole-executable translation is not whole-game completion. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports a playable opening at 60 FPS and 4K. Translating the whole executable does not establish that the whole game works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "PowerShell build downloads pinned tools and compiles from own USA Oogie'sRevenge ISO/XISO/folder."
+          "instruction": "Run the project’s PowerShell build with your own USA Oogie’s Revenge ISO, XISO or extracted folder. It downloads the pinned tools and compiles locally."
         }
       ],
       "warnings": [
-        "Playable opening at60 FPS/4K; whole-executable translation is not whole-game completion.",
+        "The project reports a playable opening at 60 FPS and 4K. Translating the whole executable does not establish that the whole game works.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled"

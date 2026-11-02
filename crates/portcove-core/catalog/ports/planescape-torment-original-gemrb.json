@@ -28,7 +28,7 @@
           "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
         },
         {
-          "title": "Keep the actual original and player data",
+          "title": "Keep your originals and game data",
           "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
         },
         {

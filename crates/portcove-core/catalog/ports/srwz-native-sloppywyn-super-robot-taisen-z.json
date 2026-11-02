@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan SLPS25887 v1.04 own disc"
+          "instruction": "Use your own Japanese SLPS25887 v1.04 disc."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local Ghidra/MSVC/CMake/Python generation/build."
+          "instruction": "Generate code and build locally with Ghidra, MSVC, CMake and Python using the project’s instructions."
         }
       ],
       "warnings": [

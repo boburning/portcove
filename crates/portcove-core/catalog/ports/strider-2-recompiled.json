@@ -25,11 +25,11 @@
           "instruction": "Complete the supported upstream setup from your own USA SLUS-01163 CUE and every associated BIN before attachment. The release-root Strider_Recompiled.exe is a setup host; it generates and builds the completed game in build-release. Keep the whole creating project and output together. Portcove does not perform generation or redistribute private generated game code."
         },
         {
-          "title": "Keep the exact original and preparation boundary",
+          "title": "Use the matching original and setup procedure",
           "instruction": "This title uses generated OpenBIOS by default. A separately owned retail BIOS is optional under its upstream setup; do not copy Street Fighter EX2 Plus’s mandatory retail-BIOS requirement into this title. Preserve your actual selected BIOS and configuration if you use one."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "Select the completed build-release/Strider_Recompiled.exe with its executable directory as working directory and --launcher as the literal argument. Do not attach the release-root setup host or an SDK emitter. The completed game-dispatch binary bypasses setup forwarding; its native main owns launcher/game execution."
         },
         {

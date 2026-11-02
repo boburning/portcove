@@ -4,7 +4,7 @@
     "id": "peggle-xbox-360-para-pc-recompilacio-n-esta-tica-con-rexglue-josuemora918-peggle-xbox-live-arcade",
     "name": "Peggle (Xbox Live Arcade) — Peggle (Xbox 360) para PC — recompilación estática con ReXGlue (JosueMora918)",
     "original_game_title": "Peggle (Xbox Live Arcade)",
-    "summary": "Gameplay/local multiplayer work; userdata-path write failures and gradual memory growth noted. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports gameplay and local multiplayer, with user-data write failures and gradual memory growth. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/JosueMora918/peggle360-decomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Gameplay/local multiplayer work; userdata-path write failures and gradual memory growth noted.",
+        "The project reports gameplay and local multiplayer, with user-data write failures and gradual memory growth.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/JosueMora918/peggle360-decomp"

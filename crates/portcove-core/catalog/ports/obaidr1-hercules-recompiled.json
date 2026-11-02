@@ -22,7 +22,7 @@
           "instruction": "The inspected official Windows ZIP contains AMD64 Hercules_Recompiled.exe, matching language builds, runtime resources and overlay_toolchain. The published native game program is already compiled; original graphics, sound, videos and level data still come from your own disc. Optional overlay/HD generation is a separate upstream operation. Keep the whole extracted package; select neither a PS1 executable, disc image, Python nor toolchain helper."
         },
         {
-          "title": "Attach the upstream native UI",
+          "title": "Add the project’s native app",
           "instruction": "Select Hercules_Recompiled.exe, set the complete extracted folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Choose the already prepared language and start through the upstream UI. Its Play path launches the selected language build with its own disc/working directory and waits before showing the UI again. Language choice is not three or five separately fixed launch intents. Quit the actual game normally before closing the UI; forced termination does not guarantee child cleanup or save flushing."
         },
         {

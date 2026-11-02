@@ -33,7 +33,7 @@
           "instruction": "Select installed Project Arwing (2).exe, zero arguments (arwing2.exe is an App Paths alias, not the installed filename), and its actual containing installation directory as initial CWD. The Windows application changes to the creating %APPDATA%/Project Arwing (2) profile and runs its game/UI in this process. Do not select downloaded arwing.exe, an uninstaller, build script, headless --frames/coverage or force-interpreter diagnostic mode. Registration itself does not install, prepare or launch anything."
         },
         {
-          "title": "Keep updater and profile mutation upstream-owned",
+          "title": "Let the project manage its updater and profile changes",
           "instruction": "Review and consent to the exact native executable, actual working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns setup, profiles, repair and actual replacement. Close every real instance before changing files, keep the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves all external files. Upstream checks a moving tag and can download/start an installer with --update; selected-process tracking does not follow every installer/successor. Rolling 1.0 tags/assets are replaceable and earlier metadata does not identify current bytes. Finish upstream replacement separately before relink; no signature/digest or process-family certification is inferred."
         },
         {

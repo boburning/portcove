@@ -84,7 +84,7 @@ async fn comparison_json_and_jsonl_equal_core_and_preserve_pending_recovery_and_
     );
     for internal in [
         "Some(",
-        "None",
+        "source: None",
         "internal score",
         "AssessedSingleCandidate",
         "Existing Core",

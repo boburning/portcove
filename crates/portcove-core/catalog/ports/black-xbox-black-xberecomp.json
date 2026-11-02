@@ -3,7 +3,7 @@
   "listing": {
     "id": "black-xbox-black-xberecomp",
     "name": "BLACK (Xbox) (BLACK-XBERecomp)",
-    "summary": "An original-Xbox BLACK implementation separate from Spark198rus’s black-pc. Its Windows 10+ x86-64 Direct3D 12 package compiles game code locally on first start. Use your own USA or Europe ISO or complete extracted data in assets/. The separate manual source build specifically needs the USA default.xbe and matching data; this guide does not specify exact per-region executable hashes. Linux and macOS player routes are unconfirmed. Portcove has not confirmed setup or gameplay.",
+    "summary": "An original-Xbox BLACK implementation separate from Spark198rus’s black-pc. Its Windows 10+ x86-64 Direct3D 12 package compiles game code locally on first start. Use your own USA or Europe ISO or complete extracted data in assets/. The separate manual source build specifically needs the USA default.xbe and matching data; this guide does not specify exact per-region executable hashes. Linux and macOS player routes are unconfirmed. Portcove has not confirmed setup or gameplay. Choose BLACK.exe after setup finishes.",
     "original_game_title": "BLACK (Xbox)",
     "project_url": "https://github.com/TGP482/BLACK-XBERecomp",
     "platforms": [],

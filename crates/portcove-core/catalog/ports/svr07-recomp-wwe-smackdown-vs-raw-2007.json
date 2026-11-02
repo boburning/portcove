@@ -25,7 +25,7 @@
           "instruction": "Use an already permitted working official v1.0 Windows x64 svr07.exe and the complete actual installation, with existing Windows 10/11/D3D12 support. Root BSD3 covers project code, not original game/assets/trademarks or exhaustive dependency/package clearance. The publisher explicitly documents native release use with a legally owned original; this is not whole-package/source-to-binary or gameplay certification."
         },
         {
-          "title": "Preserve the exact own extracted original",
+          "title": "Keep your matching extracted original files",
           "instruction": "Complete upstream preparation using your own WWE SmackDown vs. Raw 2007 Xbox 360 original. USA/Canada is recommended; other regions are untested. Keep assets/ and the complete extracted files/default.xex, existing title-update paths and original set. Core does not extract an ISO, authenticate a full disc/XEX, install an update or establish arbitrary regional/revision compatibility."
         },
         {
@@ -33,7 +33,7 @@
           "instruction": "Select the actual already working svr07.exe game entry, zero arguments for the normal prepared copy, and its established writable containing installation-root CWD. The official release also advertises a settings prelauncher; complete settings there separately and select the long-lived native game for Core Play. Preserve any already required supported custom literal arguments/profile context; do not select an updater, SDK/build/helper or DLL. Registration itself does not prepare or launch the game."
         },
         {
-          "title": "Review intent and keep replacement upstream-owned",
+          "title": "Review launch details and use the project’s updates",
           "instruction": "Review and consent to the exact native executable, actual initial working directory and literal arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns original extraction, setup, repair and actual replacement. Close all real instances before changing files, retain the old creating copy and review a changed executable through relink. Removing registration removes only metadata and preserves external bytes."
         },
         {

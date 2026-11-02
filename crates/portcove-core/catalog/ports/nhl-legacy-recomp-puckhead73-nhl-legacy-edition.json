@@ -4,7 +4,7 @@
     "id": "nhl-legacy-recomp-puckhead73-nhl-legacy-edition",
     "name": "NHL Legacy Edition — NHL Legacy Recomp (puckhead73)",
     "original_game_title": "NHL Legacy Edition",
-    "summary": "Upstream playable feature claims; no Portcove test; keep Proton distinct from native Linux. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports playable features, but Portcove has not tested them. Proton use does not establish a native Linux player. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/puckhead73/nhl-legacy-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "v0.6.0 release builder --iso/--from local creation; native Windows Vulkan; Linux/Steam Deck runs via Proton11 only."
+          "instruction": "Use the v0.6.0 release builder’s --iso or --from option to create the game locally. The Windows player uses native Vulkan. Linux and Steam Deck use Proton11; a native Linux player is not established."
         }
       ],
       "warnings": [
-        "Upstream playable feature claims; no Portcove test; keep Proton distinct from native Linux.",
+        "The project reports playable features, but Portcove has not tested them. Proton use does not establish a native Linux player.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/puckhead73/nhl-legacy-recomp"

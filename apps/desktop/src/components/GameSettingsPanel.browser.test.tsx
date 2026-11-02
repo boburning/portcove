@@ -344,6 +344,33 @@ it("keeps an absent saved value distinct from Off while reviewing a default", as
   expect(apply).not.toHaveBeenCalled();
 });
 
+it.each(["integer", "number"] as const)(
+  "explains an unsafe %s value without asking for a listed option",
+  async (kind) => {
+    const view = settings();
+    const setting = view.files[0]?.settings[0];
+    if (!setting) throw new Error("Missing setting fixture");
+    setting.value_type = { kind, minimum: 0, maximum: 10 ** 16, step: 1, default: 40 };
+    const review = vi.fn(async () => reviewed({ action: "reset" }));
+    const apply = vi.fn(async () => view);
+    const { host } = await mount({ review, apply }, view);
+    const input = host.querySelector("input");
+    if (!(input instanceof HTMLInputElement)) throw new Error("Missing numeric input");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      if (!setter) throw new Error("Missing input setter");
+      Reflect.apply(setter, input, ["9007199254740992"]);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click("Review change");
+    expect(host.querySelector("[role=alert]")?.textContent).toBe(
+      "This number is too large to save accurately.",
+    );
+    expect(review).not.toHaveBeenCalled();
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
+
 it("refuses empty numeric input before review and isolates an unavailable file", async () => {
   const view = settings();
   view.files.push({

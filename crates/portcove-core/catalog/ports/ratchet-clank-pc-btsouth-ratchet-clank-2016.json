@@ -17,7 +17,7 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README recommends Ratchet-Clank-port-x86_64.AppImage and adjacent sha256 file. Launcher selects game folder; first start prepares image and shader caches. Source alternative uses build.sh and optional GTK4 launcher. Saves/cache in ~/.local/share/ratchet-port; one running copy due to /tmp/.racS link."
+          "instruction": "Use the README’s recommended Ratchet-Clank-port-x86_64.AppImage and its adjacent sha256 file. Select your game folder in the launcher; the first start prepares an image and shader caches. Alternatively, build with build.sh and the optional GTK4 launcher. Preserve ~/.local/share/ratchet-port for saves and cache. Only one copy can run at once because they share /tmp/.racS."
         }
       ],
       "warnings": [

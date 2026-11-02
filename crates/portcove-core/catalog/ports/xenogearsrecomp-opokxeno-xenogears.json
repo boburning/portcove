@@ -4,7 +4,7 @@
     "id": "xenogearsrecomp-opokxeno-xenogears",
     "name": "Xenogears — XenogearsRecomp (OpokXeno)",
     "original_game_title": "Xenogears",
-    "summary": "Alpha boots/title/intro/openinggameplay/audio/save; no completed start-to-finish checks See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The alpha reaches boot, title, intro, opening gameplay, audio and saving. Start-to-finish checks are incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/OpokXeno/xenogears-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA own multi-disc images; source generation needs SLUS006.64 and your own matching SCPH1001 BIOS; releases use OpenBIOS by default"
+          "instruction": "Use your own USA multi-disc images. Source generation needs SLUS006.64 and your matching SCPH1001 BIOS; release packages use OpenBIOS by default."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Releasepackages or source generation/compile; discat runtime"
+          "instruction": "Use the release package or generate code and compile from source. Keep your disc available during play."
         }
       ],
       "warnings": [
-        "Alpha boots/title/intro/openinggameplay/audio/save; no completed start-to-finish checks",
+        "The alpha reaches boot, title, intro, opening gameplay, audio and saving. Start-to-finish checks are incomplete.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/OpokXeno/xenogears-recomp"

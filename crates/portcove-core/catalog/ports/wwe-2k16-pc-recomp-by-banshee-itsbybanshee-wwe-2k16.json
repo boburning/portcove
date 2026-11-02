@@ -4,7 +4,7 @@
     "id": "wwe-2k16-pc-recomp-by-banshee-itsbybanshee-wwe-2k16",
     "name": "WWE 2K16 — WWE 2K16 PC Recomp (By Banshee) (itsbybanshee)",
     "original_game_title": "WWE 2K16",
-    "summary": "60 FPS gameplay/entrances described; broad progression unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes gameplay and entrances at 60 FPS. Broad progression remains unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/itsbybanshee/wwe2k16-pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Unzip Windows download and select own WWE2K16 ISO/folder; WebView2 required."
+          "instruction": "Extract the Windows download and select your own WWE 2K16 ISO or folder. WebView2 is required."
         }
       ],
       "warnings": [
-        "60 FPS gameplay/entrances described; broad progression unknown.",
+        "The project describes gameplay and entrances at 60 FPS. Broad progression remains unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/itsbybanshee/wwe2k16-pc"

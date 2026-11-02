@@ -4,7 +4,7 @@
     "id": "tutikumo-aoyagi01-monster-hunter-portable-2nd-g",
     "name": "Monster Hunter Portable 2nd G — Tutikumo (Aoyagi01)",
     "original_game_title": "Monster Hunter Portable 2nd G",
-    "summary": "upstream reports ahead-of-time compilation of all overlays, with interpreter fallback for untranslated code; the extent of playthrough testing is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports ahead-of-time compilation of all overlays with interpreter fallback for untranslated code. The extent of playthrough testing is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Aoyagi01/Tutikumo",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan ULJM05500 your own UMD ISO"
+          "instruction": "Use your own Japanese ULJM05500 UMD ISO."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "build from source and import your own ISO; unsigned overlay DLLs do not justify weakening Windows security in Portcove."
+          "instruction": "Build from source and import your own ISO. Do not weaken Windows security for unsigned overlay DLLs."
         }
       ],
       "warnings": [
-        "upstream reports ahead-of-time compilation of all overlays, with interpreter fallback for untranslated code; the extent of playthrough testing is unknown.",
+        "The project reports ahead-of-time compilation of all overlays with interpreter fallback for untranslated code. The extent of playthrough testing is unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Aoyagi01/Tutikumo"

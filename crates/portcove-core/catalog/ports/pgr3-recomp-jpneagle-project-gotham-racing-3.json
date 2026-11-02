@@ -4,7 +4,7 @@
     "id": "pgr3-recomp-jpneagle-project-gotham-racing-3",
     "name": "Project Gotham Racing 3 — PGR3-recomp (jpneagle)",
     "original_game_title": "Project Gotham Racing 3",
-    "summary": "Small slice checked using scripted input/frame/audio captures; expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Only a small section has been checked using scripted input and frame/audio captures. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jpneagle/PGR3-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Project Gotham Racing 3 Xbox360 Japan/Asia release only (En,Ja,Fr,De,Es,It,Zh,Ko), title4D5307D1, default.xex built2005-10-30T23:26:30Z, as XGD2 ISO or complete extracted game files. North American/European releases are untested and expected incompatible; bundled GeometryWars gw.xex is unsupported."
+          "instruction": "Use only your own Japan/Asia Xbox 360 Project Gotham Racing 3 release (En,Ja,Fr,De,Es,It,Zh,Ko), title 4D5307D1, with default.xex built 2005-10-30T23:26:30Z. Supply an XGD2 ISO or all extracted game files. North American and European releases are untested and expected to be incompatible. The bundled GeometryWars gw.xex is unsupported."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Small slice checked using scripted input/frame/audio captures; expect bugs.",
+        "Only a small section has been checked using scripted input and frame/audio captures. Expect bugs.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/jpneagle/PGR3-recomp"

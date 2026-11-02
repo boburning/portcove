@@ -4,7 +4,7 @@
     "id": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
     "name": "Dragon Ball Z: Budokai 2 — OpenKai2 (7v0biscuit)",
     "original_game_title": "Dragon Ball Z: Budokai 2",
-    "summary": "Windows guide: runtime reaches level selection; complete matches/performance/gameplay unvalidated. CPU renderer, a stable 60 FPS in the game unverified; ALL host audio output disabled including movies/menus/fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The Windows runtime reaches level selection. Complete matches, performance and gameplay have not been confirmed. It uses a CPU renderer; stable 60 FPS during play is unverified. All host audio is disabled, including movies, menus and fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/7v0biscuit/OpenKai2",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Published OpenKai2.exe self-contained portable launcher, OpenKai2-windows-x64.zip, or OpenKai2-Setup.exe; no Python/Visual Studio needed for downloaded package; owns ISO cache. Source generation/compilation only for developer route."
+          "instruction": "Use the self-contained portable OpenKai2.exe launcher from OpenKai2-windows-x64.zip, or the OpenKai2-Setup.exe installer. The downloaded package does not require Python or Visual Studio and manages its own ISO cache. Generating and compiling source is a separate developer procedure."
         }
       ],
       "warnings": [
-        "Windows guide: runtime reaches level selection; complete matches/performance/gameplay unvalidated. CPU renderer, a stable 60 FPS in the game unverified; ALL host audio output disabled including movies/menus/fights.",
+        "The Windows runtime reaches level selection. Complete matches, performance and gameplay have not been confirmed. It uses a CPU renderer; stable 60 FPS during play is unverified. All host audio is disabled, including movies, menus and fights.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/7v0biscuit/OpenKai2"

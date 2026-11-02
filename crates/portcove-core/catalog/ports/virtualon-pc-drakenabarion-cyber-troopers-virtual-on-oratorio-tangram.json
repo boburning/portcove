@@ -4,7 +4,7 @@
     "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on-oratorio-tangram",
     "name": "Cyber Troopers Virtual-On Oratorio Tangram — virtualon_pc (drakenabarion)",
     "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram",
-    "summary": "Experimental project. Upstream explicitly reports ot boot/menus/matches/audio; online unavailable. No completion or Portcove component qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports ot boot, menus, matches and audio. Online play is unavailable. Completion has not been established, and Portcove has not confirmed this component. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/drakenabarion/virtualon_pc",
     "platforms": ["linux-x86-64", "windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual shared VirtualOn AppImage/Windows ZIP/source build; select owned collection folder and ot in launcher (BB_EXE=ot), keeping omg/force as other game owners."
+          "instruction": "Use the shared VirtualOn AppImage or Windows ZIP, or build from source. Select your own collection folder and ot in the launcher (BB_EXE=ot). The omg and force components are separate games in the collection."
         }
       ],
       "warnings": [
-        "Upstream explicitly reports ot boot/menus/matches/audio; online unavailable. No completion or Portcove component qualification.",
+        "The project reports ot boot, menus, matches and audio. Online play is unavailable. Completion has not been established, and Portcove has not confirmed this component.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/drakenabarion/virtualon_pc"

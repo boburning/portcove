@@ -4,7 +4,7 @@
     "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on-force",
     "name": "Cyber Troopers Virtual-On Force — virtualon_pc (drakenabarion)",
     "original_game_title": "Cyber Troopers Virtual-On Force",
-    "summary": "Experimental project. Upstream explicitly reports force boot/menus/matches/audio; online unavailable. No full game or Portcove qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports force boot, menus, matches and audio. Online play is unavailable. Full-game compatibility has not been established, and Portcove has not confirmed it. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/drakenabarion/virtualon_pc",
     "platforms": ["linux-x86-64", "windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual shared VirtualOn AppImage/Windows ZIP or sourcebuild; own collection folder and force component selected in launcher (BB_EXE=force)."
+          "instruction": "Use the shared VirtualOn AppImage or Windows ZIP, or build from source. Select your own collection folder and the force component in the launcher (BB_EXE=force)."
         }
       ],
       "warnings": [
-        "Upstream explicitly reports force boot/menus/matches/audio; online unavailable. No full game or Portcove qualification.",
+        "The project reports force boot, menus, matches and audio. Online play is unavailable. Full-game compatibility has not been established, and Portcove has not confirmed it.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/drakenabarion/virtualon_pc"

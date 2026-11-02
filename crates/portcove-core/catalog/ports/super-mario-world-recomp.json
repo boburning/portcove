@@ -41,7 +41,7 @@
         {
           "role": "game",
           "profile_id": "super-mario-world-snes-usa",
-          "label": "Super Mario World (USA) stock headerless SNES game files",
+          "label": "Super Mario World (USA) stock headerless SNES source",
           "verification": "catalog-identity"
         }
       ],

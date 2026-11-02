@@ -4,7 +4,7 @@
     "id": "nhl-legacy-remaster-megarohas-nhl-legacy-edition",
     "name": "NHL Legacy Edition — NHL Legacy Remaster (megarohas)",
     "original_game_title": "NHL Legacy Edition",
-    "summary": "Port +2026/27 mod suite; README does not establish complete gameplay scope. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This combines a port with a 2026/27 mod suite. The README does not establish complete gameplay coverage. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/megarohas/nhl-legacy-remaster",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "title454109EC vanilla disc/GOD, no title updates; default.xex + BIG~6GB; SHA256 prefix d818eb15...c55624, full digest in upstream docs."
+          "instruction": "Use your own unmodified title 454109EC disc or GOD files without title updates, including default.xex and approximately 6 GB of BIG data. The documented SHA256 is abbreviated here as d818eb15...c55624; use the full digest in the project’s documentation to check your copy."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source ReXGlue0.10.0.24/custom SDK + VS2022Clang/CMake/Ninja/VulkanSDK; separate roster/asset mod pipeline; no public release observed."
+          "instruction": "Build from source with ReXGlue0.10.0.24, the custom SDK, VS2022 Clang, CMake, Ninja and VulkanSDK. Roster and asset mods use a separate preparation process. The recorded review did not find a public release."
         }
       ],
       "warnings": [
-        "Port +2026/27 mod suite; README does not establish complete gameplay scope.",
+        "This combines a port with a 2026/27 mod suite. The README does not establish complete gameplay coverage.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/megarohas/nhl-legacy-remaster"

@@ -17,7 +17,7 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Place DirectXbox-Recomp beside the checkout and run scripts/build.py on own disc files; Insignia additionally needs an own-console backup."
+          "instruction": "Place DirectXbox-Recomp beside the checkout and run scripts/build.py with your own disc files. Insignia also requires a backup from your own console."
         }
       ],
       "warnings": [

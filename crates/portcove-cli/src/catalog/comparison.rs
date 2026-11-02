@@ -112,7 +112,7 @@ pub(super) fn render(report: &GameComparison) -> String {
             }
             for dimension in &candidate.dimensions {
                 let state = match dimension.state {
-                    RecommendationDimensionState::Known => "Test results available",
+                    RecommendationDimensionState::Known => "Information available",
                     RecommendationDimensionState::Unknown => "Not recorded",
                     RecommendationDimensionState::NotApplicable => "Not applicable",
                     RecommendationDimensionState::Conflicting => "Conflicting results",
@@ -126,13 +126,13 @@ pub(super) fn render(report: &GameComparison) -> String {
                 let disposition = match record.disposition {
                     RecommendationEvidenceDisposition::Current => "Applies to this comparison",
                     RecommendationEvidenceDisposition::HistoricalScope => {
-                        "Earlier results for a different setup"
+                        "Information for different game, version or setup options"
                     }
                     RecommendationEvidenceDisposition::FutureObservation => {
                         "Date is after this comparison"
                     }
                     RecommendationEvidenceDisposition::UnsupportedObservationKind => {
-                        "Test type not supported by this comparison"
+                        "Information type not supported by this comparison"
                     }
                     RecommendationEvidenceDisposition::Superseded => "Replaced by newer results",
                     RecommendationEvidenceDisposition::Invalid => "Couldn’t use this result",
@@ -166,7 +166,7 @@ fn reason_label(value: RecommendationReason) -> &'static str {
             "This port uses a different game or edition."
         }
         RecommendationReason::DifferentPlatformOrEnvironment => {
-            "These tests used a different platform or setup."
+            "This information is for a different platform or setup."
         }
         RecommendationReason::SourceNotSelected => "Required original game files are not selected.",
         RecommendationReason::OperationUnknown => {
@@ -179,17 +179,17 @@ fn reason_label(value: RecommendationReason) -> &'static str {
             "A feature you need has not been confirmed for this version."
         }
         RecommendationReason::RequirementUnsupported => {
-            "This tested version does not support a feature you need."
+            "A feature you need is listed as unsupported for this version."
         }
         RecommendationReason::InvalidEvidence => {
-            "Some test results can’t be matched to this exact version or setup."
+            "Some information can’t be matched to this exact version or setup."
         }
-        RecommendationReason::ConflictingEvidence => "The test results disagree.",
+        RecommendationReason::ConflictingEvidence => "The available reports disagree.",
         RecommendationReason::CriticalRegression => {
             "A reported gameplay or save problem remains unresolved."
         }
         RecommendationReason::InsufficientCoverage => {
-            "There aren’t enough relevant test results to suggest this port."
+            "There isn’t enough relevant information to suggest this port."
         }
         RecommendationReason::GameplayUnobserved => {
             "Gameplay has not been confirmed for this exact version."
@@ -197,12 +197,12 @@ fn reason_label(value: RecommendationReason) -> &'static str {
         RecommendationReason::StabilityUnobserved => {
             "Stability and save reliability have not been confirmed for this exact version."
         }
-        RecommendationReason::GameplayBelowDefaultFloor => "Tests found gameplay limitations.",
+        RecommendationReason::GameplayBelowDefaultFloor => "Gameplay limitations are reported.",
         RecommendationReason::StabilityBelowDefaultFloor => {
-            "Tests found stability or save problems."
+            "Stability or save problems are reported."
         }
         RecommendationReason::MateriallyWorsePlayingExperience => {
-            "Another available port has stronger gameplay test results."
+            "Another available port has stronger gameplay information."
         }
     }
 }

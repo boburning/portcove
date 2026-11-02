@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "FM Towns Japan Queen of Duellist Rev A HME166A own10-trackdisc plus your own font ROM. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own Japanese FM Towns The Queen of Duellist Rev A HME166A disc with all 10 tracks, plus your own font ROM. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "fmtownskit own-disc EXP/TBIOS recompile, CMake build/rt/tqod. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Recompile EXP and TBIOS from your own disc with fmtownskit, then build build/rt/tqod with CMake. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "one fight reached from the title screen plus boundedimage/audio comparisons; restgamepending; MAMEisoracle not deliveryruntime. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports one fight reached from the title screen and limited image/audio comparisons. The rest of the game remains unfinished. MAME supplies reference results rather than the delivered runtime. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-thequeenofduellist"

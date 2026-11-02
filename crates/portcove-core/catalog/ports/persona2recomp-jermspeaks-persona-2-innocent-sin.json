@@ -4,7 +4,7 @@
     "id": "persona2recomp-jermspeaks-persona-2-innocent-sin",
     "name": "Persona 2: Innocent Sin — Persona2Recomp (jermspeaks)",
     "original_game_title": "Persona 2: Innocent Sin",
-    "summary": "Experimental project. Upstream in-progress source version 0.1.0 static recompilation with title-owned changes; full playthrough/platform acceptance not recorded. Generatedcode and framework licenses remain separate. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. This in-development version 0.1.0 uses static recompilation with game-specific changes. A full playthrough and platform acceptance have not been recorded. Generated-code and framework licences remain separate. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jermspeaks/Persona2Recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local owned-input source route: use the documented starting-without-generated-output recipe, build the emitters and regenerate C from the exact owned Japanese SLPS02100v1.0 image with the referenced GeminiEnglish v1.0a translation, then CMake/Ninja psx-runtime. The first-run wizard still requires the compatible disc. Upstream explicitly separates generated/third-party terms from its rootGPL; no publishing, redistribution or managed package offer is made here."
+          "instruction": "Follow the documented build recipe that starts without generated output. Build the emitters and regenerate C from your own Japanese SLPS02100 v1.0 image with the referenced GeminiEnglish v1.0a translation, then build psx-runtime with CMake and Ninja. The first-run wizard still needs a compatible disc. Upstream separates generated-code and third-party terms from its root GPL; these instructions grant no publishing, redistribution or managed-package permission."
         }
       ],
       "warnings": [
-        "Upstream in-progress source version 0.1.0 static recompilation with title-owned changes; full playthrough/platform acceptance not recorded. Generatedcode and framework licenses remain separate.",
+        "This in-development version 0.1.0 uses static recompilation with game-specific changes. A full playthrough and platform acceptance have not been recorded. Generated-code and framework licences remain separate.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/jermspeaks/Persona2Recomp"

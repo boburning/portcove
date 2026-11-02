@@ -4,7 +4,7 @@
     "id": "poka-poka-jm5557-monster-hunter-diary-poka-poka-felyne-village-g",
     "name": "Monster Hunter Diary: Poka Poka Felyne Village G — poka-poka (jM5557)",
     "original_game_title": "Monster Hunter Diary: Poka Poka Felyne Village G",
-    "summary": "Title-specific Yakumo/staticrecomp profile; the README’s recorded status must define the limits of playability. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This game has its own Yakumo static-recompilation profile. Check the README’s recorded status for its playability limits. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jM5557/poka-poka",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan ULJM05881 own game files"
+          "instruction": "Use your own Japanese ULJM05881 game files."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local compilation from your own game; generated binaries/private assets must not be redistributed."
+          "instruction": "Compile locally from your own game using the project’s instructions. Do not redistribute generated binaries or private assets."
         }
       ],
       "warnings": [
-        "Title-specific Yakumo/staticrecomp profile; the README’s recorded status must define the limits of playability.",
+        "This game has its own Yakumo static-recompilation profile. Check the README’s recorded status for its playability limits.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/jM5557/poka-poka"

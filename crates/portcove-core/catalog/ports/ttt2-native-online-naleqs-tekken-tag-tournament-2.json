@@ -4,7 +4,7 @@
     "id": "ttt2-native-online-naleqs-tekken-tag-tournament-2",
     "name": "Tekken Tag Tournament 2 — TTT2 Native Online (naleqs)",
     "original_game_title": "Tekken Tag Tournament 2",
-    "summary": "early development: native menus at 60 FPS/select/intros/fights,localversus; online is lockstep/inputdelay; rollback is unfinished, music/voices silent. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This early build reaches native menus at 60 FPS, selection, intros, fights and local versus. Online play uses lockstep and input delay; rollback is unfinished. Music and voices are silent. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/naleqs/TTT2-native-online",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own TekkenTagTournament2 USA/Europe Xbox360 ISO/extractedfolder; all gamefiles checked against the expected checksum, modified/other revisions are refused. Optional userTU3 andDLC; older title updates are ignored. Exact the exact fingerprint manifest is not included here."
+          "instruction": "Use your own USA or European Xbox 360 Tekken Tag Tournament 2 ISO or extracted folder. Setup checks all game-file checksums and rejects modified or unsupported revisions. TU3 and DLC are optional and must come from your own files; older title updates are ignored. This guide does not include the exact supported fingerprint manifest."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release TTT2NativeOnline.exe Setupthegame or source Setup.bat; verifies/copies ownfiles, fetches checked against the expected SHA-256 portable compiler(~250MB), translates Default.xexandcompiles into native/bin. Windows 10/11 x64AVX2,D3D11. Rebuild after codeupdates retains verified data."
+          "instruction": "In the release TTT2NativeOnline.exe, choose Setup the game, or follow the source Setup.bat procedure. It checks and copies your files, downloads an approximately 250 MB portable compiler checked against its expected SHA-256, translates Default.xex and compiles into native/bin. The player targets Windows 10/11 x64 with AVX2 and D3D11. Rebuilding after code updates retains verified data."
         }
       ],
       "warnings": [
-        "early development: native menus at 60 FPS/select/intros/fights,localversus; online is lockstep/inputdelay; rollback is unfinished, music/voices silent.",
+        "This early build reaches native menus at 60 FPS, selection, intros, fights and local versus. Online play uses lockstep and input delay; rollback is unfinished. Music and voices are silent.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/naleqs/TTT2-native-online"

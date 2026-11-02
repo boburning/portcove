@@ -28,7 +28,7 @@
           "instruction": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
         },
         {
-          "title": "Preserve the actual runtime and player data",
+          "title": "Keep the game version and data you use",
           "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
         },
         {

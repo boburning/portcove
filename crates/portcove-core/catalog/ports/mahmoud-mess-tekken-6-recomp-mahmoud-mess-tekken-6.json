@@ -4,7 +4,7 @@
     "id": "mahmoud-mess-tekken-6-recomp-mahmoud-mess-tekken-6",
     "name": "Tekken 6 — mahmoud-mess Tekken 6 Recomp (mahmoud-mess)",
     "original_game_title": "Tekken 6",
-    "summary": "Concrete source/codegen/package pipeline; no end-to-end playability claim in reviewed README. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The reviewed README documents source generation and packaging, but does not claim that the game is playable from start to finish. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mahmoud-mess/tekken6-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360 ISO/XEX; builder validates supported source. Exact revision not in root README."
+          "instruction": "Use your own Xbox 360 ISO or XEX. The builder checks whether it is a supported input. The main README does not specify the exact supported revision; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Portable ISO builder bundles compiler/project sources to generate native game locally; source LLVM-MinGW Windows cross-build also documented."
+          "instruction": "Use the portable ISO builder to generate the native game locally. It includes the compiler and project sources. The project also documents a Windows cross-build using LLVM-MinGW."
         }
       ],
       "warnings": [
-        "Concrete source/codegen/package pipeline; no end-to-end playability claim in reviewed README.",
+        "The reviewed README documents source generation and packaging, but does not claim that the game is playable from start to finish.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/mahmoud-mess/tekken6-recomp"

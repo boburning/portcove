@@ -4,7 +4,7 @@
     "id": "tornado-sp00nznet-tornado-outbreak",
     "name": "Tornado Outbreak — tornado (sp00nznet)",
     "original_game_title": "Tornado Outbreak",
-    "summary": "Experimental project. Upstream in-game NewGame/save/story/dialogue and controlled tornado first level at10–16FPS, followed by a white transition that never clears. Not campaign-playable/qualified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reaches New Game, saving, story, dialogue and controlled tornado gameplay in the first level at 10–16 FPS. A white transition then fails to clear. The campaign is not established as playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/tornado",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual Windows source route: own BLUS30371 disc/decrypted EBOOT.elf, tools/relift.sh then Python build.py and native build/tornado with PS3_VFS_ROOT/RSX_LIVE_DRAW/PS3_MAIN_STACK_LV2. Required keys/decrypt inputs stay local."
+          "instruction": "On Windows, follow the source build with your own BLUS30371 disc and decrypted EBOOT.elf. Run tools/relift.sh, then Python build.py, and start build/tornado with the documented PS3_VFS_ROOT, RSX_LIVE_DRAW and PS3_MAIN_STACK_LV2 settings. Keep required keys and decrypted inputs local."
         }
       ],
       "warnings": [
-        "Upstream in-game NewGame/save/story/dialogue and controlled tornado first level at10–16FPS, followed by a white transition that never clears. Not campaign-playable/qualified.",
+        "The project reaches New Game, saving, story, dialogue and controlled tornado gameplay in the first level at 10–16 FPS. A white transition then fails to clear. The campaign is not established as playable.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/sp00nznet/tornado"

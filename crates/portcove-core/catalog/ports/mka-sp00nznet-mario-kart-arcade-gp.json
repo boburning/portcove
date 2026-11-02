@@ -4,7 +4,7 @@
     "id": "mka-sp00nznet-mario-kart-arcade-gp",
     "name": "Mario Kart Arcade GP — mka (sp00nznet)",
     "original_game_title": "Mario Kart Arcade GP",
-    "summary": "Experimental project. Upstream native entry/Namco/DolphinOS subsystem boot, D3D11 window and test triangle; media-board real boot sequence still missing, title screen/race/audio/input unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The native entry starts the Namco and DolphinOS subsystems and opens a D3D11 window with a test triangle. The media-board boot sequence is still missing; the title screen, racing, audio and input remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/mka",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual Windows VS2022/CMake source build with owned GGPE01 arcade ISO, then mka_launcher.exe ISO. Media-board HLE replay/capture steps are developer research, not a complete player setup."
+          "instruction": "Build from source on Windows with VS2022 and CMake using your own GGPE01 arcade ISO. Follow the project’s mka_launcher.exe ISO launch instructions. Media-board HLE replay and capture procedures are developer research, not complete player setup."
         }
       ],
       "warnings": [
-        "Upstream native entry/Namco/DolphinOS subsystem boot, D3D11 window and test triangle; media-board real boot sequence still missing, title screen/race/audio/input unfinished.",
+        "The native entry starts the Namco and DolphinOS subsystems and opens a D3D11 window with a test triangle. The media-board boot sequence is still missing; the title screen, racing, audio and input remain unfinished.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/sp00nznet/mka"

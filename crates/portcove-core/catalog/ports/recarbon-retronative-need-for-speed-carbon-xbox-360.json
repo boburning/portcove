@@ -17,7 +17,7 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Apple Silicon source route: setup_tools.sh, survey.sh, CMake native ReCarbon build, then --install own image. App packaging documented but no public release. Current bundled libraries require macOS27; no downloaded player package asserted."
+          "instruction": "On Apple Silicon, follow setup_tools.sh and survey.sh, build the native ReCarbon target with CMake, then use --install with your own image. App packaging is documented, but there is no public release. The bundled libraries require macOS27. This guide does not establish a downloadable player package."
         }
       ],
       "warnings": [

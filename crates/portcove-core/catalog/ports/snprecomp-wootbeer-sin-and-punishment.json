@@ -4,7 +4,7 @@
     "id": "snprecomp-wootbeer-sin-and-punishment",
     "name": "Sin and Punishment — snprecomp (wootbeer)",
     "original_game_title": "Sin and Punishment",
-    "summary": "Native gameplay and translation/enhancement features described; exact full-stage/campaign scope unknown, Linux gameplay untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes native gameplay, translation and enhancements. Complete stage and campaign coverage are unknown; Linux gameplay is untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/wootbeer/snprecomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README releases: unzip SnPRecompiled.exe and choose own supported ROM; Linux tar.gz exists but untested. Source build documented separately."
+          "instruction": "Follow the README’s release instructions: extract SnPRecompiled.exe and choose your own supported ROM. A Linux tar.gz is published but untested. Source-build instructions are separate."
         }
       ],
       "warnings": [
-        "Native gameplay and translation/enhancement features described; exact full-stage/campaign scope unknown, Linux gameplay untested.",
+        "The project describes native gameplay, translation and enhancements. Complete stage and campaign coverage are unknown; Linux gameplay is untested.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/wootbeer/snprecomp"

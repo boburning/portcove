@@ -4,7 +4,7 @@
     "id": "ufc-undisputed-3-recomp-360recomper-ufc-undisputed-3",
     "name": "UFC Undisputed 3 — UFC Undisputed 3 Recomp (360recomper)",
     "original_game_title": "UFC Undisputed 3",
-    "summary": "Career claimed playable start to finish, fixing earlier fight-transition crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project claims career play from start to finish after fixing earlier fight-transition crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/360recomper/UFC3ReX",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Career claimed playable start to finish, fixing earlier fight-transition crashes.",
+        "The project claims career play from start to finish after fixing earlier fight-transition crashes.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/360recomper/UFC3ReX"

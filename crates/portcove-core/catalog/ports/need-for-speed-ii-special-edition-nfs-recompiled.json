@@ -34,7 +34,7 @@
           "instruction": "Keep the complete creating runtime, writable original installation, CD roots, configuration, saves, replays, mods/custom and unknown files. The shared file backend maps relative Win32 paths to the installation and drive-letter paths to the CD root, including writes/removal. Preserve both actual roots and compatible old copy before upstream changes; a registry stub is not proof of a registry-based save backup. Static Windows headers do not qualify the separately documented Linux build."
         },
         {
-          "title": "Review the completed player and intent",
+          "title": "Review the prepared player and launch details",
           "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
         {

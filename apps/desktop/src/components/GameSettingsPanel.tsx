@@ -123,15 +123,22 @@ function SettingEditor({
         !Number.isFinite(value) ||
         (type.kind === "integer" && !Number.isSafeInteger(value))
       ) {
-        setError(type.kind === "integer" ? "Enter a whole number." : "Enter a number.");
+        setError(
+          typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)
+            ? "This number is too large to save accurately."
+            : type.kind === "integer"
+              ? "Enter a whole number."
+              : "Enter a number.",
+        );
         return;
       }
     }
-    if (
-      value === undefined ||
-      (typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value))
-    ) {
+    if (value === undefined) {
       setError("Choose one of the listed options.");
+      return;
+    }
+    if (typeof value === "number" && Number.isInteger(value) && !Number.isSafeInteger(value)) {
+      setError("This number is too large to save accurately.");
       return;
     }
     setError(undefined);

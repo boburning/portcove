@@ -4,7 +4,7 @@
     "id": "vincequene-table-tennis-recomp-vincequene-rockstar-games-presents-table-tennis",
     "name": "Rockstar Games Presents Table Tennis — vincequene Table Tennis Recomp (vincequene)",
     "original_game_title": "Rockstar Games Presents Table Tennis",
-    "summary": "Upstream claims full game playable/controller/keyboard; known limitations and local fixes listed. No Portcove gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project claims the full game is playable with controller and keyboard, and lists known limitations and local fixes. Portcove has not tested gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vincequene/rockstar-table-tennis-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360 ISO title545407DF; exact region/media/revision unknown in reviewed README."
+          "instruction": "Use your own Xbox 360 ISO for title 545407DF. The reviewed README does not specify the exact supported region, media ID or revision; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Upstream claims full game playable/controller/keyboard; known limitations and local fixes listed. No Portcove gameplay.",
+        "The project claims the full game is playable with controller and keyboard, and lists known limitations and local fixes. Portcove has not tested gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/vincequene/rockstar-table-tennis-recomp"

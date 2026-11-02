@@ -18,7 +18,7 @@
           "instruction": "Prepare OpenEnroth upstream using your own supported Might and Magic VII installation and its ANIMS, DATA, MUSIC and SOUNDS trees. Planned Might and Magic VI/VIII support does not make their data interchangeable. Choose the actual compatible Windows CPU/build variant and native OpenEnroth.exe, retaining its libraries and resources. A moving nightly name does not establish compatibility with an arbitrary copy."
         },
         {
-          "title": "Retain the separate data and user coordinates",
+          "title": "Keep the separate game-data and user-data paths",
           "instruction": "Keep the actual working directory and established literal --data-path and --user-path arguments. --portable defaults both paths to the working directory; an existing .portable file can also select portable mode. Do not add either merely to register. Existing OPENENROTH_MM7_PATH and upstream automatic discovery can affect data selection; Portcove does not inject that environment. Windows normally uses Saved Games/OpenEnroth for user state, with a working-directory fallback when the known-folder lookup is unavailable. Preserve the actual selected paths and openenroth.ini."
         },
         {

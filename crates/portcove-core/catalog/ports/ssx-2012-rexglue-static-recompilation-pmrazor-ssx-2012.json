@@ -4,7 +4,7 @@
     "id": "ssx-2012-rexglue-static-recompilation-pmrazor-ssx-2012",
     "name": "SSX (2012) — SSX (2012) — rexglue static recompilation (pmrazor)",
     "original_game_title": "SSX (2012)",
-    "summary": "Races/saves work on RTX4070; 2x UI glitches, Linux/macOS untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports races and saves on an RTX4070. UI glitches remain at 2x, and Linux and macOS are untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/pmrazor/SSX-RexGlue",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Races/saves work on RTX4070; 2x UI glitches, Linux/macOS untested.",
+        "The project reports races and saves on an RTX4070. UI glitches remain at 2x, and Linux and macOS are untested.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/pmrazor/SSX-RexGlue"

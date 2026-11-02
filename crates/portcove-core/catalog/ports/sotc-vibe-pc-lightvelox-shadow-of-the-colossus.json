@@ -4,7 +4,7 @@
     "id": "sotc-vibe-pc-lightvelox-shadow-of-the-colossus",
     "name": "Shadow of the Colossus — sotc-vibe-pc (LightVelox)",
     "original_game_title": "Shadow of the Colossus",
-    "summary": "Static EE/XFF + IOP interpreter; runtime device emulation remains; exact gameplay/playthrough boundary needs progress guide. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This uses static EE/XFF translation with an IOP interpreter and runtime device emulation. Check the progress guide for the exact gameplay and playthrough limits. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LightVelox/sotc-vibe-pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PAL SCES53326 v1.00 ISO"
+          "instruction": "Use your own PAL SCES53326 v1.00 ISO."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Prebuilt Windows packages accept own PALv1.00 disc; source generation/build also documented."
+          "instruction": "Use the prebuilt Windows package with your own PALv1.00 disc. The project also documents local code generation and source building."
         }
       ],
       "warnings": [
-        "Static EE/XFF + IOP interpreter; runtime device emulation remains; exact gameplay/playthrough boundary needs progress guide.",
+        "This uses static EE/XFF translation with an IOP interpreter and runtime device emulation. Check the progress guide for the exact gameplay and playthrough limits.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/LightVelox/sotc-vibe-pc"

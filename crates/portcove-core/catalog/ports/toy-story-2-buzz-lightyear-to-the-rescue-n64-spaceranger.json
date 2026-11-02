@@ -22,7 +22,7 @@
           "instruction": "The inspected official 0.1.0 ZIP contains SpaceRanger/SpaceRanger.exe as an AMD64 native player with matching libraries and assets. Keep the full SpaceRanger folder. Its source combines recompiled game code with title-specific runtime/frontend bridges and RT64; a source build regenerating private game code is a separate route. Do not select a ROM, build script, overlay diagnostic or another title’s player. This guide obtains or executes no original, helper, compiler or game."
         },
         {
-          "title": "Attach the ordinary title-screen route",
+          "title": "Add the player that opens the title screen",
           "instruction": "Select SpaceRanger.exe, use the complete extracted SpaceRanger directory as working directory and leave arguments empty. Review the intent and request Play separately, then use the upstream Start Game option with the already validated ROM. The normal native entry sets its directory, initializes the UI and runs the linked runtime in process. Asset checks, overlay checks, input replay and TS2_AUTOSTART are different diagnostic paths; this guide enables none. Complete missing data/setup outside the attached attempt."
         },
         {

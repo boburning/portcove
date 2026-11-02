@@ -13,11 +13,11 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "your own PS3 disc/ELF+assets; exactserial/revision unspecified"
+          "instruction": "Use your own PS3 disc, ELF and assets. This guide does not specify the supported serial number or revision; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source local PPU/SPU lift/build; introvideo skipped by the optional VFS route"
+          "instruction": "Generate and build PPU/SPU code locally from source. The optional VFS procedure skips the intro video."
         }
       ],
       "warnings": [

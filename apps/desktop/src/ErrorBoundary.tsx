@@ -49,10 +49,10 @@ function RenderRecovery({ error }: { error: Error }) {
           Reload Portcove
         </Button>
         <details className="bootstrap-recovery-details">
-          <summary>Portcove couldn’t display this screen details</summary>
+          <summary>Error details</summary>
           <textarea
             readOnly
-            aria-label="Portcove couldn’t display this screen diagnostics"
+            aria-label="Screen error details"
             value={error.message || "Unknown display error"}
           />
         </details>

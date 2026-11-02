@@ -4,7 +4,7 @@
     "id": "ror-port-raikodenpa-rule-of-rose",
     "name": "Rule of Rose — RoR-Port (RaikoDenpa)",
     "original_game_title": "Rule of Rose",
-    "summary": "Native reverse-engineered/static-recomp game boots to main and draws first frames; personal WIP. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/RaikoDenpa/RoR-Port",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PAL SLES54218 owned disc"
+          "instruction": "Use your own PAL SLES54218 disc."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local generation/build via Ghidra and own disc; no ordinary player package claimed."
+          "instruction": "Generate code and build locally with Ghidra and your own disc. This guide does not establish a ready-to-run player package."
         }
       ],
       "warnings": [
-        "Native reverse-engineered/static-recomp game boots to main and draws first frames; personal WIP.",
+        "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/RaikoDenpa/RoR-Port"

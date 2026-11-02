@@ -25,11 +25,11 @@
           "instruction": "This conditional guide applies only to a copy and components you are already permitted to use. The reviewed v0.36.0 LICENSE/NOTICE covers the project’s own platform/tooling work but expressly excludes recovered Metroid Prime game code, console SDK/runtime and symbol data; it asserts no redistribution permission for those components. Public package availability and its checksum do not resolve the canonical package-use/acquisition condition. This guide performs no download, build, installer or rights acquisition."
         },
         {
-          "title": "Keep the actual supported original-disc and player contract",
+          "title": "Use the matching original disc and player",
           "instruction": "The Windows x86-64 player is metroid_prime_port.exe; retain its complete package, DLLs and licenses. Base upstream setup uses your own GameCube USA GM8E01 1.00/1.01/1.02 or PAL GM8P01, or the documented Trilogy USA R3ME01/PAL R3MP01, in a supported ISO/GCM/RVZ/WBFS/CISO/NKIT representation. Follow upstream’s existing disc-selection flow outside Portcove. Preserve originals separately; Core does not authenticate or import them. Optional Remastered/Dread/Switch content, keys, FFmpeg imports, mods and networking are outside this base attachment guide."
         },
         {
-          "title": "Attach the completed native player and choose Play separately",
+          "title": "Add the completed native player, then choose Play",
           "instruction": "Finish setup with the project’s tools, then select the Windows game executable, working folder and supported launch arguments in Portcove. Review and agree to those details, then choose Play separately. Keep the complete package together and close the game and companion programs before changing files. You manage this external copy; Portcove does not replace it or back up, convert, migrate or delete its data. Removing its registration leaves those files in place. Source review and automated registration checks do not confirm an installed game session, successful forced exit, gameplay or save compatibility."
         },
         {

@@ -4,7 +4,7 @@
     "id": "vf2rekomped-donslopenberg-virtua-fighter-2-xbox-live-arcade-2012",
     "name": "Virtua Fighter 2 (Xbox Live Arcade, 2012) — VF2reKOmped (DonSlopenberg)",
     "original_game_title": "Virtua Fighter 2 (Xbox Live Arcade, 2012)",
-    "summary": "Matches/native high-resolution rendering described; full progression unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes matches and native high-resolution rendering. Full progression is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/DonSlopenberg/VF2reKOmped",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Matches/native high-resolution rendering described; full progression unknown.",
+        "The project describes matches and native high-resolution rendering. Full progression is unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/DonSlopenberg/VF2reKOmped"

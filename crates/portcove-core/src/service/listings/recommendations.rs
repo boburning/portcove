@@ -723,7 +723,10 @@ fn operation_eligibility(
 
 fn comparison_action_reason(assessment: &crate::PortActionAssessment) -> &'static str {
     use crate::PortActionReason;
-    if let Some(definition) = assessment.definition {
+    if let Some(definition) = assessment
+        .definition
+        .filter(|_| assessment.reason == PortActionReason::DefinitionIneligible)
+    {
         use crate::DefinitionEligibilityReason as Reason;
         return match definition.reason {
             Reason::MandatoryChecksPassed => {

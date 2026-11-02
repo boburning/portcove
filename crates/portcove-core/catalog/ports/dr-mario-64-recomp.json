@@ -61,7 +61,7 @@
         {
           "role": "game",
           "profile_id": "dr-mario-64",
-          "label": "Dr. Mario 64 game files",
+          "label": "Dr. Mario 64 source",
           "verification": "catalog-identity"
         }
       ],

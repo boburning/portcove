@@ -4,7 +4,7 @@
     "id": "vcs-recomp-theurbanninja1993-sketch-grand-theft-auto-vice-city-stories-ps2",
     "name": "Grand Theft Auto: Vice City Stories (PS2) — vcs-recomp (theurbanninja1993-sketch)",
     "original_game_title": "Grand Theft Auto: Vice City Stories (PS2)",
-    "summary": "Source-only PS2 edition recompilation; independent from PSP VCS implementations/source editions. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This source-only recompilation targets the PS2 edition. It is independent of PSP Vice City Stories implementations and their original-file editions. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SLUS21590 owned disc"
+          "instruction": "Use your own USA SLUS21590 disc."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Source-only PS2 edition recompilation; independent from PSP VCS implementations/source editions.",
+        "This source-only recompilation targets the PS2 edition. It is independent of PSP Vice City Stories implementations and their original-file editions.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp"

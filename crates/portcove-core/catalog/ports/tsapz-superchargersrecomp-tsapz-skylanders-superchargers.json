@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own Xbox360TwoPAL discsEn/De andEs/ItISO/extractedfolder; the title ID is not recorded; accepted executable fingerprints: 02ff6672d460c9aaa54e69d584af67a7138c6c93cde5e04b0da4284207be7c61 default.xex 02846647633e93c627e74b92d3ad63a90e1504546958fc8d81e28ac65de1f9bc default.xex"
+          "instruction": "Use your own Xbox 360 PAL ISO or extracted folder. The documented disc editions are English/German and Spanish/Italian; the title ID is not recorded here. Accepted default.xex fingerprints are 02ff6672d460c9aaa54e69d584af67a7138c6c93cde5e04b0da4284207be7c61 and 02846647633e93c627e74b92d3ad63a90e1504546958fc8d81e28ac65de1f9bc."
         },
         {
           "title": "Follow upstream setup",

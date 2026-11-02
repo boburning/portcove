@@ -4,7 +4,7 @@
     "id": "voot-virtual-on-oratorio-tangram-xbox-360-static-recompilation-sp00nznet-cyber-troopers-virtual-on-o-229659f0d2",
     "name": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360) — VOOT - Virtual On: Oratorio Tangram (Xbox 360) Static Recompilation (sp00nznet)",
     "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360)",
-    "summary": "Phase1 foundation; full gameplay unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This is a phase 1 foundation. Full gameplay remains unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/voot",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Generate code from own VirtualOn XBLA executable and compile Windows target."
+          "instruction": "Generate code from your own VirtualOn XBLA executable and compile the Windows target."
         }
       ],
       "warnings": [
-        "Phase1 foundation; full gameplay unfinished.",
+        "This is a phase 1 foundation. Full gameplay remains unfinished.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/sp00nznet/voot"

@@ -4,7 +4,7 @@
     "id": "wcw-mayhem-recomp-dotgrx-wcw-mayhem",
     "name": "WCW Mayhem — WCW-Mayhem-RECOMP (dotGrx)",
     "original_game_title": "WCW Mayhem",
-    "summary": "Experimental project. Upstream native x64 wrestling project with widescreen/controller/mod features;21:9/fit-to-window untested. Full roster/matches/completion not Portcove-verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project describes native x64 wrestling with widescreen, controller and mod features. 21:9 and fit-to-window are untested. Portcove has not confirmed full roster, match or completion coverage. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Upstream native x64 wrestling project with widescreen/controller/mod features;21:9/fit-to-window untested. Full roster/matches/completion not Portcove-verified.",
+        "The project describes native x64 wrestling with widescreen, controller and mod features. 21:9 and fit-to-window are untested. Portcove has not confirmed full roster, match or completion coverage.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP"

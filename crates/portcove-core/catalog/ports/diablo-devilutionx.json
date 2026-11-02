@@ -95,7 +95,7 @@
         {
           "role": "game",
           "profile_id": "diablo-devilutionx-retail-originals",
-          "label": "Required retail Diablo MPQ files",
+          "label": "Diablo reviewed retail MPQ set",
           "verification": "catalog-identity"
         }
       ],

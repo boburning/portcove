@@ -17,7 +17,7 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Setup.cmd obtains tools/recompiles from own RockBandBlitz package; player supplies song keys from own console."
+          "instruction": "Run Setup.cmd with your own Rock Band Blitz package. It downloads the tools and recompiles locally. Supply song keys from your own console."
         }
       ],
       "warnings": [

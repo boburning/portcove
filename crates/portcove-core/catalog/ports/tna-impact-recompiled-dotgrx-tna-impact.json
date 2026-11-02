@@ -4,7 +4,7 @@
     "id": "tna-impact-recompiled-dotgrx-tna-impact",
     "name": "TNA iMPACT! — TNA iMPACT! Recompiled (dotGrx)",
     "original_game_title": "TNA iMPACT!",
-    "summary": "Player runtime/controls documented; campaign/match completion unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The player runtime and controls are documented. Campaign and match completion are unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Player runtime/controls documented; campaign/match completion unknown.",
+        "The player runtime and controls are documented. Campaign and match completion are unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp"

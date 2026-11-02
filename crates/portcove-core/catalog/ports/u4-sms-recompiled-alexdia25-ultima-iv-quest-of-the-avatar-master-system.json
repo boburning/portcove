@@ -4,7 +4,7 @@
     "id": "u4-sms-recompiled-alexdia25-ultima-iv-quest-of-the-avatar-master-system",
     "name": "Ultima IV: Quest of the Avatar (Master System) — u4-sms-recompiled (alexdia25)",
     "original_game_title": "Ultima IV: Quest of the Avatar (Master System)",
-    "summary": "Native map/combat/shop/dungeon/audio/save systems and shadow comparisons described; full-game completion not independently verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes native map, combat, shop, dungeon, audio and save systems with reference comparisons. Full-game completion has not been independently verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/alexdia25/u4-sms-recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Europe/USA512KiB ROM SHA1 a90e21e5961bcf2e10b715a009c04e7c2017a3b1"
+          "instruction": "Use your own European/USA 512 KiB ROM with SHA1 a90e21e5961bcf2e10b715a009c04e7c2017a3b1."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source: setup.py ROM --pc builds asset pack, translated C and native u4.exe using Zig/SDL2. Player packaging can import own ROM once, then run from u4.pak without original ROM. No published asset bytes inspected."
+          "instruction": "For a source build, run setup.py ROM --pc to create the asset pack, translated C and native u4.exe using Zig and SDL2. Player packages can import your ROM once and then run from u4.pak without it. The recorded review did not inspect published asset bytes."
         }
       ],
       "warnings": [
-        "Native map/combat/shop/dungeon/audio/save systems and shadow comparisons described; full-game completion not independently verified.",
+        "The project describes native map, combat, shop, dungeon, audio and save systems with reference comparisons. Full-game completion has not been independently verified.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/alexdia25/u4-sms-recompiled"

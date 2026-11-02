@@ -4,7 +4,7 @@
     "id": "ocho-kart-recomp-kymie131-el-chavo-kart",
     "name": "El Chavo Kart — ocho-kart-recomp (Kymie131)",
     "original_game_title": "El Chavo Kart",
-    "summary": "Boots past intro and reaches gameplay; full progression unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports reaching gameplay after the intro. Full progression has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Kymie131/ocho-kart-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Boots past intro and reaches gameplay; full progression unknown.",
+        "The project reports reaching gameplay after the intro. Full progression has not been confirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Kymie131/ocho-kart-recomp"

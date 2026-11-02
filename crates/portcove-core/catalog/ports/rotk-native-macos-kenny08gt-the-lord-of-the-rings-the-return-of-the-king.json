@@ -4,7 +4,7 @@
     "id": "rotk-native-macos-kenny08gt-the-lord-of-the-rings-the-return-of-the-king",
     "name": "The Lord of the Rings: The Return of the King — ROTK native macOS (kenny08gt)",
     "original_game_title": "The Lord of the Rings: The Return of the King",
-    "summary": "Boot/menu/movies/Helm’s Deep audio/gameplay near 60 FPS on an M1 Max; frame rates drop in the largest fights See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports boot, menus, movies and Helm’s Deep audio/gameplay near 60 FPS on an M1 Max. Frame rates drop during the largest fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/kenny08gt/rotk-native",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA GKLE69 own disc; the exact revision is unknown"
+          "instruction": "Use your own USA GKLE69 disc. This guide does not specify the exact supported revision; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source localcodegen/build"
+          "instruction": "Generate code and build locally from source using the project’s instructions."
         }
       ],
       "warnings": [
-        "Boot/menu/movies/Helm’s Deep audio/gameplay near 60 FPS on an M1 Max; frame rates drop in the largest fights",
+        "The project reports boot, menus, movies and Helm’s Deep audio/gameplay near 60 FPS on an M1 Max. Frame rates drop during the largest fights.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/kenny08gt/rotk-native"

@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SCUS-94300 own14-track CUE/BIN. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own USA SCUS-94300 CUE/BIN with all 14 tracks. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Clean Mac workflow checked; Windows cross-compiled but native workflow pending; renderer improvements not physics unlock. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project checked a clean Mac setup. Windows was cross-compiled, but native Windows setup remains untested. Renderer improvements do not unlock physics. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp"

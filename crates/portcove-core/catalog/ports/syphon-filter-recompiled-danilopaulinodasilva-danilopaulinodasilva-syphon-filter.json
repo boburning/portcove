@@ -4,7 +4,7 @@
     "id": "syphon-filter-recompiled-danilopaulinodasilva-danilopaulinodasilva-syphon-filter",
     "name": "Syphon Filter — Syphon Filter Recompiled (danilopaulinodasilva) (danilopaulinodasilva)",
     "original_game_title": "Syphon Filter",
-    "summary": "the first mission, Georgia Street, and attract mode; later missions have not been checked See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports the first mission, Georgia Street, and attract mode. Later missions have not been checked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SCUS94240 own disc generated locally; OpenBIOS is bundled"
+          "instruction": "Generate the game locally from your own USA SCUS94240 disc. OpenBIOS is bundled."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "source generation locally/build; generated C is not distributed"
+          "instruction": "Generate source and build locally using the project’s instructions. Generated C is not distributed."
         }
       ],
       "warnings": [
-        "the first mission, Georgia Street, and attract mode; later missions have not been checked",
+        "The project reports the first mission, Georgia Street, and attract mode. Later missions have not been checked.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/danilopaulinodasilva/SyphonFilterRecomp"

@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan SLPS-01762 Pepsiman own disc plus SCPH1000 BIOS. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own Japanese SLPS-01762 Pepsiman disc and SCPH1000 BIOS. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "LLE BIOS/CD validation/main handoff only; overlays/progression pending; early native runtime not playable claim. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports low-level BIOS and CD validation and handoff to the main program only. Overlays and progression remain unfinished; this is not an established playable runtime. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Cybertwip/PepsiMan"

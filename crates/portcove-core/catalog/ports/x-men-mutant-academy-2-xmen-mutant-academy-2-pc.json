@@ -26,11 +26,11 @@
           "instruction": "Use only an already completed XMenMA2 native copy and components you are independently permitted to use. Fresh package acquisition remains held: the selected v1.1 package includes original-derived 4x textures, and exclusion of those files from the source tree does not settle their package permission. This guide does not establish a grant, recommend that download, or authorize generation or redistribution of game-derived code, art or output."
         },
         {
-          "title": "Keep the title-specific original and preparation boundary",
+          "title": "Use this game’s matching original and setup",
           "instruction": "The inspected upstream Windows x64 player targets X-Men: Mutant Academy 2 USA SLUS-01382. Keep your own CUE/BIN with all 13 tracks or supported CHD. No BIOS image is documented as required for this RecompOne player. Complete all upstream preparation separately; Portcove does not extract, compile, obtain or authenticate original data. The source checks the disc volume label, which is not full-image digest verification."
         },
         {
-          "title": "Attach the completed native player",
+          "title": "Add the completed native player",
           "instruction": "Select the existing XMenMA2.exe, its containing directory as working directory, and one literal absolute path to your supported CUE or CHD as its first argument. Keep the complete creating copy and matching components. The inspected Program.Main runs the game in the selected process and shuts its runtime down before returning; it also anchors writes to the executable directory. Do not attach a build script, generator, package tool or another PS1 player."
         },
         {

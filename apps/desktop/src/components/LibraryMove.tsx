@@ -360,8 +360,7 @@ export function LibraryCopySummary({
       )}
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         Copying these files does not update their saved locations. Keep the originals until you
-        choose the new locations. Keep the original game files available until you explicitly add
-        another location.
+        choose the new locations.
       </p>
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         Original game files, saves, backups and artwork remain in place. Later saves and settings

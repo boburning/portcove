@@ -58,7 +58,7 @@
         {
           "role": "game",
           "profile_id": "bomberman-hero",
-          "label": "Bomberman Hero (US) game files",
+          "label": "Bomberman Hero (US) source",
           "verification": "catalog-identity"
         }
       ],

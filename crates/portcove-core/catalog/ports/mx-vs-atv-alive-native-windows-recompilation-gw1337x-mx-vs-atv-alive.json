@@ -4,7 +4,7 @@
     "id": "mx-vs-atv-alive-native-windows-recompilation-gw1337x-mx-vs-atv-alive",
     "name": "MX vs. ATV Alive — MX vs. ATV Alive — Native Windows Recompilation (gw1337x)",
     "original_game_title": "MX vs. ATV Alive",
-    "summary": "Full Short Track/Free Ride work; partial single-player, and 2K crash once damaged a save. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project reports working Short Track and Free Ride modes with partial single-player support. A 2K crash once damaged a save; keep a separate backup. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/gw1337x/mx-vs-atv-alive-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Full Short Track/Free Ride work; partial single-player, and 2K crash once damaged a save.",
+        "The project reports working Short Track and Free Ride modes with partial single-player support. A 2K crash once damaged a save; keep a separate backup.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/gw1337x/mx-vs-atv-alive-recomp"

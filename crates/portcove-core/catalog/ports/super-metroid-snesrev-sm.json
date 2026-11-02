@@ -21,7 +21,7 @@
           "instruction": "Select your already working sm.exe. The Visual Studio Release recipe writes build/bin-x64-Release/sm.exe; the Make recipe builds the sm target at the project root. Use your established runtime root containing the configuration and saves as the working directory. Do not select run_with_tcc.bat, a compiler or another build wrapper. Keep your supported raw sm.smc, SHA-1 da957f0d63d14cb441d215462904c4fa8519c613; the guide does not establish alternate revisions, copier headers or archive representations."
         },
         {
-          "title": "Preserve the actual configuration and literal arguments",
+          "title": "Keep your configuration and exact launch arguments",
           "instruction": "For an explicit invocation use three literal tokens in this order: --config, the absolute path to your actual existing configuration, and the absolute path to your supported ROM. Preserve sm.user.ini if that is your active override; otherwise use your existing sm.ini. Keep spaces inside each path token. This explicit --config avoids upward sm.ini directory discovery, but relative data still uses the chosen working directory. Preserve an already working custom invocation rather than switching profiles."
         },
         {

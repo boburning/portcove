@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "SyphonFilterUSA Rev1 own SCUS_942.40 and compatible BIOS. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own USA Rev1 Syphon Filter SCUS_942.40 executable and a compatible BIOS. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Recursive clone and tools/build-windows.ps1 -GameExe own executable; archived build/play docs. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Clone the repository recursively and follow its archived build and play instructions. Run tools/build-windows.ps1 -GameExe with your own executable. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Archived native mouse/camera renderer research; successor Alexbeav/SF-pc-port based on Madxbio decomp is distinct lineage, no successor results borrowed. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "This archived project researches native mouse input, camera and rendering. Its successor Alexbeav/SF-pc-port uses Madxbio’s decompilation and is a distinct implementation; successor results do not establish that this archived version works. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Alexbeav/syphon_filter_redux"

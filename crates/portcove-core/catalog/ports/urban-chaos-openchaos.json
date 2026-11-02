@@ -34,7 +34,7 @@
           "instruction": "Preserve the complete creating game directory and current account’s AppData/OpenChaos profile: OpenChaos.config.json, saves, OpenChaos.crash_log.txt, debug and custom files. Writes normally use that overlay and reads prefer it over original files; all copies share it. Failed SDL preference lookup, early crash handling or absolute paths can use the creating working directory or explicit paths instead. Retain every effective root, not only the normal profile. No migration or real-save compatibility is established."
         },
         {
-          "title": "Review the prepared executable and intent",
+          "title": "Review the game program and launch details",
           "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
         },
         {

@@ -29,7 +29,7 @@
           "instruction": "The reviewed 1.14.0 Windows AMD64 package contains retip.exe, retip.toml, the retip directory, retip_pipelines.bin, rex runtime/DXC DLLs and crash reporter companions. Attach the completed retip.exe with its established package working directory. Public title code uses an in-process ReXApp/windowed-app entry and opens the prepared game through its launch menu; the customized backend/native renderer is not public, so this is not a full backend or companion-process certification. No private backend access, build, GameJolt login or compiler execution is requested."
         },
         {
-          "title": "Attach the completed native player and choose Play separately",
+          "title": "Add the completed native player, then choose Play",
           "instruction": "Finish setup with the project’s tools, then select the Windows game executable, working folder and supported launch arguments in Portcove. Review and agree to those details, then choose Play separately. Keep the complete package together and close the game and companion programs before changing files. You manage this external copy; Portcove does not replace it or back up, convert, migrate or delete its data. Removing its registration leaves those files in place. Source review and automated registration checks do not confirm an installed game session, successful forced exit, gameplay or save compatibility."
         },
         {

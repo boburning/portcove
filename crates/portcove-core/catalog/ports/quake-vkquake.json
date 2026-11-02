@@ -22,7 +22,7 @@
           "instruction": "Prepare your own supported classic or rerelease Quake data using the upstream installer/store discovery or complete portable-copy instructions. Keep actual base/id1 PAKs and selected expansions/mods with their compatible data. Finish the upstream picker and normal start/quit before registration. Do not overwrite your only retained copy while changing engines. Engine licensing does not license original assets or arbitrary mods; Core does not acquire, hash-admit or import these originals."
         },
         {
-          "title": "Retain the established launch coordinates",
+          "title": "Keep your existing launch settings",
           "instruction": "Use the actual prepared runtime directory as working directory and the same supported literal arguments as your working setup. Preserve an actually used -basedir plus its absolute path as separate tokens, existing game/edition and -multiuser choices; do not introduce another profile or choose a different store edition merely to register it. Review exact intent/consent, then choose Play separately."
         },
         {

@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Title4D53004B PALv2 XBE SHA1 676895b86f01938804c5f1cdcad8b44044295cb4 or NTSCv5 ec6e902fc167de349f1dc1838a7441dfff932c62; media-patched profiles separately listed"
+          "instruction": "Use your own title 4D53004B game with PALv2 XBE SHA1 676895b86f01938804c5f1cdcad8b44044295cb4 or NTSCv5 XBE SHA1 ec6e902fc167de349f1dc1838a7441dfff932c62. Media-patched profiles are listed separately by the project."
         },
         {
           "title": "Follow upstream setup",

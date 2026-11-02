@@ -4,7 +4,7 @@
     "id": "manx-burnout3-retrorecompilations-burnout-3-takedown",
     "name": "Burnout 3: Takedown — MANX Burnout3 (RetroRecompilations)",
     "original_game_title": "Burnout 3: Takedown",
-    "summary": "Experimental project. Current header identifies own MANXFramework game app, title kernel bridge/transformed functions/RenderWare loaders/D3D8-Vulkan path. Detailed Windows screenshots/status below are explicitly historical predecessor research, not proof of current Linux gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The current project header describes a MANXFramework game app with a game-specific kernel bridge, transformed functions, RenderWare loaders and D3D8-to-Vulkan rendering. The Windows screenshots and status notes below describe a historical predecessor; they do not establish that the current Linux version works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/RetroRecompilations/MANXBurnout3",
     "platforms": [],
     "availability": "unknown",
@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own original Xbox Burnout3 Takedown extracted game directory containing default.xbe and game data. Exact accepted revision/hash not established; historical titleID0x4541005B/XDK5849 table is not new input-validation proof."
+          "instruction": "Use your own extracted original-Xbox Burnout 3: Takedown folder containing default.xbe and all game data. The exact supported revision and hash have not been established. The historical title ID 0x4541005B and XDK5849 table does not establish that the current importer accepts your copy."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Current Linux source route requires sibling MANXFramework and MANXBurnout3; configure/build/test CMake project, then run build/MANXBurnout3 with own extracted game directory. No current packaged runtime asserted."
+          "instruction": "Build from source on Linux with MANXFramework and MANXBurnout3 in sibling folders. Configure, build and test the CMake project, then run build/MANXBurnout3 with your own extracted game folder. This guide does not establish a ready-to-run package."
         }
       ],
       "warnings": [
-        "Current header identifies own MANXFramework game app, title kernel bridge/transformed functions/RenderWare loaders/D3D8-Vulkan path. Detailed Windows screenshots/status below are explicitly historical predecessor research, not proof of current Linux gameplay.",
+        "The current project header describes a MANXFramework game app with a game-specific kernel bridge, transformed functions, RenderWare loaders and D3D8-to-Vulkan rendering. The Windows screenshots and status notes below describe a historical predecessor; they do not establish that the current Linux version works.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/RetroRecompilations/MANXBurnout3"

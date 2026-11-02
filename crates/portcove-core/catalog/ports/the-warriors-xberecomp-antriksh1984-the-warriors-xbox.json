@@ -4,7 +4,7 @@
     "id": "the-warriors-xberecomp-antriksh1984-the-warriors-xbox",
     "name": "The Warriors (Xbox) — The Warriors - XBERecomp (Antriksh1984)",
     "original_game_title": "The Warriors (Xbox)",
-    "summary": "Alpha: upstream openingmissions boot/play/audio correct; full game not played through; latercrashes,missingeffects/brokensound possible. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The alpha is reported to boot and play the opening missions with correct audio. The full game has not been played through; later crashes, missing effects and broken sound remain possible. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Antriksh1984/TheWarriors-XBERecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Upstream alpha release/importer, supply own ISO/assets; first launch compiles game code locally via XboxXBERecomp runtime kit. Windows 10/11 x64,D3D12,XAudio2; no compiler command execution by Portcove research."
+          "instruction": "Use the project’s alpha release and importer with your own ISO and assets. First launch compiles game code locally with XboxXBERecomp. The player targets Windows 10/11 x64 with D3D12 and XAudio2. The recorded review did not run compiler commands."
         }
       ],
       "warnings": [
-        "Alpha: upstream openingmissions boot/play/audio correct; full game not played through; latercrashes,missingeffects/brokensound possible.",
+        "The alpha is reported to boot and play the opening missions with correct audio. The full game has not been played through; later crashes, missing effects and broken sound remain possible.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Antriksh1984/TheWarriors-XBERecomp"

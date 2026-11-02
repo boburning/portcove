@@ -4,7 +4,7 @@
     "id": "outrun-online-arcade-pc-recompilation-sp00nznet-outrun-online-arcade",
     "name": "OutRun Online Arcade — OutRun Online Arcade — PC Recompilation (sp00nznet)",
     "original_game_title": "OutRun Online Arcade",
-    "summary": "Links but crashes in guest global initialization before rendering/gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The build links, but crashes during guest global initialization before rendering or gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/outrun",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Links but crashes in guest global initialization before rendering/gameplay.",
+        "The build links, but crashes during guest global initialization before rendering or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/sp00nznet/outrun"

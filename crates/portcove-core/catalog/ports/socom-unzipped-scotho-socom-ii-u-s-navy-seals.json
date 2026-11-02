@@ -4,7 +4,7 @@
     "id": "socom-unzipped-scotho-socom-ii-u-s-navy-seals",
     "name": "SOCOM II: U.S. Navy SEALs — SOCOM Unzipped (Scotho)",
     "original_game_title": "SOCOM II: U.S. Navy SEALs",
-    "summary": "Native runtime/online claims, early-stage; platform build badges not playthrough evidence. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "This is early-stage work with native-runtime and online-play claims. Platform build badges do not establish a playthrough. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Scotho/socom-unzipped",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Native runtime/online claims, early-stage; platform build badges not playthrough evidence.",
+        "This is early-stage work with native-runtime and online-play claims. Platform build badges do not establish a playthrough.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Scotho/socom-unzipped"

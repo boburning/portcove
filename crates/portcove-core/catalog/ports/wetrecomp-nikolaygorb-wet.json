@@ -4,7 +4,7 @@
     "id": "wetrecomp-nikolaygorb-wet",
     "name": "WET — WetRecomp (nikolaygorb)",
     "original_game_title": "WET",
-    "summary": "Full playability/progression/audio/video/achievements claimed upstream. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project claims full playability, progression, audio, video and achievements. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/WetRecomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Full playability/progression/audio/video/achievements claimed upstream.",
+        "The project claims full playability, progression, audio, video and achievements.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/nikolaygorb/WetRecomp"

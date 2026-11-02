@@ -188,6 +188,29 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   await expect.element(trigger).toHaveFocus();
 }, 45_000);
 
+it("does not describe a project declaration as a test result", async () => {
+  const report = comparisonFixture();
+  const candidate = report.assessment?.candidates[0];
+  const observation = candidate?.evidence[0];
+  if (!candidate || !observation) throw new Error("Missing comparison fixture");
+  observation.evidence.kind = "upstream-declared";
+  candidate.dimensions[0]!.strength_permille = 250;
+  vi.mocked(desktopApi.compareGamePorts).mockResolvedValue(report);
+  await render(<Fixture />);
+  await userEvent.click(
+    page.getByRole("button", { name: "Compare projects", exact: true }).element(),
+  );
+  await userEvent.click(
+    page.getByText("Why this port? — Fixture project", { exact: true }).element(),
+  );
+  await expect.element(page.getByText("Information available", { exact: true })).toBeVisible();
+  const text = page.getByRole("dialog").element().textContent;
+  expect(text).toContain("upstream declared");
+  expect(text).not.toContain("Test results available");
+  expect(text).not.toContain("earlier tests");
+  expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
+});
+
 it("uses the production controller handler to activate controls and dismiss only the comparison", async () => {
   await render(<Fixture />);
   const trigger = page.getByRole("button", { name: "Compare projects", exact: true });

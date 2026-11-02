@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PS3 Ragnarok Odyssey ACE USA reference disc; primary calls titleNPWR04119_00, verify productidentity via manifest. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own USA PS3 Ragnarok Odyssey ACE reference disc. The source identifies it as NPWR04119_00; check the manifest for the actual supported product identity before setup. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Own-disc extract/decrypt with ownkeys then PPU/SPU C++generation/CMake localruntime. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Extract and decrypt your own disc using your own keys, generate PPU/SPU C++ code and build the local runtime with CMake. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Native firstquests/monster fights at 30 FPS and savedcharacter; script-only historical 431-quest sweeps not nativegameplay evidence. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports native first quests and monster fights at 30 FPS, plus a saved character. Historical script-only sweeps of 431 quests do not establish native gameplay. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-ragnarokodysseyace"

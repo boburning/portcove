@@ -4,7 +4,7 @@
     "id": "tombraider-pc-drakenabarion-tomb-raider-definitive-edition",
     "name": "Tomb Raider: Definitive Edition — tombraider_pc (drakenabarion)",
     "original_game_title": "Tomb Raider: Definitive Edition",
-    "summary": "Experimental project. Upstream intro/audio and play past first base camp at60 FPS; shader stutter substantial, online offline, Windows new fixes absent. No full-game Portcove qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports the intro, audio and play past the first base camp at 60 FPS. Shader stutter is substantial, online play is unavailable and new fixes are absent on Windows. Portcove has not confirmed the full game. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/drakenabarion/tombraider_pc",
     "platforms": ["linux-x86-64", "windows-x86-64"],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Use your own PS4 CUSA00109 update1.01 merged; decrypted eboot.bin/sce_module."
+          "instruction": "Use your own decrypted PS4 CUSA00109 eboot.bin and sce_module with update 1.01 merged."
         },
         {
           "title": "Follow upstream setup",
@@ -21,7 +21,7 @@
         }
       ],
       "warnings": [
-        "Upstream intro/audio and play past first base camp at60 FPS; shader stutter substantial, online offline, Windows new fixes absent. No full-game Portcove qualification.",
+        "The project reports the intro, audio and play past the first base camp at 60 FPS. Shader stutter is substantial, online play is unavailable and new fixes are absent on Windows. Portcove has not confirmed the full game.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/drakenabarion/tombraider_pc"

@@ -13,15 +13,15 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "FM Towns Japan ABEL MTC1137 own20-track disc plus your own font ROM. Keep your original game files separately. The recorded source review did not download or run the game."
+          "instruction": "Use your own Japanese FM Towns ABEL MTC1137 disc with all 20 tracks, plus your own font ROM. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "fmtownskit disc extraction,tools/recomp.sh translates OPNG/ABEL/ENDG/TBIOS; build/rt/abel. These are manual setup instructions. Portcove does not manage this download or confirm setup or gameplay."
+          "instruction": "Extract your own disc with fmtownskit, then use tools/recomp.sh to translate OPNG, ABEL, ENDG and TBIOS. Start build/rt/abel. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Opening/ending/firstroom parity, CPU35%speed visualestimate; firstdungeon/save/English translation pending. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "The project reports matching opening, ending and first-room behaviour, with a visual estimate of 35% CPU speed. First dungeon, saving and English translation remain unfinished. Portcove has not confirmed setup or gameplay.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-abelsmt"

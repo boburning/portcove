@@ -4,7 +4,7 @@
     "id": "roll-away-psx-pc-recomp-bitsandbreakpoints-roll-away-kula-world-kulaquest",
     "name": "Roll Away / Kula World / KulaQuest — roll-away-psx-pc-recomp (Bitsandbreakpoints)",
     "original_game_title": "Roll Away / Kula World / KulaQuest",
-    "summary": "Native game and three-region title/screens/gameplay features described; exact whole-game level completion unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "The project describes a native playable game and title-screen/gameplay features for three regions. Completion of every level has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -17,11 +17,11 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README roll-away-pc.zip and roll_away.exe selects own supported image; assets read from disc, no BIOS."
+          "instruction": "Follow the README’s roll-away-pc.zip setup, run roll_away.exe and select your own supported image. Assets are read from the disc; no BIOS is required."
         }
       ],
       "warnings": [
-        "Native game and three-region title/screens/gameplay features described; exact whole-game level completion unverified.",
+        "The project describes a native playable game and title-screen/gameplay features for three regions. Completion of every level has not been confirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp"

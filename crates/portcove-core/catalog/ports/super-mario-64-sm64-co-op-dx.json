@@ -36,7 +36,7 @@
           "instruction": "Use the complete official v1.5.1 Windows package and finish normal upstream ROM setup in your own writable player folder. Keep lang, dynos, mods, libraries and all companions together. Register the already working sm64coopdx.exe with its containing folder as working directory, preserving any already reviewed literal arguments. coopdx_updater.exe is the upstream updater, not the selected game player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
         },
         {
-          "title": "Preserve the actual runtime and player data",
+          "title": "Keep the game version and data you use",
           "instruction": "Before explicit Play, preserve the actual existing user profile and creating runtime. On Windows the upstream default checks %APPDATA%/sm64coopdx and can instead reuse a populated %APPDATA%/sm64ex-coop folder; an existing --savepath override changes that selection. Preserve both relevant roots and the actual selected path, copied ROM, saves, configuration, mods and caches. A new executable folder does not isolate these profiles. Do not change the path, adopt populated legacy data, add mods or migrate profiles through this guide. Upstream can start its own updater and successor process; close all game/updater windows and confirm they stopped before copying or replacing files."
         },
         {
