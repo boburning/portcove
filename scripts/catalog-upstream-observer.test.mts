@@ -28,6 +28,12 @@ import {
   validateObserverConfig,
 } from "./upstream-observer.mts";
 import { config, release } from "./fixtures/upstream-observation-fixtures.mts";
+import {
+  collectObserverSnapshot,
+  publishObserverSnapshot,
+  readObserverSnapshotArchive,
+} from "./observer-checkpoint-artifact.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 
 function harness(requests = 256) {
   let now = Date.parse("2026-10-27T00:00:00Z");
@@ -143,6 +149,74 @@ function harness(requests = 256) {
     },
   };
 }
+
+void test("a separate batch recovers accepted provider pages and fair turns after complete cache loss", async (t) => {
+  const work = fileURLToPath(new URL("../work/", import.meta.url));
+  await mkdir(work, { recursive: true });
+  const root = await mkdtemp(path.join(work, "catalog-snapshot-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(2);
+  let result = await advanceCatalogObservations(h.input, null, h.options);
+  const before = structuredClone(result.checkpoint);
+  assert.ok(h.states.size > 0);
+  const sourceTree = path.join(root, "work/upstream-observer");
+  await mkdir(path.join(sourceTree, "catalog"), { recursive: true });
+  await writeFile(path.join(sourceTree, "catalog/checkpoint.json"), JSON.stringify(before));
+  for (const [digest, value] of h.states) {
+    await mkdir(path.join(sourceTree, digest), { recursive: true });
+    await writeFile(path.join(sourceTree, digest, "checkpoint.json"), JSON.stringify(value));
+  }
+  const snapshot = await collectObserverSnapshot(root, "c".repeat(64), {
+    run: 101,
+    attempt: 1,
+    source: "a".repeat(40),
+  });
+  assert.ok(
+    Object.keys(snapshot.files).length > 1,
+    "Provider continuation must accompany the scheduler",
+  );
+  const archive = createAuditZip([["checkpoint.json", JSON.stringify(snapshot)]]);
+  const recovered = readObserverSnapshotArchive(
+    archive,
+    "c".repeat(64),
+    Date.now(),
+    Date.now() + 60000,
+  );
+  await rm(sourceTree, { recursive: true });
+  h.states.clear();
+  await publishObserverSnapshot(root, recovered);
+  for (const [name, value] of Object.entries(recovered.files)) {
+    assert.deepEqual(JSON.parse(await readFile(path.join(sourceTree, name), "utf8")), value);
+    if (name !== "catalog/checkpoint.json") h.states.set(name.split("/")[0]!, value);
+  }
+  let state = JSON.parse(
+    await readFile(path.join(sourceTree, "catalog/checkpoint.json"), "utf8"),
+  ) as CatalogObserverCheckpoint;
+  assert.deepEqual(state, before);
+  for (let batch = 0; batch < 24 && result.report.pending_source_keys.length > 0; batch++) {
+    h.tick();
+    result = await advanceCatalogObservations(h.input, state, h.options);
+    assert.ok(result.report.requests <= 2);
+    state = result.checkpoint;
+  }
+  assert.equal(result.report.pending_source_keys.length, 0);
+  assert.ok(state.sequence > before.sequence);
+  assert.equal(Object.values(state.sources).filter((source) => source.completed_at).length, 2);
+  const missing = structuredClone(snapshot);
+  delete missing.files[
+    Object.keys(missing.files).find((name) => name !== "catalog/checkpoint.json")!
+  ];
+  assert.throws(
+    () =>
+      readObserverSnapshotArchive(
+        createAuditZip([["checkpoint.json", JSON.stringify(missing)]]),
+        "c".repeat(64),
+        Date.now(),
+        Date.now() + 60000,
+      ),
+    /checkpoint missing/,
+  );
+});
 
 void test("reviewed declarations share provider collection while keeping port-specific Core projections and unsupported holds", async () => {
   const h = harness();
