@@ -47,7 +47,7 @@ export function useGameFileFilterContext({
     generation,
     request: () => (catalog ? gameFileFilterRequest(catalog.ports, selection) : undefined),
     refusal:
-      "This catalog exceeds the bounded complete query scope. Game-file filters are unavailable.",
+      "This catalog is too large to check all game files at once. Game-file filters are unavailable.",
     accept: (snapshot, request, library, now) => {
       const accepted = gameFileFilterContext(snapshot, request, library, libraryKey ?? "", now);
       if (!accepted)

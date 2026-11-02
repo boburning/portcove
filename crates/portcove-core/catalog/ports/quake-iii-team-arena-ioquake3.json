@@ -29,12 +29,12 @@
           "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
         },
         {
-          "title": "Preserve the actual player data",
+          "title": "Keep your existing game data",
           "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
         },
         {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
+          "title": "Add the game and manage your files",
+          "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
         }
       ],
       "warnings": [

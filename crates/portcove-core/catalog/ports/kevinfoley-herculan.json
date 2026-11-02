@@ -23,15 +23,15 @@
       "steps": [
         {
           "title": "Prepare the original-game installation upstream",
-          "instruction": "Use your own independently permitted Earthsiege2 game files. HERCULAN1.1.0 documents retail1.0, the1.0 Hi-Rez release without music, and1.10 GoldGames including French/German variants. The engine’s MIT grant does not redistribute or license original game files. Follow its original-install/CD/ISO setup outside Portcove, choose a writable installed game folder and retain the source disc/image. A disc itself is not the writable installation; no third-party game mirror, original acquisition or setup is performed here."
+          "instruction": "Use your own independently permitted Earthsiege2 game files. HERCULAN 1.1.0 documents retail 1.0, the 1.0 Hi-Rez release without music, and 1.10 GoldGames including French/German variants. The engine’s MIT grant does not redistribute or license original game files. Follow its original-install/CD/ISO setup outside Portcove, choose a writable installed game folder and retain the source disc/image. A disc itself is not the writable installation; no third-party game mirror, original acquisition or setup is performed here."
         },
         {
           "title": "Choose the engine package, not the editing tools",
-          "instruction": "The inspected HERCULAN-1.1.0-win-x64.zip contains AMD64 Herculan.exe with native DLLs, Assets, notices and other matching companions. Keep the complete extracted package. It is a self-contained .NET release; HercWorksCSharp is a different data-viewing/editing tool and is not this player. Upstream specifies Windows 10 or newer, x86-64 and OpenGL3.3; package/header inspection alone is not a runtime compatibility pass."
+          "instruction": "The inspected HERCULAN-1.1.0-win-x64.zip contains AMD64 Herculan.exe with native DLLs, Assets, notices and other matching companions. Keep the complete extracted package. It is a self-contained .NET release; HercWorksCSharp is a different data-viewing/editing tool and is not this player. Upstream specifies Windows 10 or newer, x86-64 and OpenGL 3.3; Portcove has not tested runtime compatibility."
         },
         {
           "title": "Select the prepared normal player",
-          "instruction": "After upstream setup has remembered the intended original installation, select Herculan.exe, use its complete extracted package directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. The normal host runs the shell/game loop in its own process. If an install prompt opens, finish that setup outside the attached attempt before retrying. An established ES2_GAME_PATH or remembered install can select a different data root; confirm the intended copy rather than creating an override here."
+          "instruction": "After upstream setup has remembered the intended original installation, select Herculan.exe, use its complete extracted package directory as working directory and leave arguments empty. Review and consent to the selected launch details, then choose Play separately. The normal host runs the shell/game loop in its own process. If an install prompt opens, finish that setup outside the attached attempt before retrying. An established ES2_GAME_PATH or remembered install can select a different data root; confirm the intended copy rather than creating an override here."
         },
         {
           "title": "Preserve original saves and separate engine settings",

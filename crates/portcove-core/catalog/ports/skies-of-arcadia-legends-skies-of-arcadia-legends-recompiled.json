@@ -30,7 +30,7 @@
           "instruction": "The inspected official v0.83.0-beta Windows ZIP contains AMD64 Skies of Arcadia Legends.exe, skies-run.exe, all three gGEAE8P/gGEAP8P/gGEAJ8P recomp DLLs and matching libraries/notices. This is the user beta, not the newer perftest1 release. Keep the complete extracted SkiesOfArcadiaLegends-v0.83.0-beta-windows unit; a module DLL or another region’s runner is not a standalone replacement. The selected public source binds ModernGekko edd460adad0e82b56909af1d793642c83b6d31c8 plus this title’s maintained patches."
         },
         {
-          "title": "Attach the supported waiting launcher",
+          "title": "Add the supported launcher that waits for the game",
           "instruction": "Select Skies of Arcadia Legends.exe, use the complete extracted player directory as working directory and leave arguments empty after import. Review the intent and request Play separately, then use its Start Game/Continue action. The source launcher starts its matching sibling runner, hides its window and waits for the game process; Windows self-restarts also wait for their replacement. Keep that complete waiting route rather than guessing a private cache or runner argument. End the game normally and close any returning launcher when the session is finished. Complete disc changes, repairs, language restarts or updates upstream before retrying."
         },
         {

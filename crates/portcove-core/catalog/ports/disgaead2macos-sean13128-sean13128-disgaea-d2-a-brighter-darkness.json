@@ -4,7 +4,7 @@
     "id": "disgaead2macos-sean13128-sean13128-disgaea-d2-a-brighter-darkness",
     "name": "Disgaea D2: A Brighter Darkness — DisgaeaD2macOS (Sean13128) (Sean13128)",
     "original_game_title": "Disgaea D2: A Brighter Darkness",
-    "summary": "Author installednativecopy; unmaintainedOctober2026; WindowscontinuationLUUKASR1separateplatformlineage Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The author reports an installed native copy. This project has been unmaintained since October 2026; LUUKASR1’s Windows continuation is a separate platform version. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Sean13128/disgaea-d2-recomp",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "NorthAmericaBLUS31313 own disc; exactrevision unspecified"
+          "instruction": "Use your own North American BLUS31313 disc. This guide does not specify the exact supported revision."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Sourcelocallift/build"
+          "instruction": "Follow the project’s local source translation and build instructions."
         }
       ],
       "warnings": [
-        "Author installednativecopy; unmaintainedOctober2026; WindowscontinuationLUUKASR1separateplatformlineage",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The author reports an installed native copy. This project has been unmaintained since October 2026; LUUKASR1’s Windows continuation is a separate platform version.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Sean13128/disgaea-d2-recomp"
     },

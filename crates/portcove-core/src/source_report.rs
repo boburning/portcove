@@ -182,18 +182,18 @@ pub(crate) fn unavailable_report(
     let (state_code, summary, next_action) = match health {
         SourceHealth::Changed => (
             "source_changed",
-            "The selected source differs from the registered baseline.",
+            "These game files have changed since you added them.",
             "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
         ),
         SourceHealth::Missing => (
             "source_missing",
-            "The registered source could not be found.",
-            "Reconnect the original storage or relink to an unchanged copy of the registered files. To use different files, add them again for checking.",
+            "Portcove can’t find these game files at their saved location.",
+            "Reconnect the drive or choose an unchanged copy at its new location. To use different files, add them again so Portcove can check them.",
         ),
         _ => (
             "source_could_not_be_checked",
-            "The registered source could not be checked.",
-            "Review the reported problem, restore access, and inspect the source again.",
+            "Portcove couldn’t check these original game files.",
+            "Check the problem below, make sure Portcove can read the files, then check them again.",
         ),
     };
     assemble_report(
@@ -460,7 +460,7 @@ fn report_message(
     if health == SourceHealth::Changed {
         return (
             "source_changed",
-            "The selected source differs from the registered baseline.",
+            "These game files have changed since you added them.",
             "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
         );
     }
@@ -470,8 +470,8 @@ fn report_message(
     ) {
         return (
             "ambiguous_identity",
-            "The source matches more than one catalog identity.",
-            "Keep the source unchanged and review the candidate editions before continuing.",
+            "These files may match more than one game edition.",
+            "Keep these files unchanged and check the possible editions before continuing.",
         );
     }
     if inspection
@@ -481,8 +481,8 @@ fn report_message(
     {
         return (
             "selected_needs_checking",
-            "The source passed preliminary selection and still needs its upstream check.",
-            "Continue with the port's reviewed setup to complete the remaining file check.",
+            "These files still need to be checked by the game’s setup program.",
+            "Review this port’s setup instructions to finish checking the files.",
         );
     }
     match (
@@ -491,9 +491,9 @@ fn report_message(
     ) {
         (SourceClassification::Recognized { .. }, SourceAdmission::Admitted { .. }) => (
             "recognized_exact",
-            "The source matches one exact catalog identity.",
+            "These files match a recognized edition.",
             if health == SourceHealth::Current {
-                "No source action is needed for these registered files. Review the port's available actions."
+                "These files still match the edition you added. Open the game to check the next step."
             } else {
                 "Choose how to add these files."
             },
@@ -505,7 +505,7 @@ fn report_message(
             },
         ) => (
             "known_mismatch",
-            "The source does not match an accepted catalog identity.",
+            "These files don’t match an accepted game edition.",
             "Choose files from a supported edition and check them again.",
         ),
         (
@@ -515,8 +515,8 @@ fn report_message(
             },
         ) => (
             "ambiguous_identity",
-            "The source matches more than one catalog identity.",
-            "Keep the source unchanged and review the candidate editions before continuing.",
+            "These files may match more than one game edition.",
+            "Keep these files unchanged and check the possible editions before continuing.",
         ),
         (
             _,
@@ -535,8 +535,8 @@ fn report_message(
             },
         ) => (
             "accepted_identity_unknown",
-            "The source is eligible for informational intake, but its exact edition is unknown.",
-            "Review the evidence gap before consenting to setup.",
+            "You can add these files, but Portcove couldn’t identify their exact edition.",
+            "Read the limitations before deciding whether to continue.",
         ),
         (
             _,
@@ -545,13 +545,13 @@ fn report_message(
             },
         ) => (
             "accepted_identity_unknown",
-            "The source passed structural checks, but its exact edition is unknown.",
+            "These files passed format checks, but Portcove couldn’t identify their exact edition.",
             "Review the port requirements before setup.",
         ),
         _ => (
             "not_evaluated",
-            "The source identity has not been fully evaluated.",
-            "Inspect the expected identities and complete the required source check.",
+            "These original game files haven’t been fully checked.",
+            "Check the required game editions and finish checking your files.",
         ),
     }
 }
@@ -751,7 +751,7 @@ mod tests {
         let mut inspection = report.inspection.unwrap();
         assert_eq!(
             report_message(SourceHealth::Current, &inspection).2,
-            "No source action is needed for these registered files. Review the port's available actions."
+            "These files still match the edition you added. Open the game to check the next step."
         );
 
         inspection.validator = Some(ObservedSourceValidator {
@@ -762,7 +762,7 @@ mod tests {
         });
         assert_eq!(
             report_message(SourceHealth::NotBaselined, &inspection).2,
-            "Continue with the port's reviewed setup to complete the remaining file check."
+            "Review this port’s setup instructions to finish checking the files."
         );
 
         inspection.validator = None;

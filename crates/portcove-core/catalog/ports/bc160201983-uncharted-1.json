@@ -34,7 +34,7 @@
           "instruction": "Upstream owns preparation and its release updater, which replaces program files and restarts the launcher. Close the actual game and all helpers, retain independent recovery copies and complete maintenance outside an attached session, then review/relink changed executable bytes. Quit the game normally before closing its launcher: the GUI explicitly allows closing while the game continues. Its Stop path uses forced process-tree termination; that is not a save-flush or quiescence guarantee. Portcove does not adopt updater successors."
         },
         {
-          "title": "Retain title and component boundaries",
+          "title": "Keep this implementation and its required notices",
           "instruction": "This is the existing BilalReloaded/bc160201983 collection implementation, derived from gow3_pc/shadPS4, with documented port-specific maintenance; it is not merged with the separate Supermedo implementation by title alone. Preserve LICENSE.txt and all licenses/ component notices, including NVIDIA terms. Runtime grants do not grant original-game rights. Upstream per-title play/performance reports and incomplete test coverage remain upstream claims; no Portcove gameplay, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves all external files; managed install/update/rollback/backup/removal are unavailable."
         }
       ],

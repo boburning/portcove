@@ -21,7 +21,7 @@ describe("backup history presentation", () => {
     );
     expect(html).toContain("Backups");
     expect(html).toContain("Backups include saves and settings managed by Portcove.");
-    expect(html).toContain("4 verified backups");
+    expect(html).toContain("4 backups");
     expect(html).toContain("Show 1 older");
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Show 1 older<\/button>/u);
     expect(html).not.toContain("backup-expander");
@@ -50,7 +50,7 @@ describe("backup history presentation", () => {
     );
     expect(empty).toContain("No backups yet");
     expect(empty).not.toContain("snapshot");
-    expect(populated).toContain("1 verified backup");
+    expect(populated).toContain("1 backup");
     expect(populated).toContain("1 file · 1.0 KiB");
     expect(populated).toContain("Technical details");
     expect(populated).toContain('aria-label="Technical details for backup from ');
@@ -90,9 +90,9 @@ describe("backup history presentation", () => {
       />,
     );
     expect(html).toContain("Backup recovery required");
-    expect(html).toContain("1 verified backup");
+    expect(html).toContain("1 backup");
     expect(html).toContain(
-      "Verified backups remain listed, but restoring and deleting require recovery to finish.",
+      "Available backups remain listed, but restoring and deleting require recovery to finish.",
     );
     const actionButtons = Array.from(html.matchAll(/<button[^>]*>/gu), ([opening]) => opening);
     expect(actionButtons).toHaveLength(2);
@@ -143,7 +143,7 @@ describe("backup history presentation", () => {
         remove={vi.fn()}
       />,
     );
-    expect(html).toContain("Verified backups remain listed and usable.");
+    expect(html).toContain("Available backups remain listed. Review a backup before restoring it.");
     const actionButtons = Array.from(html.matchAll(/<button[^>]*>/gu), ([opening]) => opening);
     expect(actionButtons).toHaveLength(2);
     for (const opening of actionButtons) expect(opening).not.toContain('disabled=""');
@@ -152,11 +152,11 @@ describe("backup history presentation", () => {
   it.each([
     [
       "recovery_required",
-      "Verified backups remain listed, but restoring requires recovery to finish.",
+      "Available backups remain listed, but restoring requires recovery to finish.",
     ],
     [
       "unsafe_data",
-      "Verified backups remain listed. Review the current restore availability below.",
+      "Available backups remain listed. Review the current restore availability below.",
     ],
   ] as const)(
     "does not call degraded backups usable when restore is held by %s",
@@ -216,7 +216,7 @@ describe("backup history presentation", () => {
         />,
       );
       expect(html).toContain(
-        "Verified backups remain listed. Review the current restore availability below.",
+        "Available backups remain listed. Review the current restore availability below.",
       );
       expect(html).not.toContain("restoring requires recovery to finish");
       expect(html).not.toContain("listed and usable");

@@ -1213,7 +1213,7 @@ function ActivityFailure({
         </div>
       ) : (
         activity.message && (
-          <p className={activityDetailsClass}>More details may be available in a support bundle.</p>
+          <p className={activityDetailsClass}>More details may be available in a support report.</p>
         )
       )}
     </>

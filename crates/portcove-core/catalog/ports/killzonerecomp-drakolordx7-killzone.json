@@ -4,7 +4,7 @@
     "id": "killzonerecomp-drakolordx7-killzone",
     "name": "Killzone — KillzoneRecomp (drakolordx7)",
     "original_game_title": "Killzone",
-    "summary": "Native static EE recompilation with emulator-derived device libraries; latest-build route exists; README player features are upstream claims. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "This project recompiles EE game code with emulator-derived device libraries. A latest-build download is linked, but the README’s player-feature claims have not been confirmed by Portcove. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/drakolordx7/KillzoneRecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SCUS-97402 ISO; exact revision/hash unknown."
+          "instruction": "Use your own USA SCUS-97402 ISO. The exact revision and hash are unknown here; check upstream before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "README links latest build; download/unzip native Windows package and launch killzone.exe with owned SCUS97402 disc. Source build separately requires Visual Studio/CMake/Ninja/Python and emulator-derived dependencies."
+          "instruction": "Follow the README’s latest-build link to extract the native Windows package and launch killzone.exe with your own SCUS97402 disc. A source build separately requires Visual Studio, CMake, Ninja, Python and emulator-derived dependencies."
         }
       ],
       "warnings": [
-        "Native static EE recompilation with emulator-derived device libraries; latest-build route exists; README player features are upstream claims.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This project recompiles EE game code with emulator-derived device libraries. A latest-build download is linked, but the README’s player-feature claims have not been confirmed by Portcove.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/drakolordx7/KillzoneRecomp"
     },

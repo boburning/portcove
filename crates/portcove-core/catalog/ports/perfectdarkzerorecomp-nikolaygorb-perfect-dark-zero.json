@@ -4,7 +4,7 @@
     "id": "perfectdarkzerorecomp-nikolaygorb-perfect-dark-zero",
     "name": "Perfect Dark Zero — PerfectDarkZeroRecomp (nikolaygorb)",
     "original_game_title": "Perfect Dark Zero",
-    "summary": "Upstream says fully playable incl audio/gameplay/achievements/saves. Contradictory Linux test claims retained, no Portcove confirmation. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project describes the game as fully playable with audio, achievements and saves. Its Linux test statements conflict, and Portcove has not confirmed them. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PAL title4D5307D3 media750FF1D9; own extracted game files incl default.xex. Revision/checksum not captured here."
+          "instruction": "Use your own complete extracted PAL game files, including default.xex, for title 4D5307D3 and media 750FF1D9. This guide does not specify the exact supported revision or checksum; check the project’s requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release1.8 packages observed; source CMake/Clang/Ninja build generates C++ automatically. Windows tested; README claims Linux playable but later says only Windows tested; Mac presets are not platform qualification."
+          "instruction": "The recorded review found release 1.8 packages. Alternatively, generate C++ and build from source with CMake, Clang and Ninja. Windows is documented as tested. The README calls Linux playable but later says only Windows was tested; Linux support remains unclear. Mac build presets do not establish that the game works on macOS."
         }
       ],
       "warnings": [
-        "Upstream says fully playable incl audio/gameplay/achievements/saves. Contradictory Linux test claims retained, no Portcove confirmation.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project describes the game as fully playable with audio, achievements and saves. Its Linux test statements conflict, and Portcove has not confirmed them.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp"
     },

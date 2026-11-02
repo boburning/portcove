@@ -30,7 +30,7 @@
           "instruction": "Preserve settings.toml, the whole executable-adjacent hdd/ tree including hdd/E saves and any numbered instance hdd roots, original assets/disc, generated/runtime/compiler working outputs, shader/pipeline caches, logs/compile.log, CrashDumps/, reports/ and captures/. Preserve actual XBE_CAPTURE_DIR and other established custom/external locations too; this guide does not create environment settings or assume another port’s root. First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
         },
         {
-          "title": "Retain component permissions and one replacement owner",
+          "title": "Use permitted files and update through the project",
           "instruction": "Project/SDK and compiler/third-party licenses apply to their own code and do not grant the original game/assets or arbitrary mods. Use only a completed copy, sources and components you are independently permitted to use. Upstream/user owns generation, preparation, updates, runtime replacement and recovery. Keep previous complete runtime/data separately, maintain it upstream, then review/relink changed selected bytes. Removing registration preserves every external file; no Core builder, external update/backup/rollback/migration, save conversion or deletion is offered."
         }
       ],

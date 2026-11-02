@@ -4,7 +4,7 @@
     "id": "doritos-crash-course-native-pc-portingpete-doritos-crash-course",
     "name": "Doritos Crash Course — Doritos Crash Course — Native PC (portingpete)",
     "original_game_title": "Doritos Crash Course",
-    "summary": "Experimental0.1.0: all15 courses load with brief gameplay, not completion. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental Doritos Crash Course port. Upstream reports that all 15 courses load in version 0.1.0; course completion has not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/portingpete/DoritosCrashCourse",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Provide your own Doritos Crash Course Xbox 360 complete extracted game files, including the original executable. Encrypted default.xex and data.pak."
+          "instruction": "Use your own complete extracted Doritos Crash Course Xbox 360 files, including the encrypted default.xex and data.pak."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Windows source guide requires own encrypted default.xex/data.pak and first-build shader capture."
+          "instruction": "Follow the upstream Windows source-build guide with your own encrypted default.xex and data.pak. The first build also requires shader capture."
         }
       ],
       "warnings": [
-        "Experimental0.1.0: all15 courses load with brief gameplay, not completion.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports that all 15 courses load in experimental version 0.1.0, with brief gameplay observed. Completing those courses has not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/portingpete/DoritosCrashCourse"
     },

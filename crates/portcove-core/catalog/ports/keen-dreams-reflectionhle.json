@@ -27,7 +27,7 @@
         },
         {
           "title": "Choose a fresh managed runtime or keep your external player",
-          "instruction": "For a fresh Portcove-managed runtime, use Install and then explicit Play. Keep the ordinary upstream launcher: choose this entry’s exact game/version and its complete matching original-data folder there. No automatic title dispatch or original authentication by Core is promised. The managed definition passes four separate literal arguments, -datadir, ., -cfgdir, ., with the actual reflectionhle.exe parent as working directory. Upstream creates its version-specific writable directories after accepting the originals; no setup marker or helper is fabricated. For your separate existing external player, keep the original upstream route: Extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe inside its wrapper folder and use that same folder as the working directory. Leave launch arguments empty to use the game/version picker. Complete original-file selection in the upstream launcher after explicit Play. Registration does not start it; Portcove discovery runs no original EXE, helper or game."
+          "instruction": "For a new Portcove installation, choose Install, then Play when ready. In the upstream launcher, select this entry’s exact game/version and complete original-data folder. Portcove does not choose the title or authenticate originals for you. It starts reflectionhle.exe from its parent folder with four separate arguments: `-datadir`, `.`, `-cfgdir`, `.`. The upstream launcher creates version-specific writable folders after accepting the originals. For an existing external copy, keep the normal upstream setup: extract the official Windows 64-bit ZIP and keep reflectionhle.exe, SDL3.dll and libspeexdsp-1.dll together. Select reflectionhle.exe and its containing folder, leaving arguments empty for the game/version picker. Saving launch details does not start the game; choose Play separately, then select originals in the upstream launcher. Portcove does not run an original DOS executable or setup helper."
         },
         {
           "title": "Preserve the shared profile and each game version",
@@ -40,8 +40,8 @@
       ],
       "warnings": [
         "The ordinary upstream launcher still requires explicit matching game/version/original-folder selection. Fixed -gamever skips that picker and is not used.",
-        "Fresh managed profiles do not import or certify compatibility with populated external or original-DOS saves. Preserve those profiles and their creating runtimes separately.",
-        "Matching original game files are required for gameplay. This route does not supply them, import existing saves or certify cross-version save compatibility."
+        "This new installation does not import existing saves from external copies or the original DOS game. Save compatibility has not been confirmed. Keep those saves and the game versions that created them separately.",
+        "Matching original game files are required to play and are not included. Existing saves are not imported, and compatibility with saves from other versions has not been confirmed."
       ],
       "help_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md"
     },

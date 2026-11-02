@@ -30,7 +30,7 @@
           "instruction": "The inspected official 0.7.2 release ZIP contains recvx-enhanced-port-0.7.2-windows-x86/recvx.exe with a PE machine of x86/014c. This is the normal player, not the debug archive or separately published co-op server. Keep its whole matching folder, resources and notices. Upstream documents Windows 10 or later, including 64-bit Windows, and OpenGL 3.3; package presence does not establish dependency resolution or hardware qualification."
         },
         {
-          "title": "Attach the remembered-disc player",
+          "title": "Add the player with its saved disc selection",
           "instruction": "Select recvx.exe, set its complete extracted package directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. The native host loads settings and hands off to the decompiled game entry in process. If it still asks for the ISO, finish that setup outside the attached attempt. Do not select the PS2 executable, server, debug tooling or a third-party texture importer as the game."
         },
         {
@@ -42,7 +42,7 @@
           "instruction": "Retain the own-code/decompilation MIT notices and THIRD_PARTY_NOTICES, including separately licensed components. These do not license Capcom’s original game, third-party HD textures or mods. Keep only content you are independently permitted to use. HD packs are separate and are not fetched here. Co-op rendezvous/relay server, connection/password settings, randomized content and multiplayer compatibility remain upstream operations; this attachment offers no account, server or real co-op acceptance."
         },
         {
-          "title": "Maintain and update outside attachment",
+          "title": "Close the game before maintenance and updates",
           "instruction": "Quit the actual game normally before replacement, card/save restore, mod changes or upstream updates. The in-app update/restart can launch a successor: finish it outside an attached Play attempt, preserve independent recovery copies and review/relink changed executable bytes. Forced termination is not a save-flush guarantee. Source and upstream playability reports are not native/installed, full-game, save/reload or Supported acceptance. Removing registration preserves external files; managed lifecycle operations remain unavailable."
         }
       ],

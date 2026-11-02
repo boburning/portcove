@@ -30,11 +30,11 @@
           "instruction": "The inspected official 0.4.2-beta Windows ZIP contains AMD64 narutorise.exe, crashpad_handler.exe and matching renderer/runtime libraries, defaults and notices. The GitHub release is not flagged prerelease despite beta in its tag. Keep the complete package; do not select the crash handler or the separate compatibility installer for old 0.3 installations. The normal player reads the original ISO in place or uses a complete extracted copy. No original, bridge, extractor, helper, compiler or game is obtained or executed here."
         },
         {
-          "title": "Attach the already configured normal player",
+          "title": "Add your configured player",
           "instruction": "In upstream settings, finish source selection and turn Show menu at startup off. Select narutorise.exe, use its complete extracted package folder as working directory and leave arguments empty. Review the exact intent and request Play separately without holding Shift. The normal native app continues into its linked game; --setup and missing-source dialogs are preparation, not an attached gameplay observation. Renderer, DLC and restart-required settings remain upstream choices."
         },
         {
-          "title": "Keep the complete active data contract",
+          "title": "Keep all files used by this copy",
           "instruction": "Normally the Windows ZIP uses data/ beside narutorise.exe; keep narutorise.toml, user/ guest saves/content/profiles/achievements, mods/, dlc/, logs/, incidents/, incident-exports/, cache and .narutorise-migration/ recovery. Keep data_location.json both beside the distribution and any actual LocalAppData/narutorise selection, plus explicit guest/cache/log roots and external originals. Folder changes take effect after restart and verified copying, retaining the source; eligible old root-level guest trees can instead move into user/. Conflicting trees block startup. Preserve all old/new roots and journals rather than resetting them or deleting a live lock."
         },
         {

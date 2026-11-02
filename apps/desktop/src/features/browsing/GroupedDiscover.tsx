@@ -55,7 +55,7 @@ export function IdentityChips({
         </Chip>
       ))}
       {port.channels?.map((channel) => (
-        <Chip key={channel} style={identityStyle(channel, true)} title="Release channel">
+        <Chip key={channel} style={identityStyle(channel, true)} title="Update channel">
           <IdentityIcon name={channel} channel />
           {releaseChannelPresentation(channel).label}
         </Chip>
@@ -185,8 +185,7 @@ export function GroupedDiscover({
                 </summary>
                 <p>
                   Feature details are not available for every project. Check the recorded evidence
-                  and project instructions. Switching projects does not establish save or mod
-                  compatibility.
+                  and project instructions. Your saves and mods may not work with another port.
                 </p>
                 <GameComparisonControls comparison={evidence} />
               </details>
@@ -212,7 +211,7 @@ export function GroupedDiscover({
                         <p>{port.summary}</p>
                         <IdentityChips port={port} includeUnknown />
                         {!port.platforms.length && <p>No platform is listed.</p>}
-                        {!port.channels?.length && <p>No release channel is listed.</p>}
+                        {!port.channels?.length && <p>No update channel is listed.</p>}
                         {!matching.some((candidate) => candidate.id === port.id) && (
                           <p className="text-sm text-pc-muted-foreground">
                             Outside the current filters.
@@ -227,7 +226,7 @@ export function GroupedDiscover({
                         />
                       </div>
                       <div>
-                        <h4>Setup route</h4>
+                        <h4>How to set it up</h4>
                         <p>{installationMethodLabel(port)}</p>
                       </div>
                       <div>
@@ -246,11 +245,11 @@ export function GroupedDiscover({
                         )}
                       </div>
                       <div>
-                        <h4>Ownership</h4>
+                        <h4>Who handles updates</h4>
                         {renderComparisonOwnership(status)}
                       </div>
                       <div>
-                        <h4>Current observations</h4>
+                        <h4>Current status</h4>
                         <BrowsePortObservations
                           port={port}
                           status={status}

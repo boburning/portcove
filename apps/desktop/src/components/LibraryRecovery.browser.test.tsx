@@ -82,7 +82,7 @@ it("keeps manual preparation distinct from checked restore and authority-changin
   await captureParityState("library-recovery-guide");
 });
 
-it("excludes duplicate export and reports only the metadata receipt, never a verified backup", async () => {
+it("excludes duplicate export and reports only the metadata receipt, never a backup", async () => {
   let finish!: (value: LibraryMetadataFile | undefined) => void;
   const exportMetadata = vi.fn(
     () =>
@@ -92,7 +92,7 @@ it("excludes duplicate export and reports only the metadata receipt, never a ver
   );
   await render(guide(exportMetadata).element);
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
-  const action = page.getByRole("button", { name: "Export metadata", exact: true });
+  const action = page.getByRole("button", { name: "Export library information", exact: true });
   const button = action.element();
   if (!(button instanceof HTMLButtonElement)) throw new Error("Expected an export button");
   button.click();
@@ -113,13 +113,13 @@ it("recovers from export failure and treats picker cancellation as no new receip
     .mockResolvedValueOnce(undefined);
   await render(guide(exportMetadata).element);
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect.element(page.getByRole("alert")).toMatchTextContent("Disk unavailable");
   expectSeparatedRecoverySteps();
   await captureParityState("library-metadata-export-failure");
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect
-    .element(page.getByRole("button", { name: "Export metadata", exact: true }))
+    .element(page.getByRole("button", { name: "Export library information", exact: true }))
     .toBeEnabled();
   expect(exportMetadata).toHaveBeenCalledTimes(2);
   expect(document.querySelector('[role="status"]')).toBeNull();
@@ -143,7 +143,7 @@ it.each(["dark", "light"])(
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(241);
       expectSeparatedRecoverySteps();
       await expect
-        .element(page.getByRole("button", { name: "Export metadata", exact: true }))
+        .element(page.getByRole("button", { name: "Export library information", exact: true }))
         .toBeEnabled();
     } finally {
       overrides.remove();

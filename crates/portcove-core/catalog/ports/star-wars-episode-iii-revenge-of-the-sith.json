@@ -25,11 +25,11 @@
           "instruction": "Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "After upstream setup completes, select swrots.exe with the complete player directory as working directory and no arguments. This is the documented native 32-bit Windows entry; it loads the matching core.dll in the same process and keeps the game there. Do not attach core.dll, an installer/archive helper or a different console edition. Keep the established Windows graphics/audio/controller dependencies."
         },
         {
-          "title": "Keep the actual session and successor boundary",
+          "title": "Check which game sessions are still running",
           "instruction": "Normal level changes, mission restarts and saves use the default in-process reboot path. An explicit Debug ProcessReboot setting, or a reboot fallback, may deliberately create a --relaunch successor and exit without waiting. That successor is outside the attached session: close every actual game before maintenance or another attachment. Do not infer successor adoption or termination from registration status, or disable upstream features with invented arguments."
         },
         {

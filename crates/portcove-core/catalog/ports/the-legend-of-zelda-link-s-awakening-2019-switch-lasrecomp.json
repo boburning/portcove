@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
     "name": "The Legend of Zelda: Link's Awakening (2019 Switch) (LASRecomp)",
-    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: Releasecontainsgenerator/compilerandlocalfirstsetupgamecodegeneration;Windowsx64AVX2/Vulkan1.3,AppleSiliconmacOS15+,Linuxx64;Linuxarm64experimental. Platforms: Releasecontainsgenerator/compilerandlocalfirstsetupgamecodegeneration;Windowsx64AVX2/Vulkan1.3,AppleSiliconmacOS15+,Linuxx64;Linuxarm64experimental. Original data: Own2019SwitchLinkAwakeningv1.0.0/v1.0.1/v1.1.0preparedfiles;optionalownSwitchfonts,replacementsdefault. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An experimental Link’s Awakening 2019 Switch recompilation. Release packages include a generator and compiler that prepare game code locally on first setup. Documented hosts are Windows x64 AVX2/Vulkan 1.3, Apple Silicon macOS 15+ and Linux x64; Linux ARM64 is experimental. Use your own prepared v1.0.0, v1.0.1 or v1.1.0 files. Your own Switch fonts are optional because replacements are used by default. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Link's Awakening (2019 Switch)",
     "project_url": "https://github.com/peiikai/LASRecomp",
     "platforms": [],

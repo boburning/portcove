@@ -4,7 +4,7 @@
     "id": "psx-trilogy-recomp-levonfrench-die-hard-trilogy",
     "name": "Die Hard Trilogy — PSX-Trilogy-Recomp (LevonFrench)",
     "original_game_title": "Die Hard Trilogy",
-    "summary": "Research project. Experimental hybrid withoverlayfallback; physicalmouse/fullplaythrough unverified, no siblingtitle milestones borrowed. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. Experimental hybrid with overlay fallback. Physical mouse input and a full playthrough have not been confirmed; Results from related games do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "DieHardTrilogy ownUSA/PAL SLUS00119/SLES00445; importer exactCRC/bootSHA256 does not verify alloverlays/audio. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own USA SLUS00119 or PAL SLES00445 Die Hard Trilogy disc. The importer checks its exact CRC and boot SHA256, but does not verify every overlay or audio file. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Advertised v0.2.0 package own-disc Play.cmd/DISCS, per-edition dht/dht-pal runtime/settings/cards; local source alternative. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Follow the advertised v0.2.0 package’s Play.cmd and DISCS setup with your own disc. Keep the separate dht and dht-pal runtimes, settings and cards with their matching editions. A local source build is also available. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Experimental hybrid withoverlayfallback; physicalmouse/fullplaythrough unverified, no siblingtitle milestones borrowed. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This experimental hybrid retains overlay fallback. Physical mouse input and a full playthrough have not been confirmed. Results from related games do not establish that this one works. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/LevonFrench/PSX-Trilogy-Recomp"
     },

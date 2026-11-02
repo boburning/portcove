@@ -108,7 +108,7 @@ it.each(
     const left = cards[0]!.getBoundingClientRect(),
       right = cards[1]!.getBoundingClientRect();
     expect(right.left).toBeGreaterThanOrEqual(left.right);
-    for (const card of cards) expect(card.textContent).toContain("Portable upstream package");
+    for (const card of cards) expect(card.textContent).toContain("Download and install");
     await page.screenshot({
       path: `../../../../../outputs/ui-refinement/comparison-${layout}-${theme}-1440.png`,
     });
@@ -156,7 +156,7 @@ it("labels active facets and restores focus after removing chips or clearing whi
   }
   await render(<Fixture />);
   const chip = page.getByRole("button", { name: "Remove Preview filter", exact: true });
-  await expect.element(chip).toHaveTextContent("Release channels: Preview");
+  await expect.element(chip).toHaveTextContent("Update channels: Preview");
   await expect
     .element(page.getByRole("button", { name: /Remove Windows/ }))
     .toMatchTextContent("Target OS:");
@@ -191,7 +191,7 @@ it("labels active facets and restores focus after removing chips or clearing whi
     .element(page.getByRole("button", { name: "Filters (0)", exact: true }))
     .toHaveFocus();
   await page.getByRole("button", { name: "Filters (0)", exact: true }).click();
-  await openFilterField("Release channels");
+  await openFilterField("Update channels");
   await page.getByRole("checkbox", { name: /^Stable/ }).click();
   await userEvent.keyboard("{Escape}");
   const panelClear = page.getByRole("button", { name: "Clear filters", exact: true });

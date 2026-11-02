@@ -22,7 +22,7 @@
           "instruction": "The inspected official 0.4.3 ZIP is a source/setup kit, not a prebuilt game executable. Its producer builds build/release/rac-rs.exe locally from the player’s disc and creates generated/play.cfg. Keep the complete resulting installation, generated/ and oracle/ support data, matching libraries and toolchain/recovery, not merely the generated EXE. Source setup and a finished existing native installation are distinct states; this guide applies only after that preparation succeeds."
         },
         {
-          "title": "Attach the generated native game directly",
+          "title": "Add the generated game player",
           "instruction": "Select the existing build/release/rac-rs.exe from that prepared installation, use its full installation root as working directory and leave arguments empty. Review the intent and request Play separately. The native no-argument entry finds generated/play.cfg up the executable’s parent chain, reads its original ISO setting, derives required support/player paths and starts the normal retail-cold game in process. It does not require invented launcher environment. Do not attach Setup.cmd, Play.cmd, a compiler or the developer oracle. Complete an update prompt or rebuild outside the attached attempt first."
         },
         {
@@ -30,7 +30,7 @@
           "instruction": "Keep the complete player/ folder, especially card.bin and card.start1.bin/card.start2.bin safety copies, settings, mod data, logs and crash logs, plus generated/play.cfg, all configured original/source paths and any established external player root. PAL/USA compatibility and modified rosters/scripts are not established by a shared title. Script mods use the separate OmniLoader/Luau contract; keep active mods and texture packs independently. This guide performs no import, conversion, restore, backup or deletion."
         },
         {
-          "title": "Keep external updates and permissions explicit",
+          "title": "Check permissions and manage updates yourself",
           "instruction": "Retain GPL-3.0-or-later and NOTICE.md, the separately scoped OpenRAC mod SDK, OmniLoader/Luau, renderer and component notices; they do not license the original game, third-party scripts or texture packs. Upstream setup/launcher owns downloads, updates and rebuilding, with its own recovery behavior. Quit normally, preserve independent recovery and review/relink changed generated executable bytes after replacement. Upstream full-game reports are not native/installed, campaign, hardware, mod-corpus, real-save or Supported acceptance here. Removing registration preserves external files; managed lifecycle operations remain unavailable."
         }
       ],

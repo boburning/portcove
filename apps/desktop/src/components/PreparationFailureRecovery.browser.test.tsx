@@ -110,7 +110,7 @@ it("opens the reported game from another detail without repeating the failed mut
   await act(async () => host.querySelector<HTMLButtonElement>("button")!.click());
   expect(host.querySelector("h1")?.textContent).toBe("other-port");
   const read = [...host.querySelectorAll("button")].find(
-    (button) => button.textContent === "Review current state",
+    (button) => button.textContent === "Refresh library",
   )!;
   expect(refresh).toHaveBeenCalledOnce();
   await act(async () => read.click());

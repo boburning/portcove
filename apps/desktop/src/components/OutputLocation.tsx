@@ -427,7 +427,7 @@ function CurrentOutputDestination({
     <div
       className={`${outputReviewClass} current-output-destination ${stateClass} ${safe ? "border-[var(--color-success-border)]" : blocked ? "border-[var(--color-warning-border)] bg-pc-warning-subtle" : ""}`}
       role="group"
-      aria-label="Current output destination"
+      aria-label="Current install folder"
     >
       <div className={outputReviewTitleClass} aria-live="polite">
         <strong>Current destination</strong>
@@ -630,7 +630,7 @@ function OutputLocationReview({
         </DialogDescription>
         <div
           className={`${outputReviewClass} ${safe ? "safe border-[var(--color-success-border)]" : "blocked border-[var(--color-warning-border)] bg-pc-warning-subtle"}`}
-          aria-label="Output destination review"
+          aria-label="Install folder review"
         >
           <div className={outputReviewTitleClass} aria-live="polite">
             <strong>Destination checks</strong>
@@ -708,7 +708,9 @@ function outputDestinationCheckLabel(
     available: safe ? "Checks passed" : "Needs attention",
     unavailable: "Unavailable",
   };
-  return Object.hasOwn(labels, value) ? labels[value] : "Availability result unavailable";
+  return Object.hasOwn(labels, value)
+    ? labels[value]
+    : "Folder availability could not be confirmed";
 }
 
 function outputCapacityLabel(preview: OutputDestinationPreview) {
@@ -765,7 +767,7 @@ function OutputRelocationReview({
       </DialogDescription>
       <div
         className={`${outputReviewClass} ${safe ? "safe border-[var(--color-success-border)]" : "blocked border-[var(--color-warning-border)] bg-pc-warning-subtle"}`}
-        aria-label="Existing version relocation review"
+        aria-label="Review moving installed versions"
       >
         <div className={outputReviewTitleClass} aria-live="polite">
           <strong>Versions and preserved data</strong>
@@ -860,7 +862,7 @@ function outputOwnershipLabel(value: OutputDestinationPreview["ownership"]) {
     invalid: "Invalid destination",
     unknown: "Unknown",
   };
-  return Object.hasOwn(labels, value) ? labels[value] : "Ownership result unavailable";
+  return Object.hasOwn(labels, value) ? labels[value] : "Folder ownership could not be confirmed";
 }
 
 function outputSourceLabel(value: OutputDestinationPreview["proposed"]["selection_source"]) {
@@ -868,5 +870,5 @@ function outputSourceLabel(value: OutputDestinationPreview["proposed"]["selectio
   if (value === "port_setting") return "Custom for this game";
   return value === "library_default"
     ? "Inherited from the Portcove library"
-    : "Location origin unavailable";
+    : "Folder preference source unavailable";
 }

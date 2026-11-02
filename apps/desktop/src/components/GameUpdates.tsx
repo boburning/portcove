@@ -132,14 +132,14 @@ function gameUpdateCompletionMessage(
 ) {
   if (result && acquired)
     return acquired.phase === "acquired"
-      ? "Last command: Archive downloaded. Review again to prepare or install it. Your current version is unchanged."
+      ? "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged."
       : "Archive state recorded. Review its current state before continuing.";
   if (result && selection.kind === "discard")
-    return "Last command: Archive discarded. Installed versions and saved data are unchanged.";
+    return "Downloaded update deleted. Installed versions and saved data are unchanged.";
   if (result && selection.kind === "apply")
     return selection.plan.activate
       ? "Update installed. Your previous version remains available."
-      : "Update kept for later. Your current version is unchanged.";
+      : "Update prepared for later. Your current version is unchanged.";
   return "The operation was not confirmed complete. Review the current state before retrying.";
 }
 
@@ -607,7 +607,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
                 : "Prepare for later"}
             </Button>
             <p>
-              Prepare verified staged content without activating it. A downloaded archive still
+              Finish setting up the update without switching to it yet. A downloaded archive still
               needs preparation.
             </p>
           </details>
@@ -814,7 +814,7 @@ function RetainedUpdateArchive({
             disabled={exclusiveBusy || pending}
             onClick={() => reviewDiscard(acquisition)}
           >
-            Discard archive…
+            Delete downloaded update…
           </Button>
         )}
     </section>
@@ -945,10 +945,10 @@ function GameUpdateDiscardDialog({
         }}
       >
         <DialogTitle ref={discardHeading} tabIndex={-1}>
-          Discard update archive?
+          Delete this downloaded update?
         </DialogTitle>
         <DialogDescription>
-          Discard only this retained archive. Installed versions, prepared updates and saved data
+          Delete only this downloaded update. Installed versions, prepared updates and saved data
           are unchanged.
         </DialogDescription>
         <dl className="my-4 grid gap-3 [overflow-wrap:anywhere]">
@@ -960,19 +960,24 @@ function GameUpdateDiscardDialog({
             <dt>Version</dt>
             <dd>{discardReview.release.version}</dd>
           </div>
-          <div>
-            <dt>Acquisition ID</dt>
-            <dd>
-              <code>{discardReview.id}</code>
-            </dd>
-          </div>
-          <div>
-            <dt>Archive SHA-256</dt>
-            <dd>
-              <code>{discardReview.release.asset.sha256}</code>
-            </dd>
-          </div>
         </dl>
+        <details>
+          <summary data-focusable>Technical details</summary>
+          <dl className="my-4 grid gap-3 wrap-anywhere">
+            <div>
+              <dt>Acquisition ID</dt>
+              <dd>
+                <code>{discardReview.id}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Archive SHA-256</dt>
+              <dd>
+                <code>{discardReview.release.asset.sha256}</code>
+              </dd>
+            </div>
+          </dl>
+        </details>
         {discardReview.id !== acquisition?.id && (
           <p role="status">
             The retained archive changed. Keep this review closed and review the current archive

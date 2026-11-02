@@ -22,11 +22,11 @@
           "instruction": "The inspected official Windows ZIP contains the AMD64 PaxDino.exe native player. Keep its complete extracted directory, assets, renderer/runtime libraries and notices together. The player runs the recompiled game through its linked runtime within the selected process; do not select a ROM, build tool, AppImage or another title’s executable. Source and PE observations do not establish Windows gameplay or dependency resolution."
         },
         {
-          "title": "Attach the prepared native player",
+          "title": "Add the prepared native player",
           "instruction": "Select PaxDino.exe, set its complete extracted package directory as working directory and leave arguments empty. Review that exact intent and request Play separately. Use the upstream player UI to choose/start the already prepared game. Complete missing-ROM setup outside the attached attempt before retrying. Quit the actual game normally; forced termination is not a save-flush or recovery guarantee."
         },
         {
-          "title": "Preserve the actual data root",
+          "title": "Keep the game’s existing data folder",
           "instruction": "The selected source sets program_id to trwrecomp; its pinned Frontend normally uses %LOCALAPPDATA%/trwrecomp on Windows. An existing portable.txt in the working directory instead selects that directory. Keep the complete active root, imported ROM, saves, settings, input profiles and mods, plus any existing external paths. This guide creates no marker, moves no files and does not infer compatibility from another game. Keep Controller Pak data, per-player controls and any existing external custom-music folder. Other Turok games, co-op and multiplayer compatibility are not qualified."
         },
         {

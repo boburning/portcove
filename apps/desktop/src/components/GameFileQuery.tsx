@@ -59,9 +59,9 @@ export function GameFileQueryControl({
   const projection = current?.routes[0];
   return (
     <section className="my-4 grid gap-3" aria-label="Selected route game files">
-      <h2>Game files for this route</h2>
+      <h2>Game files for this setup or launch option</h2>
       <ChoiceSelect
-        label="Route"
+        label="Setup or launch option"
         value={route}
         options={routes}
         disabled={pending || busy}
@@ -86,7 +86,7 @@ export function GameFileQueryControl({
           void check();
         }}
       >
-        {pending ? "Checking game files…" : "Check selected route game files"}
+        {pending ? "Checking game files…" : "Check files for this option"}
       </Button>
       {pending && operationId && (
         <OperationCancellation

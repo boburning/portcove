@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare the correct PS4 game and update upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use. The reviewed 0.4 Windows route documents your own CTR Nitro-Fueled PS4 CUSA13795 or CUSA14876 base game and matching 1.21 update; both documented 1.21 firmware builds are accepted by upstream. Follow its first setup outside Portcove and keep independent originals before creating its merged game folder. Its preparation uses hard links where possible: a merged tree is not an independent backup of original file contents. No original, DLC, extractor, Python helper or game is obtained or executed here."
+          "instruction": "Use a complete copy and components you are independently permitted to use. The 0.4 Windows route documents your own CTR Nitro-Fueled PS4 CUSA13795 or CUSA14876 base game and matching 1.21 update; both documented 1.21 firmware builds are accepted by upstream. Follow its first setup outside Portcove and keep independent originals before creating its merged game folder. Its preparation uses hard links where possible: a merged tree is not an independent backup of original file contents. No original, DLC, extractor, Python helper or game is obtained or executed here."
         },
         {
           "title": "Keep the complete selected Windows implementation",
@@ -23,7 +23,7 @@
         },
         {
           "title": "Select and retain the normal launcher session",
-          "instruction": "After upstream setup, select CTR-NitroFueled-PC.exe, use its complete extracted portable package directory as working directory and leave arguments empty. Review the exact selected intent, then request Play separately. This opens the upstream launcher; request its Play only when ready. The native frontend waits for its Python runner, which waits for sacredfire.exe. The runner loops over its own Apply and restart exit code, retaining the ordinary waiting chain. Quit the actual game before closing the frontend; its Stop game and quit action forcibly terminates the job and is not a save-flush guarantee. No native lifecycle observation is claimed."
+          "instruction": "After upstream setup, select CTR-NitroFueled-PC.exe, use its complete extracted portable package directory as working directory and leave arguments empty. Review and consent to the selected launch details, then choose Play separately. This opens the upstream launcher; request its Play only when ready. The native frontend waits for its Python runner, which waits for sacredfire.exe. The runner loops over its own Apply and restart exit code, retaining the ordinary waiting chain. Quit the actual game before closing the frontend; its Stop game and quit action forcibly terminates the job and is not a save-flush guarantee. Portcove has not tested this launch-and-quit sequence."
         },
         {
           "title": "Preserve the actual data and hard-link sources",

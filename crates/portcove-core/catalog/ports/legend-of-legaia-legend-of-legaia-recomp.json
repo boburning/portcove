@@ -37,13 +37,13 @@
           "instruction": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths. No cross-version card/state compatibility or migration is established."
         },
         {
-          "title": "Keep experimental qualification and existing scheduling visible",
-          "instruction": "This is an early diagnostic playtest with documented hitch investigation and a static-overlay fallback; upstream reports are not Portcove observations. Keep the supported creating configuration and runtime together. The retained owner-approved 1.0 product-priority deferral and stable-player/source/runtime/write acceptance remain for independent review; this guide does not claim those conditions resolved or create a beta commitment. Upstream and you own preparation, runtime replacement and recovery; no external update, backup, rollback, migration, deletion or diagnostic upload is offered."
+          "title": "Keep the experimental limits and working configuration",
+          "instruction": "This early diagnostic playtest has documented hitching and a static-overlay fallback. Keep the working configuration and runtime together; stable-player and runtime behavior remain unconfirmed. Portcove has not confirmed upstream gameplay reports. You and upstream manage preparation, replacement and recovery; Portcove does not update, back up, roll back, migrate or delete this external copy, or upload diagnostic reports."
         }
       ],
       "warnings": [
         "Only attach actual originals, runtime and components you are independently permitted to use. Runtime PolyForm Noncommercial terms and SDL/dependency notices apply separately; no source label or upstream package assertion grants Sony/game rights.",
-        "Source/README/config and retained release digest metadata only: no package download, archive/PE inspection, acquired-source-to-binary certificate, actual title launch, save, game, installed-client, Supported or protected acceptance. Do not infer uninspected runtime build flags or immutable package contents."
+        "This guidance follows upstream source, documentation, configuration and published release checksums. Portcove has not downloaded or inspected the package, confirmed that its executable matches the source, or tested launch, saves, gameplay or installed behavior. The package’s build settings and contents remain unconfirmed."
       ]
     }
   }

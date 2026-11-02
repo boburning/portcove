@@ -394,10 +394,10 @@ describe("core-owned failure presentation", () => {
         expect(host.querySelector('[role="alert"]')).not.toBeNull();
         expect(host.querySelector("strong")?.textContent).toBe(
           outcome === "committed"
-            ? "Change saved; review the current state"
+            ? "Your change was saved. Check the result before trying again."
             : outcome === "recovery_required"
               ? "Cancelled operation needs recovery review"
-              : "Cancellation outcome needs review",
+              : "We couldn’t confirm that cancellation finished. Check the task in Activity before continuing.",
         );
         expect(host.textContent).not.toContain("No files were changed");
         expect(host.textContent).not.toContain("later readback failure");
@@ -467,7 +467,9 @@ describe("core-owned failure presentation", () => {
         await act(async () => state.perform("prepare", () => Promise.reject(error)));
         expect(state.error).toBe(error);
         expect(host.querySelector('[role="alert"]')).not.toBeNull();
-        expect(host.querySelector("strong")?.textContent).toBe("Cancellation outcome needs review");
+        expect(host.querySelector("strong")?.textContent).toBe(
+          "We couldn’t confirm that cancellation finished. Check the task in Activity before continuing.",
+        );
         expect(host.textContent).not.toContain("No files were changed");
         expect(state.pendingOperations.size).toBe(0);
         expect(refresh).toHaveBeenCalledOnce();

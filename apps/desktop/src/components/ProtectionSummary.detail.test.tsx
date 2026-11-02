@@ -89,8 +89,12 @@ describe("external-runtime managed backup access", () => {
 
   it("keeps canonical backup history and reviewed actions reachable beside the external-directory exclusion", () => {
     const html = render();
-    expect(html).toContain("Portcove does not collect this external runtime directory");
-    expect(html).toContain("can still be backed up and restored when Core permits it");
+    expect(html).toContain(
+      "Portcove does not collect files from this external installation folder",
+    );
+    expect(html).toContain(
+      "can still be backed up and restored when the current backup checks allow it",
+    );
     expect(html).toContain("canonical-backup");
     expect(html).toContain("Back up now");
     const coverage = [
@@ -123,9 +127,9 @@ describe("external-runtime managed backup access", () => {
   );
   it("does not turn verified external declarations into collected coverage", () => {
     const html = render({ withRetained: true });
-    expect(html).toContain("Recorded external runtime declarations");
+    expect(html).toContain("Recorded file rules for this external installation");
     expect(html).toContain("recorded-external-save");
-    expect(html).toContain("not its collection scope");
+    expect(html).toContain("They do not show which files Portcove collects");
     expect(html).not.toContain("What a backup covers");
     expect(html).not.toContain("Managed by Portcove for backup and restore");
     expect(html).not.toContain("<code>save</code>");

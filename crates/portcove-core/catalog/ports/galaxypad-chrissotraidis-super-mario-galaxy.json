@@ -4,7 +4,7 @@
     "id": "galaxypad-chrissotraidis-super-mario-galaxy",
     "name": "Super Mario Galaxy — GalaxyPad (chrissotraidis)",
     "original_game_title": "Super Mario Galaxy",
-    "summary": "ExperimentiPhone14~60fps; fullgamecompletionnotqualified Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports an experimental iPhone 14 build running at about 60 FPS. A complete playthrough has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/chrissotraidis/galaxypad",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA RMGE01 revision0 ownWBFS"
+          "instruction": "Use your own USA RMGE01 revision 0 disc in WBFS form."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "PadMint buildsfromownimage onAppleSilicon orauthorizedCI; no prebuiltIPA"
+          "instruction": "Use PadMint to build from your own image on Apple Silicon or through a CI service you are authorized to use. No ready-built IPA is offered."
         }
       ],
       "warnings": [
-        "ExperimentiPhone14~60fps; fullgamecompletionnotqualified",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports an experimental iPhone 14 build running at about 60 FPS. A complete playthrough has not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/chrissotraidis/galaxypad"
     },

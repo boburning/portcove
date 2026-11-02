@@ -133,7 +133,11 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   const dialog = page.getByRole("dialog", { name: "Compare independent projects" });
   await expect.element(dialog).toBeVisible();
   await expect
-    .element(page.getByText("One candidate assessed. This is not a best-port claim."))
+    .element(
+      page.getByText(
+        "Only one port has been assessed, so there isn’t enough information to compare it with the others.",
+      ),
+    )
     .toBeVisible();
   expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
   const why = page.getByText("Why this port? — Fixture project", { exact: true });
@@ -158,7 +162,7 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   await userEvent.keyboard(" ");
   await expect.element(required).toBeChecked();
   await expect
-    .element(page.getByText("A required capability has not been established for this exact build."))
+    .element(page.getByText("We couldn’t confirm a feature you need for this game version."))
     .toBeVisible();
   expect(
     vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].required_capabilities,
@@ -181,6 +185,29 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   await expect.element(dialog).not.toBeInTheDocument();
   await expect.element(trigger).toHaveFocus();
 }, 45_000);
+
+it("does not describe a project declaration as a test result", async () => {
+  const report = comparisonFixture();
+  const candidate = report.assessment?.candidates[0];
+  const observation = candidate?.evidence[0];
+  if (!candidate || !observation) throw new Error("Missing comparison fixture");
+  observation.evidence.kind = "upstream-declared";
+  candidate.dimensions[0]!.strength_permille = 250;
+  vi.mocked(desktopApi.compareGamePorts).mockResolvedValue(report);
+  await render(<Fixture />);
+  await userEvent.click(
+    page.getByRole("button", { name: "Compare projects", exact: true }).element(),
+  );
+  await userEvent.click(
+    page.getByText("Why this port? — Fixture project", { exact: true }).element(),
+  );
+  await expect.element(page.getByText("Information available", { exact: true })).toBeVisible();
+  const text = page.getByRole("dialog").element().textContent;
+  expect(text).toContain("upstream declared");
+  expect(text).not.toContain("Test results available");
+  expect(text).not.toContain("earlier tests");
+  expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
+});
 
 it("uses the production controller handler to activate controls and dismiss only the comparison", async () => {
   await render(<Fixture />);

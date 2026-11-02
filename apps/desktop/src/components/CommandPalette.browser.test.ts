@@ -17,7 +17,7 @@ const commands: [PaletteCommand, PaletteCommand] = [
   },
   {
     id: "catalog",
-    label: "Open Find games",
+    label: "Open Discover",
     description: "Browse supported ports",
     keywords: "discover",
     icon: Boxes,

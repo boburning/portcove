@@ -30,7 +30,7 @@
           "instruction": "The inspected official v0.1.5 RidgeRacer6-PC-v0.1.5.zip contains AMD64 RR6 Launcher.exe and bin/rr6_recomp.exe with matching runtime/GPU libraries. Its internal root is RidgeRacer6-PC-TestBuild-09; use the files actually present rather than inventing a renamed layout from the tag. Keep the full package and its bin/rr6_recomp.toml, game/ and notices. Separate Linux test releases and historical antivirus reports do not establish this Windows artifact’s runtime or safety."
         },
         {
-          "title": "Attach the native fallback command after preparation",
+          "title": "Add the fallback game command after setup",
           "instruction": "Select bin/rr6_recomp.exe, use the complete extracted package root as working directory, and supply --game_data_root with the quoted absolute path to its already prepared game folder, plus --gpu_plugin=xenos and --log_file with the quoted absolute path to this installation’s existing logs/run.log. Use your actual paths, not literal placeholders. This is the selected source’s normal native command and documented no-launcher fallback, with preparation already finished; do not attach the BAT, which starts a child and exits. Review the intent and request Play separately. Diagnostics, DLC import and missing-game repair are separate upstream operations."
         },
         {

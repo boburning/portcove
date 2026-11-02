@@ -208,7 +208,7 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ToolCommand,
     },
-    /// Show installation, source, launch, and update readiness.
+    /// Show installation, game-file, launch, and update readiness.
     Status {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: Option<String>,
@@ -668,7 +668,7 @@ pub(crate) enum ExternalCommand {
         /// Exact select-preview SHA-256; changed executable, directory or arguments refuse registration.
         #[arg(long)]
         expected_preview: String,
-        /// Confirm execution of the reviewed user-selected executable without prompting.
+        /// Confirm saving the reviewed launch details without prompting; launching is a separate command.
         #[arg(long)]
         yes: bool,
     },
@@ -940,7 +940,7 @@ pub(crate) enum SourceCommand {
         after_help = "Review first: portcove source relink PROFILE_ID PATH. Repeat those inputs with --apply --expected-plan <plan-sha256> to save only the reviewed new location. The original and replacement game files are not moved or deleted; changed inputs require a fresh review."
     )]
     Relink {
-        /// Registered source whose location is changing.
+        /// Game-file profile ID whose saved location is changing.
         profile_id: String,
         /// Replacement game-file path to review.
         path: PathBuf,
@@ -953,7 +953,7 @@ pub(crate) enum SourceCommand {
     },
     /// List registered game-file locations and their profile IDs.
     List,
-    /// Inspect a registered source without changing its bytes or saved baseline.
+    /// Inspect saved game files without changing their bytes or saved baseline.
     Inspect {
         /// Game-file profile ID from `catalog show PORT_ID`; saved profiles appear in `source list`.
         profile_id: String,
@@ -962,10 +962,10 @@ pub(crate) enum SourceCommand {
     Query(SourceQueryArgs),
     /// Recheck registered game files against their saved baselines.
     #[command(
-        after_help = "Provide PROFILE_ID or pass --all. Run source list for registered profile IDs. Verification checks the saved source; it does not replace it or accept changed bytes."
+        after_help = "Provide PROFILE_ID or pass --all. Run source list for registered profile IDs. Verification checks the saved game files; it does not replace them or accept changed bytes."
     )]
     Verify(SourceVerifyArgs),
-    /// Forget a source registration without deleting its file.
+    /// Remove a saved game-file location without deleting the original files.
     Remove {
         /// Game-file profile ID from `catalog show PORT_ID`; saved profiles appear in `source list`.
         profile_id: String,
@@ -1412,11 +1412,11 @@ pub(crate) enum ChannelCommand {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum PolicyCommand {
-    /// Save notify, stage, or automatic handling for future game updates.
+    /// Save how to handle game updates when you run update reconciliation.
     Set {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: String,
-        /// Future update behavior: notify only, download/check and stage, or automatically activate eligible updates.
+        /// When you run update reconciliation: notify only, keep a checked update for later, or install eligible updates.
         #[arg(value_enum)]
         policy: PolicyArg,
     },

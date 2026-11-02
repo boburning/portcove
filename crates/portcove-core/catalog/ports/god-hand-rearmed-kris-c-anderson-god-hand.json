@@ -4,7 +4,7 @@
     "id": "god-hand-rearmed-kris-c-anderson-god-hand",
     "name": "God Hand — God Hand: Rearmed (kris-c-anderson)",
     "original_game_title": "God Hand",
-    "summary": "Work in progress. Stages1/2 and stage3 through GorillaMask/MadMidgetFive are reported played; stages4–8, ending, credits/extras remain unplayed. Saving/loading and listed minigames are claimed working. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "This project is in progress. Upstream reports playing stages 1 and 2, and stage 3 through Gorilla Mask/Mad Midget Five. Stages 4–8, the ending, credits and extras remain unplayed. Saving, loading and listed minigames are reported to work. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/kris-c-anderson/godhand-rearmed",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own USA SLUS-21503 version-label1.00 ISO (1567686656 bytes), upstream SHA256 268B8E284619BB9E07D5C522D7E7CFA14CB0498623D7FBA04A97D18B63BC0A7C. Boot ELF SLUS_215.03 (3607008 bytes), upstream SHA256 1742F95BEF65BDB2AA57B7A77DF4AC7619A092E9646E1EA325BC32EC8A64F3CD. The documented runtime still needs the own ISO; these are source claims, not Portcove acceptance."
+          "instruction": "Use your own USA SLUS-21503 version-label 1.00 ISO: 1567686656 bytes, upstream SHA-256 268B8E284619BB9E07D5C522D7E7CFA14CB0498623D7FBA04A97D18B63BC0A7C. Its boot ELF SLUS_215.03 is 3607008 bytes, upstream SHA-256 1742F95BEF65BDB2AA57B7A77DF4AC7619A092E9646E1EA325BC32EC8A64F3CD. Keep your own ISO available while playing; Portcove has not checked these upstream requirements."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Provide the own ISO; use upstream generate/SNR2-overlay/module/VU/configure/build steps to produce this fork's godhand.exe, then launch it with the same disc. Character generation is a separate optional mod-related step."
+          "instruction": "Follow upstream’s generation, SNR2 overlay, module, VU, configuration and build steps with your own ISO to produce this fork’s godhand.exe. Launch it with the same disc. Character generation is a separate optional step for mods."
         }
       ],
       "warnings": [
-        "Work in progress. Stages1/2 and stage3 through GorillaMask/MadMidgetFive are reported played; stages4–8, ending, credits/extras remain unplayed. Saving/loading and listed minigames are claimed working.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This project is in progress. Upstream reports playing stages 1 and 2, and stage 3 through Gorilla Mask/Mad Midget Five. Stages 4–8, the ending, credits and extras remain unplayed. Saving, loading and listed minigames are reported to work.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/kris-c-anderson/godhand-rearmed"
     },

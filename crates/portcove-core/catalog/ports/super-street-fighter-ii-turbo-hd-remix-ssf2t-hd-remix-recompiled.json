@@ -30,7 +30,7 @@
           "instruction": "The inspected official 0.3.0 Windows ZIP contains AMD64 ssf2t_hd_remix.exe, its matching runtime/GPU libraries and separate trg-updater.exe. Keep the complete package; do not attach the updater. Both supported compiled game images are in the same player, selected from the prepared base/update files. Finish upstream game import, optional TU import, data migration, settings and any requested restart outside Portcove. No game package, TU, helper, compiler or native game is obtained or executed by this guide."
         },
         {
-          "title": "Attach already configured direct play",
+          "title": "Add your configured game",
           "instruction": "In the upstream Play page, finish all settings and set Show this launcher to Off. Then select ssf2t_hd_remix.exe, use the complete extracted player folder as working directory and leave arguments empty. Review the intent and request Play separately without holding Shift. With ready files the app selects the appropriate image and continues into the linked game in process. Installing/removing a TU or changing restart-required settings in an open launcher can relaunch the program; finish those operations before attachment. This guide uses no internal skip flag or tracking promise across a successor."
         },
         {
@@ -42,7 +42,7 @@
           "instruction": "Retain the project GPLv2 and all ReXGlue/Xenia, TRG UI, SDL, renderer, font and other component notices. They do not license the original Capcom game, title update or third-party content. Use only components you are independently permitted to use. Base013 and TU023 online peers must use matching builds; direct/relay servers, connection tests and online play remain upstream choices, not real multiplayer qualification. Linux/Steam Deck remains experimental and is not qualified by the Windows package."
         },
         {
-          "title": "Maintain outside the attached attempt",
+          "title": "Close the game before maintenance",
           "instruction": "Quit the actual game normally before upstream updates, TU changes, migration recovery or data operations. The upstream updater owns runtime replacement and can restart; preserve independent recovery copies and review/relink changed executable bytes. Unsupported update files can block Play; this guide does not silently remove them. Forced termination is not a save-flush guarantee. Source, archive and upstream gameplay reports are not native/installed, full-game, save/reload or Supported acceptance. Removing registration preserves external files; managed lifecycle operations remain unavailable."
         }
       ],

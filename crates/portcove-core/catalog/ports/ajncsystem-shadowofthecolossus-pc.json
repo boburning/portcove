@@ -34,7 +34,7 @@
           "instruction": "Complete upstream updates, setup changes and repair outside an attached game session; the GUI updater can start an applier/successor. Close the actual game and all helpers before replacing files, retain independent recovery copies, then review/relink changed executable bytes. Let ordinary play end through the game before closing the tracked player. Forced termination is not proof of save flush or child quiescence. Portcove does not adopt updater successors or own runtime replacement."
         },
         {
-          "title": "Keep the runtime and original-game limits visible",
+          "title": "Check this release’s limits and required notices",
           "instruction": "Preserve the project GPL notice and all component/NVIDIA notices; runtime licensing grants no rights to the original game or console firmware. Upstream performance, ending and GPU reports are attributable upstream claims. Maximum-texture crashes, some AMD GCN graphics problems and experimental frame generation/60FPS limitations remain in the selected upstream instructions. No Portcove gameplay, save/reload, installed-app or Supported acceptance is claimed. Removing registration preserves every external file; managed installation, update, rollback, backup and deletion are not offered."
         }
       ],

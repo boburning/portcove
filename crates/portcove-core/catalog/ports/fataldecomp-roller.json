@@ -14,7 +14,7 @@
       "steps": [
         {
           "title": "Prepare the complete native Windows copy",
-          "instruction": "Follow the upstream native release guide and keep the complete Windows x86-64 folder in a writable location. This guide is based on the dev release and selected source, not a stable certification. Keep its runtime dependencies, MIDI assets and notices with the player. Project GPLv3 and separate SDL, SDL_image, WildMIDI, libcdio and other component terms do not grant rights to original retail assets. Browser/demo packaging is a separate route."
+          "instruction": "Follow the upstream native release guide and keep the complete Windows x86-64 folder in a writable location. This guide follows the development release and selected source; stability is not confirmed. Keep its runtime dependencies, MIDI assets and notices with the player. Project GPLv3 and separate SDL, SDL_image, WildMIDI, libcdio and other component terms do not grant rights to original retail assets. Browser/demo packaging is a separate route."
         },
         {
           "title": "Import your own retail game assets with upstream",
@@ -30,7 +30,7 @@
         }
       ],
       "warnings": [
-        "Public provider digests and pinned source were retained; package bytes/layout, dependency loading, native import, gameplay, original-versus-recompiled parity and real saves were not inspected or executed. Other platforms and browser freeware demo do not qualify this Windows route."
+        "The recorded evidence includes the provider’s file hashes and a specific source revision. Portcove has not inspected the package contents or checked dependency loading, native import, gameplay, equivalence to the original game or saving. Results from other platforms and the browser freeware demo do not establish that this Windows version works."
       ],
       "help_url": "https://github.com/FatalDecomp/ROLLER#readme"
     }

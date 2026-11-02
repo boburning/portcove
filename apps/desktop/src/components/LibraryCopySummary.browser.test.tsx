@@ -158,7 +158,7 @@ it("names the recorded installation and source paths without promising relocatio
     expect(host.textContent).toContain(value);
   expect(host.textContent).toContain("1 saved file location will stay unchanged.");
   expect(host.textContent).toContain(
-    "Copying Portcove game-file folder contents does not redirect these saved locations.",
+    "Copying these files does not update their saved locations. Keep the originals until you choose the new locations.",
   );
   expect(host.textContent).toContain(
     "Original game files, saves, backups and artwork remain in place.",

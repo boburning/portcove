@@ -4,7 +4,7 @@
     "id": "open-halo-2-andrewnakas-halo-2",
     "name": "Halo 2 — Open Halo 2 (andrewnakas)",
     "original_game_title": "Halo 2",
-    "summary": "README describes launch and online room/OpenLive routes; console640x480 and DSP reverb absent. No complete campaign claim. Mac/Linux/browser planned only. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The README describes launch and online-room/OpenLive procedures. Console 640×480 output and DSP reverb are absent, and no complete campaign is claimed. Mac, Linux and browser versions are planned only. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/andrewnakas/openhalo2",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Original retail Xbox disc only; Redump ISO/XISO or extracted default.xbe. Launcher verifies one retail revision; exact accepted fingerprint still needs release manifest read."
+          "instruction": "Use your own original retail Xbox disc as Redump ISO, XISO or extracted default.xbe. The launcher checks one supported retail revision. This guide does not include its exact accepted fingerprint; check the project’s release manifest before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release OpenHalo2.exe imports disc and locally lifts/compiles halo2_recomp.exe. Bundled LLVM/lifter; Microsoft CRT/SDK libraries from existing VS or licensed xwin download. OpenGL3.3."
+          "instruction": "Run OpenHalo2.exe to import your own disc and generate and compile halo2_recomp.exe locally. LLVM and the code-generation tool are bundled. Supply Microsoft CRT/SDK libraries from an existing Visual Studio installation or the documented licensed xwin download. OpenGL3.3 is required."
         }
       ],
       "warnings": [
-        "README describes launch and online room/OpenLive routes; console640x480 and DSP reverb absent. No complete campaign claim. Mac/Linux/browser planned only.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The README describes launch and online-room/OpenLive procedures. Console 640×480 output and DSP reverb are absent, and no complete campaign is claimed. Mac, Linux and browser versions are planned only.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/andrewnakas/openhalo2"
     },

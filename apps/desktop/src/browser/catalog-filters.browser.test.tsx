@@ -256,15 +256,15 @@ it("keeps host, setup method and membership on one context through details and r
     .element(await filterChoice("Linux (0)"))
     .not.toHaveAttribute("aria-disabled", "true");
   await expect
-    .element(await filterChoice("Portable upstream package (0)"))
+    .element(await filterChoice("Download and install (0)"))
     .not.toHaveAttribute("aria-disabled", "true");
-  await userEvent.click(await filterChoice("Portable upstream package (0)"));
+  await userEvent.click(await filterChoice("Download and install (0)"));
   await closeFilters();
   await expect
     .element(page.getByRole("heading", { name: "No matching games", exact: true }))
     .toBeInTheDocument();
   await openAdvancedFilters("Filters (3)");
-  await expect.element(await filterChoice("Portable upstream package (0)")).toBeChecked();
+  await expect.element(await filterChoice("Download and install (0)")).toBeChecked();
   await userEvent.click(await filterChoice("Original disc referenced at launch (1)"));
   await closeFilters();
   expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(1);
@@ -279,7 +279,7 @@ it("keeps host, setup method and membership on one context through details and r
   ).toContain("Original disc referenced at launch");
   await userEvent.click(roleButton("Back to catalog"));
   await expect.element(roleButton("Remove For this device filter")).toBeInTheDocument();
-  await expect.element(roleButton("Remove Portable upstream package filter")).toBeInTheDocument();
+  await expect.element(roleButton("Remove Download and install filter")).toBeInTheDocument();
   expect(invoke).not.toHaveBeenCalled();
 }, 60_000);
 it.each(["dark", "light"])(

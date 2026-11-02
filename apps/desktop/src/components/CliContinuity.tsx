@@ -138,9 +138,8 @@ function CliContinuityView(model: ReturnType<typeof useCliContinuity>) {
       <p>{disclosure}</p>
       {!installed && !stagedOnly && !useInPlace && model.channel === "beta" && (
         <p>
-          This command uses the compatible beta spelling: beta selects Preview. The selected CLI's
-          preview input support has not been verified, so the copied command retains beta for
-          compatibility.
+          The command uses beta for the Preview channel. The selected CLI's preview input support
+          has not been verified, so the copied command retains beta for compatibility.
         </p>
       )}
       <details>
@@ -233,7 +232,7 @@ function cliPresentation(port: PortDefinition, status: PortStatus | undefined) {
   const title = installed
     ? "Launch from another app"
     : stagedOnly
-      ? "Activate staged version"
+      ? "Use the prepared version"
       : "Set up from the command line";
   const copyLabel = installed
     ? "Copy launch command"

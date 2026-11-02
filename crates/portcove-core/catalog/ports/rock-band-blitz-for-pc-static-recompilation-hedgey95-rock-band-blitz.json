@@ -4,7 +4,7 @@
     "id": "rock-band-blitz-for-pc-static-recompilation-hedgey95-rock-band-blitz",
     "name": "Rock Band Blitz — Rock Band Blitz for PC (static recompilation) (hedgey95)",
     "original_game_title": "Rock Band Blitz",
-    "summary": "Songs reportedly play start to finish with 3D/audio. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Songs reportedly play start to finish with 3D/audio. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/hedgey95/rock-band-blitz-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -17,12 +17,12 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Setup.cmd obtains tools/recompiles from own RockBandBlitz package; player supplies song keys from own console."
+          "instruction": "Run Setup.cmd with your own Rock Band Blitz package. It downloads the tools and recompiles locally. Supply song keys from your own console."
         }
       ],
       "warnings": [
         "Songs reportedly play start to finish with 3D/audio.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/hedgey95/rock-band-blitz-recomp"
     },

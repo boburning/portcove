@@ -47,7 +47,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are independently permitted to use. No acquired-source-to-binary, gameplay, real-save, installed-client, Supported or protected acceptance is established. Preserve every original, runtime, save, setting, mod, cache, backup and custom root; another executable can share data."
+        "Use only a copy and components you are independently permitted to use. Portcove has not confirmed that the installed player matches the source, or tested gameplay, saving or installed behavior. Preserve every original, runtime, save, setting, mod, cache, backup and custom location; another executable can share the same data."
       ]
     },
     "download_block_reason": "Fresh bundled-package acquisition remains held for the separately excluded launcher artwork scope in assets/NOTICE.md: boxart.jpg, logo.png and rekhcom.ico belong to Square Enix/Disney and the source-code licence explicitly does not apply. Use only an independently permitted existing copy. Resume fresh acquisition with applicable permission for these exact components or a reviewed compatible package resolving that scope; CC0 source terms do not clear them."

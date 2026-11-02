@@ -3,7 +3,7 @@
   "listing": {
     "id": "arx-fatalis-arx-libertatis",
     "name": "Arx Fatalis (Arx Libertatis)",
-    "summary": "Windows prepared-player route: use a complete permitted Arx Libertatis1.2.1 copy after upstream-supported original/demo data preparation. Preserve separate data, user and config roots and existing migration choices. Core offers nonowning registration/Play; upstream owns setup, profile writes and replacement, without original or managed save qualification.",
+    "summary": "Use a complete Arx Libertatis 1.2.1 Windows player prepared with your own supported Arx Fatalis or permitted demo files. Keep the actual data, saves and configuration locations; you and the project manage this external copy and its updates.",
     "original_game_title": "Arx Fatalis",
     "project_url": "https://github.com/arx/ArxLibertatis",
     "issue_number": 2554,
@@ -38,14 +38,14 @@
           "instruction": "Preserve complete runtime, original/demo data, actual user/config/data roots, cfg.ini, saves, screenshots, mods, logs, crash reports and unknown/custom/legacy files. First use can lowercase used files in the user tree; startup prunes old crash reports and writes logs. Keep a recoverable old copy before those upstream operations. No actual save roundtrip or harmless read-only startup is promised. Engine GPL3+ and component/additional terms remain separate from original data rights."
         },
         {
-          "title": "Keep replacement and removal ownership clear",
-          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          "title": "Update the game and remove its registration",
+          "instruction": "Close every running copy before changing external files. You manage setup, game replacement, profile changes, data migration and recovery. Keep the working game version and every data folder, update it with the project’s tools, then review and select the changed executable before choosing Play. Portcove monitors only the process you selected and agreed to launch. It does not prevent other copies from running, restrict file access or take over unrelated helpers or replacement processes. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or deletion."
         }
       ],
       "warnings": [
-        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
-        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
-        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+        "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
     }
   },

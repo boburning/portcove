@@ -29,11 +29,11 @@
           "instruction": "Use your own Monster Hunter Portable 3rd HD Ver. NPJB-40001 original. The PS3 HD release contains the PSP UMD image that this player uses; do not substitute the ordinary PSP release or feed it a whole PS3-format disc image. Complete normal upstream setup before attachment. The selected source checks the disc ID and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then checks the prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. This does not authenticate every disc byte. Portcove obtains no original, key or preparation tool and does not run installation or generation."
         },
         {
-          "title": "Attach the actual native player",
+          "title": "Add the native game player",
           "instruction": "Select Yakumo.exe in its complete creating Windows folder, keeping its matching overlay libraries, FFmpeg DLLs, fonts and resources. Use that folder as working directory and no extra arguments for a normal already-prepared copy. Retain supported literal --data-dir or existing game-directory arguments only if that working copy already uses them; do not silently change the creating data or save roots."
         },
         {
-          "title": "Review the attachment and choose Play separately",
+          "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
         },
         {

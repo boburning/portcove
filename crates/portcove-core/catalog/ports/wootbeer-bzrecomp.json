@@ -3,7 +3,7 @@
   "listing": {
     "id": "wootbeer-bzrecomp",
     "name": "Battlezone: Rise of the Black Dogs (BZRecomp)",
-    "summary": "Upstream route: Upstream runtime package for BZRecomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream modernization beta. Full-game/multiplayer coverage unverified here; N64 RiseOfBlackDogs is not arcade Battlezone. Windows/Linux beta packages; distinguish arcade Battlezone and existing source ports by N64 edition. Upstream platforms: Windows/Linux N64Recomp/RT64 beta. Exact OS minimums/CPU coverage beyond selected docs Unknown. Original data: N64 BattlezoneRiseBlackDogs USA own ROM. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "A Battlezone: Rise of the Black Dogs N64 modernization beta, separate from arcade Battlezone and its existing source ports. Windows/Linux N64Recomp/RT64 packages are documented; complete-game, multiplayer, exact OS minimums and CPU coverage are unconfirmed. Use your own supported USA N64 ROM. Exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Battlezone: Rise of the Black Dogs",
     "project_url": "https://github.com/wootbeer/bzrecomp",
     "platforms": [],

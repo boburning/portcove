@@ -15,11 +15,11 @@
       "steps": [
         {
           "title": "Supply both exact owned games",
-          "instruction": "This is one fused product, not a complete alternate Sculptor's Cut recreation. Supply your own ClayFighter63⅓ USA and ClayFighter:Sculptor's Cut USA ROMs. After normalization to big-endian z64 their SHA256 values are357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07 and9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f respectively. Keep both originals separately. Other regions/revisions and modified ROMs are unsupported; supported byte orders or a single-ROM ZIP are handled by upstream preparation."
+          "instruction": "This combines ClayFighter63⅓ gameplay with Sculptor's Cut donor characters; it does not recreate all of Sculptor's Cut. Supply your own ClayFighter63⅓ USA and ClayFighter:Sculptor's Cut USA ROMs. After normalization to big-endian z64, their SHA256 values must be 357f26c6cd72559c5c05e8c2df46369624630dbcb1c02b3b6f3338f6ac79af07 and 9ccebc317b7ee892be3bdc0d1c8ae46687995908ed51ebd58d6855e5e25abd7f, respectively. Keep both originals separately. Other regions, revisions and modified ROMs are unsupported. Upstream preparation handles supported byte orders or a single-ROM ZIP."
         },
         {
           "title": "Complete permitted upstream asset installation",
-          "instruction": "Use a complete v2.1.1 Windows x86-64 copy and components you are independently permitted to use. The GPL licence for authored port code does not grant packaged branding, depicted original characters or the separately supplied title announcement. With Windows10/11x64, SSSE3/SSE4.1 CPU and current Vulkan drivers, finish Install Assets.vbs outside Portcove. The upstream Python runtime is included; the installer verifies both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
+          "instruction": "Use a complete v2.1.1 Windows x86-64 copy and components you are independently permitted to use. The GPL licence for authored port code does not grant rights to packaged branding, depicted original characters or the separately supplied title announcement. On Windows 10/11 x64 with an SSSE3/SSE4.1 CPU and current Vulkan drivers, run Install Assets.vbs outside Portcove and finish asset installation. The included Python runtime checks both inputs and creates local imported files. Keep all supplied DLLs, configuration, notices and assets together."
         },
         {
           "title": "Select the prepared native player",

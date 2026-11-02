@@ -4,7 +4,7 @@
     "id": "pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen",
     "name": "ABEL: Shin Mokushiroku Taisen — pc-abelsmt (vs-sr-dev)",
     "original_game_title": "ABEL: Shin Mokushiroku Taisen",
-    "summary": "Research project. Opening/ending/firstroom parity, CPU35%speed visualestimate; firstdungeon/save/Englishtranslation pending. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. The project reports matching opening, ending and first-room behaviour, with a visual estimate of 35% CPU speed. First dungeon, saving and English translation remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-abelsmt",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "FM Towns Japan ABEL MTC1137 own20-track disc plus ownfontROM. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own Japanese FM Towns ABEL MTC1137 disc with all 20 tracks, plus your own font ROM. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "fmtownskit disc extraction,tools/recomp.sh translates OPNG/ABEL/ENDG/TBIOS; build/rt/abel. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Extract your own disc with fmtownskit, then use tools/recomp.sh to translate OPNG, ABEL, ENDG and TBIOS. Start build/rt/abel. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "Opening/ending/firstroom parity, CPU35%speed visualestimate; firstdungeon/save/Englishtranslation pending. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports matching opening, ending and first-room behaviour, with a visual estimate of 35% CPU speed. First dungeon, saving and English translation remain unfinished. Portcove has not confirmed setup or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-abelsmt"
     },

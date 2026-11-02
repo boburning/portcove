@@ -47,7 +47,7 @@ pub(crate) async fn adopt_port(
         .as_deref()
         .ok_or_else(|| PortcoveError::conflict("select one detected port before adoption"))?;
     let message = format!(
-        "Copy {} files ({} bytes) into Portcove for catalog port {}?\n\nOriginal: {}\nDestination: {}\nSaved-data destination: {}\n\n{}\n\nExisting versions and backups remain; the copy becomes active. The original folder will not be modified. {}",
+        "Copy {} files ({} bytes) for {} into Portcove?\n\nOriginal: {}\nDestination: {}\nSaved-data destination: {}\n\n{}\n\nExisting versions and backups remain; the copy becomes active. The original folder will not be modified. {}",
         preview.copy_plan.files.len(),
         preview.copy_plan.total_bytes,
         selected_port_id,
@@ -62,7 +62,7 @@ pub(crate) async fn adopt_port(
     );
     if !confirm_destructive(
         &app,
-        "Confirm existing installation copy",
+        "Copy existing installation?",
         message,
         "Copy into Portcove",
     )

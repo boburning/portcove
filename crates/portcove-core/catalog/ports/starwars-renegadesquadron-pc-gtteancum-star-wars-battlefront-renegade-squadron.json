@@ -4,7 +4,7 @@
     "id": "starwars-renegadesquadron-pc-gtteancum-star-wars-battlefront-renegade-squadron",
     "name": "Star Wars Battlefront: Renegade Squadron — StarWars-RenegadeSquadron-PC (GTTeancum)",
     "original_game_title": "Star Wars Battlefront: Renegade Squadron",
-    "summary": "Nativenativehost/staticgame runtime; exactgameplaycoverage requiresstatusguide. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project provides a native host and statically translated game runtime. The extent of working gameplay has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA ULUS10292 extracted PSP_GAME; BOOT.BIN SHA256 checked"
+          "instruction": "Use your own extracted USA ULUS10292 PSP_GAME folder. BOOT.BIN is checked against its expected SHA256."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "WindowsReleasezip reads ownextractedPSP_GAMEindata; source buildchecksBOOTidentity."
+          "instruction": "Windows release ZIP reads your own extracted PSP_GAMEindata; source the build checks BOOT identity."
         }
       ],
       "warnings": [
-        "Nativenativehost/staticgame runtime; exactgameplaycoverage requiresstatusguide.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project provides a native host and statically translated game runtime. The extent of working gameplay has not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC"
     },

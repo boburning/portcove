@@ -3,7 +3,7 @@
   "listing": {
     "id": "ssx-3-xbox-pal-ssx3-recomp-koenhendriks",
     "name": "SSX 3 (Xbox, PAL) (SSX3-recomp (koenhendriks))",
-    "summary": "Upstream route: Windows package; Linux source build Limits: Windows player route and Linux x86-64 race boot documented upstream; Asahi ARM64 reaches menus only. Upstream platforms: Windows x86-64 release package. Linux x86-64 source build playable upstream; Linux ARM64 Asahi source build reaches menus only. Native macOS unsupported. Original data: Own PAL original Xbox SSX 3 dump, with default.xbe and complete data/ directory. Point the launcher at that extracted root; it checks PAL identity. This koenhendriks implementation is separate from bertibertig and PS2 versions. Exact accepted XBE hash/revision is not stated in the reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "A separate koenhendriks SSX 3 implementation with a Windows x86-64 release and Linux x86-64 source-build racing reported by the project. Asahi Linux ARM64 reaches menus only; native macOS is unsupported. Use your own PAL original-Xbox dump with default.xbe and the complete data/ directory, and point the launcher at that extracted root for its PAL check. The bertibertig and PS2 versions have different inputs and players. Exact accepted XBE revision/hash is unspecified. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "SSX 3 (Xbox, PAL)",
     "project_url": "https://github.com/koenhendriks/SSX3-recomp",
     "platforms": [],

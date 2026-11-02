@@ -4,7 +4,7 @@
     "id": "peggle-2-for-mac-macprotips-peggle-2-xbox-live-arcade",
     "name": "Peggle 2 (Xbox Live Arcade) — Peggle 2 for Mac (macprotips)",
     "original_game_title": "Peggle 2 (Xbox Live Arcade)",
-    "summary": "Beta: upstream playedthrough on developerMacs; broaderMaccompatibilityunverified. NativeARM64Metal/CoreAudio; noWindows/Linuxclaim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "This beta is reported to have been played through on the developers’ Macs; compatibility with other Macs is unconfirmed. It runs natively on ARM64 with Metal and CoreAudio. Windows and Linux support are not claimed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/macprotips/peggle2-mac",
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own Peggle2 Xbox360 XBLApackage from Content/0000000000000000/58411436/000D0000/; exact package/XEX hashrequires importerread. Original data supplied locally."
+          "instruction": "Supply your own Xbox 360 Peggle 2 XBLA package from Content/0000000000000000/58411436/000D0000/. The exact accepted package and XEX hashes are not established here; check the project’s importer requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release Peggle2Installer onAppleSilicon macOS13+; drop ownpackage, installer locally builds app intoApplications using AppleCommandLineTools. Source setup.sh/install_game/regen.sh; CMake/Ninja/Python3."
+          "instruction": "Run the released Peggle2Installer on Apple Silicon macOS13+ and drop in your own package. It uses Apple Command Line Tools to build the app locally into Applications. For a source build, follow setup.sh, install_game and regen.sh with CMake, Ninja and Python3."
         }
       ],
       "warnings": [
-        "Beta: upstream playedthrough on developerMacs; broaderMaccompatibilityunverified. NativeARM64Metal/CoreAudio; noWindows/Linuxclaim.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "This beta is reported to have been played through on the developers’ Macs; compatibility with other Macs is unconfirmed. It runs natively on ARM64 with Metal and CoreAudio. Windows and Linux support are not claimed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/macprotips/peggle2-mac"
     },

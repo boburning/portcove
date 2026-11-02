@@ -118,14 +118,14 @@ function ActivityDiagnosticSession({
       {capture?.length === 0 && !pending && !failure && (
         <p>
           No retained diagnostic capture is available. Older activity details may be available in a
-          redacted support bundle in Settings.
+          redacted support report in Settings.
         </p>
       )}
       {capture?.map((phase) => (
         <section key={phase.phase}>
           <h3>
             {phase.phase === "preparation.extract"
-              ? "Preparing source data"
+              ? "Preparing game files"
               : phase.phase === "preparation.setup"
                 ? "Running game setup"
                 : "Preparation log"}

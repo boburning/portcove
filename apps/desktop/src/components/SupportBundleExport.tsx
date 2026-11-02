@@ -30,7 +30,7 @@ const reasonLabels = {
   record_limit: "Some records were omitted to stay within the record limit.",
   deadline: "Collection stopped at the time limit.",
   incomplete_record: "An incomplete trailing record was omitted.",
-  capture_incomplete: "The retained capture may be missing later output.",
+  capture_incomplete: "Some later setup messages may be missing.",
   capture_truncated: "Some captured output was omitted when the capture limit was reached.",
   capture_not_collected: "Retained preparation output was not collected.",
   bounded_snapshot: "Only a bounded snapshot was collected; older or later data may be missing.",
@@ -82,7 +82,7 @@ export function SupportBundleExport({
   return (
     <div className="support-bundle-export grid min-w-0 gap-3 [overflow-wrap:anywhere]">
       <p>
-        Create a support bundle with available recent logs, operation history, and system details.
+        Create a support report with available recent logs, operation history, and system details.
         Game-file contents and saved credentials are excluded, but paths, file names, and other
         metadata may remain. Review the bundle before sharing it.
       </p>
@@ -104,12 +104,12 @@ export function SupportBundleExport({
         className="justify-self-start"
         onClick={() => void create()}
       >
-        {pending ? "Creating support bundle…" : "Create support bundle"}
+        {pending ? "Creating support report…" : "Create a support report"}
       </Button>
       {pending && <p role="status">Collecting available diagnostics…</p>}
       {failure && (
         <div role="alert">
-          <p>Support bundle export did not finish. Try again.</p>
+          <p>Support report export did not finish. Try again.</p>
           {failure.presentation && (
             <>
               <p>{failure.presentation.summary}</p>
@@ -121,7 +121,7 @@ export function SupportBundleExport({
       {exported && (
         <>
           <p role="status">
-            Support bundle saved to{" "}
+            Support report saved to{" "}
             <code dir="ltr" className="[overflow-wrap:anywhere] [unicode-bidi:isolate]">
               {exported.path}
             </code>
@@ -137,12 +137,13 @@ export function SupportBundleExport({
           )}
           <details>
             <summary data-focusable className="[scroll-margin-block:var(--space-2)]">
-              View support bundle contents
+              View support report contents
             </summary>
             <p>
-              This is a bounded snapshot. Older or later activity and log output may be missing.
+              This report may not include every log entry or task. Older or later activity and log
+              output may be missing.
             </p>
-            <ul aria-label="Support bundle sections" className="grid gap-3 ps-5">
+            <ul aria-label="Support report sections" className="grid gap-3 ps-5">
               {exported.manifest.sections.map((section, index) => (
                 <li key={`${section.kind}:${section.entry ?? index}`}>
                   <strong>

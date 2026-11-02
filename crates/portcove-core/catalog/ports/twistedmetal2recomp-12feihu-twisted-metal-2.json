@@ -4,7 +4,7 @@
     "id": "twistedmetal2recomp-12feihu-twisted-metal-2",
     "name": "Twisted Metal 2 — TwistedMetal2Recomp (12feihu)",
     "original_game_title": "Twisted Metal 2",
-    "summary": "Research project. v0.1.0 early menus/in-game3D/audio/input, no full mission/playthrough; same-game family comparison required. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. v0.1.0 early menus/in-game3D/audio/input, no full mission/playthrough; same-game family comparison required. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/12feihu/TwistedMetal2Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SCUS-94306 own12-track CUE/BIN. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own USA SCUS-94306 CUE/BIN with all 12 tracks. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Owned-disc generation then CMake title build, launcher asks for own disc. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Generate code from your own disc and build the game target with CMake. The launcher also asks for your disc. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "v0.1.0 early menus/in-game3D/audio/input, no full mission/playthrough; same-game family comparison required. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The early v0.1.0 build reaches menus, in-game 3D, audio and input. A full mission or playthrough has not been established; results from another Twisted Metal 2 implementation do not establish that this one works. Portcove has not confirmed setup or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/12feihu/TwistedMetal2Recomp"
     },
